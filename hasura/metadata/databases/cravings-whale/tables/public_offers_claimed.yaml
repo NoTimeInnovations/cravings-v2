@@ -1,0 +1,13 @@
+table:
+  name: offers_claimed
+  schema: public
+object_relationships:
+  - name: offer
+    using:
+      foreign_key_constraint_on: offer_id
+  - name: partner
+    using:
+      foreign_key_constraint_on: partner_id
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id

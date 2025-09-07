@@ -1,0 +1,3 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- DROP FUNCTION IF EXISTS public.get_offers_near_location(double precision, double precision, integer, integer, integer);

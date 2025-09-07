@@ -1,0 +1,15 @@
+table:
+  name: captain
+  schema: public
+object_relationships:
+  - name: partner
+    using:
+      foreign_key_constraint_on: partner_id
+array_relationships:
+  - name: orders
+    using:
+      foreign_key_constraint_on:
+        column: captain_id
+        table:
+          name: orders
+          schema: public

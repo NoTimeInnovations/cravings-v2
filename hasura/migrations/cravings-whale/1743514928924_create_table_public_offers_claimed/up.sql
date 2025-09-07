@@ -1,0 +1,1 @@
+CREATE TABLE "public"."offers_claimed" ("id" uuid NOT NULL, "offer_id" uuid NOT NULL, "user_id" uuid NOT NULL, "partner_id" uuid NOT NULL, "claimed_time" date NOT NULL, PRIMARY KEY ("id") );COMMENT ON TABLE "public"."offers_claimed" IS E'offers claimed by an user';

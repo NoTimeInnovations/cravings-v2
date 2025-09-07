@@ -1,0 +1,48 @@
+CREATE FUNCTION public.get_offers_with_distance(
+  user_lat double precision,
+  user_lng double precision,
+  district_filter text DEFAULT NULL,
+  search_query text DEFAULT NULL,
+  limit_count integer DEFAULT 10,
+  offset_count integer DEFAULT 0
+)
+RETURNS TABLE (
+  id uuid,
+  partner_name text,
+  item_name text,
+  district text,
+  image_url text,
+  price integer,
+  created_at timestamptz,
+  coordinates geography,
+  distance double precision
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    id,
+    partner_name,
+    item_name,
+    district,
+    image_url,
+    price,
+    created_at,
+    coordinates,
+    ST_Distance(
+      coordinates,
+      ST_SetSRID(ST_MakePoint(user_lng, user_lat), 4326)::geography
+    ) AS distance
+  FROM public.common_offers
+  WHERE
+    (district_filter IS NULL OR district = district_filter)
+    AND
+    (
+      search_query IS NULL OR
+      partner_name ILIKE '%' || search_query || '%'
+      OR item_name ILIKE '%' || search_query || '%'
+    )
+  ORDER BY distance ASC
+  LIMIT limit_count
+  OFFSET offset_count;
+END;
+$$ LANGUAGE plpgsql STABLE;

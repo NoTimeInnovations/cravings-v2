@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /superadmin/
+Disallow: /test/
+
+Sitemap: https://www.cravings.live/sitemap/0.xml

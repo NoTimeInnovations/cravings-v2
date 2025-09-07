@@ -1,0 +1,18 @@
+table:
+  name: qr_codes
+  schema: public
+object_relationships:
+  - name: partner
+    using:
+      foreign_key_constraint_on: partner_id
+  - name: qr_group
+    using:
+      foreign_key_constraint_on: group_id
+array_relationships:
+  - name: orders
+    using:
+      foreign_key_constraint_on:
+        column: qr_id
+        table:
+          name: orders
+          schema: public

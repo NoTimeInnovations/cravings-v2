@@ -1,0 +1,57 @@
+[
+    {
+        "id": 1,
+        "name": "Starters & Appetizers",
+        "image": "/categories/Starters & Appetizers.png"
+    },
+    {
+        "id": 2,
+        "name": "Rice & Biryani Dishes",
+        "image": "/categories/Rice & Biryani Dishes.png"
+    },
+    {
+        "id": 3,
+        "name": "Breads & Indian Breads",
+        "image": "/categories/Breads & Indian Breads.png"
+    },
+    {
+        "id": 4,
+        "name": "Wraps & Shawarma",
+        "image": "/categories/Wraps & Shawarma.png"
+    },
+    {
+        "id": 5,
+        "name": "Chinese & Asian Dishes",
+        "image": "/categories/Chinese & Asian Dishes.png"
+    },
+    {
+        "id": 6,
+        "name": "Indian Main Course - Non-Veg & Veg",
+        "image": "/categories/Indian Main Course - Non-Veg & Veg.png"
+    },
+    {
+        "id": 7,
+        "name": "Mandhi Session",
+        "image": "/categories/Mandhi Session.png"
+    },
+    {
+        "id": 8,
+        "name": "Mojitos & Refreshing Drinks",
+        "image": "/categories/Mojitos & Refreshing Drinks.png"
+    },
+    {
+        "id": 9,
+        "name": "Shakes & Smoothies",
+        "image": "/categories/Shakes & Smoothies.png"
+    },
+    {
+        "id": 10,
+        "name": "Fresh Juices",
+        "image": "/categories/Fresh Juices.png"
+    },
+    {
+        "id": 11,
+        "name": "Hot Beverages",
+        "image": "/categories/Hot Beverages.png"
+    }
+]

@@ -1,0 +1,22 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "79SRZ6ZFQU.com.project.cravingsapp"
+        ],
+        "components": [
+          {
+            "/": "*",
+            "comment": "Matches all paths on the domain"
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "79SRZ6ZFQU.com.project.cravingsapp"
+    ]
+  }
+}

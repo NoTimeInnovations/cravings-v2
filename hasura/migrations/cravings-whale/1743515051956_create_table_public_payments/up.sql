@@ -1,0 +1,1 @@
+CREATE TABLE "public"."payments" ("id" uuid NOT NULL, "partner_id" uuid NOT NULL, "amount" integer NOT NULL, "payment_date" date NOT NULL, "reference" text NOT NULL, PRIMARY KEY ("id") );COMMENT ON TABLE "public"."payments" IS E'payments from partners';

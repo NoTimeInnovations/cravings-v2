@@ -1,0 +1,13 @@
+schema:
+  - https://curious-ferret-93.hasura.app/v1/graphql:
+      headers:
+        x-hasura-admin-secret: grK3WUtZW9mXGtYtjEqU44QfmFkWOMga9qQoa1uBvR03n7DXLkTodHH9cWDcN6cn
+documents: src/api/**/*.ts
+generates:
+  src/generated/graphql.ts:
+    plugins:
+      - typescript
+      - typescript-operations
+      - typescript-react-query
+    config:
+      fetcher: fetch

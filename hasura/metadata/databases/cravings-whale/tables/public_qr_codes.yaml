@@ -1,0 +1,7 @@
+table:
+  name: qr_codes
+  schema: public
+object_relationships:
+  - name: partner
+    using:
+      foreign_key_constraint_on: partner_id

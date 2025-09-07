@@ -1,0 +1,1 @@
+CREATE TABLE "offers"."offer" ("id" uuid NOT NULL, "name" text NOT NULL, "original_price" Integer NOT NULL, "offer_price" integer NOT NULL, "start_time" date NOT NULL, "end_time" date NOT NULL, "visitors" integer NOT NULL, PRIMARY KEY ("id") , UNIQUE ("id"));

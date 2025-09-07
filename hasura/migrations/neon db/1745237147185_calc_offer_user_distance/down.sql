@@ -1,0 +1,32 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- CREATE OR REPLACE FUNCTION calculate_offer_distance(
+--     user_latitude FLOAT,
+--     user_longitude FLOAT,
+--     offer_id BIGINT DEFAULT NULL
+-- )
+-- RETURNS FLOAT AS $$
+-- DECLARE
+--     distance FLOAT;
+--     user_geog GEOGRAPHY;
+-- BEGIN
+--     -- Create a geography point from the user's coordinates
+--     user_geog := ST_SetSRID(ST_MakePoint(user_longitude, user_latitude), 4326)::GEOGRAPHY;
+--
+--     -- Calculate distance in meters
+--     IF offer_id IS NOT NULL THEN
+--         -- Calculate distance for a specific offer
+--         SELECT ST_Distance(coordinates, user_geog) INTO distance
+--         FROM common_offers
+--         WHERE id = offer_id;
+--     ELSE
+--         -- Calculate distance for all offers (though this would normally be used in a query)
+--         -- This case might not be practical as the function returns a single value
+--         SELECT ST_Distance(coordinates, user_geog) INTO distance
+--         FROM common_offers
+--         LIMIT 1;
+--     END IF;
+--
+--     RETURN distance;
+-- END;
+-- $$ LANGUAGE plpgsql;

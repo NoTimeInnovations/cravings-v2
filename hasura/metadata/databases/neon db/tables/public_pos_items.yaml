@@ -1,0 +1,10 @@
+table:
+  name: pos_items
+  schema: public
+object_relationships:
+  - name: menu
+    using:
+      foreign_key_constraint_on: menu_id
+  - name: po
+    using:
+      foreign_key_constraint_on: pos_id

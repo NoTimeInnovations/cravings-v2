@@ -1,0 +1,67 @@
+table:
+  name: partners
+  schema: public
+array_relationships:
+  - name: categories
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: category
+          schema: public
+  - name: followers
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: followers
+          schema: public
+  - name: menus
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: menu
+          schema: public
+  - name: offers
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: offers
+          schema: public
+  - name: offers_claimeds
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: offers_claimed
+          schema: public
+  - name: payments
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: payments
+          schema: public
+  - name: qr_codes
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: qr_codes
+          schema: public
+  - name: reviews
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: reviews
+          schema: public
+  - name: table_orders
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: table_orders
+          schema: public

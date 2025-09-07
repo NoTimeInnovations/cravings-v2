@@ -1,0 +1,1 @@
+CREATE TABLE "public"."offers" ("id" uuid NOT NULL, "partner_id" uuid NOT NULL, "description" text NOT NULL, "image_url" text NOT NULL, "created_at" date NOT NULL, "enquiries" integer NOT NULL, "start_time" date NOT NULL, "end_time" date NOT NULL, "items_available" integer NOT NULL, "offer_price" integer NOT NULL, "menu_item_id" uuid NOT NULL, PRIMARY KEY ("id") );

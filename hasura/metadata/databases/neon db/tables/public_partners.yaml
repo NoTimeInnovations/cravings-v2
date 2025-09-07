@@ -1,0 +1,109 @@
+table:
+  name: partners
+  schema: public
+array_relationships:
+  - name: captains
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: captain
+          schema: public
+  - name: categories
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: category
+          schema: public
+  - name: followers
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: followers
+          schema: public
+  - name: menus
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: menu
+          schema: public
+  - name: offers
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: offers
+          schema: public
+  - name: offers_claimeds
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: offers_claimed
+          schema: public
+  - name: orders
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: orders
+          schema: public
+  - name: partner_payments
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: partner_payments
+          schema: public
+  - name: partner_subscriptions
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: partner_subscriptions
+          schema: public
+  - name: payments
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: payments
+          schema: public
+  - name: pos
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: pos
+          schema: public
+  - name: qr_codes
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: qr_codes
+          schema: public
+  - name: qr_groups
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: qr_groups
+          schema: public
+  - name: reviews
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: reviews
+          schema: public
+  - name: table_orders
+    using:
+      foreign_key_constraint_on:
+        column: partner_id
+        table:
+          name: table_orders
+          schema: public

@@ -1,0 +1,30 @@
+table:
+  name: orders
+  schema: public
+object_relationships:
+  - name: captainid
+    using:
+      manual_configuration:
+        column_mapping:
+          captain_id: id
+        insertion_order: null
+        remote_table:
+          name: captain
+          schema: public
+  - name: partner
+    using:
+      foreign_key_constraint_on: partner_id
+  - name: qr_code
+    using:
+      foreign_key_constraint_on: qr_id
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id
+array_relationships:
+  - name: order_items
+    using:
+      foreign_key_constraint_on:
+        column: order_id
+        table:
+          name: order_items
+          schema: public

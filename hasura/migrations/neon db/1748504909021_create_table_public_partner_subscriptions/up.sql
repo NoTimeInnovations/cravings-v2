@@ -1,0 +1,2 @@
+CREATE TABLE "public"."partner_subscriptions" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "partner_id" uuid NOT NULL, "joining_date" date NOT NULL, "expiry_date" date NOT NULL, "type" text NOT NULL, "plan" text NOT NULL, PRIMARY KEY ("id") , FOREIGN KEY ("partner_id") REFERENCES "public"."partners"("id") ON UPDATE restrict ON DELETE restrict, UNIQUE ("id"));
+CREATE EXTENSION IF NOT EXISTS pgcrypto;

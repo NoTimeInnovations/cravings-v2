@@ -1,0 +1,56 @@
+
+
+
+
+.swiper-slide {
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  font-size: 22px;
+  font-weight: bold;
+  color: #fff;
+  background-color: #fff;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+}
+
+.dark .swiper-slide {
+  background-color: #ffffff; /* zinc-900 */
+  border-color: #3f3f46; /* zinc-700 */
+}
+
+/*
+  This class will be applied to the scrollable div inside the card.
+  It hides the default browser scrollbar across different browsers.
+*/
+.card-scroll-content::-webkit-scrollbar {
+  display: none;
+}
+
+.card-scroll-content {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+
+/* #order-alert-modal-card scroll bar custom style  */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: #f1f1f1; 
+  border-radius: 10px;
+}
+ 
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: #aaaaaa; 
+  border-radius: 10px;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: #6f6f6f; 
+}

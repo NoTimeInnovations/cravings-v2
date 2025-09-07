@@ -1,0 +1,2 @@
+- "!include public_get_offers_near_location.yaml"
+- "!include public_get_offers_with_distance.yaml"

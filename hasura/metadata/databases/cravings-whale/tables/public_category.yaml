@@ -1,0 +1,15 @@
+table:
+  name: category
+  schema: public
+object_relationships:
+  - name: partner
+    using:
+      foreign_key_constraint_on: partner_id
+array_relationships:
+  - name: menus
+    using:
+      foreign_key_constraint_on:
+        column: category_id
+        table:
+          name: menu
+          schema: public

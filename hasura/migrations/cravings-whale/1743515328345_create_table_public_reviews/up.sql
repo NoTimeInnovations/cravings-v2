@@ -1,0 +1,1 @@
+CREATE TABLE "public"."reviews" ("id" uuid NOT NULL, "comment" text NOT NULL, "created_at" date NOT NULL, "menu_id" uuid, "partner_id" uuid, "rating" integer NOT NULL, "type" text NOT NULL, "user_id" uuid NOT NULL, PRIMARY KEY ("id") );COMMENT ON TABLE "public"."reviews" IS E'both store review and item review';

@@ -1,0 +1,1 @@
+CREATE TABLE "public"."partners" ("id" uuid NOT NULL, "name" text NOT NULL, "email" text NOT NULL, "store_name" text NOT NULL, "location" text NOT NULL, "status" text NOT NULL, "upi_id" text NOT NULL, "description" text NOT NULL, PRIMARY KEY ("id") );COMMENT ON TABLE "public"."partners" IS E'business partners';

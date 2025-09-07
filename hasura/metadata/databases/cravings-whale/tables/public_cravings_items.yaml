@@ -1,0 +1,3 @@
+table:
+  name: cravings_items
+  schema: public

@@ -1,0 +1,7 @@
+table:
+  name: partner_subscriptions
+  schema: public
+object_relationships:
+  - name: partner
+    using:
+      foreign_key_constraint_on: partner_id

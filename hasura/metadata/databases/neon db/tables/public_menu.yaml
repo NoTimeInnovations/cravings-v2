@@ -1,0 +1,46 @@
+table:
+  name: menu
+  schema: public
+object_relationships:
+  - name: category
+    using:
+      foreign_key_constraint_on: category_id
+  - name: partner
+    using:
+      foreign_key_constraint_on: partner_id
+array_relationships:
+  - name: offers
+    using:
+      foreign_key_constraint_on:
+        column: menu_item_id
+        table:
+          name: offers
+          schema: public
+  - name: order_items
+    using:
+      foreign_key_constraint_on:
+        column: menu_id
+        table:
+          name: order_items
+          schema: public
+  - name: pos_items
+    using:
+      foreign_key_constraint_on:
+        column: menu_id
+        table:
+          name: pos_items
+          schema: public
+  - name: reviews
+    using:
+      foreign_key_constraint_on:
+        column: menu_id
+        table:
+          name: reviews
+          schema: public
+  - name: stocks
+    using:
+      foreign_key_constraint_on:
+        column: menu_id
+        table:
+          name: stocks
+          schema: public

@@ -1,0 +1,5 @@
+-- Could not auto-generate a down migration.
+-- Please write an appropriate down migration for the SQL below:
+-- ALTER TABLE pos
+-- ALTER COLUMN total_amt TYPE numeric(10,2)
+-- USING total_amt::numeric(10,2);

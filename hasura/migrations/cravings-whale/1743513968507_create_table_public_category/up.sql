@@ -1,0 +1,1 @@
+CREATE TABLE "public"."category" ("id" uuid NOT NULL, "name" text NOT NULL, "patner_id" uuid NOT NULL, "cravings_category" text NOT NULL, PRIMARY KEY ("id") );COMMENT ON TABLE "public"."category" IS E'categories that a store have';

@@ -1,0 +1,39 @@
+table:
+  name: users
+  schema: public
+array_relationships:
+  - name: followers
+    using:
+      foreign_key_constraint_on:
+        column: user_id
+        table:
+          name: followers
+          schema: public
+  - name: offers_claimeds
+    using:
+      foreign_key_constraint_on:
+        column: user_id
+        table:
+          name: offers_claimed
+          schema: public
+  - name: payments
+    using:
+      foreign_key_constraint_on:
+        column: user_id
+        table:
+          name: payments
+          schema: public
+  - name: reviews
+    using:
+      foreign_key_constraint_on:
+        column: user_id
+        table:
+          name: reviews
+          schema: public
+  - name: table_orders
+    using:
+      foreign_key_constraint_on:
+        column: user_id
+        table:
+          name: table_orders
+          schema: public

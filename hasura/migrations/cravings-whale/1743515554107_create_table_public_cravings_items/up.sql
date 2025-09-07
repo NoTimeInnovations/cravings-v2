@@ -1,0 +1,1 @@
+CREATE TABLE "public"."cravings_items" ("id" uuid NOT NULL, "name" text NOT NULL, "category" text NOT NULL, "image_url" text NOT NULL, PRIMARY KEY ("id") );COMMENT ON TABLE "public"."cravings_items" IS E'all items in cravings, new items will be added while adding menu';

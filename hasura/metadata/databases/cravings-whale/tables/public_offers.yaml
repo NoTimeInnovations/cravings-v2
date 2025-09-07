@@ -1,0 +1,18 @@
+table:
+  name: offers
+  schema: public
+object_relationships:
+  - name: menu
+    using:
+      foreign_key_constraint_on: menu_item_id
+  - name: partner
+    using:
+      foreign_key_constraint_on: partner_id
+array_relationships:
+  - name: offers_claimeds
+    using:
+      foreign_key_constraint_on:
+        column: offer_id
+        table:
+          name: offers_claimed
+          schema: public

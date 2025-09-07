@@ -1,0 +1,1 @@
+CREATE TABLE "public"."menu" ("id" uuid NOT NULL, "name" text NOT NULL, "price" integer NOT NULL, "image_url" text NOT NULL, "category" text NOT NULL, "cravings_category" text NOT NULL, "partner_id" uuid NOT NULL, PRIMARY KEY ("id") );COMMENT ON TABLE "public"."menu" IS E'menus of each store';

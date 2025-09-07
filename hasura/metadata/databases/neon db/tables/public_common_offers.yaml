@@ -1,0 +1,9 @@
+table:
+  name: common_offers
+  schema: public
+computed_fields:
+  - name: distance_meters
+    definition:
+      function:
+        name: get_distance_from_user
+        schema: public

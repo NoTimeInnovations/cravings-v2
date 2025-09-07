@@ -1,0 +1,1 @@
+CREATE TABLE "public"."followers" ("id" uuid NOT NULL, "user_id" uuid NOT NULL, "partner_id" uuid NOT NULL, "phone" text NOT NULL, PRIMARY KEY ("id") );COMMENT ON TABLE "public"."followers" IS E'followers of each store';

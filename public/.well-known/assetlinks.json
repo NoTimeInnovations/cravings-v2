@@ -1,0 +1,18 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls",
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.notime.cravings",
+      "sha256_cert_fingerprints": [
+        "E6:07:D9:D0:4F:E7:46:5D:41:B3:67:EE:0D:B0:C3:56:F0:F9:C0:16:69:70:68:4C:40:A4:B1:57:46:E3:E1:47",
+        "60:35:14:B4:14:F4:DE:2A:C2:2E:0C:C3:A1:0F:A3:4E:2B:65:C5:B4:FD:E6:65:76:1C:80:13:37:2D:32:A3:29",
+        "24:E1:1A:BB:91:4B:52:31:70:3C:2C:24:FF:FB:79:D2:23:C6:A3:68:F1:F6:F7:B2:B1:7B:57:E6:4C:37:50:0D",
+        "3A:95:3B:5F:A4:10:58:84:4F:DD:F0:47:30:99:81:F1:4C:18:FB:CA:E9:29:88:1C:CC:F9:36:2D:35:9C:9D:52"
+      ]
+    }
+  }
+]

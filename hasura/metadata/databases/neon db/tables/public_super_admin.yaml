@@ -1,0 +1,3 @@
+table:
+  name: super_admin
+  schema: public
