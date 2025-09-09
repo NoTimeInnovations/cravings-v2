@@ -12,6 +12,15 @@ import React, { useEffect, useRef, useState } from "react";
 import { useReactToPrint } from "react-to-print";
 import "./print-css.css"; // Import the CSS for printing
 
+const UPDATE_PARTNER_ADDRESS_MUTATION = `
+mutation UpdatePartnerAddress($id: uuid!, $address: String!) {
+  update_partners_by_pk(pk_columns: {id: $id}, _set: {address: $address}) { 
+    id
+    address
+  }
+}
+`;
+
 const GET_ORDER_QUERY = `
 query GetOrder($id: uuid!) {
   orders_by_pk(id: $id) {
@@ -41,6 +50,7 @@ query GetOrder($id: uuid!) {
       phone
       gst_no
       name
+      address
     }
     gst_included
     extra_charges
@@ -113,19 +123,36 @@ const PrintOrderPage = () => {
         const qrCodeUrl = URL.createObjectURL(qrCodeBlob);
         let geoData = null;
 
-        try {
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${orders_by_pk.partner?.geo_location?.coordinates[1]}&lon=${orders_by_pk.partner?.geo_location?.coordinates[0]}`,
-            {
-              headers: {
-                "User-Agent": "Cravings/1.0 (https://cravings.live)",
-              },
+        if (
+          !orders_by_pk.partner.address &&
+          orders_by_pk.partner.geo_location
+        ) {
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${orders_by_pk.partner?.geo_location?.coordinates[1]}&lon=${orders_by_pk.partner?.geo_location?.coordinates[0]}`,
+              {
+                headers: {
+                  "User-Agent": "Cravings/1.0 (https://cravings.live)",
+                },
+              }
+            );
+            geoData = await response.json();
+
+            if(geoData?.display_name || geoData?.address?.state_district){
+              // Update partner address in the database
+              fetchFromHasura(UPDATE_PARTNER_ADDRESS_MUTATION, {
+                id: orders_by_pk.partner_id,
+                address:
+                  geoData?.display_name ||
+                  geoData?.address?.state_district ||
+                  "",
+              });
             }
-          );
-          geoData = await response.json();
-        } catch (err) {
-          console.error("Error fetching geo data:", err);
-          geoData = null;
+
+          } catch (err) {
+            console.error("Error fetching geo data:", err);
+            geoData = null;
+          }
         }
 
         const formattedOrder = {
@@ -228,7 +255,8 @@ const PrintOrderPage = () => {
                       ),
                     }))
                   : [],
-              customer_phone: formattedOrder.phone || formattedOrder.user?.phone,
+              customer_phone:
+                formattedOrder.phone || formattedOrder.user?.phone,
               customer_name: formattedOrder.user?.full_name,
               calculations: {
                 food_subtotal: foodSubtotal,
@@ -241,6 +269,7 @@ const PrintOrderPage = () => {
               currency: formattedOrder.partner?.currency || "$",
               gst_no: formattedOrder.partner?.gst_no,
               address:
+                formattedOrder.partner?.address ||
                 geoData?.name ||
                 geoData?.display_name ||
                 geoData?.address?.state_district ||
