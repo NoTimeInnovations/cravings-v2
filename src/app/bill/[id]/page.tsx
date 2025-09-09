@@ -128,15 +128,13 @@ const PrintOrderPage = () => {
           orders_by_pk.partner.geo_location
         ) {
           try {
+            // https://api.mapbox.com/search/geocode/v6/reverse?longitude=-77.050&latitude=38.889&access_token=pk.eyJ1IjoiYWJoaW4yazMiLCJhIjoiY20wbWh5ZHFwMDJwcjJqcHVjM3kyZjZlNyJ9.cagUWYMuMzLdJQhMbYB50A
             const response = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${orders_by_pk.partner?.geo_location?.coordinates[1]}&lon=${orders_by_pk.partner?.geo_location?.coordinates[0]}`,
-              {
-                headers: {
-                  "User-Agent": "Cravings/1.0 (https://cravings.live)",
-                },
-              }
+              `https://api.mapbox.com/search/geocode/v6/reverse?longitude=${orders_by_pk.partner?.geo_location?.coordinates[0]}&latitude=${orders_by_pk.partner?.geo_location?.coordinates[1]}&access_token=pk.eyJ1IjoiYWJoaW4yazMiLCJhIjoiY20wbWh5ZHFwMDJwcjJqcHVjM3kyZjZlNyJ9.cagUWYMuMzLdJQhMbYB50A`,
             );
             geoData = await response.json();
+
+            console.log(geoData);
 
             if(geoData?.display_name || geoData?.address?.state_district){
               // Update partner address in the database
@@ -176,6 +174,7 @@ const PrintOrderPage = () => {
           qrCode: qrCodeUrl,
           notes: orders_by_pk.notes || "",
           address:
+            orders_by_pk.partner?.address ||
             geoData?.name ||
             geoData?.display_name ||
             geoData?.address?.state_district ||
@@ -367,7 +366,7 @@ const PrintOrderPage = () => {
           {order?.partner?.store_name || "Restaurant"}
         </h2>
         <p className="text-center text-sm mb-1">
-          {[order?.partner?.district].filter(Boolean).join(", ") || ""}
+          {order?.address || ""}
         </p>
         <p className="text-center text-sm mb-1">
           {order?.partner?.phone ? `Tel: ${order?.partner.phone}` : ""}
