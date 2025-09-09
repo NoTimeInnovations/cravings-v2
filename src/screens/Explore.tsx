@@ -105,42 +105,68 @@ const Explore = ({
     setOffers(commonOffers);
   }, [commonOffers]);
 
-  const refreshLocation = () => {
+ const refreshLocation = () => {
     setIsRefreshingLocation(true);
     console.log("REFRESH LOCATION");
     toast.info("Updating your location...");
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          try {
-            if (latitude && longitude) {
-              await setLocationCookie(latitude, longitude);
-              toast.success("Location updated successfully");
-              window.location.reload();
+    
+    // Use your custom Geolocation API
+    if (window.flutterGeolocation) {
+        window.flutterGeolocation.getCurrentPosition()
+        .then(async (position) => {
+            const { latitude, longitude } = position.coords;
+            try {
+                if (latitude && longitude) {
+                    await setLocationCookie(latitude, longitude);
+                    toast.success("Location updated successfully");
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error("Error setting location:", error);
+                toast.error("Failed to update location");
+                setIsRefreshingLocation(false);
             }
-          } catch (error) {
-            console.error("Error setting location:", error);
-            toast.error("Failed to update location");
+        })
+        .catch((error) => {
+            console.error("Geolocation error:", error);
+            toast.error("Failed to access your location");
             setIsRefreshingLocation(false);
-          }
-        },
-        (error) => {
-          console.error("Geolocation error:", error);
-          toast.error("Failed to access your location");
-          setIsRefreshingLocation(false);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0, // Force fresh location
-        }
-      );
+        });
     } else {
-      toast.error("Geolocation is not supported by your browser");
-      setIsRefreshingLocation(false);
+        // Fallback for non-WebView environments (standard web browsers)
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const { latitude, longitude } = position.coords;
+                    try {
+                        if (latitude && longitude) {
+                            await setLocationCookie(latitude, longitude);
+                            toast.success("Location updated successfully");
+                            window.location.reload();
+                        }
+                    } catch (error) {
+                        console.error("Error setting location:", error);
+                        toast.error("Failed to update location");
+                        setIsRefreshingLocation(false);
+                    }
+                },
+                (error) => {
+                    console.error("Geolocation error:", error);
+                    toast.error("Failed to access your location");
+                    setIsRefreshingLocation(false);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0,
+                }
+            );
+        } else {
+            toast.error("Geolocation is not supported by your browser");
+            setIsRefreshingLocation(false);
+        }
     }
-  };
+};
 
   return (
     <div className="min-h-[100dvh] w-full bg-orange-50 px-3 py-3 relative pb-24">
