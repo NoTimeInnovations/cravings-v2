@@ -134,15 +134,14 @@ const PrintOrderPage = () => {
             );
             geoData = await response.json();
 
-            console.log(geoData);
+            console.log(geoData.features[0].properties.place_formatted);
 
-            if(geoData?.display_name || geoData?.address?.state_district){
+            if(geoData.features[0].properties.place_formatted){
+              console.log("Updating partner address to: ", geoData.features[0].properties.place_formatted);
               // Update partner address in the database
-              fetchFromHasura(UPDATE_PARTNER_ADDRESS_MUTATION, {
+              await fetchFromHasura(UPDATE_PARTNER_ADDRESS_MUTATION, {
                 id: orders_by_pk.partner_id,
-                address:
-                  geoData?.display_name ||
-                  geoData?.address?.state_district ||
+                address:geoData.features[0].properties.place_formatted ||
                   "",
               });
             }
@@ -175,9 +174,7 @@ const PrintOrderPage = () => {
           notes: orders_by_pk.notes || "",
           address:
             orders_by_pk.partner?.address ||
-            geoData?.name ||
-            geoData?.display_name ||
-            geoData?.address?.state_district ||
+           geoData.features[0].properties.place_formatted ||
             null,
         };
 
@@ -267,12 +264,7 @@ const PrintOrderPage = () => {
               },
               currency: formattedOrder.partner?.currency || "$",
               gst_no: formattedOrder.partner?.gst_no,
-              address:
-                formattedOrder.partner?.address ||
-                geoData?.name ||
-                geoData?.display_name ||
-                geoData?.address?.state_district ||
-                null,
+              address: formattedOrder.partner?.address
             },
             null,
             2
