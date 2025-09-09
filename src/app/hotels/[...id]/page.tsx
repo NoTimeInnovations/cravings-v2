@@ -153,29 +153,55 @@ const HotelPage = async ({
     }
   }
 
-  // Parse variant JSON for offers
+  // Parse variant JSON for offers + deduplicate same item/variant keeping highest discount
   if (hoteldata?.offers) {
-    hoteldata.offers = hoteldata.offers.map((offer: any) => {
+    const parsed = hoteldata.offers.map((offer: any) => {
       let parsedVariant = undefined;
       if (offer.variant) {
-        // Handle both string (JSON) and object formats for backward compatibility
         if (typeof offer.variant === 'string') {
           try {
-            const parsed = JSON.parse(offer.variant);
-            parsedVariant = Array.isArray(parsed) ? parsed[0] : parsed;
+            const parsedJson = JSON.parse(offer.variant);
+            parsedVariant = Array.isArray(parsedJson) ? parsedJson[0] : parsedJson;
           } catch (error) {
             console.error("Error parsing variant JSON in hotel data:", error);
           }
         } else {
-          // Direct object format
           parsedVariant = offer.variant;
         }
       }
       return {
         ...offer,
         variant: parsedVariant,
-      };
+      } as Offer;
     });
+
+    // Deduplicate by key: menu.id + variant.name (or base) and keep the best discount
+    const keyFor = (o: Offer) => `${o.menu?.id || ''}|${o.variant ? (o.variant as any).name : 'base'}`;
+    const getOriginal = (o: Offer) => (o.variant && (o.variant as any)?.price != null) ? Number((o.variant as any).price) : Number(o.menu?.price || 0);
+    const getPct = (o: Offer) => {
+      const orig = getOriginal(o);
+      const disc = Number(o.offer_price || 0);
+      if (!orig || orig <= 0) return 0;
+      return Math.round(((orig - disc) / orig) * 100);
+    };
+
+    const bestByKey = new Map<string, Offer>();
+    parsed.forEach((o) => {
+      const k = keyFor(o);
+      const existing = bestByKey.get(k);
+      if (!existing) {
+        bestByKey.set(k, o);
+      } else {
+        const better = getPct(o) > getPct(existing) ? o : existing;
+        bestByKey.set(k, better);
+      }
+    });
+
+    const deduped = Array.from(bestByKey.values());
+    if (parsed.length !== deduped.length) {
+      console.log("[Hotels Page] Deduped offers:", { before: parsed.length, after: deduped.length });
+    }
+    hoteldata.offers = deduped as any;
   }
 
   let filteredOffers: Offer[] = [];

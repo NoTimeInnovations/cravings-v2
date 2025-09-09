@@ -234,6 +234,72 @@ export const useOfferStore = create<OfferState>((set, get) => {
         const user = useAuthStore.getState().userData;
         if (!user) throw "Partner not found";
 
+        // Deduplicate single-item offers for same item/variant by keeping max discount
+        if (!offer.offer_group && offer.menu_id) {
+          const existingOffers = get().offers;
+          const sameItemOffers: Offer[] = existingOffers.filter((o) => {
+            const sameMenu = o.menu?.id === offer.menu_id;
+            const bothHaveVariant = Boolean(o.variant) && Boolean(offer.variant);
+            const neitherHasVariant = !o.variant && !offer.variant;
+            const sameVariant = bothHaveVariant
+              ? (o.variant as any)?.name === offer.variant?.name
+              : neitherHasVariant;
+            return sameMenu && sameVariant;
+          });
+
+          const computeExistingPct = (o: Offer): number => {
+            let original = 0;
+            if (o.variant && (o.variant as any)?.price) original = Number((o.variant as any).price) || 0;
+            else if (o.menu?.price != null) original = Number(o.menu.price) || 0;
+            const discounted = Number(o.offer_price) || 0;
+            if (!original || original <= 0) return 0;
+            return Math.round(((original - discounted) / original) * 100);
+          };
+
+          const computeNewPct = (): number => {
+            let original = 0;
+            if (offer.variant && offer.variant.price != null) original = Number(offer.variant.price) || 0;
+            else {
+              const { items } = useMenuStore.getState();
+              const mi = items.find((it) => it.id === offer.menu_id);
+              original = Number(mi?.price) || 0;
+            }
+            const discounted = Number(offer.offer_price) || 0;
+            if (!original || original <= 0) return 0;
+            return Math.round(((original - discounted) / original) * 100);
+          };
+
+          if (sameItemOffers.length > 0) {
+            const withPct = sameItemOffers.map((o) => ({ o, pct: computeExistingPct(o) }));
+            const bestExisting = withPct.reduce((acc, cur) => (cur.pct > acc.pct ? cur : acc), withPct[0]);
+            const newPct = computeNewPct();
+            console.log("[Offer Dedup] Existing:", withPct.map(x => ({ id: x.o.id, pct: x.pct })), "New pct:", newPct);
+
+            if (newPct > bestExisting.pct) {
+              const idsToDelete = sameItemOffers.map((o) => o.id);
+              console.log("[Offer Dedup] New is best. Deleting:", idsToDelete);
+              for (const id of idsToDelete) {
+                try { await fetchFromHasura(deleteOffer, { id }); } catch (e) { console.error("[Offer Dedup] delete fail", id, e); }
+              }
+              set({ offers: get().offers.filter((o) => !idsToDelete.includes(o.id)) });
+            } else {
+              const idsToDelete = sameItemOffers.filter((o) => o.id !== bestExisting.o.id).map((o) => o.id);
+              if (idsToDelete.length > 0) {
+                console.log("[Offer Dedup] Keeping:", bestExisting.o.id, "Deleting others:", idsToDelete);
+                for (const id of idsToDelete) {
+                  try { await fetchFromHasura(deleteOffer, { id }); } catch (e) { console.error("[Offer Dedup] delete fail", id, e); }
+                }
+                set({ offers: get().offers.filter((o) => !idsToDelete.includes(o.id)) });
+              } else {
+                console.log("[Offer Dedup] Existing best unique. Skipping new.");
+              }
+              toast.dismiss();
+              toast.info("Kept better existing offer for this item.");
+              return;
+            }
+          }
+        }
+
         let common = {
           created_at: new Date().toISOString(),
           end_time: new Date(offer.end_time).toISOString(),
