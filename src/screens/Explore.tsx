@@ -112,6 +112,7 @@ const Explore = ({
     
     // Use your custom Geolocation API
     if (window.flutterGeolocation) {
+        console.log("Using flutterGeolocation");
         window.flutterGeolocation.getCurrentPosition()
         .then(async (position) => {
             const { latitude, longitude } = position.coords;
@@ -135,6 +136,7 @@ const Explore = ({
     } else {
         // Fallback for non-WebView environments (standard web browsers)
         if (navigator.geolocation) {
+            console.log("Using standard geolocation");
             navigator.geolocation.getCurrentPosition(
                 async (position) => {
                     const { latitude, longitude } = position.coords;
