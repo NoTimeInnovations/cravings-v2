@@ -14,6 +14,7 @@ import React from "react";
 import SubscriptionManagement from "@/components/superAdmin/SubscriptionManagement";
 import QrManagement_v2 from "@/components/superAdmin/QrManagement_v2";
 import WhatsappGrpQrCodes from "@/components/superAdmin/WhatsappGrpQrCodes";
+import ReelAnalytics from "@/components/reelAnalytics/ReelAnalytics";
 
 type SearchParams = Promise<{ [key: string]: string | undefined }>;
 
@@ -97,6 +98,12 @@ const page = async (props: { searchParams: SearchParams }) => {
       name: "WhatsappGrp QrCodes",
       component: <WhatsappGrpQrCodes />,
       id: "whatsapp-qr-codes",
+    },
+    {
+      name : "Reel Analytics",
+      href : "/reel-analytics",
+      id: "reel-analytics",
+      component: null
     }
   ];
 
