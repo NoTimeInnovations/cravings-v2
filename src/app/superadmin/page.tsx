@@ -15,6 +15,7 @@ import SubscriptionManagement from "@/components/superAdmin/SubscriptionManageme
 import QrManagement_v2 from "@/components/superAdmin/QrManagement_v2";
 import WhatsappGrpQrCodes from "@/components/superAdmin/WhatsappGrpQrCodes";
 import ReelAnalytics from "@/components/reelAnalytics/ReelAnalytics";
+import ParnterPayments from "@/components/superAdmin/ParnterPayments";
 
 type SearchParams = Promise<{ [key: string]: string | undefined }>;
 
@@ -104,6 +105,11 @@ const page = async (props: { searchParams: SearchParams }) => {
       href : "/reel-analytics",
       id: "reel-analytics",
       component: null
+    },
+    {
+      name: "Partner Payment Sheet",
+      component: <ParnterPayments />,
+      id: "partner-payments",
     }
   ];
 
