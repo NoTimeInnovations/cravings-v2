@@ -18,11 +18,12 @@ interface Partner {
   phone: string;
   isPaid: boolean;
   status: string;
+  created_at: string;
 }
 
 const PartnersQuery = `
   query Partners {
-    partners {
+    partners(order_by: {created_at: desc}) {
       id
       store_name
       country_code
