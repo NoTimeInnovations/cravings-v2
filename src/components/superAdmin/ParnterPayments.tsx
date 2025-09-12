@@ -9,12 +9,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Search, Store, Phone } from 'lucide-react';
 import { FaRupeeSign } from 'react-icons/fa';
+import Link from 'next/link';
 
 interface Partner {
-  id: number;
+  id: string;
   store_name: string;
+  country_code: string;
   phone: string;
   isPaid: boolean;
+  status: string;
 }
 
 const PartnersQuery = `
@@ -22,17 +25,28 @@ const PartnersQuery = `
     partners {
       id
       store_name
+      country_code
       phone
+      isPaid
+      status
+    }
+  }
+`;
+
+const UpdatePartnerPaymentMutation = `
+  mutation UpdatePartnerPayment($id: uuid!, $isPaid: Boolean!) {
+    update_partners_by_pk(pk_columns: {id: $id}, _set: {isPaid: $isPaid}) {
+      id
       isPaid
     }
   }
 `;
 
-const UpdatePartnerMutation = `
-  mutation UpdatePartner($id: uuid!, $isPaid: Boolean!) {
-    update_partners_by_pk(pk_columns: {id: $id}, _set: {isPaid: $isPaid}) {
+const UpdatePartnerStatusMutation = `
+  mutation UpdatePartnerStatus($id: uuid!, $status: String!) {
+    update_partners_by_pk(pk_columns: {id: $id}, _set: {status: $status}) {
       id
-      isPaid
+      status
     }
   }
 `;
@@ -43,7 +57,8 @@ const PartnerPayments = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [updatingPaymentId, setUpdatingPaymentId] = useState<string | null>(null);
+  const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
 
   const fetchPartners = async () => {
     try {
@@ -59,10 +74,10 @@ const PartnerPayments = () => {
     }
   };
 
-  const updatePartner = async (id: number, isPaid: boolean) => {
+  const updatePartnerPayment = async (id: string, isPaid: boolean) => {
     try {
-      setUpdatingId(id);
-      await fetchFromHasura(UpdatePartnerMutation, { id, isPaid });
+      setUpdatingPaymentId(id);
+      await fetchFromHasura(UpdatePartnerPaymentMutation, { id, isPaid });
       // Update local state to reflect the change
       setPartners(prevPartners => 
         prevPartners.map(partner => 
@@ -70,12 +85,32 @@ const PartnerPayments = () => {
         )
       );
     } catch (err) {
-      setError('Failed to update partner');
+      setError('Failed to update partner payment status');
       console.error(err);
       // Revert the change in UI if the update fails
       fetchPartners();
     } finally {
-      setUpdatingId(null);
+      setUpdatingPaymentId(null);
+    }
+  };
+
+  const updatePartnerStatus = async (id: string, status: string) => {
+    try {
+      setUpdatingStatusId(id);
+      await fetchFromHasura(UpdatePartnerStatusMutation, { id, status });
+      // Update local state to reflect the change
+      setPartners(prevPartners => 
+        prevPartners.map(partner => 
+          partner.id === id ? {...partner, status} : partner
+        )
+      );
+    } catch (err) {
+      setError('Failed to update partner status');
+      console.error(err);
+      // Revert the change in UI if the update fails
+      fetchPartners();
+    } finally {
+      setUpdatingStatusId(null);
     }
   };
 
@@ -94,7 +129,7 @@ const PartnerPayments = () => {
     }
   };
 
-  const handleCheckboxChange = async (id: number, currentIsPaid: boolean) => {
+  const handlePaymentCheckboxChange = async (id: string, currentIsPaid: boolean) => {
     const newIsPaid = !currentIsPaid;
     
     // Optimistic UI update
@@ -111,7 +146,36 @@ const PartnerPayments = () => {
     );
     
     // Send update to server
-    await updatePartner(id, newIsPaid);
+    await updatePartnerPayment(id, newIsPaid);
+  };
+
+  const handleStatusCheckboxChange = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    
+    // Optimistic UI update
+    setPartners(prevPartners => 
+      prevPartners.map(partner => 
+        partner.id === id ? {...partner, status: newStatus} : partner
+      )
+    );
+    
+    setFilteredPartners(prevPartners => 
+      prevPartners.map(partner => 
+        partner.id === id ? {...partner, status: newStatus} : partner
+      )
+    );
+    
+    // Send update to server
+    await updatePartnerStatus(id, newStatus);
+  };
+
+  const formatPhoneNumber = (countryCode: string, phone: string) => {
+    return `${countryCode}${phone.trim()}`;
+  };
+
+  const handlePhoneClick = (countryCode: string, phone: string) => {
+    const formattedPhone = formatPhoneNumber(countryCode, phone);
+    window.location.href = `tel:${formattedPhone}`;
   };
 
   useEffect(() => {
@@ -132,11 +196,12 @@ const PartnerPayments = () => {
 
   const paidPartnersCount = partners.filter(p => p.isPaid).length;
   const unpaidPartnersCount = partners.length - paidPartnersCount;
+  const activePartnersCount = partners.filter(p => p.status === 'active').length;
+  const inactivePartnersCount = partners.length - activePartnersCount;
 
   if (loading) {
     return (
       <div className="p-6 space-y-6">
-        
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
@@ -172,7 +237,6 @@ const PartnerPayments = () => {
 
   return (
     <div className="p-6 space-y-6">
-
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -196,12 +260,12 @@ const PartnerPayments = () => {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Unpaid Partners</CardTitle>
-            <FaRupeeSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Active Partners</CardTitle>
+            <Store className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{unpaidPartnersCount}</div>
-            <p className="text-xs text-muted-foreground">Partners with pending payments</p>
+            <div className="text-2xl font-bold text-blue-600">{activePartnersCount}</div>
+            <p className="text-xs text-muted-foreground">Currently active partners</p>
           </CardContent>
         </Card>
         <Card>
@@ -222,7 +286,7 @@ const PartnerPayments = () => {
         <CardHeader>
           <CardTitle>Partner Management</CardTitle>
           <CardDescription>
-            View and manage partner payment statuses. Click the checkbox to update payment status.
+            View and manage partner payment and status. Click checkboxes to update.
           </CardDescription>
           <div className="relative mt-4 max-w-md">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -242,18 +306,32 @@ const PartnerPayments = () => {
                 <TableHead>Store Name</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead className="text-center">Payment Status</TableHead>
+                <TableHead className="text-center">Account Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredPartners.length > 0 ? (
                 filteredPartners.map(partner => (
-                  <TableRow key={partner.id}>
-                    <TableCell className="font-medium">{partner.store_name}</TableCell>
+                  <TableRow 
+                    key={partner.id} 
+                    className={partner.status !== 'active' ? 'bg-red-50 hover:bg-red-100' : ''}
+                  >
+                    <TableCell className="font-medium">
+                      <Link 
+                        href={`/hotels/${partner.id}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        {partner.store_name}
+                      </Link>
+                    </TableCell>
                     <TableCell>
-                      <div className="flex items-center">
+                      <div 
+                        className="flex items-center cursor-pointer hover:text-blue-600"
+                        onClick={() => handlePhoneClick(partner.country_code, partner.phone)}
+                      >
                         <Phone className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                        {partner.phone}
+                        {formatPhoneNumber(partner.country_code, partner.phone)}
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
@@ -264,24 +342,47 @@ const PartnerPayments = () => {
                         {partner.isPaid ? "Paid" : "Unpaid"}
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-center">
+                      <Badge 
+                        variant={partner.status === 'active' ? "default" : "secondary"} 
+                        className={partner.status === 'active' ? "bg-blue-100 text-blue-800 hover:bg-blue-100" : "bg-red-100 text-red-800 hover:bg-red-100"}
+                      >
+                        {partner.status === 'active' ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end">
-                        <Checkbox
-                          checked={partner.isPaid}
-                          onCheckedChange={() => handleCheckboxChange(partner.id, partner.isPaid)}
-                          disabled={updatingId === partner.id}
-                          className="h-5 w-5"
-                        />
-                        {updatingId === partner.id && (
-                          <div className="ml-2 animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                        )}
+                      <div className="flex justify-end space-x-4">
+                        <div className="flex flex-col items-center">
+                          <span className="text-xs text-muted-foreground mb-1">Payment</span>
+                          <Checkbox
+                            checked={partner.isPaid}
+                            onCheckedChange={() => handlePaymentCheckboxChange(partner.id, partner.isPaid)}
+                            disabled={updatingPaymentId === partner.id}
+                            className="h-5 w-5"
+                          />
+                          {updatingPaymentId === partner.id && (
+                            <div className="mt-1 animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <span className="text-xs text-muted-foreground mb-1">Status</span>
+                          <Checkbox
+                            checked={partner.status === 'active'}
+                            onCheckedChange={() => handleStatusCheckboxChange(partner.id, partner.status)}
+                            disabled={updatingStatusId === partner.id}
+                            className="h-5 w-5"
+                          />
+                          {updatingStatusId === partner.id && (
+                            <div className="mt-1 animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center h-24">
+                  <TableCell colSpan={5} className="text-center h-24">
                     <div className="flex flex-col items-center justify-center">
                       <Search className="h-8 w-8 text-muted-foreground mb-2" />
                       <p>No partners found</p>
