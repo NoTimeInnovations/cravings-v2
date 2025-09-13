@@ -54,6 +54,7 @@ export interface CommonOffer {
   geoData? : any;
   partner_id?: string | null;
   partner?: Partner | null;
+  detailed_location?: string | null;
 }
 
 export const KERALA_DISTRICTS = [

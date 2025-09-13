@@ -135,6 +135,17 @@ const ExploreDetail = ({
                   </div>
                 )}
 
+                {
+                  commonOffer?.detailed_location && (
+                    <div className="flex items-center gap-3 text-gray-600 text-sm mt-2">
+                      <MapPin className="w-5 h-5 text-orange-500 " />
+                      <span className="capitalize font-medium flex-1">
+                        {commonOffer.detailed_location}
+                      </span>
+                    </div>
+                  )
+                }
+
                 {commonOffer?.partner?.phone && (
                   <Link
                     href={`tel:${commonOffer.partner?.country_code}${commonOffer.partner.phone}`}

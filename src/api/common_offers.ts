@@ -182,6 +182,7 @@ query GetCommonOfferById($id: uuid!, $user_id: String) {
     image_url
     view_count
     image_urls
+    detailed_location
     partner_id
     no_of_likes
     no_of_views
