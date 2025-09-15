@@ -63,7 +63,10 @@ export const EditOrderModal = () => {
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [showExtraItems, setShowExtraItems] = useState(false);
   const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([]);
-  const [newExtraCharge, setNewExtraCharge] = useState<ExtraCharge>({ name: "", amount: 0 });
+  const [newExtraCharge, setNewExtraCharge] = useState<ExtraCharge>({
+    name: "",
+    amount: 0,
+  });
   const [qrGroup, setQrGroup] = useState<any>(null);
   const [orderNote, setOrderNote] = useState<string>("");
 
@@ -127,7 +130,7 @@ export const EditOrderModal = () => {
         setTotalPrice(orderData.total_price);
         setTableNumber(orderData.table_number);
         setPhone(orderData.phone);
-        
+
         // Load extra charges if they exist
         if (orderData.extra_charges) {
           setExtraCharges(orderData.extra_charges);
@@ -161,8 +164,11 @@ export const EditOrderModal = () => {
       (sum, item) => sum + item.menu.price * item.quantity,
       0
     );
-    const extraChargesTotal = extraCharges.reduce((sum, charge) => sum + charge.amount, 0);
-    
+    const extraChargesTotal = extraCharges.reduce(
+      (sum, charge) => sum + charge.amount,
+      0
+    );
+
     // Calculate QR group extra charges
     const qrGroupCharges = qrGroup?.extra_charge
       ? getExtraCharge(
@@ -171,7 +177,7 @@ export const EditOrderModal = () => {
           qrGroup.charge_type || "FLAT_FEE"
         )
       : 0;
-      
+
     const gstAmount = gstPercentage > 0 ? (subtotal * gstPercentage) / 100 : 0;
     return subtotal + extraChargesTotal + qrGroupCharges + gstAmount;
   };
@@ -182,11 +188,11 @@ export const EditOrderModal = () => {
       setQrGroup(null);
       return;
     }
-    
+
     try {
       const partnerId = (userData as Partner)?.id;
       if (!partnerId) return;
-      
+
       const qrGroupData = await getQrGroupForTable(partnerId, tableNum);
       setQrGroup(qrGroupData);
     } catch (error) {
@@ -249,7 +255,7 @@ export const EditOrderModal = () => {
     setTimeout(() => {
       window.scrollTo({
         top: document.body.scrollHeight,
-        behavior: 'smooth'
+        behavior: "smooth",
       });
     }, 100);
   };
@@ -293,8 +299,12 @@ export const EditOrderModal = () => {
         (sum, item) => sum + item.menu.price * item.quantity,
         0
       );
-      const extraChargesTotal = extraCharges.reduce((sum, charge) => sum + charge.amount, 0);
-      const gstAmount = gstPercentage > 0 ? (subtotal * gstPercentage) / 100 : 0;
+      const extraChargesTotal = extraCharges.reduce(
+        (sum, charge) => sum + charge.amount,
+        0
+      );
+      const gstAmount =
+        gstPercentage > 0 ? (subtotal * gstPercentage) / 100 : 0;
       const finalTotal = subtotal + extraChargesTotal + gstAmount;
 
       // Update order
@@ -313,6 +323,11 @@ export const EditOrderModal = () => {
           order_id: order?.id,
           menu_id: item.menu_id,
           quantity: item.quantity,
+          item: {
+            name: item.menu.name,
+            price: item.menu.price,
+            id: item.menu_id,
+          },
         })),
       });
 
@@ -340,27 +355,29 @@ export const EditOrderModal = () => {
             is_available: true,
             created_at: new Date().toISOString(),
             priority: 0,
-            offers: [{
-              offer_price: item.menu.price,
-              created_at: new Date().toISOString(),
-              end_time: new Date(Date.now() + 86400000).toISOString(), // 24 hours from now
-              start_time: new Date().toISOString(),
-              enquiries: 0,
-              items_available: 0,
-              id: "",
-              menu: {
-                id: item.menu_id,
-                name: item.menu.name,
-                price: item.menu.price,
-                category: {
-                  name: "",
-                  id: "",
-                  priority: 0,
+            offers: [
+              {
+                offer_price: item.menu.price,
+                created_at: new Date().toISOString(),
+                end_time: new Date(Date.now() + 86400000).toISOString(), // 24 hours from now
+                start_time: new Date().toISOString(),
+                enquiries: 0,
+                items_available: 0,
+                id: "",
+                menu: {
+                  id: item.menu_id,
+                  name: item.menu.name,
+                  price: item.menu.price,
+                  category: {
+                    name: "",
+                    id: "",
+                    priority: 0,
+                  },
+                  description: "",
+                  image_url: "",
                 },
-                description: "",
-                image_url: "",
-              }
-            }]
+              },
+            ],
           })),
         });
       }
@@ -383,7 +400,9 @@ export const EditOrderModal = () => {
     <FullModal open={isOpen} onOpenChange={onClose}>
       <FullModalContent showCloseButton={false}>
         <FullModalHeader>
-          <FullModalTitle>Edit Order #{order?.id?.split("-")[0]}</FullModalTitle>
+          <FullModalTitle>
+            Edit Order #{order?.id?.split("-")[0]}
+          </FullModalTitle>
           <FullModalDescription>
             {tableNumber ? `Table ${tableNumber}` : ""}
           </FullModalDescription>
@@ -408,7 +427,9 @@ export const EditOrderModal = () => {
                         type="number"
                         value={tableNumber || ""}
                         onChange={(e) =>
-                          handleTableNumberChange(Number(e.target.value) || null)
+                          handleTableNumberChange(
+                            Number(e.target.value) || null
+                          )
                         }
                         placeholder="Table number"
                         onFocus={handleInputFocus}
@@ -438,7 +459,16 @@ export const EditOrderModal = () => {
                     {gstPercentage > 0 && (
                       <span className="text-xs text-muted-foreground ml-2">
                         (incl. {gstPercentage}% GST: {currency}
-                        {((items.reduce((sum, item) => sum + item.menu.price * item.quantity, 0) * gstPercentage) / 100).toFixed(2)})
+                        {(
+                          (items.reduce(
+                            (sum, item) =>
+                              sum + item.menu.price * item.quantity,
+                            0
+                          ) *
+                            gstPercentage) /
+                          100
+                        ).toFixed(2)}
+                        )
                       </span>
                     )}
                   </div>
@@ -453,7 +483,12 @@ export const EditOrderModal = () => {
                     <Input
                       placeholder="Charge name"
                       value={newExtraCharge.name}
-                      onChange={(e) => setNewExtraCharge({ ...newExtraCharge, name: e.target.value })}
+                      onChange={(e) =>
+                        setNewExtraCharge({
+                          ...newExtraCharge,
+                          name: e.target.value,
+                        })
+                      }
                       onFocus={handleInputFocus}
                       onBlur={handleInputBlur}
                     />
@@ -461,11 +496,19 @@ export const EditOrderModal = () => {
                       type="number"
                       placeholder="Amount"
                       value={newExtraCharge.amount || ""}
-                      onChange={(e) => setNewExtraCharge({ ...newExtraCharge, amount: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setNewExtraCharge({
+                          ...newExtraCharge,
+                          amount: Number(e.target.value),
+                        })
+                      }
                       onFocus={handleInputFocus}
                       onBlur={handleInputBlur}
                     />
-                    <Button onClick={handleAddExtraCharge} className="whitespace-nowrap">
+                    <Button
+                      onClick={handleAddExtraCharge}
+                      className="whitespace-nowrap"
+                    >
                       Add Charge
                     </Button>
                   </div>
@@ -481,7 +524,8 @@ export const EditOrderModal = () => {
                             <div>
                               <div className="font-medium">{charge.name}</div>
                               <div className="text-sm text-muted-foreground">
-                                {currency}{charge.amount.toFixed(2)}
+                                {currency}
+                                {charge.amount.toFixed(2)}
                               </div>
                             </div>
                             <Button
@@ -525,7 +569,9 @@ export const EditOrderModal = () => {
                       <div>
                         <div className="font-medium">{qrGroup.name}</div>
                         <div className="text-sm text-muted-foreground">
-                          {qrGroup.charge_type === "PER_ITEM" ? "Per item charge" : "Fixed charge"}
+                          {qrGroup.charge_type === "PER_ITEM"
+                            ? "Per item charge"
+                            : "Fixed charge"}
                         </div>
                       </div>
                       <div className="font-medium">
@@ -593,13 +639,18 @@ export const EditOrderModal = () => {
                   {newItemId && (
                     <div className="flex flex-col sm:flex-row gap-2">
                       <div className="flex-1 border rounded-lg p-3">
-                        {menuItems.find((item) => item.id === newItemId)?.name} -{" "}
-                        {currency}
+                        {menuItems.find((item) => item.id === newItemId)?.name}{" "}
+                        - {currency}
                         {menuItems
                           .find((item) => item.id === newItemId)
                           ?.price.toFixed(2)}
                       </div>
-                      <Button onClick={handleAddItem} className="sm:w-auto w-full">Add to Order</Button>
+                      <Button
+                        onClick={handleAddItem}
+                        className="sm:w-auto w-full"
+                      >
+                        Add to Order
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -678,8 +729,8 @@ export const EditOrderModal = () => {
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleUpdateOrder} 
+          <Button
+            onClick={handleUpdateOrder}
             disabled={updating || loading || !items || items.length === 0}
           >
             {updating ? (
