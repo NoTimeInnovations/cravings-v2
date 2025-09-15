@@ -119,8 +119,8 @@ export const EditOrderModal = () => {
             menu_id: item.menu.id,
             quantity: item.quantity,
             menu: {
-              name: item.menu.name,
-              price: item.menu.price,
+              name: item.item.name || item.menu.name,
+              price: item.item.price || item.menu.price || 0,
             },
           }))
         );
