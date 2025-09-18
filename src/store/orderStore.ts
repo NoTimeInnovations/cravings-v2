@@ -1113,6 +1113,7 @@ const useOrderStore = create(
                 order_items {
                   id
                   quantity
+                  item
                   menu {
                     id
                     name
@@ -1178,12 +1179,12 @@ const useOrderStore = create(
               tableName: order.qr_code?.table_name || order.table_name || null,
               captain: captainData, // Use the properly structured captain data
               items: order.order_items.map((i: any) => ({
-                id: i.menu?.id,
-                quantity: i.quantity,
-                name: i.menu?.name || "Unknown",
-                price: i.menu?.offers?.[0]?.offer_price || i.menu?.price || 0,
-                category: i.menu?.category,
-                stocks: i.menu?.stocks,
+                  id: i.menu?.id,
+                  quantity: i.quantity,
+                  name: i.item?.name || "Unknown",
+                  price: i.item?.price || i.menu?.price || 0,
+                  category: i.menu?.category,
+                  stocks: i.menu?.stocks,
               })),
             };
           });
