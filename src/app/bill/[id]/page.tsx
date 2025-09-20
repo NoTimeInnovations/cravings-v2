@@ -134,14 +134,14 @@ const PrintOrderPage = () => {
             );
             geoData = await response.json();
 
-            console.log(geoData.features[0].properties.place_formatted);
+            console.log(geoData?.features[0].properties.place_formatted);
 
-            if(geoData.features[0].properties.place_formatted){
-              console.log("Updating partner address to: ", geoData.features[0].properties.place_formatted);
+            if(geoData?.features[0].properties.place_formatted){
+              console.log("Updating partner address to: ", geoData?.features[0].properties.place_formatted);
               // Update partner address in the database
               await fetchFromHasura(UPDATE_PARTNER_ADDRESS_MUTATION, {
                 id: orders_by_pk.partner_id,
-                address:geoData.features[0].properties.place_formatted ||
+                address:geoData?.features[0].properties.place_formatted ||
                   "",
               });
             }
@@ -174,7 +174,7 @@ const PrintOrderPage = () => {
           notes: orders_by_pk.notes || "",
           address:
             orders_by_pk.partner?.address ||
-           geoData.features[0].properties.place_formatted ||
+           geoData?.features[0].properties.place_formatted ||
             null,
         };
 
