@@ -189,7 +189,7 @@ interface OrderState {
   genOrderId: () => string;
   setUserAddress: (address: string) => void;
   setOrderNote: (note: string) => void;
-  setUserCoordinates: (coords: { lat: number; lng: number }) => void;
+  setUserCoordinates: (coords: { lat: number; lng: number } | null) => void;
   subscribeOrders: (callback?: (orders: Order[]) => void) => () => void;
   subscribePaginatedOrders: (
     limit: number,

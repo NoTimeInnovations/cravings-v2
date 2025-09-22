@@ -651,24 +651,24 @@ const UnifiedAddressSection = ({
     }
   };
 
-  const handleAddressSelect = (addr: SavedAddress) => {
-    setSelectedAddressId(addr.id);
-  
-    const fullAddress = addr.address || [
-      addr.flat_no,
-      addr.house_no,
-      addr.road_no,
-      addr.street,
-      addr.area,
-      addr.district,
-      addr.landmark,
-      addr.city,
-      addr.pincode,
+  const handleAddressSelect = (addr: SavedAddress | null) => {
+    setSelectedAddressId(addr?.id || null);
+
+    const fullAddress = addr?.address || [
+      addr?.flat_no,
+      addr?.house_no,
+      addr?.road_no,
+      addr?.street,
+      addr?.area,
+      addr?.district,
+      addr?.landmark,
+      addr?.city,
+      addr?.pincode,
     ].filter(Boolean).join(", ");
     setAddress(fullAddress);
     
     // Store coordinates in localStorage for WhatsApp location link
-    if (addr.latitude && addr.longitude) {
+    if (addr?.latitude && addr?.longitude) {
       const locationData = {
         state: {
           coords: {
@@ -681,20 +681,23 @@ const UnifiedAddressSection = ({
     }
   
     // ✅ Set coordinates in global store
-    if (addr.latitude && addr.longitude) {
+    if (addr?.latitude && addr?.longitude) {
       useOrderStore.getState().setUserCoordinates({
         lat: addr.latitude,
         lng: addr.longitude,
       });
+    }else{
+      useOrderStore.getState().setUserCoordinates(null);
     }
   
     setShowDropdown(false);
   };
 
   const handleAddressSaved = async (addr: SavedAddress) => {
+    
     const existing = [...savedAddresses];
     const index = existing.findIndex(a => a.id === addr.id);
-    
+
     if (index >= 0) {
       existing[index] = addr;
     } else {
@@ -704,7 +707,6 @@ const UnifiedAddressSection = ({
     const success = await saveAddressesForUser(existing);
     if (success) {
       setEditingAddress(null);
-      // Auto-select the new/updated address
       handleAddressSelect(addr);
     }
   };
@@ -716,6 +718,8 @@ const UnifiedAddressSection = ({
       if (selectedAddressId === addressId) {
         setSelectedAddressId(null);
         setAddress("");
+        setEditingAddress(null);
+        handleAddressSelect(null)
       }
       toast.success("Address deleted successfully");
     }
@@ -1794,8 +1798,8 @@ const PlaceOrderModal = ({
   const isPlaceOrderDisabled =
     orderStatus === "loading" || 
     (tableNumber === 0 && !orderType) ||
-    (isDelivery && hasDelivery && !selectedCoords && !isQrScan) ||
-    (isDelivery && deliveryInfo?.isOutOfRange && !isQrScan) ||
+    (isDelivery && hasDelivery && !selectedCoords && !isQrScan && !address) ||
+    (isDelivery && deliveryInfo?.isOutOfRange && !isQrScan && !address) ||
     (hasMultiWhatsapp && !selectedLocation);
 
   const { qrData } = useQrDataStore();
@@ -1915,7 +1919,7 @@ const PlaceOrderModal = ({
               )}
 
               <div className="flex flex-col gap-3 mt-6">
-                {user?.role !== "partner" ? (
+                {(user?.role !== "partner" && user?.role !== "superadmin") ? (
                   <>
                     {isAndroid ? (
                       <Button
