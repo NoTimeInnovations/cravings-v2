@@ -1811,20 +1811,6 @@ const isPlaceOrderDisabled =
 
   const { qrData } = useQrDataStore();
 
-  console.log("isPlaceOrderDisabled", isPlaceOrderDisabled);
-  console.log("orderStatus", orderStatus);
-  console.log("tableNumber", tableNumber);
-  console.log("orderType", orderType);
-  console.log("isDelivery", isDelivery);
-  console.log("hasDelivery", hasDelivery);
-  console.log("selectedCoords", selectedCoords);
-  console.log("address", address);
-  console.log("isQrScan", isQrScan);
-  console.log("deliveryInfo?.isOutOfRange", deliveryInfo?.isOutOfRange);
-  console.log("hasMultiWhatsapp", hasMultiWhatsapp);
-  console.log("selectedLocation", selectedLocation);
-  console.log("savedAddress", (user as User)?.addresses);
-
   return (
     <>
       <div
