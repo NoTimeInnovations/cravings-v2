@@ -1510,7 +1510,7 @@ const PlaceOrderModal = ({
   const isDelivery =
     tableNumber === 0 ? orderType === "delivery" : !tableNumber;
 
-  const hasDelivery = hotelData?.geo_location && hotelData?.delivery_rate > 0;
+  const hasDelivery = hotelData?.geo_location;
   const isQrScan = qrId !== null && tableNumber !== 0;
 
   useEffect(() => {
