@@ -140,7 +140,7 @@ const SingleOrderView: React.FC<{
               <span>Subtotal:</span> <span>₹{foodSubtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span>GST ({gstPercentage}%):</span>{" "}
+              <span>{(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%):</span>{" "}
               <span>₹{gstAmount.toFixed(2)}</span>
             </div>
             {(order.extraCharges ?? []).map((charge, index) => (

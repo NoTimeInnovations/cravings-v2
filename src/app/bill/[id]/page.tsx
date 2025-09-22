@@ -45,6 +45,7 @@ query GetOrder($id: uuid!) {
       gst_percentage
       geo_location
       currency
+      country
       store_name
       district
       phone
@@ -521,7 +522,7 @@ const PrintOrderPage = () => {
           </div>
           {gstPercentage > 0 && (
             <div className="flex justify-between">
-              <span>GST ({gstPercentage}%):</span>
+              <span>{order?.partner?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%):</span>
               <span>
                 {currency}
                 {gstAmount.toFixed(2)}
@@ -541,7 +542,7 @@ const PrintOrderPage = () => {
         <div className="text-center text-sm mt-4 pt-2 border-t border-dashed border-gray-400">
           <p>Thank you for your visit!</p>
           <p className="mt-1">
-            {order?.partner?.gst_no ? `GSTIN: ${order?.partner.gst_no}` : ""}
+            {order?.partner?.gst_no ? `${order?.partner?.country === "United Arab Emirates" ? "VAT" : "GST"}: ${order?.partner.gst_no}` : ""}
           </p>
           {(Number(order.display_id) ?? 0) > 0 && (
             <h2 className="text-sm font-light text-center mt-1">

@@ -1152,11 +1152,11 @@ export default function ProfilePage() {
 
     try {
       if (gstPercent < 0) {
-        toast.error("Please enter a valid GST");
+        toast.error(`Please enter a valid ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"}`);
         return;
       }
 
-      toast.loading("Updating GST...", {
+      toast.loading(`Updating ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"}...`, {
         id: "gst",
       });
 
@@ -1173,7 +1173,7 @@ export default function ProfilePage() {
       revalidateTag(userData?.id as string);
       setState({ gst_no: gst.gst_no, gst_percentage: gstPercent });
       toast.dismiss("gst");
-      toast.success("GST updated successfully!");
+      toast.success(`${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} updated successfully!`);
       setIsSaving((prev) => {
         return { ...prev, gst: false };
       });
@@ -1182,9 +1182,9 @@ export default function ProfilePage() {
       });
     } catch (error) {
       toast.dismiss("gst");
-      console.error("Error updating GST:", error);
+      console.error(`Error updating ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"}:`, error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to update GST"
+        error instanceof Error ? error.message : `Failed to update ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"}`
       );
       setIsSaving((prev) => {
         return { ...prev, gst: false };
@@ -2599,9 +2599,9 @@ export default function ProfilePage() {
 
               <div className="space-y-2 pt-4">
                 <div className="flex justify-between items-center">
-                  <h1 className="text-lg font-semibold">Gst Settings</h1>
+                  <h1 className="text-lg font-semibold">{(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} Settings</h1>
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">Enable GST</span>
+                    <span className="text-sm text-gray-600">Enable { (userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"}</span>
                     <Switch
                       checked={gst.enabled}
                       onCheckedChange={(checked) => {
@@ -2624,7 +2624,7 @@ export default function ProfilePage() {
                     <form onSubmit={handleSaveGst} className="space-y-2 w-full">
                       <div>
                         <label htmlFor="gst_no" className="font-semibold">
-                          Gst No.
+                          {(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} No.
                         </label>
                         <Input
                           id="gst_no"
@@ -2646,12 +2646,12 @@ export default function ProfilePage() {
                           htmlFor="gst_percentage"
                           className="font-semibold"
                         >
-                          Gst Percentage
+                          {(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} Percentage
                         </label>
                         <Input
                           id="gst_percentage"
                           type="number"
-                          placeholder="Enter your Gst percentage"
+                          placeholder={`Enter your ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} percentage`}
                           value={gst.gst_percentage}
                           onChange={(e) =>
                             setGst((prev) => {
@@ -2695,18 +2695,18 @@ export default function ProfilePage() {
                           <>
                             <div className="text-gray-700">
                               {gst.gst_no
-                                ? `GST no: ${gst.gst_no}`
-                                : "No Gst no. set"}
+                                ? `${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} no: ${gst.gst_no}`
+                                : `No ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} no. set`}
                             </div>
                             <div className="text-gray-700">
                               {gst.gst_percentage
-                                ? `GST percentage: ${gst.gst_percentage}%`
-                                : "No Gst percentage set"}
+                                ? `${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} percentage: ${gst.gst_percentage}%`
+                                : `No ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} percentage set`}
                             </div>
                           </>
                         ) : (
                           <div className="text-gray-700">
-                            GST is currently disabled
+                            {(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} is currently disabled
                           </div>
                         )}
                       </div>
@@ -2728,8 +2728,8 @@ export default function ProfilePage() {
                 </div>
                 <p className="text-sm text-gray-500">
                   {gst.enabled
-                    ? "This Gst will be used for your restaurant profile and billing"
-                    : "GST is currently disabled for your restaurant"}
+                    ? `This ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} will be used for your restaurant profile and billing`
+                    : `${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} is currently disabled for your restaurant`}
                 </p>
               </div>
 

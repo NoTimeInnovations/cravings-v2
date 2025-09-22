@@ -67,6 +67,7 @@ const OrderItemCard = ({
   // Sync localOrder with prop changes
   useEffect(() => {
     setLocalOrder(initialOrder);
+    console.log(userData);
   }, [initialOrder]);
 
   const handleDelete = async () => {
@@ -392,7 +393,7 @@ const OrderItemCard = ({
         <div className="mt-4 space-y-1 text-sm bg-gray-50 p-3 rounded-lg">
           {gstPercentage > 0 && (
             <div className="flex justify-between">
-              <span>GST ({gstPercentage}%):</span>
+              <span>{(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%):</span>
               <span>
                 {(userData as HotelData)?.currency}
                 {gstAmount?.toFixed(2)}

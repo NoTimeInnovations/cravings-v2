@@ -471,7 +471,7 @@ export const EditOrderModal = () => {
                     {totalPrice.toFixed(2)}
                     {gstPercentage > 0 && (
                       <span className="text-xs text-muted-foreground ml-2">
-                        (incl. {gstPercentage}% GST: {currency}
+                        (incl. {gstPercentage}% {(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"}: {currency}
                         {(
                           (items.reduce(
                             (sum, item) =>

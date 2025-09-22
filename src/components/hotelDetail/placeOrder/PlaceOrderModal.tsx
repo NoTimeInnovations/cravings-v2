@@ -1235,6 +1235,7 @@ interface BillCardProps {
   gstPercentage?: number;
   deliveryInfo: DeliveryInfo | null;
   isDelivery: boolean;
+  hotelData: HotelData;
   qrGroup: QrGroup | null;
 }
 
@@ -1244,6 +1245,7 @@ const BillCard = ({
   gstPercentage,
   deliveryInfo,
   isDelivery,
+  hotelData,
   qrGroup,
 }: BillCardProps) => {
   const subtotal = items.reduce(
@@ -1300,7 +1302,7 @@ const BillCard = ({
 
         {gstPercentage ? (
           <div className="flex justify-between">
-            <span>GST ({gstPercentage}%)</span>
+            <span>{`${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${gstPercentage}%)`}</span>
             <span>
               {currency}
               {gstAmount.toFixed(2)}
@@ -1872,6 +1874,7 @@ const PlaceOrderModal = ({
                 deliveryInfo={deliveryInfo}
                 isDelivery={isDelivery && !isQrScan && orderType === "delivery"}
                 qrGroup={qrGroup}
+                hotelData={hotelData}
               />
 
               <div className="border rounded-lg p-4 bg-white">

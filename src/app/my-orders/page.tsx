@@ -244,7 +244,7 @@ const Page = () => {
                 <div className="border-t pt-3 space-y-2">
                   {gstPercentage > 0 && (
                     <div className="flex justify-between">
-                      <span>GST ({gstPercentage}%):</span>
+                      <span>{(order.partner as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%):</span>
                       <span>
                         {(order.partner as Partner)?.currency || "$"}
                         {gstAmount.toFixed(2)}

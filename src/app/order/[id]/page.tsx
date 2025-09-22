@@ -33,6 +33,7 @@ const GET_ORDER_QUERY = `
         gst_percentage
         currency
         store_name
+        country
       }
       gst_included
       extra_charges
@@ -284,7 +285,7 @@ const OrderPage = () => {
 
                     <div className="flex justify-between">
                       <p className="text-sm text-gray-500">
-                        GST ({gstPercentage}%)
+                        {order?.partner?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%)
                       </p>
                       <p className="text-sm">
                         {order?.partner?.currency || "₹"}

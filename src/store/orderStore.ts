@@ -80,6 +80,7 @@ export interface Order {
     gst_percentage?: number;
     currency?: string;
     store_name?: string;
+    country?: string;
   };
   phone?: string | null;
   userId?: string;
