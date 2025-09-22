@@ -1,7 +1,7 @@
 "use client";
 import useOrderStore, { OrderItem } from "@/store/orderStore";
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore, User } from "@/store/authStore";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -604,7 +604,7 @@ const UnifiedAddressSection = ({
   deliveryInfo: DeliveryInfo | null;
   hotelData: HotelData; // <-- MODIFICATION: Added hotelData prop type
 }) => {
-  const { userData: user } = useAuthStore();
+    const { userData: user } = useAuthStore();
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -623,6 +623,16 @@ const UnifiedAddressSection = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (savedAddresses.length === 0) {
+      return;
+    }
+    const defaultAddress = savedAddresses.find(addr => addr.isDefault) || savedAddresses[0];
+    if (defaultAddress && defaultAddress.id !== selectedAddressId) {
+      handleAddressSelect(defaultAddress);
+    }
+  }, [savedAddresses, selectedAddressId]);
+
   const saveAddressesForUser = async (addresses: SavedAddress[]) => {
     try {
       if (!user || (user as any).role !== "user") {
@@ -635,7 +645,6 @@ const UnifiedAddressSection = ({
         addresses: addresses,
       });
       
-      // Update user in auth store
       useAuthStore.setState({
         userData: {
           ...user,
@@ -667,7 +676,6 @@ const UnifiedAddressSection = ({
     ].filter(Boolean).join(", ");
     setAddress(fullAddress);
     
-    // Store coordinates in localStorage for WhatsApp location link
     if (addr?.latitude && addr?.longitude) {
       const locationData = {
         state: {
@@ -680,13 +688,12 @@ const UnifiedAddressSection = ({
       localStorage?.setItem('user-location-store', JSON.stringify(locationData));
     }
   
-    // ✅ Set coordinates in global store
     if (addr?.latitude && addr?.longitude) {
       useOrderStore.getState().setUserCoordinates({
         lat: addr.latitude,
         lng: addr.longitude,
       });
-    }else{
+    } else {
       useOrderStore.getState().setUserCoordinates(null);
     }
   
@@ -694,7 +701,6 @@ const UnifiedAddressSection = ({
   };
 
   const handleAddressSaved = async (addr: SavedAddress) => {
-    
     const existing = [...savedAddresses];
     const index = existing.findIndex(a => a.id === addr.id);
 
@@ -726,6 +732,7 @@ const UnifiedAddressSection = ({
   };
 
   const selectedAddress = savedAddresses.find(a => a.id === selectedAddressId);
+
 
   return (
     <div className="bg-white rounded-lg shadow p-4 mb-4">
@@ -1795,14 +1802,28 @@ const PlaceOrderModal = ({
 
   const minimumOrderAmount = deliveryInfo?.minimumOrderAmount || 0;
 
-  const isPlaceOrderDisabled =
-    orderStatus === "loading" || 
-    (tableNumber === 0 && !orderType) ||
-    (isDelivery && hasDelivery && !selectedCoords && !isQrScan && !address) ||
-    (isDelivery && deliveryInfo?.isOutOfRange && !isQrScan && !address) ||
-    (hasMultiWhatsapp && !selectedLocation);
+const isPlaceOrderDisabled =
+  orderStatus === "loading" ||                                           // Condition 1
+  (tableNumber === 0 && !orderType) ||                                 // Condition 2
+  (isDelivery && hasDelivery && !isQrScan && (!address || !selectedCoords)) || // Condition 3
+  (isDelivery && deliveryInfo?.isOutOfRange) ||                          // Condition 4
+  (hasMultiWhatsapp && !selectedLocation);                               // Condition 5
 
   const { qrData } = useQrDataStore();
+
+  console.log("isPlaceOrderDisabled", isPlaceOrderDisabled);
+  console.log("orderStatus", orderStatus);
+  console.log("tableNumber", tableNumber);
+  console.log("orderType", orderType);
+  console.log("isDelivery", isDelivery);
+  console.log("hasDelivery", hasDelivery);
+  console.log("selectedCoords", selectedCoords);
+  console.log("address", address);
+  console.log("isQrScan", isQrScan);
+  console.log("deliveryInfo?.isOutOfRange", deliveryInfo?.isOutOfRange);
+  console.log("hasMultiWhatsapp", hasMultiWhatsapp);
+  console.log("selectedLocation", selectedLocation);
+  console.log("savedAddress", (user as User)?.addresses);
 
   return (
     <>
