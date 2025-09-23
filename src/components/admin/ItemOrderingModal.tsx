@@ -18,13 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Category, formatDisplayName } from "@/store/categoryStore_hasura";
 import {
@@ -48,6 +41,71 @@ import {
 function hasValidId(item: MenuItem): item is MenuItem & { id: string } {
   return typeof item.id === 'string' && item.id.length > 0;
 }
+
+interface PriorityInputProps {
+  itemId: string;
+  currentPriority: number;
+  totalItems: number;
+  onPriorityChange: (itemId: string, newPriority: string) => void;
+}
+
+const PriorityInput: React.FC<PriorityInputProps> = ({
+  itemId,
+  currentPriority,
+  totalItems,
+  onPriorityChange,
+}) => {
+  const [inputValue, setInputValue] = useState(String(currentPriority));
+
+  useEffect(() => {
+    setInputValue(String(currentPriority));
+  }, [currentPriority]);
+
+  const handleUpdate = () => {
+    const newPriority = parseInt(inputValue, 10);
+    if (
+      !isNaN(newPriority) &&
+      newPriority >= 1 &&
+      newPriority <= totalItems
+    ) {
+      if (newPriority !== currentPriority) {
+        onPriorityChange(itemId, inputValue);
+      }
+    } else {
+      setInputValue(String(currentPriority));
+    }
+  };
+
+  const handleBlur = () => {
+    handleUpdate();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleUpdate();
+      e.currentTarget.blur();
+    } else if (e.key === "Escape") {
+      setInputValue(String(currentPriority));
+      e.currentTarget.blur();
+    }
+  };
+
+  return (
+    <Input
+      type="number"
+      value={inputValue}
+      onChange={(e) => setInputValue(e.target.value)}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      onClick={(e) => e.stopPropagation()}
+      className="h-8 w-16 text-center"
+      min="1"
+      max={totalItems}
+    />
+  );
+};
+
 
 interface ItemOrderingFormProps {
   categories: Category[];
@@ -95,7 +153,7 @@ export function ItemOrderingForm({
     if (searchTerm) {
       const categoryMatches = category.name.toLowerCase().includes(searchTerm.toLowerCase());
       const itemsInCategory = itemsByCategory[category.id] || [];
-      const anyItemMatches = itemsInCategory.some(item => 
+      const anyItemMatches = itemsInCategory.some(item =>
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.price.toString().includes(searchTerm)
       );
@@ -115,21 +173,21 @@ export function ItemOrderingForm({
       return newSet;
     });
   };
-  
+
   const handlePriorityChange = (itemId: string, newPriorityStr: string) => {
     const item = localItems.find(i => i.id === itemId);
     if (!item) return;
 
     const categoryId = item.category.id;
     const itemsInCategory = localItems
-        .filter(i => i.category.id === categoryId)
-        .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
-    
+      .filter(i => i.category.id === categoryId)
+      .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+
     const totalItems = itemsInCategory.length;
     let newPriority = parseInt(newPriorityStr, 10);
 
     if (isNaN(newPriority)) {
-        return;
+      return;
     }
 
     newPriority = Math.max(1, Math.min(totalItems, newPriority));
@@ -142,13 +200,13 @@ export function ItemOrderingForm({
     newItemsInCategory.splice(newPriority - 1, 0, movedItem);
 
     const updatedItems = newItemsInCategory.map((catItem, index) => ({
-        ...catItem,
-        priority: index + 1,
+      ...catItem,
+      priority: index + 1,
     }));
-    
+
     setLocalItems(prev => {
-        const otherItems = prev.filter(i => i.category.id !== categoryId);
-        return [...otherItems, ...updatedItems];
+      const otherItems = prev.filter(i => i.category.id !== categoryId);
+      return [...otherItems, ...updatedItems];
     });
   };
 
@@ -156,29 +214,29 @@ export function ItemOrderingForm({
   const moveItem = (itemId: string, direction: 'up' | 'down') => {
     const itemIndex = localItems.findIndex(item => item.id === itemId);
     if (itemIndex === -1) return;
-    
+
     const item = localItems[itemIndex];
     const categoryId = item.category.id;
     const itemsInCategory = itemsByCategory[categoryId] || [];
     const indexInCategory = itemsInCategory.findIndex(item => item.id === itemId);
-    
+
     if (indexInCategory === -1) return;
-    
-    const newIndexInCategory = direction === 'up' 
-      ? Math.max(0, indexInCategory - 1) 
+
+    const newIndexInCategory = direction === 'up'
+      ? Math.max(0, indexInCategory - 1)
       : Math.min(itemsInCategory.length - 1, indexInCategory + 1);
-      
+
     if (newIndexInCategory === indexInCategory) return;
-    
+
     const newItemsInCategory = [...itemsInCategory];
     const [movedItem] = newItemsInCategory.splice(indexInCategory, 1);
     newItemsInCategory.splice(newIndexInCategory, 0, movedItem);
-    
+
     const updatedItemsInCategory = newItemsInCategory.map((item, idx) => ({
       ...item,
       priority: idx + 1,
     }));
-    
+
     setLocalItems(prev => {
       const withoutCategory = prev.filter(item => item.category.id !== categoryId);
       return [...withoutCategory, ...updatedItemsInCategory];
@@ -187,21 +245,21 @@ export function ItemOrderingForm({
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
-    
+
     const { source, destination } = result;
-    
+
     if (source.droppableId === destination.droppableId) {
       const categoryId = source.droppableId;
       const itemsInCategory = [...(itemsByCategory[categoryId] || [])];
-      
+
       const [movedItem] = itemsInCategory.splice(source.index, 1);
       itemsInCategory.splice(destination.index, 0, movedItem);
-      
+
       const updatedItemsInCategory = itemsInCategory.map((item, idx) => ({
         ...item,
         priority: idx + 1,
       }));
-      
+
       setLocalItems(prev => {
         const withoutCategory = prev.filter(item => item.category.id !== categoryId);
         return [...withoutCategory, ...updatedItemsInCategory];
@@ -263,7 +321,7 @@ export function ItemOrderingForm({
         <h2 className="text-2xl font-bold">Manage Item Order</h2>
       </div>
       <p className="text-sm text-muted-foreground mt-1 mb-4 px-2">
-        Expand categories to reorder items. You can drag, use the arrows, or select an order number.
+        Expand categories to reorder items. You can drag, use the arrows, or type an order number.
       </p>
 
       <div className="space-y-4 flex flex-col">
@@ -293,7 +351,7 @@ export function ItemOrderingForm({
           </Button>
         </div>
 
-        <div 
+        <div
           ref={contentRef}
           className="border rounded-lg flex-1 flex flex-col overflow-auto touch-pan-y"
           style={{
@@ -328,20 +386,20 @@ export function ItemOrderingForm({
                     const isExpanded = expandedCategories.has(category.id);
                     const itemsInCategory = itemsByCategory[category.id] || [];
                     const hasItems = itemsInCategory.length > 0;
-                    
-                    const filteredItems = searchTerm 
-                      ? itemsInCategory.filter(item => 
-                          item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          item.price.toString().includes(searchTerm)
-                        )
+
+                    const filteredItems = searchTerm
+                      ? itemsInCategory.filter(item =>
+                        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        item.price.toString().includes(searchTerm)
+                      )
                       : itemsInCategory;
-                    
+
                     if (searchTerm && filteredItems.length === 0) return null;
-                    
+
                     return (
                       <React.Fragment key={category.id}>
-                        <TableRow 
-                          key={`cat-${category.id}`} 
+                        <TableRow
+                          key={`cat-${category.id}`}
                           className="bg-gray-50 hover:bg-gray-100 font-medium cursor-pointer"
                           onClick={() => toggleCategoryExpansion(category.id)}
                         >
@@ -362,7 +420,7 @@ export function ItemOrderingForm({
                             </span>
                           </TableCell>
                         </TableRow>
-                        
+
                         {isExpanded && (
                           <TableRow className="p-0 border-0">
                             <TableCell colSpan={6} className="p-0">
@@ -387,11 +445,10 @@ export function ItemOrderingForm({
                                               <div
                                                 ref={provided.innerRef}
                                                 {...provided.draggableProps}
-                                                className={`flex items-center w-full p-2 my-1 ${
-                                                  snapshot.isDragging
+                                                className={`flex items-center w-full p-2 my-1 ${snapshot.isDragging
                                                     ? "bg-primary/10 shadow-md rounded-md border border-primary"
                                                     : "bg-background hover:bg-gray-50 rounded-md"
-                                                }`}
+                                                  }`}
                                                 style={{
                                                   ...provided.draggableProps.style,
                                                   touchAction: 'pan-y',
@@ -406,24 +463,12 @@ export function ItemOrderingForm({
                                                   ₹{item.price}
                                                 </div>
                                                 <div className="w-[80px] flex justify-center">
-                                                    <Select
-                                                        value={String(item.priority)}
-                                                        onValueChange={(newPriorityStr) => handlePriorityChange(item.id, newPriorityStr)}
-                                                    >
-                                                        <SelectTrigger 
-                                                            className="h-8 w-16"
-                                                            onClick={(e) => e.stopPropagation()}
-                                                        >
-                                                            <SelectValue placeholder="Set" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {Array.from({ length: itemsInCategory.length }, (_, i) => i + 1).map((priority) => (
-                                                                <SelectItem key={priority} value={String(priority)}>
-                                                                    {priority}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
+                                                  <PriorityInput
+                                                      itemId={item.id}
+                                                      currentPriority={item.priority!}
+                                                      totalItems={itemsInCategory.length}
+                                                      onPriorityChange={handlePriorityChange}
+                                                  />
                                                 </div>
                                                 <div className="w-[80px] flex justify-center gap-1">
                                                   <Button
@@ -538,7 +583,7 @@ export function ItemOrderingModal({
       id: item.id,
       priority: item.priority ?? 0
     }));
-    
+
     try {
       await updateItemsAsBatch(updates);
       await fetchMenu();
@@ -557,7 +602,7 @@ export function ItemOrderingModal({
           <FullModalTitle>Manage Item Order</FullModalTitle>
         </FullModalHeader>
         <FullModalBody>
-          <ItemOrderingForm 
+          <ItemOrderingForm
             categories={categories}
             items={items}
             onSubmit={handleSubmit}
