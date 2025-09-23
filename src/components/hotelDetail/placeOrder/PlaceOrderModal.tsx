@@ -374,7 +374,7 @@ const AddressManagementModal = ({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] bg-white">
+    <div className="fixed inset-0 z-[70] bg-white h-[100dvh]">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-white">
         <div className="flex items-center gap-3">
