@@ -628,7 +628,7 @@ const UnifiedAddressSection = ({
       return;
     }
     const defaultAddress = savedAddresses.find(addr => addr.isDefault) || savedAddresses[0];
-    if (defaultAddress && defaultAddress.id !== selectedAddressId) {
+    if (defaultAddress && defaultAddress.id !== selectedAddressId && !selectedAddressId) {
       handleAddressSelect(defaultAddress);
     }
   }, [savedAddresses, selectedAddressId]);
@@ -661,6 +661,7 @@ const UnifiedAddressSection = ({
   };
 
   const handleAddressSelect = (addr: SavedAddress | null) => {
+    console.log("Selected Address:", addr);
     setSelectedAddressId(addr?.id || null);
 
     const fullAddress = addr?.address || [
