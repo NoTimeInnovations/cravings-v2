@@ -421,7 +421,7 @@ export const POSConfirmModal = ({
             {/* GST (on food only) */}
             {(partnerData?.gst_percentage || 0) > 0 && (
               <div className="flex justify-between text-sm">
-                <span>{`GST (${partnerData?.gst_percentage || 0}%)`}</span>
+                <span>{`${partnerData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${partnerData?.gst_percentage || 0}%)`}</span>
                 <span>
                   {partnerData?.currency || "$"}
                   {gstAmount.toFixed(2)}

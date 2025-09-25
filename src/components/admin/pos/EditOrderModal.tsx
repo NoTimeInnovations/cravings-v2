@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   FullModal,
   FullModalContent,
@@ -18,12 +18,46 @@ import {
   updateOrderMutation,
   updateOrderItemsMutation,
 } from "@/api/orders";
-import { MenuItem, useMenuStore } from "@/store/menuStore_hasura";
+import { useMenuStore } from "@/store/menuStore_hasura";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
+
+export interface MenuItem {
+  id?: string;
+  name: string;
+  category: MenuItemCategory & {
+    is_active: boolean;
+  };
+  category_id?: string;
+  image_url: string;
+  image_source?: string;
+  partner_id?: string;
+  price: number;
+  description: string;
+  is_top?: boolean;
+  is_available?: boolean;
+  priority?: number;
+  stocks?: {
+    stock_quantity: number;
+    stock_type: string;
+    show_stock: boolean;
+    id?: string;
+  }[];
+  variants?: {
+    name: string;
+    price: number;
+  }[];
+  is_price_as_per_size?: boolean;
+}
+
+interface MenuItemCategory {
+    id?: string;
+    name: string;
+    priority: number;
+}
 
 interface ExtraCharge {
   id?: string;
@@ -86,7 +120,6 @@ export const EditOrderModal = () => {
     setOrderNote("");
   };
 
-  // Handle input focus to detect keyboard
   const handleInputFocus = () => {
     setKeyboardOpen(true);
   };
@@ -131,12 +164,10 @@ export const EditOrderModal = () => {
         setTableNumber(orderData.table_number);
         setPhone(orderData.phone);
 
-        // Load extra charges if they exist
         if (orderData.extra_charges) {
           setExtraCharges(orderData.extra_charges);
         }
 
-        // Load order note if it exists
         if (orderData.notes) {
           setOrderNote(orderData.notes);
         }
@@ -150,29 +181,26 @@ export const EditOrderModal = () => {
   };
 
   const calculateTotal = (
-    items: Array<{
-      id?: string;
-      menu_id: string;
+    currentItems: Array<{
       quantity: number;
       menu: {
-        name: string;
         price: number;
       };
-    }>
+    }>,
+    currentExtraCharges: ExtraCharge[]
   ) => {
-    const subtotal = items.reduce(
+    const subtotal = currentItems.reduce(
       (sum, item) => sum + item.menu.price * item.quantity,
       0
     );
-    const extraChargesTotal = extraCharges.reduce(
+    const extraChargesTotal = currentExtraCharges.reduce(
       (sum, charge) => sum + charge.amount,
       0
     );
 
-    // Calculate QR group extra charges
     const qrGroupCharges = qrGroup?.extra_charge
       ? getExtraCharge(
-          items as any[],
+          currentItems as any[],
           qrGroup.extra_charge,
           qrGroup.charge_type || "FLAT_FEE"
         )
@@ -182,7 +210,11 @@ export const EditOrderModal = () => {
     return subtotal + extraChargesTotal + qrGroupCharges + gstAmount;
   };
 
-  // Fetch QR group when table number changes
+  useEffect(() => {
+    const newTotal = calculateTotal(items, extraCharges);
+    setTotalPrice(newTotal);
+  }, [items, extraCharges, qrGroup, gstPercentage]);
+
   const fetchQrGroupForTable = async (tableNum: number | null) => {
     if (tableNum === null) {
       setQrGroup(null);
@@ -207,28 +239,54 @@ export const EditOrderModal = () => {
 
   const handleQuantityChange = (index: number, newQuantity: number) => {
     if (newQuantity < 1) return;
-
     const updatedItems = [...items];
     updatedItems[index].quantity = newQuantity;
     setItems(updatedItems);
-    setTotalPrice(calculateTotal(updatedItems));
   };
 
   const handleRemoveItem = (index: number) => {
     const updatedItems = [...items];
     updatedItems.splice(index, 1);
     setItems(updatedItems);
-    setTotalPrice(calculateTotal(updatedItems));
   };
 
   const handleAddItem = () => {
     if (!newItemId) return;
 
-    const menuItem = menuItems.find((item) => item.id === newItemId);
+    const [baseId, variantName] = newItemId.split("|");
+    const menuItem = menuItems.find((item) => item.id === baseId);
     if (!menuItem) return;
 
+    let itemToAdd: {
+      menu_id: string;
+      quantity: number;
+      menu: { name: string; price: number };
+    };
+
+    if (variantName) {
+      const variant = menuItem.variants?.find((v) => v.name === variantName);
+      if (!variant) return;
+      itemToAdd = {
+        menu_id: baseId,
+        quantity: 1,
+        menu: {
+          name: `${menuItem.name} (${variant.name})`,
+          price: variant.price,
+        },
+      };
+    } else {
+      itemToAdd = {
+        menu_id: baseId,
+        quantity: 1,
+        menu: {
+          name: menuItem.name,
+          price: menuItem.price,
+        },
+      };
+    }
+
     const existingItemIndex = items.findIndex(
-      (item) => item.menu_id === newItemId
+      (item) => item.menu.name === itemToAdd.menu.name
     );
 
     if (existingItemIndex >= 0) {
@@ -237,21 +295,11 @@ export const EditOrderModal = () => {
         items[existingItemIndex].quantity + 1
       );
     } else {
-      const newItem = {
-        menu_id: newItemId,
-        quantity: 1,
-        menu: {
-          name: menuItem.name,
-          price: menuItem.price,
-        },
-      };
-      const updatedItems = [...items, newItem];
-      setItems(updatedItems);
-      setTotalPrice(calculateTotal(updatedItems));
+      setItems([...items, itemToAdd]);
     }
 
     setNewItemId("");
-    // Scroll to ensure new item is visible
+    setSearchQuery("");
     setTimeout(() => {
       window.scrollTo({
         top: document.body.scrollHeight,
@@ -265,49 +313,31 @@ export const EditOrderModal = () => {
       toast.error("Please enter a valid charge name and amount");
       return;
     }
-
     const charge: ExtraCharge = {
       id: Date.now().toString(),
       name: newExtraCharge.name,
       amount: newExtraCharge.amount,
     };
-
     setExtraCharges([...extraCharges, charge]);
     setNewExtraCharge({ name: "", amount: 0 });
-    setTotalPrice(calculateTotal(items));
   };
 
   const handleRemoveExtraCharge = (index: number) => {
     const updatedCharges = [...extraCharges];
     updatedCharges.splice(index, 1);
     setExtraCharges(updatedCharges);
-    setTotalPrice(calculateTotal(items));
   };
 
   const handleUpdateOrder = async () => {
+    if (!items || items.length === 0) {
+      toast.error("Cannot save order with no items");
+      return;
+    }
+
     try {
-      // Prevent updating if there are no items
-      if (!items || items.length === 0) {
-        toast.error("Cannot save order with no items");
-        return;
-      }
-
       setUpdating(true);
+      const finalTotal = calculateTotal(items, extraCharges);
 
-      // Calculate total with GST if applicable
-      const subtotal = items.reduce(
-        (sum, item) => sum + item.menu.price * item.quantity,
-        0
-      );
-      const extraChargesTotal = extraCharges.reduce(
-        (sum, charge) => sum + charge.amount,
-        0
-      );
-      const gstAmount =
-        gstPercentage > 0 ? (subtotal * gstPercentage) / 100 : 0;
-      const finalTotal = subtotal + extraChargesTotal + gstAmount;
-
-      // Update order
       await fetchFromHasura(updateOrderMutation, {
         id: order?.id,
         totalPrice: finalTotal,
@@ -316,7 +346,6 @@ export const EditOrderModal = () => {
         notes: orderNote || null,
       });
 
-      // Update order items
       await fetchFromHasura(updateOrderItemsMutation, {
         orderId: order?.id,
         items: items.map((item) => ({
@@ -331,57 +360,6 @@ export const EditOrderModal = () => {
         })),
       });
 
-      // Update local state
-      if (order) {
-        setOrder({
-          ...order,
-          totalPrice: finalTotal,
-          tableNumber: tableNumber || 0,
-          phone: phone || "",
-          extraCharges: extraCharges,
-          items: items.map((item) => ({
-            id: item.menu_id,
-            name: item.menu.name,
-            price: item.menu.price,
-            quantity: item.quantity,
-            category: {
-              name: "",
-              id: "",
-              priority: 0,
-            },
-            image_url: "",
-            description: "",
-            is_top: false,
-            is_available: true,
-            created_at: new Date().toISOString(),
-            priority: 0,
-            offers: [
-              {
-                offer_price: item.menu.price,
-                created_at: new Date().toISOString(),
-                end_time: new Date(Date.now() + 86400000).toISOString(), // 24 hours from now
-                start_time: new Date().toISOString(),
-                enquiries: 0,
-                items_available: 0,
-                id: "",
-                menu: {
-                  id: item.menu_id,
-                  name: item.menu.name,
-                  price: item.menu.price,
-                  category: {
-                    name: "",
-                    id: "",
-                    priority: 0,
-                  },
-                  description: "",
-                  image_url: "",
-                },
-              },
-            ],
-          })),
-        });
-      }
-
       toast.success("Order updated successfully");
       onClose();
     } catch (error) {
@@ -392,9 +370,45 @@ export const EditOrderModal = () => {
     }
   };
 
-  const filteredMenuItems = menuItems.filter((item) =>
+  const displayMenuItems = useMemo(() => {
+    return menuItems.flatMap((item) => {
+      if (item.variants && item.variants.length > 0) {
+        return item.variants.map((variant) => ({
+          ...item,
+          id: `${item.id}|${variant.name}`,
+          name: `${item.name} (${variant.name})`,
+          price: variant.price,
+        }));
+      }
+      return item;
+    });
+  }, [menuItems]);
+
+  const filteredMenuItems = displayMenuItems.filter((item) =>
     item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  let selectedItemDetails = null;
+  if (newItemId) {
+    const [baseId, variantName] = newItemId.split("|");
+    const menuItem = menuItems.find((item) => item.id === baseId);
+    if (menuItem) {
+      if (variantName) {
+        const variant = menuItem.variants?.find((v) => v.name === variantName);
+        if (variant) {
+          selectedItemDetails = {
+            name: `${menuItem.name} (${variant.name})`,
+            price: variant.price,
+          };
+        }
+      } else {
+        selectedItemDetails = {
+          name: menuItem.name,
+          price: menuItem.price,
+        };
+      }
+    }
+  }
 
   return (
     <FullModal open={isOpen} onOpenChange={onClose}>
@@ -415,7 +429,6 @@ export const EditOrderModal = () => {
         ) : (
           <FullModalBody>
             <div className="space-y-6">
-              {/* Order Details */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {userData?.role !== "user" && (
                   <>
@@ -458,7 +471,7 @@ export const EditOrderModal = () => {
                     {totalPrice.toFixed(2)}
                     {gstPercentage > 0 && (
                       <span className="text-xs text-muted-foreground ml-2">
-                        (incl. {gstPercentage}% GST: {currency}
+                        (incl. {gstPercentage}% {(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"}: {currency}
                         {(
                           (items.reduce(
                             (sum, item) =>
@@ -475,7 +488,6 @@ export const EditOrderModal = () => {
                 </div>
               </div>
 
-              {/* Extra Charges */}
               <div className="border rounded-lg p-4">
                 <h3 className="font-medium mb-3">Extra Charges</h3>
                 <div className="space-y-3">
@@ -544,23 +556,21 @@ export const EditOrderModal = () => {
                 </div>
               </div>
 
-              {/* Order Note */}
-              <div className="border rounded-lg p-4 bg-white">
+              <div className="border rounded-lg p-4">
                 <h3 className="font-medium mb-3">Order Note</h3>
                 <textarea
                   placeholder="Add any special instructions or notes for this order..."
                   value={orderNote}
                   onChange={(e) => setOrderNote(e.target.value)}
-                  className="w-full p-3 border rounded-md resize-none bg-white text-black"
+                  className="w-full p-3 border rounded-md resize-none"
                   rows={3}
                   maxLength={500}
                 />
-                <div className="text-xs text-black bg-white mt-1">
+                <div className="text-xs text-muted-foreground mt-1">
                   {orderNote.length}/500 characters
                 </div>
               </div>
 
-              {/* QR Group Charges */}
               {qrGroup && (
                 <div className="border rounded-lg p-4">
                   <h3 className="font-medium mb-3">QR Group Charges</h3>
@@ -587,7 +597,6 @@ export const EditOrderModal = () => {
                 </div>
               )}
 
-              {/* Add New Item */}
               <div className="border rounded-lg p-4">
                 <h3 className="font-medium mb-3">Add New Item</h3>
                 <div className="space-y-3">
@@ -636,14 +645,11 @@ export const EditOrderModal = () => {
                     </div>
                   )}
 
-                  {newItemId && (
+                  {newItemId && selectedItemDetails && (
                     <div className="flex flex-col sm:flex-row gap-2">
                       <div className="flex-1 border rounded-lg p-3">
-                        {menuItems.find((item) => item.id === newItemId)?.name}{" "}
-                        - {currency}
-                        {menuItems
-                          .find((item) => item.id === newItemId)
-                          ?.price.toFixed(2)}
+                        {selectedItemDetails.name} - {currency}
+                        {selectedItemDetails.price.toFixed(2)}
                       </div>
                       <Button
                         onClick={handleAddItem}
@@ -656,7 +662,6 @@ export const EditOrderModal = () => {
                 </div>
               </div>
 
-              {/* Current Items */}
               <div className="border rounded-lg p-4">
                 <h3 className="font-medium mb-3">Current Items</h3>
                 <div className="rounded-lg overflow-hidden border">
@@ -668,7 +673,7 @@ export const EditOrderModal = () => {
                     <div className="divide-y">
                       {items.map((item, index) => (
                         <div
-                          key={index}
+                          key={`${item.menu_id}-${item.menu.name}-${index}`}
                           className="p-3 flex flex-col sm:flex-row justify-between gap-2"
                         >
                           <div className="flex-1">

@@ -424,6 +424,7 @@ subscription GetUserOrders($user_id: uuid!) {
     partner {
       gst_percentage
       currency
+      country
       store_name
     }
     gst_included

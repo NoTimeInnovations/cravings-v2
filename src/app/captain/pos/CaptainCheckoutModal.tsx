@@ -208,7 +208,7 @@ export const CaptainCheckoutModal = () => {
                   </div>
                   {gstPercentage > 0 && (
                     <div className="flex justify-between items-center text-sm">
-                      <span>GST ({gstPercentage}%):</span>
+                      <span>{captainData?.partner?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%):</span>
                       <span>
                         {currency}
                         {gstAmount.toFixed(2)}

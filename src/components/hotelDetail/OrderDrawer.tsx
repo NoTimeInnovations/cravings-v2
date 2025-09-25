@@ -324,7 +324,7 @@ const OrderDrawer = ({
     
     ${
       hotelData?.gst_percentage
-        ? `*GST (${hotelData.gst_percentage}%):* ${
+        ? `*${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${hotelData.gst_percentage}%):* ${
             hotelData.currency
           }${gstAmount.toFixed(2)}`
         : ""

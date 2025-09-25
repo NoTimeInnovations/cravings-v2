@@ -403,7 +403,7 @@ export const Captaincart = () => {
                   {/* GST (on food only) */}
                   {(captainData?.gst_percentage || 0) > 0 && (
                     <div className="flex justify-between text-sm">
-                      <span>{`GST (${
+                      <span>{`${captainData?.partner?.country === "United Arab Emirates" ? "VAT" : "GST"} (${
                         captainData?.gst_percentage || 0
                       }%)`}</span>
                       <span>

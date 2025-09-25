@@ -38,10 +38,74 @@ import {
   ArrowDown,
 } from "lucide-react";
 
-// Type guard to check if item has a valid ID
 function hasValidId(item: MenuItem): item is MenuItem & { id: string } {
   return typeof item.id === 'string' && item.id.length > 0;
 }
+
+interface PriorityInputProps {
+  itemId: string;
+  currentPriority: number;
+  totalItems: number;
+  onPriorityChange: (itemId: string, newPriority: string) => void;
+}
+
+const PriorityInput: React.FC<PriorityInputProps> = ({
+  itemId,
+  currentPriority,
+  totalItems,
+  onPriorityChange,
+}) => {
+  const [inputValue, setInputValue] = useState(String(currentPriority));
+
+  useEffect(() => {
+    setInputValue(String(currentPriority));
+  }, [currentPriority]);
+
+  const handleUpdate = () => {
+    const newPriority = parseInt(inputValue, 10);
+    if (
+      !isNaN(newPriority) &&
+      newPriority >= 1 &&
+      newPriority <= totalItems
+    ) {
+      if (newPriority !== currentPriority) {
+        onPriorityChange(itemId, inputValue);
+      }
+    } else {
+      setInputValue(String(currentPriority));
+    }
+  };
+
+  const handleBlur = () => {
+    handleUpdate();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleUpdate();
+      e.currentTarget.blur();
+    } else if (e.key === "Escape") {
+      setInputValue(String(currentPriority));
+      e.currentTarget.blur();
+    }
+  };
+
+  return (
+    <Input
+      type="number"
+      value={inputValue}
+      onChange={(e) => setInputValue(e.target.value)}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      onClick={(e) => e.stopPropagation()}
+      className="h-8 w-16 text-center"
+      min="1"
+      max={totalItems}
+    />
+  );
+};
+
 
 interface ItemOrderingFormProps {
   categories: Category[];
@@ -63,20 +127,15 @@ export function ItemOrderingForm({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Initialize items
   useEffect(() => {
     if (initialItems.length > 0) {
-      // Only keep items with valid IDs
       const validItems = initialItems.filter(hasValidId);
       setLocalItems(validItems);
       setSearchTerm("");
-      
-      // Initialize with no categories expanded
       setExpandedCategories(new Set());
     }
   }, [initialItems, categories]);
 
-  // Group items by category
   const itemsByCategory = localItems.reduce<Record<string, MenuItem[]>>((acc, item) => {
     const categoryId = item.category.id;
     if (!acc[categoryId]) {
@@ -86,24 +145,20 @@ export function ItemOrderingForm({
     return acc;
   }, {});
 
-  // Sort items within each category by priority
   Object.keys(itemsByCategory).forEach(categoryId => {
     itemsByCategory[categoryId].sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
   });
 
-  // Filter items and categories based on search term
   const filteredCategories = categories.filter(category => {
-    // If there's a search term, check if category name matches or any item in this category matches
     if (searchTerm) {
       const categoryMatches = category.name.toLowerCase().includes(searchTerm.toLowerCase());
       const itemsInCategory = itemsByCategory[category.id] || [];
-      const anyItemMatches = itemsInCategory.some(item => 
+      const anyItemMatches = itemsInCategory.some(item =>
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.price.toString().includes(searchTerm)
       );
       return categoryMatches || anyItemMatches;
     }
-    // If no search term, include all categories that have items
     return true;
   });
 
@@ -119,35 +174,69 @@ export function ItemOrderingForm({
     });
   };
 
+  const handlePriorityChange = (itemId: string, newPriorityStr: string) => {
+    const item = localItems.find(i => i.id === itemId);
+    if (!item) return;
+
+    const categoryId = item.category.id;
+    const itemsInCategory = localItems
+      .filter(i => i.category.id === categoryId)
+      .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+
+    const totalItems = itemsInCategory.length;
+    let newPriority = parseInt(newPriorityStr, 10);
+
+    if (isNaN(newPriority)) {
+      return;
+    }
+
+    newPriority = Math.max(1, Math.min(totalItems, newPriority));
+
+    const currentIndex = itemsInCategory.findIndex(i => i.id === itemId);
+    if (currentIndex === -1) return;
+
+    const newItemsInCategory = [...itemsInCategory];
+    const [movedItem] = newItemsInCategory.splice(currentIndex, 1);
+    newItemsInCategory.splice(newPriority - 1, 0, movedItem);
+
+    const updatedItems = newItemsInCategory.map((catItem, index) => ({
+      ...catItem,
+      priority: index + 1,
+    }));
+
+    setLocalItems(prev => {
+      const otherItems = prev.filter(i => i.category.id !== categoryId);
+      return [...otherItems, ...updatedItems];
+    });
+  };
+
+
   const moveItem = (itemId: string, direction: 'up' | 'down') => {
     const itemIndex = localItems.findIndex(item => item.id === itemId);
     if (itemIndex === -1) return;
-    
+
     const item = localItems[itemIndex];
     const categoryId = item.category.id;
     const itemsInCategory = itemsByCategory[categoryId] || [];
     const indexInCategory = itemsInCategory.findIndex(item => item.id === itemId);
-    
+
     if (indexInCategory === -1) return;
-    
-    const newIndexInCategory = direction === 'up' 
-      ? Math.max(0, indexInCategory - 1) 
+
+    const newIndexInCategory = direction === 'up'
+      ? Math.max(0, indexInCategory - 1)
       : Math.min(itemsInCategory.length - 1, indexInCategory + 1);
-      
+
     if (newIndexInCategory === indexInCategory) return;
-    
-    // Create a new array with the item moved
+
     const newItemsInCategory = [...itemsInCategory];
     const [movedItem] = newItemsInCategory.splice(indexInCategory, 1);
     newItemsInCategory.splice(newIndexInCategory, 0, movedItem);
-    
-    // Update priorities for all items in the category
+
     const updatedItemsInCategory = newItemsInCategory.map((item, idx) => ({
       ...item,
       priority: idx + 1,
     }));
-    
-    // Update the local items state
+
     setLocalItems(prev => {
       const withoutCategory = prev.filter(item => item.category.id !== categoryId);
       return [...withoutCategory, ...updatedItemsInCategory];
@@ -156,25 +245,21 @@ export function ItemOrderingForm({
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
-    
+
     const { source, destination } = result;
-    
-    // If the drag is between items in the same category
+
     if (source.droppableId === destination.droppableId) {
       const categoryId = source.droppableId;
       const itemsInCategory = [...(itemsByCategory[categoryId] || [])];
-      
-      // Move the item within the category
+
       const [movedItem] = itemsInCategory.splice(source.index, 1);
       itemsInCategory.splice(destination.index, 0, movedItem);
-      
-      // Update priorities
+
       const updatedItemsInCategory = itemsInCategory.map((item, idx) => ({
         ...item,
         priority: idx + 1,
       }));
-      
-      // Update the local items state
+
       setLocalItems(prev => {
         const withoutCategory = prev.filter(item => item.category.id !== categoryId);
         return [...withoutCategory, ...updatedItemsInCategory];
@@ -186,7 +271,6 @@ export function ItemOrderingForm({
     setIsLoading(true);
 
     try {
-      // Ensure all items have their priorities set based on their position in the category
       const updatedItems = Object.entries(itemsByCategory)
         .flatMap(([categoryId, items]) => {
           return items
@@ -198,11 +282,8 @@ export function ItemOrderingForm({
         });
 
       await onSubmit(updatedItems);
-      
-      // Important: Set loading to false only after the promise is resolved
       setIsLoading(false);
     } catch (err) {
-      // Make sure to set loading to false in case of errors too
       setIsLoading(false);
       console.error("Error updating item order:", err);
       toast.error("Failed to update item order");
@@ -210,16 +291,13 @@ export function ItemOrderingForm({
   };
 
   const handleReset = () => {
-    // Blur any focused inputs to dismiss keyboard
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
-    
     setLocalItems(initialItems);
     toast("Changes discarded");
   };
 
-  // Add this new component for better mobile drag handle
   const DragHandle = ({ provided }: { provided: DraggableProvided }) => {
     return (
       <div
@@ -243,7 +321,7 @@ export function ItemOrderingForm({
         <h2 className="text-2xl font-bold">Manage Item Order</h2>
       </div>
       <p className="text-sm text-muted-foreground mt-1 mb-4 px-2">
-        Expand categories and reorder items. Long-press to drag on mobile.
+        Expand categories to reorder items. You can drag, use the arrows, or type an order number.
       </p>
 
       <div className="space-y-4 flex flex-col">
@@ -273,7 +351,7 @@ export function ItemOrderingForm({
           </Button>
         </div>
 
-        <div 
+        <div
           ref={contentRef}
           className="border rounded-lg flex-1 flex flex-col overflow-auto touch-pan-y"
           style={{
@@ -288,19 +366,16 @@ export function ItemOrderingForm({
                     <TableHead className="w-[30px]"></TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead className="w-[80px] text-right">Price</TableHead>
-                    <TableHead className="w-[80px] text-center">
-                      Move
-                    </TableHead>
-                    <TableHead className="w-[40px]">
-                      Drag
-                    </TableHead>
+                    <TableHead className="w-[80px] text-center">Order</TableHead>
+                    <TableHead className="w-[80px] text-center">Move</TableHead>
+                    <TableHead className="w-[40px]">Drag</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y">
                   {filteredCategories.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={5}
+                        colSpan={6}
                         className="h-24 text-center text-muted-foreground"
                       >
                         No categories found
@@ -311,23 +386,20 @@ export function ItemOrderingForm({
                     const isExpanded = expandedCategories.has(category.id);
                     const itemsInCategory = itemsByCategory[category.id] || [];
                     const hasItems = itemsInCategory.length > 0;
-                    
-                    // If search term is active, filter items in this category
-                    const filteredItems = searchTerm 
-                      ? itemsInCategory.filter(item => 
-                          item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          item.price.toString().includes(searchTerm)
-                        )
+
+                    const filteredItems = searchTerm
+                      ? itemsInCategory.filter(item =>
+                        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        item.price.toString().includes(searchTerm)
+                      )
                       : itemsInCategory;
-                    
-                    // Skip rendering this category if it has no matching items during search
+
                     if (searchTerm && filteredItems.length === 0) return null;
-                    
+
                     return (
                       <React.Fragment key={category.id}>
-                        {/* Category row */}
-                        <TableRow 
-                          key={`cat-${category.id}`} 
+                        <TableRow
+                          key={`cat-${category.id}`}
                           className="bg-gray-50 hover:bg-gray-100 font-medium cursor-pointer"
                           onClick={() => toggleCategoryExpansion(category.id)}
                         >
@@ -342,17 +414,16 @@ export function ItemOrderingForm({
                               <span className="h-4 w-4 block"></span>
                             )}
                           </TableCell>
-                          <TableCell colSpan={4}>
+                          <TableCell colSpan={5}>
                             <span className="font-bold capitalize">
                               {formatDisplayName(category.name)} ({filteredItems.length})
                             </span>
                           </TableCell>
                         </TableRow>
-                        
-                        {/* Render items if category is expanded */}
+
                         {isExpanded && (
                           <TableRow className="p-0 border-0">
-                            <TableCell colSpan={5} className="p-0">
+                            <TableCell colSpan={6} className="p-0">
                               <Droppable droppableId={category.id}>
                                 {(provided) => (
                                   <div
@@ -363,28 +434,27 @@ export function ItemOrderingForm({
                                     {filteredItems
                                       .filter(hasValidId)
                                       .map((item, index) => {
+                                        const trueIndex = itemsInCategory.findIndex(i => i.id === item.id);
                                         return (
                                           <Draggable
                                             key={item.id}
                                             draggableId={item.id}
-                                            index={index}
+                                            index={trueIndex}
                                           >
                                             {(provided, snapshot) => (
                                               <div
                                                 ref={provided.innerRef}
                                                 {...provided.draggableProps}
-                                                className={`flex items-center w-full p-2 my-1 ${
-                                                  snapshot.isDragging
+                                                className={`flex items-center w-full p-2 my-1 ${snapshot.isDragging
                                                     ? "bg-primary/10 shadow-md rounded-md border border-primary"
                                                     : "bg-background hover:bg-gray-50 rounded-md"
-                                                }`}
+                                                  }`}
                                                 style={{
                                                   ...provided.draggableProps.style,
                                                   touchAction: 'pan-y',
                                                 }}
                                               >
                                                 <div className="w-[30px] pl-8">
-                                                  {/* Indent to show hierarchy */}
                                                 </div>
                                                 <div className="font-medium flex-1">
                                                   {item.name}
@@ -392,7 +462,14 @@ export function ItemOrderingForm({
                                                 <div className="w-[80px] text-right">
                                                   ₹{item.price}
                                                 </div>
-                                                {/* Mobile Actions */}
+                                                <div className="w-[80px] flex justify-center">
+                                                  <PriorityInput
+                                                      itemId={item.id}
+                                                      currentPriority={item.priority!}
+                                                      totalItems={itemsInCategory.length}
+                                                      onPriorityChange={handlePriorityChange}
+                                                  />
+                                                </div>
                                                 <div className="w-[80px] flex justify-center gap-1">
                                                   <Button
                                                     variant="ghost"
@@ -402,7 +479,7 @@ export function ItemOrderingForm({
                                                       e.stopPropagation();
                                                       moveItem(item.id, 'up');
                                                     }}
-                                                    disabled={index === 0}
+                                                    disabled={trueIndex === 0}
                                                     title="Move up"
                                                   >
                                                     <ArrowUp className="h-4 w-4" />
@@ -415,13 +492,12 @@ export function ItemOrderingForm({
                                                       e.stopPropagation();
                                                       moveItem(item.id, 'down');
                                                     }}
-                                                    disabled={index === filteredItems.length - 1}
+                                                    disabled={trueIndex === itemsInCategory.length - 1}
                                                     title="Move down"
                                                   >
                                                     <ArrowDown className="h-4 w-4" />
                                                   </Button>
                                                 </div>
-                                                {/* Drag Handle - visible on all devices */}
                                                 <div className="w-[40px] flex items-center justify-center">
                                                   <DragHandle provided={provided} />
                                                 </div>
@@ -502,16 +578,14 @@ export function ItemOrderingModal({
   const { updateItemsAsBatch, fetchMenu } = useMenuStore();
 
   const handleSubmit = async (updatedItems: MenuItem[]) => {
-    // Filter out items without IDs and format for batch update
     const validItems = updatedItems.filter(hasValidId);
     const updates = validItems.map(item => ({
       id: item.id,
       priority: item.priority ?? 0
     }));
-    
+
     try {
       await updateItemsAsBatch(updates);
-      // Fetch updated menu data after successful update
       await fetchMenu();
       onOpenChange(false);
       toast.success("Item order updated successfully");
@@ -528,7 +602,7 @@ export function ItemOrderingModal({
           <FullModalTitle>Manage Item Order</FullModalTitle>
         </FullModalHeader>
         <FullModalBody>
-          <ItemOrderingForm 
+          <ItemOrderingForm
             categories={categories}
             items={items}
             onSubmit={handleSubmit}
@@ -538,4 +612,4 @@ export function ItemOrderingModal({
       </FullModalContent>
     </FullModal>
   );
-} 
+}

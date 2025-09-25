@@ -80,6 +80,7 @@ export interface Order {
     gst_percentage?: number;
     currency?: string;
     store_name?: string;
+    country?: string;
   };
   phone?: string | null;
   userId?: string;
@@ -188,7 +189,7 @@ interface OrderState {
   genOrderId: () => string;
   setUserAddress: (address: string) => void;
   setOrderNote: (note: string) => void;
-  setUserCoordinates: (coords: { lat: number; lng: number }) => void;
+  setUserCoordinates: (coords: { lat: number; lng: number } | null) => void;
   subscribeOrders: (callback?: (orders: Order[]) => void) => () => void;
   subscribePaginatedOrders: (
     limit: number,
@@ -1113,6 +1114,7 @@ const useOrderStore = create(
                 order_items {
                   id
                   quantity
+                  item
                   menu {
                     id
                     name
@@ -1178,12 +1180,12 @@ const useOrderStore = create(
               tableName: order.qr_code?.table_name || order.table_name || null,
               captain: captainData, // Use the properly structured captain data
               items: order.order_items.map((i: any) => ({
-                id: i.menu?.id,
-                quantity: i.quantity,
-                name: i.menu?.name || "Unknown",
-                price: i.menu?.offers?.[0]?.offer_price || i.menu?.price || 0,
-                category: i.menu?.category,
-                stocks: i.menu?.stocks,
+                  id: i.menu?.id,
+                  quantity: i.quantity,
+                  name: i.item?.name || "Unknown",
+                  price: i.item?.price || i.menu?.price || 0,
+                  category: i.menu?.category,
+                  stocks: i.menu?.stocks,
               })),
             };
           });

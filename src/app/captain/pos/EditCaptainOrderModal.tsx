@@ -460,7 +460,7 @@ export const EditCaptainOrderModal = () => {
                     {totalPrice.toFixed(2)}
                     {gstPercentage > 0 && (
                       <span className="text-[0.6rem] text-muted-foreground ml-2">
-                        (incl. {gstPercentage}% GST: {currency}
+                        (incl. {gstPercentage}% {captainData?.partner?.country === "United Arab Emirates" ? "VAT" : "GST"}: {currency}
                         {((items.reduce((sum, item) => sum + item.menu.price * item.quantity, 0) * gstPercentage) / 100).toFixed(2)})
                       </span>
                     )}

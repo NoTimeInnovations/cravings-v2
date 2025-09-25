@@ -1,7 +1,7 @@
 "use client";
 import useOrderStore, { OrderItem } from "@/store/orderStore";
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore, User } from "@/store/authStore";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -374,7 +374,7 @@ const AddressManagementModal = ({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] bg-white">
+    <div className="fixed inset-0 z-[70] bg-white h-[100dvh]">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-white">
         <div className="flex items-center gap-3">
@@ -604,7 +604,7 @@ const UnifiedAddressSection = ({
   deliveryInfo: DeliveryInfo | null;
   hotelData: HotelData; // <-- MODIFICATION: Added hotelData prop type
 }) => {
-  const { userData: user } = useAuthStore();
+    const { userData: user } = useAuthStore();
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -623,6 +623,16 @@ const UnifiedAddressSection = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (savedAddresses.length === 0) {
+      return;
+    }
+    const defaultAddress = savedAddresses.find(addr => addr.isDefault) || savedAddresses[0];
+    if (defaultAddress && defaultAddress.id !== selectedAddressId && !selectedAddressId) {
+      handleAddressSelect(defaultAddress);
+    }
+  }, [savedAddresses, selectedAddressId]);
+
   const saveAddressesForUser = async (addresses: SavedAddress[]) => {
     try {
       if (!user || (user as any).role !== "user") {
@@ -635,7 +645,6 @@ const UnifiedAddressSection = ({
         addresses: addresses,
       });
       
-      // Update user in auth store
       useAuthStore.setState({
         userData: {
           ...user,
@@ -651,24 +660,24 @@ const UnifiedAddressSection = ({
     }
   };
 
-  const handleAddressSelect = (addr: SavedAddress) => {
-    setSelectedAddressId(addr.id);
-  
-    const fullAddress = addr.address || [
-      addr.flat_no,
-      addr.house_no,
-      addr.road_no,
-      addr.street,
-      addr.area,
-      addr.district,
-      addr.landmark,
-      addr.city,
-      addr.pincode,
+  const handleAddressSelect = (addr: SavedAddress | null) => {
+    console.log("Selected Address:", addr);
+    setSelectedAddressId(addr?.id || null);
+
+    const fullAddress = addr?.address || [
+      addr?.flat_no,
+      addr?.house_no,
+      addr?.road_no,
+      addr?.street,
+      addr?.area,
+      addr?.district,
+      addr?.landmark,
+      addr?.city,
+      addr?.pincode,
     ].filter(Boolean).join(", ");
     setAddress(fullAddress);
     
-    // Store coordinates in localStorage for WhatsApp location link
-    if (addr.latitude && addr.longitude) {
+    if (addr?.latitude && addr?.longitude) {
       const locationData = {
         state: {
           coords: {
@@ -680,12 +689,13 @@ const UnifiedAddressSection = ({
       localStorage?.setItem('user-location-store', JSON.stringify(locationData));
     }
   
-    // ✅ Set coordinates in global store
-    if (addr.latitude && addr.longitude) {
+    if (addr?.latitude && addr?.longitude) {
       useOrderStore.getState().setUserCoordinates({
         lat: addr.latitude,
         lng: addr.longitude,
       });
+    } else {
+      useOrderStore.getState().setUserCoordinates(null);
     }
   
     setShowDropdown(false);
@@ -694,7 +704,7 @@ const UnifiedAddressSection = ({
   const handleAddressSaved = async (addr: SavedAddress) => {
     const existing = [...savedAddresses];
     const index = existing.findIndex(a => a.id === addr.id);
-    
+
     if (index >= 0) {
       existing[index] = addr;
     } else {
@@ -704,7 +714,6 @@ const UnifiedAddressSection = ({
     const success = await saveAddressesForUser(existing);
     if (success) {
       setEditingAddress(null);
-      // Auto-select the new/updated address
       handleAddressSelect(addr);
     }
   };
@@ -716,12 +725,15 @@ const UnifiedAddressSection = ({
       if (selectedAddressId === addressId) {
         setSelectedAddressId(null);
         setAddress("");
+        setEditingAddress(null);
+        handleAddressSelect(null)
       }
       toast.success("Address deleted successfully");
     }
   };
 
   const selectedAddress = savedAddresses.find(a => a.id === selectedAddressId);
+
 
   return (
     <div className="bg-white rounded-lg shadow p-4 mb-4">
@@ -1235,6 +1247,7 @@ interface BillCardProps {
   gstPercentage?: number;
   deliveryInfo: DeliveryInfo | null;
   isDelivery: boolean;
+  hotelData: HotelData;
   qrGroup: QrGroup | null;
 }
 
@@ -1244,6 +1257,7 @@ const BillCard = ({
   gstPercentage,
   deliveryInfo,
   isDelivery,
+  hotelData,
   qrGroup,
 }: BillCardProps) => {
   const subtotal = items.reduce(
@@ -1300,7 +1314,7 @@ const BillCard = ({
 
         {gstPercentage ? (
           <div className="flex justify-between">
-            <span>GST ({gstPercentage}%)</span>
+            <span>{`${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${gstPercentage}%)`}</span>
             <span>
               {currency}
               {gstAmount.toFixed(2)}
@@ -1497,7 +1511,7 @@ const PlaceOrderModal = ({
   const isDelivery =
     tableNumber === 0 ? orderType === "delivery" : !tableNumber;
 
-  const hasDelivery = hotelData?.geo_location && hotelData?.delivery_rate > 0;
+  const hasDelivery = hotelData?.geo_location;
   const isQrScan = qrId !== null && tableNumber !== 0;
 
   useEffect(() => {
@@ -1789,12 +1803,12 @@ const PlaceOrderModal = ({
 
   const minimumOrderAmount = deliveryInfo?.minimumOrderAmount || 0;
 
-  const isPlaceOrderDisabled =
-    orderStatus === "loading" || 
-    (tableNumber === 0 && !orderType) ||
-    (isDelivery && hasDelivery && !selectedCoords && !isQrScan) ||
-    (isDelivery && deliveryInfo?.isOutOfRange && !isQrScan) ||
-    (hasMultiWhatsapp && !selectedLocation);
+const isPlaceOrderDisabled =
+  orderStatus === "loading" ||                                           // Condition 1
+  (tableNumber === 0 && !orderType) ||                                 // Condition 2
+  (isDelivery && hasDelivery && !isQrScan && (!address || !selectedCoords)) || // Condition 3
+  (isDelivery && deliveryInfo?.isOutOfRange) ||                          // Condition 4
+  (hasMultiWhatsapp && !selectedLocation);                               // Condition 5
 
   const { qrData } = useQrDataStore();
 
@@ -1872,6 +1886,7 @@ const PlaceOrderModal = ({
                 deliveryInfo={deliveryInfo}
                 isDelivery={isDelivery && !isQrScan && orderType === "delivery"}
                 qrGroup={qrGroup}
+                hotelData={hotelData}
               />
 
               <div className="border rounded-lg p-4 bg-white">
@@ -1912,7 +1927,7 @@ const PlaceOrderModal = ({
               )}
 
               <div className="flex flex-col gap-3 mt-6">
-                {user?.role !== "partner" ? (
+                {(user?.role !== "partner" && user?.role !== "superadmin") ? (
                   <>
                     {isAndroid ? (
                       <Button

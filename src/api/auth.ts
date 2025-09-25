@@ -45,6 +45,7 @@ export const partnerIdQuery = `
       currency
       place_id
       gst_no
+      country
       gst_percentage
       business_type
       geo_location
