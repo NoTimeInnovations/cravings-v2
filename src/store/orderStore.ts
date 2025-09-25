@@ -241,8 +241,10 @@ const useOrderStore = create(
       },
 
       setOpenOrderDrawer: (open: boolean) => set({ open_order_drawer: open }),
-      setDeliveryInfo: (info: DeliveryInfo | null) =>
-        set({ deliveryInfo: info }),
+      setDeliveryInfo: (info: DeliveryInfo | null) => {
+        // console.log("Setting delivery info:", info);
+        set({ deliveryInfo: info });
+      },
       setDeliveryCost: (cost: number | null) => set({ deliveryCost: cost }),
       setOpenDrawerBottom: (open: boolean) => set({ open_drawer_bottom: open }),
 

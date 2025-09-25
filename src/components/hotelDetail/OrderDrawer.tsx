@@ -63,7 +63,8 @@ export const calculateDeliveryDistanceAndCost = async (
 
     const exactDistance = data.routes[0].distance / 1000;
     // Ceil the distance for whole kilometer charging
-    const distanceInKm = Math.ceil(exactDistance);
+    // const distanceInKm = Math.ceil(exactDistance);
+    const distanceInKm = exactDistance
     const deliveryRate = hotelData?.delivery_rate || 0;
 
     const {
