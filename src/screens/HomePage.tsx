@@ -10,6 +10,9 @@ export default function HomePage() {
   const navigate = useRouter();
   const [isIndianPricing, setIsIndianPricing] = useState(true);
 
+  const INR_TO_USD_RATE = 85;
+  const inrToUsd = (inr: number) => Math.round(inr / INR_TO_USD_RATE);
+
   // Restaurant partners data from hotel-list.txt
   const restaurants = [
     { url: "https://www.cravings.live/qrScan/CHICKING-OOTY/6ec40577-e2d5-4a47-80ec-5e63ab9f9677", name: "CHICKING OOTY", logo: "/logos/chicking.png" },
@@ -216,7 +219,7 @@ export default function HomePage() {
                 Interactive Digital Menu
               </h3>
               <ul className="space-y-3">
-                {["Real-time menu updates", "Visual dish displays", "QR code integration", "Allergen information"].map((item, i) => (
+                {["Real-time menu updates", "Visual dish displays", "QR code integration"].map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-gray-600">
                     <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
                     <span>{item}</span>
@@ -261,7 +264,8 @@ export default function HomePage() {
                   "Custom pricing control",
                   "Add extra charges",
                   "Multiple WhatsApp channels",
-                  "Manage your own delivery"
+                  "Manage your own delivery",
+                  "WhatsApp Messaging"
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-gray-600">
                     <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
@@ -285,23 +289,28 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
+            {
+            [
               {
                 step: 1,
-                title: "Create an account",
-                description: "Sign up for free and set up your restaurant profile in minutes."
+                title: "Contact Us",
+                description: "Get in touch with us and provide your menu and restaurant details.",
+                button: true
               },
               {
                 step: 2,
-                title: "Upload your menu",
-                description: "Our AI-powered system will transform your menu into a digital format."
+                title: "Menu Creation",
+                description: "We create a customized digital menu tailored to your restaurant.",
+                menuButton: true
               },
               {
                 step: 3,
-                title: "Download QR codes",
-                description: "Place QR codes on tables and start accepting digital orders."
+                title: "Get Your QR Codes",
+                description: "We ship physical QR codes or send you themed digital QR codes.",
+                qrButton: true
               }
-            ].map((item) => (
+            ]
+            .map((item) => (
               <div key={item.step} className="bg-white p-8 rounded-xl shadow-sm relative">
                 <div className="w-12 h-12 rounded-full bg-orange-600 text-white flex items-center justify-center text-xl font-bold absolute -top-6 left-8">
                   {item.step}
@@ -309,6 +318,36 @@ export default function HomePage() {
                 <div className="pt-6">
                   <h3 className="text-xl font-bold text-gray-900 mb-3">{item.title}</h3>
                   <p className="text-gray-600">{item.description}</p>
+                  {item.button && (
+                    <Button
+                      onClick={() => window.open("https://wa.me/918590115462?text=Hi!%20I'm%20interested%20in%20partnering%20with%20Cravings.%20Can%20you%20share%20the%20details", "_blank")}
+                      variant="outline"
+                      className="mt-4 bg-white hover:bg-gray-50 text-orange-600 border border-orange-600 px-6 py-2 rounded-full transition-all duration-300 flex items-center gap-2"
+                    >
+                      <span>Message Us</span>
+                      <ChevronRight className="h-5 w-5" />
+                    </Button>
+                  )}
+                  {item.menuButton && (
+                    <Button
+                      onClick={() => navigate.push("/hotels")}
+                      variant="outline"
+                      className="mt-4 bg-white hover:bg-gray-50 text-orange-600 border border-orange-600 px-6 py-2 rounded-full transition-all duration-300 flex items-center gap-2"
+                    >
+                      <span>Check Our Menus</span>
+                      <ChevronRight className="h-5 w-5" />
+                    </Button>
+                  )}
+                  {item.qrButton && (
+                    <Button
+                      onClick={() => window.open("https://test0931.my.canva.site/cravings", "_blank")}
+                      variant="outline"
+                      className="mt-4 bg-white hover:bg-gray-50 text-orange-600 border border-orange-600 px-6 py-2 rounded-full transition-all duration-300 flex items-center gap-2"
+                    >
+                      <span>View QR Samples</span>
+                      <ChevronRight className="h-5 w-5" />
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
@@ -346,147 +385,42 @@ export default function HomePage() {
 
           {/* Pricing Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl mx-auto mb-16">
-            {/* Basic Plan */}
-            {/* <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
-              <div className="p-8 border-b border-gray-100 bg-gradient-to-br from-orange-50 to-white">
-                <h3 className="text-2xl font-bold text-gray-900">Basic</h3>
-                <div className="mt-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 p-3 border-2 border-orange-200 rounded-lg cursor-pointer hover:border-orange-500 transition-colors">
-                        {isIndianPricing ? (
-                          <div className="text-center">
-                            <span className="text-2xl font-bold text-orange-500">₹300</span>
-                            <span className="text-sm text-gray-600 block">monthly</span>
-                          </div>
-                        ) : (
-                          <div className="text-center">
-                            <span className="text-2xl font-bold text-orange-500">$12</span>
-                            <span className="text-sm text-gray-600 block">monthly</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 p-3 border-2 border-orange-200 rounded-lg cursor-pointer hover:border-orange-500 transition-colors">
-                        {isIndianPricing ? (
-                          <div className="text-center">
-                            <span className="text-2xl font-bold text-orange-500">₹3000</span>
-                            <span className="text-sm text-gray-600 block">yearly</span>
-                            <span className="text-xs text-green-600">Save ₹600</span>
-                          </div>
-                        ) : (
-                          <div className="text-center">
-                            <span className="text-2xl font-bold text-orange-500">$120</span>
-                            <span className="text-sm text-gray-600 block">yearly</span>
-                            <span className="text-xs text-green-600">Save $24</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="p-8 space-y-5">
-                <p className="font-semibold text-gray-800 uppercase text-sm tracking-wider">MENU DIGITALIZATION:</p>
-
-                {[
-                  "Create shareable offers",
-                  "Theme color customization",
-                  "Menu customization (images, prices, names)",
-                  "Reorder categories",
-                  "Edit/add \"Must Try\" dishes",
-                  "Google reviews integration", 
-                  "Social media integration"
-                ].map((feature, index) => (
-                  <div key={index} className="flex items-center gap-3 group">
-                    <div className="bg-orange-100 rounded-full p-1">
-                      <Check className="h-4 w-4 text-orange-600" />
-                    </div>
-                    <span className="text-gray-700 group-hover:text-orange-600 transition-colors">{feature}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="p-8 border-t border-gray-100 space-y-4 bg-gray-50">
-                <Button
-                  onClick={() => window.open("https://wa.me/918590115462?text=Hi!%20I'm%20interested%20in%20the%20menu%20plan.%20Can%20you%20share%20more%20details%20about%20this?", "_blank")}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3"
-                >
-                  Select Plan
-                </Button>
-                <Button
-                  onClick={() => {
-                    navigate.push("/hotels/Fried-Express/322331a7-8487-404a-a371-ae73e1afec82");
-                    window.scrollTo(0, 0);
-                  }}
-                  className="w-full bg-white hover:bg-orange-50 text-orange-500 border-2 border-orange-500 font-semibold py-3"
-                >
-                  View Demo
-                </Button>
-              </div>
-            </div> */}
-
-            {/* Pro Plan */}
+            {/* Digital Plan */}
             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
               <div className="p-8 border-b border-gray-100 bg-gradient-to-br from-orange-50 to-white">
-                <h3 className="text-2xl font-bold text-gray-900">Pro</h3>
+                <h3 className="text-2xl font-bold text-gray-900">Digital</h3>
                 <div className="mt-4">
                   <div className="space-y-4">
-                  <div className="flex items-baseline gap-2">
+                    <div className="flex items-baseline gap-2">
                       {isIndianPricing ? (
                         <>
-                          <span className="text-4xl font-bold text-orange-500">₹500</span>
-                          <span className="text-lg text-gray-600">one-time setup fee</span>
+                          <span className="text-4xl font-bold text-orange-500">₹3500</span>
+                          <span className="text-lg text-gray-600">lifetime</span>
                         </>
                       ) : (
                         <>
-                          <span className="text-4xl font-bold text-orange-500">$12</span>
-                          <span className="text-lg text-gray-600">setup fee</span>
+                          <span className="text-4xl font-bold text-orange-500">${inrToUsd(3500)}</span>
+                          <span className="text-lg text-gray-600">lifetime</span>
                         </>
                       )}
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 p-3 border-2 border-orange-200 rounded-lg cursor-pointer hover:border-orange-500 transition-colors">
-                        {isIndianPricing ? (
-                          <div className="text-center">
-                            <span className="text-2xl font-bold text-orange-500">₹10</span>
-                            <span className="text-sm text-gray-600 block">per delivery order</span>
-                          </div>
-                        ) : (
-                          <div className="text-center">
-                            <span className="text-2xl font-bold text-orange-500">$0.50</span>
-                            <span className="text-sm text-gray-600 block">per delivery order</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 p-3 border-2 border-orange-200 rounded-lg cursor-pointer hover:border-orange-500 transition-colors">
-                        {isIndianPricing ? (
-                          <div className="text-center">
-                            <span className="text-lg font-bold text-orange-500">No monthly</span>
-                            <span className="text-sm text-gray-600 block">subscription</span>
-                          </div>
-                        ) : (
-                          <div className="text-center">
-                            <span className="text-lg font-bold text-orange-500">No monthly</span>
-                            <span className="text-sm text-gray-600 block">subscription</span>
-                          </div>
-                        )}
-                      </div>
                     </div>
                   </div>
                 </div>
               </div>
               <div className="p-8 space-y-5">
-                <p className="font-semibold text-gray-800 uppercase text-sm tracking-wider">ALL BASIC FEATURES PLUS:</p>
-
-                {[
-                  "Everything in Basic plan",
-                  "Receive orders via WhatsApp",
-                  "Admin dashboard for order tracking",
-                  "Outside delivery orders via WhatsApp",
-                  "Detailed Analytics",
-                  "GST and other extra charges",
-                  "Add charges in each table (AC/Non-AC, etc.)",
-                  "Multi-location support"
-                ].map((feature, index) => (
+                {
+                [
+                  "Customizable digital menu with price visibility control",
+                  "Must Try dishes",
+                  "Flexible color schemes and layout options",
+                  "Unlimited menu and content updates",
+                  "Add social media links and contact information",
+                  "Multiple location support",
+                  "Shop open/close status control",
+                  "Easy menu item hiding and unhiding",
+                  "Google reviews integration"
+                ]
+                .map((feature, index) => (
                   <div key={index} className="flex items-center gap-3 group">
                     <div className="bg-orange-100 rounded-full p-1">
                       <Check className="h-4 w-4 text-orange-600" />
@@ -514,100 +448,65 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Max Plan */}
+            {/* Digital Plus Plan */}
             <div className="bg-white rounded-2xl border-2 border-orange-500 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 relative">
               <div className="absolute -top-px right-0 left-0 mx-auto w-max bg-orange-500 text-white text-sm font-bold py-2 px-6 rounded-b-lg shadow-lg">
                 MOST POPULAR
               </div>
               <div className="p-8 border-b border-gray-100 bg-gradient-to-br from-orange-50 to-white">
-                <h3 className="text-2xl font-bold text-gray-900">Max</h3>
+                <h3 className="text-2xl font-bold text-gray-900">Digital Plus</h3>
                 <div className="mt-4">
                   <div className="space-y-4">
                     <div className="flex items-baseline gap-2">
                       {isIndianPricing ? (
                         <>
-                          <span className="text-4xl font-bold text-orange-500">₹500</span>
-                          <span className="text-lg text-gray-600">one-time setup fee</span>
+                          <span className="text-4xl font-bold text-orange-500">₹3500</span>
+                          <span className="text-lg text-gray-600">lifetime</span>
                         </>
                       ) : (
                         <>
-                          <span className="text-4xl font-bold text-orange-500">$12</span>
-                          <span className="text-lg text-gray-600">setup fee</span>
+                          <span className="text-4xl font-bold text-orange-500">${inrToUsd(3500)}</span>
+                          <span className="text-lg text-gray-600">lifetime</span>
                         </>
                       )}
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 p-3 border-2 border-orange-200 rounded-lg cursor-pointer hover:border-orange-500 transition-colors">
-                        {isIndianPricing ? (
-                          <div className="text-center">
-                            <span className="text-2xl font-bold text-orange-500">₹500</span>
-                            <span className="text-sm text-gray-600 block">monthly</span>
-                          </div>
-                        ) : (
-                          <div className="text-center">
-                            <span className="text-2xl font-bold text-orange-500">$12</span>
-                            <span className="text-sm text-gray-600 block">monthly</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 p-3 border-2 border-orange-200 rounded-lg cursor-pointer hover:border-orange-500 transition-colors">
-                        {isIndianPricing ? (
-                          <div className="text-center">
-                            <span className="text-2xl font-bold text-orange-500">₹5000</span>
-                            <span className="text-sm text-gray-600 block">yearly</span>
-                            <span className="text-xs text-green-600">Save ₹1000</span>
-                          </div>
-                        ) : (
-                          <div className="text-center">
-                            <span className="text-2xl font-bold text-orange-500">$200</span>
-                            <span className="text-sm text-gray-600 block">yearly</span>
-                            <span className="text-xs text-green-600">Save $40</span>
-                          </div>
-                        )}
-                      </div>
+                    <div className="flex items-baseline gap-2">
+                      {isIndianPricing ? (
+                        <>
+                          <span className="text-3xl font-bold text-orange-500">₹999</span>
+                          <span className="text-lg text-gray-600">yearly</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-3xl font-bold text-orange-500">${inrToUsd(1499)}</span>
+                          <span className="text-lg text-gray-600">yearly</span>
+                        </>
+                      )}
                     </div>
                   </div>
-                  {/* <div className="mt-4">
-                    {isIndianPricing ? (
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-bold text-orange-500">₹500</span>
-                        <span className="text-lg text-gray-600">/month</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-bold text-orange-500">$20</span>
-                        <span className="text-lg text-gray-600">/month</span>
-                      </div>
-                    )}
-                  </div> */}
-                  <div className="mt-4">
-                    {isIndianPricing ? (
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-bold text-orange-500">₹10</span>
-                        <span className="text-lg text-gray-600">/delivery order</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-bold text-orange-500">$0.50</span>
-                        <span className="text-lg text-gray-600">/delivery order</span>
-                      </div>
-                    )}
-                  </div>
+                  <div className="mt-4"></div>
                 </div>
               </div>
               <div className="p-8 space-y-5">
-                <p className="font-semibold text-gray-800 uppercase text-sm tracking-wider">ALL PRO FEATURES PLUS:</p>
+                <p className="font-semibold text-gray-800 uppercase text-sm tracking-wider">ALL DIGITAL FEATURES PLUS:</p>
 
-                {[
-                  "Everything in Pro plan",
-                  "Inbuilt POS system",
-                  "Captain ordering system",
+                {
+                [
                   "Table ordering system",
+                  "Delivery ordering system",
+                  "Receive orders via WhatsApp",
+                  "Captain ordering system", 
+                  "Inbuilt POS system",
+                  "Multi-location support",
                   "KOT and KDS system",
-                  "Automatic stock updation",
+                  "Admin dashboard for order tracking",
+                  "Outside delivery orders via WhatsApp",
                   "Advanced reporting & analytics",
-                  "Multi-location support"
-                ].map((feature, index) => (
+                  "Automatic stock updation",
+                  "GST and other extra charges",
+                  "Add charges in each table (AC/Non-AC, etc.)",
+                ]
+                .map((feature, index) => (
                   <div key={index} className="flex items-center gap-3 group">
                     <div className="bg-orange-100 rounded-full p-1">
                       <Check className="h-4 w-4 text-orange-600" />
@@ -642,9 +541,8 @@ export default function HomePage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="py-4 px-6 text-left text-sm font-semibold text-gray-900">Features</th>
-                  <th className="py-4 px-6 text-center text-sm font-semibold text-gray-900">Basic</th>
-                  <th className="py-4 px-6 text-center text-sm font-semibold text-gray-900">Pro</th>
-                  <th className="py-4 px-6 text-center text-sm font-semibold text-gray-900">Max</th>
+                  <th className="py-4 px-6 text-center text-sm font-semibold text-gray-900">Digital</th>
+                  <th className="py-4 px-6 text-center text-sm font-semibold text-gray-900">Digital Plus</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -652,11 +550,9 @@ export default function HomePage() {
                   <td className="py-3 px-6 text-sm text-gray-800 font-medium">Theme color customization</td>
                   <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                   <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                 </tr>
                 <tr className="bg-gray-50">
                   <td className="py-3 px-6 text-sm text-gray-800 font-medium">Menu customization</td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                   <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                   <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                 </tr>
@@ -664,11 +560,9 @@ export default function HomePage() {
                   <td className="py-3 px-6 text-sm text-gray-800 font-medium">Reorder categories</td>
                   <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                   <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                 </tr>
                 <tr className="bg-gray-50">
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium"> &quot;Must Try&quot; dishes</td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
+                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">&quot;Must Try&quot; dishes</td>
                   <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                   <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                 </tr>
@@ -676,53 +570,39 @@ export default function HomePage() {
                   <td className="py-3 px-6 text-sm text-gray-800 font-medium">Google reviews integration</td>
                   <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                   <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                 </tr>
                 <tr className="bg-gray-50">
                   <td className="py-3 px-6 text-sm text-gray-800 font-medium">WhatsApp ordering</td>
                   <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                   <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                 </tr>
                 <tr>
                   <td className="py-3 px-6 text-sm text-gray-800 font-medium">Order tracking dashboard</td>
                   <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
                   <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                 </tr>
                 <tr className="bg-gray-50">
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">Delivery orders via WhatsApp</td>
-                  <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                </tr>
-                <tr>
                   <td className="py-3 px-6 text-sm text-gray-800 font-medium">Table ordering system</td>
                   <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
                   <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                 </tr>
-                <tr className="bg-gray-50">
+                <tr>
                   <td className="py-3 px-6 text-sm text-gray-800 font-medium">Inbuilt POS system</td>
                   <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
+                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">Captain ordering system</td>
                   <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
                   <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                 </tr>
                 <tr>
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">Captain ordering system</td>
-                  <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
+                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">KOT and KDS system</td>
                   <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
                   <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                 </tr>
                 <tr className="bg-gray-50">
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">KOT and KDS system</td>
-                  <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                </tr>
-                <tr>
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">Automatic stock updation</td>
-                  <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
+                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">Analytics and reporting</td>
                   <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
                   <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
                 </tr>
