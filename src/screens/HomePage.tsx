@@ -330,7 +330,7 @@ export default function HomePage() {
                   )}
                   {item.menuButton && (
                     <Button
-                      onClick={() => navigate.push("/hotels")}
+                      onClick={() => window.open("/hotels", "_blank")}
                       variant="outline"
                       className="mt-4 bg-white hover:bg-gray-50 text-orange-600 border border-orange-600 px-6 py-2 rounded-full transition-all duration-300 flex items-center gap-2"
                     >
@@ -455,36 +455,42 @@ export default function HomePage() {
               </div>
               <div className="p-8 border-b border-gray-100 bg-gradient-to-br from-orange-50 to-white">
                 <h3 className="text-2xl font-bold text-gray-900">Digital Plus</h3>
-                <div className="mt-4">
-                  <div className="space-y-4">
-                    <div className="flex items-baseline gap-2">
-                      {isIndianPricing ? (
-                        <>
-                          <span className="text-4xl font-bold text-orange-500">₹3500</span>
-                          <span className="text-lg text-gray-600">lifetime</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-4xl font-bold text-orange-500">${inrToUsd(3500)}</span>
-                          <span className="text-lg text-gray-600">lifetime</span>
-                        </>
-                      )}
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      {isIndianPricing ? (
-                        <>
-                          <span className="text-3xl font-bold text-orange-500">₹999</span>
-                          <span className="text-lg text-gray-600">yearly</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-3xl font-bold text-orange-500">${inrToUsd(1499)}</span>
-                          <span className="text-lg text-gray-600">yearly</span>
-                        </>
-                      )}
+                <div className="mt-6">
+                  <div className="bg-white p-6 rounded-lg border-2 border-orange-200 shadow-sm">
+                    <div className="space-y-4">
+                      <div>
+                        <div className="text-sm font-medium text-gray-600">Initial Setup Fee</div>
+                        {isIndianPricing ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-4xl font-bold text-orange-500">₹3500</span>
+                            <span className="text-4xl font-bold text-orange-500 rounded-full">+</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="text-4xl font-bold text-orange-500">${inrToUsd(3500)}</span>
+                            <span className="text-4xl font-bold text-orange-500 rounded-full">+</span>
+                          </div>
+                        )}
+                      </div>
+
+                      
+
+                      <div>
+                        <div className="text-sm font-medium text-gray-600">Annual Maintenance</div>
+                        {isIndianPricing ? (
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-bold text-orange-500">₹999</span>
+                            <span className="text-lg font-bold text-gray-600">per year</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-bold text-orange-500">${inrToUsd(1499)}</span>
+                            <span className="text-lg font-bold text-gray-600">per year</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="mt-4"></div>
                 </div>
               </div>
               <div className="p-8 space-y-5">
