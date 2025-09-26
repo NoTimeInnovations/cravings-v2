@@ -405,7 +405,13 @@ export function MenuTab() {
               toast.error("Failed to update item");
             }
           }}
-          onCancel={() => setIsEditModalOpen(false)}
+          onCancel={() => {
+            setIsEditModalOpen(false);
+            // Restore scroll position after canceling edit
+            setTimeout(() => {
+              window.scrollTo(0, scrollPosition);
+            }, 100);
+          }}
         />
       ) : isCategoryEditing ? (
         <CategoryManagementForm
