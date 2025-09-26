@@ -6,14 +6,21 @@ import {
   Plus,
   Search,
   Upload,
-  Save,
-  X,
-  Menu,
   ListOrdered,
   Copy,
   Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Card,
   CardContent,
@@ -26,12 +33,12 @@ import { useAdminOfferStore } from "@/store/useAdminOfferStore";
 import { Partner, useAuthStore } from "@/store/authStore";
 import Link from "next/link";
 import { AddMenuItemForm } from "../bulkMenuUpload/AddMenuItemModal";
-import { EditMenuItemForm, EditMenuItemModal } from "./EditMenuItemModal";
+import { EditMenuItemForm } from "./EditMenuItemModal";
 import {
   CategoryManagementModal,
   CategoryManagementForm,
 } from "./CategoryManagementModal";
-import { ItemOrderingModal } from "./ItemOrderingModal";
+// removed unused ItemOrderingModal import
 import { MenuItem, useMenuStore } from "@/store/menuStore_hasura";
 import { Switch } from "../ui/switch";
 import { toast } from "sonner";
@@ -73,10 +80,7 @@ export function MenuTab() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const searchParams = useSearchParams();
-  const [isMenuItemsFetching, setIsMenuItemsFetching] = useState(true);
-  const [filteredGroupedItems, setFilteredGroupedItems] = useState(
-    {} as Record<string, MenuItem[]>
-  );
+  // removed unused fetching and filtered state
   const [editingItem, setEditingItem] = useState<{
     id: string;
     name: string;
@@ -98,6 +102,10 @@ export function MenuTab() {
     {}
   );
   const router = useRouter();
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [itemPendingDelete, setItemPendingDelete] = useState<MenuItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [scrollPosition, setScrollPosition] = useState(0);
 
   useEffect(() => {
     if (userData?.id) {
@@ -130,10 +138,8 @@ export function MenuTab() {
       }
     });
 
-    setFilteredGroupedItems(filtered);
     setTempItems(filtered);
     setOpenCategories(newOpenCategories);
-    setIsMenuItemsFetching(false);
   }, [groupedItems, searchQuery, searchParams]);
 
   const handleCopyMenu = async () => {
@@ -282,6 +288,9 @@ export function MenuTab() {
       price: number;
     }[];
   }) => {
+    // Store current scroll position before opening modal
+    setScrollPosition(window.scrollY);
+    
     // Ensure the category is open when editing an item
     setOpenCategories((prev) => ({
       ...prev,
@@ -387,6 +396,10 @@ export function MenuTab() {
             try {
               await handleEditItem(item);
               setIsEditModalOpen(false);
+              // Restore scroll position after editing
+              setTimeout(() => {
+                window.scrollTo(0, scrollPosition);
+              }, 100);
             } catch (error) {
               console.error("Failed to update item:", error);
               toast.error("Failed to update item");
@@ -509,8 +522,8 @@ export function MenuTab() {
                   type="multiple"
                   className="grid gap-4"
                   value={Object.entries(openCategories)
-                    .filter(([category, isOpen]) => isOpen)
-                    .map(([category]) => category)}
+                    .filter((entry) => entry[1])
+                    .map((entry) => entry[0])}
                   onValueChange={(values: string[]) => {
                     const newOpenCategories = { ...openCategories };
                     Object.keys(newOpenCategories).forEach((category) => {
@@ -796,29 +809,9 @@ export function MenuTab() {
                                             </Button>
                                             <Button
                                               variant="destructive"
-                                              onClick={async (e) => {
-                                                e.currentTarget.disabled = true;
-                                                e.currentTarget.innerText =
-                                                  "Deleting...";
-                                                const isOfferActive =
-                                                  adminOffers.some(
-                                                    (offer) =>
-                                                      offer.menuItemId ===
-                                                      item.id
-                                                  );
-                                                if (isOfferActive) {
-                                                  alert(
-                                                    `Cannot delete the menu item "${item.name}" because it has an active offer. Please delete the offer first.`
-                                                  );
-                                                  return;
-                                                }
-                                                await deleteItem(
-                                                  item.id as string
-                                                );
-                                                if (item.image_url)
-                                                  await deleteFileFromS3(
-                                                    item.image_url
-                                                  );
+                                              onClick={() => {
+                                                setItemPendingDelete(item);
+                                                setIsDeleteConfirmOpen(true);
                                               }}
                                             >
                                               Delete
@@ -845,6 +838,60 @@ export function MenuTab() {
           </>
         </>
       )}
+      {/* Delete Confirmation Modal */}
+      <AlertDialog
+        open={isDeleteConfirmOpen}
+        onOpenChange={(open) => {
+          setIsDeleteConfirmOpen(open);
+          if (!open) {
+            setItemPendingDelete(null);
+            setIsDeleting(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+            <AlertDialogDescription>
+              {`Are you sure you want to delete "${itemPendingDelete?.name ?? "this item"}"? This action cannot be undone.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!itemPendingDelete) return;
+                try {
+                  setIsDeleting(true);
+                  const isOfferActive = adminOffers.some(
+                    (offer) => offer.menuItemId === itemPendingDelete.id
+                  );
+                  if (isOfferActive) {
+                    alert(
+                      `Cannot delete the menu item "${itemPendingDelete.name}" because it has an active offer. Please delete the offer first.`
+                    );
+                    return;
+                  }
+                  await deleteItem(itemPendingDelete.id as string);
+                  if (itemPendingDelete.image_url) {
+                    await deleteFileFromS3(itemPendingDelete.image_url);
+                  }
+                  setIsDeleteConfirmOpen(false);
+                  setItemPendingDelete(null);
+                } catch (error) {
+                  console.error("Failed to delete item:", error);
+                  alert("Failed to delete item. Please try again.");
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Confirm Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
