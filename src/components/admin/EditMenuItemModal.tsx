@@ -67,7 +67,7 @@ export function EditMenuItemForm({
     }
     
     // If there are no variants, ensure base price is set
-    if (variants.length === 0 && !editingItem.price) {
+    if (variants.length === 0 && (!editingItem.price || parseFloat(editingItem.price) <= 0)) {
       alert("Please set either a base price or add options");
       return;
     }
@@ -76,8 +76,8 @@ export function EditMenuItemForm({
     try {
       await onSubmit({
         ...editingItem,
-        price: variants.length > 0 ? "0" : editingItem.price, // Set price to "0" when variants exist
-        variants: variants.length > 0 ? variants : undefined,
+        price: variants.length > 0 ? "0" : editingItem.price,
+        variants: variants.length > 0 ? variants : [],
       });
     } finally {
       setIsSubmitting(false);
@@ -122,6 +122,9 @@ export function EditMenuItemForm({
 
   const removeVariant = (index: number) => {
     setVariants(variants.filter((_, i) => i !== index));
+
+    console.log(variants.length);
+    console.log(variants.filter((_, i) => i !== index));
   };
 
   const cancelVariantEdit = () => {
