@@ -1319,7 +1319,7 @@ const TableNumberCard = ({
 
       {tableName && (
         <div className="flex items-center text-sm gap-2">
-          <span className="font-medium">Table Name:</span>
+          {isRoom ? null : <span className="font-medium">Table Name:</span>}
           <span className="text-lg font-semibold"> {tableName}</span>
         </div>
       )}
