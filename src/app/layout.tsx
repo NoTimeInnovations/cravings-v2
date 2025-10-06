@@ -32,7 +32,7 @@ export const metadata: Metadata = {
 };
 
 const petrazFilter = "PETRAZ";
-const bottomNavFilter = ["PETRAZ", "HENZU", "DOWNTREE", "CHILLI'S-RESTAURANT"];
+const bottomNavFilter = ["PETRAZ", "HENZU", "DOWNTREE", "CHILLI'S-RESTAURANT", "Krishnakripa-Residency"];
 const hideWhatsappGroupJoinDialog = ["Krishnakripa-Residency"]; 
 
 export default async function RootLayout({
