@@ -82,13 +82,13 @@ const AddressManagementModal = ({
   onClose,
   onSaved,
   editAddress = null,
-  hotelData, 
+  hotelData,
 }: {
   open: boolean;
   onClose: () => void;
   onSaved: (addr: SavedAddress) => void;
   editAddress?: SavedAddress | null;
-  hotelData: HotelData; 
+  hotelData: HotelData;
 }) => {
   const [label, setLabel] = useState<string>("Home");
   const [customLabel, setCustomLabel] = useState<string>("");
@@ -101,7 +101,10 @@ const AddressManagementModal = ({
   const [landmark, setLandmark] = useState<string>("");
   const [city, setCity] = useState<string>("");
   const [pincode, setPincode] = useState<string>("");
-  const [coordinates, setCoordinates] = useState<{lat: number; lng: number} | null>(null);
+  const [coordinates, setCoordinates] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
   const [saving, setSaving] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
@@ -123,7 +126,10 @@ const AddressManagementModal = ({
       setCity(editAddress.city || "");
       setPincode(editAddress.pincode || "");
       if (editAddress.latitude && editAddress.longitude) {
-        setCoordinates({lat: editAddress.latitude, lng: editAddress.longitude});
+        setCoordinates({
+          lat: editAddress.latitude,
+          lng: editAddress.longitude,
+        });
       }
     } else {
       // Reset form for new address
@@ -172,26 +178,31 @@ const AddressManagementModal = ({
 
     const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
     if (!token) {
-      toast.error("Mapbox token missing. Please set NEXT_PUBLIC_MAPBOX_TOKEN environment variable");
+      toast.error(
+        "Mapbox token missing. Please set NEXT_PUBLIC_MAPBOX_TOKEN environment variable"
+      );
       return;
     }
     mapboxgl.accessToken = token as string;
 
     mapInstanceRef.current = new mapboxgl.Map({
       container: mapRef.current,
-      style: 'mapbox://styles/mapbox/streets-v11',
-      center: coordinates ? [coordinates.lng, coordinates.lat] : [76.322455, 10.050525],
+      style: "mapbox://styles/mapbox/streets-v11",
+      center: coordinates
+        ? [coordinates.lng, coordinates.lat]
+        : [76.322455, 10.050525],
       zoom: 10,
       accessToken: token,
     });
 
-    mapInstanceRef.current.on('load', () => {
+    mapInstanceRef.current.on("load", () => {
       if (hotelData?.geo_location?.coordinates) {
         const [lng, lat] = hotelData.geo_location.coordinates;
-        const el = document.createElement('div');
-        el.className = 'w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-lg';
+        const el = document.createElement("div");
+        el.className =
+          "w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-lg";
         el.style.backgroundImage = `url(${hotelData.store_banner})`;
-        el.style.backgroundSize = 'cover';
+        el.style.backgroundSize = "cover";
 
         new mapboxgl.Marker(el)
           .setLngLat([lng, lat])
@@ -199,10 +210,10 @@ const AddressManagementModal = ({
       }
     });
 
-    mapInstanceRef.current.on('click', (e) => {
+    mapInstanceRef.current.on("click", (e) => {
       const { lng, lat } = e.lngLat;
       setCoordinates({ lat, lng });
-      
+
       if (markerRef.current) {
         markerRef.current.remove();
       }
@@ -224,7 +235,7 @@ const AddressManagementModal = ({
     if (showMap && open) {
       setTimeout(initializeMap, 100);
     }
-    
+
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
@@ -265,22 +276,28 @@ const AddressManagementModal = ({
       const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=jsonv2&addressdetails=1&zoom=18&countrycodes=in&accept-language=en`;
       const res = await fetch(url, {
         headers: {
-          'Accept': 'application/json',
-          'Origin': window.location.origin,
-          'User-Agent': 'CravingsApp/1.0 (your-email@example.com)'
+          Accept: "application/json",
+          Origin: window.location.origin,
+          "User-Agent": "CravingsApp/1.0 (your-email@example.com)",
         },
-        mode: 'cors',
+        mode: "cors",
       });
       if (!res.ok) {
-        console.error('Nominatim response not ok', res.status, res.statusText);
+        console.error("Nominatim response not ok", res.status, res.statusText);
         return;
       }
       const data = await res.json();
       const addr = data?.address || {};
-      const districtVal = addr.state_district || addr.district || addr.county || "";
+      const districtVal =
+        addr.state_district || addr.district || addr.county || "";
       const cityVal = addr.city || addr.town || addr.village || "";
       const postcode = addr.postcode || "";
-      const neighbourhood = addr.neighbourhood || addr.suburb || addr.quarter || addr.residential || "";
+      const neighbourhood =
+        addr.neighbourhood ||
+        addr.suburb ||
+        addr.quarter ||
+        addr.residential ||
+        "";
 
       if (districtVal) setDistrict(districtVal);
       if (cityVal) setCity(cityVal);
@@ -296,30 +313,34 @@ const AddressManagementModal = ({
             const features = mbData?.features || [];
             let mbPostcode = "";
             for (const f of features) {
-              if (f.place_type?.includes('postcode')) {
+              if (f.place_type?.includes("postcode")) {
                 mbPostcode = f.text || f.properties?.short_code || "";
               }
               if (!mbPostcode && Array.isArray(f.context)) {
-                const pc = f.context.find((c: any) => (c.id as string)?.startsWith('postcode.'));
+                const pc = f.context.find((c: any) =>
+                  (c.id as string)?.startsWith("postcode.")
+                );
                 if (pc) mbPostcode = pc.text || pc.properties?.short_code || "";
               }
               if (mbPostcode) break;
             }
             if (mbPostcode) setPincode(mbPostcode);
           } catch (err) {
-            console.error('Mapbox fallback geocode failed', err);
+            console.error("Mapbox fallback geocode failed", err);
           }
         }
       }
       if (neighbourhood && !area) setArea(neighbourhood);
     } catch (e) {
-      console.error('Nominatim reverse geocode failed', e);
+      console.error("Nominatim reverse geocode failed", e);
     }
   };
 
   const handleSave = async () => {
     if (!coordinates) {
-      toast.error("Please select a location on the map or use your current location");
+      toast.error(
+        "Please select a location on the map or use your current location"
+      );
       return;
     }
 
@@ -335,7 +356,17 @@ const AddressManagementModal = ({
 
     setSaving(true);
     try {
-      const fullAddress = [flatNo, houseNo, roadNo, street, area, district, landmark ? `near ${landmark}` : null, city, pincode]
+      const fullAddress = [
+        flatNo,
+        houseNo,
+        roadNo,
+        street,
+        area,
+        district,
+        landmark ? `near ${landmark}` : null,
+        city,
+        pincode,
+      ]
         .filter(Boolean)
         .join(", ");
 
@@ -362,7 +393,11 @@ const AddressManagementModal = ({
 
       onSaved(addr);
       onClose();
-      toast.success(editAddress ? "Address updated successfully" : "Address saved successfully");
+      toast.success(
+        editAddress
+          ? "Address updated successfully"
+          : "Address saved successfully"
+      );
     } catch (error) {
       toast.error("Failed to save address");
       console.error(error);
@@ -437,26 +472,26 @@ const AddressManagementModal = ({
 
         {/* Map */}
         {showMap && (
-           <div className="space-y-3">
+          <div className="space-y-3">
             <div className="h-80 rounded-lg overflow-hidden border">
               <div ref={mapRef} className="w-full h-full" />
             </div>
-             {/* ✅ CHANGE 2: Add a Cancel button next to the Confirm button */}
+            {/* ✅ CHANGE 2: Add a Cancel button next to the Confirm button */}
             <div className="flex gap-2">
-                <Button 
-                    variant="outline"
-                    onClick={() => setShowMap(false)} 
-                    className="w-full"
-                >
-                    Cancel
-                </Button>
-                <Button 
-                    onClick={() => setShowMap(false)} 
-                    className="w-full"
-                    disabled={!coordinates}
-                >
-                    Confirm Location
-                </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowMap(false)}
+                className="w-full"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => setShowMap(false)}
+                className="w-full"
+                disabled={!coordinates}
+              >
+                Confirm Location
+              </Button>
             </div>
           </div>
         )}
@@ -570,18 +605,16 @@ const AddressManagementModal = ({
 
       {/* Footer */}
       <div className="p-4 border-t bg-white">
-        <Button
-          onClick={handleSave}
-          disabled={saving}
-          className="w-full"
-        >
+        <Button onClick={handleSave} disabled={saving} className="w-full">
           {saving ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Saving...
             </>
+          ) : editAddress ? (
+            "Update Address"
           ) : (
-            editAddress ? "Update Address" : "Save Address"
+            "Save Address"
           )}
         </Button>
       </div>
@@ -604,18 +637,25 @@ const UnifiedAddressSection = ({
   deliveryInfo: DeliveryInfo | null;
   hotelData: HotelData; // <-- MODIFICATION: Added hotelData prop type
 }) => {
-    const { userData: user } = useAuthStore();
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const { userData: user } = useAuthStore();
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+    null
+  );
   const [showDropdown, setShowDropdown] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
-  const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(null);
+  const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(
+    null
+  );
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const savedAddresses = ((user as any)?.addresses || []) as SavedAddress[];
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setShowDropdown(false);
       }
     };
@@ -627,8 +667,13 @@ const UnifiedAddressSection = ({
     if (savedAddresses.length === 0) {
       return;
     }
-    const defaultAddress = savedAddresses.find(addr => addr.isDefault) || savedAddresses[0];
-    if (defaultAddress && defaultAddress.id !== selectedAddressId && !selectedAddressId) {
+    const defaultAddress =
+      savedAddresses.find((addr) => addr.isDefault) || savedAddresses[0];
+    if (
+      defaultAddress &&
+      defaultAddress.id !== selectedAddressId &&
+      !selectedAddressId
+    ) {
       handleAddressSelect(defaultAddress);
     }
   }, [savedAddresses, selectedAddressId]);
@@ -639,19 +684,19 @@ const UnifiedAddressSection = ({
         toast.error("Login to save addresses");
         return false;
       }
-      
+
       await fetchFromHasura(updateUserAddressesMutation, {
         id: user.id,
         addresses: addresses,
       });
-      
+
       useAuthStore.setState({
         userData: {
           ...user,
           addresses: addresses,
-        } as any
+        } as any,
       });
-      
+
       return true;
     } catch (error) {
       console.error("Error saving addresses:", error);
@@ -664,31 +709,38 @@ const UnifiedAddressSection = ({
     console.log("Selected Address:", addr);
     setSelectedAddressId(addr?.id || null);
 
-    const fullAddress = addr?.address || [
-      addr?.flat_no,
-      addr?.house_no,
-      addr?.road_no,
-      addr?.street,
-      addr?.area,
-      addr?.district,
-      addr?.landmark,
-      addr?.city,
-      addr?.pincode,
-    ].filter(Boolean).join(", ");
+    const fullAddress =
+      addr?.address ||
+      [
+        addr?.flat_no,
+        addr?.house_no,
+        addr?.road_no,
+        addr?.street,
+        addr?.area,
+        addr?.district,
+        addr?.landmark,
+        addr?.city,
+        addr?.pincode,
+      ]
+        .filter(Boolean)
+        .join(", ");
     setAddress(fullAddress);
-    
+
     if (addr?.latitude && addr?.longitude) {
       const locationData = {
         state: {
           coords: {
             lat: addr.latitude,
-            lng: addr.longitude
-          }
-        }
+            lng: addr.longitude,
+          },
+        },
       };
-      localStorage?.setItem('user-location-store', JSON.stringify(locationData));
+      localStorage?.setItem(
+        "user-location-store",
+        JSON.stringify(locationData)
+      );
     }
-  
+
     if (addr?.latitude && addr?.longitude) {
       useOrderStore.getState().setUserCoordinates({
         lat: addr.latitude,
@@ -697,20 +749,20 @@ const UnifiedAddressSection = ({
     } else {
       useOrderStore.getState().setUserCoordinates(null);
     }
-  
+
     setShowDropdown(false);
   };
 
   const handleAddressSaved = async (addr: SavedAddress) => {
     const existing = [...savedAddresses];
-    const index = existing.findIndex(a => a.id === addr.id);
+    const index = existing.findIndex((a) => a.id === addr.id);
 
     if (index >= 0) {
       existing[index] = addr;
     } else {
       existing.push(addr);
     }
-    
+
     const success = await saveAddressesForUser(existing);
     if (success) {
       setEditingAddress(null);
@@ -719,21 +771,22 @@ const UnifiedAddressSection = ({
   };
 
   const handleDeleteAddress = async (addressId: string) => {
-    const updated = savedAddresses.filter(a => a.id !== addressId);
+    const updated = savedAddresses.filter((a) => a.id !== addressId);
     const success = await saveAddressesForUser(updated);
     if (success) {
       if (selectedAddressId === addressId) {
         setSelectedAddressId(null);
         setAddress("");
         setEditingAddress(null);
-        handleAddressSelect(null)
+        handleAddressSelect(null);
       }
       toast.success("Address deleted successfully");
     }
   };
 
-  const selectedAddress = savedAddresses.find(a => a.id === selectedAddressId);
-
+  const selectedAddress = savedAddresses.find(
+    (a) => a.id === selectedAddressId
+  );
 
   return (
     <div className="bg-white rounded-lg shadow p-4 mb-4">
@@ -761,12 +814,19 @@ const UnifiedAddressSection = ({
           className="w-full p-3 border rounded-md bg-white text-left flex justify-between items-center hover:bg-gray-50"
         >
           <span className="text-sm">
-            {selectedAddress 
-              ? `${selectedAddress.label}${selectedAddress.customLabel ? ` (${selectedAddress.customLabel})` : ""}`
-              : "Select address"
-            }
+            {selectedAddress
+              ? `${selectedAddress.label}${
+                  selectedAddress.customLabel
+                    ? ` (${selectedAddress.customLabel})`
+                    : ""
+                }`
+              : "Select address"}
           </span>
-          <ChevronDown className={`h-4 w-4 transition-transform ${showDropdown ? "rotate-180" : ""}`} />
+          <ChevronDown
+            className={`h-4 w-4 transition-transform ${
+              showDropdown ? "rotate-180" : ""
+            }`}
+          />
         </button>
 
         {showDropdown && (
@@ -781,17 +841,29 @@ const UnifiedAddressSection = ({
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="font-medium text-sm">
-                        {addr.label}{addr.customLabel ? ` (${addr.customLabel})` : ""}
+                        {addr.label}
+                        {addr.customLabel ? ` (${addr.customLabel})` : ""}
                       </div>
                       <div className="text-xs text-gray-600 truncate">
-                        {addr.address || [addr.flat_no, addr.house_no, addr.area, addr.district, addr.city].filter(Boolean).join(", ")}
+                        {addr.address ||
+                          [
+                            addr.flat_no,
+                            addr.house_no,
+                            addr.area,
+                            addr.district,
+                            addr.city,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
                       </div>
                     </div>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="p-3 text-sm text-gray-500">No saved addresses</div>
+              <div className="p-3 text-sm text-gray-500">
+                No saved addresses
+              </div>
             )}
           </div>
         )}
@@ -803,23 +875,31 @@ const UnifiedAddressSection = ({
           <div className="flex justify-between items-start">
             <div className="flex-1">
               <div className="font-medium text-base mb-2">
-                {selectedAddress.label}{selectedAddress.customLabel ? ` (${selectedAddress.customLabel})` : ""}
+                {selectedAddress.label}
+                {selectedAddress.customLabel
+                  ? ` (${selectedAddress.customLabel})`
+                  : ""}
                 {selectedAddress.isDefault && (
-                  <span className="ml-2 text-xs bg-black text-white px-2 py-0.5 rounded">Default</span>
+                  <span className="ml-2 text-xs bg-black text-white px-2 py-0.5 rounded">
+                    Default
+                  </span>
                 )}
               </div>
               <div className="text-sm text-gray-700 leading-relaxed">
-                {selectedAddress.address || [
-                  selectedAddress.flat_no,
-                  selectedAddress.house_no,
-                  selectedAddress.road_no,
-                  selectedAddress.street,
-                  selectedAddress.area,
-                  selectedAddress.district,
-                  selectedAddress.landmark,
-                  selectedAddress.city,
-                  selectedAddress.pincode
-                ].filter(Boolean).join(", ")}
+                {selectedAddress.address ||
+                  [
+                    selectedAddress.flat_no,
+                    selectedAddress.house_no,
+                    selectedAddress.road_no,
+                    selectedAddress.street,
+                    selectedAddress.area,
+                    selectedAddress.district,
+                    selectedAddress.landmark,
+                    selectedAddress.city,
+                    selectedAddress.pincode,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
               </div>
             </div>
             <div className="flex gap-2 ml-3">
@@ -1215,18 +1295,24 @@ const ItemsCard = ({
 
 const TableNumberCard = ({
   tableNumber,
+  hotelData,
   tableName,
 }: {
   tableNumber: number;
+  hotelData: HotelData;
   tableName?: string;
 }) => {
+  const isRoom = hotelData?.id === "33f5474e-4644-4e47-a327-94684c71b170"; //Krishnakripa Residency
+
   return (
     <div className="bg-white rounded-lg shadow p-4 mb-4">
-      <h3 className="font-bold text-lg mb-3">Table Information</h3>
+      <h3 className="font-bold text-lg mb-3">
+        {isRoom ? "Room" : "Table"} Information
+      </h3>
 
       {!tableName && (
         <div className="flex items-center text-sm gap-2">
-          <span className="font-medium">Table Number:</span>
+          {isRoom ? null : <span className="font-medium">Table Number:</span>}
           <span className="text-lg font-semibold">{tableNumber}</span>
         </div>
       )}
@@ -1314,7 +1400,9 @@ const BillCard = ({
 
         {gstPercentage ? (
           <div className="flex justify-between">
-            <span>{`${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${gstPercentage}%)`}</span>
+            <span>{`${
+              hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"
+            } (${gstPercentage}%)`}</span>
             <span>
               {currency}
               {gstAmount.toFixed(2)}
@@ -1492,15 +1580,15 @@ const PlaceOrderModal = ({
   } = useOrderStore();
 
   const { userData: user } = useAuthStore();
-  
+
   const [showLoginDrawer, setShowLoginDrawer] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
-  
-  const [orderStatus, setOrderStatus] = useState<"idle" | "loading" | "success">(
-    "idle"
-  );
+
+  const [orderStatus, setOrderStatus] = useState<
+    "idle" | "loading" | "success"
+  >("idle");
 
   useEffect(() => {
     if (typeof navigator !== "undefined") {
@@ -1519,7 +1607,12 @@ const PlaceOrderModal = ({
       setOpenPlaceOrderModal(false);
       setOpenDrawerBottom(true);
     }
-  }, [open_place_order_modal, items, setOpenDrawerBottom, setOpenPlaceOrderModal]);
+  }, [
+    open_place_order_modal,
+    items,
+    setOpenDrawerBottom,
+    setOpenPlaceOrderModal,
+  ]);
 
   useEffect(() => {
     if (open_place_order_modal && tableNumber === 0 && !orderType) {
@@ -1657,7 +1750,7 @@ const PlaceOrderModal = ({
     }
 
     // Check if address is selected for delivery orders
-    if (orderType === 'delivery' && !address?.trim()) {
+    if (orderType === "delivery" && !address?.trim()) {
       toast.error("Please select a delivery address");
       return;
     }
@@ -1669,12 +1762,12 @@ const PlaceOrderModal = ({
           toast.error("Please enter your delivery address");
           return;
         }
-        
+
         if (hasDelivery && !selectedCoords) {
           toast.error("Please select your location on the map");
           return;
         }
-        
+
         if (deliveryInfo?.isOutOfRange) {
           toast.error("Delivery is not available to your location");
           return;
@@ -1764,9 +1857,9 @@ const PlaceOrderModal = ({
       if (result) {
         // Store order ID in localStorage for WhatsApp message
         if (result.id) {
-          localStorage?.setItem('last-order-id', result.id);
+          localStorage?.setItem("last-order-id", result.id);
         }
-        
+
         // Execute callback first (for Android), then show success screen.
         if (onSuccessCallback) {
           onSuccessCallback();
@@ -1794,21 +1887,21 @@ const PlaceOrderModal = ({
   };
 
   const handleCloseSuccessDialog = () => {
-    setAddress('');
-    setOrderNote('');
+    setAddress("");
+    setOrderNote("");
     clearOrder();
     setOpenPlaceOrderModal(false);
-    setOrderStatus('idle');
+    setOrderStatus("idle");
   };
 
   const minimumOrderAmount = deliveryInfo?.minimumOrderAmount || 0;
 
-const isPlaceOrderDisabled =
-  orderStatus === "loading" ||                                           // Condition 1
-  (tableNumber === 0 && !orderType) ||                                 // Condition 2
-  (isDelivery && hasDelivery && !isQrScan && (!address || !selectedCoords)) || // Condition 3
-  (isDelivery && deliveryInfo?.isOutOfRange) ||                          // Condition 4
-  (hasMultiWhatsapp && !selectedLocation);                               // Condition 5
+  const isPlaceOrderDisabled =
+    orderStatus === "loading" || // Condition 1
+    (tableNumber === 0 && !orderType) || // Condition 2
+    (isDelivery && hasDelivery && !isQrScan && (!address || !selectedCoords)) || // Condition 3
+    (isDelivery && deliveryInfo?.isOutOfRange) || // Condition 4
+    (hasMultiWhatsapp && !selectedLocation); // Condition 5
 
   const { qrData } = useQrDataStore();
 
@@ -1865,6 +1958,7 @@ const isPlaceOrderDisabled =
               {isQrScan ? (
                 <>
                   <TableNumberCard
+                    hotelData={hotelData}
                     tableNumber={tableNumber}
                     tableName={qrData?.table_name || undefined}
                   />
@@ -1927,13 +2021,15 @@ const isPlaceOrderDisabled =
               )}
 
               <div className="flex flex-col gap-3 mt-6">
-                {(user?.role !== "partner" && user?.role !== "superadmin") ? (
+                {user?.role !== "partner" && user?.role !== "superadmin" ? (
                   <>
                     {isAndroid ? (
                       <Button
                         onClick={() =>
                           handlePlaceOrder(() => {
-                            const whatsappLink = getWhatsappLink(orderId as string);
+                            const whatsappLink = getWhatsappLink(
+                              orderId as string
+                            );
                             window.open(whatsappLink, "_blank");
                           })
                         }
@@ -2036,7 +2132,10 @@ const isPlaceOrderDisabled =
         />
       </div>
 
-      <OrderStatusDialog status={orderStatus} onClose={handleCloseSuccessDialog} />
+      <OrderStatusDialog
+        status={orderStatus}
+        onClose={handleCloseSuccessDialog}
+      />
     </>
   );
 };
