@@ -32,8 +32,14 @@ export const metadata: Metadata = {
 };
 
 const petrazFilter = "PETRAZ";
-const bottomNavFilter = ["PETRAZ", "HENZU", "DOWNTREE", "CHILLI'S-RESTAURANT", "Krishnakripa-Residency"];
-const hideWhatsappGroupJoinDialog = ["Krishnakripa-Residency"]; 
+const bottomNavFilter = [
+  "PETRAZ",
+  "HENZU",
+  "DOWNTREE",
+  "CHILLI'S-RESTAURANT",
+  "Krishnakripa-Residency",
+];
+const hideWhatsappGroupJoinDialog = ["Krishnakripa-Residency"];
 
 export default async function RootLayout({
   children,
@@ -90,7 +96,7 @@ export default async function RootLayout({
       </head>
       <body className={`antialiased`}>
         <AuthInitializer />
-        {(user?.role === "user" || !user || !isWhatsappDialogHidden) && (
+        {(user?.role === "user" || !user) && !isWhatsappDialogHidden && (
           <WhatsappGroupJoinAlertDialog isPetraz={isPetraz} />
         )}
         <Toaster richColors closeButton />
