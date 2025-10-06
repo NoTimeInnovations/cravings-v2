@@ -289,13 +289,14 @@ const OrderDrawer = ({
       currentSelectedArea &&
       currentSelectedArea.trim() !== "";
 
+    const showTableLabel = hotelData?.id !== '33f5474e-4644-4e47-a327-94684c71b170'; // Krishnakripa Residency
     const whatsappMsg = `
     *🍽️ Order Details 🍽️*
     
     *Order ID:* ${finalOrderId ? finalOrderId.slice(0, 8) : 'N/A'}
     ${
       (tableNumber ?? 0) > 0
-        ? `*Table:* ${qrData?.table_name || tableNumber}`
+        ? `${showTableLabel ? "*Table:* " : ""}${qrData?.table_name || tableNumber}`
         : `*Order Type:* ${orderType || "Delivery"}`
     }
     ${

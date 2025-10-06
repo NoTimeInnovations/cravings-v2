@@ -32,7 +32,8 @@ export const metadata: Metadata = {
 };
 
 const petrazFilter = "PETRAZ";
-const bottomNavFilter = ["PETRAZ" , "HENZU" , "DOWNTREE", "CHILLI'S-RESTAURANT"];
+const bottomNavFilter = ["PETRAZ", "HENZU", "DOWNTREE", "CHILLI'S-RESTAURANT"];
+const hideWhatsappGroupJoinDialog = ["33f5474e-4644-4e47-a327-94684c71b170"]; // Krishnakripa Residency
 
 export default async function RootLayout({
   children,
@@ -48,15 +49,22 @@ export default async function RootLayout({
 
   let isPetraz = false;
   let isBottomNavHidden = false;
+  let isWhatsappDialogHidden = false;
 
   if (pathname) {
     console.log("Current Pathname:", decodeURIComponent(pathname || ""));
 
-    isPetraz = pathname.includes(petrazFilter); 
-    isBottomNavHidden = bottomNavFilter.some(filter => pathname.includes(filter));
+    isPetraz = pathname.includes(petrazFilter);
+    isBottomNavHidden = bottomNavFilter.some((filter) =>
+      pathname.includes(filter)
+    );
+    isWhatsappDialogHidden = hideWhatsappGroupJoinDialog.some((filter) =>
+      pathname.includes(filter)
+    );
 
     console.log("Is Petraz:", isPetraz);
     console.log("Is Bottom Nav Hidden:", isBottomNavHidden);
+    console.log("Is Whatsapp Dialog Hidden:", isWhatsappDialogHidden);
   }
 
   return (
@@ -82,7 +90,7 @@ export default async function RootLayout({
       </head>
       <body className={`antialiased`}>
         <AuthInitializer />
-        {(user?.role === "user" || !user) && (
+        {(user?.role === "user" || !user || !isWhatsappDialogHidden) && (
           <WhatsappGroupJoinAlertDialog isPetraz={isPetraz} />
         )}
         <Toaster richColors closeButton />
