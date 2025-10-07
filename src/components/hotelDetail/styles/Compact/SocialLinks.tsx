@@ -20,10 +20,10 @@ const LinkItem = ({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center space-x-2 border-[1px] border-gray-300 p-2 rounded-md font-medium"
+      className="flex items-center space-x-2 border-[1px] border-gray-300 p-2 rounded-md"
     >
       {icon}
-      <span className="text-xs text-gray-500 text-nowrap">{text}</span>
+      <span className="text-xs text-gray-600 text-nowrap  font-medium">{text}</span>
     </a>
   );
 };
