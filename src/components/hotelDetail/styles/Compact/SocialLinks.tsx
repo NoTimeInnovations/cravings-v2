@@ -23,7 +23,7 @@ const LinkItem = ({
       className="flex items-center space-x-2 border-[1px] border-gray-300 p-2 rounded-md"
     >
       {icon}
-      <span className="text-xs text-gray-600 text-nowrap  font-medium">{text}</span>
+      <span className="text-xs text-gray-600 text-nowrap  font-semibold">{text}</span>
     </a>
   );
 };
