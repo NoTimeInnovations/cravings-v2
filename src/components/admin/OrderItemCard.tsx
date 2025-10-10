@@ -64,6 +64,8 @@ const OrderItemCard = ({
   const { updateOrderStatusHistory } = useOrderStore();
   const router = useRouter();
 
+  const disableCancelAndDelete = ["33f5474e-4644-4e47-a327-94684c71b170"];
+
   // Sync localOrder with prop changes
   useEffect(() => {
     setLocalOrder(initialOrder);
@@ -393,7 +395,12 @@ const OrderItemCard = ({
         <div className="mt-4 space-y-1 text-sm bg-gray-50 p-3 rounded-lg">
           {gstPercentage > 0 && (
             <div className="flex justify-between">
-              <span>{(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%):</span>
+              <span>
+                {(userData as Partner)?.country === "United Arab Emirates"
+                  ? "VAT"
+                  : "GST"}{" "}
+                ({gstPercentage}%):
+              </span>
               <span>
                 {(userData as HotelData)?.currency}
                 {gstAmount?.toFixed(2)}
@@ -431,8 +438,15 @@ const OrderItemCard = ({
             <Button
               size="sm"
               variant="destructive"
-              onClick={() => setIsCancelDialogOpen(true)}
-              disabled={localOrder.status === "cancelled"}
+              onClick={
+                disableCancelAndDelete.includes(userData?.id || "")
+                  ? () => {}
+                  : () => setIsCancelDialogOpen(true)
+              }
+              disabled={
+                localOrder.status === "cancelled" ||
+                disableCancelAndDelete.includes(userData?.id || "")
+              }
               className="flex-1 sm:flex-none w-full sm:w-auto"
             >
               {localOrder.status === "cancelled" ? "Cancelled" : "Cancel Order"}
@@ -524,8 +538,13 @@ const OrderItemCard = ({
                 <Button
                   size="default"
                   variant="destructive"
+                  disabled={disableCancelAndDelete.includes(userData?.id || "")}
                   className="w-full sm:w-auto text-base py-2"
-                  onClick={() => setIsDeleteDialogOpen(true)}
+                  onClick={
+                    disableCancelAndDelete.includes(userData?.id || "")
+                      ? () => {}
+                      : () => setIsDeleteDialogOpen(true)
+                  }
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete Order
@@ -536,8 +555,13 @@ const OrderItemCard = ({
               <Button
                 size="default"
                 variant="destructive"
+                disabled={disableCancelAndDelete.includes(userData?.id || "")}
                 className="w-full sm:w-auto text-base py-2"
-                onClick={() => setIsDeleteDialogOpen(true)}
+                onClick={
+                  disableCancelAndDelete.includes(userData?.id || "")
+                    ? () => {}
+                    : () => setIsDeleteDialogOpen(true)
+                }
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete Order
