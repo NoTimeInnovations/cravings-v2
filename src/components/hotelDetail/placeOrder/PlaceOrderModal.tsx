@@ -52,6 +52,7 @@ type SavedAddress = {
   latitude?: number;
   longitude?: number;
   isDefault?: boolean;
+  customLocation?: string;
 };
 
 // Add type for deliveryInfo
@@ -110,6 +111,11 @@ const AddressManagementModal = ({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const [customLocation, setCustomLocation] = useState<string>("");
+
+  const isIndia = hotelData?.country === "India";
+
+  console.log("Hotel Country:", hotelData?.country, isIndia);
 
   // Pre-fill form when editing
   useEffect(() => {
@@ -125,6 +131,7 @@ const AddressManagementModal = ({
       setLandmark(editAddress.landmark || "");
       setCity(editAddress.city || "");
       setPincode(editAddress.pincode || "");
+      setCustomLocation(editAddress.customLocation || "");
       if (editAddress.latitude && editAddress.longitude) {
         setCoordinates({
           lat: editAddress.latitude,
@@ -143,6 +150,7 @@ const AddressManagementModal = ({
       setDistrict("");
       setLandmark("");
       setCity("");
+      setCustomLocation("");
       setPincode("");
       setCoordinates(null);
     }
@@ -250,15 +258,22 @@ const AddressManagementModal = ({
   }, [showMap, open]);
 
   const isFormValid = () => {
-    return (
-      !!label &&
-      !!(flatNo || houseNo) &&
-      !!(street || roadNo) &&
-      !!area &&
-      !!city &&
-      !!pincode &&
-      coordinates !== null
-    );
+    let isValid = true;
+
+    if (isIndia) {
+      isValid =
+        !!label &&
+        !!(flatNo || houseNo) &&
+        !!(street || roadNo) &&
+        !!area &&
+        !!city &&
+        !!pincode &&
+        coordinates !== null;
+    } else {
+      isValid = !!label && !!customLocation && coordinates !== null;
+    }
+
+    return isValid;
   };
 
   // ✅ CHANGE 1: This function now resets to the choice screen
@@ -356,19 +371,21 @@ const AddressManagementModal = ({
 
     setSaving(true);
     try {
-      const fullAddress = [
-        flatNo,
-        houseNo,
-        roadNo,
-        street,
-        area,
-        district,
-        landmark ? `near ${landmark}` : null,
-        city,
-        pincode,
-      ]
-        .filter(Boolean)
-        .join(", ");
+      const fullAddress = isIndia
+        ? [
+            flatNo,
+            houseNo,
+            roadNo,
+            street,
+            area,
+            district,
+            landmark ? `near ${landmark}` : null,
+            city,
+            pincode,
+          ]
+            .filter(Boolean)
+            .join(", ")
+        : customLocation.trim(); // For non-India, use customLocation as full address
 
       const normalizedLabel = label === "Other" ? customLabel.trim() : label;
 
@@ -390,6 +407,8 @@ const AddressManagementModal = ({
         longitude: coordinates?.lng,
         isDefault: false,
       };
+
+      
 
       onSaved(addr);
       onClose();
@@ -524,82 +543,99 @@ const AddressManagementModal = ({
             )}
           </div>
 
-          <div>
-            <Label htmlFor="house_flat">Flat No / House No *</Label>
-            <Input
-              id="house_flat"
-              placeholder="Flat No / House No"
-              value={flatNo || houseNo}
-              onChange={(e) => {
-                setFlatNo(e.target.value);
-                setHouseNo("");
-              }}
-              required
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="road_street">Road Name / Street Name *</Label>
-            <Input
-              id="road_street"
-              placeholder="Road Name / Street Name"
-              value={street || roadNo}
-              onChange={(e) => {
-                setStreet(e.target.value);
-                setRoadNo("");
-              }}
-              required
-            />
-          </div>
-
-          <div>
-            <Label className="text-sm font-medium">Area/Locality *</Label>
-            <Input
-              placeholder="Area or Locality"
-              value={area}
-              onChange={(e) => setArea(e.target.value)}
-              required
-            />
-          </div>
-
-          <div>
-            <Label className="text-sm font-medium">District</Label>
-            <Input
-              placeholder="District"
-              value={district}
-              onChange={(e) => setDistrict(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label className="text-sm font-medium">Landmark</Label>
-            <Input
-              placeholder="Landmark (Optional)"
-              value={landmark}
-              onChange={(e) => setLandmark(e.target.value)}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-sm font-medium">City *</Label>
-              <Input
-                placeholder="City"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                required
+          {!isIndia && (
+            <div className="mt-4">
+              <Label className="text-sm font-medium">Location Detail</Label>
+              <Textarea
+                placeholder="E.g., Opposite City Mall, Next to ABC Store"
+                value={customLocation}
+                onChange={(e) => setCustomLocation(e.target.value)}
+                className="mt-2"
+                rows={2}
               />
             </div>
-            <div>
-              <Label className="text-sm font-medium">Pincode *</Label>
-              <Input
-                placeholder="Pincode"
-                value={pincode}
-                onChange={(e) => setPincode(e.target.value)}
-                required
-              />
-            </div>
-          </div>
+          )}
+
+          {isIndia && (
+            <>
+              <div>
+                <Label htmlFor="house_flat">Flat No / House No *</Label>
+                <Input
+                  id="house_flat"
+                  placeholder="Flat No / House No"
+                  value={flatNo || houseNo}
+                  onChange={(e) => {
+                    setFlatNo(e.target.value);
+                    setHouseNo("");
+                  }}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="road_street">Road Name / Street Name *</Label>
+                <Input
+                  id="road_street"
+                  placeholder="Road Name / Street Name"
+                  value={street || roadNo}
+                  onChange={(e) => {
+                    setStreet(e.target.value);
+                    setRoadNo("");
+                  }}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Area/Locality *</Label>
+                <Input
+                  placeholder="Area or Locality"
+                  value={area}
+                  onChange={(e) => setArea(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">District</Label>
+                <Input
+                  placeholder="District"
+                  value={district}
+                  onChange={(e) => setDistrict(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Landmark</Label>
+                <Input
+                  placeholder="Landmark (Optional)"
+                  value={landmark}
+                  onChange={(e) => setLandmark(e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-sm font-medium">City *</Label>
+                  <Input
+                    placeholder="City"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Pincode *</Label>
+                  <Input
+                    placeholder="Pincode"
+                    value={pincode}
+                    onChange={(e) => setPincode(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
