@@ -11,7 +11,7 @@ import PlaceOrderModal from "./placeOrder/PlaceOrderModal";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import path from "path/win32";
 import { useQrDataStore } from "@/store/qrDataStore";
-import { useAuthStore } from "@/store/authStore"; // <-- Added
+import { useAuthStore, User } from "@/store/authStore"; // <-- Added
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -308,6 +308,9 @@ const OrderDrawer = ({
       orderType === "delivery"
         ? `\n*Delivery Address:* ${savedAddress}${locationLink}`
         : ""
+    }
+    ${
+      (user as User)?.phone ? `\n*Customer Phone:* ${(user as User).phone}` : ""  
     }
     *Time:* ${new Date().toLocaleTimeString()}
     
