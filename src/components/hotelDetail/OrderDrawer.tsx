@@ -310,9 +310,9 @@ const OrderDrawer = ({
         : ""
     }
     ${
-      (user as User)?.phone ? `\n*Customer Phone:* ${(user as User).phone}` : ""  
+      (user as User)?.phone ? `\n*Customer Phone:* ${(user as User).phone} \n` : ""  
     }
-    *Time:* ${new Date().toLocaleTimeString()}
+*Time:* ${new Date().toLocaleTimeString()}
     
     *📋 Order Items:*
     ${items
