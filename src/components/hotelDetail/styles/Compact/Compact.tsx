@@ -12,6 +12,7 @@ import SearchItems from "./SearchItems";
 import OffersList from "./OffersList";
 import { Offer } from "@/store/offerStore_hasura";
 import { ThemeConfig } from "tailwindcss/types/config";
+import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 
 const Compact = ({
   styles,
@@ -142,7 +143,7 @@ const Compact = ({
       ...(topItems && topItems.length > 0
         ? [{ id: "must-try", name: "must_try" }]
         : []),
-      ...categories.filter(category => category.name !== "Offer"),
+      ...categories.filter((category) => category.name !== "Offer"),
     ],
     [categories, topItems, hasOffers]
   );
@@ -156,6 +157,11 @@ const Compact = ({
         }}
         className="max-w-xl mx-auto relative pb-40 "
       >
+        <ShopClosedModalWarning
+          hotelId={hoteldata?.id}
+          isShopOpen={hoteldata?.is_shop_open}
+        />
+
         {/* category list btn  */}
         <CategoryListBtn categories={allCategories} />
 
@@ -178,10 +184,16 @@ const Compact = ({
             <h1 className="text-xl font-semibold w-[200px]">
               {hoteldata?.store_name}
             </h1>
-            {(hoteldata?.district || hoteldata?.country || hoteldata?.location_details) && (
+            {(hoteldata?.district ||
+              hoteldata?.country ||
+              hoteldata?.location_details) && (
               <div className="inline-flex gap-2 text-sm">
                 <MapPin size={15} />
-                <span>{hoteldata.location_details || hoteldata.district || hoteldata.country}</span>
+                <span>
+                  {hoteldata.location_details ||
+                    hoteldata.district ||
+                    hoteldata.country}
+                </span>
               </div>
             )}
           </div>
@@ -333,49 +345,65 @@ const Compact = ({
                   <div className="grid grid-cols-1 gap-4 divide-y-2 divide-gray-200">
                     {itemsToDisplay.map((item) => {
                       // Find all offers for this item
-                      const itemOffers = offers?.filter(
-                        (offer) => offer.menu.id === item.id
-                      ) || [];
-                      
+                      const itemOffers =
+                        offers?.filter((offer) => offer.menu.id === item.id) ||
+                        [];
+
                       let offerData = undefined;
                       let hasMultipleVariantsOnOffer = false;
                       let isUpcomingOffer = false;
                       let activeOffers: any[] = [];
                       let upcomingOffers: any[] = [];
-                      
+
                       if (itemOffers.length > 0) {
                         // Check for upcoming offers (start_time > current time)
                         const now = new Date();
-                        upcomingOffers = itemOffers.filter(offer => new Date(offer.start_time) > now);
-                        activeOffers = itemOffers.filter(offer => new Date(offer.start_time) <= now);
-                        
+                        upcomingOffers = itemOffers.filter(
+                          (offer) => new Date(offer.start_time) > now
+                        );
+                        activeOffers = itemOffers.filter(
+                          (offer) => new Date(offer.start_time) <= now
+                        );
+
                         // If there are upcoming offers, mark as upcoming
                         if (upcomingOffers.length > 0) {
                           isUpcomingOffer = true;
                         }
-                        
+
                         if (isUpcomingOffer) {
                           // For upcoming offers, ONLY show original price - don't use offer price at all
                           if (upcomingOffers.length > 1) {
                             // Multiple variants on upcoming offer
                             hasMultipleVariantsOnOffer = true;
-                            const lowestOfferPrice = Math.min(...upcomingOffers.map(o => o.offer_price || 0));
-                            const lowestOriginalPrice = Math.min(...upcomingOffers.map(o => 
-                              o.variant ? o.variant.price : (o.menu?.price || 0)
-                            ));
-                            
+                            const lowestOfferPrice = Math.min(
+                              ...upcomingOffers.map((o) => o.offer_price || 0)
+                            );
+                            const lowestOriginalPrice = Math.min(
+                              ...upcomingOffers.map((o) =>
+                                o.variant ? o.variant.price : o.menu?.price || 0
+                              )
+                            );
+
                             // For upcoming offers: show original price as main, offer price as strikethrough
                             offerData = {
                               ...upcomingOffers[0],
                               offer_price: lowestOriginalPrice, // Main displayed price (original)
-                              menu: { ...upcomingOffers[0].menu, price: lowestOfferPrice }, // Future offer price for strikethrough
+                              menu: {
+                                ...upcomingOffers[0].menu,
+                                price: lowestOfferPrice,
+                              }, // Future offer price for strikethrough
                             };
                           } else if (upcomingOffers.length === 1) {
                             // Single variant on upcoming offer
                             const offer = upcomingOffers[0];
-                            const originalPrice = offer?.variant ? offer.variant.price : (offer?.menu?.price || item.price);
-                            const futureOfferPrice = typeof offer?.offer_price === 'number' ? offer.offer_price : item.price;
-                            
+                            const originalPrice = offer?.variant
+                              ? offer.variant.price
+                              : offer?.menu?.price || item.price;
+                            const futureOfferPrice =
+                              typeof offer?.offer_price === "number"
+                                ? offer.offer_price
+                                : item.price;
+
                             // For upcoming offers: show original price as main, offer price as strikethrough
                             offerData = {
                               ...offer,
@@ -386,11 +414,13 @@ const Compact = ({
                         } else {
                           // For active offers, use the existing logic
                           const offersToUse = activeOffers;
-                          
+
                           if (offersToUse.length > 1) {
                             // Multiple variants on offer - calculate lowest offer price
                             hasMultipleVariantsOnOffer = true;
-                            const lowestOfferPrice = Math.min(...offersToUse.map(o => o.offer_price || 0));
+                            const lowestOfferPrice = Math.min(
+                              ...offersToUse.map((o) => o.offer_price || 0)
+                            );
                             // Create a mock offer data with the lowest price for display
                             offerData = {
                               ...offersToUse[0],
@@ -412,12 +442,18 @@ const Compact = ({
                           offerData={offerData}
                           styles={styles}
                           key={item.id}
-                          hasMultipleVariantsOnOffer={hasMultipleVariantsOnOffer}
-                          allItemOffers={hasMultipleVariantsOnOffer ? itemOffers : undefined}
+                          hasMultipleVariantsOnOffer={
+                            hasMultipleVariantsOnOffer
+                          }
+                          allItemOffers={
+                            hasMultipleVariantsOnOffer ? itemOffers : undefined
+                          }
                           currentCategory={category.id}
                           isOfferCategory={category.id === "offers"}
                           isUpcomingOffer={isUpcomingOffer}
-                          activeOffers={isUpcomingOffer ? upcomingOffers : activeOffers}
+                          activeOffers={
+                            isUpcomingOffer ? upcomingOffers : activeOffers
+                          }
                         />
                       );
                     })}
