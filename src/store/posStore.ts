@@ -55,6 +55,8 @@ interface POSState {
   setTableNumber: (tableNumber: number | null) => void;
   tableName: string | null;
   setTableName: (tableName: string | null) => void;
+  paymentMethod?: "cash" | "card" | "upi";  
+  setPaymentMethod: (method: "cash" | "card" | "upi") => void;
   addToCart: (item: MenuItem) => void;
   removeFromCart: (itemId: string) => void;
   increaseQuantity: (itemId: string) => void;
@@ -116,6 +118,11 @@ export const usePOSStore = create<POSState>((set, get) => ({
   orderNote: "",
   tableName: null,
   qrCodeData: [],
+  paymentMethod: "cash",
+
+  setPaymentMethod: (method) => {
+    set({ paymentMethod: method });
+  },
 
   setTableName: (tableName: string | null) => {
     set({ tableName });
@@ -405,7 +412,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   checkout: async () => {
     try {
       set({ loading: true });
-      const { cartItems, extraCharges, isCaptainOrder, qrGroup, orderNote } = get();
+      const { cartItems, extraCharges, isCaptainOrder, qrGroup, orderNote, paymentMethod } = get();
       const userData = useAuthStore.getState().userData;
       console.log("User Data:", {
         id: userData?.id,
@@ -476,7 +483,8 @@ export const usePOSStore = create<POSState>((set, get) => ({
         extraCharges: allExtraCharges,
         gstIncluded: gstPercentage,
         captainId: isCaptainOrder ? userId : null,
-        orderNote: orderNote
+        orderNote: orderNote,
+        paymentMethod 
       });
 
       const getNextDisplayOrderNumber = await getNextOrderNumber(partnerId);
@@ -486,6 +494,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         id: orderId,
         totalPrice: foodSubtotal,
         gst_included: gstPercentage,
+        payment_method: paymentMethod || "cash",
         extra_charges: allExtraCharges.length > 0 ? allExtraCharges : null,
         createdAt,
         tableNumber: get().tableNumber || null,
@@ -589,6 +598,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         captain_id: isCaptainOrder ? userId : undefined,
         notes: orderNote || undefined,
         display_id : getNextDisplayOrderNumber.toString(),
+        payment_method: paymentMethod || "cash",
       };
 
       set({ order: newOrder, postCheckoutModalOpen: true });

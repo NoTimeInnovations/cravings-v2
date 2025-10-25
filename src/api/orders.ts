@@ -38,7 +38,8 @@ export const createOrderMutation = `
     $captain_id: uuid,
     $notes: String,
     $display_id: String,
-    $table_name: String
+    $table_name: String,
+    $payment_method: String
   ) {
     insert_orders_one(object: {
       id: $id
@@ -60,6 +61,7 @@ export const createOrderMutation = `
       notes: $notes
       display_id: $display_id
       table_name: $table_name
+      payment_method: $payment_method
     }) {
       id
       total_price
@@ -261,6 +263,7 @@ subscription GetPartnerOrders($partner_id: uuid!, $today_start: timestamptz!, $t
     user_id
     orderedby
     display_id
+    payment_method
     captain_id
     captainid {
       id
@@ -335,6 +338,7 @@ subscription GetPaginatedPartnerOrders(
     partner_id
     gst_included
     extra_charges
+    payment_method
     phone
     display_id
     user_id

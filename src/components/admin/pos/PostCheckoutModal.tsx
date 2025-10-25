@@ -116,18 +116,18 @@ export const PostCheckoutModal = () => {
                 </DialogTitle>
                 <div className="flex gap-2 justify-end items-center">
                   <Button
-                  onClick={()=>router.push('/admin/orders')}
-                  className="px-4 py-2.5 text-base font-semibold border-2 hover:bg-gray-900"
-                >
-                  Back to Orders
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleClose}
-                  className="px-4 py-2.5 text-base font-semibold border-2 hover:bg-gray-100"
-                >
-                  Close
-                </Button>
+                    onClick={() => router.push("/admin/orders")}
+                    className="px-4 py-2.5 text-base font-semibold border-2 hover:bg-gray-900"
+                  >
+                    Back to Orders
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleClose}
+                    className="px-4 py-2.5 text-base font-semibold border-2 hover:bg-gray-100"
+                  >
+                    Close
+                  </Button>
                 </div>
               </div>
               <DialogDescription className="text-base pb-1">
@@ -143,19 +143,30 @@ export const PostCheckoutModal = () => {
           {/* Scrollable content */}
           <div className="flex-1 overflow-y-auto p-4">
             <div className="max-w-2xl mx-auto space-y-6">
-              {/* Order Status */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 text-green-700">
-                  <div className="h-2 w-2 rounded-full bg-green-600"></div>
-                  <span className="font-semibold">Status: {order.status}</span>
-                </div>
-              </div>
-
               {/* Order Details */}
               <div className="bg-white border rounded-lg divide-y">
                 {/* Order Info */}
                 <div className="p-4 border-b">
-                  <div className="flex justify-end">
+                  <div className="flex justify-between items-start">
+                    {/* Order Status */}
+                    <div className="flex gap-2 items-center">
+                      <div className="bg-green-50 border border-green-200 rounded-full p-2">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <span className="font-semibold text-xs">
+                            Status: {order.status}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="bg-blue-50 border mt-2 border-blue-200 rounded-full p-2">
+                        <div className="flex items-center gap-2 text-blue-700">
+                          <span className="font-medium text-xs">
+                            Paid via: {order.payment_method}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="space-y-1 text-right">
                       <div className="text-sm text-gray-500">Order Time</div>
                       <div className="font-medium">{orderTime}</div>
@@ -219,7 +230,12 @@ export const PostCheckoutModal = () => {
                   </div>
                   {gstPercentage > 0 && (
                     <div className="flex justify-between items-center text-sm">
-                      <span>{`${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} (${gstPercentage}%):`}</span>
+                      <span>{`${
+                        (userData as Partner)?.country ===
+                        "United Arab Emirates"
+                          ? "VAT"
+                          : "GST"
+                      } (${gstPercentage}%):`}</span>
                       <span>
                         {currency}
                         {gstAmount.toFixed(2)}

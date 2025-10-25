@@ -116,6 +116,16 @@ const SingleOrderView: React.FC<{
               </p>
             )}
         </div>
+
+          {/* {
+            order.payment_method && (
+              <div className="text-sm border p-3 rounded-md bg-gray-50/50 dark:bg-zinc-800/50">
+                <h3 className="font-semibold mb-2">Payment Method</h3>
+                <p>{order.payment_method}</p>
+              </div>
+            )
+          } */}
+
         <div className="text-sm border p-3 rounded-md">
           <h3 className="font-semibold mb-2">Order Items</h3>
           <div className="space-y-1">

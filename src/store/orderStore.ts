@@ -60,7 +60,7 @@ export interface DeliveryRules {
     from: string;
     to: string;
   } | null;
-  isDeliveryActive : boolean;
+  isDeliveryActive: boolean;
   needDeliveryLocation: boolean;
 }
 
@@ -68,6 +68,7 @@ export interface Order {
   id: string;
   items: OrderItem[];
   totalPrice: number;
+  payment_method?: "cash" | "card" | "upi";
   createdAt: string;
   notes?: string | null;
   tableNumber?: number | null;
@@ -106,7 +107,7 @@ export interface Order {
     phone?: string;
     email: string;
   };
-  tableName?: string | null; 
+  tableName?: string | null;
   extraCharges?:
     | {
         name: string;
@@ -397,7 +398,7 @@ const useOrderStore = create(
       },
 
       setOpenPlaceOrderModal: (open) => {
-        set({ open_place_order_modal: open })
+        set({ open_place_order_modal: open });
       },
 
       setUserCoordinates: (coords) => {
@@ -675,7 +676,6 @@ const useOrderStore = create(
                 totalPrice: hotelOrder.totalPrice + item.price,
               };
             }
-
           } else {
             // Original logic for items without variants
             const existingItem = hotelOrder.items.find((i) => i.id === item.id);
@@ -979,32 +979,34 @@ const useOrderStore = create(
           const orderId = uuidv4();
 
           // Create order in database
-          const orderResponse = await fetchFromHasura(createOrderWithItemsMutation, {
-            id: orderId,
-            totalPrice: grandTotal,
-            gst_included: gstIncluded,
-            extra_charges: exCharges.length > 0 ? exCharges : null,
-            createdAt,
-            tableNumber: tableNumber || null,
-            qrId: validQrId,
-            partnerId: hotelData.id,
-            userId: userData.id,
-            type,
-            status: "pending",
-            delivery_address: type === "delivery" ? state.userAddress : null,
-            delivery_location:
-              type === "delivery"
-                ? {
-                    type: "Point",
-                    coordinates: [
-                      state.coordinates?.lng || 0,
-                      state.coordinates?.lat || 0,
-                    ],
-                  }
-                : null,
-            notes: notes || null,
-            display_id: getNextDisplayOrderNumber.toString(),
-            orderItems: currentOrder.items.map((item) => ({
+          const orderResponse = await fetchFromHasura(
+            createOrderWithItemsMutation,
+            {
+              id: orderId,
+              totalPrice: grandTotal,
+              gst_included: gstIncluded,
+              extra_charges: exCharges.length > 0 ? exCharges : null,
+              createdAt,
+              tableNumber: tableNumber || null,
+              qrId: validQrId,
+              partnerId: hotelData.id,
+              userId: userData.id,
+              type,
+              status: "pending",
+              delivery_address: type === "delivery" ? state.userAddress : null,
+              delivery_location:
+                type === "delivery"
+                  ? {
+                      type: "Point",
+                      coordinates: [
+                        state.coordinates?.lng || 0,
+                        state.coordinates?.lat || 0,
+                      ],
+                    }
+                  : null,
+              notes: notes || null,
+              display_id: getNextDisplayOrderNumber.toString(),
+              orderItems: currentOrder.items.map((item) => ({
                 menu_id: item.id.split("|")[0],
                 quantity: item.quantity,
                 item: {
@@ -1015,14 +1017,14 @@ const useOrderStore = create(
                   category: item.category,
                 },
               })),
-          });
+            }
+          );
 
           if (orderResponse.errors || !orderResponse?.insert_orders_one?.id) {
             throw new Error(
               orderResponse.errors?.[0]?.message || "Failed to create order"
             );
           }
-
 
           // Prepare new order object
           const newOrder: Order = {
@@ -1090,6 +1092,7 @@ const useOrderStore = create(
                 delivery_address
                 delivery_location
                 status
+                payment_method
                 status_history
                 partner_id
                 gst_included
@@ -1166,6 +1169,7 @@ const useOrderStore = create(
               qrId: order.qr_id,
               status: order.status,
               type: order.type,
+              payment_method: order.payment_method,
               phone: order.phone,
               deliveryAddress: order.delivery_address,
               partnerId: order.partner_id,
@@ -1182,12 +1186,12 @@ const useOrderStore = create(
               tableName: order.qr_code?.table_name || order.table_name || null,
               captain: captainData, // Use the properly structured captain data
               items: order.order_items.map((i: any) => ({
-                  id: i.menu?.id,
-                  quantity: i.quantity,
-                  name: i.item?.name || "Unknown",
-                  price: i.item?.price || i.menu?.price || 0,
-                  category: i.menu?.category,
-                  stocks: i.menu?.stocks,
+                id: i.menu?.id,
+                quantity: i.quantity,
+                name: i.item?.name || "Unknown",
+                price: i.item?.price || i.menu?.price || 0,
+                category: i.menu?.category,
+                stocks: i.menu?.stocks,
               })),
             };
           });
@@ -1228,8 +1232,8 @@ const useOrderStore = create(
 );
 
 function transformOrderFromHasura(order: any): Order {
- 
-    return {
+  console.log("Order recived for transformation" , order)
+  return {
     id: order.id,
     items: order.order_items.map((item: any) => ({
       id: item.menu?.id || "",
@@ -1244,6 +1248,7 @@ function transformOrderFromHasura(order: any): Order {
     })),
     totalPrice: order.total_price || 0,
     createdAt: order.created_at,
+    payment_method: order.payment_method || null,
     notes: order.notes || null,
     tableNumber: order.table_number || null,
     qrId: order.qr_id || null,

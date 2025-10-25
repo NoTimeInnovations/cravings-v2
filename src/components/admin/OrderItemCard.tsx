@@ -344,7 +344,20 @@ const OrderItemCard = ({
             />
           </div>
         )}
+
+        
       </div>
+
+      {
+        localOrder.payment_method && (
+          <div className="mt-2 flex items-center">
+            <h4 className="mr-2 text-sm">Payment Method : </h4>
+            <div className="text-sm font-medium uppercase">
+              {" "}{localOrder.payment_method}
+            </div>
+          </div>
+        )
+      }
 
       <div className="mt-4 border-t pt-4">
         <h4 className="font-medium mb-2">Order Items</h4>

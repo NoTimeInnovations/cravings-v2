@@ -143,6 +143,7 @@ export const CaptainCheckoutModal = () => {
                 </div>
               </div>
 
+
               {/* Order Time */}
               <div className="text-right">
                 <div className="text-xs text-gray-500">Order Time</div>
