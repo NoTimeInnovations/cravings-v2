@@ -426,7 +426,7 @@ const PrintOrderPage = () => {
                   </div>
                 </>
               )}
-              {order.deliveryAddress !== "" && (
+              {order.deliveryAddress && (
                 <div className="mb-1 flex gap-2">
                   <div className="font-medium h-fit">Address:</div>
                   <div className="text-[12px]">{order.deliveryAddress}</div>
