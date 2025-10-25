@@ -35,6 +35,7 @@ query GetOrder($id: uuid!) {
     }
     type
     table_name
+    payment_method
     delivery_address
     delivery_location
     display_id
@@ -131,22 +132,24 @@ const PrintOrderPage = () => {
           try {
             // https://api.mapbox.com/search/geocode/v6/reverse?longitude=-77.050&latitude=38.889&access_token=pk.eyJ1IjoiYWJoaW4yazMiLCJhIjoiY20wbWh5ZHFwMDJwcjJqcHVjM3kyZjZlNyJ9.cagUWYMuMzLdJQhMbYB50A
             const response = await fetch(
-              `https://api.mapbox.com/search/geocode/v6/reverse?longitude=${orders_by_pk.partner?.geo_location?.coordinates[0]}&latitude=${orders_by_pk.partner?.geo_location?.coordinates[1]}&access_token=pk.eyJ1IjoiYWJoaW4yazMiLCJhIjoiY20wbWh5ZHFwMDJwcjJqcHVjM3kyZjZlNyJ9.cagUWYMuMzLdJQhMbYB50A`,
+              `https://api.mapbox.com/search/geocode/v6/reverse?longitude=${orders_by_pk.partner?.geo_location?.coordinates[0]}&latitude=${orders_by_pk.partner?.geo_location?.coordinates[1]}&access_token=pk.eyJ1IjoiYWJoaW4yazMiLCJhIjoiY20wbWh5ZHFwMDJwcjJqcHVjM3kyZjZlNyJ9.cagUWYMuMzLdJQhMbYB50A`
             );
             geoData = await response.json();
 
             console.log(geoData?.features?.[0]?.properties?.place_formatted);
 
-            if(geoData?.features?.[0]?.properties?.place_formatted){
-              console.log("Updating partner address to: ", geoData?.features?.[0]?.properties?.place_formatted);
+            if (geoData?.features?.[0]?.properties?.place_formatted) {
+              console.log(
+                "Updating partner address to: ",
+                geoData?.features?.[0]?.properties?.place_formatted
+              );
               // Update partner address in the database
               await fetchFromHasura(UPDATE_PARTNER_ADDRESS_MUTATION, {
                 id: orders_by_pk.partner_id,
-                address: geoData?.features?.[0]?.properties?.place_formatted ||
-                  "",
+                address:
+                  geoData?.features?.[0]?.properties?.place_formatted || "",
               });
             }
-
           } catch (err) {
             console.error("Error fetching geo data:", err);
             geoData = null;
@@ -168,6 +171,7 @@ const PrintOrderPage = () => {
           })),
           extra_charges: orders_by_pk.extra_charges || [],
           tableNumber: orders_by_pk.table_number, // Ensure this matches your usage
+          payment_method: orders_by_pk.payment_method,  
           tableName:
             orders_by_pk.qr_code?.table_name || orders_by_pk.table_name || null, // Ensure this matches your usage
           deliveryAddress: orders_by_pk.delivery_address, // Ensure this matches your usage
@@ -175,7 +179,7 @@ const PrintOrderPage = () => {
           notes: orders_by_pk.notes || "",
           address:
             orders_by_pk.partner?.address ||
-           geoData?.features[0].properties.place_formatted ||
+            geoData?.features[0].properties.place_formatted ||
             null,
         };
 
@@ -231,6 +235,7 @@ const PrintOrderPage = () => {
               district: formattedOrder.partner?.district,
               phone: formattedOrder.partner?.phone,
               table_number: formattedOrder?.tableNumber,
+              payment_method: formattedOrder.payment_method,
               type: getOrderTypeText(formattedOrder),
               notes: formattedOrder.notes,
               delivery_address: formattedOrder.deliveryAddress,
@@ -265,7 +270,7 @@ const PrintOrderPage = () => {
               },
               currency: formattedOrder.partner?.currency || "$",
               gst_no: formattedOrder.partner?.gst_no,
-              address: formattedOrder.partner?.address
+              address: formattedOrder.partner?.address,
             },
             null,
             2
@@ -358,9 +363,7 @@ const PrintOrderPage = () => {
         <h2 className="text-xl font-bold text-center uppercase">
           {order?.partner?.store_name || "Restaurant"}
         </h2>
-        <p className="text-center text-sm mb-1">
-          {order?.address || ""}
-        </p>
+        <p className="text-center text-sm mb-1">{order?.address || ""}</p>
         <p className="text-center text-sm mb-1">
           {order?.partner?.phone ? `Tel: ${order?.partner.phone}` : ""}
         </p>
@@ -458,6 +461,17 @@ const PrintOrderPage = () => {
                   </div>
                 </>
               )}
+
+              {order.payment_method && (
+                <div className="flex gap-2">
+                  <div className="font-bold text-sm uppercase mb-1">
+                    Pay Via:
+                  </div>
+                  <div className="text-sm mb-1 whitespace-pre-wrap uppercase">
+                    {order.payment_method || "N/A"}
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -522,7 +536,12 @@ const PrintOrderPage = () => {
           </div>
           {gstPercentage > 0 && (
             <div className="flex justify-between">
-              <span>{order?.partner?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%):</span>
+              <span>
+                {order?.partner?.country === "United Arab Emirates"
+                  ? "VAT"
+                  : "GST"}{" "}
+                ({gstPercentage}%):
+              </span>
               <span>
                 {currency}
                 {gstAmount.toFixed(2)}
@@ -542,7 +561,13 @@ const PrintOrderPage = () => {
         <div className="text-center text-sm mt-4 pt-2 border-t border-dashed border-gray-400">
           <p>Thank you for your visit!</p>
           <p className="mt-1">
-            {order?.partner?.gst_no ? `${order?.partner?.country === "United Arab Emirates" ? "VAT" : "GST"}: ${order?.partner.gst_no}` : ""}
+            {order?.partner?.gst_no
+              ? `${
+                  order?.partner?.country === "United Arab Emirates"
+                    ? "VAT"
+                    : "GST"
+                }: ${order?.partner.gst_no}`
+              : ""}
           </p>
           {(Number(order.display_id) ?? 0) > 0 && (
             <h2 className="text-sm font-light text-center mt-1">
