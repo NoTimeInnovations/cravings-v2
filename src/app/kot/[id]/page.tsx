@@ -46,6 +46,7 @@ const PrintKOTPage = () => {
   const searchParams = useSearchParams();
   const silentPrint = searchParams.get("print") === "false";
   const printWidth = searchParams.get("w") || "72mm";
+  const tz = typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
 
     const getOrderTypeText = (order: Order) => {
     if (order.tableNumber === 0 || order.type === "delivery") return "Delivery";
@@ -93,7 +94,7 @@ const PrintKOTPage = () => {
           )
         );
 
-        // Log the KOT contents in JSON format
+        // Log the KOT contents in JSON format (use client timezone)
         console.log(
           "KOT Contents JSON:",
           JSON.stringify(
@@ -102,21 +103,23 @@ const PrintKOTPage = () => {
               display_id:
                 (Number(formattedOrder.display_id) ?? 0) > 0
                   ? `${formattedOrder.display_id}-${getDateOnly(
-                      formattedOrder.created_at
+                      formattedOrder.created_at,
+                      tz
                     )}`
                   : formattedOrder.id.slice(0, 8),
-              created_at: new Date(
-                formattedOrder.created_at
-              ).toLocaleDateString("en-GB"),
-              time: new Date(formattedOrder.created_at).toLocaleTimeString([], {
+              created_at: new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(
+                new Date(formattedOrder.created_at)
+              ),
+              time: new Intl.DateTimeFormat("en-GB", {
                 hour: "2-digit",
                 minute: "2-digit",
-              }),
+                timeZone: tz,
+              }).format(new Date(formattedOrder.created_at)),
               table_number: formattedOrder.tableNumber,
               type: getOrderTypeText(formattedOrder),
               notes: formattedOrder.notes,
               items: formattedOrder.items,
-              generated_at: new Date().toLocaleString("en-GB"),
+              generated_at: new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(new Date()),
             },
             null,
             2
@@ -188,7 +191,7 @@ const PrintKOTPage = () => {
             <br />
             <span>
               {(Number(order.display_id) ?? 0) > 0
-                ? `${order.display_id}-${getDateOnly(order.created_at)}`
+                ? `${order.display_id}-${getDateOnly(order.created_at, tz)}`
                 : order.id.slice(0, 8)}
             </span>
           </div>
@@ -200,17 +203,18 @@ const PrintKOTPage = () => {
             <span className="font-medium">Date:</span>
             <span>
               {" "}
-              {new Date(order.created_at).toLocaleDateString("en-GB")}
+              {new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(new Date(order.created_at))}
             </span>
           </div>
           <div className="text-right">
             <span className="font-medium">Time:</span>
             <span>
               {" "}
-              {new Date(order.created_at).toLocaleTimeString([], {
+              {new Intl.DateTimeFormat("en-GB", {
                 hour: "2-digit",
                 minute: "2-digit",
-              })}
+                timeZone: tz,
+              }).format(new Date(order.created_at))}
             </span>
           </div>
         </div>
@@ -244,7 +248,7 @@ const PrintKOTPage = () => {
 
         {/* Footer */}
         <div className="border-t border-black mt-4 pt-2 text-center text-sm">
-          <p>Generated at: {new Date().toLocaleTimeString()}</p>
+          <p>Generated at: {new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date())}</p>
           {(Number(order.display_id) ?? 0) > 0 && (
             <h2 className="text-sm font-light text-center mt-1">
               ID: {order.id.slice(0, 8)}

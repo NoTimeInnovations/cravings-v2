@@ -18,16 +18,17 @@ export function CountdownTimer({ endTime, upcoming }: CountdownTimerProps) {
     minutes: 0,
   });
 
-  function toISTString(time: string) {
-    return dayjs.utc(time).tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
+  function toLocalTzString(time: string) {
+    const tz = typeof window !== "undefined" && (dayjs as any).tz ? (dayjs as any).tz.guess() : "UTC";
+    return dayjs.utc(time).tz(tz).format("YYYY-MM-DD HH:mm:ss");
   }
 
   function calculateTimeLeft() {
-    const nowIst = toISTString(new Date().toISOString());
-    const endIst = toISTString(endTime);
+    const nowLocal = toLocalTzString(new Date().toISOString());
+    const endLocal = toLocalTzString(endTime);
 
-    const now = new Date(nowIst).getTime();
-    const end = new Date(endIst).getTime();
+    const now = new Date(nowLocal).getTime();
+    const end = new Date(endLocal).getTime();
 
     const distance = end - now;
 

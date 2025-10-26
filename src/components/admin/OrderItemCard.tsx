@@ -52,6 +52,7 @@ const OrderItemCard = ({
 }) => {
   const [localOrder, setLocalOrder] = useState<Order>(initialOrder);
   const { userData } = useAuthStore();
+  const tz = (userData as any)?.timezone || (typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC");
   const billRef = React.useRef<HTMLDivElement>(null);
   const kotRef = React.useRef<HTMLDivElement>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
@@ -593,6 +594,7 @@ const OrderItemCard = ({
           order={localOrder}
           userData={userData as Partner}
           extraCharges={localOrder.extraCharges || []}
+          tz={tz}
         />
       </div>
     </div>

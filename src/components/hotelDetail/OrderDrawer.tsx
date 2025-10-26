@@ -176,6 +176,9 @@ const OrderDrawer = ({
     pathname.includes(filter)
   );
 
+  // Client timezone (used for formatting times in messages)
+  const tz = typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+
   // Login modal state
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -289,8 +292,9 @@ const OrderDrawer = ({
       currentSelectedArea &&
       currentSelectedArea.trim() !== "";
 
-    const showTableLabel = hotelData?.id !== '33f5474e-4644-4e47-a327-94684c71b170'; // Krishnakripa Residency
-    const whatsappMsg = `
+  const showTableLabel = hotelData?.id !== '33f5474e-4644-4e47-a327-94684c71b170'; // Krishnakripa Residency
+  const nowTime = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: tz }).format(new Date());
+  const whatsappMsg = `
     *🍽️ Order Details 🍽️*
     
     *Order ID:* ${finalOrderId ? finalOrderId.slice(0, 8) : 'N/A'}
@@ -312,7 +316,7 @@ const OrderDrawer = ({
     ${
       (user as User)?.phone ? `\n*Customer Phone:* ${(user as User).phone} \n` : ""  
     }
-*Time:* ${new Date().toLocaleTimeString()}
+*Time:* ${nowTime}
     
     *📋 Order Items:*
     ${items

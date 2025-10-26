@@ -213,6 +213,13 @@ const PrintOrderPage = () => {
         const grandTotal = subtotal + gstAmount;
 
         // Log the bill contents in JSON format
+        // determine timezone to display for partner-facing documents
+        const tz =
+          (formattedOrder.partner as any)?.timezone ||
+          (typeof window !== "undefined"
+            ? Intl.DateTimeFormat().resolvedOptions().timeZone
+            : "UTC");
+
         console.log(
           "Bill Contents JSON:",
           JSON.stringify(
@@ -221,16 +228,18 @@ const PrintOrderPage = () => {
               display_id:
                 (Number(formattedOrder.display_id) ?? 0) > 0
                   ? `${formattedOrder.display_id}-${getDateOnly(
-                      formattedOrder.created_at
+                      formattedOrder.created_at,
+                      tz
                     )}`
                   : formattedOrder.id.slice(0, 8),
-              created_at: new Date(
-                formattedOrder.created_at
-              ).toLocaleDateString("en-GB"),
-              time: new Date(formattedOrder.created_at).toLocaleTimeString([], {
+              created_at: new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(
+                new Date(formattedOrder.created_at)
+              ),
+              time: new Intl.DateTimeFormat("en-GB", {
                 hour: "2-digit",
                 minute: "2-digit",
-              }),
+                timeZone: tz,
+              }).format(new Date(formattedOrder.created_at)),
               store_name: formattedOrder.partner?.store_name,
               district: formattedOrder.partner?.district,
               phone: formattedOrder.partner?.phone,
@@ -309,6 +318,13 @@ const PrintOrderPage = () => {
   const currency = order?.partner?.currency || "$";
   const gstPercentage = order?.partner?.gst_percentage || 0;
 
+  // determine timezone for rendering the bill (partner preference -> browser tz -> UTC)
+  const tz =
+    (order?.partner as any)?.timezone ||
+    (typeof window !== "undefined"
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone
+      : "UTC");
+
   // Calculate amounts
   const foodSubtotal = (order?.items ?? []).reduce(
     (sum: number, item: OrderItem) => sum + item.price * item.quantity,
@@ -377,17 +393,19 @@ const PrintOrderPage = () => {
             <br />
             <span>
               {" "}
-              {(Number(order.display_id) ?? 0) > 0
-                ? `${order.display_id}-${getDateOnly(order.created_at)}`
+                {(Number(order.display_id) ?? 0) > 0
+                ? `${order.display_id}-${getDateOnly(order.created_at, tz)}`
                 : order.id.slice(0, 8)}
             </span>
           </div>
           <div className="text-right">
             <span className="font-medium">Date:</span>
-            <span>
-              {" "}
-              {new Date(order.created_at).toLocaleDateString("en-GB")}
-            </span>
+              <span>
+                {" "}
+                {new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(
+                  new Date(order.created_at)
+                )}
+              </span>
           </div>
           <div>
             <span className="font-medium">Type:</span>
@@ -397,10 +415,11 @@ const PrintOrderPage = () => {
             <span className="font-medium">Time:</span>
             <span>
               {" "}
-              {new Date(order.created_at).toLocaleTimeString([], {
+              {new Intl.DateTimeFormat("en-GB", {
                 hour: "2-digit",
                 minute: "2-digit",
-              })}
+                timeZone: tz,
+              }).format(new Date(order.created_at))}
             </span>
           </div>
         </div>

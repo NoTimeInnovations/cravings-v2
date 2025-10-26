@@ -32,6 +32,8 @@ const SingleOrderView: React.FC<{
   const { updateOrderStatus, updateOrderStatusHistory } = useOrderStore();
   const { userData } = useAuthStore();
 
+  const tz = (userData as any)?.timezone || (typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC");
+
   const handleAccept = () => {
     onProcessed(order.id);
     toast.promise(updateOrderStatusHistory(order.id, "accepted", [order]), {
@@ -84,13 +86,13 @@ const SingleOrderView: React.FC<{
         <h2 className="text-lg font-semibold flex justify-between items-center capitalize">
           <span>{orderTypeDisplay}</span>
           <span className="text-sm font-medium text-gray-500">
-            {(Number(order.display_id) ?? 0) > 0
-              ? `${order.display_id}-${getDateOnly(order.createdAt)}`
-              : order.id.slice(0, 8)}
+        {(Number(order.display_id) ?? 0) > 0
+          ? `${order.display_id}-${getDateOnly(order.createdAt, tz)}`
+          : order.id.slice(0, 8)}
           </span>
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Received at {formatDate(order.createdAt)}
+          Received at {formatDate(order.createdAt, tz)}
         </p>
       </div>
 

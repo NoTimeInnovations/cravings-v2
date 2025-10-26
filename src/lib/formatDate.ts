@@ -1,9 +1,6 @@
-export function formatDate(input: string): string {
+export function formatDate(input: string, timeZone?: string): string {
   const date = new Date(input);
-
-  // Convert to IST manually
-  // const IST_OFFSET = 5.5 * 60 * 60 * 1000; // IST is UTC +5:30
-  const istDate = new Date(date.getTime());
+  const tz = timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
   const options: Intl.DateTimeFormatOptions = {
     month: "short",
@@ -11,20 +8,20 @@ export function formatDate(input: string): string {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-    timeZone: "Asia/Kolkata",
+    timeZone: tz,
   };
 
-  return istDate.toLocaleString("en-US", options);
+  return date.toLocaleString("en-US", options);
 }
 
-
-export function getDateOnly (input: string): string {
-  //eg : JUN 2
+export function getDateOnly(input: string, timeZone?: string): string {
+  // e.g.: JUN 2
   const date = new Date(input);
+  const tz = timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const options: Intl.DateTimeFormatOptions = {
     month: "short",
     day: "numeric",
-    timeZone: "Asia/Kolkata",
+    timeZone: tz,
   };
   return date.toLocaleDateString("en-US", options);
 }

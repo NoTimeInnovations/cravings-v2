@@ -1,3 +1,4 @@
+"use client";
 import {
   OrderStatusStorage,
   toStatusDisplayFormat,
@@ -74,6 +75,7 @@ const StatusHistoryTimeline = ({
 
         <ol className="flex justify-between">
           {statusEntries.map((entry, index) => {
+            const tz = typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
             const isCompleted = entry.isCompleted;
             const isActive = index <= activeIndex;
             const isFirst = index === 0;
@@ -116,16 +118,18 @@ const StatusHistoryTimeline = ({
                   {isCompleted && entry.completedAt && (
                     <>
                       <p className="text-xs text-gray-500">
-                        {new Date(entry.completedAt).toLocaleTimeString([], {
+                        {new Intl.DateTimeFormat("en-GB", {
                           hour: "2-digit",
                           minute: "2-digit",
-                        })}
+                          timeZone: tz,
+                        }).format(new Date(entry.completedAt))}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {new Date(entry.completedAt).toLocaleDateString([], {
+                        {new Intl.DateTimeFormat("en-GB", {
                           month: "short",
                           day: "numeric",
-                        })}
+                          timeZone: tz,
+                        }).format(new Date(entry.completedAt))}
                       </p>
                     </>
                   )}

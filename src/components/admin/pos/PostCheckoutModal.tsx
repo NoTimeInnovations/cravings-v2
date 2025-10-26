@@ -17,7 +17,7 @@ import KOTTemplate from "./KOTTemplate";
 import BillTemplate from "./BillTemplate";
 import { useRouter } from "next/navigation";
 import { getExtraCharge } from "@/lib/getExtraCharge";
-import { getDateOnly } from "@/lib/formatDate";
+import { formatDate, getDateOnly } from "@/lib/formatDate";
 import Link from "next/link";
 
 export const PostCheckoutModal = () => {
@@ -68,23 +68,13 @@ export const PostCheckoutModal = () => {
   const gstAmount = calculateGst(foodSubtotal);
   const grandTotal = subtotal + gstAmount;
 
-  // Format order time
+  // Determine timezone from userData (partner) or browser
+  const tz = (userData as any)?.timezone || (typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC");
+
+  // Format order time using client timezone
   const orderTime = (() => {
     try {
-      const date = new Date(order.createdAt);
-      if (isNaN(date.getTime())) {
-        console.error("Invalid date:", order.createdAt);
-        return "Invalid date";
-      }
-      return date.toLocaleString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "numeric",
-        hour12: true,
-        timeZone: "Asia/Kolkata",
-      });
+      return formatDate(order.createdAt, tz);
     } catch (error) {
       console.error("Error formatting date:", error);
       return "Invalid date";
@@ -105,7 +95,7 @@ export const PostCheckoutModal = () => {
                   <div className="text-xl sm:text-2xl">
                     Order{" "}
                     {(Number(order.display_id) ?? 0) > 0
-                      ? `${order.display_id}-${getDateOnly(order.createdAt)}`
+                      ? `${order.display_id}-${getDateOnly(order.createdAt, tz)}`
                       : order.id.slice(0, 8)}
                   </div>
                   {(Number(order.display_id) ?? 0) > 0 && (
@@ -297,6 +287,7 @@ export const PostCheckoutModal = () => {
           order={order}
           userData={userData as Partner}
           extraCharges={extraCharges}
+          tz={tz}
         />
       </div>
     </>

@@ -17,7 +17,7 @@ import KOTTemplate from "@/components/admin/pos/KOTTemplate";
 import BillTemplate from "@/components/admin/pos/BillTemplate";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { toast } from "sonner";
-import { getDateOnly } from "@/lib/formatDate";
+import { formatDate, getDateOnly } from "@/lib/formatDate";
 
 export const CaptainCheckoutModal = () => {
   const {
@@ -72,23 +72,16 @@ export const CaptainCheckoutModal = () => {
   const gstAmount = calculateGst(foodSubtotal);
   const grandTotal = subtotal + gstAmount;
 
-  // Format order time
+  // Format order time using client's timezone (fallback to partner.timezone or UTC)
+  const tz =
+    (partnerData as any)?.timezone ||
+    (typeof window !== "undefined"
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone
+      : "UTC");
+
   const orderTime = (() => {
     try {
-      const date = new Date(order.createdAt);
-      if (isNaN(date.getTime())) {
-        console.error("Invalid date:", order.createdAt);
-        return "Invalid date";
-      }
-      return date.toLocaleString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "numeric",
-        hour12: true,
-        timeZone: "Asia/Kolkata",
-      });
+      return formatDate(order.createdAt, tz);
     } catch (error) {
       console.error("Error formatting date:", error);
       return "Invalid date";
@@ -106,7 +99,7 @@ export const CaptainCheckoutModal = () => {
                   <div className="text-xl sm:text-2xl">
                     Order{" "}
                     {(Number(order.display_id) ?? 0) > 0
-                      ? `${order.display_id}-${getDateOnly(order.createdAt)}`
+                      ? `${order.display_id}-${getDateOnly(order.createdAt, tz)}`
                       : order.id.slice(0, 8)}
                   </div>
                   {(Number(order.display_id) ?? 0) > 0 && (
@@ -263,6 +256,7 @@ export const CaptainCheckoutModal = () => {
           order={order}
           userData={partnerData || (captainData as any)}
           extraCharges={extraCharges}
+          tz={tz}
         />
       </div>
     </>

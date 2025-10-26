@@ -3,6 +3,7 @@ import {
   getGstAmount,
 } from "@/components/hotelDetail/OrderDrawer";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { getDateOnly } from "@/lib/formatDate";
 import { Partner } from "@/store/authStore";
 import { Order } from "@/store/orderStore";
 import React from "react";
@@ -11,6 +12,7 @@ interface BillTemplateProps {
   ref: React.RefObject<HTMLDivElement | null>;
   userData: Partner;
   order: Order;
+  tz?: string;
   extraCharges?: Array<{
     name: string;
     amount: number;
@@ -20,7 +22,7 @@ interface BillTemplateProps {
 }
 
 const BillTemplate = React.forwardRef<HTMLDivElement, BillTemplateProps>(
-  ({ userData, order, extraCharges = [] }, ref) => {
+  ({ userData, order, extraCharges = [], tz }, ref) => {
     if (!order) return null;
 
     const currency = userData?.currency || "$";
@@ -85,7 +87,7 @@ const BillTemplate = React.forwardRef<HTMLDivElement, BillTemplateProps>(
           </div>
           <div className="text-right">
             <span className="font-medium">Date:</span>
-            <span> {new Date(order.createdAt).toLocaleDateString("en-GB")}</span>
+            <span> {getDateOnly(order.createdAt, tz)}</span>
           </div>
           <div>
             <span className="font-medium">Type:</span>
@@ -95,10 +97,11 @@ const BillTemplate = React.forwardRef<HTMLDivElement, BillTemplateProps>(
             <span className="font-medium">Time:</span>
             <span>
               {" "}
-              {new Date(order.createdAt).toLocaleTimeString([], {
+              {new Intl.DateTimeFormat("en-GB", {
                 hour: "2-digit",
                 minute: "2-digit",
-              })}
+                timeZone: tz || Intl.DateTimeFormat().resolvedOptions().timeZone,
+              }).format(new Date(order.createdAt))}
             </span>
           </div>
         </div>
