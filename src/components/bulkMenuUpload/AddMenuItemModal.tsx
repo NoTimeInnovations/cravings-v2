@@ -98,8 +98,12 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
   };
 
   const addVariant = () => {
-    if (!newVariant.name || !newVariant.price) {
-      alert("Please fill both option name and price");
+    if (!newVariant.name) {
+      alert("Please fill option name");
+      return;
+    }
+
+    if(!newVariant.price && confirm("Price is zero. Do you want to proceed?") === false) {  
       return;
     }
 

@@ -62,7 +62,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-
 export function MenuTab() {
   const {
     items: menu,
@@ -103,7 +102,9 @@ export function MenuTab() {
   );
   const router = useRouter();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [itemPendingDelete, setItemPendingDelete] = useState<MenuItem | null>(null);
+  const [itemPendingDelete, setItemPendingDelete] = useState<MenuItem | null>(
+    null
+  );
   const [isDeleting, setIsDeleting] = useState(false);
   const [scrollPosition, setScrollPosition] = useState(0);
 
@@ -253,7 +254,9 @@ export function MenuTab() {
     // Keep the category open during update
     setOpenCategories((prev) => ({
       ...prev,
-      [typeof item.category === "object" && item.category !== null && (item.category as { name: string }).name !== undefined
+      [typeof item.category === "object" &&
+      item.category !== null &&
+      (item.category as { name: string }).name !== undefined
         ? (item.category as { name: string }).name
         : item.category]: true,
     }));
@@ -290,11 +293,15 @@ export function MenuTab() {
   }) => {
     // Store current scroll position before opening modal
     setScrollPosition(window.scrollY);
-    
+
     // Ensure the category is open when editing an item
     setOpenCategories((prev) => ({
       ...prev,
-      [typeof item.category === "object" && item.category !== null && "name" in item.category ? item.category.name : item.category]: true,
+      [typeof item.category === "object" &&
+      item.category !== null &&
+      "name" in item.category
+        ? item.category.name
+        : item.category]: true,
     }));
 
     setEditingItem({
@@ -304,7 +311,9 @@ export function MenuTab() {
       image: item.image,
       description: item.description || "",
       category:
-        typeof item.category === "object" && item.category !== null && "name" in item.category
+        typeof item.category === "object" &&
+        item.category !== null &&
+        "name" in item.category
           ? item.category.name
           : item.category,
       variants: item.variants || [],
@@ -561,9 +570,17 @@ export function MenuTab() {
                                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
                               >
                                 {items
-                                  .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
-                                  .map((item, itemIndex) => (
-                                    <Draggable
+                                  .sort(
+                                    (a, b) =>
+                                      (a.priority ?? 0) - (b.priority ?? 0)
+                                  )
+                                  .map((item, itemIndex) => {
+                                    
+                                    if(itemIndex === 0 && index === 0){
+                                      console.log(item);
+                                    }
+
+                                    return (<Draggable
                                       key={item.id}
                                       draggableId={item.id as string}
                                       index={itemIndex}
@@ -624,9 +641,18 @@ export function MenuTab() {
                                                               item?.variants ??
                                                               []
                                                             ).map(
-                                                              (v) => v.price
+                                                              (v) => v.price 
                                                             )
                                                           ).toFixed(3)
+                                                        : Math.min(
+                                                            ...(
+                                                              item?.variants ??
+                                                              []
+                                                            ).map(
+                                                              (v) => v.price
+                                                            )
+                                                          ) === 0
+                                                        ? item.price
                                                         : Math.min(
                                                             ...(
                                                               item?.variants ??
@@ -681,14 +707,22 @@ export function MenuTab() {
                                                           {variant.name}
                                                         </span>
                                                         <span className="font-medium">
-                                                          {(userData as Partner)
-                                                            ?.currency || "₹"}
                                                           {userData?.id ===
                                                           "767da2a8-746d-42b6-9539-528b6b96ae09"
-                                                            ? variant.price.toFixed(
-                                                                3
-                                                              )
-                                                            : variant.price}
+                                                            ? (
+                                                                userData as Partner
+                                                              )?.currency ||
+                                                              "₹" +
+                                                                variant.price.toFixed(
+                                                                  3
+                                                                )
+                                                            : variant.price == 0
+                                                            ? ""
+                                                            : (
+                                                                userData as Partner
+                                                              )?.currency ||
+                                                              "₹" +
+                                                                variant.price}
                                                         </span>
                                                       </div>
                                                     )
@@ -825,8 +859,8 @@ export function MenuTab() {
                                           </CardFooter>
                                         </Card>
                                       )}
-                                    </Draggable>
-                                  ))}
+                                    </Draggable>)
+                                  })}
                                 {provided.placeholder}
                               </div>
                             )}
@@ -859,7 +893,9 @@ export function MenuTab() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
             <AlertDialogDescription>
-              {`Are you sure you want to delete "${itemPendingDelete?.name ?? "this item"}"? This action cannot be undone.`}
+              {`Are you sure you want to delete "${
+                itemPendingDelete?.name ?? "this item"
+              }"? This action cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
