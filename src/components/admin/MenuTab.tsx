@@ -401,7 +401,7 @@ export function MenuTab() {
       ) : isEditModalOpen && editingItem ? (
         <EditMenuItemForm
           item={editingItem}
-          onSubmit={async (item) => {
+          onSubmit={async (item : any) => {
             try {
               await handleEditItem(item);
               setIsEditModalOpen(false);

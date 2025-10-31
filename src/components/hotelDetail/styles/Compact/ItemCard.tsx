@@ -256,7 +256,7 @@ const ItemCard = ({
   const hasValidMainOriginalPrice = typeof mainOriginalPrice === "number";
   const baseItemPrice =
     item.variants?.sort((a, b) => (a?.price ?? 0) - (b?.price ?? 0))[0]
-      ?.price ?? item.price;
+      ?.price || item.price;
   const hasValidBasePrice = typeof baseItemPrice === "number";
 
   return (

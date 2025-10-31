@@ -76,7 +76,7 @@ export function EditMenuItemForm({
     try {
       await onSubmit({
         ...editingItem,
-        price: variants.length > 0 ? "0" : editingItem.price,
+        price: editingItem.price,
         variants: variants.length > 0 ? variants : [],
       });
     } finally {
@@ -194,7 +194,7 @@ export function EditMenuItemForm({
           }
         />
         
-        {variants.length === 0 && (
+        {/* {variants.length === 0 && ( */}
           <Input
             type="number"
             placeholder="Base Price in ₹"
@@ -203,7 +203,7 @@ export function EditMenuItemForm({
               setEditingItem({ ...editingItem, price: e.target.value })
             }
           />
-        )}
+        {/* )} */}
         
         {/* Show note when variants exist */}
         {variants.length > 0 && (
