@@ -58,7 +58,7 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
     try {
       await onSubmit({
         ...newItem,
-        price: variants.length > 0 ? "0" : newItem.price, // Set price to "0" when variants exist
+        price: newItem.price, // Set price to "0" when variants exist
         variants
       });
       setNewItem({
@@ -178,7 +178,7 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
         />
         
         {/* Show main price input only when no variants exist */}
-        {variants.length === 0 && (
+        {/* {variants.length === 0 && ( */}
           <Input
             required
             type="number"
@@ -186,7 +186,7 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
             value={newItem.price}
             onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
           />
-        )}
+        {/* )} */}
         
         {/* Show note when variants exist */}
         {variants.length > 0 && (
