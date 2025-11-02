@@ -32,13 +32,20 @@ export const metadata: Metadata = {
 };
 
 const petrazFilter = "PETRAZ";
+// const bottomNavFilter = [
+//   "PETRAZ",
+//   "HENZU",
+//   "DOWNTREE",
+//   "CHILLI'S-RESTAURANT",
+//   "Krishnakripa-Residency",
+// ];
+
 const bottomNavFilter = [
-  "PETRAZ",
-  "HENZU",
-  "DOWNTREE",
-  "CHILLI'S-RESTAURANT",
-  "Krishnakripa-Residency",
+  "hotels",
+  "qrScan",
+  "business"
 ];
+
 const hideWhatsappGroupJoinDialog = ["Krishnakripa-Residency"];
 
 export default async function RootLayout({
@@ -64,6 +71,7 @@ export default async function RootLayout({
     isBottomNavHidden = bottomNavFilter.some((filter) =>
       pathname.includes(filter)
     );
+
     isWhatsappDialogHidden = hideWhatsappGroupJoinDialog.some((filter) =>
       pathname.includes(filter)
     );
