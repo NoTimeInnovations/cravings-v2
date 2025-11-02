@@ -177,10 +177,10 @@ export function Navbar({ userData }: { userData: any }) {
   };
 
   const renderNavigationLinks = () => {
-    if (!userData) return null;
+
 
     const roleBasedLinks = [
-      ...(userData.role === "partner"
+      ...(userData?.role === "partner"
         ? [
             { href: "/admin", label: "Admin" },
             ...((features?.ordering.access || features?.delivery.access) &&
@@ -192,9 +192,18 @@ export function Navbar({ userData }: { userData: any }) {
               : []),
           ]
         : []),
-      ...(userData.role === "superadmin"
+      ...(userData?.role === "superadmin"
         ? [{ href: "/superadmin", label: "Super Admin" }]
         : []),
+
+      ...(userData?.role === "user" || !userData?.role
+        ? [
+            { href: "/", label: "Explore" },
+            { href: "/offers", label: "Offers" },
+            { href: "/hotels", label: "Hotels" },
+            { href: "/about-us", label: "About Us" }, 
+          ]
+        : []) 
     ];
 
     return roleBasedLinks.map((link) => (
@@ -220,7 +229,6 @@ export function Navbar({ userData }: { userData: any }) {
           {renderBranding()}
 
           <div className="flex items-center gap-5">
-            {renderAuthButtons()}
             <div className="flex items-center space-x-4 md:space-x-8">
               {renderNavigationLinks()}
               {userData?.role === "user" ? (
@@ -239,6 +247,7 @@ export function Navbar({ userData }: { userData: any }) {
                 </button>
               ) : null}
             </div>
+            {renderAuthButtons()}
           </div>
         </div>
       </div>
