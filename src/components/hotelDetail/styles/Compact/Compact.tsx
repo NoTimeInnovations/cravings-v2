@@ -277,7 +277,7 @@ const Compact = ({
                 color:
                   activeCatIndex === index
                     ? styles?.accent || "#000"
-                    : styles?.color + "80" || "gray",
+                    : styles?.color  || "gray",
               }}
               onClick={() => handleCategoryClick(index, category)}
               key={category.id}
