@@ -282,7 +282,8 @@ const ItemCard = ({
                         <span className="text-red-500">
                           {hoteldata?.currency || "₹"}{" "}
                           {hoteldata?.id ===
-                          "1c4f8693-c869-476d-9d25-426cbf92f5ed"
+                            "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
+                          hoteldata?.id === "ce8de656-149f-4ea5-ba46-14be55c58674"
                             ? mainOfferPrice.toFixed(3)
                             : mainOfferPrice}
                         </span>
@@ -297,7 +298,8 @@ const ItemCard = ({
                           <span className="text-sm line-through opacity-70 font-light">
                             {hoteldata?.currency || "₹"}{" "}
                             {hoteldata?.id ===
-                            "1c4f8693-c869-476d-9d25-426cbf92f5ed"
+                              "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
+                            hoteldata?.id === "ce8de656-149f-4ea5-ba46-14be55c58674"
                               ? mainOfferPrice.toFixed(3)
                               : mainOfferPrice}
                           </span>
@@ -312,7 +314,8 @@ const ItemCard = ({
                           ) : null}
                           {hoteldata?.currency || "₹"}
                           {hoteldata?.id ===
-                          "1c4f8693-c869-476d-9d25-426cbf92f5ed"
+                            "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
+                          hoteldata?.id === "ce8de656-149f-4ea5-ba46-14be55c58674"
                             ? baseItemPrice.toFixed(3)
                             : baseItemPrice}
                         </>
@@ -473,7 +476,9 @@ const ItemCard = ({
                               <span className="text-red-500">
                                 {hoteldata?.currency || "₹"}{" "}
                                 {hoteldata?.id ===
-                                "1c4f8693-c869-476d-9d25-426cbf92f5ed"
+                                  "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
+                                hoteldata?.id ===
+                                  "ce8de656-149f-4ea5-ba46-14be55c58674"
                                   ? variantOffer.offer_price?.toFixed(3)
                                   : variantOffer.offer_price}
                               </span>
@@ -484,7 +489,9 @@ const ItemCard = ({
                                     {originalVariantPrice > 0
                                       ? `${hoteldata?.currency || "₹"} ${
                                           hoteldata?.id ===
-                                          "1c4f8693-c869-476d-9d25-426cbf92f5ed"
+                                            "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
+                                          hoteldata?.id ===
+                                            "ce8de656-149f-4ea5-ba46-14be55c58674"
                                             ? originalVariantPrice.toFixed(3)
                                             : originalVariantPrice
                                         }`
@@ -497,7 +504,9 @@ const ItemCard = ({
                               {originalVariantPrice > 0
                                 ? `${hoteldata?.currency || "₹"} ${
                                     hoteldata?.id ===
-                                    "1c4f8693-c869-476d-9d25-426cbf92f5ed"
+                                      "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
+                                    hoteldata?.id ===
+                                      "ce8de656-149f-4ea5-ba46-14be55c58674"
                                       ? originalVariantPrice.toFixed(3)
                                       : originalVariantPrice
                                   }`
@@ -556,7 +565,8 @@ const ItemCard = ({
                             <span className="text-red-500">
                               {hoteldata?.currency || "₹"}{" "}
                               {hoteldata?.id ===
-                              "1c4f8693-c869-476d-9d25-426cbf92f5ed"
+                                "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
+                              hoteldata?.id === "ce8de656-149f-4ea5-ba46-14be55c58674"
                                 ? variantOffer.offer_price?.toFixed(3)
                                 : variantOffer.offer_price}
                             </span>
@@ -567,7 +577,9 @@ const ItemCard = ({
                                   {originalVariantPrice > 0
                                     ? `${hoteldata?.currency || "₹"} ${
                                         hoteldata?.id ===
-                                        "1c4f8693-c869-476d-9d25-426cbf92f5ed"
+                                          "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
+                                        hoteldata?.id ===
+                                          "ce8de656-149f-4ea5-ba46-14be55c58674"
                                           ? originalVariantPrice.toFixed(3)
                                           : originalVariantPrice
                                       }`
@@ -580,7 +592,9 @@ const ItemCard = ({
                             {originalVariantPrice > 0
                               ? `${hoteldata?.currency || "₹"} ${
                                   hoteldata?.id ===
-                                  "1c4f8693-c869-476d-9d25-426cbf92f5ed"
+                                    "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
+                                  hoteldata?.id ===
+                                    "ce8de656-149f-4ea5-ba46-14be55c58674"
                                     ? originalVariantPrice.toFixed(3)
                                     : originalVariantPrice
                                 }`

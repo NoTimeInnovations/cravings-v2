@@ -63,7 +63,7 @@ const ItemDetailsModal = ({
                     className={`font-black text-2xl`}
                   >
                     {currency}{" "}
-                    {hotelData?.id === "1c4f8693-c869-476d-9d25-426cbf92f5ed" ? item.price.toFixed(3) : item.price}
+                    {hotelData?.id === "1c4f8693-c869-476d-9d25-426cbf92f5ed" || hotelData?.id === "ce8de656-149f-4ea5-ba46-14be55c58674" ? item.price.toFixed(3) : item.price}
                   </div>
                 )}
               </div>
@@ -98,7 +98,7 @@ const ItemDetailsModal = ({
                       className="text-xl font-black"
                     >
                       {currency}{" "}
-                      {hotelData?.id === "1c4f8693-c869-476d-9d25-426cbf92f5ed"
+                      {hotelData?.id === "1c4f8693-c869-476d-9d25-426cbf92f5ed" || hotelData?.id === "ce8de656-149f-4ea5-ba46-14be55c58674"
                         ? variant.price.toFixed(3)
                         : variant.price}
                     </div>

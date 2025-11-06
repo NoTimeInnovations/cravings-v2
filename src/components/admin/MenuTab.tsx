@@ -635,7 +635,9 @@ export function MenuTab() {
                                                       {(userData as Partner)
                                                         ?.currency || "₹"}
                                                       {userData?.id ===
-                                                      "1c4f8693-c869-476d-9d25-426cbf92f5ed"
+                                                        "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
+                                                      userData?.id ===
+                                                        "ce8de656-149f-4ea5-ba46-14be55c58674"
                                                         ? Math.min(
                                                             ...(
                                                               item?.variants ??
@@ -663,7 +665,9 @@ export function MenuTab() {
                                                           )}
                                                     </>
                                                   ) : userData?.id ===
-                                                    "1c4f8693-c869-476d-9d25-426cbf92f5ed" ? (
+                                                      "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
+                                                    userData?.id ===
+                                                      "ce8de656-149f-4ea5-ba46-14be55c58674" ? (
                                                     <>
                                                       {(userData as Partner)
                                                         ?.currency || "₹"}
@@ -708,7 +712,9 @@ export function MenuTab() {
                                                         </span>
                                                         <span className="font-medium">
                                                           {userData?.id ===
-                                                          "1c4f8693-c869-476d-9d25-426cbf92f5ed"
+                                                            "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
+                                                          userData?.id ===
+                                                            "ce8de656-149f-4ea5-ba46-14be55c58674"
                                                             ? (
                                                                 userData as Partner
                                                               )?.currency ||

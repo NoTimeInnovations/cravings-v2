@@ -290,7 +290,8 @@ const ItemCard = ({
                           <span>
                             {currency}{" "}
                             {hotelData?.id ===
-                              "1c4f8693-c869-476d-9d25-426cbf92f5ed"
+                              "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
+                            hotelData?.id === "ce8de656-149f-4ea5-ba46-14be55c58674"
                               ? item.variants
                                 ?.sort((a, b) => a?.price - b?.price)[0]
                                 ?.price?.toFixed(3) || item.price.toFixed(3)
@@ -303,7 +304,8 @@ const ItemCard = ({
                         <span>
                           {currency}{" "}
                           {hotelData?.id ===
-                            "1c4f8693-c869-476d-9d25-426cbf92f5ed"
+                            "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
+                          hotelData?.id === "ce8de656-149f-4ea5-ba46-14be55c58674"
                             ? item.price.toFixed(3)
                             : item.price}
                         </span>
@@ -418,7 +420,8 @@ const ItemCard = ({
                                 <>
                                   {currency}{" "}
                                   {hotelData?.id ===
-                                    "1c4f8693-c869-476d-9d25-426cbf92f5ed"
+                                    "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
+                                  hotelData?.id === "ce8de656-149f-4ea5-ba46-14be55c58674"
                                     ? variant.price.toFixed(3)
                                     : variant.price}
                                 </>
