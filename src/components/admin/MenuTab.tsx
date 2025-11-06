@@ -635,7 +635,7 @@ export function MenuTab() {
                                                       {(userData as Partner)
                                                         ?.currency || "₹"}
                                                       {userData?.id ===
-                                                      "767da2a8-746d-42b6-9539-528b6b96ae09"
+                                                      "1c4f8693-c869-476d-9d25-426cbf92f5ed"
                                                         ? Math.min(
                                                             ...(
                                                               item?.variants ??
@@ -663,7 +663,7 @@ export function MenuTab() {
                                                           )}
                                                     </>
                                                   ) : userData?.id ===
-                                                    "767da2a8-746d-42b6-9539-528b6b96ae09" ? (
+                                                    "1c4f8693-c869-476d-9d25-426cbf92f5ed" ? (
                                                     <>
                                                       {(userData as Partner)
                                                         ?.currency || "₹"}
@@ -708,7 +708,7 @@ export function MenuTab() {
                                                         </span>
                                                         <span className="font-medium">
                                                           {userData?.id ===
-                                                          "767da2a8-746d-42b6-9539-528b6b96ae09"
+                                                          "1c4f8693-c869-476d-9d25-426cbf92f5ed"
                                                             ? (
                                                                 userData as Partner
                                                               )?.currency ||

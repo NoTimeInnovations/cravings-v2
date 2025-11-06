@@ -290,7 +290,7 @@ const ItemCard = ({
                           <span>
                             {currency}{" "}
                             {hotelData?.id ===
-                              "767da2a8-746d-42b6-9539-528b6b96ae09"
+                              "1c4f8693-c869-476d-9d25-426cbf92f5ed"
                               ? item.variants
                                 ?.sort((a, b) => a?.price - b?.price)[0]
                                 ?.price?.toFixed(3) || item.price.toFixed(3)
@@ -303,7 +303,7 @@ const ItemCard = ({
                         <span>
                           {currency}{" "}
                           {hotelData?.id ===
-                            "767da2a8-746d-42b6-9539-528b6b96ae09"
+                            "1c4f8693-c869-476d-9d25-426cbf92f5ed"
                             ? item.price.toFixed(3)
                             : item.price}
                         </span>
@@ -418,7 +418,7 @@ const ItemCard = ({
                                 <>
                                   {currency}{" "}
                                   {hotelData?.id ===
-                                    "767da2a8-746d-42b6-9539-528b6b96ae09"
+                                    "1c4f8693-c869-476d-9d25-426cbf92f5ed"
                                     ? variant.price.toFixed(3)
                                     : variant.price}
                                 </>
