@@ -1,6 +1,35 @@
 import { getImageSource } from "./getImageSource";
 
 export const processImage = async (localBlobUrl: string, imageSource: string): Promise<string> => {
+  
+  if(imageSource === "no-edit") {
+    // return base64 webp version of the image without any processing
+    const img = new Image();
+    img.crossOrigin = "Anonymous"; 
+    img.src = localBlobUrl;
+
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = (err) => {
+        console.error('Failed to load image from URL:', localBlobUrl, err);
+        reject(new Error('Failed to load image'));
+      };
+    });
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Could not get canvas context');
+    }
+
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img, 0, 0, img.width, img.height);
+
+    const webpBase64 = canvas.toDataURL('image/webp', 0.8);
+    return webpBase64;
+  }
+  
   // Check if the URL should be skipped (no changes here)
   if (imageSource === 'cravingsbucket' || localBlobUrl.includes('cravingsbucket')) {
     return localBlobUrl;
