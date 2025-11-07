@@ -271,7 +271,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
       if (item.image_url) {
         const getProcessedBase64Url = await processImage(
           item.image_url,
-          item.image_source || ""
+          "cravingsbucket"
         );
 
         const formattedName = item.name.replace(/[^a-zA-Z0-9]/g, "_").replace(/\s+/g, "_").replace(/_+/g, "_"); 
@@ -362,7 +362,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
       if (updatedItem.image_url) {
         const getProcessedBase64Url = await processImage(
           updatedItem.image_url,
-          "cravingsbucket.s3"
+          "cravingsbucket"
         );
 
         const formattedName = updatedItem.name?.replace(/[^a-zA-Z0-9]/g, "_").replace(/\s+/g, "_").replace(/_+/g, "_"); 
