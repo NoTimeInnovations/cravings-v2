@@ -8,9 +8,10 @@ import { useState, useEffect, useRef } from "react";
 
 export default function HomePage() {
   const navigate = useRouter();
+  // Default to Indian pricing while loading
   const [isIndianPricing, setIsIndianPricing] = useState(true);
 
-  const INR_TO_USD_RATE = 85;
+  const INR_TO_USD_RATE = 88;
   const inrToUsd = (inr: number) => Math.round(inr / INR_TO_USD_RATE);
 
   // Restaurant partners data from hotel-list.txt
@@ -59,6 +60,34 @@ export default function HomePage() {
       }
     };
   }, []);
+
+  // --- NEW ---
+  // Fetch location to set pricing
+  useEffect(() => {
+    const fetchLocation = async () => {
+      try {
+        const response = await fetch("https://ipapi.co/json/");
+        if (!response.ok) {
+          throw new Error('Failed to fetch IP data');
+        }
+        const data = await response.json();
+        
+        // Set pricing based on country code
+        if (data && data.country_code === "IN") {
+          setIsIndianPricing(true);
+        } else {
+          setIsIndianPricing(false);
+        }
+      } catch (error) {
+        console.error("Error fetching location, defaulting to Indian pricing:", error);
+        // Default to Indian pricing on error (e.g., ad-blocker, network issue)
+        setIsIndianPricing(true); 
+      }
+    };
+
+    fetchLocation();
+  }, []); // Empty dependency array means this runs once on mount
+  // --- END NEW ---
 
   return (
     <div className="min-h-screen w-full">
@@ -290,67 +319,67 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {
-            [
-              {
-                step: 1,
-                title: "Contact Us",
-                description: "Get in touch with us and provide your menu and restaurant details.",
-                button: true
-              },
-              {
-                step: 2,
-                title: "Menu Creation",
-                description: "We create a customized digital menu tailored to your restaurant.",
-                menuButton: true
-              },
-              {
-                step: 3,
-                title: "Get Your QR Codes",
-                description: "We ship physical QR codes or send you themed digital QR codes.",
-                qrButton: true
-              }
-            ]
-            .map((item) => (
-              <div key={item.step} className="bg-white p-8 rounded-xl shadow-sm relative">
-                <div className="w-12 h-12 rounded-full bg-orange-600 text-white flex items-center justify-center text-xl font-bold absolute -top-6 left-8">
-                  {item.step}
-                </div>
-                <div className="pt-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-3">{item.title}</h3>
-                  <p className="text-gray-600">{item.description}</p>
-                  {item.button && (
-                    <Button
-                      onClick={() => window.open("https://wa.me/918590115462?text=Hi!%20I'm%20interested%20in%20partnering%20with%20Cravings.%20Can%20you%20share%20the%20details", "_blank")}
-                      variant="outline"
-                      className="mt-4 bg-white hover:bg-gray-50 text-orange-600 border border-orange-600 px-6 py-2 rounded-full transition-all duration-300 flex items-center gap-2"
-                    >
-                      <span>Message Us</span>
-                      <ChevronRight className="h-5 w-5" />
-                    </Button>
-                  )}
-                  {item.menuButton && (
-                    <Button
-                      onClick={() => window.open("/hotels", "_blank")}
-                      variant="outline"
-                      className="mt-4 bg-white hover:bg-gray-50 text-orange-600 border border-orange-600 px-6 py-2 rounded-full transition-all duration-300 flex items-center gap-2"
-                    >
-                      <span>Check Our Menus</span>
-                      <ChevronRight className="h-5 w-5" />
-                    </Button>
-                  )}
-                  {item.qrButton && (
-                    <Button
-                      onClick={() => window.open("https://test0931.my.canva.site/cravings", "_blank")}
-                      variant="outline"
-                      className="mt-4 bg-white hover:bg-gray-50 text-orange-600 border border-orange-600 px-6 py-2 rounded-full transition-all duration-300 flex items-center gap-2"
-                    >
-                      <span>View QR Samples</span>
-                      <ChevronRight className="h-5 w-5" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
+              [
+                {
+                  step: 1,
+                  title: "Contact Us",
+                  description: "Get in touch with us and provide your menu and restaurant details.",
+                  button: true
+                },
+                {
+                  step: 2,
+                  title: "Menu Creation",
+                  description: "We create a customized digital menu tailored to your restaurant.",
+                  menuButton: true
+                },
+                {
+                  step: 3,
+                  title: "Get Your QR Codes",
+                  description: "We ship physical QR codes or send you themed digital QR codes.",
+                  qrButton: true
+                }
+              ]
+                .map((item) => (
+                  <div key={item.step} className="bg-white p-8 rounded-xl shadow-sm relative">
+                    <div className="w-12 h-12 rounded-full bg-orange-600 text-white flex items-center justify-center text-xl font-bold absolute -top-6 left-8">
+                      {item.step}
+                    </div>
+                    <div className="pt-6">
+                      <h3 className="text-xl font-bold text-gray-900 mb-3">{item.title}</h3>
+                      <p className="text-gray-600">{item.description}</p>
+                      {item.button && (
+                        <Button
+                          onClick={() => window.open("https://wa.me/918590115462?text=Hi!%20I'm%20interested%20in%20partnering%20with%20Cravings.%20Can%20you%20share%20the%20details", "_blank")}
+                          variant="outline"
+                          className="mt-4 bg-white hover:bg-gray-50 text-orange-600 border border-orange-600 px-6 py-2 rounded-full transition-all duration-300 flex items-center gap-2"
+                        >
+                          <span>Message Us</span>
+                          <ChevronRight className="h-5 w-5" />
+                        </Button>
+                      )}
+                      {item.menuButton && (
+                        <Button
+                          onClick={() => window.open("/hotels", "_blank")}
+                          variant="outline"
+                          className="mt-4 bg-white hover:bg-gray-50 text-orange-600 border border-orange-600 px-6 py-2 rounded-full transition-all duration-300 flex items-center gap-2"
+                        >
+                          <span>Check Our Menus</span>
+                          <ChevronRight className="h-5 w-5" />
+                        </Button>
+                      )}
+                      {item.qrButton && (
+                        <Button
+                          onClick={() => window.open("https://test0931.my.canva.site/cravings", "_blank")}
+                          variant="outline"
+                          className="mt-4 bg-white hover:bg-gray-50 text-orange-600 border border-orange-600 px-6 py-2 rounded-full transition-all duration-300 flex items-center gap-2"
+                        >
+                          <span>View QR Samples</span>
+                          <ChevronRight className="h-5 w-5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
           </div>
         </div>
       </div>
@@ -365,51 +394,86 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* Pricing Toggle */}
-          <div className="flex justify-center mb-12">
-            <div className="bg-gray-100 p-1 rounded-lg inline-flex">
-              <button
-                className={`px-6 py-2 rounded-md font-medium transition-colors ${isIndianPricing ? 'bg-orange-500 text-white' : 'text-gray-700 hover:bg-gray-200'}`}
-                onClick={() => setIsIndianPricing(true)}
-              >
-                India Pricing
-              </button>
-              <button
-                className={`px-6 py-2 rounded-md font-medium transition-colors ${!isIndianPricing ? 'bg-orange-500 text-white' : 'text-gray-700 hover:bg-gray-200'}`}
-                onClick={() => setIsIndianPricing(false)}
-              >
-                International Pricing
-              </button>
-            </div>
-          </div>
+          {/* --- REMOVED ---
+          Pricing Toggle was here
+          --- END REMOVED --- */}
 
           {/* Pricing Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl mx-auto mb-16">
-            {/* Digital Plan */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16 pt-12">
+            {/* Lite Plan */}
             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
               <div className="p-8 border-b border-gray-100 bg-gradient-to-br from-orange-50 to-white">
-                <h3 className="text-2xl font-bold text-gray-900">Digital</h3>
-                <div className="mt-4">
-                  <div className="space-y-4">
-                    <div className="flex items-baseline gap-2">
-                      {isIndianPricing ? (
-                        <>
-                          <span className="text-4xl font-bold text-orange-500">₹3500</span>
-                          <span className="text-lg text-gray-600">lifetime</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-4xl font-bold text-orange-500">${inrToUsd(3500)}</span>
-                          <span className="text-lg text-gray-600">lifetime</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
+                <h3 className="text-2xl font-bold text-gray-900">Lite</h3>
+                <div className="mt-4 flex items-baseline gap-2">
+                  {isIndianPricing ? (
+                    <>
+                      <span className="text-4xl font-bold text-orange-500">₹1500</span>
+                      <span className="text-lg text-gray-600">lifetime</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-4xl font-bold text-orange-500">$30</span>
+                      <span className="text-lg text-gray-600">lifetime</span>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="p-8 space-y-5">
-                {
-                [
+                {[
+                  "Unlimited menu updates",
+                  "Color changing option to match brand",
+                  "AI-based suggestions and image upload option",
+                ].map((feature, i) => (
+                  <div key={i} className="flex items-center gap-3 group">
+                    <div className="bg-orange-100 rounded-full p-1">
+                      <Check className="h-4 w-4 text-orange-600" />
+                    </div>
+                    <span className="text-gray-700 group-hover:text-orange-600 transition-colors">
+                      {feature}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="p-8 border-t border-gray-100 bg-gray-50 space-y-4">
+                <Button
+                  onClick={() =>
+                    window.open(
+                      "https://wa.me/918590115462?text=Hi! I'm interested in the Lite plan. Can you share more details?",
+                      "_blank"
+                    )
+                  }
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3"
+                >
+                  Select Plan
+                </Button>
+              </div>
+            </div>
+
+            {/* Pro Plan */}
+            <div className="bg-white rounded-2xl border-2 border-orange-500 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 relative">
+              <div className="absolute -top-px right-0 left-0 mx-auto w-max bg-orange-500 text-white text-sm font-bold py-2 px-6 rounded-b-lg shadow-lg">
+                MOST POPULAR
+              </div>
+              <div className="p-8 border-b border-gray-100 bg-gradient-to-br from-orange-50 to-white">
+                <h3 className="text-2xl font-bold text-gray-900">Pro</h3>
+                <div className="mt-4 flex items-baseline gap-2">
+                  {isIndianPricing ? (
+                    <>
+                      <span className="text-4xl font-bold text-orange-500">₹3000</span>
+                      <span className="text-lg text-gray-600">Yearly</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-4xl font-bold text-orange-500">
+                        ${inrToUsd(3500)}
+                      </span>
+                      <span className="text-lg text-gray-600">Yearly</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="p-8 space-y-5">
+                {[
                   "Customizable digital menu with price visibility control",
                   "Must Try dishes",
                   "Flexible color schemes and layout options",
@@ -418,205 +482,96 @@ export default function HomePage() {
                   "Multiple location support",
                   "Shop open/close status control",
                   "Easy menu item hiding and unhiding",
-                  "Google reviews integration"
-                ]
-                .map((feature, index) => (
-                  <div key={index} className="flex items-center gap-3 group">
+                  "Google reviews integration",
+                  "Offer posting & New dish marketing options",
+                ].map((feature, i) => (
+                  <div key={i} className="flex items-center gap-3 group">
                     <div className="bg-orange-100 rounded-full p-1">
                       <Check className="h-4 w-4 text-orange-600" />
                     </div>
-                    <span className="text-gray-700 group-hover:text-orange-600 transition-colors">{feature}</span>
+                    <span className="text-gray-700 group-hover:text-orange-600 transition-colors">
+                      {feature}
+                    </span>
                   </div>
                 ))}
               </div>
-              <div className="p-8 border-t border-gray-100 space-y-4 bg-gray-50">
+              <div className="p-8 border-t border-gray-100 bg-gray-50 space-y-4">
                 <Button
-                  onClick={() => window.open("https://wa.me/918590115462?text=Hi!%20I'm%20interested%20in%20the%20Pro%20plan.%20Can%20you%20share%20more%20details%20about%20this?", "_blank")}
+                  onClick={() =>
+                    window.open(
+                      "https://wa.me/918590115462?text=Hi! I'm interested in the Pro plan. Can you share more details?",
+                      "_blank"
+                    )
+                  }
                   className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3"
                 >
                   Select Plan
                 </Button>
-                <Button
-                  onClick={() => { 
-                    navigate.push("/hotels/Al-Raidhan/373a15f9-9c58-4e34-ae07-b272e578928f")
-                    window.scrollTo(0, 0);
-                   }}
-                  className="w-full bg-white hover:bg-orange-50 text-orange-500 border-2 border-orange-500 font-semibold py-3"
-                >
-                  View Demo
-                </Button>
               </div>
             </div>
 
-            {/* Digital Plus Plan */}
-            <div className="bg-white rounded-2xl border-2 border-orange-500 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 relative">
-              <div className="absolute -top-px right-0 left-0 mx-auto w-max bg-orange-500 text-white text-sm font-bold py-2 px-6 rounded-b-lg shadow-lg">
-                MOST POPULAR
-              </div>
+            {/* Advanced Plan */}
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
               <div className="p-8 border-b border-gray-100 bg-gradient-to-br from-orange-50 to-white">
-                <h3 className="text-2xl font-bold text-gray-900">Digital Plus</h3>
-                <div className="mt-6">
-                  <div className="bg-white p-6 rounded-lg border-2 border-orange-200 shadow-sm">
-                    <div className="space-y-4">
-                      <div>
-                        <div className="text-sm font-medium text-gray-600">Initial Setup Fee</div>
-                        {isIndianPricing ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-4xl font-bold text-orange-500">₹3500</span>
-                            <span className="text-4xl font-bold text-orange-500 rounded-full">+</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="text-4xl font-bold text-orange-500">${inrToUsd(3500)}</span>
-                            <span className="text-4xl font-bold text-orange-500 rounded-full">+</span>
-                          </div>
-                        )}
-                      </div>
-
-                      
-
-                      <div>
-                        <div className="text-sm font-medium text-gray-600">Annual Maintenance</div>
-                        {isIndianPricing ? (
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-orange-500">₹999</span>
-                            <span className="text-lg font-bold text-gray-600">per year</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-orange-500">${inrToUsd(1499)}</span>
-                            <span className="text-lg font-bold text-gray-600">per year</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                <h3 className="text-2xl font-bold text-gray-900">Advanced</h3>
+                <div className="mt-4 flex items-baseline gap-2">
+                  {isIndianPricing ? (
+                    <>
+                      <span className="text-4xl font-bold text-orange-500">₹6000</span>
+                      <span className="text-lg text-gray-600">yearly</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-4xl font-bold text-orange-500">
+                        ${inrToUsd(10000)}
+                      </span>
+                      <span className="text-lg text-gray-600">lifetime</span>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="p-8 space-y-5">
-                <p className="font-semibold text-gray-800 uppercase text-sm tracking-wider">ALL DIGITAL FEATURES PLUS:</p>
-
-                {
-                [
+                {[
+                  "All Pro features included",
+                  "Billing and ordering system",
                   "Table ordering system",
-                  "Delivery ordering system",
-                  "Receive orders via WhatsApp",
-                  "Captain ordering system", 
+                  "Delivery ordering via WhatsApp",
+                  "Captain ordering system",
                   "Inbuilt POS system",
-                  "Multi-location support",
-                  "KOT and KDS system",
+                  "Multi-location & KOT/KDS system",
                   "Admin dashboard for order tracking",
-                  "Outside delivery orders via WhatsApp",
                   "Advanced reporting & analytics",
-                  "Automatic stock updation",
-                  "GST and other extra charges",
-                  "Add charges in each table (AC/Non-AC, etc.)",
-                ]
-                .map((feature, index) => (
-                  <div key={index} className="flex items-center gap-3 group">
+                  "Automatic stock updates",
+                  "GST and extra charge management",
+                ].map((feature, i) => (
+                  <div key={i} className="flex items-center gap-3 group">
                     <div className="bg-orange-100 rounded-full p-1">
                       <Check className="h-4 w-4 text-orange-600" />
                     </div>
-                    <span className="text-gray-700 group-hover:text-orange-600 transition-colors">{feature}</span>
+                    <span className="text-gray-700 group-hover:text-orange-600 transition-colors">
+                      {feature}
+                    </span>
                   </div>
                 ))}
               </div>
-              <div className="p-8 border-t border-gray-100 space-y-4 bg-gray-50">
+              <div className="p-8 border-t border-gray-100 bg-gray-50 space-y-4">
                 <Button
-                  onClick={() => window.open("https://wa.me/918590115462?text=Hi!%20I'm%20interested%20in%20the%20Max%20plan%20with%20POS%20and%20table%20ordering.%20Can%20you%20share%20more%20details%20about%20this?", "_blank")}
+                  onClick={() =>
+                    window.open(
+                      "https://wa.me/918590115462?text=Hi! I'm interested in the Advanced plan with billing & ordering features.",
+                      "_blank"
+                    )
+                  }
                   className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3"
                 >
                   Select Plan
                 </Button>
-                <Button
-                  onClick={() => { 
-                    navigate.push("/hotels/Al-Raidhan/373a15f9-9c58-4e34-ae07-b272e578928f")
-                    window.scrollTo(0, 0);
-                   }}
-                  className="w-full bg-white hover:bg-orange-50 text-orange-500 border-2 border-orange-500 font-semibold py-3"
-                >
-                  View Demo
-                </Button>
               </div>
             </div>
           </div>
-
-          {/* Comparison Table */}
-          <div className="overflow-x-auto mt-8 rounded-xl border border-gray-200 max-w-5xl mx-auto">
-            <table className="min-w-full bg-white overflow-hidden">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="py-4 px-6 text-left text-sm font-semibold text-gray-900">Features</th>
-                  <th className="py-4 px-6 text-center text-sm font-semibold text-gray-900">Digital</th>
-                  <th className="py-4 px-6 text-center text-sm font-semibold text-gray-900">Digital Plus</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                <tr>
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">Theme color customization</td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                </tr>
-                <tr className="bg-gray-50">
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">Menu customization</td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                </tr>
-                <tr>
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">Reorder categories</td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                </tr>
-                <tr className="bg-gray-50">
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">&quot;Must Try&quot; dishes</td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                </tr>
-                <tr>
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">Google reviews integration</td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                </tr>
-                <tr className="bg-gray-50">
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">WhatsApp ordering</td>
-                  <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                </tr>
-                <tr>
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">Order tracking dashboard</td>
-                  <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                </tr>
-                <tr className="bg-gray-50">
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">Table ordering system</td>
-                  <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                </tr>
-                <tr>
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">Inbuilt POS system</td>
-                  <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                </tr>
-                <tr className="bg-gray-50">
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">Captain ordering system</td>
-                  <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                </tr>
-                <tr>
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">KOT and KDS system</td>
-                  <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                </tr>
-                <tr className="bg-gray-50">
-                  <td className="py-3 px-6 text-sm text-gray-800 font-medium">Analytics and reporting</td>
-                  <td className="py-3 px-6 text-center"><X className="h-5 w-5 text-gray-400 mx-auto" /></td>
-                  <td className="py-3 px-6 text-center"><Check className="h-5 w-5 text-green-600 mx-auto" /></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
         </div>
       </div>
+
 
       {/* CTA Section */}
       <div className="bg-orange-600 py-16">
