@@ -2,7 +2,7 @@ import { getImageSource } from "./getImageSource";
 
 export const processImage = async (localBlobUrl: string, imageSource: string): Promise<string> => {
   
-  if(imageSource === "no-edit") {
+  if(imageSource === "no-edit" && !localBlobUrl.includes('cravingsbucket')) {
     // return base64 webp version of the image without any processing
     const img = new Image();
     img.crossOrigin = "Anonymous"; 
