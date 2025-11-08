@@ -55,6 +55,7 @@ import {
 } from "@hello-pangea/dnd";
 import { formatDisplayName } from "@/store/categoryStore_hasura";
 import { ItemOrderingForm } from "./ItemOrderingModal";
+import { formatPrice } from "@/lib/constants";
 import {
   Tooltip,
   TooltipContent,
@@ -634,50 +635,21 @@ export function MenuTab() {
                                                       </span>
                                                       {(userData as Partner)
                                                         ?.currency || "₹"}
-                                                      {userData?.id ===
-                                                        "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
-                                                      userData?.id ===
-                                                        "ce8de656-149f-4ea5-ba46-14be55c58674"
-                                                        ? Math.min(
-                                                            ...(
-                                                              item?.variants ??
-                                                              []
-                                                            ).map(
-                                                              (v) => v.price 
-                                                            )
-                                                          ).toFixed(3)
-                                                        : Math.min(
-                                                            ...(
-                                                              item?.variants ??
-                                                              []
-                                                            ).map(
-                                                              (v) => v.price
-                                                            )
-                                                          ) === 0
-                                                        ? item.price
-                                                        : Math.min(
-                                                            ...(
-                                                              item?.variants ??
-                                                              []
-                                                            ).map(
-                                                              (v) => v.price
-                                                            )
-                                                          )}
-                                                    </>
-                                                  ) : userData?.id ===
-                                                      "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
-                                                    userData?.id ===
-                                                      "ce8de656-149f-4ea5-ba46-14be55c58674" ? (
-                                                    <>
-                                                      {(userData as Partner)
-                                                        ?.currency || "₹"}
-                                                      {item.price.toFixed(3)}
+                                                      {formatPrice(
+                                                        Math.min(
+                                                          ...(item?.variants ?? []).map((v) => v.price)
+                                                        ) === 0
+                                                          ? item.price
+                                                          : Math.min(
+                                                              ...(item?.variants ?? []).map((v) => v.price)
+                                                            ),
+                                                        userData?.id
+                                                      )}
                                                     </>
                                                   ) : (
                                                     <>
-                                                      {(userData as Partner)
-                                                        ?.currency || "₹"}
-                                                      {item.price}
+                                                      {(userData as Partner)?.currency || "₹"}
+                                                      {formatPrice(item.price, userData?.id)}
                                                     </>
                                                   )}
                                                 </p>
@@ -711,24 +683,9 @@ export function MenuTab() {
                                                           {variant.name}
                                                         </span>
                                                         <span className="font-medium">
-                                                          {userData?.id ===
-                                                            "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
-                                                          userData?.id ===
-                                                            "ce8de656-149f-4ea5-ba46-14be55c58674"
-                                                            ? (
-                                                                userData as Partner
-                                                              )?.currency ||
-                                                              "₹" +
-                                                                variant.price.toFixed(
-                                                                  3
-                                                                )
-                                                            : variant.price == 0
+                                                          {variant.price === 0
                                                             ? ""
-                                                            : (
-                                                                userData as Partner
-                                                              )?.currency ||
-                                                              "₹" +
-                                                                variant.price}
+                                                            : `${(userData as Partner)?.currency || "₹"}${formatPrice(variant.price, userData?.id)}`}
                                                         </span>
                                                       </div>
                                                     )

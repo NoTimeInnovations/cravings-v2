@@ -7,6 +7,7 @@ import ItemDetailsModal from "./ItemDetailsModal";
 import DescriptionWithTextBreak from "../../../DescriptionWithTextBreak";
 import useOrderStore from "@/store/orderStore";
 import { getFeatures } from "@/lib/getFeatures";
+import { formatPrice, requiresThreeDecimalPlaces } from "@/lib/constants";
 
 const ItemCard = ({
   item,
@@ -289,25 +290,15 @@ const ItemCard = ({
                           <span className="text-sm font-bold">From </span>
                           <span>
                             {currency}{" "}
-                            {hotelData?.id ===
-                              "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
-                            hotelData?.id === "ce8de656-149f-4ea5-ba46-14be55c58674"
-                              ? item.variants
-                                ?.sort((a, b) => a?.price - b?.price)[0]
-                                ?.price?.toFixed(3) || item.price.toFixed(3)
-                              : item.variants?.sort(
-                                (a, b) => a?.price - b?.price
-                              )[0]?.price || item.price}
+                            {formatPrice(
+                              item.variants?.sort((a, b) => a?.price - b?.price)[0]?.price || item.price,
+                              hotelData?.id
+                            )}
                           </span>
                         </span>
                       ) : (
                         <span>
-                          {currency}{" "}
-                          {hotelData?.id ===
-                            "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
-                          hotelData?.id === "ce8de656-149f-4ea5-ba46-14be55c58674"
-                            ? item.price.toFixed(3)
-                            : item.price}
+                          {currency} {formatPrice(item.price, hotelData?.id)}
                         </span>
                       )}
                     </>
@@ -416,19 +407,14 @@ const ItemCard = ({
                                     {currency} {variantOfferPrice}
                                   </span>
                                 </div>
-                              ) : (
-                                <>
-                                  {currency}{" "}
-                                  {hotelData?.id ===
-                                    "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
-                                  hotelData?.id === "ce8de656-149f-4ea5-ba46-14be55c58674"
-                                    ? variant.price.toFixed(3)
-                                    : variant.price}
-                                </>
-                              )}
-                            </>
-                          )}
-                        </div>
+                            ) : (
+                              <>
+                                {currency} {formatPrice(variant.price, hotelData?.id)}
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
                         {showAddButton && (
                           <div className="flex gap-2 items-center justify-end">
                             {getVariantQuantity(variant.name) > 0 ? (

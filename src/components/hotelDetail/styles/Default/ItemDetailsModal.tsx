@@ -11,6 +11,7 @@ import HeadingWithAccent from "@/components/HeadingWithAccent";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { X } from "lucide-react";
 import Img from "@/components/Img";
+import { formatPrice } from "@/lib/constants";
 
 const ItemDetailsModal = ({
   open,
@@ -62,8 +63,7 @@ const ItemDetailsModal = ({
                     }}
                     className={`font-black text-2xl`}
                   >
-                    {currency}{" "}
-                    {hotelData?.id === "1c4f8693-c869-476d-9d25-426cbf92f5ed" || hotelData?.id === "ce8de656-149f-4ea5-ba46-14be55c58674" ? item.price.toFixed(3) : item.price}
+                    {currency} {formatPrice(item.price, hotelData?.id)}
                   </div>
                 )}
               </div>
@@ -97,10 +97,7 @@ const ItemDetailsModal = ({
                       }}
                       className="text-xl font-black"
                     >
-                      {currency}{" "}
-                      {hotelData?.id === "1c4f8693-c869-476d-9d25-426cbf92f5ed" || hotelData?.id === "ce8de656-149f-4ea5-ba46-14be55c58674"
-                        ? variant.price.toFixed(3)
-                        : variant.price}
+                      {currency} {formatPrice(variant.price, hotelData?.id)}
                     </div>
                   </div>
                 </div>

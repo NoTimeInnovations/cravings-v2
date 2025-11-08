@@ -6,6 +6,7 @@ import { getFeatures } from "@/lib/getFeatures";
 import useOrderStore from "@/store/orderStore";
 import { Offer } from "@/store/offerStore_hasura";
 import { useRouter } from "next/navigation";
+import { formatPrice, requiresThreeDecimalPlaces } from "@/lib/constants";
 
 const ItemCard = ({
   item,
@@ -280,12 +281,7 @@ const ItemCard = ({
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
                         <span className="text-red-500">
-                          {hoteldata?.currency || "₹"}{" "}
-                          {hoteldata?.id ===
-                            "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
-                          hoteldata?.id === "ce8de656-149f-4ea5-ba46-14be55c58674"
-                            ? mainOfferPrice.toFixed(3)
-                            : mainOfferPrice}
+                          {hoteldata?.currency || "₹"} {formatPrice(mainOfferPrice, hoteldata?.id)}
                         </span>
                         {discountPercentage > 0 && (
                           <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">
@@ -296,12 +292,7 @@ const ItemCard = ({
                       {!hasMultipleVariantsOnOffer &&
                         hasValidMainOriginalPrice && (
                           <span className="text-sm line-through opacity-70 font-light">
-                            {hoteldata?.currency || "₹"}{" "}
-                            {hoteldata?.id ===
-                              "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
-                            hoteldata?.id === "ce8de656-149f-4ea5-ba46-14be55c58674"
-                              ? mainOfferPrice.toFixed(3)
-                              : mainOfferPrice}
+                            {hoteldata?.currency || "₹"} {formatPrice(mainOfferPrice, hoteldata?.id)}
                           </span>
                         )}
                     </div>
@@ -312,12 +303,7 @@ const ItemCard = ({
                           {hasVariants ? (
                             <span className="text-sm ">From </span>
                           ) : null}
-                          {hoteldata?.currency || "₹"}
-                          {hoteldata?.id ===
-                            "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
-                          hoteldata?.id === "ce8de656-149f-4ea5-ba46-14be55c58674"
-                            ? baseItemPrice.toFixed(3)
-                            : baseItemPrice}
+                          {hoteldata?.currency || "₹"} {formatPrice(baseItemPrice, hoteldata?.id)}
                         </>
                       ) : (
                         ""
@@ -474,27 +460,14 @@ const ItemCard = ({
                           {hasValidVariantOffer ? (
                             <div className="flex items-center gap-2">
                               <span className="text-red-500">
-                                {hoteldata?.currency || "₹"}{" "}
-                                {hoteldata?.id ===
-                                  "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
-                                hoteldata?.id ===
-                                  "ce8de656-149f-4ea5-ba46-14be55c58674"
-                                  ? variantOffer.offer_price?.toFixed(3)
-                                  : variantOffer.offer_price}
+                                {hoteldata?.currency || "₹"} {formatPrice(variantOffer.offer_price!, hoteldata?.id)}
                               </span>
                               {hasValidOriginalPrice &&
                                 originalVariantPrice >
                                   variantOffer.offer_price! && (
                                   <span className="line-through text-gray-400 text-sm font-light">
                                     {originalVariantPrice > 0
-                                      ? `${hoteldata?.currency || "₹"} ${
-                                          hoteldata?.id ===
-                                            "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
-                                          hoteldata?.id ===
-                                            "ce8de656-149f-4ea5-ba46-14be55c58674"
-                                            ? originalVariantPrice.toFixed(3)
-                                            : originalVariantPrice
-                                        }`
+                                      ? `${hoteldata?.currency || "₹"} ${formatPrice(originalVariantPrice, hoteldata?.id)}`
                                       : ""}
                                   </span>
                                 )}
@@ -502,14 +475,7 @@ const ItemCard = ({
                           ) : hasValidOriginalPrice ? (
                             <span>
                               {originalVariantPrice > 0
-                                ? `${hoteldata?.currency || "₹"} ${
-                                    hoteldata?.id ===
-                                      "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
-                                    hoteldata?.id ===
-                                      "ce8de656-149f-4ea5-ba46-14be55c58674"
-                                      ? originalVariantPrice.toFixed(3)
-                                      : originalVariantPrice
-                                  }`
+                                ? `${hoteldata?.currency || "₹"} ${formatPrice(originalVariantPrice, hoteldata?.id)}`
                                 : ""}
                             </span>
                           ) : null}
@@ -563,26 +529,14 @@ const ItemCard = ({
                         {hasValidVariantOffer ? (
                           <div className="flex items-center gap-2">
                             <span className="text-red-500">
-                              {hoteldata?.currency || "₹"}{" "}
-                              {hoteldata?.id ===
-                                "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
-                              hoteldata?.id === "ce8de656-149f-4ea5-ba46-14be55c58674"
-                                ? variantOffer.offer_price?.toFixed(3)
-                                : variantOffer.offer_price}
+                              {hoteldata?.currency || "₹"} {formatPrice(variantOffer.offer_price!, hoteldata?.id)}
                             </span>
                             {hasValidOriginalPrice &&
                               originalVariantPrice >
                                 variantOffer.offer_price! && (
                                 <span className="line-through text-gray-400 text-sm font-light">
                                   {originalVariantPrice > 0
-                                    ? `${hoteldata?.currency || "₹"} ${
-                                        hoteldata?.id ===
-                                          "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
-                                        hoteldata?.id ===
-                                          "ce8de656-149f-4ea5-ba46-14be55c58674"
-                                          ? originalVariantPrice.toFixed(3)
-                                          : originalVariantPrice
-                                      }`
+                                    ? `${hoteldata?.currency || "₹"} ${formatPrice(originalVariantPrice, hoteldata?.id)}`
                                     : ""}
                                 </span>
                               )}
@@ -590,14 +544,7 @@ const ItemCard = ({
                         ) : hasValidOriginalPrice ? (
                           <span>
                             {originalVariantPrice > 0
-                              ? `${hoteldata?.currency || "₹"} ${
-                                  hoteldata?.id ===
-                                    "1c4f8693-c869-476d-9d25-426cbf92f5ed" ||
-                                  hoteldata?.id ===
-                                    "ce8de656-149f-4ea5-ba46-14be55c58674"
-                                    ? originalVariantPrice.toFixed(3)
-                                    : originalVariantPrice
-                                }`
+                              ? `${hoteldata?.currency || "₹"} ${formatPrice(originalVariantPrice, hoteldata?.id)}`
                               : ""}
                           </span>
                         ) : null}
