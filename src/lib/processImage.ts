@@ -5,7 +5,6 @@ export const processImage = async (localBlobUrl: string, imageSource: string): P
   if(imageSource === "no-edit" && !localBlobUrl.includes('cravingsbucket')) {
     // return base64 webp version of the image without any processing
     const img = new Image();
-    img.crossOrigin = "Anonymous"; 
     img.src = localBlobUrl;
 
     await new Promise((resolve, reject) => {
@@ -37,8 +36,6 @@ export const processImage = async (localBlobUrl: string, imageSource: string): P
 
   // Create an image element to load the image
   const img = new Image();
-  // CORS is needed if the blob URL might point to a resource from another origin
-  img.crossOrigin = "Anonymous"; 
   img.src = localBlobUrl;
 
   // Wait for the image to load
