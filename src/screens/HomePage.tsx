@@ -8,11 +8,11 @@ import { useState, useEffect, useRef } from "react";
 
 export default function HomePage() {
   const navigate = useRouter();
-  // Default to Indian pricing while loading
   const [isIndianPricing, setIsIndianPricing] = useState(true);
 
   const INR_TO_USD_RATE = 88;
   const inrToUsd = (inr: number) => Math.round(inr / INR_TO_USD_RATE);
+  
 
   // Restaurant partners data from hotel-list.txt
   const restaurants = [
@@ -60,34 +60,6 @@ export default function HomePage() {
       }
     };
   }, []);
-
-  // --- NEW ---
-  // Fetch location to set pricing
-  useEffect(() => {
-    const fetchLocation = async () => {
-      try {
-        const response = await fetch("https://ipapi.co/json/");
-        if (!response.ok) {
-          throw new Error('Failed to fetch IP data');
-        }
-        const data = await response.json();
-        
-        // Set pricing based on country code
-        if (data && data.country_code === "IN") {
-          setIsIndianPricing(true);
-        } else {
-          setIsIndianPricing(false);
-        }
-      } catch (error) {
-        console.error("Error fetching location, defaulting to Indian pricing:", error);
-        // Default to Indian pricing on error (e.g., ad-blocker, network issue)
-        setIsIndianPricing(true); 
-      }
-    };
-
-    fetchLocation();
-  }, []); // Empty dependency array means this runs once on mount
-  // --- END NEW ---
 
   return (
     <div className="min-h-screen w-full">
@@ -394,12 +366,32 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* --- REMOVED ---
-          Pricing Toggle was here
-          --- END REMOVED --- */}
+          {/* Pricing Toggle */}
+          <div className="flex justify-center mb-12">
+            <div className="bg-gray-100 p-1 rounded-lg inline-flex">
+              <button
+                className={`px-6 py-2 rounded-md font-medium transition-colors ${isIndianPricing
+                    ? 'bg-orange-500 text-white'
+                    : 'text-gray-700 hover:bg-gray-200'
+                  }`}
+                onClick={() => setIsIndianPricing(true)}
+              >
+                India Pricing
+              </button>
+              <button
+                className={`px-6 py-2 rounded-md font-medium transition-colors ${!isIndianPricing
+                    ? 'bg-orange-500 text-white'
+                    : 'text-gray-700 hover:bg-gray-200'
+                  }`}
+                onClick={() => setIsIndianPricing(false)}
+              >
+                International Pricing
+              </button>
+            </div>
+          </div>
 
           {/* Pricing Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16 pt-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
             {/* Lite Plan */}
             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
               <div className="p-8 border-b border-gray-100 bg-gradient-to-br from-orange-50 to-white">
