@@ -37,6 +37,7 @@ export const processImage = async (localBlobUrl: string, imageSource: string): P
   // Create an image element to load the image
   const img = new Image();
   img.src = localBlobUrl;
+  img.crossOrigin = 'Anonymous';
 
   // Wait for the image to load
   await new Promise((resolve, reject) => {
