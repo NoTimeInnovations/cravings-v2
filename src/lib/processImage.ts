@@ -5,6 +5,7 @@ export const processImage = async (localBlobUrl: string, imageSource: string): P
   if(imageSource === "no-edit" && !localBlobUrl.includes('cravingsbucket')) {
     // return base64 webp version of the image without any processing
     const img = new Image();
+    img.crossOrigin = 'use-credentials'; // Use credentials for authenticated requests
     img.src = localBlobUrl;
 
     await new Promise((resolve, reject) => {
@@ -36,6 +37,7 @@ export const processImage = async (localBlobUrl: string, imageSource: string): P
 
   // Create an image element to load the image
   const img = new Image();
+  img.crossOrigin = 'use-credentials'; // Use credentials for authenticated requests
   img.src = localBlobUrl;
 
   // Wait for the image to load
