@@ -55,12 +55,12 @@ const OfferCard = ({
             <div className="grid w-full">
               {(originalPrice ?? 0) > 0 && (
                 <span className="text-white/70 line-through text-sm">
-                  ₹{originalPrice.toFixed(0)}
+                  ₹{originalPrice}
                 </span>
               )}
               {(offer.offer_price ?? 0) > 0 && (
                 <span className="text-2xl font-bold text-white">
-                  ₹{(offer.offer_price ?? 0).toFixed(0)}
+                  ₹{(offer.offer_price ?? 0)}
                 </span>
               )}
             </div>
