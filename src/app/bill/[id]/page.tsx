@@ -44,6 +44,8 @@ query GetOrder($id: uuid!) {
     partner_id
     partner {
       gst_percentage
+      location_details
+      fssai_licence_no
       geo_location
       currency
       country
@@ -171,7 +173,7 @@ const PrintOrderPage = () => {
           })),
           extra_charges: orders_by_pk.extra_charges || [],
           tableNumber: orders_by_pk.table_number, // Ensure this matches your usage
-          payment_method: orders_by_pk.payment_method,  
+          payment_method: orders_by_pk.payment_method,
           tableName:
             orders_by_pk.qr_code?.table_name || orders_by_pk.table_name || null, // Ensure this matches your usage
           deliveryAddress: orders_by_pk.delivery_address, // Ensure this matches your usage
@@ -180,7 +182,10 @@ const PrintOrderPage = () => {
           address:
             orders_by_pk.partner?.address ||
             geoData?.features[0].properties.place_formatted ||
+            orders_by_pk.partner?.location_details ||
             null,
+          fssai_licence_no:
+            orders_by_pk.partner?.fssai_licence_no || null,
         };
 
         setOrder(formattedOrder);
@@ -232,9 +237,9 @@ const PrintOrderPage = () => {
                       tz
                     )}`
                   : formattedOrder.id.slice(0, 8),
-              created_at: new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(
-                new Date(formattedOrder.created_at)
-              ),
+              created_at: new Intl.DateTimeFormat("en-GB", {
+                timeZone: tz,
+              }).format(new Date(formattedOrder.created_at)),
               time: new Intl.DateTimeFormat("en-GB", {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -393,19 +398,19 @@ const PrintOrderPage = () => {
             <br />
             <span>
               {" "}
-                {(Number(order.display_id) ?? 0) > 0
+              {(Number(order.display_id) ?? 0) > 0
                 ? `${order.display_id}-${getDateOnly(order.created_at, tz)}`
                 : order.id.slice(0, 8)}
             </span>
           </div>
           <div className="text-right">
             <span className="font-medium">Date:</span>
-              <span>
-                {" "}
-                {new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(
-                  new Date(order.created_at)
-                )}
-              </span>
+            <span>
+              {" "}
+              {new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(
+                new Date(order.created_at)
+              )}
+            </span>
           </div>
           <div>
             <span className="font-medium">Type:</span>
@@ -588,6 +593,13 @@ const PrintOrderPage = () => {
                 }: ${order?.partner.gst_no}`
               : ""}
           </p>
+          {order?.fssai_licence_no && (
+            <p className="mt-1 inline-flex">
+              {order?.fssai_licence_no
+                ? `FSSAI : ${order?.fssai_licence_no}`
+                : ""}
+            </p>
+          )}
           {(Number(order.display_id) ?? 0) > 0 && (
             <h2 className="text-sm font-light text-center mt-1">
               ID: {order.id.slice(0, 8)}

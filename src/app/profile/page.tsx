@@ -163,6 +163,7 @@ export default function ProfilePage() {
     deliveryRate: false,
     instaLink: false,
     gst: false,
+    fssaiLicenceNo: false,
     deliverySettings: false,
     countryCode: false,
     locationDetails: false,
@@ -180,6 +181,7 @@ export default function ProfilePage() {
     deliveryRate: false,
     instaLink: false,
     gst: false,
+    fssaiLicenceNo: false,
     deliverySettings: false,
     locationDetails: false,
   });
@@ -189,6 +191,7 @@ export default function ProfilePage() {
     gst_percentage: 0,
     enabled: false,
   });
+  const [fssaiLicenceNo, setFssaiLicenceNo] = useState("");
   const [description, setDescription] = useState("");
   const [deliveryRules, setDeliveryRules] = useState<DeliveryRules>({
     delivery_radius: 5,
@@ -280,6 +283,7 @@ export default function ProfilePage() {
         gst_percentage: userData.gst_percentage || 0,
         enabled: (userData.gst_percentage || 0) > 0 ? true : false,
       });
+      setFssaiLicenceNo(userData.fssai_licence_no || "");
       setIsShopOpen(userData.is_shop_open);
 
       // Determine delivery mode based on existing data
@@ -1191,6 +1195,48 @@ export default function ProfilePage() {
       });
       setIsEditing((prev) => {
         return { ...prev, gst: false };
+      });
+    }
+  };
+
+  const handleSaveFssaiLicenceNo = async () => {
+    try {
+      toast.loading("Updating FSSAI Licence No...", {
+        id: "fssai",
+      });
+
+      setIsSaving((prev) => {
+        return { ...prev, fssaiLicenceNo: true };
+      });
+      
+      await fetchFromHasura(updatePartnerMutation, {
+        id: userData?.id,
+        updates: {
+          fssai_licence_no: fssaiLicenceNo,
+        },
+      });
+      
+      revalidateTag(userData?.id as string);
+      setState({ fssai_licence_no: fssaiLicenceNo });
+      toast.dismiss("fssai");
+      toast.success("FSSAI Licence No updated successfully!");
+      setIsSaving((prev) => {
+        return { ...prev, fssaiLicenceNo: false };
+      });
+      setIsEditing((prev) => {
+        return { ...prev, fssaiLicenceNo: false };
+      });
+    } catch (error) {
+      toast.dismiss("fssai");
+      console.error("Error updating FSSAI Licence No:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update FSSAI Licence No"
+      );
+      setIsSaving((prev) => {
+        return { ...prev, fssaiLicenceNo: false };
+      });
+      setIsEditing((prev) => {
+        return { ...prev, fssaiLicenceNo: false };
       });
     }
   };
@@ -2729,6 +2775,64 @@ export default function ProfilePage() {
                   {gst.enabled
                     ? `This ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} will be used for your restaurant profile and billing`
                     : `${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} is currently disabled for your restaurant`}
+                </p>
+              </div>
+
+              <div className="space-y-2 pt-4">
+                <div className="flex justify-between items-center w-full">
+                  <label htmlFor="fssaiLicenceNo" className="text-lg font-semibold">
+                    FSSAI Licence No
+                  </label>
+                  <Button
+                    onClick={() => {
+                      setIsEditing((prev) => ({
+                        ...prev,
+                        fssaiLicenceNo: !prev.fssaiLicenceNo,
+                      }));
+                    }}
+                    variant="ghost"
+                    className="hover:bg-orange-100"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="flex gap-2 items-center">
+                  {isEditing.fssaiLicenceNo ? (
+                    <>
+                      <Input
+                        id="fssaiLicenceNo"
+                        value={fssaiLicenceNo}
+                        placeholder="Enter FSSAI Licence No"
+                        onChange={(e) => setFssaiLicenceNo(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button
+                        onClick={handleSaveFssaiLicenceNo}
+                        disabled={isSaving.fssaiLicenceNo}
+                        className="bg-orange-600 hover:bg-orange-700 text-white"
+                      >
+                        {isSaving.fssaiLicenceNo ? "Saving..." : "Save"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setIsEditing((prev) => ({ ...prev, fssaiLicenceNo: false }));
+                          setFssaiLicenceNo(userData?.role === "partner" ? userData?.fssai_licence_no || "" : "");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <div className="text-gray-700 flex-1">
+                      {fssaiLicenceNo || "No FSSAI Licence No set"}
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-sm text-gray-500">
+                  This FSSAI Licence No will be used for your restaurant profile
                 </p>
               </div>
 

@@ -90,6 +90,7 @@ export interface Partner extends BaseUser {
   social_links?: string;
   gst_no?: string;
   gst_percentage?: number;
+  fssai_licence_no?: string | null;
   business_type?: string;
   is_shop_open: boolean;
   country?: string;
