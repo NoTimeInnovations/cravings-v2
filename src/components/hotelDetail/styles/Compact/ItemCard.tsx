@@ -292,7 +292,7 @@ const ItemCard = ({
                       {!hasMultipleVariantsOnOffer &&
                         hasValidMainOriginalPrice && (
                           <span className="text-sm line-through opacity-70 font-light">
-                            {hoteldata?.currency || "₹"} {formatPrice(mainOfferPrice, hoteldata?.id)}
+                            {hoteldata?.currency || "₹"} {formatPrice(mainOriginalPrice, hoteldata?.id)}
                           </span>
                         )}
                     </div>
