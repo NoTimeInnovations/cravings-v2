@@ -314,7 +314,7 @@ export const useOfferStore = create<OfferState>((set, get) => {
             ...common,
             items_available: offer.items_available,
             menu_item_id: offer.menu_id,
-            offer_price: offer.offer_price ? Math.round(offer.offer_price) : undefined,
+            offer_price: offer.offer_price ?? undefined,
             offer_type: offer.offer_type || 'all',
             variant: offer.variant || null,
             image_urls: offer.image_urls || [],
