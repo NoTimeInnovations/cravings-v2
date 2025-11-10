@@ -52,7 +52,7 @@ function VariantSelectionModal({ open, onClose, item, onSelect, initialSelected 
                   />
                   <span className="text-sm font-medium">{v.name}</span>
                 </div>
-                <span className="text-xs text-muted-foreground">₹ {Math.round(v.price)}</span>
+                <span className="text-xs text-muted-foreground">₹ {v.price}</span>
               </label>
             );
           })}
@@ -282,7 +282,7 @@ export function InteractiveOfferCreation({ onNext, onCancel, onSelectionChange, 
                       <Img src={mi.image_url} alt={mi.name} className="h-full w-full object-cover" />
                     </div>
                     <div className="text-sm font-medium line-clamp-2">{mi.name}</div>
-                    <div className="text-xs text-muted-foreground">₹ {Math.round(mi.price)}</div>
+                    <div className="text-xs text-muted-foreground">₹ {mi.price}</div>
                     <div className="flex justify-between">
                       {hasVariants || !isSelected ? (
                         <div className="flex">
@@ -445,7 +445,7 @@ export function OfferDetails({ selected, onBack, onSubmit }: OfferDetailsProps) 
                 </div>
               </div>
               {showPrice && typeof price === 'number' ? (
-                <div className="text-xs font-semibold whitespace-nowrap">₹ {Math.round(price)}</div>
+                <div className="text-xs font-semibold whitespace-nowrap">₹ {price}</div>
               ) : null}
             </div>
           );
