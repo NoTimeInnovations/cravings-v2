@@ -83,7 +83,21 @@ export const EditCaptainOrderModal = () => {
   const currency = partnerData?.currency || "$";
   const gstPercentage = partnerData?.gst_percentage || 0;
 
-  const filteredMenuItems = menuItems
+  const displayMenuItems = React.useMemo(() => {
+    return menuItems.flatMap((item) => {
+      if (item.variants && item.variants.length > 0) {
+        return item.variants.map((variant) => ({
+          ...item,
+          id: `${item.id}|${variant.name}`,
+          name: `${item.name} (${variant.name})`,
+          price: variant.price,
+        }));
+      }
+      return item;
+    });
+  }, [menuItems]);
+
+  const filteredMenuItems = displayMenuItems
     .filter((item): item is MenuItem & { id: string } => {
       const hasId = item.id !== undefined;
       const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -233,17 +247,50 @@ export const EditCaptainOrderModal = () => {
 
   const handleAddItem = () => {
     if (!newItemId) return;
-    const menuItem = menuItems.find((item) => item.id === newItemId);
+    
+    const [baseId, variantName] = newItemId.split("|");
+    const menuItem = menuItems.find((item) => item.id === baseId);
     if (!menuItem) return;
-    const existingItemIndex = items.findIndex((item) => item.id === newItemId);
-    if (existingItemIndex >= 0) {
-      handleQuantityChange(
-        existingItemIndex,
-        items[existingItemIndex].quantity + 1
-      );
+
+    let itemToAdd: {
+      id: string;
+      quantity: number;
+      menu: {
+        name: string;
+        price: number;
+        category?: {
+          id: string;
+          name: string;
+          priority: number;
+        };
+        description?: string;
+        image_url?: string;
+        is_top?: boolean;
+        is_available?: boolean;
+        priority?: number;
+      };
+    };
+
+    if (variantName) {
+      const variant = menuItem.variants?.find((v) => v.name === variantName);
+      if (!variant) return;
+      itemToAdd = {
+        id: baseId,
+        quantity: 1,
+        menu: {
+          name: `${menuItem.name} (${variant.name})`,
+          price: variant.price,
+          category: menuItem.category,
+          description: menuItem.description,
+          image_url: menuItem.image_url,
+          is_top: menuItem.is_top,
+          is_available: menuItem.is_available,
+          priority: menuItem.priority,
+        },
+      };
     } else {
-      const newItem = {
-        id: newItemId,
+      itemToAdd = {
+        id: baseId,
         quantity: 1,
         menu: {
           name: menuItem.name,
@@ -256,7 +303,19 @@ export const EditCaptainOrderModal = () => {
           priority: menuItem.priority,
         },
       };
-      const updatedItems = [...items, newItem];
+    }
+
+    const existingItemIndex = items.findIndex(
+      (item) => item.menu.name === itemToAdd.menu.name
+    );
+
+    if (existingItemIndex >= 0) {
+      handleQuantityChange(
+        existingItemIndex,
+        items[existingItemIndex].quantity + 1
+      );
+    } else {
+      const updatedItems = [...items, itemToAdd];
       setItems(updatedItems);
       setTotalPrice(calculateTotal(updatedItems));
     }
@@ -313,6 +372,11 @@ export const EditCaptainOrderModal = () => {
           order_id: order?.id,
           menu_id: item.id,
           quantity: item.quantity,
+          item: {
+            name: item.menu.name,
+            price: item.menu.price,
+            id: item.id,
+          },
         })),
       });
       if (order) {
@@ -366,8 +430,8 @@ export const EditCaptainOrderModal = () => {
                   id: item.menu.id,
                   quantity: item.quantity,
                   menu: {
-                    name: item.menu.name,
-                    price: item.menu.price,
+                    name: item.item.name || item.menu.name,
+                    price: item.item.price || item.menu.price || 0,
                     category: item.menu.category || { id: "", name: "", priority: 0 },
                     description: item.menu.description || "",
                     image_url: item.menu.image_url || "",
@@ -571,18 +635,37 @@ export const EditCaptainOrderModal = () => {
                       )}
                     </div>
                   )}
-                  {newItemId && (
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <div className="flex-1 border rounded-lg p-3">
-                        {menuItems.find((item) => item.id === newItemId)?.name} -{" "}
-                        {currency}
-                        {menuItems
-                          .find((item) => item.id === newItemId)
-                          ?.price.toFixed(2)}
+                  {newItemId && (() => {
+                    const [baseId, variantName] = newItemId.split("|");
+                    const menuItem = menuItems.find((item) => item.id === baseId);
+                    if (!menuItem) return null;
+                    
+                    let selectedItemDetails;
+                    if (variantName) {
+                      const variant = menuItem.variants?.find((v) => v.name === variantName);
+                      if (!variant) return null;
+                      selectedItemDetails = {
+                        name: `${menuItem.name} (${variant.name})`,
+                        price: variant.price,
+                      };
+                    } else {
+                      selectedItemDetails = {
+                        name: menuItem.name,
+                        price: menuItem.price,
+                      };
+                    }
+                    
+                    return (
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="flex-1 border rounded-lg p-3">
+                          {selectedItemDetails.name} -{" "}
+                          {currency}
+                          {selectedItemDetails.price.toFixed(2)}
+                        </div>
+                        <Button onClick={handleAddItem} className="sm:w-auto w-full">Add to Order</Button>
                       </div>
-                      <Button onClick={handleAddItem} className="sm:w-auto w-full">Add to Order</Button>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               </div>
               {/* Current Items */}
