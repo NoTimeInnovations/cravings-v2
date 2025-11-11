@@ -33,7 +33,8 @@ import { useQrDataStore } from "@/store/qrDataStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { updateUserAddressesMutation } from "@/api/auth";
-import { getUserCountry, validatePhoneNumber, getPhoneValidationError, UserCountryInfo } from "@/lib/getUserCountry";
+import { validatePhoneNumber, getPhoneValidationError } from "@/lib/getUserCountry";
+import { getPhoneDigitsForCountry } from "@/lib/countryPhoneMap";
 
 // Local types for user addresses (stored in users.addresses jsonb)
 type SavedAddress = {
@@ -1496,39 +1497,37 @@ const LoginDrawer = ({
   showLoginDrawer,
   setShowLoginDrawer,
   hotelId,
+  hotelData,
   onLoginSuccess,
 }: {
   showLoginDrawer: boolean;
   setShowLoginDrawer: (show: boolean) => void;
   hotelId: string;
+  hotelData: HotelData;
   onLoginSuccess: () => void;
 }) => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [userCountryInfo, setUserCountryInfo] = useState<UserCountryInfo | null>(null);
   const { signInWithPhone } = useAuthStore();
 
-  // Fetch user country info on mount
-  useEffect(() => {
-    getUserCountry().then((info) => {
-      setUserCountryInfo(info);
-    });
-  }, []);
-
   const handleLogin = async () => {
-    if (!userCountryInfo) {
-      toast.error("Unable to detect your country. Please try again.");
-      return;
-    }
-
-    if (!phoneNumber || !validatePhoneNumber(phoneNumber, userCountryInfo.countryCode)) {
-      toast.error(getPhoneValidationError(userCountryInfo.countryCode));
+    // Get country code from hotelData
+    const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, '') || '91';
+    const phoneDigits = getPhoneDigitsForCountry(countryCode);
+    
+    if (!phoneNumber || !validatePhoneNumber(phoneNumber, countryCode)) {
+      toast.error(getPhoneValidationError(countryCode));
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const result = await signInWithPhone(phoneNumber, hotelId, userCountryInfo);
+      const result = await signInWithPhone(phoneNumber, hotelId, {
+        country: hotelData?.country || 'India',
+        countryCode,
+        callingCode: hotelData?.country_code || '+91',
+        phoneDigits
+      });
       if (result) {
         toast.success("Logged in successfully");
         onLoginSuccess();
@@ -1552,27 +1551,22 @@ const LoginDrawer = ({
         <p className="text-gray-600 mb-4">Enter your phone number to proceed</p>
         <div className="mb-4">
           <Label htmlFor="phone">
-            Phone Number {userCountryInfo && `(${userCountryInfo.country})`}
+            Phone Number {hotelData?.country && `(${hotelData.country})`}
           </Label>
           <div className="flex gap-2 mt-1">
-            {userCountryInfo && (
-              <div className="flex items-center px-3 bg-gray-100 rounded-md text-sm font-medium">
-                {userCountryInfo.callingCode}
-              </div>
-            )}
+            <div className="flex items-center px-3 bg-gray-100 rounded-md text-sm font-medium">
+              {hotelData?.country_code || '+91'}
+            </div>
             <Input
               type="tel"
               id="phone"
               value={phoneNumber}
               onChange={(e) => {
-                const maxDigits = userCountryInfo?.phoneDigits || 10;
+                const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, '') || '91';
+                const maxDigits = getPhoneDigitsForCountry(countryCode);
                 setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, maxDigits));
               }}
-              placeholder={
-                userCountryInfo
-                  ? `Enter your ${userCountryInfo.phoneDigits}-digit phone number`
-                  : "Enter your phone number"
-              }
+              placeholder="Enter your phone number"
               className="flex-1"
             />
           </div>
@@ -2193,6 +2187,7 @@ const PlaceOrderModal = ({
           showLoginDrawer={showLoginDrawer}
           setShowLoginDrawer={setShowLoginDrawer}
           hotelId={hotelData?.id || ""}
+          hotelData={hotelData}
           onLoginSuccess={handleLoginSuccess}
         />
       </div>
