@@ -88,7 +88,7 @@
     "react-to-print": "^3.1.0",
     "react-zoom-pan-pinch": "^3.7.0",
     "recharts": "^2.12.7",
-    "sharp": "^0.34.2",
+    "sharp": "^0.34.5",
     "sonner": "^1.7.2",
     "swiper": "^11.2.10",
     "tailwind-merge": "^2.6.0",
