@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { getUserCountry, validatePhoneNumber, getPhoneValidationError, UserCountryInfo } from "@/lib/getUserCountry";
 
 const bottomNavFilter = ["PETRAZ", "HENZU"];
 
@@ -183,10 +184,18 @@ const OrderDrawer = ({
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userCountryInfo, setUserCountryInfo] = useState<UserCountryInfo | null>(null);
 
   useEffect(() => {
     setIsQrScan(pathname.includes("qrScan") && !!qrId && !(tableNumber === 0));
   }, [pathname, qrId, tableNumber]);
+
+  // Fetch user country info on mount
+  useEffect(() => {
+    getUserCountry().then((info) => {
+      setUserCountryInfo(info);
+    });
+  }, []);
 
   useEffect(() => {
     if (hotelData) {
@@ -387,14 +396,19 @@ const OrderDrawer = ({
 
   // Handle login and proceed
   const handleLoginAndProceed = async () => {
-    if (!phoneNumber || phoneNumber.length < 10) {
-      toast.error("Please enter a valid 10-digit phone number");
+    if (!userCountryInfo) {
+      toast.error("Unable to detect your country. Please try again.");
+      return;
+    }
+
+    if (!phoneNumber || !validatePhoneNumber(phoneNumber, userCountryInfo.countryCode)) {
+      toast.error(getPhoneValidationError(userCountryInfo.countryCode));
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const success = await signInWithPhone(phoneNumber, hotelData.id);
+      const success = await signInWithPhone(phoneNumber, hotelData.id, userCountryInfo);
       if (success) {
         toast.success("Logged in successfully!");
         setShowLoginModal(false);
@@ -525,17 +539,32 @@ const OrderDrawer = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="Enter your 10-digit phone number"
-                value={phoneNumber}
-                onChange={(e) =>
-                  setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))
-                }
-                autoFocus
-              />
+              <Label htmlFor="phone">
+                Phone Number 
+              </Label>
+              <div className="flex gap-2">
+                {userCountryInfo && (
+                  <div className="flex items-center px-3 bg-gray-100 rounded-md text-sm font-medium">
+                    {userCountryInfo.callingCode}
+                  </div>
+                )}
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder={
+                    userCountryInfo
+                      ? `Enter your ${userCountryInfo.phoneDigits}-digit phone number`
+                      : "Enter your phone number"
+                  }
+                  value={phoneNumber}
+                  onChange={(e) => {
+                    const maxDigits = userCountryInfo?.phoneDigits || 10;
+                    setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, maxDigits));
+                  }}
+                  autoFocus
+                  className="flex-1"
+                />
+              </div>
             </div>
 
             <Button

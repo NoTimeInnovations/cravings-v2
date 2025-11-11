@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { UtensilsCrossed } from "lucide-react";
@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { Notification } from "@/app/actions/notification";
+import { getUserCountry, validatePhoneNumber, getPhoneValidationError, UserCountryInfo } from "@/lib/getUserCountry";
 type LoginMode = "user" | "partner";
 export default function Login() {
   const { signInWithPhone, signInPartnerWithEmail } = useAuthStore();
@@ -18,23 +19,38 @@ export default function Login() {
   const [mode, setMode] = useState<LoginMode>("user");
   const [isLoading, setIsLoading] = useState(false);
   const [userPhone, setUserPhone] = useState("");
+  const [userCountryInfo, setUserCountryInfo] = useState<UserCountryInfo | null>(null);
   const [partnerData, setPartnerData] = useState({
     email: "",
     password: "",
   });
 
+  // Fetch user country info on mount
+  useEffect(() => {
+    getUserCountry().then((info) => {
+      setUserCountryInfo(info);
+    });
+  }, []);
+
   const handleUserSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Remove +91 if present and validate 10 digits
-    const cleanedPhone = userPhone.replace(/^\+91/, "");
-    if (cleanedPhone.length !== 10) {
-      toast.error("Please enter a valid 10-digit phone number");
+    
+    if (!userCountryInfo) {
+      toast.error("Unable to detect your country. Please try again.");
+      return;
+    }
+
+    // Remove +91 or country code if present
+    const cleanedPhone = userPhone.replace(/^\+\d+/, "");
+    
+    if (!validatePhoneNumber(cleanedPhone, userCountryInfo.countryCode)) {
+      toast.error(getPhoneValidationError(userCountryInfo.countryCode));
       return;
     }
 
     setIsLoading(true);
     try {
-      await signInWithPhone(cleanedPhone);
+      await signInWithPhone(cleanedPhone, undefined, userCountryInfo);
       await Notification.token.save();
       const redirectPath = localStorage?.getItem("redirectPath");
       if (redirectPath) {
@@ -100,17 +116,32 @@ export default function Login() {
         {mode === "user" ? (
           <form onSubmit={handleUserSignIn} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="Enter your phone number"
-                value={userPhone}
-                onChange={(e) =>
-                  setUserPhone(e.target.value.replace(/\D/g, "").slice(0, 10))
-                }
-                required
-              />
+              <Label htmlFor="phone">
+                Phone Number
+              </Label>
+              <div className="flex gap-2">
+                {userCountryInfo && (
+                  <div className="flex items-center px-3 bg-gray-100 rounded-md text-sm font-medium">
+                    {userCountryInfo.callingCode}
+                  </div>
+                )}
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder={
+                    userCountryInfo
+                      ? `Enter your ${userCountryInfo.phoneDigits}-digit phone number`
+                      : "Enter your phone number"
+                  }
+                  value={userPhone}
+                  onChange={(e) => {
+                    const maxDigits = userCountryInfo?.phoneDigits || 10;
+                    setUserPhone(e.target.value.replace(/\D/g, "").slice(0, maxDigits));
+                  }}
+                  required
+                  className="flex-1"
+                />
+              </div>
             </div>
             <Button
               type="submit"

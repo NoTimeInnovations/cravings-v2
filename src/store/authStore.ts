@@ -24,6 +24,7 @@ import { Notification } from "@/app/actions/notification";
 import { addAccount, getAccounts, getAllAccounts } from "@/lib/addAccount";
 import { transferTempDataToUserAccount } from "@/lib/transferTempDataToUserAccount";
 import { CommonOffer } from "@/components/superAdmin/OfferUploadSuperAdmin";
+import { UserCountryInfo } from "@/lib/getUserCountry";
 
 interface BaseUser {
   id: string;
@@ -147,7 +148,7 @@ interface AuthState {
     email: string,
     password: string
   ) => Promise<Partner>;
-  signInWithPhone: (phone: string, partnerId?: string) => Promise<User | null>;
+  signInWithPhone: (phone: string, partnerId?: string, countryInfo?: UserCountryInfo) => Promise<User | null>;
   signInPartnerWithEmail: (email: string, password: string) => Promise<void>;
   signInSuperAdminWithEmail: (email: string, password: string) => Promise<void>;
   signInCaptainWithEmail: (email: string, password: string) => Promise<void>;
@@ -428,13 +429,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  signInWithPhone: async (phone, partnerId) => {
+  signInWithPhone: async (phone, partnerId, countryInfo) => {
     try {
       await get().signOut();
 
 
       console.log("Signing in with phone:", phone, "Partner ID:", partnerId);
       
+      // Store country info if provided
+      if (countryInfo) {
+        localStorage?.setItem('user-country-info', JSON.stringify(countryInfo));
+      }
 
       const email = `${phone}@user.com`;
       const response = (await fetchFromHasura(userLoginQuery, { email })) as {
