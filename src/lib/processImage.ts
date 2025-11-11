@@ -1,6 +1,17 @@
-import { getImageSource } from "./getImageSource";
+// import { getImageSource } from "./getImageSource";
+
+// Helper function to detect Safari browser
+const isSafari = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const ua = window.navigator.userAgent;
+  const isSafariBrowser = /^((?!chrome|android).)*safari/i.test(ua);
+  return isSafariBrowser;
+};
 
 export const processImage = async (localBlobUrl: string, imageSource: string): Promise<string> => {
+  const usePNG = isSafari();
+  const imageFormat = usePNG ? 'image/png' : 'image/webp';
+  const imageQuality = usePNG ? 0.92 : 0.8;
   
   if(imageSource === "no-edit" && !localBlobUrl.includes('cravingsbucket')) {
     // return base64 webp version of the image without any processing
@@ -26,8 +37,8 @@ export const processImage = async (localBlobUrl: string, imageSource: string): P
     canvas.height = img.height;
     ctx.drawImage(img, 0, 0, img.width, img.height);
 
-    const webpBase64 = canvas.toDataURL('image/webp', 0.8);
-    return webpBase64;
+    const base64Image = canvas.toDataURL(imageFormat, imageQuality);
+    return base64Image;
   }
   
   // Check if the URL should be skipped (no changes here)
@@ -87,8 +98,8 @@ export const processImage = async (localBlobUrl: string, imageSource: string): P
     ctx.drawImage(img, 0, 0, originalWidth, originalHeight);
   }
 
-  // Convert the canvas content to a WebP base64 string
-  const webpBase64 = canvas.toDataURL('image/webp', 0.8);
+  // Convert the canvas content to PNG (for Safari) or WebP (for other browsers)
+  const base64Image = canvas.toDataURL(imageFormat, imageQuality);
 
-  return webpBase64;
+  return base64Image;
 };
