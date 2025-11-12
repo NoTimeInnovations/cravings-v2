@@ -1689,12 +1689,12 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Back Button */}
         <Button
-          onClick={() => router.back()}
+          onClick={() => router.push("/admin")}
           variant="ghost"
           className="flex items-center gap-2 hover:bg-orange-100 text-gray-700"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Back</span>
+          <span>Admin</span>
         </Button>
 
         <Card className="overflow-hidden hover:shadow-xl transition-shadow">
