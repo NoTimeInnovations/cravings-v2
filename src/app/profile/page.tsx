@@ -8,6 +8,7 @@ import {
   Pencil,
   Trash2,
   ArrowRight,
+  ArrowLeft,
   X,
   // Loader2,
   Share2,
@@ -1686,6 +1687,16 @@ export default function ProfilePage() {
   return (
     <main className="min-h-screen w-full bg-orange-50 p-2">
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Back Button */}
+        <Button
+          onClick={() => router.back()}
+          variant="ghost"
+          className="flex items-center gap-2 hover:bg-orange-100 text-gray-700"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span>Back</span>
+        </Button>
+
         <Card className="overflow-hidden hover:shadow-xl transition-shadow">
           <CardHeader>
             <div className="flex justify-between">
