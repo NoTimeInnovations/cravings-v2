@@ -1,3 +1,5 @@
+import { getPhoneDigitsForCountry } from './countryPhoneMap';
+
 /**
  * Get user's country information using ipapi.co
  * Returns country code and phone number requirements
@@ -86,19 +88,22 @@ export async function getUserCountry(): Promise<UserCountryInfo> {
 
 /**
  * Validate phone number based on country
+ * @param phoneNumber - The phone number to validate
+ * @param countryCode - The country calling code without + (e.g., '91', '971')
  */
 export function validatePhoneNumber(phoneNumber: string, countryCode: string): boolean {
-  const phoneInfo = COUNTRY_PHONE_DIGITS[countryCode] || COUNTRY_PHONE_DIGITS['IN'];
+  const requiredDigits = getPhoneDigitsForCountry(countryCode);
   const cleanedPhone = phoneNumber.replace(/\D/g, '');
-  return cleanedPhone.length === phoneInfo.digits;
+  return cleanedPhone.length === requiredDigits;
 }
 
 /**
  * Get error message for invalid phone number
+ * @param countryCode - The country calling code without + (e.g., '91', '971')
  */
 export function getPhoneValidationError(countryCode: string): string {
-  const phoneInfo = COUNTRY_PHONE_DIGITS[countryCode] || COUNTRY_PHONE_DIGITS['IN'];
-  return `Please enter a valid ${phoneInfo.digits}-digit phone number`;
+  const requiredDigits = getPhoneDigitsForCountry(countryCode);
+  return `Please enter a valid ${requiredDigits}-digit phone number`;
 }
 
 /**

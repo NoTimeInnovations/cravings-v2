@@ -16,7 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import { getUserCountry, validatePhoneNumber, getPhoneValidationError, UserCountryInfo } from "@/lib/getUserCountry";
+import { validatePhoneNumber, getPhoneValidationError } from "@/lib/getUserCountry";
+import { getPhoneDigitsForCountry } from "@/lib/countryPhoneMap";
 
 const bottomNavFilter = ["PETRAZ", "HENZU"];
 
@@ -184,18 +185,10 @@ const OrderDrawer = ({
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [userCountryInfo, setUserCountryInfo] = useState<UserCountryInfo | null>(null);
 
   useEffect(() => {
     setIsQrScan(pathname.includes("qrScan") && !!qrId && !(tableNumber === 0));
   }, [pathname, qrId, tableNumber]);
-
-  // Fetch user country info on mount
-  useEffect(() => {
-    getUserCountry().then((info) => {
-      setUserCountryInfo(info);
-    });
-  }, []);
 
   useEffect(() => {
     if (hotelData) {
@@ -396,19 +389,23 @@ const OrderDrawer = ({
 
   // Handle login and proceed
   const handleLoginAndProceed = async () => {
-    if (!userCountryInfo) {
-      toast.error("Unable to detect your country. Please try again.");
-      return;
-    }
-
-    if (!phoneNumber || !validatePhoneNumber(phoneNumber, userCountryInfo.countryCode)) {
-      toast.error(getPhoneValidationError(userCountryInfo.countryCode));
+    // Get country code from hotelData
+    const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, '') || '91'; // Default to India if not available
+    const phoneDigits = getPhoneDigitsForCountry(countryCode);
+    
+    if (!phoneNumber || !validatePhoneNumber(phoneNumber, countryCode)) {
+      toast.error(getPhoneValidationError(countryCode));
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const success = await signInWithPhone(phoneNumber, hotelData.id, userCountryInfo);
+      const success = await signInWithPhone(phoneNumber, hotelData.id, {
+        country: hotelData?.country || 'India',
+        countryCode,
+        callingCode: hotelData?.country_code || '+91',
+        phoneDigits
+      });
       if (success) {
         toast.success("Logged in successfully!");
         setShowLoginModal(false);
@@ -543,22 +540,17 @@ const OrderDrawer = ({
                 Phone Number 
               </Label>
               <div className="flex gap-2">
-                {userCountryInfo && (
-                  <div className="flex items-center px-3 bg-gray-100 rounded-md text-sm font-medium">
-                    {userCountryInfo.callingCode}
-                  </div>
-                )}
+                <div className="flex items-center px-3 bg-gray-100 rounded-md text-sm font-medium">
+                  {hotelData?.country_code || '+91'}
+                </div>
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder={
-                    userCountryInfo
-                      ? `Enter your ${userCountryInfo.phoneDigits}-digit phone number`
-                      : "Enter your phone number"
-                  }
+                  placeholder={`Enter your phone number`}
                   value={phoneNumber}
                   onChange={(e) => {
-                    const maxDigits = userCountryInfo?.phoneDigits || 10;
+                    const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, '') || '91';
+                    const maxDigits = getPhoneDigitsForCountry(countryCode);
                     setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, maxDigits));
                   }}
                   autoFocus
