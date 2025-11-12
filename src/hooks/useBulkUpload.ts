@@ -350,11 +350,17 @@ export const useBulkUpload = () => {
     successMessage: string
   ) => {
     try {
+      // Helper function to remove non-English characters
+      const sanitizeToEnglish = (text: string): string => {
+        // Keep only English letters, numbers, spaces, and common punctuation
+        return text.replace(/[^a-zA-Z0-9\s.,!?'"-]/g, '').trim();
+      };
+
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_SERVER_URL}/api/image-gen/${endpoint}`,
         items.map((item) => ({
           ...item,
-          name : item.name
+          name: sanitizeToEnglish(item.name)
         })),
         {
           headers: { "Content-Type": "application/json" },
