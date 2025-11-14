@@ -37,12 +37,25 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { Download } from "lucide-react";
+import { Download, ChevronDown, ChevronUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Partner, useAuthStore } from "@/store/authStore";
 import * as XLSX from "xlsx-js-style";
 import { create } from "domain";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 const formatDate = (date: Date) => format(date, "yyyy-MM-dd");
 
@@ -62,6 +75,10 @@ const OrderReport = () => {
   const [topItemsCurrentPage, setTopItemsCurrentPage] = useState(1);
   const [categoryCurrentPage, setCategoryCurrentPage] = useState(1);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [paymentMethodOrders, setPaymentMethodOrders] = useState<any[]>([]);
+  const [expandedPaymentMethod, setExpandedPaymentMethod] = useState<string | null>(null);
+  const [selectedOrderForPayment, setSelectedOrderForPayment] = useState<any>(null);
+  const [updatingPayment, setUpdatingPayment] = useState(false);
 
   const TODAY_ORDERS_QUERY = (today: string) => `
     query TodayOrders {
@@ -76,6 +93,44 @@ const OrderReport = () => {
       delivery_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
+        }
+      }
+      cash_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+        }
+      }
+      upi_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+        }
+      }
+      card_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+        }
+      }
+      null_payment_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+        }
+      }
+      orders_by_payment: orders(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}, order_by: {created_at: desc}) {
+        id
+        display_id
+        created_at
+        total_price
+        payment_method
+        table_number
+        table_name
+        type
+        delivery_address
+        order_items {
+          quantity
+          menu {
+            name
+            price
+          }
         }
       }
       top_items: order_items(where: {order: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}) {
@@ -126,6 +181,44 @@ const OrderReport = () => {
           count
         }
       }
+      cash_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+        }
+      }
+      upi_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+        }
+      }
+      card_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+        }
+      }
+      null_payment_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+        }
+      }
+      orders_by_payment: orders(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}, order_by: {created_at: desc}) {
+        id
+        display_id
+        created_at
+        total_price
+        payment_method
+        table_number
+        table_name
+        type
+        delivery_address
+        order_items {
+          quantity
+          menu {
+            name
+            price
+          }
+        }
+      }
       top_items: order_items(where: {order: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}) {
         menu {
           name
@@ -172,6 +265,44 @@ const OrderReport = () => {
       delivery_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
+        }
+      }
+      cash_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+        }
+      }
+      upi_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+        }
+      }
+      card_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+        }
+      }
+      null_payment_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+        }
+      }
+      orders_by_payment: orders(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}, order_by: {created_at: desc}) {
+        id
+        display_id
+        created_at
+        total_price
+        payment_method
+        table_number
+        table_name
+        type
+        delivery_address
+        order_items {
+          quantity
+          menu {
+            name
+            price
+          }
         }
       }
       top_items: order_items(where: {order: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}) {
@@ -271,6 +402,60 @@ const OrderReport = () => {
       fetchData();
     }
   }, [fetchData, userData]);
+
+  useEffect(() => {
+    if (reportData?.orders_by_payment) {
+      setPaymentMethodOrders(reportData.orders_by_payment);
+    }
+  }, [reportData]);
+
+  const handleUpdatePaymentMethod = async (orderId: string, paymentMethod: string) => {
+    setUpdatingPayment(true);
+    try {
+      const mutation = `
+        mutation UpdateOrderPayment($orderId: uuid!, $paymentMethod: String!) {
+          update_orders_by_pk(
+            pk_columns: { id: $orderId }
+            _set: { payment_method: $paymentMethod }
+          ) {
+            id
+            payment_method
+          }
+        }
+      `;
+      
+      await fetchFromHasura(mutation, {
+        orderId,
+        paymentMethod,
+      });
+
+      // Refresh data
+      await fetchData();
+      setSelectedOrderForPayment(null);
+    } catch (error) {
+      console.error("Error updating payment method:", error);
+    } finally {
+      setUpdatingPayment(false);
+    }
+  };
+
+  const groupOrdersByPaymentMethod = () => {
+    const grouped: Record<string, any[]> = {
+      cash: [],
+      upi: [],
+      card: [],
+      null: [],
+    };
+
+    paymentMethodOrders.forEach((order: any) => {
+      const method = order.payment_method || "null";
+      if (grouped[method]) {
+        grouped[method].push(order);
+      }
+    });
+
+    return grouped;
+  };
 
   const handleDateRangeChange = useCallback(
     (range: { startDate: Date; endDate: Date }) => {
@@ -742,6 +927,211 @@ const handleDownloadXLSX = async () => {
           </Card>
         </div>
 
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Payment Method Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="grid gap-4 md:grid-cols-3">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="flex flex-col items-center justify-center p-4 border rounded-lg">
+                  <div className="text-sm text-muted-foreground mb-1">Cash</div>
+                  <div className="text-3xl font-bold">
+                    {reportData?.cash_orders?.aggregate?.count || 0}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">orders</div>
+                </div>
+                <div className="flex flex-col items-center justify-center p-4 border rounded-lg">
+                  <div className="text-sm text-muted-foreground mb-1">UPI</div>
+                  <div className="text-3xl font-bold">
+                    {reportData?.upi_orders?.aggregate?.count || 0}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">orders</div>
+                </div>
+                <div className="flex flex-col items-center justify-center p-4 border rounded-lg">
+                  <div className="text-sm text-muted-foreground mb-1">Card</div>
+                  <div className="text-3xl font-bold">
+                    {reportData?.card_orders?.aggregate?.count || 0}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">orders</div>
+                </div>
+                <div className="flex flex-col items-center justify-center p-4 border rounded-lg bg-orange-50">
+                  <div className="text-sm text-muted-foreground mb-1">Not Selected</div>
+                  <div className="text-3xl font-bold text-orange-600">
+                    {reportData?.null_payment_orders?.aggregate?.count || 0}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">orders</div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Orders by Payment Method</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="space-y-4">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {Object.entries(groupOrdersByPaymentMethod()).map(
+                  ([method, orders]) => {
+                    const displayMethod =
+                      method === "null"
+                        ? "Not Selected"
+                        : method.charAt(0).toUpperCase() + method.slice(1);
+                    const isExpanded = expandedPaymentMethod === method;
+
+                    return (
+                      <Collapsible
+                        key={method}
+                        open={isExpanded}
+                        onOpenChange={() =>
+                          setExpandedPaymentMethod(
+                            isExpanded ? null : method
+                          )
+                        }
+                      >
+                        <div
+                          className={`border rounded-lg ${
+                            method === "null" ? "border-orange-300" : ""
+                          }`}
+                        >
+                          <CollapsibleTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="w-full flex justify-between items-center p-4 hover:bg-gray-50"
+                            >
+                              <div className="flex items-center gap-4">
+                                <span
+                                  className={`font-semibold ${
+                                    method === "null"
+                                      ? "text-orange-600"
+                                      : ""
+                                  }`}
+                                >
+                                  {displayMethod}
+                                </span>
+                                <span className="text-sm text-muted-foreground">
+                                  ({orders.length} orders)
+                                </span>
+                              </div>
+                              {isExpanded ? (
+                                <ChevronUp className="h-5 w-5" />
+                              ) : (
+                                <ChevronDown className="h-5 w-5" />
+                              )}
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="px-4 pb-4">
+                              {orders.length === 0 ? (
+                                <p className="text-sm text-muted-foreground text-center py-4">
+                                  No orders found
+                                </p>
+                              ) : (
+                                <div className="space-y-3">
+                                  {orders.map((order: any) => {
+                                    const orderType =
+                                      order.type === "delivery"
+                                        ? "Delivery"
+                                        : order.table_name || order.table_number
+                                        ? "Dine-in"
+                                        : "Takeaway";
+                                    const location =
+                                      order.type === "delivery"
+                                        ? order.delivery_address
+                                        : order.table_name ||
+                                          order.table_number
+                                        ? `Table: ${
+                                            order.table_name ||
+                                            order.table_number
+                                          }`
+                                        : "N/A";
+
+                                    return (
+                                      <div
+                                        key={order.id}
+                                        className="border rounded-md p-3 bg-gray-50"
+                                      >
+                                        <div className="flex justify-between items-start mb-2">
+                                          <div>
+                                            <div className="font-semibold">
+                                              #{order.display_id}
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                              {format(
+                                                new Date(order.created_at),
+                                                "MMM dd, yyyy - hh:mm a"
+                                              )}
+                                            </div>
+                                          </div>
+                                          <div className="text-right">
+                                            <div className="font-bold">
+                                              {(userData as Partner)?.currency ||
+                                                "₹"}
+                                              {order.total_price.toFixed(2)}
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                              {orderType}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="text-xs text-muted-foreground mb-2">
+                                          {location}
+                                        </div>
+                                        <div className="text-sm mb-2">
+                                          <span className="font-medium">
+                                            Items:{" "}
+                                          </span>
+                                          {order.order_items
+                                            .map(
+                                              (item: any) =>
+                                                `${item.menu.name} (${item.quantity})`
+                                            )
+                                            .join(", ")}
+                                        </div>
+                                        {method === "null" && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="mt-2 w-full"
+                                            onClick={() =>
+                                              setSelectedOrderForPayment(order)
+                                            }
+                                          >
+                                            Select Payment Method
+                                          </Button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                    );
+                  }
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <TabsContent value={activeTab} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
@@ -1026,6 +1416,64 @@ const handleDownloadXLSX = async () => {
           {isDownloading ? "Downloading..." : "Download Report"}
         </Button>
       </div>
+
+      <Dialog
+        open={!!selectedOrderForPayment}
+        onOpenChange={(open) => !open && setSelectedOrderForPayment(null)}
+      >
+        <DialogContent className="z-[9999]">
+          <DialogHeader>
+            <DialogTitle>Select Payment Method</DialogTitle>
+            <DialogDescription>
+              Choose the payment method for Order #{selectedOrderForPayment?.display_id}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-3 gap-4 py-4">
+            <Button
+              variant="outline"
+              className="h-20 flex flex-col gap-2"
+              onClick={() =>
+                handleUpdatePaymentMethod(selectedOrderForPayment.id, "cash")
+              }
+              disabled={updatingPayment}
+            >
+              <span className="text-2xl">💵</span>
+              <span>Cash</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-20 flex flex-col gap-2"
+              onClick={() =>
+                handleUpdatePaymentMethod(selectedOrderForPayment.id, "upi")
+              }
+              disabled={updatingPayment}
+            >
+              <span className="text-2xl">📱</span>
+              <span>UPI</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-20 flex flex-col gap-2"
+              onClick={() =>
+                handleUpdatePaymentMethod(selectedOrderForPayment.id, "card")
+              }
+              disabled={updatingPayment}
+            >
+              <span className="text-2xl">💳</span>
+              <span>Card</span>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setSelectedOrderForPayment(null)}
+              disabled={updatingPayment}
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
