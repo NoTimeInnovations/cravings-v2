@@ -118,7 +118,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   orderNote: "",
   tableName: null,
   qrCodeData: [],
-  paymentMethod: "cash",
+  paymentMethod: undefined,
 
   setPaymentMethod: (method) => {
     set({ paymentMethod: method });
@@ -361,7 +361,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   clearCart: () => {
-    set({ cartItems: [], totalAmount: 0, extraCharges: [], removedQrGroupCharges: [], orderNote: "" });
+    set({ cartItems: [], totalAmount: 0, extraCharges: [], removedQrGroupCharges: [], orderNote: "", paymentMethod: undefined });
   },
 
   addExtraCharge: (charge: Omit<ExtraCharge, "id">) => {
@@ -494,7 +494,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         id: orderId,
         totalPrice: foodSubtotal,
         gst_included: gstPercentage,
-        payment_method: paymentMethod || "cash",
+        payment_method: paymentMethod || null,
         extra_charges: allExtraCharges.length > 0 ? allExtraCharges : null,
         createdAt,
         tableNumber: get().tableNumber || null,
@@ -598,7 +598,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         captain_id: isCaptainOrder ? userId : undefined,
         notes: orderNote || undefined,
         display_id : getNextDisplayOrderNumber.toString(),
-        payment_method: paymentMethod || "cash",
+        payment_method: paymentMethod || undefined,
       };
 
       set({ order: newOrder, postCheckoutModalOpen: true });

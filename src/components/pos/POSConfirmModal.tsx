@@ -74,8 +74,6 @@ export const POSConfirmModal = ({
   const [qrCodes, setQrCodes] = useState<QrCode[]>([]);
   const [isLoadingTables, setIsLoadingTables] = useState(true);
   const [isDelivery, setIsDelivery] = useState(false);
-  // Payment modal state
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Sync store extra charges with local state
   useEffect(() => {
@@ -182,6 +180,9 @@ export const POSConfirmModal = ({
 
       setUserPhone(phoneInput || null);
 
+      // Set default payment method as null so it can be set later when printing bill
+      setPaymentMethod(null as any);
+
       // Extra charges are already in the store, no need to add them again
 
       await checkout();
@@ -189,21 +190,10 @@ export const POSConfirmModal = ({
       setPhoneInput("");
       setExtraCharges([]);
       setNewExtraCharge({ name: "", amount: 0, id: "" });
-      // Close payment modal when checkout completes
-      setShowPaymentModal(false);
     } catch (error) {
       console.error("Checkout failed:", error);
       toast.error("Checkout failed");
     }
-  };
-
-  const openPaymentModal = () => {
-    setPaymentMethod("cash");
-    setShowPaymentModal(true);
-  };
-
-  const handlePaymentConfirm = async () => {
-    await handleConfirmOrder();
   };
 
   return (
@@ -490,7 +480,7 @@ export const POSConfirmModal = ({
             Cancel
           </Button>
           <Button
-            onClick={openPaymentModal}
+            onClick={handleConfirmOrder}
             disabled={loading || !isTableSelected || cartItems.length === 0}
             className="flex-1"
           >
@@ -505,153 +495,6 @@ export const POSConfirmModal = ({
           </Button>
         </div>
       </div>
-      {/* Payment Method Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-lg w-full max-w-md mx-auto p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold">Choose Payment Method</h3>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowPaymentModal(false)}
-                className="h-8 w-8"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="space-y-3">
-              <label className="block cursor-pointer">
-                <input
-                  type="radio"
-                  name="payment"
-                  checked={paymentMethod === "cash"}
-                  onChange={() => setPaymentMethod("cash")}
-                  className="sr-only"
-                />
-                <div
-                  className={`p-4 rounded-lg border-2 transition-all ${
-                    paymentMethod === "cash"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">Cash</span>
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                        paymentMethod === "cash"
-                          ? "border-blue-500 bg-blue-500"
-                          : "border-gray-300"
-                      }`}
-                    >
-                      {paymentMethod === "cash" && (
-                        <div className="w-2 h-2 rounded-full bg-white" />
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Default payment method
-                  </p>
-                </div>
-              </label>
-
-              <label className="block cursor-pointer">
-                <input
-                  type="radio"
-                  name="payment"
-                  checked={paymentMethod === "upi"}
-                  onChange={() => setPaymentMethod("upi")}
-                  className="sr-only"
-                />
-                <div
-                  className={`p-4 rounded-lg border-2 transition-all ${
-                    paymentMethod === "upi"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">UPI</span>
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                        paymentMethod === "upi"
-                          ? "border-blue-500 bg-blue-500"
-                          : "border-gray-300"
-                      }`}
-                    >
-                      {paymentMethod === "upi" && (
-                        <div className="w-2 h-2 rounded-full bg-white" />
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">Pay via UPI apps</p>
-                </div>
-              </label>
-
-              <label className="block cursor-pointer">
-                <input
-                  type="radio"
-                  name="payment"
-                  checked={paymentMethod === "card"}
-                  onChange={() => setPaymentMethod("card")}
-                  className="sr-only"
-                />
-                <div
-                  className={`p-4 rounded-lg border-2 transition-all ${
-                    paymentMethod === "card"
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">Card</span>
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                        paymentMethod === "card"
-                          ? "border-blue-500 bg-blue-500"
-                          : "border-gray-300"
-                      }`}
-                    >
-                      {paymentMethod === "card" && (
-                        <div className="w-2 h-2 rounded-full bg-white" />
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Credit or Debit card
-                  </p>
-                </div>
-              </label>
-            </div>
-
-            <div className="mt-6 flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowPaymentModal(false)}
-                className="flex-1"
-              >
-                Back
-              </Button>
-              <Button
-                onClick={handlePaymentConfirm}
-                className="flex-1"
-                disabled={loading || cartItems.length === 0}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  "Confirm"
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

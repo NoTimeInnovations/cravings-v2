@@ -220,6 +220,7 @@ const OrderReport = () => {
         status
         table_name
         type
+        payment_method
         order_items {
           id
           quantity
@@ -507,6 +508,7 @@ const handleDownloadXLSX = async () => {
         createCell("Table/Address", tableHeaderStyle),
         createCell("Items", tableHeaderStyle),
         createCell("Extra Charges", tableHeaderStyle),
+        createCell("Payment Method", tableHeaderStyle),
         createCell("Status", tableHeaderStyle),
         createCell("Total Price", tableHeaderStyle)
       ],
@@ -539,6 +541,10 @@ const handleDownloadXLSX = async () => {
           return `${charge.name} (${charge.amount})`;
         }).join(", ");
 
+        const paymentMethod = order?.payment_method 
+          ? order.payment_method.charAt(0).toUpperCase() + order.payment_method.slice(1)
+          : "N/A";
+
         return [
           createCell(order.id, tableCellStyle),
           createCell(displayId, tableCellStyle),
@@ -547,6 +553,7 @@ const handleDownloadXLSX = async () => {
           createCell(location, tableCellStyle),
           createCell(itemsStr, tableCellStyle),
           createCell(extraChargeStr || "N/A", tableCellStyle),
+          createCell(paymentMethod, tableCellStyle),
           createCell(order.status, tableCellStyle),
           order.status === "completed" ? createCell(order.total_price, tableCellStyle, "n", currencyFormat) : createCell("N/A", tableCellStyle)
         ];
@@ -571,7 +578,9 @@ const handleDownloadXLSX = async () => {
       { wch: 15 }, // Order Type
       { wch: 30 }, // Table/Address
       { wch: 50 }, // Items
-      { wch: 15 }, // Extra Charges
+      { wch: 20 }, // Extra Charges
+      { wch: 15 }, // Payment Method
+      { wch: 12 }, // Status
       { wch: 15 }, // Total Price
     ];
 

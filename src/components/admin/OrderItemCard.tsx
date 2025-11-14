@@ -4,7 +4,7 @@ import { Partner, useAuthStore } from "@/store/authStore";
 import useOrderStore, { Order, OrderItem } from "@/store/orderStore";
 import React, { useEffect, useState } from "react";
 import { Button } from "../ui/button";
-import { Edit, Printer, Trash2 } from "lucide-react";
+import { Edit, Printer, Trash2, X, Loader2 } from "lucide-react";
 import KOTTemplate from "./pos/KOTTemplate";
 import BillTemplate from "./pos/BillTemplate";
 import { useReactToPrint } from "react-to-print";
@@ -30,6 +30,7 @@ import AddNoteComponent from "./AddNoteComponent";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PrintButton from "./PrintButton";
+import { fetchFromHasura } from "@/lib/hasuraClient";
 
 const OrderItemCard = ({
   order: initialOrder,
@@ -62,6 +63,9 @@ const OrderItemCard = ({
   const [deliveryLocation, setDeliveryLocation] = React.useState<string | null>(
     null
   );
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "upi">("cash");
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
   const { updateOrderStatusHistory } = useOrderStore();
   const router = useRouter();
 
@@ -92,6 +96,59 @@ const OrderItemCard = ({
       toast.error("An error occurred while deleting the order");
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handlePrintBill = () => {
+    // Check if payment method is null
+    if (!localOrder.payment_method) {
+      // Show payment modal
+      setPaymentMethod("cash");
+      setShowPaymentModal(true);
+    } else {
+      // Directly navigate to print bill
+      window.open("/bill/" + localOrder.id, "_blank");
+    }
+  };
+
+  const handlePaymentConfirm = async () => {
+    if (!localOrder || !paymentMethod) return;
+    
+    try {
+      setIsUpdatingPayment(true);
+      
+      // Update payment method in database
+      await fetchFromHasura(
+        `mutation UpdateOrderPaymentMethod($id: uuid!, $payment_method: String!) {
+          update_orders_by_pk(
+            pk_columns: { id: $id }
+            _set: { payment_method: $payment_method }
+          ) {
+            id
+            payment_method
+          }
+        }`,
+        {
+          id: localOrder.id,
+          payment_method: paymentMethod,
+        }
+      );
+
+      // Update local order state
+      setLocalOrder({
+        ...localOrder,
+        payment_method: paymentMethod,
+      });
+
+      setShowPaymentModal(false);
+      
+      // Now open the print bill page
+      window.open("/bill/" + localOrder.id, "_blank");
+    } catch (error) {
+      console.error("Error updating payment method:", error);
+      toast.error("Failed to update payment method");
+    } finally {
+      setIsUpdatingPayment(false);
     }
   };
 
@@ -435,7 +492,15 @@ const OrderItemCard = ({
           {/* Left side buttons */}
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <PrintButton href={`/kot/${localOrder.id}`} text="Print KOT" />
-            <PrintButton href={`/bill/${localOrder.id}`} text="Print Bill" />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handlePrintBill}
+              className="flex-1 sm:flex-none w-full sm:w-auto"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Print Bill
+            </Button>
 
             <Button
               size="sm"
@@ -584,6 +649,154 @@ const OrderItemCard = ({
           </div>
         </div>
       </div>
+
+      {/* Payment Method Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg w-full max-w-md mx-auto p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">Choose Payment Method</h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowPaymentModal(false)}
+                className="h-8 w-8"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block cursor-pointer">
+                <input
+                  type="radio"
+                  name="payment"
+                  checked={paymentMethod === "cash"}
+                  onChange={() => setPaymentMethod("cash")}
+                  className="sr-only"
+                />
+                <div
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    paymentMethod === "cash"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">Cash</span>
+                    <div
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        paymentMethod === "cash"
+                          ? "border-blue-500 bg-blue-500"
+                          : "border-gray-300"
+                      }`}
+                    >
+                      {paymentMethod === "cash" && (
+                        <div className="w-2 h-2 rounded-full bg-white" />
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Default payment method
+                  </p>
+                </div>
+              </label>
+
+              <label className="block cursor-pointer">
+                <input
+                  type="radio"
+                  name="payment"
+                  checked={paymentMethod === "upi"}
+                  onChange={() => setPaymentMethod("upi")}
+                  className="sr-only"
+                />
+                <div
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    paymentMethod === "upi"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">UPI</span>
+                    <div
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        paymentMethod === "upi"
+                          ? "border-blue-500 bg-blue-500"
+                          : "border-gray-300"
+                      }`}
+                    >
+                      {paymentMethod === "upi" && (
+                        <div className="w-2 h-2 rounded-full bg-white" />
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">Pay via UPI apps</p>
+                </div>
+              </label>
+
+              <label className="block cursor-pointer">
+                <input
+                  type="radio"
+                  name="payment"
+                  checked={paymentMethod === "card"}
+                  onChange={() => setPaymentMethod("card")}
+                  className="sr-only"
+                />
+                <div
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    paymentMethod === "card"
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">Card</span>
+                    <div
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        paymentMethod === "card"
+                          ? "border-blue-500 bg-blue-500"
+                          : "border-gray-300"
+                      }`}
+                    >
+                      {paymentMethod === "card" && (
+                        <div className="w-2 h-2 rounded-full bg-white" />
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Credit or Debit card
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            <div className="mt-6 flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowPaymentModal(false)}
+                className="flex-1"
+              >
+                Back
+              </Button>
+              <Button
+                onClick={handlePaymentConfirm}
+                className="flex-1"
+                disabled={isUpdatingPayment}
+              >
+                {isUpdatingPayment ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  "Confirm & Print"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hidden elements for printing */}
       <div className="hidden">
