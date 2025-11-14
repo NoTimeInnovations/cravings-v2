@@ -250,7 +250,9 @@ export const POSConfirmModal = ({
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-2">
-                {qrCodes.map((qr) => (
+                {qrCodes
+                  .sort((a, b) => (a.table_number || 0) - (b.table_number || 0))
+                  .map((qr) => (
                   <Button
                     key={qr.id}
                     variant={

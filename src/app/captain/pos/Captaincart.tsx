@@ -215,6 +215,7 @@ export const Captaincart = () => {
                     .filter(
                       (qr) => qr.table_number !== 0 && qr.table_number !== null
                     )
+                    .sort((a, b) => (a.table_number || 0) - (b.table_number || 0))
                     .map((qr) => (
                       <Button
                         key={qr.id}
