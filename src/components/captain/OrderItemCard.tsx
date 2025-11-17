@@ -204,7 +204,7 @@ const OrderItemCard = ({
             {order.orderedby === "captain" && (
               <div className="text-sm text-gray-600 mt-1 truncate">
                 Captain: {order.captain?.name || "Unknown Captain"}
-                {order.tableNumber && (
+                {(order.tableName || order.tableNumber) && (
                   <span className="ml-2">• Table {order.tableName || order.tableNumber}</span>
                 )}
                 {(order.user?.phone || order.phone) &&
@@ -213,6 +213,11 @@ const OrderItemCard = ({
                       • Customer: {order.user?.phone || order.phone}
                     </span>
                   )}
+              </div>
+            )}
+            {order.orderedby !== "captain" && (order.tableName || order.tableNumber) && (
+              <div className="text-sm text-gray-600 mt-1 truncate">
+                Table: {order.tableName || order.tableNumber}
               </div>
             )}
             <div className="text-sm text-gray-500 mt-1">

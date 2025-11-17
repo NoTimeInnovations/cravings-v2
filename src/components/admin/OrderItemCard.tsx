@@ -340,7 +340,7 @@ const OrderItemCard = ({
 
       <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          {localOrder.type === "table_order" && (
+          {(localOrder.type === "table_order" || localOrder.type === "pos") && (localOrder.tableName || localOrder.tableNumber) && (
             <p className="text-sm">
               Table: {localOrder.tableName || localOrder.tableNumber || "N/A"}{" "}
               {isParsel ? `( Parcel )` : ""}
