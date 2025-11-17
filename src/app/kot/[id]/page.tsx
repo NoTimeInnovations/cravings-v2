@@ -9,6 +9,9 @@ import { useReactToPrint } from "react-to-print";
 import "./print-css.css"; // Import the CSS for printing
 import { Order } from "@/store/orderStore";
 
+// Array of partner IDs to exclude "Powered By Cravings" text
+const DONT_SHOW_POWERED_BY_FOR_PARTNER_IDS: string[] = [];
+
 const GET_ORDER_QUERY = `
 query GetOrder($id: uuid!) {
   orders_by_pk(id: $id) {
@@ -19,6 +22,7 @@ query GetOrder($id: uuid!) {
     type
     notes
     table_name
+    partner_id
     extra_charges
     qr_code{
       table_name
@@ -253,6 +257,9 @@ const PrintKOTPage = () => {
             <h2 className="text-sm font-light text-center mt-1">
               ID: {order.id.slice(0, 8)}
             </h2>
+          )}
+          {!DONT_SHOW_POWERED_BY_FOR_PARTNER_IDS.includes(order?.partner_id) && (
+            <p className="mt-2 text-xs text-gray-500">Powered By Cravings</p>
           )}
         </div>
       </div>

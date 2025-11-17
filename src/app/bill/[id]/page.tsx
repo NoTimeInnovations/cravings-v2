@@ -12,6 +12,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { useReactToPrint } from "react-to-print";
 import "./print-css.css"; // Import the CSS for printing
 
+// Array of partner IDs to exclude "Powered By Cravings" text
+const DONT_SHOW_POWERED_BY_FOR_PARTNER_IDS: string[] = [];
+
 const UPDATE_PARTNER_ADDRESS_MUTATION = `
 mutation UpdatePartnerAddress($id: uuid!, $address: String!) {
   update_partners_by_pk(pk_columns: {id: $id}, _set: {address: $address}) { 
@@ -604,6 +607,9 @@ const PrintOrderPage = () => {
             <h2 className="text-sm font-light text-center mt-1">
               ID: {order.id.slice(0, 8)}
             </h2>
+          )}
+          {!DONT_SHOW_POWERED_BY_FOR_PARTNER_IDS.includes(order?.partner_id) && (
+            <p className="mt-2 text-xs text-gray-500">Powered By Cravings</p>
           )}
         </div>
       </div>
