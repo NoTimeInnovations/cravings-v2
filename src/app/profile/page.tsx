@@ -151,8 +151,10 @@ export default function ProfilePage() {
   const [isShopOpen, setIsShopOpen] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [upiId, setUpiId] = useState("");
+  const [showPaymentQr, setShowPaymentQr] = useState(false);
   const [isSaving, setIsSaving] = useState({
     upiId: false,
+    showPaymentQr: false,
     placeId: false,
     description: false,
     currency: false,
@@ -171,6 +173,7 @@ export default function ProfilePage() {
   });
   const [isEditing, setIsEditing] = useState({
     upiId: false,
+    showPaymentQr: false,
     placeId: false,
     description: false,
     phone: false,
@@ -254,6 +257,7 @@ export default function ProfilePage() {
     if (userData?.role === "partner") {
       setBannerImage(userData.store_banner || null);
       setUpiId(userData.upi_id || "");
+      setShowPaymentQr(userData.show_payment_qr || false);
       setPlaceId(userData.place_id || "");
       setDescription(userData.description || "");
       setDeliveryRate(userData.delivery_rate || 0);
@@ -664,6 +668,37 @@ export default function ProfilePage() {
       );
     } finally {
       setIsSaving((prev) => ({ ...prev, upiId: false }));
+    }
+  };
+
+  const handleShowPaymentQrChange = async (checked: boolean) => {
+    if (!userData) return;
+
+    setIsSaving((prev) => ({ ...prev, showPaymentQr: true }));
+    try {
+      await fetchFromHasura(updatePartnerMutation, {
+        id: userData?.id,
+        updates: {
+          show_payment_qr: checked,
+        },
+      });
+      revalidateTag(userData?.id as string);
+      setState({ show_payment_qr: checked });
+      setShowPaymentQr(checked);
+      toast.success(
+        `Payment QR code ${checked ? "enabled" : "disabled"} successfully!`
+      );
+    } catch (error) {
+      console.error("Error updating show_payment_qr:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to update payment QR setting"
+      );
+      // Revert the state on error
+      setShowPaymentQr(!checked);
+    } finally {
+      setIsSaving((prev) => ({ ...prev, showPaymentQr: false }));
     }
   };
 
@@ -2845,6 +2880,97 @@ export default function ProfilePage() {
                 <p className="text-sm text-gray-500">
                   This FSSAI Licence No will be used for your restaurant profile
                 </p>
+              </div>
+
+              {/* UPI Payment Settings */}
+              <div className="space-y-2 pt-4">
+                <div className="text-lg font-semibold mb-2">
+                  UPI Payment Settings
+                </div>
+                
+                {/* UPI ID Field */}
+                <div className="space-y-2">
+                  <label htmlFor="upiId" className="text-sm font-medium">
+                    UPI ID
+                  </label>
+                  <div className="flex gap-2 items-center">
+                    {isEditing.upiId ? (
+                      <>
+                        <Input
+                          id="upiId"
+                          type="text"
+                          placeholder="Enter UPI ID (e.g., yourname@paytm)"
+                          value={upiId}
+                          onChange={(e) => setUpiId(e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button
+                          onClick={handleSaveUpiId}
+                          disabled={isSaving.upiId || !upiId}
+                          className="bg-orange-600 hover:bg-orange-700 text-white"
+                        >
+                          {isSaving.upiId ? "Saving..." : "Save"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setIsEditing((prev) => ({
+                              ...prev,
+                              upiId: false,
+                            }));
+                            setUpiId(userData?.upi_id || "");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <div className="flex justify-between items-center w-full">
+                        <span className="text-gray-700 font-mono text-sm">
+                          {upiId || "No UPI ID set"}
+                        </span>
+                        <Button
+                          onClick={() => {
+                            setIsEditing((prev) => ({
+                              ...prev,
+                              upiId: true,
+                            }));
+                          }}
+                          variant="ghost"
+                          className="hover:bg-orange-100"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Your UPI ID will be used for payment QR codes
+                  </p>
+                </div>
+
+                {/* Show Payment QR Toggle */}
+                <div className="flex items-center justify-between pt-2">
+                  <div className="space-y-0.5">
+                    <label htmlFor="show-payment-qr" className="text-sm font-medium">
+                      Show Payment QR Code
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      Display UPI payment QR code on bills for customers to scan and pay
+                    </p>
+                  </div>
+                  <Switch
+                    id="show-payment-qr"
+                    checked={showPaymentQr}
+                    onCheckedChange={handleShowPaymentQrChange}
+                    disabled={isSaving.showPaymentQr || !upiId}
+                  />
+                </div>
+                {!upiId && (
+                  <p className="text-xs text-orange-600">
+                    Please add a UPI ID first to enable payment QR codes
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2 pt-4">

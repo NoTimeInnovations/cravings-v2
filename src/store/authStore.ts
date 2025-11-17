@@ -71,6 +71,7 @@ export interface Partner extends BaseUser {
   location: string;
   status: string;
   upi_id: string;
+  show_payment_qr?: boolean;
   description: string | null;
   whatsapp_numbers: {
     number: string;

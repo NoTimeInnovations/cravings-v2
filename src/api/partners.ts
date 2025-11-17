@@ -263,6 +263,7 @@ export const updatePartnerMutation = `
       status
       delivery_status
       upi_id
+      show_payment_qr
       store_banner
       place_id
       theme

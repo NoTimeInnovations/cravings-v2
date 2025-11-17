@@ -10,6 +10,7 @@ import { ExtraCharge } from "@/store/posStore";
 import { useParams, useSearchParams } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import { useReactToPrint } from "react-to-print";
+import QRCode from "qrcode";
 import "./print-css.css"; // Import the CSS for printing
 
 // Array of partner IDs to exclude "Powered By Cravings" text
@@ -58,6 +59,8 @@ query GetOrder($id: uuid!) {
       gst_no
       name
       address
+      upi_id
+      show_payment_qr
     }
     gst_included
     extra_charges
@@ -95,6 +98,7 @@ const PrintOrderPage = () => {
   const [error, setError] = useState<string | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const [isParcel, setIsParcel] = useState(false);
+  const [paymentQrCode, setPaymentQrCode] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const silentPrint = searchParams.get("print") === "false";
   const printWidth = searchParams.get("w") || "72mm";
@@ -219,6 +223,25 @@ const PrintOrderPage = () => {
         const subtotal = foodSubtotal + chargesSubtotal;
         const gstAmount = (foodSubtotal * gstPercentage) / 100;
         const grandTotal = subtotal + gstAmount;
+
+        // Generate UPI payment QR code if enabled
+        if (
+          orders_by_pk.partner?.show_payment_qr &&
+          orders_by_pk.partner?.upi_id
+        ) {
+          try {
+            const upiString = `upi://pay?pa=${orders_by_pk.partner.upi_id}&pn=${encodeURIComponent(
+              orders_by_pk.partner.store_name || "Store"
+            )}&am=${grandTotal.toFixed(2)}&cu=INR`;
+            const qrDataUrl = await QRCode.toDataURL(upiString, {
+              width: 200,
+              margin: 1,
+            });
+            setPaymentQrCode(qrDataUrl);
+          } catch (err) {
+            console.error("Error generating payment QR code:", err);
+          }
+        }
 
         // Log the bill contents in JSON format
         // determine timezone to display for partner-facing documents
@@ -608,6 +631,25 @@ const PrintOrderPage = () => {
               ID: {order.id.slice(0, 8)}
             </h2>
           )}
+          
+          {/* UPI Payment QR Code */}
+          {paymentQrCode && (
+            <div className="mt-3 pt-3 border-t border-dashed border-gray-400">
+              <p className="text-xs font-medium mb-2">Scan to Pay</p>
+              <div className="flex justify-center">
+                <img
+                  src={paymentQrCode}
+                  alt="UPI Payment QR Code"
+                  className="w-32 h-32"
+                />
+              </div>
+              <p className="text-xs text-gray-600 mt-1">
+                {currency}
+                {grandTotal.toFixed(2)}
+              </p>
+            </div>
+          )}
+          
           {!DONT_SHOW_POWERED_BY_FOR_PARTNER_IDS.includes(order?.partner_id) && (
             <p className="mt-2 text-xs text-gray-500">Powered By Cravings</p>
           )}
