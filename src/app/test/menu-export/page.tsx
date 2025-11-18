@@ -27,12 +27,15 @@ type MenuExtractType = {
 
 // --- Helper Functions (defined outside the component) ---
 
+
+const partnerId = "d68d1ecd-adc6-48cf-b927-9ba831d70a57"; // Replace with actual partner ID
+
 /**
  * Fetches menu data from Hasura.
  */
 const fetchData = async () => {
   const { menu, menu_aggregate } = await fetchFromHasura(`query MyQuery {
-    menu(where: {partner_id: {_eq: "8e87aadd-5cc6-4656-95fe-4e104f97c5a7"}}) {
+    menu(where: {partner_id: {_eq: "${partnerId}"}}) {
       category {
         name
       }
@@ -40,7 +43,7 @@ const fetchData = async () => {
       price
       variants
     }
-    menu_aggregate(where: {partner_id: {_eq: "8e87aadd-5cc6-4656-95fe-4e104f97c5a7"}}) {
+    menu_aggregate(where: {partner_id: {_eq: "${partnerId}"}}) {
       aggregate {
         count
       }
