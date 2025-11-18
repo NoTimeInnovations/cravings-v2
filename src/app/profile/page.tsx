@@ -1192,13 +1192,26 @@ export default function ProfilePage() {
 
     try {
       if (gstPercent < 0) {
-        toast.error(`Please enter a valid ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"}`);
+        toast.error(
+          `Please enter a valid ${
+            (userData as Partner)?.country === "United Arab Emirates"
+              ? "VAT"
+              : "GST"
+          }`
+        );
         return;
       }
 
-      toast.loading(`Updating ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"}...`, {
-        id: "gst",
-      });
+      toast.loading(
+        `Updating ${
+          (userData as Partner)?.country === "United Arab Emirates"
+            ? "VAT"
+            : "GST"
+        }...`,
+        {
+          id: "gst",
+        }
+      );
 
       setIsSaving((prev) => {
         return { ...prev, gst: true };
@@ -1213,7 +1226,13 @@ export default function ProfilePage() {
       revalidateTag(userData?.id as string);
       setState({ gst_no: gst.gst_no, gst_percentage: gstPercent });
       toast.dismiss("gst");
-      toast.success(`${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} updated successfully!`);
+      toast.success(
+        `${
+          (userData as Partner)?.country === "United Arab Emirates"
+            ? "VAT"
+            : "GST"
+        } updated successfully!`
+      );
       setIsSaving((prev) => {
         return { ...prev, gst: false };
       });
@@ -1222,9 +1241,22 @@ export default function ProfilePage() {
       });
     } catch (error) {
       toast.dismiss("gst");
-      console.error(`Error updating ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"}:`, error);
+      console.error(
+        `Error updating ${
+          (userData as Partner)?.country === "United Arab Emirates"
+            ? "VAT"
+            : "GST"
+        }:`,
+        error
+      );
       toast.error(
-        error instanceof Error ? error.message : `Failed to update ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"}`
+        error instanceof Error
+          ? error.message
+          : `Failed to update ${
+              (userData as Partner)?.country === "United Arab Emirates"
+                ? "VAT"
+                : "GST"
+            }`
       );
       setIsSaving((prev) => {
         return { ...prev, gst: false };
@@ -1244,14 +1276,14 @@ export default function ProfilePage() {
       setIsSaving((prev) => {
         return { ...prev, fssaiLicenceNo: true };
       });
-      
+
       await fetchFromHasura(updatePartnerMutation, {
         id: userData?.id,
         updates: {
           fssai_licence_no: fssaiLicenceNo,
         },
       });
-      
+
       revalidateTag(userData?.id as string);
       setState({ fssai_licence_no: fssaiLicenceNo });
       toast.dismiss("fssai");
@@ -1266,7 +1298,9 @@ export default function ProfilePage() {
       toast.dismiss("fssai");
       console.error("Error updating FSSAI Licence No:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to update FSSAI Licence No"
+        error instanceof Error
+          ? error.message
+          : "Failed to update FSSAI Licence No"
       );
       setIsSaving((prev) => {
         return { ...prev, fssaiLicenceNo: false };
@@ -1799,8 +1833,8 @@ export default function ProfilePage() {
             )}
             {userData?.role === "partner" && isApp && (
               <Button
-                onClick={()=>{
-                  console.log("PRINTER SETTINGS OPEN")
+                onClick={() => {
+                  console.log("PRINTER SETTINGS OPEN");
                 }}
                 className="
         inline-flex items-center gap-2 
@@ -2644,6 +2678,38 @@ export default function ProfilePage() {
                       </div>
                     )}
 
+                    {features.purchasemanagement.access && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <div className="font-medium">
+                              Purchase Management
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {features.purchasemanagement.enabled
+                                ? "Enabled"
+                                : "Disabled"}
+                            </div>
+                          </div>
+                          <Switch
+                            checked={features.purchasemanagement.enabled}
+                            onCheckedChange={(enabled) => {
+                              const updates = {
+                                ...features,
+                                purchasemanagement: {
+                                  ...features.purchasemanagement,
+                                  enabled: enabled,
+                                },
+                              };
+                              setFeatures(updates);
+                              setUserFeatures(updates);
+                              handleFeatureEnabledChange(updates);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     {features.captainordering.access && (
                       <div className="space-y-4">
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -2691,9 +2757,19 @@ export default function ProfilePage() {
 
               <div className="space-y-2 pt-4">
                 <div className="flex justify-between items-center">
-                  <h1 className="text-lg font-semibold">{(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} Settings</h1>
+                  <h1 className="text-lg font-semibold">
+                    {(userData as Partner)?.country === "United Arab Emirates"
+                      ? "VAT"
+                      : "GST"}{" "}
+                    Settings
+                  </h1>
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">Enable { (userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"}</span>
+                    <span className="text-sm text-gray-600">
+                      Enable{" "}
+                      {(userData as Partner)?.country === "United Arab Emirates"
+                        ? "VAT"
+                        : "GST"}
+                    </span>
                     <Switch
                       checked={gst.enabled}
                       onCheckedChange={(checked) => {
@@ -2716,12 +2792,21 @@ export default function ProfilePage() {
                     <form onSubmit={handleSaveGst} className="space-y-2 w-full">
                       <div>
                         <label htmlFor="gst_no" className="font-semibold">
-                          {(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} No.
+                          {(userData as Partner)?.country ===
+                          "United Arab Emirates"
+                            ? "VAT"
+                            : "GST"}{" "}
+                          No.
                         </label>
                         <Input
                           id="gst_no"
                           type="text"
-                          placeholder={`Enter your ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} number`}
+                          placeholder={`Enter your ${
+                            (userData as Partner)?.country ===
+                            "United Arab Emirates"
+                              ? "VAT"
+                              : "GST"
+                          } number`}
                           value={gst.gst_no}
                           onChange={(e) =>
                             setGst((prev) => {
@@ -2737,12 +2822,21 @@ export default function ProfilePage() {
                           htmlFor="gst_percentage"
                           className="font-semibold"
                         >
-                          {(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} Percentage
+                          {(userData as Partner)?.country ===
+                          "United Arab Emirates"
+                            ? "VAT"
+                            : "GST"}{" "}
+                          Percentage
                         </label>
                         <Input
                           id="gst_percentage"
                           type="number"
-                          placeholder={`Enter your ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} percentage`}
+                          placeholder={`Enter your ${
+                            (userData as Partner)?.country ===
+                            "United Arab Emirates"
+                              ? "VAT"
+                              : "GST"
+                          } percentage`}
                           value={gst.gst_percentage}
                           onChange={(e) =>
                             setGst((prev) => {
@@ -2786,18 +2880,42 @@ export default function ProfilePage() {
                           <>
                             <div className="text-gray-700">
                               {gst.gst_no
-                                ? `${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} no: ${gst.gst_no}`
-                                : `No ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} no. set`}
+                                ? `${
+                                    (userData as Partner)?.country ===
+                                    "United Arab Emirates"
+                                      ? "VAT"
+                                      : "GST"
+                                  } no: ${gst.gst_no}`
+                                : `No ${
+                                    (userData as Partner)?.country ===
+                                    "United Arab Emirates"
+                                      ? "VAT"
+                                      : "GST"
+                                  } no. set`}
                             </div>
                             <div className="text-gray-700">
                               {gst.gst_percentage
-                                ? `${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} percentage: ${gst.gst_percentage}%`
-                                : `No ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} percentage set`}
+                                ? `${
+                                    (userData as Partner)?.country ===
+                                    "United Arab Emirates"
+                                      ? "VAT"
+                                      : "GST"
+                                  } percentage: ${gst.gst_percentage}%`
+                                : `No ${
+                                    (userData as Partner)?.country ===
+                                    "United Arab Emirates"
+                                      ? "VAT"
+                                      : "GST"
+                                  } percentage set`}
                             </div>
                           </>
                         ) : (
                           <div className="text-gray-700">
-                            {(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} is currently disabled
+                            {(userData as Partner)?.country ===
+                            "United Arab Emirates"
+                              ? "VAT"
+                              : "GST"}{" "}
+                            is currently disabled
                           </div>
                         )}
                       </div>
@@ -2819,14 +2937,27 @@ export default function ProfilePage() {
                 </div>
                 <p className="text-sm text-gray-500">
                   {gst.enabled
-                    ? `This ${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} will be used for your restaurant profile and billing`
-                    : `${(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} is currently disabled for your restaurant`}
+                    ? `This ${
+                        (userData as Partner)?.country ===
+                        "United Arab Emirates"
+                          ? "VAT"
+                          : "GST"
+                      } will be used for your restaurant profile and billing`
+                    : `${
+                        (userData as Partner)?.country ===
+                        "United Arab Emirates"
+                          ? "VAT"
+                          : "GST"
+                      } is currently disabled for your restaurant`}
                 </p>
               </div>
 
               <div className="space-y-2 pt-4">
                 <div className="flex justify-between items-center w-full">
-                  <label htmlFor="fssaiLicenceNo" className="text-lg font-semibold">
+                  <label
+                    htmlFor="fssaiLicenceNo"
+                    className="text-lg font-semibold"
+                  >
                     FSSAI Licence No
                   </label>
                   <Button
@@ -2863,8 +2994,15 @@ export default function ProfilePage() {
                       <Button
                         variant="outline"
                         onClick={() => {
-                          setIsEditing((prev) => ({ ...prev, fssaiLicenceNo: false }));
-                          setFssaiLicenceNo(userData?.role === "partner" ? userData?.fssai_licence_no || "" : "");
+                          setIsEditing((prev) => ({
+                            ...prev,
+                            fssaiLicenceNo: false,
+                          }));
+                          setFssaiLicenceNo(
+                            userData?.role === "partner"
+                              ? userData?.fssai_licence_no || ""
+                              : ""
+                          );
                         }}
                       >
                         Cancel
@@ -2887,7 +3025,7 @@ export default function ProfilePage() {
                 <div className="text-lg font-semibold mb-2">
                   UPI Payment Settings
                 </div>
-                
+
                 {/* UPI ID Field */}
                 <div className="space-y-2">
                   <label htmlFor="upiId" className="text-sm font-medium">
@@ -2952,11 +3090,15 @@ export default function ProfilePage() {
                 {/* Show Payment QR Toggle */}
                 <div className="flex items-center justify-between pt-2">
                   <div className="space-y-0.5">
-                    <label htmlFor="show-payment-qr" className="text-sm font-medium">
+                    <label
+                      htmlFor="show-payment-qr"
+                      className="text-sm font-medium"
+                    >
                       Show Payment QR Code
                     </label>
                     <p className="text-xs text-gray-500">
-                      Display UPI payment QR code on bills for customers to scan and pay
+                      Display UPI payment QR code on bills for customers to scan
+                      and pay
                     </p>
                   </div>
                   <Switch

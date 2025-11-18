@@ -120,6 +120,16 @@ const BottomNav = ({ userData }: { userData: any }) => {
           });
         }
 
+
+         if(features?.purchasemanagement?.enabled) {
+          partnerItems.push({
+            href: "/admin/purchase-management",
+            name: "Purchase Management",
+            icon: <ShoppingBag size={20} />,
+            exactMatch: false,
+          });
+        }
+
         
         return partnerItems;
       case "superadmin":

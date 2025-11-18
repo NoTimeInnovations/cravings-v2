@@ -22,7 +22,11 @@ export type FeatureFlags = {
   captainordering: {
     access: boolean;
     enabled: boolean;
-  }
+  };
+  purchasemanagement: {
+    access: boolean;
+    enabled: boolean;
+  };
 };
 
 export const revertFeatureToString = (features: FeatureFlags): string => {
@@ -50,6 +54,10 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
 
   if (features.captainordering.access) {
     parts.push(`captainordering-${features.captainordering.enabled}`);
+  }
+
+  if (features.purchasemanagement.access) {
+    parts.push(`purchasemanagement-${features.purchasemanagement.enabled}`);
   }
 
   return parts.join(",");
@@ -80,6 +88,10 @@ export const getFeatures = (perm: string) => {
     captainordering: {
       access: false,
       enabled: false,
+    },
+    purchasemanagement: {
+      access: false,
+      enabled: false,
     }
   };
 
@@ -107,6 +119,9 @@ export const getFeatures = (perm: string) => {
       } else if (key === "captainordering") {
         permissions.captainordering.access = true;
         permissions.captainordering.enabled = value === "true";
+      } else if (key === "purchasemanagement") {
+        permissions.purchasemanagement.access = true;
+        permissions.purchasemanagement.enabled = value === "true";
       }
     }
   }
