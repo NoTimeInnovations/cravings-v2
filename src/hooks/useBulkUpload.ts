@@ -15,7 +15,12 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
 
-export const useBulkUpload = () => {
+interface UseBulkUploadProps {
+  onProgress?: (current: number, total: number) => void;
+}
+
+export const useBulkUpload = (props?: UseBulkUploadProps) => {
+  const { onProgress } = props || {};
   const [loading, setLoading] = useState(false);
   const [jsonInput, setJsonInput] = useState("");
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -67,24 +72,41 @@ export const useBulkUpload = () => {
   }, [fetchMenu, userData?.role]);
 
   useEffect(() => {
-    const savedItems = localStorage?.getItem("bulkMenuItems");
-    const savedJsonInput = localStorage?.getItem("jsonInput");
-    if (savedJsonInput) {
-      setJsonInput(savedJsonInput);
-    }
-    if (savedItems) {
-      const items = JSON.parse(savedItems);
-      const updatedItems = items.map((item: MenuItem) => ({
-        ...item,
-        isAdded: menu.some(
-          (menuItem) =>
-            menuItem.name === item.name &&
-            menuItem.price === item.price &&
-            menuItem.description === item.description
-        ),
-      }));
-      setMenuItems(updatedItems);
-    }
+    const loadItemsFromStorage = () => {
+      const savedItems = localStorage?.getItem("bulkMenuItems");
+      const savedJsonInput = localStorage?.getItem("jsonInput");
+      if (savedJsonInput) {
+        setJsonInput(savedJsonInput);
+      }
+      if (savedItems) {
+        const items = JSON.parse(savedItems);
+        const updatedItems = items.map((item: MenuItem) => ({
+          ...item,
+          isAdded: menu.some(
+            (menuItem) =>
+              menuItem.name === item.name &&
+              menuItem.price === item.price &&
+              menuItem.description === item.description
+          ),
+        }));
+        setMenuItems(updatedItems);
+      }
+    };
+
+    // Load on mount
+    loadItemsFromStorage();
+
+    // Listen for custom event to reload items
+    const handleBulkMenuItemsUpdated = () => {
+      console.log('Reloading bulk menu items from localStorage...');
+      loadItemsFromStorage();
+    };
+
+    window.addEventListener('bulkMenuItemsUpdated', handleBulkMenuItemsUpdated);
+
+    return () => {
+      window.removeEventListener('bulkMenuItemsUpdated', handleBulkMenuItemsUpdated);
+    };
   }, [menu]);
 
   // const delay = (ms: number) =>
@@ -342,35 +364,94 @@ export const useBulkUpload = () => {
     }
   };
 
-  const BATCH_SIZE = 2;
-
   const processBatch = async (
     endpoint: string,
     items: MenuItem[],
-    successMessage: string
+    successMessage: string,
+    onProgress?: (current: number, total: number) => void
   ) => {
     try {
-      // Helper function to remove non-English characters
-      const sanitizeToEnglish = (text: string): string => {
-        // Keep only English letters, numbers, spaces, and common punctuation
-        return text.replace(/[^a-zA-Z0-9\s.,!?'"-]/g, '').trim();
-      };
-
+      // Get user's geolocation or use default coordinates
+      const lat = "28.6139"; // Default to Delhi, India
+      const lng = "77.2090";
+      
+      // Extract all item names (no sanitization needed, backend handles it)
+      const itemNames = items.map(item => item.name);
+      
+      // Use the images-v2 endpoint for batch processing
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/image-gen/${endpoint}`,
-        items.map((item) => ({
-          ...item,
-          name: sanitizeToEnglish(item.name)
-        })),
+        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images-v2`,
+        {
+          lat,
+          lng,
+          itemNames,
+          partnerEmail: userData?.email || "default@partner.com"
+        },
         {
           headers: { "Content-Type": "application/json" },
         }
       );
 
-      if (response.data && Array.isArray(response.data)) {
-        return response.data;
+      // Poll for results
+      const pollInterval = 2000; // 2 seconds
+      const maxPolls = 60; // Max 2 minutes
+      let pollCount = 0;
+      
+      while (pollCount < maxPolls) {
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        
+        const pingResponse = await axios.get(
+          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/ping`,
+          {
+            params: { partner: userData?.email || "default@partner.com" }
+          }
+        );
+        
+        const { status, processedNumber } = pingResponse.data;
+        
+        // Update progress via callback
+        if (onProgress) {
+          onProgress(processedNumber || 0, items.length);
+        } else {
+          toast.info(`Processing: ${processedNumber}/${items.length} items completed`);
+        }
+        if (status === "completed") {
+          // Helper function to sanitize item names (same as backend)
+          const sanitizeToEnglish = (text: string): string => {
+            return text.replace(/[^a-zA-Z0-9\s.,!?'"-]/g, '').trim();
+          };
+          
+          // Get the results
+          const resultsResponse = await axios.get(
+            `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/get`,
+            {
+              params: { partner: userData?.email || "default@partner.com" }
+            }
+          );
+          
+          // Transform results to match expected format
+          const results = items.map(item => {
+            const itemName = sanitizeToEnglish(item.name);
+            const imageUrls = resultsResponse.data[itemName] || [];
+            return {
+              ...item,
+              image: imageUrls[0] || "",
+              extra_images: imageUrls
+            };
+          });
+          
+          localStorage.removeItem('imageProcessingState');
+          return results;
+        } else if (status === "failed") {
+          localStorage.removeItem('imageProcessingState');
+          throw new Error("Image generation failed");
+        }
+        
+        pollCount++;
       }
-      throw new Error(`Invalid response from ${endpoint} server`);
+      
+      localStorage.removeItem('imageProcessingState');
+      throw new Error("Timeout waiting for image generation");
     } catch (err) {
       console.error(
         `${endpoint} error: ${
@@ -383,40 +464,36 @@ export const useBulkUpload = () => {
 
   const handleBatchImageGeneration = async (
     endpoint: string,
-    successMessage: string
+    successMessage: string,
+    onProgress?: (current: number, total: number) => void
   ) => {
     if (!menuItems) return;
 
+    // Save state to localStorage immediately
+    localStorage.setItem('imageProcessingState', JSON.stringify({
+      status: 'processing',
+      itemsToProcess: menuItems,
+      itemsProcessed: 0,
+      timestamp: Date.now()
+    }));
+
     setLoading(true);
     const totalItems = menuItems.length;
-    let updatedItems = [...menuItems];
-    let processedCount = 0;
 
     try {
-      // Process in batches
-      for (let i = 0; i < totalItems; i += BATCH_SIZE) {
-        const batch = menuItems.slice(i, i + BATCH_SIZE);
+      toast.info(`Processing ${totalItems} items. This may take a few minutes...`);
 
-        toast.info(
-          `Processing items ${i + 1}-${Math.min(
-            i + BATCH_SIZE,
-            totalItems
-          )} of ${totalItems}...`
-        );
-
-        const batchResults = await processBatch(
-          endpoint,
-          batch,
-          successMessage
-        );
-        updatedItems = updatedItems.map((item, index) =>
-          index >= i && index < i + BATCH_SIZE ? batchResults[index - i] : item
-        );
-
-        processedCount += batch.length;
-        setMenuItems([...updatedItems]);
-        localStorage?.setItem("bulkMenuItems", JSON.stringify(updatedItems));
-      }
+      // Process all items at once
+      const results = await processBatch(
+        endpoint,
+        menuItems,
+        successMessage,
+        onProgress
+      );
+      
+      setMenuItems(results);
+      localStorage?.setItem("bulkMenuItems", JSON.stringify(results));
+      localStorage.removeItem('imageProcessingState');
 
       toast.success(successMessage);
     } catch (err) {
@@ -425,9 +502,8 @@ export const useBulkUpload = () => {
           err instanceof Error ? err.message : "Unknown error"
         }`
       );
-      toast.error(
-        `Failed to generate images. Processed ${processedCount} of ${totalItems} items.`
-      );
+      localStorage.removeItem('imageProcessingState');
+      toast.error("Failed to generate images. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -566,17 +642,20 @@ Variants:
   const handleGenerateImages = () =>
     handleBatchImageGeneration(
       "fullImages",
-      "Full images generated successfully!"
+      "Full images generated successfully!",
+      onProgress
     );
   const handlePartialImageGeneration = () =>
     handleBatchImageGeneration(
       "partialImages",
-      "Partial images generated successfully!"
+      "Partial images generated successfully!",
+      onProgress
     );
   const handleGenerateAIImages = () =>
     handleBatchImageGeneration(
       "generateAIImages",
-      "AI images generated successfully!"
+      "AI images generated successfully!",
+      onProgress
     );
 
   return {

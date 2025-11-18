@@ -113,38 +113,24 @@ export function ImageGridModal({
     
     setIsGenerating(true);
     try {
-      // Create a single item object with the current item data
-      const item = {
-        name: itemName,
-        category: category,
-      };
+      // Get user's geolocation or use default coordinates
+      const lat = "28.6139"; // Default to Delhi, India
+      const lng = "77.2090";
       
-      // Make API call to generate image
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/image-gen/fullImages`,
-        [item],
+      // Use the single image endpoint
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images`,
         {
-          headers: { "Content-Type": "application/json" },
+          params: {
+            lat,
+            lng,
+            query: itemName
+          }
         }
       );
 
-      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-        const generatedItem = response.data[0];
-        
-        let imagesToAdd: string[] = [];
-        
-        // Add images from extra_images array if available
-        if (generatedItem.extra_images && Array.isArray(generatedItem.extra_images) && generatedItem.extra_images.length > 0) {
-          imagesToAdd = [...imagesToAdd, ...generatedItem.extra_images];
-        } else if (generatedItem.image) {
-          // Fallback to single image for backward compatibility
-          imagesToAdd.push(generatedItem.image);
-        }
-        
-        // Add images from bing_results array if available
-        if (generatedItem.bing_results && Array.isArray(generatedItem.bing_results) && generatedItem.bing_results.length > 0) {
-          imagesToAdd = [...imagesToAdd, ...generatedItem.bing_results];
-        }
+      if (response.data && Array.isArray(response.data)) {
+        const imagesToAdd = response.data;
         
         if (imagesToAdd.length > 0) {
           addMultipleImages(imagesToAdd);

@@ -52,6 +52,8 @@ const BulkUploadPage = () => {
   const [isEditingExistingItem, setIsEditingExistingItem] = useState(false);
   const [editingExistingItem, setEditingExistingItem] = useState<any>(null);
   const [isDeletingExistingItem, setIsDeletingExistingItem] = useState<string | null>(null);
+  const [processingProgress, setProcessingProgress] = useState({ current: 0, total: 0 });
+  const [isPolling, setIsPolling] = useState(false);
 
   const {
     loading,
@@ -86,18 +88,143 @@ const BulkUploadPage = () => {
     menuImageFiles,
     extractedMenuItems,
     handleExtractMenuItemsFromImage,
-  } = useBulkUpload();
-
-  const processBatch = async (endpoint: string, items: any[]) => {
-    const response = await axios.post(
-      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/image-gen/${endpoint}`,
-      items,
-      { headers: { "Content-Type": "application/json" } }
-    );
-    if (response.data && Array.isArray(response.data)) {
-      return response.data;
+  } = useBulkUpload({
+    onProgress: (current, total) => {
+      setProcessingProgress({ current, total });
+      setIsPolling(true);
     }
-    throw new Error(`Invalid response from ${endpoint} server`);
+  });
+
+  const pollForResults = async (itemsToProcess: any[]) => {
+    const pollInterval = 2000; // 2 seconds
+    const maxPolls = 300; // Max 10 minutes
+    let pollCount = 0;
+    
+    while (pollCount < maxPolls) {
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      
+      try {
+        const pingResponse = await axios.get(
+          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/ping`,
+          {
+            params: { partner: userData?.email || "default@partner.com" }
+          }
+        );
+        
+        const { status, processedNumber } = pingResponse.data;
+        
+        // Update progress
+        setProcessingProgress({ current: processedNumber || 0, total: itemsToProcess.length });
+        
+        if (status === "completed") {
+          // Get the results
+          const resultsResponse = await axios.get(
+            `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/get`,
+            {
+              params: { partner: userData?.email || "default@partner.com" }
+            }
+          );
+          
+          // Helper function to sanitize item names (same as backend)
+          const sanitizeToEnglish = (text: string): string => {
+            return text.replace(/[^a-zA-Z0-9\s.,!?'"-]/g, '').trim();
+          };
+          
+          // Process and upload images
+          let processedCount = 0;
+          const updatedItems = [];
+          
+          for (const item of itemsToProcess) {
+            const sanitizedName = sanitizeToEnglish(item.name);
+            const imageUrls = resultsResponse.data[sanitizedName] || [];
+            
+            // Store the updated item with images
+            const updatedItem = {
+              ...item,
+              image: imageUrls[0] || item.image || "",
+              extra_images: imageUrls
+            };
+            updatedItems.push(updatedItem);
+            
+            if (imageUrls.length > 0 && imageUrls[0]) {
+              // Only update database if item has an ID (from Add Images tab)
+              if (item.id) {
+                try {
+                  const processedImage = await processImage(imageUrls[0], "generated");
+                  const formattedName = item.name.replace(/[^a-zA-Z0-9]/g, "_").replace(/\s+/g, "_").replace(/_+/g, "_");
+                  const formattedCategory = item.category.name.replace(/[^a-zA-Z0-9]/g, "_").replace(/\s+/g, "_").replace(/_+/g, "_");
+                  const s3Url = await uploadFileToS3(
+                    processedImage,
+                    `${userData?.id}/menu/${formattedName}_${formattedCategory}_${Date.now()}.webp`
+                  );
+                  
+                  await fetchFromHasura(
+                    `mutation UpdateMenuItemImage($id: uuid!, $image_url: String!) {
+                      update_menu_by_pk(
+                        pk_columns: { id: $id }
+                        _set: { image_url: $image_url }
+                      ) {
+                        id
+                        image_url
+                      }
+                    }`,
+                    { id: item.id, image_url: s3Url }
+                  );
+                  processedCount++;
+                } catch (err) {
+                  console.error(`Failed to process image for ${item.name}:`, err);
+                }
+              }
+            }
+          }
+          
+          // Clear localStorage and update state
+          localStorage.removeItem('imageProcessingState');
+          setIsPolling(false);
+          setIsUploadingImagesForExisting(false);
+          setProcessingProgress({ current: 0, total: 0 });
+          
+          // Check if we need to reload existing items (for Add Images tab)
+          const hasIds = itemsToProcess.some(item => item.id);
+          if (hasIds && processedCount > 0) {
+            toast.success(`Images generated successfully! Processed ${processedCount} items.`);
+            await loadExistingMenuItems();
+            setSelectedExistingItems([]);
+          } else {
+            toast.success(`Images generated successfully!`);
+          }
+          
+          // Return updated items for Bulk Upload tab to update state
+          return updatedItems;
+        } else if (status === "failed") {
+          localStorage.removeItem('imageProcessingState');
+          setIsPolling(false);
+          setIsUploadingImagesForExisting(false);
+          setProcessingProgress({ current: 0, total: 0 });
+          throw new Error("Image generation failed");
+        } else if (status === "not_found") {
+          // Processing state lost, retry
+          localStorage.removeItem('imageProcessingState');
+          setIsPolling(false);
+          setIsUploadingImagesForExisting(false);
+          setProcessingProgress({ current: 0, total: 0 });
+          toast.error("Processing state lost. Please try again.");
+          return;
+        }
+        
+        pollCount++;
+      } catch (error) {
+        console.error("Polling error:", error);
+        pollCount++;
+      }
+    }
+    
+    // Timeout
+    localStorage.removeItem('imageProcessingState');
+    setIsPolling(false);
+    setIsUploadingImagesForExisting(false);
+    setProcessingProgress({ current: 0, total: 0 });
+    throw new Error("Timeout waiting for image generation");
   };
 
   // Load all existing menu items (with and without images)
@@ -142,8 +269,6 @@ const BulkUploadPage = () => {
     );
   };
 
-  const BATCH_SIZE = 2;
-
   const handleBulkImageGenerationForExisting = async (mode: 'full' | 'partial' | 'ai') => {
     const itemsToProcess = existingMenuItems.filter(item =>
       selectedExistingItems.includes(item.id) && (!item.image_url || item.image_url === "")
@@ -153,87 +278,50 @@ const BulkUploadPage = () => {
       return;
     }
 
+    // Save state to localStorage immediately
+    localStorage.setItem('imageProcessingState', JSON.stringify({
+      status: 'processing',
+      itemsToProcess,
+      itemsProcessed: 0,
+      timestamp: Date.now()
+    }));
+
     setIsUploadingImagesForExisting(true);
+    setIsPolling(true);
+    setProcessingProgress({ current: 0, total: itemsToProcess.length });
+    
     try {
-      let endpoint = "";
-      let successMessage = "";
-      if (mode === "full") {
-        endpoint = "fullImages";
-        successMessage = "Full images generated successfully!";
-      }
-      if (mode === "partial") {
-        endpoint = "partialImages";
-        successMessage = "Partial images generated successfully!";
-      }
-      if (mode === "ai") {
-        endpoint = "generateAIImages";
-        successMessage = "AI images generated successfully!";
-      }
-
-      let processedCount = 0;
-      for (let i = 0; i < itemsToProcess.length; i += BATCH_SIZE) {
-        const batch = itemsToProcess.slice(i, i + BATCH_SIZE);
-
-        toast.info(
-          `Processing items ${i + 1}-${Math.min(i + BATCH_SIZE, itemsToProcess.length)} of ${itemsToProcess.length}...`
-        );
-
-        // Prepare items for the API
-        const itemsForApi = batch.map(item => ({
-          name: item.name,
-          category: item.category.name,
-          description: item.description,
-          price: item.price,
-          variants: item.variants,
-        }));
-
-        // 1. Generate images in batch
-        const batchResults = await processBatch(endpoint, itemsForApi);
-
-        // 2. For each result, upload to S3 and update the menu item
-        for (let j = 0; j < batch.length; j++) {
-          const item = batch[j];
-          const result = batchResults[j];
-          if (result && result.image) {
-            try {
-              const processedImage = await processImage(result.image, "generated");
-              const formattedName = item.name.replace(/[^a-zA-Z0-9]/g, "_").replace(/\s+/g, "_").replace(/_+/g, "_");
-              const formattedCategory = item.category.name.replace(/[^a-zA-Z0-9]/g, "_").replace(/\s+/g, "_").replace(/_+/g, "_");
-              const s3Url = await uploadFileToS3(
-                processedImage,
-                `${item.partner_id}/menu/${formattedName}_${formattedCategory}_${Date.now()}.webp`
-              );
-              // Update the menu item in the database
-              await fetchFromHasura(
-                `mutation UpdateMenuItemImage($id: uuid!, $image_url: String!) {
-                  update_menu_by_pk(
-                    pk_columns: { id: $id }
-                    _set: { image_url: $image_url }
-                  ) {
-                    id
-                    image_url
-                  }
-                }`,
-                { id: item.id, image_url: s3Url }
-              );
-              processedCount++;
-            } catch (err) {
-              console.error(`Failed to process image for ${item.name}:`, err);
-              toast.error(`Failed to generate image for ${item.name}`);
-              continue;
-            }
-          }
-        }
-      }
-
-      toast.success(`${successMessage} Processed ${processedCount} items.`);
-      await loadExistingMenuItems();
-      setSelectedExistingItems([]);
+      // Get user's geolocation or use default coordinates
+      const lat = "28.6139"; // Default to Delhi, India
+      const lng = "77.2090";
+      
+      // Extract all item names (backend will sanitize them)
+      const itemNames = itemsToProcess.map(item => item.name);
+      
+      // Send all items to backend at once
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images-v2`,
+        {
+          lat,
+          lng,
+          itemNames,
+          partnerEmail: userData?.email || "default@partner.com"
+        },
+        { headers: { "Content-Type": "application/json" } }
+      );
+      
+      toast.info(`Processing ${itemsToProcess.length} items. This may take a few minutes...`);
+      
+      // Start polling for results
+      await pollForResults(itemsToProcess);
+      
     } catch (error) {
-      toast.error("Failed to generate images for some items");
-      console.error(error);
-    } finally {
+      localStorage.removeItem('imageProcessingState');
+      setIsPolling(false);
       setIsUploadingImagesForExisting(false);
+      setProcessingProgress({ current: 0, total: 0 });
+      toast.error("Failed to start image generation");
+      console.error(error);
     }
   };
 
@@ -297,6 +385,39 @@ const BulkUploadPage = () => {
   useEffect(() => {
     // console.log("Menu Items:", bulkMenuItems);
   }, [bulkMenuItems]);
+
+  // Check for ongoing processing on mount
+  useEffect(() => {
+    const checkOngoingProcessing = async () => {
+      const processingState = localStorage.getItem('imageProcessingState');
+      console.log('Checking processing state:', processingState);
+      if (processingState) {
+        const state = JSON.parse(processingState);
+        console.log('Parsed state:', state);
+        if (state.status === 'processing' && userData?.email) {
+          console.log('Resuming processing for', state.itemsToProcess.length, 'items');
+          setIsUploadingImagesForExisting(true);
+          setIsPolling(true);
+          setProcessingProgress({ current: 0, total: state.itemsToProcess.length });
+          toast.info('Resuming image processing...');
+          
+          const updatedItems = await pollForResults(state.itemsToProcess);
+          
+          // If items don't have IDs, they're from Bulk Upload tab - update localStorage
+          if (updatedItems && updatedItems.length > 0 && !updatedItems[0].id) {
+            localStorage.setItem('bulkMenuItems', JSON.stringify(updatedItems));
+            // Dispatch custom event to notify the hook to reload from localStorage
+            window.dispatchEvent(new Event('bulkMenuItemsUpdated'));
+          }
+        }
+      }
+    };
+    
+    if (userData?.email) {
+      console.log('Running check for ongoing processing...');
+      checkOngoingProcessing();
+    }
+  }, [userData?.email]);
 
   // Load existing items when switching to add-images tab
   useEffect(() => {
@@ -488,6 +609,28 @@ const BulkUploadPage = () => {
           </TabsList>
 
           <TabsContent value="bulk-upload" className="space-y-6">
+            {/* Progress Bar */}
+            {isPolling && processingProgress.total > 0 && (
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-blue-900">
+                    Processing Images... {processingProgress.current} / {processingProgress.total}
+                  </span>
+                  <span className="text-sm font-medium text-blue-900">
+                    {Math.round((processingProgress.current / processingProgress.total) * 100)}%
+                  </span>
+                </div>
+                <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="bg-blue-600 h-full transition-all duration-300 ease-out"
+                    style={{ width: `${(processingProgress.current / processingProgress.total) * 100}%` }}
+                  />
+                </div>
+                <p className="text-xs text-blue-700 mt-2">
+                  Please keep this page open. You can close and reopen - processing will continue.
+                </p>
+              </div>
+            )}
             {/* Existing bulk upload content */}
             <div className="grid grid-cols-1 mb-4">
               {/* Toggle between image and text input */}
@@ -722,6 +865,29 @@ const BulkUploadPage = () => {
               <p className="text-gray-600 mb-6">
                 Select menu items that don't have images and add images to them without re-uploading the entire menu.
               </p>
+              
+              {/* Progress Bar */}
+              {isPolling && processingProgress.total > 0 && (
+                <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-blue-900">
+                      Processing Images... {processingProgress.current} / {processingProgress.total}
+                    </span>
+                    <span className="text-sm font-medium text-blue-900">
+                      {Math.round((processingProgress.current / processingProgress.total) * 100)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden">
+                    <div
+                      className="bg-blue-600 h-full transition-all duration-300 ease-out"
+                      style={{ width: `${(processingProgress.current / processingProgress.total) * 100}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-blue-700 mt-2">
+                    Please keep this page open. You can close and reopen - processing will continue.
+                  </p>
+                </div>
+              )}
 
               {isLoadingExistingItems ? (
                 <div className="flex items-center justify-center py-8">
@@ -756,10 +922,10 @@ const BulkUploadPage = () => {
                   </div>
 
                   {selectedExistingItems.length > 0 && (
-                    <div className="flex flex-wrap gap-2 py-4">
+                    <div className="py-4">
                       <Button
                         onClick={() => handleBulkImageGenerationForExisting('full')}
-                        className="bg-green-600 hover:bg-green-700 text-white h-12 text-sm sm:text-base flex-1"
+                        className="bg-green-600 hover:bg-green-700 text-white h-12 text-sm sm:text-base w-full"
                         disabled={isUploadingImagesForExisting}
                       >
                         {isUploadingImagesForExisting ? (
@@ -768,28 +934,6 @@ const BulkUploadPage = () => {
                           "Generate Full Images"
                         )}
                       </Button>
-                      {/* <Button
-                        onClick={() => handleBulkImageGenerationForExisting('partial')}
-                        className="bg-yellow-600 hover:bg-yellow-700 text-white h-12 text-sm sm:text-base flex-1"
-                        disabled={isUploadingImagesForExisting}
-                      >
-                        {isUploadingImagesForExisting ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          "Generate Partial Images"
-                        )}
-                      </Button> */}
-                      {/* <Button
-                        onClick={() => handleBulkImageGenerationForExisting('ai')}
-                        className="bg-purple-600 hover:bg-purple-700 text-white h-12 text-sm sm:text-base flex-1"
-                        disabled={isUploadingImagesForExisting}
-                      >
-                        {isUploadingImagesForExisting ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          "Generate AI Images"
-                        )}
-                      </Button> */}
                     </div>
                   )}
 
