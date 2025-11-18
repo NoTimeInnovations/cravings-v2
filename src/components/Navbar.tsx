@@ -43,7 +43,6 @@ export function Navbar({ userData }: { userData: any }) {
   const currentPath = pathname.split("?")[0];
 
   useEffect(() => {
-
     const isApp = window?.localStorage.getItem("isApp");
     if (isApp === "true") {
       setIsInstalled(true);
@@ -52,10 +51,6 @@ export function Navbar({ userData }: { userData: any }) {
     }
 
     console.log(isInstalled, isApp);
-    
-
- 
-
   }, []);
 
   useEffect(() => {
@@ -170,15 +165,10 @@ export function Navbar({ userData }: { userData: any }) {
   const renderUserProfile = () => {
     if (!userData) return null;
 
-  
-    return (
-      <UserAvatar userData={userData} />
-    );
+    return <UserAvatar userData={userData} />;
   };
 
   const renderNavigationLinks = () => {
-
-
     const roleBasedLinks = [
       ...(userData?.role === "partner"
         ? [
@@ -189,6 +179,15 @@ export function Navbar({ userData }: { userData: any }) {
               : []),
             ...(features?.stockmanagement.access && userData.status === "active"
               ? [{ href: "/admin/stock-management", label: "Stock Management" }]
+              : []),
+            ...(features?.purchasemanagement.access &&
+            userData.status === "active"
+              ? [
+                  {
+                    href: "/admin/purchase-management",
+                    label: "Purchase Management",
+                  },
+                ]
               : []),
           ]
         : []),
@@ -201,9 +200,9 @@ export function Navbar({ userData }: { userData: any }) {
             { href: "/", label: "Explore" },
             { href: "/offers", label: "Offers" },
             { href: "/hotels", label: "Hotels" },
-            { href: "/about-us", label: "About Us" }, 
+            { href: "/about-us", label: "About Us" },
           ]
-        : []) 
+        : []),
     ];
 
     return roleBasedLinks.map((link) => (
