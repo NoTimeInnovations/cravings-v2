@@ -517,7 +517,7 @@ export default function HomePage() {
                       <span className="text-4xl font-bold text-orange-500">
                         ${inrToUsd(10000)}
                       </span>
-                      <span className="text-lg text-gray-600">lifetime</span>
+                      <span className="text-lg text-gray-600">yearly</span>
                     </>
                   )}
                 </div>
