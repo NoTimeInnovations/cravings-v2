@@ -653,7 +653,9 @@ export default function ProfilePage() {
     try {
       await fetchFromHasura(updatePartnerMutation, {
         id: userData?.id,
-        updates: upiId,
+        updates: {
+          upi_id: upiId,
+        },
       });
       revalidateTag(userData?.id as string);
       setState({ upi_id: upiId });
