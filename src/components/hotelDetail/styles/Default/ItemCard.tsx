@@ -253,14 +253,30 @@ const ItemCard = ({
               className={`flex flex-col justify-center ${item.image_url ? "w-1/2" : "w-full"
                 } ${!isOrderable ? "opacity-50" : ""}`}
             >
-              <DescriptionWithTextBreak
-                showMore={false}
-                maxChars={35}
-                spanClassName="opacity-100"
-                className="capitalize text-xl font-bold"
-              >
-                {displayName || item.name}
-              </DescriptionWithTextBreak>
+              <div className="flex items-center gap-2">
+                {/* Veg/Non-Veg Indicator - only show if is_veg is not null */}
+                {item.is_veg !== null && item.is_veg !== undefined && (
+                  <div className="flex-shrink-0">
+                    {item.is_veg === false ? (
+                      <div className="w-5 h-5 border-2 border-red-600 flex items-center justify-center">
+                        <div className="w-3 h-3 rounded-full bg-red-600"></div>
+                      </div>
+                    ) : (
+                      <div className="w-5 h-5 border-2 border-green-600 flex items-center justify-center">
+                        <div className="w-3 h-3 rounded-full bg-green-600"></div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <DescriptionWithTextBreak
+                  showMore={false}
+                  maxChars={35}
+                  spanClassName="opacity-100"
+                  className="capitalize text-xl font-bold"
+                >
+                  {displayName || item.name}
+                </DescriptionWithTextBreak>
+              </div>
               {currency !== "🚫" && (
                 <div
                   style={{

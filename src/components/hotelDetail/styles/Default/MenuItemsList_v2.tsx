@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { Category, formatDisplayName } from "@/store/categoryStore_hasura";
@@ -28,7 +28,24 @@ const MenuItemsList = ({
   const serachParaams = useSearchParams();
   const selectedCat = serachParaams.get("cat") || "all";
   const isOfferCategory = selectedCat === "Offer";
+  const [vegFilter, setVegFilter] = useState<"all" | "veg" | "non-veg">("all");
 
+  // Check if any menu items have is_veg set (not null)
+  const hasVegFilter = useMemo(() => {
+    return hotelData?.menus?.some(
+      (item) => item.is_veg !== null && item.is_veg !== undefined
+    );
+  }, [hotelData?.menus]);
+
+  // Filter items based on veg/non-veg selection
+  const filteredItems = useMemo(() => {
+    if (vegFilter === "all" || !hasVegFilter) return items;
+    return items.filter((item) => {
+      if (vegFilter === "veg") return item.is_veg === true;
+      if (vegFilter === "non-veg") return item.is_veg === false;
+      return true;
+    });
+  }, [items, vegFilter, hasVegFilter]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -90,9 +107,89 @@ const MenuItemsList = ({
         ))}
       </div>
 
+      {/* Veg/Non-Veg Filter - only show if menu has items with is_veg set */}
+      {hasVegFilter && (
+        <div
+          className="sticky top-0 z-20 w-full transition-all"
+          style={{
+            backgroundColor: styles.backgroundColor,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+          }}
+        >
+          <div className="px-[8%] flex justify-center gap-3 flex-wrap py-3">
+            <button
+              onClick={() => setVegFilter("all")}
+              style={{
+                ...styles.border,
+                color:
+                  vegFilter === "all" ? styles.backgroundColor : styles.color,
+                backgroundColor:
+                  vegFilter === "all" ? styles.accent : styles.backgroundColor,
+                borderColor: styles.border.borderColor,
+              }}
+              className="font-semibold text-sm text-nowrap rounded-full px-4 py-2 border transition-colors"
+            >
+              All
+            </button>
+            <button
+              onClick={() => setVegFilter("veg")}
+              style={{
+                ...styles.border,
+                color: vegFilter === "veg" ? "white" : styles.color,
+                backgroundColor:
+                  vegFilter === "veg" ? "#22c55e" : styles.backgroundColor,
+                borderColor:
+                  vegFilter === "veg" ? "#22c55e" : styles.border.borderColor,
+              }}
+              className="font-semibold text-sm text-nowrap rounded-full px-4 py-2 flex items-center gap-1 border transition-colors"
+            >
+              <div
+                className={`w-2.5 h-2.5 border-[1.5px] ${
+                  vegFilter === "veg" ? "border-white" : "border-green-600"
+                } flex items-center justify-center`}
+              >
+                <div
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    vegFilter === "veg" ? "bg-white" : "bg-green-600"
+                  }`}
+                ></div>
+              </div>
+              Veg
+            </button>
+            <button
+              onClick={() => setVegFilter("non-veg")}
+              style={{
+                ...styles.border,
+                color: vegFilter === "non-veg" ? "white" : styles.color,
+                backgroundColor:
+                  vegFilter === "non-veg" ? "#ef4444" : styles.backgroundColor,
+                borderColor:
+                  vegFilter === "non-veg"
+                    ? "#ef4444"
+                    : styles.border.borderColor,
+              }}
+              className="font-semibold text-sm text-nowrap rounded-full px-4 py-2 flex items-center gap-1 border transition-colors"
+            >
+              <div
+                className={`w-2.5 h-2.5 border-[1.5px] ${
+                  vegFilter === "non-veg" ? "border-white" : "border-red-600"
+                } flex items-center justify-center`}
+              >
+                <div
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    vegFilter === "non-veg" ? "bg-white" : "bg-red-600"
+                  }`}
+                ></div>
+              </div>
+              Non-Veg
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* items  */}
       <div id="menu-items" className="px-[8%] grid h-fit gap-3 rounded-3xl ">
-        {items
+        {filteredItems
           ?.sort((a, b) => {
             // First, sort by priority
             const priorityDiff = (a.priority ?? 0) - (b.priority ?? 0);

@@ -16,6 +16,7 @@ interface AddMenuItemFormProps {
     image: string;
     description: string;
     category: string;
+    is_veg?: boolean;
     variants? : {
       name : string,
       price : number
@@ -31,6 +32,7 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
     image: "",
     description: "",
     category: "",
+    is_veg: null as boolean | null,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
@@ -56,9 +58,10 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
     
     setIsSubmitting(true);
     try {
-      await onSubmit({
+      onSubmit({
         ...newItem,
-        price: newItem.price, // Set price to "0" when variants exist
+        is_veg: newItem.is_veg ?? undefined,
+        price: variants.length > 0 ? "0" : newItem.price,
         variants
       });
       setNewItem({
@@ -67,6 +70,7 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
         image: "",
         description: "",
         category: "",
+        is_veg: null as boolean | null,
       });
       setVariants([]);
       setNewVariant({
@@ -86,6 +90,7 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
       image: "",
       description: "",
       category: "",
+      is_veg: null as boolean | null,
     });
    
     setVariants([]);
@@ -206,6 +211,43 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
           value={newItem.category}
           onChange={(value) => setNewItem({ ...newItem, category: value })}
         />
+
+        {/* Veg/Non-Veg Checkbox Group */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Food Type</label>
+          <div className="flex gap-4">
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="radio"
+                name="food_type"
+                checked={newItem.is_veg === true}
+                onChange={() => setNewItem({ ...newItem, is_veg: true })}
+                className="w-4 h-4 text-green-600 focus:ring-green-500"
+              />
+              <span className="text-sm">🟢 Vegetarian</span>
+            </label>
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="radio"
+                name="food_type"
+                checked={newItem.is_veg === false}
+                onChange={() => setNewItem({ ...newItem, is_veg: false })}
+                className="w-4 h-4 text-red-600 focus:ring-red-500"
+              />
+              <span className="text-sm">🔴 Non-Vegetarian</span>
+            </label>
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="radio"
+                name="food_type"
+                checked={newItem.is_veg === null}
+                onChange={() => setNewItem({ ...newItem, is_veg: null })}
+                className="w-4 h-4 text-gray-600 focus:ring-gray-500"
+              />
+              <span className="text-sm">⚪ Not Set</span>
+            </label>
+          </div>
+        </div>
 
          {/* Variants Section */}
          <div className="space-y-2">

@@ -88,6 +88,7 @@ export function MenuTab() {
     image: string;
     description: string;
     category: string;
+    is_veg?: boolean;
     variants:
       | {
           name: string;
@@ -206,6 +207,7 @@ export function MenuTab() {
     image: string;
     description: string;
     category: string;
+    is_veg?: boolean;
     variants?:
       | {
           name: string;
@@ -228,6 +230,7 @@ export function MenuTab() {
       is_top: false,
       is_available: true,
       priority: 0,
+      is_veg: item.is_veg ?? undefined,
       variants: item.variants,
     });
   };
@@ -239,6 +242,7 @@ export function MenuTab() {
     image: string;
     description: string;
     category: string;
+    is_veg?: boolean;
     variants?:
       | {
           name: string;
@@ -273,6 +277,7 @@ export function MenuTab() {
         priority: existingItem.category.priority,
         is_active: existingItem.category.is_active !== false ? true : false,
       },
+      is_veg: item.is_veg ?? undefined,
       variants: item.variants,
     });
 
@@ -287,6 +292,7 @@ export function MenuTab() {
     image: string;
     description: string;
     category: string | { name: string };
+    is_veg?: boolean;
     variants?: {
       name: string;
       price: number;
@@ -317,6 +323,7 @@ export function MenuTab() {
         "name" in item.category
           ? item.category.name
           : item.category,
+      is_veg: item.is_veg ?? undefined,
       variants: item.variants || [],
     });
     setIsEditModalOpen(true);
@@ -402,7 +409,7 @@ export function MenuTab() {
       ) : isEditModalOpen && editingItem ? (
         <EditMenuItemForm
           item={editingItem}
-          onSubmit={async (item : any) => {
+          onSubmit={async (item: any) => {
             try {
               await handleEditItem(item);
               setIsEditModalOpen(false);
@@ -576,253 +583,295 @@ export function MenuTab() {
                                       (a.priority ?? 0) - (b.priority ?? 0)
                                   )
                                   .map((item, itemIndex) => {
-                                    
-                                    if(itemIndex === 0 && index === 0){
+                                    if (itemIndex === 0 && index === 0) {
                                       console.log(item);
                                     }
 
-                                    return (<Draggable
-                                      key={item.id}
-                                      draggableId={item.id as string}
-                                      index={itemIndex}
-                                    >
-                                      {(provided) => (
-                                        <Card
-                                          {...provided.draggableProps}
-                                          ref={provided.innerRef}
-                                          className={`rounded-xl overflow-hidden grid`}
-                                        >
-                                          <CardHeader className="flex flex-row justify-between gap-4 relative">
-                                            {!item.is_available && (
-                                              <div className="absolute saturate-200 top-0 text-xl px-2 rounded-br-xl py-3 z-[40] left-0 bg-red-500 text-white font-bold">
-                                                Unavailable
+                                    return (
+                                      <Draggable
+                                        key={item.id}
+                                        draggableId={item.id as string}
+                                        index={itemIndex}
+                                      >
+                                        {(provided) => (
+                                          <Card
+                                            {...provided.draggableProps}
+                                            ref={provided.innerRef}
+                                            className={`rounded-xl overflow-hidden grid`}
+                                          >
+                                            <CardHeader className="flex flex-row justify-between gap-4 relative">
+                                              {!item.is_available && (
+                                                <div className="absolute saturate-200 top-0 text-xl px-2 rounded-br-xl py-3 z-[40] left-0 bg-red-500 text-white font-bold">
+                                                  Unavailable
+                                                </div>
+                                              )}
+                                              <div>
+                                                {item.image_url.length > 0 && (
+                                                  <div className="relative w-32 h-32 overflow-hidden">
+                                                    <Img
+                                                      src={item.image_url}
+                                                      alt={item.name}
+                                                      className={`w-full h-full object-cover rounded-lg ${
+                                                        item.is_available
+                                                          ? ""
+                                                          : " saturate-0"
+                                                      }`}
+                                                    />
+                                                  </div>
+                                                )}
                                               </div>
-                                            )}
-                                            <div>
-                                              {item.image_url.length > 0 && (
-                                                <div className="relative w-32 h-32 overflow-hidden">
-                                                  <Img
-                                                    src={item.image_url}
-                                                    alt={item.name}
-                                                    className={`w-full h-full object-cover rounded-lg ${
-                                                      item.is_available
-                                                        ? ""
-                                                        : " saturate-0"
-                                                    }`}
-                                                  />
-                                                </div>
-                                              )}
-                                            </div>
-                                            <CardTitle className="flex items-center justify-between w-full">
-                                              {item.name}
-                                            </CardTitle>
-                                          </CardHeader>
-                                          <CardContent className="relative">
-                                            {/* Price Display - Shows default price or "From" price if variants exist */}
-                                            <div className="flex items-baseline gap-2">
-                                              {item.is_price_as_per_size ? (
-                                                <div className="text-sm font-normal">
-                                                  {" "}
-                                                  {`(Price as per size)`}{" "}
-                                                </div>
-                                              ) : (
-                                                <p className="text-2xl font-bold">
-                                                  {(item.variants?.length ??
-                                                    0) > 0 ? (
-                                                    <>
-                                                      <span className="text-xs">
-                                                        From{" "}
-                                                      </span>
-                                                      {(userData as Partner)
-                                                        ?.currency || "₹"}
-                                                      {formatPrice(
-                                                        Math.min(
-                                                          ...(item?.variants ?? []).map((v) => v.price)
-                                                        ) === 0
-                                                          ? item.price
-                                                          : Math.min(
-                                                              ...(item?.variants ?? []).map((v) => v.price)
-                                                            ),
-                                                        userData?.id
-                                                      )}
-                                                    </>
-                                                  ) : (
-                                                    <>
-                                                      {(userData as Partner)?.currency || "₹"}
-                                                      {formatPrice(item.price, userData?.id)}
-                                                    </>
-                                                  )}
-                                                </p>
-                                              )}
+                                              <CardTitle className="flex items-center gap-2 w-full">
+                                                {item.name}
+                                                {(typeof item.is_veg === "boolean") && (
+                                                  <>
+                                                    {item.is_veg === false ? (
+                                                      <div className="w-4 h-4 border-2 border-red-600 flex items-center justify-center">
+                                                        <div className="w-2.5 h-2.5 rounded-full bg-red-600"></div>
+                                                      </div>
+                                                    ) : (
+                                                      <div className="w-4 h-4 border-2 border-green-600 flex items-center justify-center">
+                                                        <div className="w-2.5 h-2.5 rounded-full bg-green-600"></div>
+                                                      </div>
+                                                    )}
+                                                  </>
+                                                )}
+                                              </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="relative">
+                                              {/* Price Display - Shows default price or "From" price if variants exist */}
+                                              <div className="flex items-baseline gap-2">
+                                                {item.is_price_as_per_size ? (
+                                                  <div className="text-sm font-normal">
+                                                    {" "}
+                                                    {`(Price as per size)`}{" "}
+                                                  </div>
+                                                ) : (
+                                                  <p className="text-2xl font-bold">
+                                                    {(item.variants?.length ??
+                                                      0) > 0 ? (
+                                                      <>
+                                                        <span className="text-xs">
+                                                          From{" "}
+                                                        </span>
+                                                        {(userData as Partner)
+                                                          ?.currency || "₹"}
+                                                        {formatPrice(
+                                                          Math.min(
+                                                            ...(
+                                                              item?.variants ??
+                                                              []
+                                                            ).map(
+                                                              (v) => v.price
+                                                            )
+                                                          ) === 0
+                                                            ? item.price
+                                                            : Math.min(
+                                                                ...(
+                                                                  item?.variants ??
+                                                                  []
+                                                                ).map(
+                                                                  (v) => v.price
+                                                                )
+                                                              ),
+                                                          userData?.id
+                                                        )}
+                                                      </>
+                                                    ) : (
+                                                      <>
+                                                        {(userData as Partner)
+                                                          ?.currency || "₹"}
+                                                        {formatPrice(
+                                                          item.price,
+                                                          userData?.id
+                                                        )}
+                                                      </>
+                                                    )}
+                                                  </p>
+                                                )}
 
+                                                {(item.variants?.length ?? 0) >
+                                                  0 && (
+                                                  <span className="text-sm text-gray-500">
+                                                    (
+                                                    {
+                                                      (item.variants ?? [])
+                                                        .length
+                                                    }{" "}
+                                                    options)
+                                                  </span>
+                                                )}
+                                              </div>
+
+                                              {/* Variants Display */}
                                               {(item.variants?.length ?? 0) >
                                                 0 && (
-                                                <span className="text-sm text-gray-500">
-                                                  (
-                                                  {(item.variants ?? []).length}{" "}
-                                                  options)
-                                                </span>
-                                              )}
-                                            </div>
-
-                                            {/* Variants Display */}
-                                            {(item.variants?.length ?? 0) >
-                                              0 && (
-                                              <div className="mt-2 space-y-1 bg-gray-50 p-2 rounded-lg">
-                                                <p className="text-sm font-medium text-gray-600">
-                                                  Options:
-                                                </p>
-                                                <div className="max-h-32 overflow-y-auto pr-2">
-                                                  {(item.variants ?? []).map(
-                                                    (variant, index) => (
-                                                      <div
-                                                        key={index}
-                                                        className="flex justify-between text-sm py-1 border-b border-gray-100"
-                                                      >
-                                                        <span className="text-gray-700">
-                                                          {variant.name}
-                                                        </span>
-                                                        <span className="font-medium">
-                                                          {variant.price === 0
-                                                            ? ""
-                                                            : `${(userData as Partner)?.currency || "₹"}${formatPrice(variant.price, userData?.id)}`}
-                                                        </span>
-                                                      </div>
-                                                    )
-                                                  )}
+                                                <div className="mt-2 space-y-1 bg-gray-50 p-2 rounded-lg">
+                                                  <p className="text-sm font-medium text-gray-600">
+                                                    Options:
+                                                  </p>
+                                                  <div className="max-h-32 overflow-y-auto pr-2">
+                                                    {(item.variants ?? []).map(
+                                                      (variant, index) => (
+                                                        <div
+                                                          key={index}
+                                                          className="flex justify-between text-sm py-1 border-b border-gray-100"
+                                                        >
+                                                          <span className="text-gray-700">
+                                                            {variant.name}
+                                                          </span>
+                                                          <span className="font-medium">
+                                                            {variant.price === 0
+                                                              ? ""
+                                                              : `${
+                                                                  (
+                                                                    userData as Partner
+                                                                  )?.currency ||
+                                                                  "₹"
+                                                                }${formatPrice(
+                                                                  variant.price,
+                                                                  userData?.id
+                                                                )}`}
+                                                          </span>
+                                                        </div>
+                                                      )
+                                                    )}
+                                                  </div>
                                                 </div>
-                                              </div>
-                                            )}
+                                              )}
 
-                                            {item.description && (
-                                              <p className="text-gray-600 mt-4">
-                                                Description : {item.description}
-                                              </p>
-                                            )}
+                                              {item.description && (
+                                                <p className="text-gray-600 mt-4">
+                                                  Description :{" "}
+                                                  {item.description}
+                                                </p>
+                                              )}
 
-                                            {/* Toggles */}
-                                            <div className="flex items-center mt-2">
-                                              <label className="mr-2">
-                                                Mark as Popular:
-                                              </label>
-                                              <Switch
-                                                checked={item.is_top}
-                                                onCheckedChange={async () => {
-                                                  try {
-                                                    if (item.is_top) {
-                                                      await updateItem(
-                                                        item.id as string,
-                                                        { is_top: false }
+                                              {/* Toggles */}
+                                              <div className="flex items-center mt-2">
+                                                <label className="mr-2">
+                                                  Mark as Popular:
+                                                </label>
+                                                <Switch
+                                                  checked={item.is_top}
+                                                  onCheckedChange={async () => {
+                                                    try {
+                                                      if (item.is_top) {
+                                                        await updateItem(
+                                                          item.id as string,
+                                                          { is_top: false }
+                                                        );
+                                                      } else {
+                                                        await updateItem(
+                                                          item.id as string,
+                                                          { is_top: true }
+                                                        );
+                                                      }
+                                                    } catch (error) {
+                                                      toast.error(
+                                                        "Failed to update item status"
                                                       );
-                                                    } else {
-                                                      await updateItem(
-                                                        item.id as string,
-                                                        { is_top: true }
-                                                      );
+                                                      console.error(error);
                                                     }
-                                                  } catch (error) {
-                                                    toast.error(
-                                                      "Failed to update item status"
-                                                    );
-                                                    console.error(error);
-                                                  }
-                                                }}
-                                              />
-                                            </div>
-                                            <div className="flex items-center mt-3">
-                                              <label className="mr-2">
-                                                Is Available:
-                                              </label>
-                                              <Switch
-                                                checked={item.is_available}
-                                                onCheckedChange={async () => {
-                                                  try {
-                                                    await updateItem(
-                                                      item.id as string,
-                                                      {
-                                                        is_available:
-                                                          !item.is_available,
-                                                      }
-                                                    );
-                                                  } catch (error) {
-                                                    toast.error(
-                                                      "Failed to mark item as " +
-                                                        (item.is_available
-                                                          ? "Unavailable"
-                                                          : "Available")
-                                                    );
-                                                    console.error(error);
-                                                  }
-                                                }}
-                                              />
-                                            </div>
+                                                  }}
+                                                />
+                                              </div>
+                                              <div className="flex items-center mt-3">
+                                                <label className="mr-2">
+                                                  Is Available:
+                                                </label>
+                                                <Switch
+                                                  checked={item.is_available}
+                                                  onCheckedChange={async () => {
+                                                    try {
+                                                      await updateItem(
+                                                        item.id as string,
+                                                        {
+                                                          is_available:
+                                                            !item.is_available,
+                                                        }
+                                                      );
+                                                    } catch (error) {
+                                                      toast.error(
+                                                        "Failed to mark item as " +
+                                                          (item.is_available
+                                                            ? "Unavailable"
+                                                            : "Available")
+                                                      );
+                                                      console.error(error);
+                                                    }
+                                                  }}
+                                                />
+                                              </div>
 
-                                            <div className="flex items-center mt-3">
-                                              <label className="mr-2">
-                                                Is Price as per Size:
-                                              </label>
-                                              <Switch
-                                                checked={
-                                                  item.is_price_as_per_size ===
-                                                  true
+                                              <div className="flex items-center mt-3">
+                                                <label className="mr-2">
+                                                  Is Price as per Size:
+                                                </label>
+                                                <Switch
+                                                  checked={
+                                                    item.is_price_as_per_size ===
+                                                    true
+                                                  }
+                                                  onCheckedChange={async () => {
+                                                    console.log(
+                                                      item.is_price_as_per_size
+                                                    );
+
+                                                    try {
+                                                      await updateItem(
+                                                        item.id as string,
+                                                        {
+                                                          is_price_as_per_size:
+                                                            !item.is_price_as_per_size,
+                                                        }
+                                                      );
+                                                    } catch (error) {
+                                                      toast.error(
+                                                        "Failed to mark item as " +
+                                                          (item.is_price_as_per_size
+                                                            ? "Price Fixed"
+                                                            : "Price as per Size")
+                                                      );
+                                                      console.error(error);
+                                                    }
+                                                  }}
+                                                />
+                                              </div>
+                                            </CardContent>
+                                            <CardFooter className="flex justify-end space-x-2">
+                                              <Button
+                                                variant="outline"
+                                                onClick={() =>
+                                                  openEditModal({
+                                                    id: item.id as string,
+                                                    name: item.name,
+                                                    price: item.price,
+                                                    image: item.image_url,
+                                                    description:
+                                                      item.description || "",
+                                                    category:
+                                                      item.category.name,
+                                                    variants: item.variants,
+                                                    is_veg: item.is_veg,
+                                                  })
                                                 }
-                                                onCheckedChange={async () => {
-                                                  console.log(
-                                                    item.is_price_as_per_size
-                                                  );
-
-                                                  try {
-                                                    await updateItem(
-                                                      item.id as string,
-                                                      {
-                                                        is_price_as_per_size:
-                                                          !item.is_price_as_per_size,
-                                                      }
-                                                    );
-                                                  } catch (error) {
-                                                    toast.error(
-                                                      "Failed to mark item as " +
-                                                        (item.is_price_as_per_size
-                                                          ? "Price Fixed"
-                                                          : "Price as per Size")
-                                                    );
-                                                    console.error(error);
-                                                  }
+                                              >
+                                                Edit
+                                              </Button>
+                                              <Button
+                                                variant="destructive"
+                                                onClick={() => {
+                                                  setItemPendingDelete(item);
+                                                  setIsDeleteConfirmOpen(true);
                                                 }}
-                                              />
-                                            </div>
-                                          </CardContent>
-                                          <CardFooter className="flex justify-end space-x-2">
-                                            <Button
-                                              variant="outline"
-                                              onClick={() =>
-                                                openEditModal({
-                                                  id: item.id as string,
-                                                  name: item.name,
-                                                  price: item.price,
-                                                  image: item.image_url,
-                                                  description:
-                                                    item.description || "",
-                                                  category: item.category.name,
-                                                  variants: item.variants,
-                                                })
-                                              }
-                                            >
-                                              Edit
-                                            </Button>
-                                            <Button
-                                              variant="destructive"
-                                              onClick={() => {
-                                                setItemPendingDelete(item);
-                                                setIsDeleteConfirmOpen(true);
-                                              }}
-                                            >
-                                              Delete
-                                            </Button>
-                                          </CardFooter>
-                                        </Card>
-                                      )}
-                                    </Draggable>)
+                                              >
+                                                Delete
+                                              </Button>
+                                            </CardFooter>
+                                          </Card>
+                                        )}
+                                      </Draggable>
+                                    );
                                   })}
                                 {provided.placeholder}
                               </div>

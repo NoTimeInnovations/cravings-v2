@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { formatDisplayName } from "@/store/categoryStore_hasura";
 import ThemeChangeButton from "../../ThemeChangeButton";
@@ -40,6 +40,14 @@ const Compact = ({
   const isOwner = auth && hoteldata ? auth?.id === hoteldata?.id : false;
   const themeButtonRef = useRef<HTMLButtonElement>(null);
   const hasOffers = offers && offers.length > 0;
+  const [vegFilter, setVegFilter] = useState<"all" | "veg" | "non-veg">("all");
+
+  // Check if any menu items have is_veg set (not null)
+  const hasVegFilter = useMemo(() => {
+    return hoteldata?.menus?.some(
+      (item) => item.is_veg !== null && item.is_veg !== undefined
+    );
+  }, [hoteldata?.menus]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -247,6 +255,87 @@ const Compact = ({
           />
         </div>
 
+        {/* Veg/Non-Veg Filter - only show if menu has items with is_veg set */}
+        {hasVegFilter && (
+          <div className="px-4 flex gap-2 flex-wrap pb-2">
+            <button
+              onClick={() => setVegFilter("all")}
+              style={{
+                borderColor: styles?.border?.borderColor || "#0000001D",
+                color:
+                  vegFilter === "all"
+                    ? styles?.backgroundColor || "#fff"
+                    : styles?.color || "#000",
+                backgroundColor:
+                  vegFilter === "all"
+                    ? styles?.accent || "#000"
+                    : styles?.backgroundColor || "#fff",
+              }}
+              className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 transition-colors"
+            >
+              All
+            </button>
+            <button
+              onClick={() => setVegFilter("veg")}
+              style={{
+                borderColor:
+                  vegFilter === "veg"
+                    ? "#22c55e"
+                    : styles?.border?.borderColor || "#0000001D",
+                color:
+                  vegFilter === "veg" ? "white" : styles?.color || "#000",
+                backgroundColor:
+                  vegFilter === "veg"
+                    ? "#22c55e"
+                    : styles?.backgroundColor || "#fff",
+              }}
+              className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 flex items-center gap-1 transition-colors"
+            >
+              <div
+                className={`w-2.5 h-2.5 border-[1.5px] ${
+                  vegFilter === "veg" ? "border-white" : "border-green-600"
+                } flex items-center justify-center`}
+              >
+                <div
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    vegFilter === "veg" ? "bg-white" : "bg-green-600"
+                  }`}
+                ></div>
+              </div>
+              Veg
+            </button>
+            <button
+              onClick={() => setVegFilter("non-veg")}
+              style={{
+                borderColor:
+                  vegFilter === "non-veg"
+                    ? "#ef4444"
+                    : styles?.border?.borderColor || "#0000001D",
+                color:
+                  vegFilter === "non-veg" ? "white" : styles?.color || "#000",
+                backgroundColor:
+                  vegFilter === "non-veg"
+                    ? "#ef4444"
+                    : styles?.backgroundColor || "#fff",
+              }}
+              className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 flex items-center gap-1 transition-colors"
+            >
+              <div
+                className={`w-2.5 h-2.5 border-[1.5px] ${
+                  vegFilter === "non-veg" ? "border-white" : "border-red-600"
+                } flex items-center justify-center`}
+              >
+                <div
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    vegFilter === "non-veg" ? "bg-white" : "bg-red-600"
+                  }`}
+                ></div>
+              </div>
+              Non-Veg
+            </button>
+          </div>
+        )}
+
         {/* Categories Navigation */}
         <div
           style={{
@@ -305,18 +394,31 @@ const Compact = ({
                     offers.map((offer) => offer.menu.id)
                   );
                   // Filter 'hoteldata.menus' by checking for the item's ID in the Set.
-                  itemsToDisplay = hoteldata?.menus.filter((item) =>
-                    offerMenuIdSet.has(item.id as string)
-                  );
+                  itemsToDisplay = hoteldata?.menus.filter((item) => {
+                    const matchesOffer = offerMenuIdSet.has(item.id as string);
+                    if (vegFilter === "all" || !hasVegFilter) return matchesOffer;
+                    if (vegFilter === "veg") return matchesOffer && item.is_veg === true;
+                    if (vegFilter === "non-veg") return matchesOffer && item.is_veg === false;
+                    return matchesOffer;
+                  });
                   break;
                 case "must-try":
                   // If the category is "must_try", display the top items.
-                  itemsToDisplay = topItems;
+                  itemsToDisplay = topItems.filter((item) => {
+                    if (vegFilter === "all" || !hasVegFilter) return true;
+                    if (vegFilter === "veg") return item.is_veg === true;
+                    if (vegFilter === "non-veg") return item.is_veg === false;
+                    return true;
+                  });
                   break;
                 default:
-                  itemsToDisplay = hoteldata?.menus.filter(
-                    (item) => item.category.id === category.id
-                  );
+                  itemsToDisplay = hoteldata?.menus.filter((item) => {
+                    const matchesCategory = item.category.id === category.id;
+                    if (vegFilter === "all" || !hasVegFilter) return matchesCategory;
+                    if (vegFilter === "veg") return matchesCategory && item.is_veg === true;
+                    if (vegFilter === "non-veg") return matchesCategory && item.is_veg === false;
+                    return matchesCategory;
+                  });
               }
 
               // Do not render the category section if there are no items to display.

@@ -264,11 +264,27 @@ const ItemCard = ({
     <>
       <div className="p-4 flex justify-between relative">
         <div>
-          <h3 className="capitalize text-lg font-semibold">
-            {offerData?.variant && !hasMultipleVariantsOnOffer
-              ? `${item.name} (${offerData.variant.name})`
-              : item.name}
-          </h3>
+          <div className="flex items-center gap-2">
+            {/* Veg/Non-Veg Indicator - only show if is_veg is not null */}
+            {item.is_veg !== null && item.is_veg !== undefined && (
+              <div className="flex-shrink-0">
+                {item.is_veg === false ? (
+                  <div className="w-4 h-4 border-2 border-red-600 flex items-center justify-center">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-600"></div>
+                  </div>
+                ) : (
+                  <div className="w-4 h-4 border-2 border-green-600 flex items-center justify-center">
+                    <div className="w-2.5 h-2.5 rounded-full bg-green-600"></div>
+                  </div>
+                )}
+              </div>
+            )}
+            <h3 className="capitalize text-lg font-semibold">
+              {offerData?.variant && !hasMultipleVariantsOnOffer
+                ? `${item.name} (${offerData.variant.name})`
+                : item.name}
+            </h3>
+          </div>
           <p className="text-sm opacity-50">{item.description}</p>
           {shouldShowPrice && (
             <div

@@ -47,7 +47,8 @@ export interface MenuItem {
     name: string;
     price: number;
   }[];
-  is_price_as_per_size?: boolean; 
+  is_price_as_per_size?: boolean;
+  is_veg?: boolean;
 }
 
 interface MenuItem_withOffer_price {
@@ -214,6 +215,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
           price: mi.price ?? 0, // Always use menu price, not offer price
           description: mi.description || '',
           is_top: Boolean(mi.is_top),
+          is_veg: mi.is_veg ?? null,
           is_available: mi.is_available !== false, // Ensure boolean value
           priority: mi.priority || 0,
           is_price_as_per_size: mi.is_price_as_per_size || false, // Ensure boolean value
@@ -291,10 +293,11 @@ export const useMenuStore = create<MenuState>((set, get) => ({
         image_url: s3Url || "",
         image_source: item.image_source || "",
         partner_id: userData.id,
-        price: item.variants && item.variants.length > 0 ? 0 : item.price, // Set 0 when variants exist
+        price: item.variants && item.variants.length > 0 ? 0 : item.price,
         description: item.description || "",
         variants : item.variants || [],
         is_price_as_per_size: item.is_price_as_per_size || false,
+        is_veg: item.is_veg ?? null,
       };
 
       const { insert_menu } = await fetchFromHasura(addMenu, {

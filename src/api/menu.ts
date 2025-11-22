@@ -23,6 +23,7 @@ export const getMenu = `
             description
             is_top
             is_available
+            is_veg
         }
     }
 `;
@@ -80,6 +81,7 @@ export const addMenu = `
             is_price_as_per_size
             is_top
             is_available
+            is_veg
             variants
         }
     }
@@ -103,6 +105,7 @@ export const updateMenu = `
             description
             is_top
             is_available
+            is_veg
             }
         }
     }

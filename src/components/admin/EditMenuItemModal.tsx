@@ -29,6 +29,7 @@ interface EditMenuItemFormProps {
     image: string;
     description: string;
     category: string;
+    is_veg?: boolean;
     variants?: Variant[] | [];
   };
   onSubmit: (item: {
@@ -38,6 +39,7 @@ interface EditMenuItemFormProps {
     image: string;
     description: string;
     category: string;
+    is_veg?: boolean;
     variants?: Variant[];
   }) => void;
   onCancel: () => void;
@@ -227,6 +229,43 @@ export function EditMenuItemForm({
           }}
         />
 
+        {/* Veg/Non-Veg Checkbox Group */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Food Type</label>
+          <div className="flex gap-4">
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="radio"
+                name="food_type"
+                checked={editingItem.is_veg === true}
+                onChange={() => setEditingItem({ ...editingItem, is_veg: true })}
+                className="w-4 h-4 text-green-600 focus:ring-green-500"
+              />
+              <span className="text-sm">🟢 Vegetarian</span>
+            </label>
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="radio"
+                name="food_type"
+                checked={editingItem.is_veg === false}
+                onChange={() => setEditingItem({ ...editingItem, is_veg: false })}
+                className="w-4 h-4 text-red-600 focus:ring-red-500"
+              />
+              <span className="text-sm">🔴 Non-Vegetarian</span>
+            </label>
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="radio"
+                name="food_type"
+                checked={editingItem.is_veg === null || editingItem.is_veg === undefined}
+                onChange={() => setEditingItem({ ...editingItem, is_veg: undefined })}
+                className="w-4 h-4 text-gray-600 focus:ring-gray-500"
+              />
+              <span className="text-sm">⚪ Other</span>
+            </label>
+          </div>
+        </div>
+
         {/* Variants Section */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
@@ -352,6 +391,7 @@ interface EditMenuItemModalProps {
     image: string;
     description: string;
     category: string;
+    is_veg?: boolean;
     variants?: Variant[];
   };
   onSubmit: (item: {
@@ -361,6 +401,7 @@ interface EditMenuItemModalProps {
     image: string;
     description: string;
     category: string;
+    is_veg?: boolean;
     variants?: Variant[];
   }) => void;
   children?: React.ReactNode;
