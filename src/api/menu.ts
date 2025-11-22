@@ -24,6 +24,7 @@ export const getMenu = `
             is_top
             is_available
             is_veg
+            alergent_info
         }
     }
 `;
@@ -83,6 +84,7 @@ export const addMenu = `
             is_available
             is_veg
             variants
+            alergent_info
         }
     }
 }`;
@@ -106,6 +108,7 @@ export const updateMenu = `
             is_top
             is_available
             is_veg
+            alergent_info
             }
         }
     }

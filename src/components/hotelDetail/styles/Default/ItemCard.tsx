@@ -8,6 +8,7 @@ import DescriptionWithTextBreak from "../../../DescriptionWithTextBreak";
 import useOrderStore from "@/store/orderStore";
 import { getFeatures } from "@/lib/getFeatures";
 import { formatPrice, requiresThreeDecimalPlaces } from "@/lib/constants";
+import AllergenInfoModal from "@/components/AllergenInfoModal";
 
 const ItemCard = ({
   item,
@@ -47,6 +48,7 @@ const ItemCard = ({
   activeOffers?: any[];
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isAllergenModalOpen, setIsAllergenModalOpen] = useState(false);
   const [showVariants, setShowVariants] = useState(false);
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
   const variantsRef = useRef<HTMLDivElement>(null);
@@ -363,6 +365,18 @@ const ItemCard = ({
             {item.description}
           </DescriptionWithTextBreak>
 
+          {item.alergent_info && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsAllergenModalOpen(true);
+              }}
+              className="text-xs text-blue-500 underline mt-1"
+            >
+              Allergen Info
+            </button>
+          )}
+
           {/* Variants section with smooth height transition */}
           <div
             ref={variantsRef}
@@ -608,6 +622,14 @@ const ItemCard = ({
         currency={currency}
         hotelData={hotelData as HotelData}
       />
+      
+      {item.alergent_info && (
+        <AllergenInfoModal
+          isOpen={isAllergenModalOpen}
+          onOpenChange={setIsAllergenModalOpen}
+          allergenInfo={item.alergent_info}
+        />
+      )}
     </div>
   );
 };

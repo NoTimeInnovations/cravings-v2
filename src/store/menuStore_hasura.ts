@@ -34,6 +34,7 @@ export interface MenuItem {
   partner_id?: string;
   price: number;
   description: string;
+  alergent_info?: string;
   is_top?: boolean;
   is_available?: boolean;
   priority?: number;
@@ -215,6 +216,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
           price: mi.price ?? 0, // Always use menu price, not offer price
           description: mi.description || '',
           is_top: Boolean(mi.is_top),
+          alergent_info: mi.alergent_info || '',
           is_veg: mi.is_veg ?? null,
           is_available: mi.is_available !== false, // Ensure boolean value
           priority: mi.priority || 0,
@@ -295,6 +297,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
         partner_id: userData.id,
         price: item.variants && item.variants.length > 0 ? 0 : item.price,
         description: item.description || "",
+        alergent_info: item.alergent_info || "",
         variants : item.variants || [],
         is_price_as_per_size: item.is_price_as_per_size || false,
         is_veg: item.is_veg ?? null,

@@ -7,6 +7,7 @@ import useOrderStore from "@/store/orderStore";
 import { Offer } from "@/store/offerStore_hasura";
 import { useRouter } from "next/navigation";
 import { formatPrice, requiresThreeDecimalPlaces } from "@/lib/constants";
+import AllergenInfoModal from "@/components/AllergenInfoModal";
 
 const ItemCard = ({
   item,
@@ -36,6 +37,7 @@ const ItemCard = ({
   activeOffers?: any[];
 }) => {
   const [showVariants, setShowVariants] = useState(false);
+  const [isAllergenModalOpen, setIsAllergenModalOpen] = useState(false);
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
   const router = useRouter();
 
@@ -286,6 +288,17 @@ const ItemCard = ({
             </h3>
           </div>
           <p className="text-sm opacity-50">{item.description}</p>
+          {item.alergent_info && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsAllergenModalOpen(true);
+              }}
+              className="text-xs text-blue-500 underline mt-1"
+            >
+              Allergen Info
+            </button>
+          )}
           {shouldShowPrice && (
             <div
               style={{ color: styles?.accent || "#000" }}
@@ -571,6 +584,13 @@ const ItemCard = ({
               );
             })}
         </div>
+      )}
+      {item.alergent_info && (
+        <AllergenInfoModal
+          isOpen={isAllergenModalOpen}
+          onOpenChange={setIsAllergenModalOpen}
+          allergenInfo={item.alergent_info}
+        />
       )}
     </>
   );

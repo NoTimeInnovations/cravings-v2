@@ -87,6 +87,7 @@ export function MenuTab() {
     price: string;
     image: string;
     description: string;
+    alergent_info?: string;
     category: string;
     is_veg?: boolean;
     variants:
@@ -241,6 +242,7 @@ export function MenuTab() {
     price: string;
     image: string;
     description: string;
+    alergent_info?: string;
     category: string;
     is_veg?: boolean;
     variants?:
@@ -271,6 +273,7 @@ export function MenuTab() {
       price: parseFloat(item.price),
       image_url: item.image,
       description: item.description,
+      alergent_info: item.alergent_info,
       category: {
         id: existingItem.category.id,
         name: item.category,
@@ -291,6 +294,7 @@ export function MenuTab() {
     price: number;
     image: string;
     description: string;
+    alergent_info?: string;
     category: string | { name: string };
     is_veg?: boolean;
     variants?: {
@@ -317,6 +321,7 @@ export function MenuTab() {
       price: item.price.toString(),
       image: item.image,
       description: item.description || "",
+      alergent_info: item.alergent_info || "",
       category:
         typeof item.category === "object" &&
         item.category !== null &&
@@ -746,6 +751,13 @@ export function MenuTab() {
                                                 </p>
                                               )}
 
+                                              {item.alergent_info && (
+                                                <p className="text-gray-600 mt-2">
+                                                  Allergen Info :{" "}
+                                                  {item.alergent_info}
+                                                </p>
+                                              )}
+
                                               {/* Toggles */}
                                               <div className="flex items-center mt-2">
                                                 <label className="mr-2">
@@ -849,6 +861,8 @@ export function MenuTab() {
                                                     image: item.image_url,
                                                     description:
                                                       item.description || "",
+                                                    alergent_info:
+                                                      item.alergent_info || "",
                                                     category:
                                                       item.category.name,
                                                     variants: item.variants,

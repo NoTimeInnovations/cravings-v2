@@ -69,6 +69,7 @@ const ItemDetailsModal = ({
               </div>
             </div>
             <div className="text-sm opacity-50 mt-1">{item.description}</div>
+            {item.alergent_info && <div className="text-sm opacity-50 mt-1">Allergen Info: {item.alergent_info}</div>}
           </div>
 
           {item.image_url && (

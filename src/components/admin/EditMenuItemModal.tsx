@@ -28,6 +28,7 @@ interface EditMenuItemFormProps {
     price: string;
     image: string;
     description: string;
+    alergent_info?: string;
     category: string;
     is_veg?: boolean;
     variants?: Variant[] | [];
@@ -221,6 +222,13 @@ export function EditMenuItemForm({
             setEditingItem({ ...editingItem, description: e.target.value })
           }
         />
+        <Textarea
+          placeholder="Allergen Info"
+          value={editingItem.alergent_info}
+          onChange={(e) =>
+            setEditingItem({ ...editingItem, alergent_info: e.target.value })
+          }
+        />
         
         <CategoryDropdown
           value={editingItem.category}
@@ -390,6 +398,7 @@ interface EditMenuItemModalProps {
     price: string;
     image: string;
     description: string;
+    alergent_info?: string;
     category: string;
     is_veg?: boolean;
     variants?: Variant[];
