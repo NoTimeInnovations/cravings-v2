@@ -98,21 +98,33 @@ const OrderReport = () => {
       cash_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
+          sum {
+            total_price
+          }
         }
       }
       upi_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
+          sum {
+            total_price
+          }
         }
       }
       card_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
+          sum {
+            total_price
+          }
         }
       }
       null_payment_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
+          sum {
+            total_price
+          }
         }
       }
       orders_by_payment: orders(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}, order_by: {created_at: desc}) {
@@ -184,21 +196,33 @@ const OrderReport = () => {
       cash_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
+          sum {
+            total_price
+          }
         }
       }
       upi_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
+          sum {
+            total_price
+          }
         }
       }
       card_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
+          sum {
+            total_price
+          }
         }
       }
       null_payment_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
+          sum {
+            total_price
+          }
         }
       }
       orders_by_payment: orders(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}, order_by: {created_at: desc}) {
@@ -270,21 +294,33 @@ const OrderReport = () => {
       cash_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
+          sum {
+            total_price
+          }
         }
       }
       upi_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
+          sum {
+            total_price
+          }
         }
       }
       card_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
+          sum {
+            total_price
+          }
         }
       }
       null_payment_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
+          sum {
+            total_price
+          }
         }
       }
       orders_by_payment: orders(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}, order_by: {created_at: desc}) {
@@ -670,6 +706,64 @@ const handleDownloadXLSX = async () => {
         ),
       ],
       [],
+      [createCell("Payment Method Breakdown", sectionHeaderStyle)],
+      [
+        createCell("Cash Orders", { ...summaryKeyStyle, ...tableCellStyle }),
+        createCell(
+          reportData?.cash_orders?.aggregate?.count || 0,
+          tableCellStyle,
+          "n"
+        ),
+        createCell(
+          reportData?.cash_orders?.aggregate?.sum?.total_price || 0,
+          tableCellStyle,
+          "n",
+          currencyFormat
+        ),
+      ],
+      [
+        createCell("UPI Orders", { ...summaryKeyStyle, ...tableCellStyle }),
+        createCell(
+          reportData?.upi_orders?.aggregate?.count || 0,
+          tableCellStyle,
+          "n"
+        ),
+        createCell(
+          reportData?.upi_orders?.aggregate?.sum?.total_price || 0,
+          tableCellStyle,
+          "n",
+          currencyFormat
+        ),
+      ],
+      [
+        createCell("Card Orders", { ...summaryKeyStyle, ...tableCellStyle }),
+        createCell(
+          reportData?.card_orders?.aggregate?.count || 0,
+          tableCellStyle,
+          "n"
+        ),
+        createCell(
+          reportData?.card_orders?.aggregate?.sum?.total_price || 0,
+          tableCellStyle,
+          "n",
+          currencyFormat
+        ),
+      ],
+      [
+        createCell("Not Selected Orders", { ...summaryKeyStyle, ...tableCellStyle }),
+        createCell(
+          reportData?.null_payment_orders?.aggregate?.count || 0,
+          tableCellStyle,
+          "n"
+        ),
+        createCell(
+          reportData?.null_payment_orders?.aggregate?.sum?.total_price || 0,
+          tableCellStyle,
+          "n",
+          currencyFormat
+        ),
+      ],
+      [],
       [createCell("Top Selling Items", sectionHeaderStyle)],
       [
         createCell("Item Name", tableHeaderStyle),
@@ -751,8 +845,9 @@ const handleDownloadXLSX = async () => {
       XLSX.utils.decode_range("A1:D1"),
       XLSX.utils.decode_range(`A3:D3`),
       XLSX.utils.decode_range(`A10:D10`),
+      XLSX.utils.decode_range(`A15:D15`),
       XLSX.utils.decode_range(
-        `A${12 + topItemsData.length}:D${12 + topItemsData.length}`
+        `A${17 + topItemsData.length}:D${17 + topItemsData.length}`
       ),
     ];
 
@@ -946,6 +1041,10 @@ const handleDownloadXLSX = async () => {
                     {reportData?.cash_orders?.aggregate?.count || 0}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">orders</div>
+                  <div className="text-sm font-semibold text-green-600 mt-2">
+                    {(userData as Partner)?.currency || "₹"}
+                    {(reportData?.cash_orders?.aggregate?.sum?.total_price || 0).toFixed(2)}
+                  </div>
                 </div>
                 <div className="flex flex-col items-center justify-center p-4 border rounded-lg">
                   <div className="text-sm text-muted-foreground mb-1">UPI</div>
@@ -953,6 +1052,10 @@ const handleDownloadXLSX = async () => {
                     {reportData?.upi_orders?.aggregate?.count || 0}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">orders</div>
+                  <div className="text-sm font-semibold text-green-600 mt-2">
+                    {(userData as Partner)?.currency || "₹"}
+                    {(reportData?.upi_orders?.aggregate?.sum?.total_price || 0).toFixed(2)}
+                  </div>
                 </div>
                 <div className="flex flex-col items-center justify-center p-4 border rounded-lg">
                   <div className="text-sm text-muted-foreground mb-1">Card</div>
@@ -960,6 +1063,10 @@ const handleDownloadXLSX = async () => {
                     {reportData?.card_orders?.aggregate?.count || 0}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">orders</div>
+                  <div className="text-sm font-semibold text-green-600 mt-2">
+                    {(userData as Partner)?.currency || "₹"}
+                    {(reportData?.card_orders?.aggregate?.sum?.total_price || 0).toFixed(2)}
+                  </div>
                 </div>
                 <div className="flex flex-col items-center justify-center p-4 border rounded-lg bg-orange-50">
                   <div className="text-sm text-muted-foreground mb-1">Not Selected</div>
@@ -967,6 +1074,10 @@ const handleDownloadXLSX = async () => {
                     {reportData?.null_payment_orders?.aggregate?.count || 0}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">orders</div>
+                  <div className="text-sm font-semibold text-orange-600 mt-2">
+                    {(userData as Partner)?.currency || "₹"}
+                    {(reportData?.null_payment_orders?.aggregate?.sum?.total_price || 0).toFixed(2)}
+                  </div>
                 </div>
               </div>
             )}
