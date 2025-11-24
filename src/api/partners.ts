@@ -279,6 +279,45 @@ export const updatePartnerMutation = `
   }
 `;
 
+
+export const getPartnerByEmailQuery = `
+  query GetPartnerByEmail($email: String!) {
+    partners(where: {email: {_eq: $email}}) {
+      id
+      email
+  }
+  }
+`;
+
+export const getPartnerByPpidOrEmailQuery = `
+  query GetPartnerByPpidOrEmail($petpooja_restaurant_id: String!, $email: String!) {
+    partners(where: {
+      _or: [
+        { petpooja_restaurant_id: { _eq: $petpooja_restaurant_id } },
+        { email: { _eq: $email } }
+      ]
+    }) {
+      id
+      petpooja_restaurant_id
+      email
+    }
+  }
+`;
+
+export const createPpPartnerMutation = `
+  mutation CreatePpPartner($email: String!, $password: String!, $petpooja_restaurant_id: String!) {
+    insert_partners_one(object: {
+      email: $email,
+      password: $password,
+      petpooja_restaurant_id: $petpooja_restaurant_id
+    }) {
+      id
+      email
+      petpooja_restaurant_id
+    }
+  }
+`;
+
 /*...........types...........*/
 
 export interface Partner {
