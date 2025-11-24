@@ -305,8 +305,9 @@ export const getPartnerByPpidOrEmailQuery = `
 `;
 
 export const createPpPartnerMutation = `
-  mutation CreatePpPartner($email: String!, $password: String!, $petpooja_restaurant_id: String!) {
+  mutation CreatePpPartner($name: String!, $email: String!, $password: String!, $petpooja_restaurant_id: String!) {
     insert_partners_one(object: {
+      name: $name,
       email: $email,
       password: $password,
       petpooja_restaurant_id: $petpooja_restaurant_id
