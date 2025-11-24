@@ -28,7 +28,7 @@ const BottomNav = ({ userData }: { userData: any }) => {
     if (!userData?.role) {
       return [
         {
-          href: "/",
+          href: "/explore",
           name: "Explore",
           icon: <Telescope size={20} />,
           exactMatch: false,
@@ -46,7 +46,7 @@ const BottomNav = ({ userData }: { userData: any }) => {
           exactMatch: false,
         },
         {
-          href: "/about-us",
+          href: "/",
           name: "About Us",
           icon: <Info size={20} />,
           exactMatch: false,
@@ -60,7 +60,7 @@ const BottomNav = ({ userData }: { userData: any }) => {
       case "user":
         return [
           {
-            href: "/",
+            href: "/explore",
             name: "Explore",
             icon: <Telescope size={20} />,
             exactMatch: true,
@@ -183,9 +183,11 @@ const BottomNav = ({ userData }: { userData: any }) => {
         }`}
       >
         {items.map((item) => {
-          // Special handling for home ("/") route
+          // Special handling for explore route
           let isActive = false;
-          if (item.href === "/") {
+          if (item.href === "/explore") {
+            isActive = pathname === "/explore";
+          } else if (item.href === "/") {
             isActive = pathname === "/";
           } else {
             isActive = item.exactMatch

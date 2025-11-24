@@ -43,7 +43,7 @@ export default function CaptainLoginPage() {
     <div className="min-h-screen w-full bg-orange-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <Link 
-          href="/"
+          href="/explore"
           className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />

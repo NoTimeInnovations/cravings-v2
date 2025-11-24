@@ -96,7 +96,7 @@ const UserAvatar = ({ userData }: { userData: any }) => {
       }
 
       setTimeout(() => {
-        router.push("/");
+        router.push("/explore");
         router.refresh();
       }, 1000);
 

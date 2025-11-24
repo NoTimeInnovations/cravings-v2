@@ -100,6 +100,11 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL("/admin", request.url));
       }
 
+      // User redirects to /explore
+      if (decrypted?.role === "user") {
+        return NextResponse.redirect(new URL("/explore", request.url));
+      }
+
       // For users, redirect to their last visited hotel only on an initial page load.
       // This is determined by checking the 'Referer' header.
       const referer = request.headers.get("referer");
@@ -144,7 +149,7 @@ export async function middleware(request: NextRequest) {
   const roleAccessRules = {
     user: {
       allowed: ["/profile", "/my-orders"],
-      redirect: "/",
+      redirect: "/explore",
     },
     partner: {
       allowed: [
@@ -154,7 +159,7 @@ export async function middleware(request: NextRequest) {
         "/admin/orders",
         "/admin/captain-management",
       ],
-      redirect: "/",
+      redirect: "/explore",
     },
     superadmin: {
       allowed: [
@@ -163,11 +168,11 @@ export async function middleware(request: NextRequest) {
         "/profile",
         "/superadmin/create-partner",
       ],
-      redirect: "/",
+      redirect: "/explore",
     },
     captain: {
       allowed: ["/captain", "/captain/pos"],
-      redirect: "/",
+      redirect: "/explore",
     },
   };
 
@@ -195,7 +200,7 @@ export async function middleware(request: NextRequest) {
   // If no auth token, redirect based on the route
   if (!authToken) {
     const isSuperadminRoute = pathname.startsWith("/superadmin");
-    const redirectPath = isSuperadminRoute ? "/" : "/";
+    const redirectPath = isSuperadminRoute ? "/explore" : "/explore";
     return NextResponse.redirect(new URL(redirectPath, request.url));
   }
 
@@ -262,7 +267,7 @@ export async function middleware(request: NextRequest) {
     });
   } catch (error) {
     console.error("Auth verification failed:", error);
-    const response = NextResponse.redirect(new URL("/", request.url));
+    const response = NextResponse.redirect(new URL("/explore", request.url));
     response.cookies.delete("new_auth_token");
     return response;
   }

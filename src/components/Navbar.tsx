@@ -197,10 +197,10 @@ export function Navbar({ userData }: { userData: any }) {
 
       ...(userData?.role === "user" || !userData?.role
         ? [
-            { href: "/", label: "Explore" },
+            { href: "/explore", label: "Explore" },
             { href: "/offers", label: "Offers" },
             { href: "/hotels", label: "Hotels" },
-            { href: "/about-us", label: "About Us" },
+            { href: "/", label: "About Us" },
           ]
         : []),
     ];
