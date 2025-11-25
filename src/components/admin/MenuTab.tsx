@@ -882,6 +882,7 @@ export function MenuTab() {
                                                       item.category.name,
                                                     variants: item.variants,
                                                     is_veg: item.is_veg,
+                                                    tags: item.tags,
                                                   })
                                                 }
                                               >
