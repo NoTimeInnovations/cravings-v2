@@ -8,6 +8,7 @@ import { ImageGridModal } from "./ImageGridModal";
 import Img from "../Img";
 import { Variant } from "../admin/EditMenuItemModal";
 import { X } from "lucide-react";
+import { TAG_CATEGORIES } from "@/data/foodTags";
 
 interface AddMenuItemFormProps {
   onSubmit: (item: {
@@ -17,10 +18,11 @@ interface AddMenuItemFormProps {
     description: string;
     category: string;
     is_veg?: boolean;
-    variants? : {
-      name : string,
-      price : number
+    variants?: {
+      name: string,
+      price: number
     }[] | [];
+    tags?: string[];
   }) => void;
   onCancel: () => void;
 }
@@ -33,6 +35,7 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
     description: "",
     category: "",
     is_veg: null as boolean | null,
+    tags: [] as string[],
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
@@ -49,20 +52,21 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
       toast.error("Please fill all the required fields");
       return;
     }
-    
+
     // If there are variants, don't require main price. If no variants, require main price
     if (variants.length === 0 && !newItem.price) {
       toast.error("Please set either a base price or add options");
       return;
     }
-    
+
     setIsSubmitting(true);
     try {
       onSubmit({
         ...newItem,
         is_veg: newItem.is_veg ?? undefined,
         price: variants.length > 0 ? "0" : newItem.price,
-        variants
+        variants,
+        tags: newItem.tags
       });
       setNewItem({
         name: "",
@@ -71,11 +75,12 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
         description: "",
         category: "",
         is_veg: null as boolean | null,
+        tags: [],
       });
       setVariants([]);
       setNewVariant({
-        name : "",
-        price : 0
+        name: "",
+        price: 0
       })
       setShowVariantForm(false);
     } finally {
@@ -91,12 +96,13 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
       description: "",
       category: "",
       is_veg: null as boolean | null,
+      tags: [],
     });
-   
+
     setVariants([]);
     setNewVariant({
-      name : "",
-      price : 0
+      name: "",
+      price: 0
     })
     setShowVariantForm(false);
     onCancel();
@@ -108,7 +114,7 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
       return;
     }
 
-    if(!newVariant.price && confirm("Price is zero. Do you want to proceed?") === false) {  
+    if (!newVariant.price && confirm("Price is zero. Do you want to proceed?") === false) {
       return;
     }
 
@@ -181,25 +187,25 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
           value={newItem.name}
           onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
         />
-        
+
         {/* Show main price input only when no variants exist */}
         {/* {variants.length === 0 && ( */}
-          <Input
-            required
-            type="number"
-            placeholder="Price in ₹"
-            value={newItem.price}
-            onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
-          />
+        <Input
+          required
+          type="number"
+          placeholder="Price in ₹"
+          value={newItem.price}
+          onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
+        />
         {/* )} */}
-        
+
         {/* Show note when variants exist */}
         {variants.length > 0 && (
           <div className="text-sm text-gray-600 p-2 bg-gray-50 rounded border">
             <p>✅ Pricing will be set through the options below</p>
           </div>
         )}
-        
+
         <Textarea
           placeholder="Product Description"
           value={newItem.description}
@@ -249,8 +255,46 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
           </div>
         </div>
 
-         {/* Variants Section */}
-         <div className="space-y-2">
+        {/* Tags Selection */}
+        <div className="space-y-4 border-t pt-4">
+          <h3 className="font-medium">Tags</h3>
+          {TAG_CATEGORIES.map((category) => (
+            <div key={category.name} className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">{category.name}</label>
+              <div className="flex flex-wrap gap-2">
+                {category.tags.map((tag) => (
+                  <label
+                    key={tag}
+                    className={`flex items-center space-x-2 cursor-pointer border rounded-full px-3 py-1 text-xs transition-colors ${newItem.tags.includes(tag)
+                        ? category.color
+                        : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                      }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={newItem.tags.includes(tag)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setNewItem({ ...newItem, tags: [...newItem.tags, tag] });
+                        } else {
+                          setNewItem({
+                            ...newItem,
+                            tags: newItem.tags.filter((t) => t !== tag),
+                          });
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <span>{tag}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Variants Section */}
+        <div className="space-y-2">
           <div className="flex justify-between items-center">
             <h3 className="font-medium">
               {variants.length > 0 ? "Pricing Options" : "Options"}
@@ -264,7 +308,7 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
               {showVariantForm ? "Cancel" : "Add Option"}
             </Button>
           </div>
-          
+
           {showVariantForm && (
             <div className="space-y-2 p-3 border rounded-lg">
               <Input
@@ -301,7 +345,7 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
               </div>
             </div>
           )}
-          
+
           {variants.length > 0 && (
             <div className="space-y-2">
               {variants.map((variant) => (
@@ -324,7 +368,7 @@ export function AddMenuItemForm({ onSubmit, onCancel }: AddMenuItemFormProps) {
           )}
         </div>
 
-      
+
 
         <div className="flex justify-end gap-2 mt-4">
           <Button variant="outline" onClick={handleCancel} type="button">

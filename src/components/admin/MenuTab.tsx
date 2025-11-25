@@ -62,6 +62,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { getTagColor } from "@/data/foodTags";
 
 export function MenuTab() {
   const {
@@ -87,15 +88,15 @@ export function MenuTab() {
     price: string;
     image: string;
     description: string;
-    alergent_info?: string;
     category: string;
     is_veg?: boolean;
     variants:
-      | {
-          name: string;
-          price: number;
-        }[]
-      | [];
+    | {
+      name: string;
+      price: number;
+    }[]
+    | [];
+    tags?: string[];
   } | null>(null);
   const [isInlineItemOrdering, setIsInlineItemOrdering] = useState(false);
   const [tempItems, setTempItems] = useState<Record<string, MenuItem[]>>({});
@@ -210,11 +211,12 @@ export function MenuTab() {
     category: string;
     is_veg?: boolean;
     variants?:
-      | {
-          name: string;
-          price: number;
-        }[]
-      | [];
+    | {
+      name: string;
+      price: number;
+    }[]
+    | [];
+    tags?: string[];
   }) => {
     addItem({
       name: item.name,
@@ -233,6 +235,7 @@ export function MenuTab() {
       priority: 0,
       is_veg: item.is_veg ?? undefined,
       variants: item.variants,
+      tags: item.tags,
     });
   };
 
@@ -242,15 +245,15 @@ export function MenuTab() {
     price: string;
     image: string;
     description: string;
-    alergent_info?: string;
     category: string;
     is_veg?: boolean;
     variants?:
-      | {
-          name: string;
-          price: number;
-        }[]
-      | [];
+    | {
+      name: string;
+      price: number;
+    }[]
+    | [];
+    tags?: string[];
   }) => {
     const existingItem = menu.find((menuItem) => menuItem.id === item.id);
 
@@ -262,8 +265,8 @@ export function MenuTab() {
     setOpenCategories((prev) => ({
       ...prev,
       [typeof item.category === "object" &&
-      item.category !== null &&
-      (item.category as { name: string }).name !== undefined
+        item.category !== null &&
+        (item.category as { name: string }).name !== undefined
         ? (item.category as { name: string }).name
         : item.category]: true,
     }));
@@ -273,7 +276,6 @@ export function MenuTab() {
       price: parseFloat(item.price),
       image_url: item.image,
       description: item.description,
-      alergent_info: item.alergent_info,
       category: {
         id: existingItem.category.id,
         name: item.category,
@@ -282,6 +284,7 @@ export function MenuTab() {
       },
       is_veg: item.is_veg ?? undefined,
       variants: item.variants,
+      tags: item.tags,
     });
 
     // Refresh menu while preserving open state
@@ -294,13 +297,13 @@ export function MenuTab() {
     price: number;
     image: string;
     description: string;
-    alergent_info?: string;
     category: string | { name: string };
     is_veg?: boolean;
     variants?: {
       name: string;
       price: number;
     }[];
+    tags?: string[];
   }) => {
     // Store current scroll position before opening modal
     setScrollPosition(window.scrollY);
@@ -309,8 +312,8 @@ export function MenuTab() {
     setOpenCategories((prev) => ({
       ...prev,
       [typeof item.category === "object" &&
-      item.category !== null &&
-      "name" in item.category
+        item.category !== null &&
+        "name" in item.category
         ? item.category.name
         : item.category]: true,
     }));
@@ -321,15 +324,15 @@ export function MenuTab() {
       price: item.price.toString(),
       image: item.image,
       description: item.description || "",
-      alergent_info: item.alergent_info || "",
       category:
         typeof item.category === "object" &&
-        item.category !== null &&
-        "name" in item.category
+          item.category !== null &&
+          "name" in item.category
           ? item.category.name
           : item.category,
       is_veg: item.is_veg ?? undefined,
       variants: item.variants || [],
+      tags: item.tags || [],
     });
     setIsEditModalOpen(true);
   };
@@ -616,11 +619,10 @@ export function MenuTab() {
                                                     <Img
                                                       src={item.image_url}
                                                       alt={item.name}
-                                                      className={`w-full h-full object-cover rounded-lg ${
-                                                        item.is_available
-                                                          ? ""
-                                                          : " saturate-0"
-                                                      }`}
+                                                      className={`w-full h-full object-cover rounded-lg ${item.is_available
+                                                        ? ""
+                                                        : " saturate-0"
+                                                        }`}
                                                     />
                                                   </div>
                                                 )}
@@ -671,13 +673,13 @@ export function MenuTab() {
                                                           ) === 0
                                                             ? item.price
                                                             : Math.min(
-                                                                ...(
-                                                                  item?.variants ??
-                                                                  []
-                                                                ).map(
-                                                                  (v) => v.price
-                                                                )
-                                                              ),
+                                                              ...(
+                                                                item?.variants ??
+                                                                []
+                                                              ).map(
+                                                                (v) => v.price
+                                                              )
+                                                            ),
                                                           userData?.id
                                                         )}
                                                       </>
@@ -696,53 +698,52 @@ export function MenuTab() {
 
                                                 {(item.variants?.length ?? 0) >
                                                   0 && (
-                                                  <span className="text-sm text-gray-500">
-                                                    (
-                                                    {
-                                                      (item.variants ?? [])
-                                                        .length
-                                                    }{" "}
-                                                    options)
-                                                  </span>
-                                                )}
+                                                    <span className="text-sm text-gray-500">
+                                                      (
+                                                      {
+                                                        (item.variants ?? [])
+                                                          .length
+                                                      }{" "}
+                                                      options)
+                                                    </span>
+                                                  )}
                                               </div>
 
                                               {/* Variants Display */}
                                               {(item.variants?.length ?? 0) >
                                                 0 && (
-                                                <div className="mt-2 space-y-1 bg-gray-50 p-2 rounded-lg">
-                                                  <p className="text-sm font-medium text-gray-600">
-                                                    Options:
-                                                  </p>
-                                                  <div className="max-h-32 overflow-y-auto pr-2">
-                                                    {(item.variants ?? []).map(
-                                                      (variant, index) => (
-                                                        <div
-                                                          key={index}
-                                                          className="flex justify-between text-sm py-1 border-b border-gray-100"
-                                                        >
-                                                          <span className="text-gray-700">
-                                                            {variant.name}
-                                                          </span>
-                                                          <span className="font-medium">
-                                                            {variant.price === 0
-                                                              ? ""
-                                                              : `${
-                                                                  (
-                                                                    userData as Partner
-                                                                  )?.currency ||
-                                                                  "₹"
+                                                  <div className="mt-2 space-y-1 bg-gray-50 p-2 rounded-lg">
+                                                    <p className="text-sm font-medium text-gray-600">
+                                                      Options:
+                                                    </p>
+                                                    <div className="max-h-32 overflow-y-auto pr-2">
+                                                      {(item.variants ?? []).map(
+                                                        (variant, index) => (
+                                                          <div
+                                                            key={index}
+                                                            className="flex justify-between text-sm py-1 border-b border-gray-100"
+                                                          >
+                                                            <span className="text-gray-700">
+                                                              {variant.name}
+                                                            </span>
+                                                            <span className="font-medium">
+                                                              {variant.price === 0
+                                                                ? ""
+                                                                : `${(
+                                                                  userData as Partner
+                                                                )?.currency ||
+                                                                "₹"
                                                                 }${formatPrice(
                                                                   variant.price,
                                                                   userData?.id
                                                                 )}`}
-                                                          </span>
-                                                        </div>
-                                                      )
-                                                    )}
+                                                            </span>
+                                                          </div>
+                                                        )
+                                                      )}
+                                                    </div>
                                                   </div>
-                                                </div>
-                                              )}
+                                                )}
 
                                               {item.description && (
                                                 <p className="text-gray-600 mt-4">
@@ -751,11 +752,27 @@ export function MenuTab() {
                                                 </p>
                                               )}
 
-                                              {item.alergent_info && (
-                                                <p className="text-gray-600 mt-2">
-                                                  Allergen Info :{" "}
-                                                  {item.alergent_info}
-                                                </p>
+
+
+                                              {/* Tags Display */}
+                                              {item.tags && item.tags.length > 0 && (
+                                                <div className="flex flex-wrap gap-2 mt-3">
+                                                  {item.tags.slice(0, 4).map((tag, i) => (
+                                                    <span
+                                                      key={i}
+                                                      className={`text-[10px] px-2 py-1 rounded-full border ${getTagColor(
+                                                        tag
+                                                      )}`}
+                                                    >
+                                                      {tag}
+                                                    </span>
+                                                  ))}
+                                                  {item.tags.length > 4 && (
+                                                    <span className="text-[10px] px-2 py-1 rounded-full border bg-gray-100 text-gray-600 border-gray-200">
+                                                      +{item.tags.length - 4} more
+                                                    </span>
+                                                  )}
+                                                </div>
                                               )}
 
                                               {/* Toggles */}
@@ -805,9 +822,9 @@ export function MenuTab() {
                                                     } catch (error) {
                                                       toast.error(
                                                         "Failed to mark item as " +
-                                                          (item.is_available
-                                                            ? "Unavailable"
-                                                            : "Available")
+                                                        (item.is_available
+                                                          ? "Unavailable"
+                                                          : "Available")
                                                       );
                                                       console.error(error);
                                                     }
@@ -840,9 +857,9 @@ export function MenuTab() {
                                                     } catch (error) {
                                                       toast.error(
                                                         "Failed to mark item as " +
-                                                          (item.is_price_as_per_size
-                                                            ? "Price Fixed"
-                                                            : "Price as per Size")
+                                                        (item.is_price_as_per_size
+                                                          ? "Price Fixed"
+                                                          : "Price as per Size")
                                                       );
                                                       console.error(error);
                                                     }
@@ -861,8 +878,6 @@ export function MenuTab() {
                                                     image: item.image_url,
                                                     description:
                                                       item.description || "",
-                                                    alergent_info:
-                                                      item.alergent_info || "",
                                                     category:
                                                       item.category.name,
                                                     variants: item.variants,
@@ -919,9 +934,8 @@ export function MenuTab() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
             <AlertDialogDescription>
-              {`Are you sure you want to delete "${
-                itemPendingDelete?.name ?? "this item"
-              }"? This action cannot be undone.`}
+              {`Are you sure you want to delete "${itemPendingDelete?.name ?? "this item"
+                }"? This action cannot be undone.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -34,7 +34,6 @@ export interface MenuItem {
   partner_id?: string;
   price: number;
   description: string;
-  alergent_info?: string;
   is_top?: boolean;
   is_available?: boolean;
   priority?: number;
@@ -50,6 +49,7 @@ export interface MenuItem {
   }[];
   is_price_as_per_size?: boolean;
   is_veg?: boolean;
+  tags?: string[];
 }
 
 interface MenuItem_withOffer_price {
@@ -216,11 +216,11 @@ export const useMenuStore = create<MenuState>((set, get) => ({
           price: mi.price ?? 0, // Always use menu price, not offer price
           description: mi.description || '',
           is_top: Boolean(mi.is_top),
-          alergent_info: mi.alergent_info || '',
           is_veg: mi.is_veg ?? null,
           is_available: mi.is_available !== false, // Ensure boolean value
           priority: mi.priority || 0,
           is_price_as_per_size: mi.is_price_as_per_size || false, // Ensure boolean value
+          tags: mi.tags || [],
         };
 
         // Add optional fields if they exist
@@ -278,13 +278,12 @@ export const useMenuStore = create<MenuState>((set, get) => ({
           "no-edit"
         );
 
-        const formattedName = item.name.replace(/[^a-zA-Z0-9]/g, "_").replace(/\s+/g, "_").replace(/_+/g, "_"); 
+        const formattedName = item.name.replace(/[^a-zA-Z0-9]/g, "_").replace(/\s+/g, "_").replace(/_+/g, "_");
         const formattedCategory = item.category.name.replace(/[^a-zA-Z0-9]/g, "_").replace(/\s+/g, "_").replace(/_+/g, "_");
 
         s3Url = await uploadFileToS3(
           getProcessedBase64Url,
-          `${userData.id}/menu/${formattedName}_${
-            formattedCategory
+          `${userData.id}/menu/${formattedName}_${formattedCategory
           }_${Date.now()}.webp`
         );
       }
@@ -296,11 +295,13 @@ export const useMenuStore = create<MenuState>((set, get) => ({
         image_source: item.image_source || "",
         partner_id: userData.id,
         price: item.variants && item.variants.length > 0 ? 0 : item.price,
-        description: item.description || "",
-        alergent_info: item.alergent_info || "",
-        variants : item.variants || [],
+        description: item.description,
+        is_top: item.is_top,
+        is_available: item.is_available,
+        variants: item.variants || [],
         is_price_as_per_size: item.is_price_as_per_size || false,
         is_veg: item.is_veg ?? null,
+        tags: item.tags || [],
       };
 
       const { insert_menu } = await fetchFromHasura(addMenu, {
@@ -309,7 +310,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
 
       // Get the full category with is_active from the store
       const fullCategory = useCategoryStore.getState().categories.find(c => c.id === category_id);
-      
+
       set({
         items: [
           ...get().items,
@@ -356,12 +357,12 @@ export const useMenuStore = create<MenuState>((set, get) => ({
 
       if (category?.id !== undefined) {
         cat = allCategories.find((cat) => formatDisplayName(cat.name) === formatDisplayName(category.name));
-        
+
         catid = cat?.id;
         changedItem = {
           ...changedItem,
           category_id: catid,
-          
+
         };
       }
 
@@ -371,13 +372,12 @@ export const useMenuStore = create<MenuState>((set, get) => ({
           "no-edit"
         );
 
-        const formattedName = updatedItem.name?.replace(/[^a-zA-Z0-9]/g, "_").replace(/\s+/g, "_").replace(/_+/g, "_"); 
-        const formattedCategory = updatedItem.category?.name?.replace(/[^a-zA-Z0-9]/g, "_").replace(/\s+/g, "_").replace(/_+/g, "_"); ;
+        const formattedName = updatedItem.name?.replace(/[^a-zA-Z0-9]/g, "_").replace(/\s+/g, "_").replace(/_+/g, "_");
+        const formattedCategory = updatedItem.category?.name?.replace(/[^a-zA-Z0-9]/g, "_").replace(/\s+/g, "_").replace(/_+/g, "_");;
 
         const s3Url = await uploadFileToS3(
           getProcessedBase64Url,
-          `${userData.id}/menu/${formattedName}_${
-            formattedCategory
+          `${userData.id}/menu/${formattedName}_${formattedCategory
           }_${Date.now()}.webp`
         );
 
@@ -393,23 +393,23 @@ export const useMenuStore = create<MenuState>((set, get) => ({
         id,
         menu: changedItem,
       });
-      
+
       set({
         items: get().items.map((item) =>
           item.id === id
             ? {
-                ...item,
-                ...updatedItem,
-                category: {
-                  ...item.category,
-                  ...(category && {
-                    id: catid || item.category.id,
-                    name: category.name || item.category.name,
-                    priority: category.priority || item.category.priority,
-                    is_active: category.is_active !== false, // Ensure boolean value
-                  }),
-                },
-              }
+              ...item,
+              ...updatedItem,
+              category: {
+                ...item.category,
+                ...(category && {
+                  id: catid || item.category.id,
+                  name: category.name || item.category.name,
+                  priority: category.priority || item.category.priority,
+                  is_active: category.is_active !== false, // Ensure boolean value
+                }),
+              },
+            }
             : item
         ),
       });
@@ -562,7 +562,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
         const chunk = updates.slice(i, i + CHUNK_SIZE);
         const mutation = getBatchUpdateMutation(chunk);
         const { data, errors } = await fetchFromHasura(mutation, {});
-        
+
         if (errors) {
           throw new Error(`Failed to update chunk starting at index ${i}`);
         }
@@ -573,15 +573,15 @@ export const useMenuStore = create<MenuState>((set, get) => ({
 
         return category
           ? {
-              ...item,
-              category_id: category.id,
-              category: {
-                ...item.category,
-                name: category.name,
-                priority: category.priority ?? 0,
-                is_active: category.is_active !== false // Ensure is_active is always a boolean
-              },
-            }
+            ...item,
+            category_id: category.id,
+            category: {
+              ...item.category,
+              name: category.name,
+              priority: category.priority ?? 0,
+              is_active: category.is_active !== false // Ensure is_active is always a boolean
+            },
+          }
           : item;
       });
 
@@ -655,8 +655,8 @@ export const useMenuStore = create<MenuState>((set, get) => ({
       const mutation = `
         mutation UpdateItemsPriorityBatch {
           ${items
-            .map(
-              (item, index) => `
+          .map(
+            (item, index) => `
             update_${index}: update_menu_by_pk(
               pk_columns: { id: "${item.id}" }
               _set: {
@@ -667,8 +667,8 @@ export const useMenuStore = create<MenuState>((set, get) => ({
               priority
             }
           `
-            )
-            .join("\n")}
+          )
+          .join("\n")}
         }
       `;
 
@@ -679,8 +679,8 @@ export const useMenuStore = create<MenuState>((set, get) => ({
         const chunkMutation = `
           mutation UpdateItemsPriorityBatch {
             ${chunk
-              .map(
-                (item, index) => `
+            .map(
+              (item, index) => `
               update_${index}: update_menu_by_pk(
                 pk_columns: { id: "${item.id}" }
                 _set: {
@@ -691,8 +691,8 @@ export const useMenuStore = create<MenuState>((set, get) => ({
                 priority
               }
             `
-              )
-              .join("\n")}
+            )
+            .join("\n")}
           }
         `;
 

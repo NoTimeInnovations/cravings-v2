@@ -176,7 +176,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
       is_top
       is_available
       is_veg
-      alergent_info
+      tags
       is_price_as_per_size
       name
       price

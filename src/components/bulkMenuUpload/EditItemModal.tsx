@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import Img from "../Img";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { Switch } from "../ui/switch";
+import { TAG_CATEGORIES } from "@/data/foodTags";
 
 // --- TYPE DEFINITIONS ---
 export interface Variant {
@@ -28,6 +29,7 @@ export interface MenuItem {
   };
   variants?: Variant[];
   is_price_as_per_size?: boolean;
+  tags?: string[];
 }
 
 interface EditItemModalProps {
@@ -207,6 +209,44 @@ export const EditItemModal = ({
                 );
               }}
             />
+          </div>
+
+          {/* Tags Selection */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="font-medium">Tags</h3>
+            {TAG_CATEGORIES.map((category) => (
+              <div key={category.name} className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">{category.name}</label>
+                <div className="flex flex-wrap gap-2">
+                  {category.tags.map((tag) => (
+                    <label
+                      key={tag}
+                      className={`flex items-center space-x-2 cursor-pointer border rounded-full px-3 py-1 text-xs transition-colors ${(editingItem.item.tags || []).includes(tag)
+                          ? category.color
+                          : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                        }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={(editingItem.item.tags || []).includes(tag)}
+                        onChange={(e) => {
+                          const currentTags = editingItem.item.tags || [];
+                          let newTags;
+                          if (e.target.checked) {
+                            newTags = [...currentTags, tag];
+                          } else {
+                            newTags = currentTags.filter((t) => t !== tag);
+                          }
+                          onEdit("tags", newTags);
+                        }}
+                        className="hidden"
+                      />
+                      <span>{tag}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* --- Variants Section --- */}

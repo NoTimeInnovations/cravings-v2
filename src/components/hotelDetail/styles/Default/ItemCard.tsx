@@ -8,7 +8,8 @@ import DescriptionWithTextBreak from "../../../DescriptionWithTextBreak";
 import useOrderStore from "@/store/orderStore";
 import { getFeatures } from "@/lib/getFeatures";
 import { formatPrice, requiresThreeDecimalPlaces } from "@/lib/constants";
-import AllergenInfoModal from "@/components/AllergenInfoModal";
+
+import { getTagColor } from "@/data/foodTags";
 
 const ItemCard = ({
   item,
@@ -48,7 +49,8 @@ const ItemCard = ({
   activeOffers?: any[];
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isAllergenModalOpen, setIsAllergenModalOpen] = useState(false);
+  const [showAllTags, setShowAllTags] = useState(false);
+
   const [showVariants, setShowVariants] = useState(false);
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
   const variantsRef = useRef<HTMLDivElement>(null);
@@ -365,17 +367,34 @@ const ItemCard = ({
             {item.description}
           </DescriptionWithTextBreak>
 
-          {item.alergent_info && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsAllergenModalOpen(true);
-              }}
-              className="text-xs text-blue-500 underline mt-1"
-            >
-              Allergen Info
-            </button>
+          {/* Tags Display */}
+          {item.tags && item.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {(showAllTags ? item.tags : item.tags.slice(0, 4)).map((tag, i) => (
+                <span
+                  key={i}
+                  className={`text-[10px] px-2 py-1 rounded-full border ${getTagColor(
+                    tag
+                  )}`}
+                >
+                  {tag}
+                </span>
+              ))}
+              {item.tags.length > 4 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowAllTags(!showAllTags);
+                  }}
+                  className="text-[10px] px-2 py-1 rounded-full border bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 transition-colors"
+                >
+                  {showAllTags ? "Show Less" : `+${item.tags.length - 4} more`}
+                </button>
+              )}
+            </div>
           )}
+
+
 
           {/* Variants section with smooth height transition */}
           <div
@@ -437,14 +456,14 @@ const ItemCard = ({
                                     {currency} {variantOfferPrice}
                                   </span>
                                 </div>
-                            ) : (
-                              <>
-                                {currency} {formatPrice(variant.price, hotelData?.id)}
-                              </>
-                            )}
-                          </>
-                        )}
-                      </div>
+                              ) : (
+                                <>
+                                  {currency} {formatPrice(variant.price, hotelData?.id)}
+                                </>
+                              )}
+                            </>
+                          )}
+                        </div>
                         {showAddButton && (
                           <div className="flex gap-2 items-center justify-end">
                             {getVariantQuantity(variant.name) > 0 ? (
@@ -622,14 +641,8 @@ const ItemCard = ({
         currency={currency}
         hotelData={hotelData as HotelData}
       />
-      
-      {item.alergent_info && (
-        <AllergenInfoModal
-          isOpen={isAllergenModalOpen}
-          onOpenChange={setIsAllergenModalOpen}
-          allergenInfo={item.alergent_info}
-        />
-      )}
+
+
     </div>
   );
 };

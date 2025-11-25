@@ -15,6 +15,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useCategoryStore } from "@/store/categoryStore_hasura";
 import Img from "../Img";
 import { X, Edit } from "lucide-react";
+import { TAG_CATEGORIES } from "@/data/foodTags";
 
 export interface Variant {
   name: string;
@@ -28,10 +29,10 @@ interface EditMenuItemFormProps {
     price: string;
     image: string;
     description: string;
-    alergent_info?: string;
     category: string;
     is_veg?: boolean;
     variants?: Variant[] | [];
+    tags?: string[];
   };
   onSubmit: (item: {
     id: string;
@@ -42,6 +43,7 @@ interface EditMenuItemFormProps {
     category: string;
     is_veg?: boolean;
     variants?: Variant[];
+    tags?: string[];
   }) => void;
   onCancel: () => void;
 }
@@ -51,7 +53,10 @@ export function EditMenuItemForm({
   onSubmit,
   onCancel,
 }: EditMenuItemFormProps) {
-  const [editingItem, setEditingItem] = useState(item);
+  const [editingItem, setEditingItem] = useState({
+    ...item,
+    tags: item.tags || [],
+  });
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [variants, setVariants] = useState<Variant[]>(item.variants || []);
@@ -68,19 +73,20 @@ export function EditMenuItemForm({
       alert("Please fill all the required fields");
       return;
     }
-    
+
     // If there are no variants, ensure base price is set
     if (variants.length === 0 && (!editingItem.price || parseFloat(editingItem.price) <= 0)) {
       alert("Please set either a base price or add options");
       return;
     }
-    
+
     setIsSubmitting(true);
     try {
       await onSubmit({
         ...editingItem,
         price: editingItem.price,
         variants: variants.length > 0 ? variants : [],
+        tags: editingItem.tags,
       });
     } finally {
       setIsSubmitting(false);
@@ -93,14 +99,14 @@ export function EditMenuItemForm({
       return;
     }
 
-    if(!newVariant.price && confirm("Price is zero. Do you want to proceed?") === false) {
+    if (!newVariant.price && confirm("Price is zero. Do you want to proceed?") === false) {
       return;
     }
-    
+
     const variant: Variant = {
       ...newVariant
     };
-    
+
     setVariants([...variants, variant]);
     setNewVariant({ name: "", price: 0 });
     setShowVariantForm(false);
@@ -112,13 +118,13 @@ export function EditMenuItemForm({
       return;
     }
 
-    if(!newVariant.price && confirm("Price is zero. Do you want to proceed?") === false) {
+    if (!newVariant.price && confirm("Price is zero. Do you want to proceed?") === false) {
       return;
     }
 
     const updatedVariants = [...variants];
     updatedVariants[editingVariantIndex] = { ...newVariant };
-    
+
     setVariants(updatedVariants);
     setNewVariant({ name: "", price: 0 });
     setEditingVariantIndex(null);
@@ -196,25 +202,25 @@ export function EditMenuItemForm({
             setEditingItem({ ...editingItem, name: e.target.value })
           }
         />
-        
+
         {/* {variants.length === 0 && ( */}
-          <Input
-            type="number"
-            placeholder="Base Price in ₹"
-            value={editingItem.price}
-            onChange={(e) =>
-              setEditingItem({ ...editingItem, price: e.target.value })
-            }
-          />
+        <Input
+          type="number"
+          placeholder="Base Price in ₹"
+          value={editingItem.price}
+          onChange={(e) =>
+            setEditingItem({ ...editingItem, price: e.target.value })
+          }
+        />
         {/* )} */}
-        
+
         {/* Show note when variants exist */}
         {variants.length > 0 && (
           <div className="text-sm text-gray-600 p-2 bg-gray-50 rounded border">
             <p>✅ Pricing will be set through the options below</p>
           </div>
         )}
-        
+
         <Textarea
           placeholder="Product Description"
           value={editingItem.description}
@@ -222,14 +228,8 @@ export function EditMenuItemForm({
             setEditingItem({ ...editingItem, description: e.target.value })
           }
         />
-        <Textarea
-          placeholder="Allergen Info"
-          value={editingItem.alergent_info}
-          onChange={(e) =>
-            setEditingItem({ ...editingItem, alergent_info: e.target.value })
-          }
-        />
-        
+
+
         <CategoryDropdown
           value={editingItem.category}
           onChange={(value) => {
@@ -274,6 +274,47 @@ export function EditMenuItemForm({
           </div>
         </div>
 
+        {/* Tags Selection */}
+        <div className="space-y-4 border-t pt-4">
+          <h3 className="font-medium">Tags</h3>
+          {TAG_CATEGORIES.map((category) => (
+            <div key={category.name} className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">{category.name}</label>
+              <div className="flex flex-wrap gap-2">
+                {category.tags.map((tag) => (
+                  <label
+                    key={tag}
+                    className={`flex items-center space-x-2 cursor-pointer border rounded-full px-3 py-1 text-xs transition-colors ${editingItem.tags.includes(tag)
+                      ? category.color
+                      : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                      }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={editingItem.tags.includes(tag)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setEditingItem({
+                            ...editingItem,
+                            tags: [...editingItem.tags, tag],
+                          });
+                        } else {
+                          setEditingItem({
+                            ...editingItem,
+                            tags: editingItem.tags.filter((t) => t !== tag),
+                          });
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <span>{tag}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
         {/* Variants Section */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
@@ -293,7 +334,7 @@ export function EditMenuItemForm({
               {showVariantForm ? "Cancel" : "Add Option"}
             </Button>
           </div>
-          
+
           {showVariantForm && (
             <div className="space-y-2 p-3 border rounded-lg">
               <Input
@@ -330,7 +371,7 @@ export function EditMenuItemForm({
               </div>
             </div>
           )}
-          
+
           {variants.length > 0 && (
             <div className="space-y-2">
               {variants.map((variant, index) => (
@@ -362,10 +403,10 @@ export function EditMenuItemForm({
             </div>
           )}
         </div>
-        
+
         <div className="flex justify-end gap-2 mt-4">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={onCancel}
             type="button"
           >
@@ -398,10 +439,10 @@ interface EditMenuItemModalProps {
     price: string;
     image: string;
     description: string;
-    alergent_info?: string;
     category: string;
     is_veg?: boolean;
     variants?: Variant[];
+    tags?: string[];
   };
   onSubmit: (item: {
     id: string;
@@ -412,6 +453,7 @@ interface EditMenuItemModalProps {
     category: string;
     is_veg?: boolean;
     variants?: Variant[];
+    tags?: string[];
   }) => void;
   children?: React.ReactNode;
 }

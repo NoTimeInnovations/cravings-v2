@@ -69,19 +69,19 @@ const ItemDetailsModal = ({
               </div>
             </div>
             <div className="text-sm opacity-50 mt-1">{item.description}</div>
-            {item.alergent_info && <div className="text-sm opacity-50 mt-1">Allergen Info: {item.alergent_info}</div>}
+
           </div>
 
           {item.image_url && (
-           <div className="w-full h-[200px] overflow-hidden rounded-3xl">
-             <Img
-              src={item.image_url}
-              alt={item.name}
-              className="w-full h--full object-cover rounded-3xl"
-            />
-           </div>
+            <div className="w-full h-[200px] overflow-hidden rounded-3xl">
+              <Img
+                src={item.image_url}
+                alt={item.name}
+                className="w-full h--full object-cover rounded-3xl"
+              />
+            </div>
           )}
-          
+
           {hasVariants && (
             <div className="w-full space-y-3">
               {item.variants?.map((variant) => (
@@ -105,8 +105,8 @@ const ItemDetailsModal = ({
               ))}
             </div>
           )}
-          
-         
+
+
         </div>
       </DialogContent>
     </Dialog>

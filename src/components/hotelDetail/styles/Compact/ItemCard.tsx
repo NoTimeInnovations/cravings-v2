@@ -7,7 +7,8 @@ import useOrderStore from "@/store/orderStore";
 import { Offer } from "@/store/offerStore_hasura";
 import { useRouter } from "next/navigation";
 import { formatPrice, requiresThreeDecimalPlaces } from "@/lib/constants";
-import AllergenInfoModal from "@/components/AllergenInfoModal";
+
+import { getTagColor } from "@/data/foodTags";
 
 const ItemCard = ({
   item,
@@ -37,7 +38,8 @@ const ItemCard = ({
   activeOffers?: any[];
 }) => {
   const [showVariants, setShowVariants] = useState(false);
-  const [isAllergenModalOpen, setIsAllergenModalOpen] = useState(false);
+  const [showAllTags, setShowAllTags] = useState(false);
+
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
   const router = useRouter();
 
@@ -90,47 +92,47 @@ const ItemCard = ({
   const discountPercentage =
     offerData && shouldShowPrice
       ? (() => {
-          if (hasMultipleVariantsOnOffer && allItemOffers) {
-            const validOfferPrices = allItemOffers
-              .map((o) => o.offer_price)
-              .filter((p): p is number => typeof p === "number");
-            const validOriginalPrices = allItemOffers
-              .map((o) => o.variant?.price ?? o.menu?.price)
-              .filter((p): p is number => typeof p === "number");
-            if (
-              validOfferPrices.length === 0 ||
-              validOriginalPrices.length === 0
-            )
-              return 0;
-            const lowestOfferPrice = Math.min(...validOfferPrices);
-            const lowestOriginalPrice = Math.min(...validOriginalPrices);
-            if (
-              lowestOriginalPrice > 0 &&
-              lowestOriginalPrice > lowestOfferPrice
-            ) {
-              return Math.round(
-                ((lowestOriginalPrice - lowestOfferPrice) /
-                  lowestOriginalPrice) *
-                  100
-              );
-            }
+        if (hasMultipleVariantsOnOffer && allItemOffers) {
+          const validOfferPrices = allItemOffers
+            .map((o) => o.offer_price)
+            .filter((p): p is number => typeof p === "number");
+          const validOriginalPrices = allItemOffers
+            .map((o) => o.variant?.price ?? o.menu?.price)
+            .filter((p): p is number => typeof p === "number");
+          if (
+            validOfferPrices.length === 0 ||
+            validOriginalPrices.length === 0
+          )
             return 0;
-          } else {
-            const originalPrice =
-              offerData.variant?.price ?? offerData.menu?.price;
-            const offerPrice = offerData.offer_price;
-            if (
-              typeof originalPrice === "number" &&
-              typeof offerPrice === "number" &&
-              originalPrice > 0
-            ) {
-              return Math.round(
-                ((originalPrice - offerPrice) / originalPrice) * 100
-              );
-            }
-            return 0;
+          const lowestOfferPrice = Math.min(...validOfferPrices);
+          const lowestOriginalPrice = Math.min(...validOriginalPrices);
+          if (
+            lowestOriginalPrice > 0 &&
+            lowestOriginalPrice > lowestOfferPrice
+          ) {
+            return Math.round(
+              ((lowestOriginalPrice - lowestOfferPrice) /
+                lowestOriginalPrice) *
+              100
+            );
           }
-        })()
+          return 0;
+        } else {
+          const originalPrice =
+            offerData.variant?.price ?? offerData.menu?.price;
+          const offerPrice = offerData.offer_price;
+          if (
+            typeof originalPrice === "number" &&
+            typeof offerPrice === "number" &&
+            originalPrice > 0
+          ) {
+            return Math.round(
+              ((originalPrice - offerPrice) / originalPrice) * 100
+            );
+          }
+          return 0;
+        }
+      })()
       : 0;
 
   useEffect(() => {
@@ -288,17 +290,34 @@ const ItemCard = ({
             </h3>
           </div>
           <p className="text-sm opacity-50">{item.description}</p>
-          {item.alergent_info && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsAllergenModalOpen(true);
-              }}
-              className="text-xs text-blue-500 underline mt-1"
-            >
-              Allergen Info
-            </button>
+          <p className="text-sm opacity-50">{item.description}</p>
+          {/* Tags Display */}
+          {item.tags && item.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {(showAllTags ? item.tags : item.tags.slice(0, 4)).map((tag, i) => (
+                <span
+                  key={i}
+                  className={`text-[10px] px-2 py-1 rounded-full border ${getTagColor(
+                    tag
+                  )}`}
+                >
+                  {tag}
+                </span>
+              ))}
+              {item.tags.length > 4 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowAllTags(!showAllTags);
+                  }}
+                  className="text-[10px] px-2 py-1 rounded-full border bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 transition-colors"
+                >
+                  {showAllTags ? "Show Less" : `+${item.tags.length - 4} more`}
+                </button>
+              )}
+            </div>
           )}
+
           {shouldShowPrice && (
             <div
               style={{ color: styles?.accent || "#000" }}
@@ -363,9 +382,8 @@ const ItemCard = ({
               <img
                 src={item.image_url || "/image_placeholder.png"}
                 alt={item.name}
-                className={`w-full h-full object-cover ${
-                  !item.image_url ? "invert opacity-50" : ""
-                } ${!item.is_available || isOutOfStock ? "grayscale" : ""}`}
+                className={`w-full h-full object-cover ${!item.image_url ? "invert opacity-50" : ""
+                  } ${!item.is_available || isOutOfStock ? "grayscale" : ""}`}
               />
             </div>
             {(!item.is_available || isOutOfStock) && (
@@ -376,7 +394,7 @@ const ItemCard = ({
             {isOrderable && (
               <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
                 {offerData &&
-                item.category?.name?.toLowerCase() === "custom" ? (
+                  item.category?.name?.toLowerCase() === "custom" ? (
                   <div
                     onClick={() => router.push(`/offers/${offerData.id}`)}
                     style={{ backgroundColor: styles.accent, color: "white" }}
@@ -394,8 +412,8 @@ const ItemCard = ({
                     {itemQuantity > 0
                       ? `Added (${itemQuantity})`
                       : showVariants
-                      ? "Hide Options"
-                      : "Show Options"}
+                        ? "Hide Options"
+                        : "Show Options"}
                   </div>
                 ) : showAddButton && itemQuantity > 0 ? (
                   <div
@@ -493,7 +511,7 @@ const ItemCard = ({
                               </span>
                               {hasValidOriginalPrice &&
                                 originalVariantPrice >
-                                  variantOffer.offer_price! && (
+                                variantOffer.offer_price! && (
                                   <span className="line-through text-gray-400 text-sm font-light">
                                     {originalVariantPrice > 0
                                       ? `${hoteldata?.currency || "₹"} ${formatPrice(originalVariantPrice, hoteldata?.id)}`
@@ -562,7 +580,7 @@ const ItemCard = ({
                             </span>
                             {hasValidOriginalPrice &&
                               originalVariantPrice >
-                                variantOffer.offer_price! && (
+                              variantOffer.offer_price! && (
                                 <span className="line-through text-gray-400 text-sm font-light">
                                   {originalVariantPrice > 0
                                     ? `${hoteldata?.currency || "₹"} ${formatPrice(originalVariantPrice, hoteldata?.id)}`
@@ -585,13 +603,7 @@ const ItemCard = ({
             })}
         </div>
       )}
-      {item.alergent_info && (
-        <AllergenInfoModal
-          isOpen={isAllergenModalOpen}
-          onOpenChange={setIsAllergenModalOpen}
-          allergenInfo={item.alergent_info}
-        />
-      )}
+
     </>
   );
 };

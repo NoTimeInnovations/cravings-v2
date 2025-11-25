@@ -8,6 +8,7 @@ import { Input } from "../ui/input";
 import Img from "../Img";
 import { Badge } from "../ui/badge";
 import { Switch } from "../ui/switch";
+import { getTagColor } from "@/data/foodTags";
 
 interface MenuItemCardProps {
   item: MenuItem;
@@ -62,9 +63,9 @@ export const MenuItemCard = ({
           </div>
         </div>
         <p className="font-bold text-2xl text-right shrink-0 text-gray-800">
-         {
-          item.is_price_as_per_size ? (<div className="text-xs">{`(Price as per size)`}</div>) : (<> ₹{item.price}</>)
-         }
+          {
+            item.is_price_as_per_size ? (<div className="text-xs">{`(Price as per size)`}</div>) : (<> ₹{item.price}</>)
+          }
         </p>
       </div>
 
@@ -82,7 +83,28 @@ export const MenuItemCard = ({
           {item.description}
         </p>
 
-       
+        {/* Tags Display */}
+        {item.tags && item.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2 mb-2">
+            {item.tags.slice(0, 4).map((tag, i) => (
+              <span
+                key={i}
+                className={`text-[10px] px-2 py-1 rounded-full border ${getTagColor(
+                  tag
+                )}`}
+              >
+                {tag}
+              </span>
+            ))}
+            {item.tags.length > 4 && (
+              <span className="text-[10px] px-2 py-1 rounded-full border bg-gray-100 text-gray-600 border-gray-200">
+                +{item.tags.length - 4} more
+              </span>
+            )}
+          </div>
+        )}
+
+
         {/* Display Variants if they exist */}
         {item.variants && item.variants.length > 0 && (
           <div className="space-y-2">
