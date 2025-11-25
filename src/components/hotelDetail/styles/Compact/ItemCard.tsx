@@ -290,7 +290,6 @@ const ItemCard = ({
             </h3>
           </div>
           <p className="text-sm opacity-50">{item.description}</p>
-          <p className="text-sm opacity-50">{item.description}</p>
           {/* Tags Display */}
           {item.tags && item.tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
