@@ -1,8 +1,8 @@
 "use client"; // Mark this as a client component
 
-
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import React, { useEffect, useState } from "react";
+import { getAllPartnersQuery } from "@/api/partners";
 
 // --- Type Definitions ---
 
@@ -25,15 +25,18 @@ type MenuExtractType = {
   price: number;
 };
 
+type Partner = {
+  id: string;
+  store_name: string;
+  location: string;
+};
+
 // --- Helper Functions (defined outside the component) ---
-
-
-const partnerId = "d68d1ecd-adc6-48cf-b927-9ba831d70a57"; // Replace with actual partner ID
 
 /**
  * Fetches menu data from Hasura.
  */
-const fetchData = async () => {
+const fetchData = async (partnerId: string) => {
   const { menu, menu_aggregate } = await fetchFromHasura(`query MyQuery {
     menu(where: {partner_id: {_eq: "${partnerId}"}}) {
       category {
@@ -67,20 +70,24 @@ const flattenMenuData = (menuItems: MenuItem[]): MenuExtractType[] => {
   menuItems.forEach((item) => {
     const categoryName = item.category?.name || "Uncategorized";
 
-    // If there are no variants, or variants array is empty, add the base item
-    if (!item.variants || item.variants.length === 0) {
+    // Check if variants exist and if all of them have 0 price
+    const hasVariants = item.variants && item.variants.length > 0;
+    const allVariantsZeroPrice = hasVariants && item.variants.every((v) => (v.price || 0) === 0);
+
+    // If there are no variants, or all variants have 0 price, add the base item
+    if (!hasVariants || allVariantsZeroPrice) {
       flattenedData.push({
         category: categoryName,
         name: item.name,
-        price: item.price,
+        price: item.price || 0,
       });
     } else {
-      // If there are variants, add each variant as a separate item
+      // If there are variants with non-zero prices, add each variant as a separate item
       item.variants.forEach((variant) => {
         flattenedData.push({
           category: categoryName,
           name: `${item.name} - ${variant.name}`,
-          price: variant.price,
+          price: variant.price || 0,
         });
       });
     }
@@ -100,21 +107,56 @@ const Page = () => {
   // State for data
   const [data, setData] = useState<MenuExtractType[]>([]);
   const [totalItems, setTotalItems] = useState<number>(0);
-  
+
+  // State for partner selection
+  const [searchQuery, setSearchQuery] = useState("");
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+
   // State for loading and errors
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Data fetching logic
+  // Fetch partners on search
+  useEffect(() => {
+    const fetchPartners = async () => {
+      if (!searchQuery) {
+        setPartners([]);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const { partners } = await fetchFromHasura(getAllPartnersQuery, {
+          query: `%${searchQuery}%`,
+          limit: 10,
+          offset: 0
+        });
+        setPartners(partners);
+      } catch (err) {
+        console.error("Failed to fetch partners:", err);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(fetchPartners, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery]);
+
+  // Data fetching logic when partner is selected
   useEffect(() => {
     const loadData = async () => {
+      if (!selectedPartner) return;
+
       try {
         setIsLoading(true);
         setError(null);
-        
-        const fetchedData = await fetchData();
+
+        const fetchedData = await fetchData(selectedPartner.id);
         const flattenedData = flattenMenuData(fetchedData.menu);
-        
+
         setData(flattenedData);
         setTotalItems(fetchedData.menu_aggregate?.aggregate?.count || 0);
 
@@ -127,7 +169,7 @@ const Page = () => {
     };
 
     loadData();
-  }, []); // Empty dependency array means this runs once on mount
+  }, [selectedPartner]);
 
   // CSV Download logic
   const handleDownloadCSV = () => {
@@ -160,98 +202,141 @@ const Page = () => {
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", "menu.csv");
+    link.setAttribute("download", `${selectedPartner?.store_name || 'menu'}.csv`);
     link.style.visibility = "hidden";
 
     // 5. Trigger Download
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     // 6. Clean up
     URL.revokeObjectURL(url);
   };
 
   // --- Render Logic ---
 
-  // Handle Loading State
-  if (isLoading) {
-    return (
-      <div className="p-4 md:p-8 bg-gray-50 min-h-screen font-sans flex items-center justify-center">
-        <div className="text-gray-500">Loading menu data...</div>
-      </div>
-    );
-  }
-
-  // Handle Error State
-  if (error) {
-    return (
-      <div className="p-4 md:p-8 bg-gray-50 min-h-screen font-sans flex items-center justify-center">
-        <div className="text-red-500 bg-red-100 p-4 rounded-lg shadow-md">{error}</div>
-      </div>
-    );
-  }
-
-  // Main Render (Data Loaded)
   return (
     <div className="p-4 md:p-8 bg-gray-50 min-h-screen font-sans">
-      <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-center p-6 border-b border-gray-200">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Menu Items</h1>
-            <p className="text-sm text-gray-500">
-              {totalItems} base items. (Showing {data.length} total rows)
-            </p>
-          </div>
-          <button
-            onClick={handleDownloadCSV}
-            disabled={data.length === 0}
-            className="mt-4 sm:mt-0 w-full sm:w-auto px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg text-sm shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
-          >
-            Download CSV
-          </button>
-        </div>
+      <div className="max-w-4xl mx-auto space-y-6">
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          {data.length > 0 ? (
-            <table className="w-full min-w-full text-left text-sm text-gray-700">
-              <thead className="bg-gray-100 text-xs text-gray-700 uppercase tracking-wider">
-                <tr>
-                  <th scope="col" className="px-6 py-3">
-                    Category
-                  </th>
-                  <th scope="col" className="px-6 py-3">
-                    Name
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-right">
-                    Price
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {data.map((item, index) => (
-                  <tr key={index} className="bg-white hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
-                      {item.category}
-                    </td>
-                    <td className="px-6 py-4">
-                      {item.name}
-                    </td>
-                    <td className="px-6 py-4 text-right font-mono">
-                      ${item.price.toFixed(2)}
-                    </td>
-                  </tr>
+        {/* Partner Selection Section */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Select Partner</h2>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search for a partner..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {isSearching && (
+              <div className="absolute right-3 top-2.5 text-gray-400">
+                Searching...
+              </div>
+            )}
+
+            {/* Search Results Dropdown */}
+            {partners.length > 0 && !selectedPartner && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {partners.map((partner) => (
+                  <button
+                    key={partner.id}
+                    onClick={() => {
+                      setSelectedPartner(partner);
+                      setSearchQuery("");
+                      setPartners([]);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                  >
+                    <div className="font-medium text-gray-900">{partner.store_name}</div>
+                    <div className="text-sm text-gray-500">{partner.location}</div>
+                  </button>
                 ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="p-6 text-center text-gray-500">
-              No menu items found.
+              </div>
+            )}
+          </div>
+
+          {selectedPartner && (
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-100 flex justify-between items-center">
+              <div>
+                <div className="font-semibold text-blue-900">{selectedPartner.store_name}</div>
+                <div className="text-sm text-blue-700">{selectedPartner.location}</div>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedPartner(null);
+                  setData([]);
+                  setTotalItems(0);
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Change
+              </button>
             </div>
           )}
         </div>
+
+        {/* Menu Data Section */}
+        {selectedPartner && (
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-center p-6 border-b border-gray-200">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">Menu Items</h1>
+                <p className="text-sm text-gray-500">
+                  {totalItems} base items. (Showing {data.length} total rows)
+                </p>
+              </div>
+              <button
+                onClick={handleDownloadCSV}
+                disabled={data.length === 0}
+                className="mt-4 sm:mt-0 w-full sm:w-auto px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg text-sm shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
+              >
+                Download CSV
+              </button>
+            </div>
+
+            {/* Loading/Error/Table */}
+            {isLoading ? (
+              <div className="p-8 text-center text-gray-500">Loading menu data...</div>
+            ) : error ? (
+              <div className="p-8 text-center text-red-500">{error}</div>
+            ) : (
+              <div className="overflow-x-auto">
+                {data.length > 0 ? (
+                  <table className="w-full min-w-full text-left text-sm text-gray-700">
+                    <thead className="bg-gray-100 text-xs text-gray-700 uppercase tracking-wider">
+                      <tr>
+                        <th scope="col" className="px-6 py-3">Category</th>
+                        <th scope="col" className="px-6 py-3">Name</th>
+                        <th scope="col" className="px-6 py-3 text-right">Price</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {data.map((item, index) => (
+                        <tr key={index} className="bg-white hover:bg-gray-50">
+                          <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
+                            {item.category}
+                          </td>
+                          <td className="px-6 py-4">{item.name}</td>
+                          <td className="px-6 py-4 text-right font-mono">
+                            ${item.price.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="p-6 text-center text-gray-500">
+                    No menu items found for this partner.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
