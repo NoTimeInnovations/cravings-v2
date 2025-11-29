@@ -26,7 +26,7 @@ export async function middleware(request: NextRequest) {
 
   const country = request.geo?.country || request.headers.get('x-vercel-ip-country');
 
-  console.log("Current coutnry " , country)
+  console.log("Country ", country)
 
   if (
     pathname.includes("/hotels") ||
@@ -45,7 +45,7 @@ export async function middleware(request: NextRequest) {
         role: string;
         status?: string;
       };
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // CAPTAIN GUARD: Trap captain on /captain before public route check
@@ -95,8 +95,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Handle root path redirects based on role
+  // Handle root path rewrite based on role
   if (pathname === "/") {
+    if (country && country !== "IN") {
+      return NextResponse.rewrite(new URL("/international", request.url));
+    }
+
     try {
       let decrypted: { id: string; role: string; status?: string } | undefined;
 
