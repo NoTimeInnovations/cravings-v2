@@ -4,11 +4,29 @@ import type { NextRequest } from "next/server";
 import { decryptText } from "./lib/encrtption";
 import { cookies } from "next/headers";
 
+
+declare module 'next/server' {
+  interface NextRequest {
+    // Define the structure of the Vercel-provided 'geo' object
+    readonly geo?: {
+      city?: string;
+      country?: string; // This is the crucial property for your use case
+      region?: string;
+      latitude?: string;
+      longitude?: string;
+    };
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const authToken = request.cookies.get("new_auth_token")?.value;
   const pathname = request.nextUrl.pathname;
   const cookieStore = await cookies();
   const requestHeaders = new Headers(request.headers);
+
+  const country = request.geo?.country || request.headers.get('x-vercel-ip-country');
+
+  console.log("Current coutnry " , country)
 
   if (
     pathname.includes("/hotels") ||
