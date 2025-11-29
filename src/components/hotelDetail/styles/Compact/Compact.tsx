@@ -195,15 +195,15 @@ const Compact = ({
             {(hoteldata?.district ||
               hoteldata?.country ||
               hoteldata?.location_details) && (
-              <div className="inline-flex gap-2 text-sm">
-                <MapPin size={15} />
-                <span>
-                  {hoteldata.location_details ||
-                    hoteldata.district ||
-                    hoteldata.country}
-                </span>
-              </div>
-            )}
+                <div className="inline-flex gap-2 text-sm">
+                  <MapPin size={15} />
+                  <span>
+                    {hoteldata.location_details ||
+                      hoteldata.district ||
+                      hoteldata.country}
+                  </span>
+                </div>
+              )}
           </div>
         </div>
 
@@ -292,14 +292,12 @@ const Compact = ({
               className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 flex items-center gap-1 transition-colors"
             >
               <div
-                className={`w-2.5 h-2.5 border-[1.5px] ${
-                  vegFilter === "veg" ? "border-white" : "border-green-600"
-                } flex items-center justify-center`}
+                className={`w-2.5 h-2.5 border-[1.5px] ${vegFilter === "veg" ? "border-white" : "border-green-600"
+                  } flex items-center justify-center`}
               >
                 <div
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    vegFilter === "veg" ? "bg-white" : "bg-green-600"
-                  }`}
+                  className={`w-1.5 h-1.5 rounded-full ${vegFilter === "veg" ? "bg-white" : "bg-green-600"
+                    }`}
                 ></div>
               </div>
               Veg
@@ -321,14 +319,12 @@ const Compact = ({
               className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 flex items-center gap-1 transition-colors"
             >
               <div
-                className={`w-2.5 h-2.5 border-[1.5px] ${
-                  vegFilter === "non-veg" ? "border-white" : "border-red-600"
-                } flex items-center justify-center`}
+                className={`w-2.5 h-2.5 border-[1.5px] ${vegFilter === "non-veg" ? "border-white" : "border-red-600"
+                  } flex items-center justify-center`}
               >
                 <div
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    vegFilter === "non-veg" ? "bg-white" : "bg-red-600"
-                  }`}
+                  className={`w-1.5 h-1.5 rounded-full ${vegFilter === "non-veg" ? "bg-white" : "bg-red-600"
+                    }`}
                 ></div>
               </div>
               Non-Veg
@@ -366,13 +362,12 @@ const Compact = ({
                 color:
                   activeCatIndex === index
                     ? styles?.accent || "#000"
-                    : styles?.color  || "gray",
+                    : styles?.color || "gray",
               }}
               onClick={() => handleCategoryClick(index, category)}
               key={category.id}
-              className={`p-3 text-nowrap cursor-pointer ${
-                activeCatIndex === index ? "font-semibold" : "font-medium"
-              } flex-shrink-0`}
+              className={`p-3 text-nowrap cursor-pointer ${activeCatIndex === index ? "font-semibold" : "font-medium"
+                } flex-shrink-0`}
             >
               {formatDisplayName(category.name)}
             </div>
@@ -396,6 +391,7 @@ const Compact = ({
                   // Filter 'hoteldata.menus' by checking for the item's ID in the Set.
                   itemsToDisplay = hoteldata?.menus.filter((item) => {
                     const matchesOffer = offerMenuIdSet.has(item.id as string);
+                    if (hoteldata.hide_unavailable && !item.is_available) return false;
                     if (vegFilter === "all" || !hasVegFilter) return matchesOffer;
                     if (vegFilter === "veg") return matchesOffer && item.is_veg === true;
                     if (vegFilter === "non-veg") return matchesOffer && item.is_veg === false;
@@ -405,6 +401,7 @@ const Compact = ({
                 case "must-try":
                   // If the category is "must_try", display the top items.
                   itemsToDisplay = topItems.filter((item) => {
+                    if (hoteldata.hide_unavailable && !item.is_available) return false;
                     if (vegFilter === "all" || !hasVegFilter) return true;
                     if (vegFilter === "veg") return item.is_veg === true;
                     if (vegFilter === "non-veg") return item.is_veg === false;
@@ -414,6 +411,7 @@ const Compact = ({
                 default:
                   itemsToDisplay = hoteldata?.menus.filter((item) => {
                     const matchesCategory = item.category.id === category.id;
+                    if (hoteldata.hide_unavailable && !item.is_available) return false;
                     if (vegFilter === "all" || !hasVegFilter) return matchesCategory;
                     if (vegFilter === "veg") return matchesCategory && item.is_veg === true;
                     if (vegFilter === "non-veg") return matchesCategory && item.is_veg === false;

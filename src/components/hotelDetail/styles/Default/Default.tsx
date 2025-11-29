@@ -76,21 +76,23 @@ const Default = ({
       return (
         hoteldata?.menus.filter(
           (item) =>
-            item.category.is_active === undefined ||
-            item.category.is_active === true
+            (item.category.is_active === undefined ||
+              item.category.is_active === true) &&
+            (!hoteldata.hide_unavailable || item.is_available)
         ) || []
       );
     }
-    
+
     // Handle the special "Offer" category
     if (selectedCategory === "Offer") {
       const offeredItems = hoteldata?.menus.filter(
         (item) =>
           item.id && hasActiveOffer(item.id) &&
           (item.category.is_active === undefined ||
-            item.category.is_active === true)
+            item.category.is_active === true) &&
+          (!hoteldata.hide_unavailable || item.is_available)
       ) || [];
-      
+
       // Sort offered items with images first
       const sortedItems = [...offeredItems].sort((a, b) => {
         if (a.image_url.length && !b.image_url.length) return -1;
@@ -104,7 +106,8 @@ const Default = ({
       (item) =>
         item.category.name === selectedCategory &&
         (item.category.is_active === undefined ||
-          item.category.is_active === true)
+          item.category.is_active === true) &&
+        (!hoteldata.hide_unavailable || item.is_available)
     );
     const sortedItems = [...filteredItems].sort((a, b) => {
       if (a.image_url.length && !b.image_url.length) return -1;
@@ -169,7 +172,7 @@ const Default = ({
             </div>
 
             {/* right top button  */}
-            <div onClick={()=>setIsThemeDialogOpen(true)} className="absolute right-[8%] top-[20px] flex flex-col items-center gap-3">
+            <div onClick={() => setIsThemeDialogOpen(true)} className="absolute right-[8%] top-[20px] flex flex-col items-center gap-3">
               {hoteldata?.id === auth?.id && (
                 <ThemeChangeButton isOpen={isThemeDialogOpen} hotelData={hoteldata} theme={theme} />
               )}

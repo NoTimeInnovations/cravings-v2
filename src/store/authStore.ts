@@ -99,6 +99,7 @@ export interface Partner extends BaseUser {
   country_code?: string;
   distance_meters?: number;
   common_offers?: CommonOffer[];
+  hide_unavailable?: boolean;
 }
 
 export interface SuperAdmin extends BaseUser {
@@ -298,7 +299,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const fcmToken = localStorage?.getItem("fcmToken");
     const isApp = localStorage?.getItem("isApp");
     const accounts = await getAllAccounts();
-    
+
     // Preserve hotel-specific localStorage? items
     const hotelLocationItems: { [key: string]: string | null } = {};
     for (let i = 0; i < localStorage?.length; i++) {
@@ -307,24 +308,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         hotelLocationItems[key] = localStorage?.getItem(key);
       }
     }
-    
+
     await Notification.token.remove();
     await removeAuthCookie();
     await removeLocationCookie();
     localStorage?.clear();
     if (fcmToken) localStorage?.setItem("fcmToken", fcmToken);
     if (isApp) localStorage?.setItem("isApp", isApp);
-    
+
     // Restore hotel-specific items
     Object.entries(hotelLocationItems).forEach(([key, value]) => {
       if (value !== null) {
         localStorage?.setItem(key, value);
       }
     });
-    
+
     if (accounts && accounts.length > 0) {
-      accounts.forEach((account : any) => {
-        addAccount({...account});
+      accounts.forEach((account: any) => {
+        addAccount({ ...account });
       });
     }
     set({ userData: null, error: null });
@@ -436,7 +437,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
 
       console.log("Signing in with phone:", phone, "Partner ID:", partnerId);
-      
+
       // Store country info if provided
       if (countryInfo) {
         localStorage?.setItem('user-country-info', JSON.stringify(countryInfo));
@@ -476,7 +477,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       await transferTempDataToUserAccount(user.id);
-      
+
 
       setAuthCookie({
         id: user.id,
@@ -507,7 +508,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signInSuperAdminWithEmail: async (email, password) => {
     try {
-            await get().signOut();
+      await get().signOut();
 
 
       const response = (await fetchFromHasura(superAdminLoginQuery, {

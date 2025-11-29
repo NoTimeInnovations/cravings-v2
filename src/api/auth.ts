@@ -53,6 +53,7 @@ export const partnerIdQuery = `
       delivery_rules
       country_code
       location_details
+      hide_unavailable
     }
   }
 `;
@@ -89,6 +90,7 @@ export const partnerLoginQuery = `
       delivery_rate
       delivery_rules
       country_code
+      hide_unavailable
     }
   }
 `;

@@ -246,6 +246,7 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState("");
   const [locationDetails, setLocationDetails] = useState<string | null>(null);
   const [isApp, setIsApp] = useState(false);
+  const [hideUnavailable, setHideUnavailable] = useState(false);
 
   const isLoading = authLoading;
 
@@ -323,7 +324,9 @@ export default function ProfilePage() {
         longitude: userData?.geo_location?.coordinates?.[0] || 0,
       });
       setLocation(userData?.location || "");
+      setLocation(userData?.location || "");
       setLocationDetails(userData?.location_details || null);
+      setHideUnavailable(userData?.hide_unavailable || false);
     }
   }, [userData]);
 
@@ -430,8 +433,8 @@ export default function ProfilePage() {
                     typeof item.category === "string"
                       ? item.category
                       : item.category && "name" in item.category
-                      ? item.category.name
-                      : "",
+                        ? item.category.name
+                        : "",
                 },
               },
             })),
@@ -470,10 +473,10 @@ export default function ProfilePage() {
       userData?.role === "partner"
         ? userData?.name
         : userData?.role === "user"
-        ? userData?.full_name
-        : userData?.role === "superadmin"
-        ? "Super Admin"
-        : "Guest",
+          ? userData?.full_name
+          : userData?.role === "superadmin"
+            ? "Super Admin"
+            : "Guest",
     offersClaimed: claimedOffers.length || 0,
     restaurantsSubscribed: 0,
     claimedOffers: claimedOffers.map((offer) => ({
@@ -1044,8 +1047,7 @@ export default function ProfilePage() {
       for (const item of whatsappNumbers) {
         if (!item.number || item.number.length !== 10) {
           toast.error(
-            `Please enter a valid Whatsapp Number for ${
-              item.area || "unnamed area"
+            `Please enter a valid Whatsapp Number for ${item.area || "unnamed area"
             }`
           );
           return;
@@ -1195,20 +1197,18 @@ export default function ProfilePage() {
     try {
       if (gstPercent < 0) {
         toast.error(
-          `Please enter a valid ${
-            (userData as Partner)?.country === "United Arab Emirates"
-              ? "VAT"
-              : "GST"
+          `Please enter a valid ${(userData as Partner)?.country === "United Arab Emirates"
+            ? "VAT"
+            : "GST"
           }`
         );
         return;
       }
 
       toast.loading(
-        `Updating ${
-          (userData as Partner)?.country === "United Arab Emirates"
-            ? "VAT"
-            : "GST"
+        `Updating ${(userData as Partner)?.country === "United Arab Emirates"
+          ? "VAT"
+          : "GST"
         }...`,
         {
           id: "gst",
@@ -1229,10 +1229,9 @@ export default function ProfilePage() {
       setState({ gst_no: gst.gst_no, gst_percentage: gstPercent });
       toast.dismiss("gst");
       toast.success(
-        `${
-          (userData as Partner)?.country === "United Arab Emirates"
-            ? "VAT"
-            : "GST"
+        `${(userData as Partner)?.country === "United Arab Emirates"
+          ? "VAT"
+          : "GST"
         } updated successfully!`
       );
       setIsSaving((prev) => {
@@ -1244,21 +1243,19 @@ export default function ProfilePage() {
     } catch (error) {
       toast.dismiss("gst");
       console.error(
-        `Error updating ${
-          (userData as Partner)?.country === "United Arab Emirates"
-            ? "VAT"
-            : "GST"
+        `Error updating ${(userData as Partner)?.country === "United Arab Emirates"
+          ? "VAT"
+          : "GST"
         }:`,
         error
       );
       toast.error(
         error instanceof Error
           ? error.message
-          : `Failed to update ${
-              (userData as Partner)?.country === "United Arab Emirates"
-                ? "VAT"
-                : "GST"
-            }`
+          : `Failed to update ${(userData as Partner)?.country === "United Arab Emirates"
+            ? "VAT"
+            : "GST"
+          }`
       );
       setIsSaving((prev) => {
         return { ...prev, gst: false };
@@ -1717,11 +1714,40 @@ export default function ProfilePage() {
     }
   };
 
+
+
+  const handleHideUnavailableChange = async (checked: boolean) => {
+    try {
+      if (!userData) return;
+
+      toast.loading(`Setting unavailable items to ${checked ? "hidden" : "visible"}...`);
+      setHideUnavailable(checked);
+
+      await fetchFromHasura(updatePartnerMutation, {
+        id: userData?.id,
+        updates: {
+          hide_unavailable: checked,
+        },
+      });
+
+      revalidateTag(userData?.id as string);
+      toast.dismiss();
+      toast.success(
+        `Unavailable items are now ${checked ? "hidden" : "visible"}!`
+      );
+      setState({ hide_unavailable: checked });
+    } catch (error) {
+      toast.dismiss();
+      toast.error(`Failed to update settings`);
+      setHideUnavailable(!checked);
+      console.error("Error updating hide_unavailable:", error);
+    }
+  };
+
   const handleShare = async () => {
     const partner = userData as Partner;
-    const businessUrl = `${window.location.origin}${
-      partner.business_type === "restaurant" ? "/hotels" : "/business"
-    }/${partner.store_name?.replace(/\s+/g, "-")}/${partner.id}`;
+    const businessUrl = `${window.location.origin}${partner.business_type === "restaurant" ? "/hotels" : "/business"
+      }/${partner.store_name?.replace(/\s+/g, "-")}/${partner.id}`;
 
     try {
       if (navigator.share) {
@@ -1793,13 +1819,11 @@ export default function ProfilePage() {
                 <>
                   <div className="flex gap-2 w-full justify-between items-center">
                     <Link
-                      href={`${
-                        userData?.business_type === "restaurant"
-                          ? "/hotels"
-                          : "/business"
-                      }/${userData?.store_name?.replace(/\s+/g, "-")}/${
-                        userData?.id
-                      }`}
+                      href={`${userData?.business_type === "restaurant"
+                        ? "/hotels"
+                        : "/business"
+                        }/${userData?.store_name?.replace(/\s+/g, "-")}/${userData?.id
+                        }`}
                       className="flex w-full h-[48px] items-center font-semibold rounded-lg text-sm bg-orange-100 text-orange-800 sm:text-lg  sm:p-4 p-2 hover:bg-orange-800 hover:text-orange-100 transition-colors"
                     >
                       <Tag className="size-4  mr-2" />
@@ -1815,9 +1839,8 @@ export default function ProfilePage() {
                   </div>
                   <Button
                     onClick={handleShopOpenClose}
-                    className={`flex items-center h-[48px] font-semibold rounded-lg text-sm  sm:text-base  sm:p-4 p-2  transition-colors ${
-                      isShopOpen ? "bg-red-500" : "bg-green-600"
-                    }`}
+                    className={`flex items-center h-[48px] font-semibold rounded-lg text-sm  sm:text-base  sm:p-4 p-2  transition-colors ${isShopOpen ? "bg-red-500" : "bg-green-600"
+                      }`}
                   >
                     {isShopOpen ? "Close Shop" : "Open Shop"}
                   </Button>
@@ -2120,6 +2143,22 @@ export default function ProfilePage() {
                 deliverySaving={isSaving.deliverySettings}
                 handleSaveDeliverySettings={handleSaveDeliverySettings}
               />
+
+              <div className="space-y-2 pt-4">
+                <div className="flex justify-between items-center w-full">
+                  <label htmlFor="hideUnavailable" className="text-lg font-semibold">
+                    Hide Unavailable Items
+                  </label>
+                  <Switch
+                    id="hideUnavailable"
+                    checked={hideUnavailable}
+                    onCheckedChange={handleHideUnavailableChange}
+                  />
+                </div>
+                <p className="text-sm text-gray-500">
+                  When enabled, items marked as unavailable or out of stock will be hidden from your menu.
+                </p>
+              </div>
 
               <div className="space-y-2 pt-4">
                 <div className="flex justify-between items-center w-full">
@@ -2795,7 +2834,7 @@ export default function ProfilePage() {
                       <div>
                         <label htmlFor="gst_no" className="font-semibold">
                           {(userData as Partner)?.country ===
-                          "United Arab Emirates"
+                            "United Arab Emirates"
                             ? "VAT"
                             : "GST"}{" "}
                           No.
@@ -2803,12 +2842,11 @@ export default function ProfilePage() {
                         <Input
                           id="gst_no"
                           type="text"
-                          placeholder={`Enter your ${
-                            (userData as Partner)?.country ===
+                          placeholder={`Enter your ${(userData as Partner)?.country ===
                             "United Arab Emirates"
-                              ? "VAT"
-                              : "GST"
-                          } number`}
+                            ? "VAT"
+                            : "GST"
+                            } number`}
                           value={gst.gst_no}
                           onChange={(e) =>
                             setGst((prev) => {
@@ -2825,7 +2863,7 @@ export default function ProfilePage() {
                           className="font-semibold"
                         >
                           {(userData as Partner)?.country ===
-                          "United Arab Emirates"
+                            "United Arab Emirates"
                             ? "VAT"
                             : "GST"}{" "}
                           Percentage
@@ -2833,12 +2871,11 @@ export default function ProfilePage() {
                         <Input
                           id="gst_percentage"
                           type="number"
-                          placeholder={`Enter your ${
-                            (userData as Partner)?.country ===
+                          placeholder={`Enter your ${(userData as Partner)?.country ===
                             "United Arab Emirates"
-                              ? "VAT"
-                              : "GST"
-                          } percentage`}
+                            ? "VAT"
+                            : "GST"
+                            } percentage`}
                           value={gst.gst_percentage}
                           onChange={(e) =>
                             setGst((prev) => {
@@ -2882,39 +2919,35 @@ export default function ProfilePage() {
                           <>
                             <div className="text-gray-700">
                               {gst.gst_no
-                                ? `${
-                                    (userData as Partner)?.country ===
-                                    "United Arab Emirates"
-                                      ? "VAT"
-                                      : "GST"
-                                  } no: ${gst.gst_no}`
-                                : `No ${
-                                    (userData as Partner)?.country ===
-                                    "United Arab Emirates"
-                                      ? "VAT"
-                                      : "GST"
-                                  } no. set`}
+                                ? `${(userData as Partner)?.country ===
+                                  "United Arab Emirates"
+                                  ? "VAT"
+                                  : "GST"
+                                } no: ${gst.gst_no}`
+                                : `No ${(userData as Partner)?.country ===
+                                  "United Arab Emirates"
+                                  ? "VAT"
+                                  : "GST"
+                                } no. set`}
                             </div>
                             <div className="text-gray-700">
                               {gst.gst_percentage
-                                ? `${
-                                    (userData as Partner)?.country ===
-                                    "United Arab Emirates"
-                                      ? "VAT"
-                                      : "GST"
-                                  } percentage: ${gst.gst_percentage}%`
-                                : `No ${
-                                    (userData as Partner)?.country ===
-                                    "United Arab Emirates"
-                                      ? "VAT"
-                                      : "GST"
-                                  } percentage set`}
+                                ? `${(userData as Partner)?.country ===
+                                  "United Arab Emirates"
+                                  ? "VAT"
+                                  : "GST"
+                                } percentage: ${gst.gst_percentage}%`
+                                : `No ${(userData as Partner)?.country ===
+                                  "United Arab Emirates"
+                                  ? "VAT"
+                                  : "GST"
+                                } percentage set`}
                             </div>
                           </>
                         ) : (
                           <div className="text-gray-700">
                             {(userData as Partner)?.country ===
-                            "United Arab Emirates"
+                              "United Arab Emirates"
                               ? "VAT"
                               : "GST"}{" "}
                             is currently disabled
@@ -2939,18 +2972,16 @@ export default function ProfilePage() {
                 </div>
                 <p className="text-sm text-gray-500">
                   {gst.enabled
-                    ? `This ${
-                        (userData as Partner)?.country ===
-                        "United Arab Emirates"
-                          ? "VAT"
-                          : "GST"
-                      } will be used for your restaurant profile and billing`
-                    : `${
-                        (userData as Partner)?.country ===
-                        "United Arab Emirates"
-                          ? "VAT"
-                          : "GST"
-                      } is currently disabled for your restaurant`}
+                    ? `This ${(userData as Partner)?.country ===
+                      "United Arab Emirates"
+                      ? "VAT"
+                      : "GST"
+                    } will be used for your restaurant profile and billing`
+                    : `${(userData as Partner)?.country ===
+                      "United Arab Emirates"
+                      ? "VAT"
+                      : "GST"
+                    } is currently disabled for your restaurant`}
                 </p>
               </div>
 
@@ -3131,19 +3162,19 @@ export default function ProfilePage() {
               </div>
               {getFeatures(userData.feature_flags as string)?.stockmanagement
                 .enabled && (
-                <div className="space-y-2 pt-4">
-                  <div className="text-lg font-semibold mb-4">
-                    Stock Management
+                  <div className="space-y-2 pt-4">
+                    <div className="text-lg font-semibold mb-4">
+                      Stock Management
+                    </div>
+                    <Link
+                      href={"/admin/stock-management"}
+                      className=" hover:underline bg-gray-100 px-3 py-2 rounded-lg w-full flex items-center justify-between"
+                    >
+                      Manage Stocks
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Link>
                   </div>
-                  <Link
-                    href={"/admin/stock-management"}
-                    className=" hover:underline bg-gray-100 px-3 py-2 rounded-lg w-full flex items-center justify-between"
-                  >
-                    Manage Stocks
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Link>
-                </div>
-              )}
+                )}
 
               <div className="space-y-2 pt-4">
                 <div className="text-lg font-semibold">Price Settings</div>

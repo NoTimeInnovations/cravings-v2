@@ -148,9 +148,9 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     delivery_rate
     business_type
     delivery_rules
+    hide_unavailable
     menus(where: {
     deletion_status: {_eq: 0},
-    is_available: {_eq: true},
     _and: [
       {
         category: {
@@ -274,7 +274,9 @@ export const updatePartnerMutation = `
       feature_flags
       gst_no
       gst_percentage
+      gst_percentage
       whatsapp_numbers
+      hide_unavailable
     }
   }
 `;
