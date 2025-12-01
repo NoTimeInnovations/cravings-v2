@@ -30,9 +30,10 @@ const HIDDEN_PATHS = [
   "/qrScan/DOWNTREE/[id]",
   "/hotels/DOWNTREE/4ba747b0-827c-48de-b148-70e7a573564a",
   "/whatsappQr/[id]",
+  "/get-started",
 ];
 
-export function Navbar({ userData }: { userData: any }) {
+export function Navbar({ userData, country }: { userData: any; country?: string }) {
   const features = getFeatures(userData?.feature_flags as string);
   const router = useRouter();
   const pathname = usePathname();
@@ -172,24 +173,24 @@ export function Navbar({ userData }: { userData: any }) {
     const roleBasedLinks = [
       ...(userData?.role === "partner"
         ? [
-            { href: "/admin", label: "Admin" },
-            ...((features?.ordering.access || features?.delivery.access) &&
+          { href: "/admin", label: "Admin" },
+          ...((features?.ordering.access || features?.delivery.access) &&
             userData.status === "active"
-              ? [{ href: "/admin/orders", label: "Orders" }]
-              : []),
-            ...(features?.stockmanagement.access && userData.status === "active"
-              ? [{ href: "/admin/stock-management", label: "Stock Management" }]
-              : []),
-            ...(features?.purchasemanagement.access &&
+            ? [{ href: "/admin/orders", label: "Orders" }]
+            : []),
+          ...(features?.stockmanagement.access && userData.status === "active"
+            ? [{ href: "/admin/stock-management", label: "Stock Management" }]
+            : []),
+          ...(features?.purchasemanagement.access &&
             userData.status === "active"
-              ? [
-                  {
-                    href: "/admin/purchase-management",
-                    label: "Purchase Management",
-                  },
-                ]
-              : []),
-          ]
+            ? [
+              {
+                href: "/admin/purchase-management",
+                label: "Purchase Management",
+              },
+            ]
+            : []),
+        ]
         : []),
       ...(userData?.role === "superadmin"
         ? [{ href: "/superadmin", label: "Super Admin" }]
@@ -197,11 +198,15 @@ export function Navbar({ userData }: { userData: any }) {
 
       ...(userData?.role === "user" || !userData?.role
         ? [
-            { href: "/explore", label: "Explore" },
-            { href: "/offers", label: "Offers" },
-            { href: "/hotels", label: "Hotels" },
-            { href: "/", label: "About Us" },
-          ]
+          ...(country === "IN"
+            ? [
+              { href: "/explore", label: "Explore" },
+              { href: "/offers", label: "Offers" },
+              { href: "/hotels", label: "Hotels" },
+            ]
+            : []),
+          { href: "/", label: "About Us" },
+        ]
         : []),
     ];
 

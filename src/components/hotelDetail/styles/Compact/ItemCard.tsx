@@ -266,161 +266,139 @@ const ItemCard = ({
 
   return (
     <>
-      <div className="p-4 flex justify-between relative">
-        <div>
-          <div className="flex items-center gap-2">
-            {/* Veg/Non-Veg Indicator - only show if is_veg is not null */}
-            {item.is_veg !== null && item.is_veg !== undefined && (
-              <div className="flex-shrink-0">
-                {item.is_veg === false ? (
-                  <div className="w-4 h-4 border-2 border-red-600 flex items-center justify-center">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-600"></div>
-                  </div>
+      <div className="p-4 flex gap-3 relative">
+        {/* Item Image (Left) */}
+        <div className="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+          <img
+            src={item.image_url || "/image_placeholder.png"}
+            alt={item.name}
+            className={`w-full h-full object-cover ${!item.image_url ? "invert opacity-50" : ""
+              } ${!item.is_available || isOutOfStock ? "grayscale" : ""}`}
+          />
+          {(!item.is_available || isOutOfStock) && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+              <span className="text-white text-[10px] font-bold px-1 text-center">
+                {!item.is_available ? "Unavailable" : "Out of Stock"}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Item Details (Right) */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex justify-between items-start">
+            <div className="flex items-start gap-2 flex-1 min-w-0">
+              {/* Veg/Non-Veg Indicator */}
+              {item.is_veg !== null && item.is_veg !== undefined && (
+                <div className="flex-shrink-0 mt-1">
+                  {item.is_veg === false ? (
+                    <div className="w-3 h-3 border border-red-600 flex items-center justify-center">
+                      <div className="w-1.5 h-1.5 rounded-full bg-red-600"></div>
+                    </div>
+                  ) : (
+                    <div className="w-3 h-3 border border-green-600 flex items-center justify-center">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-600"></div>
+                    </div>
+                  )}
+                </div>
+              )}
+              <h3 className="font-medium text-gray-900 line-clamp-2 text-sm">
+                {offerData?.variant && !hasMultipleVariantsOnOffer
+                  ? `${item.name} (${offerData.variant.name})`
+                  : item.name}
+              </h3>
+            </div>
+
+            {/* Price */}
+            {shouldShowPrice && (
+              <div className="font-semibold text-gray-900 text-sm ml-2 whitespace-nowrap">
+                {item.is_price_as_per_size !== true ? (
+                  <>
+                    {hasValidMainOffer ? (
+                      <div className="flex flex-col items-end">
+                        <span className="text-gray-900">
+                          {hoteldata?.currency || "₹"}{formatPrice(mainOfferPrice, hoteldata?.id)}
+                        </span>
+                        {!hasMultipleVariantsOnOffer && hasValidMainOriginalPrice && (
+                          <span className="text-xs line-through text-gray-400">
+                            {hoteldata?.currency || "₹"}{formatPrice(mainOriginalPrice, hoteldata?.id)}
+                          </span>
+                        )}
+                      </div>
+                    ) : hasValidBasePrice ? (
+                      <span>
+                        {baseItemPrice > 0 ? (
+                          <>
+                            {hoteldata?.currency || "₹"}{formatPrice(baseItemPrice, hoteldata?.id)}
+                          </>
+                        ) : (
+                          ""
+                        )}
+                      </span>
+                    ) : null}
+                  </>
                 ) : (
-                  <div className="w-4 h-4 border-2 border-green-600 flex items-center justify-center">
-                    <div className="w-2.5 h-2.5 rounded-full bg-green-600"></div>
-                  </div>
+                  <span className="text-xs text-gray-500">Sizes</span>
                 )}
               </div>
             )}
-            <h3 className="capitalize text-lg font-semibold">
-              {offerData?.variant && !hasMultipleVariantsOnOffer
-                ? `${item.name} (${offerData.variant.name})`
-                : item.name}
-            </h3>
           </div>
-          <p className="text-sm opacity-50">{item.description}</p>
-          {/* Tags Display */}
+
+          <p className="text-xs text-gray-500 line-clamp-2 mt-1">
+            {item.description}
+          </p>
+
+          {/* Tags */}
           {item.tags && item.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {(showAllTags ? item.tags : item.tags.slice(0, 4)).map((tag, i) => (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {(showAllTags ? item.tags : item.tags.slice(0, 2)).map((tag, i) => (
                 <span
                   key={i}
-                  className={`text-[10px] px-2 py-1 rounded-full border ${getTagColor(
+                  className={`text-[9px] px-1.5 py-0.5 rounded-full border ${getTagColor(
                     tag
                   )}`}
                 >
                   {tag}
                 </span>
               ))}
-              {item.tags.length > 4 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowAllTags(!showAllTags);
-                  }}
-                  className="text-[10px] px-2 py-1 rounded-full border bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 transition-colors"
-                >
-                  {showAllTags ? "Show Less" : `+${item.tags.length - 4} more`}
-                </button>
-              )}
             </div>
           )}
 
-          {shouldShowPrice && (
-            <div
-              style={{ color: styles?.accent || "#000" }}
-              className="text-lg font-bold mt-1"
-            >
-              {item.is_price_as_per_size !== true ? (
-                <>
-                  {hasValidMainOffer ? (
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="text-red-500">
-                          {hoteldata?.currency || "₹"} {formatPrice(mainOfferPrice, hoteldata?.id)}
-                        </span>
-                        {discountPercentage > 0 && (
-                          <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">
-                            {discountPercentage}% OFF
-                          </span>
-                        )}
-                      </div>
-                      {!hasMultipleVariantsOnOffer &&
-                        hasValidMainOriginalPrice && (
-                          <span className="text-sm line-through opacity-70 font-light">
-                            {hoteldata?.currency || "₹"} {formatPrice(mainOriginalPrice, hoteldata?.id)}
-                          </span>
-                        )}
-                    </div>
-                  ) : hasValidBasePrice ? (
-                    <div className="contents">
-                      {baseItemPrice > 0 ? (
-                        <>
-                          {hasVariants ? (
-                            <span className="text-sm ">From </span>
-                          ) : null}
-                          {hoteldata?.currency || "₹"} {formatPrice(baseItemPrice, hoteldata?.id)}
-                        </>
-                      ) : (
-                        ""
-                      )}
-                    </div>
-                  ) : null}
-                </>
-              ) : (
-                <div className="text-base font-normal">{`(Price as per size)`}</div>
-              )}
-            </div>
-          )}
-          {showStock && (
-            <div className="text-xs mt-1">
-              {isOutOfStock ? (
-                <span className="text-red-500 font-semibold">Out of Stock</span>
-              ) : (
-                <span className="text-green-600">
-                  In Stock: {stockQuantity}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="relative">
-          <div className="relative">
-            <div className="overflow-hidden aspect-square h-28 rounded-3xl">
-              <img
-                src={item.image_url || "/image_placeholder.png"}
-                alt={item.name}
-                className={`w-full h-full object-cover ${!item.image_url ? "invert opacity-50" : ""
-                  } ${!item.is_available || isOutOfStock ? "grayscale" : ""}`}
-              />
-            </div>
-            {(!item.is_available || isOutOfStock) && (
-              <div className="absolute top-1/2 left-0 -translate-y-1/2 bg-red-500 text-white text-center text-xs font-semibold py-1 px-2 w-full">
-                {!item.is_available ? "Unavailable" : "Out of Stock"}
+          <div className="mt-auto pt-2 flex justify-between items-end">
+            {/* Variants Count */}
+            {hasVariants && !offerData && !hasMultipleVariantsOnOffer && (
+              <div className="text-[10px] text-gray-400">
+                {item.variants?.length} options
               </div>
             )}
+
+            {/* Add Button */}
             {isOrderable && (
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
+              <div className="ml-auto">
                 {offerData &&
                   item.category?.name?.toLowerCase() === "custom" ? (
-                  <div
+                  <button
                     onClick={() => router.push(`/offers/${offerData.id}`)}
-                    style={{ backgroundColor: styles.accent, color: "white" }}
-                    className="rounded-full px-4 py-1 font-medium text-xs text-nowrap h-fit cursor-pointer"
+                    className="text-xs font-medium text-orange-600 border border-orange-200 rounded-full px-3 py-1 bg-orange-50"
                   >
                     View offer
-                  </div>
+                  </button>
                 ) : (hasVariants && !offerData) ||
                   hasMultipleVariantsOnOffer ? (
-                  <div
+                  <button
                     onClick={() => setShowVariants(!showVariants)}
-                    style={{ backgroundColor: styles.accent, color: "white" }}
-                    className="rounded-full px-4 py-1 font-medium text-sm whitespace-nowrap h-fit cursor-pointer"
+                    className="text-xs font-medium text-orange-600 border border-orange-200 rounded-full px-3 py-1 bg-orange-50"
                   >
                     {itemQuantity > 0
                       ? `Added (${itemQuantity})`
                       : showVariants
-                        ? "Hide Options"
-                        : "Show Options"}
-                  </div>
+                        ? "Hide"
+                        : "Add"}
+                  </button>
                 ) : showAddButton && itemQuantity > 0 ? (
-                  <div
-                    style={{ backgroundColor: styles.accent, color: "white" }}
-                    className="rounded-full px-3 py-1 font-medium flex items-center gap-3 text-sm"
-                  >
-                    <div
-                      className="cursor-pointer active:scale-95"
+                  <div className="flex items-center bg-orange-50 border border-orange-200 rounded-full">
+                    <button
+                      className="px-2 py-1 text-orange-600 text-xs font-bold"
                       onClick={(e) => {
                         e.preventDefault();
                         const idToRemove = offerData?.variant
@@ -432,29 +410,30 @@ const ItemCard = ({
                       }}
                     >
                       -
-                    </div>
-                    <div>{itemQuantity}</div>
-                    <div
-                      className="cursor-pointer active:scale-95"
+                    </button>
+                    <span className="text-xs font-medium text-orange-600 px-1">
+                      {itemQuantity}
+                    </span>
+                    <button
+                      className="px-2 py-1 text-orange-600 text-xs font-bold"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleAddItem();
                       }}
                     >
                       +
-                    </div>
+                    </button>
                   </div>
                 ) : showAddButton ? (
-                  <div
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleAddItem();
                     }}
-                    style={{ backgroundColor: styles.accent, color: "white" }}
-                    className="rounded-full px-4 py-1 font-medium text-sm h-fit cursor-pointer"
+                    className="text-xs font-medium text-orange-600 border border-orange-200 rounded-full px-4 py-1 bg-orange-50"
                   >
                     Add
-                  </div>
+                  </button>
                 ) : null}
               </div>
             )}

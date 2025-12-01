@@ -43,8 +43,11 @@ const petrazFilter = "PETRAZ";
 const bottomNavFilter = [
   "hotels",
   "qrScan",
-  "business"
+  "business",
+  "get-started",
 ];
+
+const navbarFilter = ["get-started"];
 
 const hideWhatsappGroupJoinDialog = ["Krishnakripa-Residency"];
 
@@ -56,12 +59,17 @@ export default async function RootLayout({
   const user = await getAuthCookie();
   const headerList = await headers();
 
+  const country = headerList.get("x-user-country") || "IN";
+
+  console.log("Country check;", country)
+
   const pathname = headerList.get("set-cookie")?.includes("pathname=")
     ? headerList.get("set-cookie")?.split("pathname=")[1].split(";")[0]
     : undefined;
 
   let isPetraz = false;
   let isBottomNavHidden = false;
+  let isNavbarHidden = false;
   let isWhatsappDialogHidden = false;
 
   if (pathname) {
@@ -71,6 +79,7 @@ export default async function RootLayout({
     isBottomNavHidden = bottomNavFilter.some((filter) =>
       pathname.includes(filter)
     );
+    isNavbarHidden = navbarFilter.some((filter) => pathname.includes(filter));
 
     isWhatsappDialogHidden = hideWhatsappGroupJoinDialog.some((filter) =>
       pathname.includes(filter)
@@ -78,6 +87,7 @@ export default async function RootLayout({
 
     console.log("Is Petraz:", isPetraz);
     console.log("Is Bottom Nav Hidden:", isBottomNavHidden);
+    console.log("Is Navbar Hidden:", isNavbarHidden);
     console.log("Is Whatsapp Dialog Hidden:", isWhatsappDialogHidden);
   }
 
@@ -104,19 +114,19 @@ export default async function RootLayout({
       </head>
       <body className={`antialiased`}>
         <AuthInitializer />
-        {(user?.role === "user" || !user) && !isWhatsappDialogHidden && (
+        {(user?.role === "user" || !user) && !isWhatsappDialogHidden && country === "IN" && (
           <WhatsappGroupJoinAlertDialog isPetraz={isPetraz} />
         )}
         <Toaster richColors closeButton />
         {/* <Snow /> */}
-        <Navbar userData={user} />
+        {!isNavbarHidden ? <Navbar userData={user} country={country} /> : null}
         {/* <RateUsModal /> */}
 
         {/* pwa install is currently turned off */}
         {/* <PwaInstallPrompt /> */}
 
         {children}
-        {!isBottomNavHidden ? <BottomNav userData={user} /> : null}
+        {!isBottomNavHidden ? <BottomNav userData={user} country={country} /> : null}
       </body>
     </html>
   );

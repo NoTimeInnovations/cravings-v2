@@ -179,12 +179,19 @@ const Compact = ({
         {/* hotel banner */}
         <div className="relative">
           {/* image */}
-          <div className="w-full h-[30vh] relative overflow-hidden">
-            <img
-              src={hoteldata?.store_banner}
-              alt="Hotel Logo"
-              className="w-full h-full object-cover"
-            />
+          <div className="w-full h-48 relative overflow-hidden bg-gray-100">
+            {hoteldata?.store_banner ? (
+              <img
+                src={hoteldata?.store_banner}
+                alt="Hotel Logo"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-orange-100 text-orange-400">
+                {/* Placeholder icon if needed, or just color */}
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           </div>
 
           {/* hotel details */}
@@ -209,38 +216,31 @@ const Compact = ({
 
         {/* social links */}
         {/* REMOVED: `hasOffers` check and the OffersList button from here */}
-        {(socialLinks || isOwner) && (
-          <div
-            style={{
-              borderColor: styles?.border?.borderColor || "#0000001D",
-            }}
-            className="flex overflow-x-auto scrollbar-hide gap-2 p-4 border-b-[1px] z-20"
-          >
-            <SocialLinks socialLinks={socialLinks} />
-            {isOwner && (
-              <div
-                onClick={() => setIsThemeDialogOpen(true)}
-                className="flex items-center gap-2 border-[1px] border-gray-300 p-2 rounded-md bg-gray-50 cursor-pointer"
-              >
-                <ThemeChangeButton
-                  isOpen={isThemeDialogOpen}
-                  iconSize={15}
-                  hotelData={hoteldata}
-                  theme={
-                    {
-                      ...theme,
-                      colors: {
-                        ...theme?.colors,
-                        text: "#000",
-                      },
-                    } as typeof theme
-                  }
-                />
-                <span className="text-xs text-nowrap text-gray-500">
-                  Change Theme
-                </span>
-              </div>
-            )}
+        {/* social links removed */}
+        {isOwner && (
+          <div className="flex overflow-x-auto scrollbar-hide gap-2 p-4 border-b-[1px] z-20">
+            <div
+              onClick={() => setIsThemeDialogOpen(true)}
+              className="flex items-center gap-2 border-[1px] border-gray-300 p-2 rounded-md bg-gray-50 cursor-pointer"
+            >
+              <ThemeChangeButton
+                isOpen={isThemeDialogOpen}
+                iconSize={15}
+                hotelData={hoteldata}
+                theme={
+                  {
+                    ...theme,
+                    colors: {
+                      ...theme?.colors,
+                      text: "#000",
+                    },
+                  } as typeof theme
+                }
+              />
+              <span className="text-xs text-nowrap text-gray-500">
+                Change Theme
+              </span>
+            </div>
           </div>
         )}
 

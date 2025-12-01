@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { UtensilsCrossed, Check, ChevronRight, Star, FileText } from "lucide-react";
 import Image from "next/image";
 
+import { useRouter } from "next/navigation";
+
 export default function HomePageIntranational() {
+  const router = useRouter();
   // Restaurants sample (keeps trust signals)
   const restaurants = [
     { url: "https://www.cravings.live/qrScan/CHICKING-OOTY/6ec40577-e2d5-4a47-80ec-5e63ab9f9677", name: "CHICKING OOTY", logo: "/logos/chicking.png" },
@@ -57,7 +60,7 @@ export default function HomePageIntranational() {
 
             <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
               <Button
-                onClick={() => window.open("https://buy.stripe.com/test_XXXXXXXX", "_blank")}
+                onClick={() => router.push("/get-started")}
                 className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-full text-lg shadow"
               >
                 Start Free Trial — $25/mo
@@ -65,10 +68,10 @@ export default function HomePageIntranational() {
 
               <Button
                 variant="outline"
-                onClick={() => window.open("https://wa.me/918590115462?text=Hi!%20I'm%20interested%20in%20Cravings%20Digital%20Menu", "_blank")}
+                onClick={() => window.open("https://www.cravings.live/hotels/LE-GRAND-CAFE/20f7e974-f19e-4c11-b6b7-4385f61f27bf", "_blank")}
                 className="border-orange-600 text-orange-600 px-6 py-3 rounded-full"
               >
-                Book a Demo
+                View Demo
               </Button>
             </div>
 
@@ -92,7 +95,7 @@ export default function HomePageIntranational() {
             </div>
             <div className="absolute -bottom-6 right-6 p-3 bg-white rounded-lg shadow-lg border border-gray-100">
               <div className="flex items-center gap-2 text-sm">
-                <div className="flex">{[1,2,3,4,5].map(s => <Star key={s} className="h-4 w-4 text-yellow-400" />)}</div>
+                <div className="flex">{[1, 2, 3, 4, 5].map(s => <Star key={s} className="h-4 w-4 text-yellow-400" />)}</div>
                 <div className="font-medium">4.9</div>
                 <div className="text-gray-500">Customer rating</div>
               </div>
@@ -199,7 +202,7 @@ export default function HomePageIntranational() {
           </div>
 
           <div className="mt-8">
-            <Button onClick={() => window.open("https://buy.stripe.com/test_XXXXXXXX", "_blank")} className="bg-orange-600 text-white px-6 py-3 rounded-full">Start your free trial</Button>
+            <Button onClick={() => router.push("/get-started")} className="bg-orange-600 text-white px-6 py-3 rounded-full">Start your free trial</Button>
           </div>
         </div>
       </section>
@@ -219,8 +222,8 @@ export default function HomePageIntranational() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button onClick={() => window.open("https://buy.stripe.com/test_XXXXXXXX", "_blank") } className="bg-orange-600 text-white px-6 py-3 rounded-full">Get started — $25/mo</Button>
-                <Button variant="outline" onClick={() => window.open("https://wa.me/918590115462?text=Hi!%20I%27m%20interested%20in%20Cravings%20Digital%20Menu", "_blank") } className="border-orange-600 text-orange-600 px-6 py-3 rounded-full">Book a demo</Button>
+                <Button onClick={() => router.push("/get-started")} className="bg-orange-600 text-white px-6 py-3 rounded-full">Get started — $25/mo</Button>
+                <Button variant="outline" onClick={() => window.open("https://www.cravings.live/hotels/LE-GRAND-CAFE/20f7e974-f19e-4c11-b6b7-4385f61f27bf", "_blank")} className="border-orange-600 text-orange-600 px-6 py-3 rounded-full">View demo</Button>
               </div>
             </div>
 
@@ -249,8 +252,8 @@ export default function HomePageIntranational() {
           <h3 className="text-2xl font-bold mb-4">Ready to modernize your menu?</h3>
           <p className="text-gray-600 mb-6">Start your free trial today and see how fast menu updates can drive happy customers.</p>
           <div className="flex justify-center gap-4">
-            <Button onClick={() => window.open("https://buy.stripe.com/test_XXXXXXXX", "_blank") } className="bg-orange-600 text-white px-6 py-3 rounded-full">Start Free Trial</Button>
-            <Button variant="outline" onClick={() => window.open("https://wa.me/918590115462?text=Hi!%20I%27m%20interested%20in%20Cravings%20Digital%20Menu", "_blank") } className="border-orange-600 text-orange-600 px-6 py-3 rounded-full">Contact Sales</Button>
+            <Button onClick={() => router.push("/get-started")} className="bg-orange-600 text-white px-6 py-3 rounded-full">Start Free Trial</Button>
+            <Button variant="outline" onClick={() => window.open("https://wa.me/918590115462?text=Hi!%20I%27m%20interested%20in%20Cravings%20Digital%20Menu", "_blank")} className="border-orange-600 text-orange-600 px-6 py-3 rounded-full">Contact Sales</Button>
           </div>
         </div>
       </footer>

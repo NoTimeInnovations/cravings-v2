@@ -17,7 +17,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
-const BottomNav = ({ userData }: { userData: any }) => {
+const BottomNav = ({ userData, country }: { userData: any; country?: string }) => {
   const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -27,24 +27,28 @@ const BottomNav = ({ userData }: { userData: any }) => {
     // Default navigation for non-logged-in users
     if (!userData?.role) {
       return [
-        {
-          href: "/explore",
-          name: "Explore",
-          icon: <Telescope size={20} />,
-          exactMatch: false,
-        },
-        {
-          href: "/offers",
-          name: "Offers",
-          icon: <BadgePercent size={20} />,
-          exactMatch: false,
-        },
-        {
-          href: "/hotels",
-          name: "Hotels",
-          icon: <Home size={20} />,
-          exactMatch: false,
-        },
+        ...(country === "IN"
+          ? [
+            {
+              href: "/explore",
+              name: "Explore",
+              icon: <Telescope size={20} />,
+              exactMatch: false,
+            },
+            {
+              href: "/offers",
+              name: "Offers",
+              icon: <BadgePercent size={20} />,
+              exactMatch: false,
+            },
+            {
+              href: "/hotels",
+              name: "Hotels",
+              icon: <Home size={20} />,
+              exactMatch: false,
+            },
+          ]
+          : []),
         {
           href: "/",
           name: "About Us",
@@ -59,26 +63,28 @@ const BottomNav = ({ userData }: { userData: any }) => {
     switch (userData.role) {
       case "user":
         return [
-          {
-            href: "/explore",
-            name: "Explore",
-            icon: <Telescope size={20} />,
-            exactMatch: true,
-          },
-          {
-            href: "/offers",
-            name: "Offers",
-            icon: <BadgePercent size={20} />,
-            exactMatch: false,
-          },
-          {
-            href: "/hotels",
-            name: "Hotels",
-            icon: <Home size={20} />,
-            exactMatch: false,
-          },
-          
-          
+          ...(country === "IN"
+            ? [
+              {
+                href: "/explore",
+                name: "Explore",
+                icon: <Telescope size={20} />,
+                exactMatch: true,
+              },
+              {
+                href: "/offers",
+                name: "Offers",
+                icon: <BadgePercent size={20} />,
+                exactMatch: false,
+              },
+              {
+                href: "/hotels",
+                name: "Hotels",
+                icon: <Home size={20} />,
+                exactMatch: false,
+              },
+            ]
+            : []),
         ];
       case "partner":
         const partnerItems = [
@@ -121,7 +127,7 @@ const BottomNav = ({ userData }: { userData: any }) => {
         }
 
 
-         if(features?.purchasemanagement?.enabled) {
+        if (features?.purchasemanagement?.enabled) {
           partnerItems.push({
             href: "/admin/purchase-management",
             name: "Purchase Management",
@@ -130,7 +136,7 @@ const BottomNav = ({ userData }: { userData: any }) => {
           });
         }
 
-        
+
         return partnerItems;
       case "superadmin":
         return [
@@ -168,7 +174,7 @@ const BottomNav = ({ userData }: { userData: any }) => {
   }, [lastScrollY]);
 
   // Don't show on /captain* routes, otherwise show if items exist
-  const shouldShow = items.length > 0 && !pathname.startsWith("/captain") && !pathname.startsWith("/kot") && !pathname.startsWith("/bill") && !pathname.startsWith("/whatsappQr");
+  const shouldShow = items.length > 0 && !pathname.startsWith("/captain") && !pathname.startsWith("/kot") && !pathname.startsWith("/bill") && !pathname.startsWith("/whatsappQr") && !pathname.startsWith("/get-started");
 
   if (!shouldShow) return null;
 
@@ -178,9 +184,8 @@ const BottomNav = ({ userData }: { userData: any }) => {
       {/* <div className="h-[64px] w-full" aria-hidden="true"></div> */}
       {/* Bottom Navigation Bar */}
       <div
-        className={`fixed bottom-0 left-0 w-full bg-white px-4 py-3 flex justify-around z-[500] border-t border-gray-200 transition-transform duration-300 ${
-          isVisible ? "translate-y-0" : "translate-y-full"
-        }`}
+        className={`fixed bottom-0 left-0 w-full bg-white px-4 py-3 flex justify-around z-[500] border-t border-gray-200 transition-transform duration-300 ${isVisible ? "translate-y-0" : "translate-y-full"
+          }`}
       >
         {items.map((item) => {
           // Special handling for explore route
@@ -202,9 +207,8 @@ const BottomNav = ({ userData }: { userData: any }) => {
               className="text-center flex-1 min-w-[60px]"
             >
               <div
-                className={`flex flex-col items-center text-sm font-medium ${
-                  isActive ? "text-orange-600" : "text-gray-600"
-                }`}
+                className={`flex flex-col items-center text-sm font-medium ${isActive ? "text-orange-600" : "text-gray-600"
+                  }`}
               >
                 <div className="mb-1">{item.icon}</div>
                 <span className="text-xs">{item.name}</span>

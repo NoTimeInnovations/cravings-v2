@@ -24,9 +24,13 @@ export async function middleware(request: NextRequest) {
   const cookieStore = await cookies();
   const requestHeaders = new Headers(request.headers);
 
-  const country = request.geo?.country || request.headers.get('x-vercel-ip-country');
+  // const country = request.geo?.country || request.headers.get('x-vercel-ip-country');
+
+  const country = "US"
 
   console.log("Country ", country)
+  requestHeaders.set("x-user-country", country);
+
 
   if (
     pathname.includes("/hotels") ||
@@ -92,13 +96,21 @@ export async function middleware(request: NextRequest) {
   );
 
   if (isPublicRoute) {
-    return NextResponse.next();
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
   }
 
   // Handle root path rewrite based on role
   if (pathname === "/") {
     if (country && country !== "IN") {
-      return NextResponse.rewrite(new URL("/international", request.url));
+      return NextResponse.rewrite(new URL("/international", request.url), {
+        request: {
+          headers: requestHeaders,
+        },
+      });
     }
 
     try {
@@ -159,12 +171,20 @@ export async function middleware(request: NextRequest) {
       // }
 
       // Regular users stay on home page
-      return NextResponse.next();
+      return NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      });
     } catch (error) {
       console.error("Error in root path handler:", error);
       // Continue with normal flow if there's an error
     }
-    return NextResponse.next();
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
   }
 
   // Route access rules by role
@@ -216,7 +236,11 @@ export async function middleware(request: NextRequest) {
     ) || inactivePartnerAllowedRoutes.includes(pathname);
 
   if (!isProtectedRoute) {
-    return NextResponse.next();
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
   }
 
   // If no auth token, redirect based on the route
@@ -281,6 +305,9 @@ export async function middleware(request: NextRequest) {
     if (decrypted.status) {
       requestHeaders.set("x-user-status", decrypted.status);
     }
+    // if (country) {
+    //   requestHeaders.set("x-user-country", country);
+    // }
 
     return NextResponse.next({
       request: {
