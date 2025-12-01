@@ -2083,8 +2083,8 @@ export default function ProfilePage() {
                       </div>
                     </>
                   ) : (
-                    <div className="flex justify-between items-center w-full">
-                      <span className="text-gray-700">
+                    <div className="flex justify-between items-center w-full gap-2">
+                      <span className="text-gray-700 break-all">
                         {placeId ? placeId : "No Place ID set"}
                       </span>
                       <Button
@@ -2093,7 +2093,7 @@ export default function ProfilePage() {
                           setPlaceId(userData?.place_id || "");
                         }}
                         variant="ghost"
-                        className="hover:bg-orange-100"
+                        className="hover:bg-orange-100 shrink-0"
                       >
                         <Pencil className="w-4 h-4" />
                       </Button>

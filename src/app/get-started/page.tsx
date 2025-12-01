@@ -14,8 +14,10 @@ import {
 } from "lucide-react";
 import { GoogleGenerativeAI, Schema } from "@google/generative-ai";
 import { toast } from "sonner";
-import { CompactMenuPreview } from "@/components/get-started/CompactMenuPreview";
+import { CompactMenuPreview, ColorPalette } from "@/components/get-started/CompactMenuPreview";
 import { useRouter } from "next/navigation";
+import ColorThief from "colorthief";
+import axios from "axios";
 
 // --- Types ---
 interface MenuItem {
@@ -49,10 +51,68 @@ export default function GetStartedPage() {
         phone: "",
         country: "",
     });
-    const [isExtracting, setIsExtracting] = useState(false);
+    const [isExtractingMenu, setIsExtractingMenu] = useState(false);
     const [extractedItems, setExtractedItems] = useState<MenuItem[]>([]);
     const [bannerPreview, setBannerPreview] = useState<string | null>(null);
     const extractionPromise = useRef<Promise<MenuItem[]> | null>(null);
+    const [colorPalettes, setColorPalettes] = useState<ColorPalette[]>([]);
+    const [selectedPalette, setSelectedPalette] = useState<ColorPalette>({
+        text: "#000000",
+        background: "#ffffff",
+        accent: "#ea580c",
+    });
+
+    useEffect(() => {
+        if (bannerPreview) {
+            const img = new Image();
+            img.src = bannerPreview;
+            img.onload = () => {
+                try {
+                    const colorThief = new ColorThief();
+                    const palette = colorThief.getPalette(img, 5);
+
+                    if (palette) {
+                        const rgbToHex = (r: number, g: number, b: number) => '#' + [r, g, b].map(x => {
+                            const hex = x.toString(16);
+                            return hex.length === 1 ? '0' + hex : hex;
+                        }).join('');
+
+                        const colors = palette.map((c: number[]) => ({
+                            rgb: c,
+                            hex: rgbToHex(c[0], c[1], c[2]),
+                            brightness: (c[0] * 299 + c[1] * 587 + c[2] * 114) / 1000
+                        }));
+
+                        colors.sort((a: any, b: any) => b.brightness - a.brightness);
+
+                        const getSaturation = (r: number, g: number, b: number) => {
+                            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+                            if (max === min) return 0;
+                            return (max - min) / max;
+                        };
+
+                        const vibrantColors = [...colors].sort((a: any, b: any) =>
+                            getSaturation(b.rgb[0], b.rgb[1], b.rgb[2]) - getSaturation(a.rgb[0], a.rgb[1], a.rgb[2])
+                        );
+
+                        const accent = vibrantColors[0].hex;
+                        const accent2 = vibrantColors[1]?.hex || accent;
+
+                        const generated: ColorPalette[] = [
+                            { text: "#000000", background: "#ffffff", accent: "#ea580c" }, // Default
+                            { background: colors[0].hex, text: colors[colors.length - 1].hex, accent: accent }, // Light
+                            { background: colors[colors.length - 1].hex, text: colors[0].hex, accent: accent }, // Dark
+                            { background: colors[0].hex, text: "#000000", accent: accent2 } // Alternative
+                        ];
+
+                        setColorPalettes(generated);
+                    }
+                } catch (e) {
+                    console.error("Color extraction failed", e);
+                }
+            };
+        }
+    }, [bannerPreview]);
 
 
 
@@ -106,10 +166,86 @@ export default function GetStartedPage() {
         setHotelDetails((prev) => ({ ...prev, [name]: value }));
     };
 
+    const fetchImagesInBackground = async (items: MenuItem[]) => {
+        const partnerEmail = "default@partner.com"; // Public flow default
+        const sanitizeToEnglish = (text: string): string => {
+            return text.replace(/[^a-zA-Z0-9\s.,!?'"-]/g, '').trim();
+        };
+
+        const BATCH_SIZE = 3;
+
+        for (let i = 0; i < items.length; i += BATCH_SIZE) {
+            const batch = items.slice(i, i + BATCH_SIZE);
+            const itemNames = batch.map(item => item.name);
+
+            try {
+                // Start generation for BATCH
+                await axios.post(
+                    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images-v2`,
+                    {
+                        lat: "28.6139",
+                        lng: "77.2090",
+                        itemNames,
+                        partnerEmail
+                    },
+                    { headers: { "Content-Type": "application/json" } }
+                );
+
+                // Poll for completion
+                let isComplete = false;
+                let pollCount = 0;
+                const maxPolls = 60; // Increased timeout for batch
+
+                while (!isComplete && pollCount < maxPolls) {
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // 2s interval
+                    pollCount++;
+
+                    const pingResponse = await axios.get(
+                        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/ping`,
+                        { params: { partner: partnerEmail } }
+                    );
+
+                    if (pingResponse.data.status === "completed") {
+                        isComplete = true;
+                    } else if (pingResponse.data.status === "failed") {
+                        throw new Error("Generation failed");
+                    }
+                }
+
+                if (isComplete) {
+                    // Fetch result
+                    const resultsResponse = await axios.get(
+                        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/get`,
+                        { params: { partner: partnerEmail } }
+                    );
+
+                    // Update State for all items in batch
+                    setExtractedItems(currentItems => {
+                        return currentItems.map(currentItem => {
+                            // Check if this currentItem was in the batch
+                            const batchItem = batch.find(b => b.name === currentItem.name);
+                            if (batchItem) {
+                                const itemName = sanitizeToEnglish(batchItem.name);
+                                const imageUrls = resultsResponse.data[itemName] || [];
+                                if (imageUrls.length > 0) {
+                                    return { ...currentItem, image: imageUrls[0] };
+                                }
+                            }
+                            return currentItem;
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error(`Background image fetch failed for batch starting at ${i}:`, error);
+                // Continue to next batch
+            }
+        }
+    };
+
     const extractMenu = async (): Promise<MenuItem[]> => {
         if (!menuImage) throw new Error("No menu image provided");
 
-        setIsExtracting(true);
+        setIsExtractingMenu(true);
         try {
             const model = genAI.getGenerativeModel({
                 model: "gemini-2.5-flash",
@@ -164,13 +300,17 @@ export default function GetStartedPage() {
             const parsedMenu = JSON.parse(result.response.text());
             console.log("Extracted menu", parsedMenu);
             setExtractedItems(parsedMenu);
+
+            // Trigger background image fetch for first 10 items
+            fetchImagesInBackground(parsedMenu);
+
             return parsedMenu;
         } catch (error) {
             console.error("Extraction failed:", error);
             toast.error("Failed to extract menu. Please try again.");
             throw error;
         } finally {
-            setIsExtracting(false);
+            setIsExtractingMenu(false);
         }
     };
 
@@ -354,7 +494,7 @@ export default function GetStartedPage() {
 
     const renderStep3 = () => {
         // If still extracting, show loading state
-        if (isExtracting || extractedItems.length === 0) {
+        if (isExtractingMenu || extractedItems.length === 0) {
             return (
                 <div className="max-w-md mx-auto text-center space-y-8 animate-in fade-in duration-500 mt-12">
                     <div className="space-y-4">
@@ -387,7 +527,29 @@ export default function GetStartedPage() {
 
 
 
-                    <div className="hidden md:block">
+                    <div className="hidden md:block space-y-6">
+                        {colorPalettes.length > 0 && (
+                            <div className="space-y-3">
+                                <h3 className="text-sm font-medium text-gray-700">Choose a Theme</h3>
+                                <div className="grid grid-cols-4 gap-3">
+                                    {colorPalettes.map((palette, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => setSelectedPalette(palette)}
+                                            className={`h-16 rounded-xl border-2 flex items-center justify-center relative overflow-hidden transition-all ${selectedPalette === palette ? "border-orange-600 ring-2 ring-orange-100" : "border-gray-200 hover:border-gray-300"
+                                                }`}
+                                            style={{ backgroundColor: palette.background }}
+                                        >
+                                            <div className="flex flex-col items-center gap-1">
+                                                <span className="text-xs font-bold" style={{ color: palette.text }}>Aa</span>
+                                                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: palette.accent }} />
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <Button
                             onClick={handlePublish}
                             className="w-full h-14 text-lg rounded-full bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200"
@@ -398,10 +560,27 @@ export default function GetStartedPage() {
                 </div>
 
                 <div className="flex-1 flex justify-center relative">
-                    <CompactMenuPreview items={extractedItems} hotelDetails={hotelDetails} />
+                    <CompactMenuPreview items={extractedItems} hotelDetails={hotelDetails} colorPalette={selectedPalette} />
 
                     {/* Mobile Publish Button (Fixed Bottom) */}
-                    <div className="md:hidden fixed bottom-6 left-6 right-6 z-50">
+                    <div className="md:hidden fixed bottom-6 left-6 right-6 z-50 flex flex-col gap-4">
+                        {colorPalettes.length > 0 && (
+                            <div className="bg-white/90 backdrop-blur-md p-3 rounded-2xl shadow-lg border border-gray-100 overflow-x-auto">
+                                <div className="flex gap-3">
+                                    {colorPalettes.map((palette, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => setSelectedPalette(palette)}
+                                            className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all ${selectedPalette === palette ? "border-orange-600 scale-110" : "border-gray-200"
+                                                }`}
+                                            style={{ backgroundColor: palette.background }}
+                                        >
+                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: palette.accent }} />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                         <Button
                             onClick={handlePublish}
                             className="w-full h-12 text-base rounded-full bg-green-600 hover:bg-green-700 shadow-xl"

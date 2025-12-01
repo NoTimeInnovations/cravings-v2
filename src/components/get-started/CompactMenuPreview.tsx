@@ -27,9 +27,22 @@ interface CompactMenuPreviewProps {
     hotelDetails: HotelDetails;
 }
 
+export interface ColorPalette {
+    text: string;
+    background: string;
+    accent: string;
+}
+
+interface CompactMenuPreviewProps {
+    items: MenuItem[];
+    hotelDetails: HotelDetails;
+    colorPalette?: ColorPalette;
+}
+
 export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
     items,
     hotelDetails,
+    colorPalette = { text: "#000000", background: "#ffffff", accent: "#ea580c" }, // Default to orange-600
 }) => {
     const [activeCatIndex, setActiveCatIndex] = useState<number>(0);
     const [vegFilter, setVegFilter] = useState<"all" | "veg" | "non-veg">("all");
@@ -49,7 +62,10 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
     const hasVegFilter = items.some(item => item.is_veg !== null && item.is_veg !== undefined);
 
     return (
-        <div className="w-full max-w-md mx-auto bg-white shadow-xl rounded-3xl overflow-hidden border border-gray-200 min-h-[600px] md:h-[600px] md:min-h-0 flex flex-col relative">
+        <div
+            className="w-full max-w-md mx-auto shadow-xl rounded-3xl overflow-hidden border border-gray-200 min-h-[600px] md:h-[600px] md:min-h-0 flex flex-col relative transition-colors duration-300"
+            style={{ backgroundColor: colorPalette.background, color: colorPalette.text }}
+        >
             {/* Header / Banner - matching Compact.tsx styling */}
             <div className="relative">
                 <div className="w-full h-48 relative overflow-hidden bg-gray-100">
@@ -60,7 +76,10 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                             className="w-full h-full object-cover"
                         />
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-orange-100 text-orange-400">
+                        <div
+                            className="w-full h-full flex items-center justify-center"
+                            style={{ backgroundColor: `${colorPalette.accent}20`, color: colorPalette.accent }}
+                        >
                             {/* Placeholder */}
                         </div>
                     )}
@@ -92,11 +111,16 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
             {/* Search Bar */}
             <div className="p-4">
                 <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 opacity-50" size={20} style={{ color: colorPalette.text }} />
                     <input
                         type="text"
                         placeholder="Search for dishes..."
-                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-300"
+                        className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2"
+                        style={{
+                            backgroundColor: `${colorPalette.text}0D`, // 5% opacity of text color
+                            color: colorPalette.text,
+                            borderColor: `${colorPalette.text}20`
+                        }}
                         disabled
                     />
                 </div>
@@ -107,34 +131,40 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                 <div className="px-4 flex gap-2 flex-wrap pb-2">
                     <button
                         onClick={() => setVegFilter("all")}
-                        className={`border font-semibold text-xs text-nowrap rounded-full px-3 py-1.5 transition-colors ${vegFilter === "all"
-                            ? "bg-orange-600 text-white border-orange-600"
-                            : "bg-white text-black border-gray-200"
-                            }`}
+                        className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1.5 transition-colors"
+                        style={{
+                            backgroundColor: vegFilter === "all" ? colorPalette.accent : "transparent",
+                            color: vegFilter === "all" ? "#ffffff" : colorPalette.text,
+                            borderColor: vegFilter === "all" ? colorPalette.accent : `${colorPalette.text}30`
+                        }}
                     >
                         All
                     </button>
                     <button
                         onClick={() => setVegFilter("veg")}
-                        className={`border font-semibold text-xs text-nowrap rounded-full px-3 py-1.5 flex items-center gap-1.5 transition-colors ${vegFilter === "veg"
-                            ? "bg-green-600 text-white border-green-600"
-                            : "bg-white text-black border-gray-200"
-                            }`}
+                        className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1.5 flex items-center gap-1.5 transition-colors"
+                        style={{
+                            backgroundColor: vegFilter === "veg" ? "#16a34a" : "transparent",
+                            color: vegFilter === "veg" ? "#ffffff" : colorPalette.text,
+                            borderColor: vegFilter === "veg" ? "#16a34a" : `${colorPalette.text}30`
+                        }}
                     >
-                        <div className={`w-2.5 h-2.5 border-[1.5px] ${vegFilter === "veg" ? "border-white" : "border-green-600"} flex items-center justify-center`}>
-                            <div className={`w-1.5 h-1.5 rounded-full ${vegFilter === "veg" ? "bg-white" : "bg-green-600"}`}></div>
+                        <div className={`w-2.5 h-2.5 border-[1.5px] flex items-center justify-center`} style={{ borderColor: vegFilter === "veg" ? "#ffffff" : "#16a34a" }}>
+                            <div className={`w-1.5 h-1.5 rounded-full`} style={{ backgroundColor: vegFilter === "veg" ? "#ffffff" : "#16a34a" }}></div>
                         </div>
                         Veg
                     </button>
                     <button
                         onClick={() => setVegFilter("non-veg")}
-                        className={`border font-semibold text-xs text-nowrap rounded-full px-3 py-1.5 flex items-center gap-1.5 transition-colors ${vegFilter === "non-veg"
-                            ? "bg-red-600 text-white border-red-600"
-                            : "bg-white text-black border-gray-200"
-                            }`}
+                        className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1.5 flex items-center gap-1.5 transition-colors"
+                        style={{
+                            backgroundColor: vegFilter === "non-veg" ? "#dc2626" : "transparent",
+                            color: vegFilter === "non-veg" ? "#ffffff" : colorPalette.text,
+                            borderColor: vegFilter === "non-veg" ? "#dc2626" : `${colorPalette.text}30`
+                        }}
                     >
-                        <div className={`w-2.5 h-2.5 border-[1.5px] ${vegFilter === "non-veg" ? "border-white" : "border-red-600"} flex items-center justify-center`}>
-                            <div className={`w-1.5 h-1.5 rounded-full ${vegFilter === "non-veg" ? "bg-white" : "bg-red-600"}`}></div>
+                        <div className={`w-2.5 h-2.5 border-[1.5px] flex items-center justify-center`} style={{ borderColor: vegFilter === "non-veg" ? "#ffffff" : "#dc2626" }}>
+                            <div className={`w-1.5 h-1.5 rounded-full`} style={{ backgroundColor: vegFilter === "non-veg" ? "#ffffff" : "#dc2626" }}></div>
                         </div>
                         Non-Veg
                     </button>
@@ -142,13 +172,20 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
             )}
 
             {/* Categories Navigation - Sticky */}
-            <div className="overflow-x-auto w-full flex gap-2 p-2 sticky top-0 z-10 bg-white shadow-md scrollbar-hide border-b border-gray-100 relative">
+            <div
+                className="overflow-x-auto w-full flex gap-2 p-2 sticky top-0 z-10 shadow-md scrollbar-hide border-b relative transition-colors duration-300"
+                style={{
+                    backgroundColor: colorPalette.background,
+                    borderColor: `${colorPalette.text}10`
+                }}
+            >
                 {/* Animated border element */}
                 <div
-                    className="absolute bottom-0 left-0 h-0.5 bg-orange-600 transition-all duration-300 ease-in-out"
+                    className="absolute bottom-0 left-0 h-0.5 transition-all duration-300 ease-in-out"
                     style={{
                         width: `${100 / categories.length}%`,
                         transform: `translateX(${activeCatIndex * 100}%)`,
+                        backgroundColor: colorPalette.accent
                     }}
                 />
 
@@ -156,8 +193,12 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                     <div
                         key={category}
                         onClick={() => setActiveCatIndex(index)}
-                        className={`p-3 text-nowrap cursor-pointer flex-shrink-0 ${activeCatIndex === index ? "font-semibold text-orange-600" : "font-medium text-gray-600"
-                            }`}
+                        className="p-3 text-nowrap cursor-pointer flex-shrink-0 transition-colors"
+                        style={{
+                            color: activeCatIndex === index ? colorPalette.accent : colorPalette.text,
+                            fontWeight: activeCatIndex === index ? 600 : 500,
+                            opacity: activeCatIndex === index ? 1 : 0.7
+                        }}
                     >
                         {category}
                     </div>
@@ -179,12 +220,12 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
 
                     return (
                         <section key={category} className="py-4">
-                            <h2 className="text-xl font-bold text-orange-600 py-4">
+                            <h2 className="text-xl font-bold py-4" style={{ color: colorPalette.accent }}>
                                 {category}
                             </h2>
-                            <div className="grid grid-cols-1 gap-4 divide-y-2 divide-gray-200">
+                            <div className="grid grid-cols-1 gap-4 divide-y-2" style={{ borderColor: `${colorPalette.text}10` }}>
                                 {filteredItems.map((item, index) => (
-                                    <div key={index} className="p-4 flex gap-3 relative">
+                                    <div key={index} className="p-4 flex gap-3 relative" style={{ borderColor: `${colorPalette.text}10` }}>
                                         {/* Item Details (Left) - matching reference image */}
                                         <div className="flex-1 min-w-0 flex flex-col">
                                             <div className="flex items-start gap-2">
@@ -202,17 +243,17 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                                                         )}
                                                     </div>
                                                 )}
-                                                <h3 className="font-semibold text-gray-900 text-base">
+                                                <h3 className="font-semibold text-base" style={{ color: colorPalette.text }}>
                                                     {item.name}
                                                 </h3>
                                             </div>
 
-                                            <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+                                            <p className="text-sm mt-1 line-clamp-2" style={{ color: colorPalette.text, opacity: 0.6 }}>
                                                 {item.description}
                                             </p>
 
                                             {/* Price on bottom left */}
-                                            <div className="mt-3 text-lg font-semibold text-orange-600">
+                                            <div className="mt-3 text-lg font-semibold" style={{ color: colorPalette.accent }}>
                                                 {item.variants && item.variants.length > 0 ? (
                                                     <>From $ {item.price}</>
                                                 ) : (
@@ -231,7 +272,10 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                                             {/* Show Options button overlay if has variants */}
                                             {item.variants && item.variants.length > 0 && (
                                                 <div className="absolute bottom-2 right-2">
-                                                    <button className="text-xs font-semibold text-white bg-orange-600 rounded-full px-3 py-1.5 shadow-lg">
+                                                    <button
+                                                        className="text-xs font-semibold text-white rounded-full px-3 py-1.5 shadow-lg"
+                                                        style={{ backgroundColor: colorPalette.accent }}
+                                                    >
                                                         Show Options
                                                     </button>
                                                 </div>
