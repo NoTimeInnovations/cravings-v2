@@ -559,23 +559,23 @@ export default function GetStartedPage() {
                     </div>
                 </div>
 
-                <div className="flex-1 flex justify-center relative">
+                <div className="flex-1 flex justify-center relative w-full overflow-hidden">
                     <CompactMenuPreview items={extractedItems} hotelDetails={hotelDetails} colorPalette={selectedPalette} />
 
                     {/* Mobile Publish Button (Fixed Bottom) */}
-                    <div className="md:hidden fixed bottom-6 left-6 right-6 z-50 flex flex-col gap-4">
+                    <div className="md:hidden fixed bottom-6 left-6 right-6 z-50 flex flex-col gap-3">
                         {colorPalettes.length > 0 && (
-                            <div className="bg-white/90 backdrop-blur-md p-3 rounded-2xl shadow-lg border border-gray-100 overflow-x-auto">
-                                <div className="flex gap-3">
+                            <div className="bg-white/60 backdrop-blur-xl p-2 rounded-full shadow-2xl border border-white/50">
+                                <div className="flex justify-between items-center px-2">
                                     {colorPalettes.map((palette, idx) => (
                                         <button
                                             key={idx}
                                             onClick={() => setSelectedPalette(palette)}
-                                            className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all ${selectedPalette === palette ? "border-orange-600 scale-110" : "border-gray-200"
+                                            className={`w-10 h-10 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${selectedPalette === palette ? "border-orange-600 scale-110 ring-2 ring-orange-100" : "border-white/50"
                                                 }`}
                                             style={{ backgroundColor: palette.background }}
                                         >
-                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: palette.accent }} />
+                                            <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: palette.accent }} />
                                         </button>
                                     ))}
                                 </div>
@@ -672,7 +672,7 @@ export default function GetStartedPage() {
     );
 
     return (
-        <div className="min-h-screen bg-white font-sans">
+        <div className="min-h-screen max-w-screen overflow-x-hidden bg-white font-sans">
             {/* Header */}
             <header className="border-b border-gray-100 bg-white/80 backdrop-blur-md z-50">
                 <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">

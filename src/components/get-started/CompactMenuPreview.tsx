@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { UtensilsCrossed, Phone, MapPin, Search } from "lucide-react";
 import SocialLinks from "../hotelDetail/styles/Compact/SocialLinks";
@@ -47,6 +47,11 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
     const [activeCatIndex, setActiveCatIndex] = useState<number>(0);
     const [vegFilter, setVegFilter] = useState<"all" | "veg" | "non-veg">("all");
 
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const categoryRefs = useRef<(HTMLElement | null)[]>([]);
+    const navRefs = useRef<(HTMLDivElement | null)[]>([]);
+    const [borderStyle, setBorderStyle] = useState({ left: 0, width: 0 });
+
     // Group items by category
     const groupedItems = items.reduce((acc, item) => {
         if (!acc[item.category]) {
@@ -61,9 +66,58 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
     // Check if any items have veg info
     const hasVegFilter = items.some(item => item.is_veg !== null && item.is_veg !== undefined);
 
+    useEffect(() => {
+        const activeNav = navRefs.current[activeCatIndex];
+        if (activeNav) {
+            setBorderStyle({
+                left: activeNav.offsetLeft,
+                width: activeNav.offsetWidth
+            });
+            activeNav.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+    }, [activeCatIndex, categories.length]);
+
+    const handleScroll = () => {
+        if (!scrollContainerRef.current) return;
+
+        const container = scrollContainerRef.current;
+        const scrollPosition = container.scrollTop;
+        const offset = 20;
+
+        let currentActive = activeCatIndex;
+
+        for (let i = 0; i < categories.length; i++) {
+            const section = categoryRefs.current[i];
+            if (!section) continue;
+
+            const sectionTop = section.offsetTop;
+            const sectionHeight = section.offsetHeight;
+
+            if (scrollPosition >= sectionTop - offset && scrollPosition < sectionTop + sectionHeight - offset) {
+                currentActive = i;
+                break;
+            }
+        }
+
+        if (currentActive !== activeCatIndex) {
+            setActiveCatIndex(currentActive);
+        }
+    };
+
+    const scrollToCategory = (index: number) => {
+        setActiveCatIndex(index);
+        const section = categoryRefs.current[index];
+        if (section && scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTo({
+                top: section.offsetTop,
+                behavior: 'smooth'
+            });
+        }
+    };
+
     return (
         <div
-            className="w-full max-w-md mx-auto shadow-xl rounded-3xl overflow-hidden border border-gray-200 min-h-[600px] md:h-[600px] md:min-h-0 flex flex-col relative transition-colors duration-300"
+            className="w-full overflow-x-hidden md:max-w-md md:mx-auto md:shadow-xl md:rounded-3xl overflow-hidden md:border border-gray-200 min-h-[calc(100vh-4rem)] md:min-h-0 md:h-[600px] flex flex-col relative transition-colors duration-300 max-w-[100vw]"
             style={{ backgroundColor: colorPalette.background, color: colorPalette.text }}
         >
             {/* Header / Banner - matching Compact.tsx styling */}
@@ -172,8 +226,9 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
             )}
 
             {/* Categories Navigation - Sticky */}
-            <div
-                className="overflow-x-auto w-full flex gap-2 p-2 sticky top-0 z-10 shadow-md scrollbar-hide border-b relative transition-colors duration-300"
+            <div className="sticky top-0 z-10">
+                <div
+                className="overflow-x-scroll w-full flex gap-2 p-2 shadow-md scrollbar-hide border-b relative transition-colors duration-300"
                 style={{
                     backgroundColor: colorPalette.background,
                     borderColor: `${colorPalette.text}10`
@@ -181,10 +236,10 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
             >
                 {/* Animated border element */}
                 <div
-                    className="absolute bottom-0 left-0 h-0.5 transition-all duration-300 ease-in-out"
+                    className="absolute bottom-0 h-0.5 transition-all duration-300 ease-in-out"
                     style={{
-                        width: `${100 / categories.length}%`,
-                        transform: `translateX(${activeCatIndex * 100}%)`,
+                        left: `${borderStyle.left}px`,
+                        width: `${borderStyle.width}px`,
                         backgroundColor: colorPalette.accent
                     }}
                 />
@@ -192,7 +247,8 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                 {categories.map((category, index) => (
                     <div
                         key={category}
-                        onClick={() => setActiveCatIndex(index)}
+                        ref={(el) => { navRefs.current[index] = el; }}
+                        onClick={() => scrollToCategory(index)}
                         className="p-3 text-nowrap cursor-pointer flex-shrink-0 transition-colors"
                         style={{
                             color: activeCatIndex === index ? colorPalette.accent : colorPalette.text,
@@ -204,10 +260,15 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                     </div>
                 ))}
             </div>
+            </div>
 
             {/* Menu Content - matching Compact.tsx grid structure */}
-            <div className="grid gap-4 p-4 pb-24 overflow-y-auto scrollbar-hide max-h-[500px] md:max-h-none md:flex-1">
-                {Object.entries(groupedItems).map(([category, categoryItems]) => {
+            <div
+                ref={scrollContainerRef}
+                onScroll={handleScroll}
+                className="grid gap-4 p-4 pb-24 overflow-y-auto scrollbar-hide max-h-[500px] md:max-h-none md:flex-1 relative"
+            >
+                {Object.entries(groupedItems).map(([category, categoryItems], index) => {
                     // Filter items based on veg filter
                     const filteredItems = categoryItems.filter(item => {
                         if (vegFilter === "all" || !hasVegFilter) return true;
@@ -219,7 +280,11 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                     if (filteredItems.length === 0) return null;
 
                     return (
-                        <section key={category} className="py-4">
+                        <section
+                            key={category}
+                            ref={(el) => { categoryRefs.current[index] = el; }}
+                            className="py-4"
+                        >
                             <h2 className="text-xl font-bold py-4" style={{ color: colorPalette.accent }}>
                                 {category}
                             </h2>
