@@ -61,6 +61,8 @@ export default function GetStartedPage() {
         background: "#ffffff",
         accent: "#ea580c",
     });
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [authCredentials, setAuthCredentials] = useState({ email: "", password: "" });
 
     useEffect(() => {
         if (bannerPreview) {
@@ -348,6 +350,79 @@ export default function GetStartedPage() {
     };
 
     const handlePublish = () => {
+        setShowAuthModal(true);
+    };
+
+    const handleFinalPublish = () => {
+        if (!authCredentials.email || !authCredentials.password) {
+            toast.error("Please enter email and password");
+            return;
+        }
+
+        // Construct Partner Data
+        const partnerData = {
+            role: "partner",
+            name: hotelDetails.name,
+            password: authCredentials.password,
+            email: authCredentials.email,
+            store_name: hotelDetails.name,
+            phone: hotelDetails.phone,
+            country: hotelDetails.country,
+            location: "",
+            status: "active",
+            upi_id: "",
+            whatsapp_numbers: [],
+            district: "",
+            delivery_status: false,
+            geo_location: { type: "Point", coordinates: [0, 0] },
+            delivery_rate: 0,
+            delivery_rules: { rules: [] },
+            currency: "USD",
+            is_shop_open: true,
+            theme: JSON.stringify(selectedPalette),
+        };
+
+        // Construct Categories Data
+        const uniqueCategories = Array.from(new Set(extractedItems.map(i => i.category)));
+        const categoriesData = uniqueCategories.reduce((acc, catName, index) => {
+            acc[catName] = {
+                name: catName,
+                priority: index,
+                is_active: true,
+                id: `temp-cat-${index}`
+            };
+            return acc;
+        }, {} as Record<string, any>);
+
+        // Construct Menu Data
+        const menuData = {
+            items: extractedItems.reduce((acc, item, index) => {
+                const itemId = `temp-item-${index}`;
+                acc[itemId] = {
+                    name: item.name,
+                    price: item.price,
+                    description: item.description,
+                    category: categoriesData[item.category],
+                    image_url: item.image || "",
+                    variants: item.variants || [],
+                    is_veg: item.is_veg,
+                    is_available: true,
+                    is_top: false,
+                    priority: index,
+                    tags: [],
+                    stocks: []
+                };
+                return acc;
+            }, {} as Record<string, any>)
+        };
+
+        console.log("Publish Data:", {
+            partner: partnerData,
+            menu: menuData,
+            categories: categoriesData
+        });
+
+        setShowAuthModal(false);
         setStep(4); // Move to pricing
     };
 
@@ -707,6 +782,57 @@ export default function GetStartedPage() {
                 {step === 3 && renderStep3()}
                 {step === 4 && renderStep4()}
             </main>
+
+            {/* Auth Modal */}
+            {showAuthModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-300">
+                        <div className="space-y-2 text-center">
+                            <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
+                            <p className="text-sm text-gray-500">Set up your credentials to manage your menu.</p>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    placeholder="you@example.com"
+                                    value={authCredentials.email}
+                                    onChange={(e) => setAuthCredentials(prev => ({ ...prev, email: e.target.value }))}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="password">Password</Label>
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    value={authCredentials.password}
+                                    onChange={(e) => setAuthCredentials(prev => ({ ...prev, password: e.target.value }))}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <Button
+                                variant="outline"
+                                className="flex-1 rounded-full"
+                                onClick={() => setShowAuthModal(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                className="flex-1 rounded-full bg-orange-600 hover:bg-orange-700"
+                                onClick={handleFinalPublish}
+                            >
+                                Confirm & Publish
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

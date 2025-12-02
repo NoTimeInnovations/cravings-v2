@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import Image from "next/image";
-import { UtensilsCrossed, Phone, MapPin, Search } from "lucide-react";
+import { MapPin, Search } from "lucide-react";
 import SocialLinks from "../hotelDetail/styles/Compact/SocialLinks";
 
 interface MenuItem {
