@@ -1,0 +1,440 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { FileText, Trash2, Eye, Printer, MoreVertical, ReceiptText, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { format } from "date-fns";
+import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
+import useOrderStore, { Order } from "@/store/orderStore";
+import { useAuthStore, Partner } from "@/store/authStore";
+import { toast } from "sonner";
+import { OrderStatusDisplay, toStatusDisplayFormat } from "@/lib/statusHistory";
+import { OrderDetails } from "./OrderDetails";
+import { getDateOnly } from "@/lib/formatDate";
+import { useAdminStore } from "@/store/adminStore";
+import { AdminV2AllOrders } from "./AdminV2AllOrders";
+import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
+import { AdminV2EditOrder } from "./AdminV2EditOrder";
+import { Edit } from "lucide-react";
+
+export function AdminV2Orders() {
+    const { userData } = useAuthStore();
+    const { selectedOrderId, setSelectedOrderId, setActiveView } = useAdminStore();
+    const {
+        deleteOrder,
+        updateOrderStatus,
+        updateOrderPaymentMethod,
+    } = useOrderStore();
+
+    const {
+        orders,
+        setOrders,
+        removeOrder,
+        loading,
+        setLoading,
+        totalCount,
+        currentPage,
+        limit,
+        setTotalCount,
+        nextPage,
+        previousPage,
+        hasNextPage,
+        hasPreviousPage,
+    } = useOrderSubscriptionStore();
+
+
+
+    const selectedOrder = orders.find(o => o.id === selectedOrderId) || null;
+
+    const [viewMode, setViewMode] = useState<'live' | 'all'>('live');
+    const [searchQuery, setSearchQuery] = useState("");
+    const [filter, setFilter] = useState<string>("all");
+    const [sortBy, setSortBy] = useState<string>("newest");
+    const [orderType, setOrderType] = useState<string>("all");
+    const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+    const [orderToPrint, setOrderToPrint] = useState<string | null>(null);
+    const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+    const editingOrder = orders.find(o => o.id === editingOrderId) || null;
+
+
+
+    const handleDeleteOrder = async (orderId: string) => {
+        if (confirm("Are you sure you want to delete this order?")) {
+            const success = await deleteOrder(orderId);
+            if (success) {
+                removeOrder(orderId);
+                toast.success("Order deleted successfully");
+            } else {
+                toast.error("Failed to delete order");
+            }
+        }
+    };
+
+    const handleUpdateOrderStatus = async (orderId: string, status: string) => {
+        try {
+            await updateOrderStatus(orders, orderId, status as any, setOrders);
+            toast.success("Order status updated");
+        } catch (error) {
+            toast.error("Failed to update status");
+        }
+    };
+
+    const handlePrintBill = (order: Order) => {
+        if (!order.payment_method) {
+            setOrderToPrint(order.id);
+            setPaymentModalOpen(true);
+        } else {
+            window.open(`/bill/${order.id}`, '_blank');
+        }
+    };
+
+    const handlePaymentMethodConfirm = async (method: string) => {
+        if (orderToPrint) {
+            await updateOrderPaymentMethod(orderToPrint, method, orders, setOrders);
+            setPaymentModalOpen(false);
+            window.open(`/bill/${orderToPrint}`, '_blank');
+            setOrderToPrint(null);
+        }
+    };
+
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case "completed": return "bg-green-100 text-green-800";
+            case "pending": return "bg-yellow-100 text-yellow-800";
+            case "cancelled": return "bg-red-100 text-red-800";
+            case "accepted": return "bg-blue-100 text-blue-800";
+            case "ready": return "bg-purple-100 text-purple-800";
+            default: return "bg-gray-100 text-gray-800";
+        }
+    };
+
+
+
+    if (editingOrderId && editingOrder) {
+        return (
+            <AdminV2EditOrder
+                order={editingOrder}
+                onBack={() => setEditingOrderId(null)}
+            />
+        );
+    }
+
+    if (selectedOrderId && selectedOrder) {
+        return (
+            <OrderDetails
+                order={selectedOrder}
+                onBack={() => setSelectedOrderId(null)}
+                onEdit={() => setEditingOrderId(selectedOrder.id)}
+            />
+        );
+    } else if (selectedOrderId && !selectedOrder) {
+        // Handle case where selected order is not in current list (e.g. pagination or not loaded yet)
+        // For now, just show list or maybe a loading state? 
+        // Or maybe we should fetch it? 
+        // Given the requirement, let's just clear selection if not found to avoid getting stuck.
+        // Or better, show a "Order not found" message with back button.
+        return (
+            <div className="p-4">
+                <p>Order not found in current view.</p>
+                <Button onClick={() => setSelectedOrderId(null)}>Back to Orders</Button>
+            </div>
+        );
+    }
+
+    if (viewMode === 'all') {
+        return (
+            <div className="space-y-4">
+                <div className="flex justify-start">
+                    <Button variant="outline" onClick={() => setViewMode('live')}>
+                        Back to Live Orders
+                    </Button>
+                </div>
+                <AdminV2AllOrders />
+            </div>
+        );
+    }
+
+
+
+    const getFilteredAndSortedOrders = () => {
+        let result = [...orders];
+
+        // Filter by order type
+        if (orderType !== "all") {
+            result = result.filter((order) => {
+                if (orderType === "delivery") return order.type === "delivery";
+                if (orderType === "table") return order.type === "table_order";
+                if (orderType === "pos") return order.type === "pos";
+                return true;
+            });
+        }
+
+        // Filter by status
+        if (filter !== "all") {
+            result = result.filter((order) => order.status === filter);
+        }
+
+        // Filter by search query
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            result = result.filter((order) => {
+                return (
+                    order.id.toLowerCase().includes(query) ||
+                    (order.user?.phone?.toLowerCase().includes(query) ?? false) ||
+                    order.items.some((item) => item.name.toLowerCase().includes(query)) ||
+                    order.phone?.includes(query) ||
+                    (order.tableNumber?.toString().includes(query) ?? false)
+                );
+            });
+        }
+
+        // Sort results
+        result.sort((a, b) => {
+            const dateA = new Date(a.createdAt).getTime();
+            const dateB = new Date(b.createdAt).getTime();
+
+            switch (sortBy) {
+                case "newest":
+                    return dateB - dateA;
+                case "oldest":
+                    return dateA - dateB;
+                case "highest":
+                    return b.totalPrice - a.totalPrice;
+                case "lowest":
+                    return a.totalPrice - b.totalPrice;
+                default:
+                    return dateB - dateA;
+            }
+        });
+
+        return result;
+    };
+
+    const filteredOrders = getFilteredAndSortedOrders();
+
+    return (
+        <div className="space-y-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex flex-col w-full md:w-auto gap-3">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search orders..."
+                            className="pl-9"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="flex-1 min-w-[150px]">
+                            <Select value={orderType} onValueChange={setOrderType}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Order Type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Types</SelectItem>
+                                    <SelectItem value="delivery">Delivery</SelectItem>
+                                    <SelectItem value="table">Table</SelectItem>
+                                    <SelectItem value="pos">POS</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="flex-1 min-w-[150px]">
+                            <Select value={filter} onValueChange={setFilter}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Filter by status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Statuses</SelectItem>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="completed">Completed</SelectItem>
+                                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="flex-1 min-w-[150px]">
+                            <Select value={sortBy} onValueChange={setSortBy}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Sort by" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="newest">Newest First</SelectItem>
+                                    <SelectItem value="oldest">Oldest First</SelectItem>
+                                    <SelectItem value="highest">Highest Amount</SelectItem>
+                                    <SelectItem value="lowest">Lowest Amount</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </div>
+
+                <Button
+                    variant="outline"
+                    onClick={() => setViewMode('all')}
+                >
+                    Show All Orders
+                </Button>
+            </div>
+
+            <div className="rounded-md border bg-card">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Invoice ID</TableHead>
+                            <TableHead>Table No</TableHead>
+                            <TableHead>Payment method</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Time</TableHead>
+                            <TableHead>Order type</TableHead>
+                            <TableHead>Order status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {filteredOrders.map((order) => (
+                            <TableRow key={order.id}>
+                                <TableCell className="font-medium">
+                                    {(Number(order.display_id) ?? 0) > 0
+                                        ? `${order.display_id}-${getDateOnly(order.createdAt)}`
+                                        : order.id.slice(0, 8)}
+                                </TableCell>
+                                <TableCell>
+                                    {order.tableName || order.tableNumber || "N/A"}
+                                </TableCell>
+                                <TableCell>
+                                    <Badge variant="outline" className="bg-gray-50 text-black dark:text-black">
+                                        {order.payment_method || "N/A"}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>{format(new Date(order.createdAt), "yyyy-MM-dd")}</TableCell>
+                                <TableCell>{format(new Date(order.createdAt), "HH:mm")}</TableCell>
+                                <TableCell>
+                                    <Badge variant="secondary" className="uppercase">
+                                        {order.type === "table_order" ? "Dine-in" : order.type}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <Select
+                                        defaultValue={order.status}
+                                        onValueChange={(val) => handleUpdateOrderStatus(order.id, val)}
+                                    >
+                                        <SelectTrigger className={`w-[130px] h-8 border-none ${getStatusColor(order.status)}`}>
+                                            <SelectValue placeholder="Status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="pending">Pending</SelectItem>
+                                            <SelectItem value="accepted">Accepted</SelectItem>
+                                            <SelectItem value="ready">Ready</SelectItem>
+                                            <SelectItem value="completed">Completed</SelectItem>
+                                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                    <Printer className="h-4 w-4 text-blue-500" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => window.open(`/kot/${order.id}`, '_blank')}>
+                                                    Print KOT
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handlePrintBill(order)}>
+                                                    Print Bill
+                                                </DropdownMenuItem>
+
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => {
+                                                setSelectedOrderId(order.id);
+                                            }}
+                                        >
+                                            <ReceiptText className="h-4 w-4 text-green-500" />
+                                        </Button>
+
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            onClick={() => handleDeleteOrder(order.id)}
+                                        >
+                                            <Trash2 className="h-4 w-4 text-red-500" />
+                                        </Button>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                        {filteredOrders.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                    No orders found
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
+
+            {/* Pagination Controls - Reusing logic from OrdersTab if needed, or simple buttons */}
+            <div className="flex items-center justify-end space-x-2 py-4">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={previousPage}
+                    disabled={!hasPreviousPage}
+                >
+                    Previous
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={nextPage}
+                    disabled={!hasNextPage}
+                >
+                    Next
+                </Button>
+            </div>
+
+            <PaymentMethodChooseV2
+                isOpen={paymentModalOpen}
+                onClose={() => setPaymentModalOpen(false)}
+                onConfirm={handlePaymentMethodConfirm}
+            />
+        </div >
+    );
+}

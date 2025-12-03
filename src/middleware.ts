@@ -26,7 +26,7 @@ export async function middleware(request: NextRequest) {
 
   // const country = request.geo?.country || request.headers.get('x-vercel-ip-country');
 
-  let country = "IN"
+  let country = "US"
 
   console.log("Country ", country)
   requestHeaders.set("x-user-country", country);

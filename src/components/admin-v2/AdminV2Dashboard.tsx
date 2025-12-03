@@ -27,9 +27,10 @@ import {
     Tooltip,
     ResponsiveContainer,
 } from "recharts";
-import { Loader2, IndianRupee, ShoppingBag, Truck, TrendingUp } from "lucide-react";
+import { Loader2, IndianRupee, ShoppingBag, Truck, TrendingUp, Download } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Partner, useAuthStore } from "@/store/authStore";
+import { downloadOrderReport } from "@/utils/downloadOrderReport";
 
 const formatDate = (date: Date) => format(date, "yyyy-MM-dd");
 
@@ -42,6 +43,7 @@ export function AdminV2Dashboard() {
     const [activeTab, setActiveTab] = useState<"today" | "month" | "custom">("today");
     const [reportData, setReportData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const TODAY_ORDERS_QUERY = (today: string) => `
     query TodayOrders {
@@ -53,6 +55,30 @@ export function AdminV2Dashboard() {
       }
       delivery_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate { count }
+      }
+      cash_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+          sum { total_price }
+        }
+      }
+      upi_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+          sum { total_price }
+        }
+      }
+      card_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+          sum { total_price }
+        }
+      }
+      null_payment_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+          sum { total_price }
+        }
       }
       daily_sales: orders_aggregate(
         where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}
@@ -78,6 +104,30 @@ export function AdminV2Dashboard() {
       delivery_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate { count }
       }
+      cash_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+          sum { total_price }
+        }
+      }
+      upi_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+          sum { total_price }
+        }
+      }
+      card_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+          sum { total_price }
+        }
+      }
+      null_payment_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+          sum { total_price }
+        }
+      }
       daily_sales: orders_aggregate(
         where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}
         order_by: {created_at: asc}
@@ -101,6 +151,30 @@ export function AdminV2Dashboard() {
       }
       delivery_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate { count }
+      }
+      cash_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+          sum { total_price }
+        }
+      }
+      upi_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+          sum { total_price }
+        }
+      }
+      card_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+          sum { total_price }
+        }
+      }
+      null_payment_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
+        aggregate {
+          count
+          sum { total_price }
+        }
       }
       daily_sales: orders_aggregate(
         where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}
@@ -220,6 +294,20 @@ export function AdminV2Dashboard() {
                         onUpdate={handleDateRangeUpdate}
                     />
                 )}
+                <div className="w-full sm:w-auto">
+                    <Button
+                        onClick={async () => {
+                            setIsDownloading(true);
+                            await downloadOrderReport(reportData, topItems, activeTab, dateRange, userData as Partner);
+                            setIsDownloading(false);
+                        }}
+                        disabled={loading || isDownloading}
+                        className="w-full sm:w-auto"
+                    >
+                        <Download className="mr-2 h-4 w-4" />
+                        {isDownloading ? "Downloading..." : "Download Report"}
+                    </Button>
+                </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -273,43 +361,62 @@ export function AdminV2Dashboard() {
                 </Card>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="col-span-4">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-7">
+                <Card className="col-span-1 lg:col-span-4">
                     <CardHeader>
-                        <CardTitle>Overview</CardTitle>
+                        <CardTitle>Payment Analysis</CardTitle>
+                        <CardDescription>
+                            Breakdown of orders by payment method
+                        </CardDescription>
                     </CardHeader>
-                    <CardContent className="pl-2">
-                        <ResponsiveContainer width="100%" height={350}>
-                            <BarChart data={chartData}>
-                                <XAxis
-                                    dataKey="date"
-                                    stroke="#888888"
-                                    fontSize={12}
-                                    tickLine={false}
-                                    axisLine={false}
-                                />
-                                <YAxis
-                                    stroke="#888888"
-                                    fontSize={12}
-                                    tickLine={false}
-                                    axisLine={false}
-                                    tickFormatter={(value) => `₹${value}`}
-                                />
-                                <Tooltip
-                                    cursor={{ fill: 'transparent' }}
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                />
-                                <Bar
-                                    dataKey="sales"
-                                    fill="currentColor"
-                                    radius={[4, 4, 0, 0]}
-                                    className="fill-primary"
-                                />
-                            </BarChart>
-                        </ResponsiveContainer>
+                    <CardContent>
+                        <div className="space-y-4">
+                            {[
+                                {
+                                    label: "Cash",
+                                    count: reportData?.cash_orders?.aggregate?.count || 0,
+                                    amount: reportData?.cash_orders?.aggregate?.sum?.total_price || 0,
+                                    color: "bg-green-500"
+                                },
+                                {
+                                    label: "UPI",
+                                    count: reportData?.upi_orders?.aggregate?.count || 0,
+                                    amount: reportData?.upi_orders?.aggregate?.sum?.total_price || 0,
+                                    color: "bg-blue-500"
+                                },
+                                {
+                                    label: "Card",
+                                    count: reportData?.card_orders?.aggregate?.count || 0,
+                                    amount: reportData?.card_orders?.aggregate?.sum?.total_price || 0,
+                                    color: "bg-purple-500"
+                                },
+                                {
+                                    label: "Not Selected",
+                                    count: reportData?.null_payment_orders?.aggregate?.count || 0,
+                                    amount: reportData?.null_payment_orders?.aggregate?.sum?.total_price || 0,
+                                    color: "bg-gray-500"
+                                }
+                            ].map((item) => (
+                                <div key={item.label} className="flex items-center justify-between p-4 border rounded-lg">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-2 h-10 rounded-full ${item.color}`} />
+                                        <div>
+                                            <p className="font-medium">{item.label}</p>
+                                            <p className="text-sm text-muted-foreground">{item.count} orders</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="font-bold">₹{item.amount.toLocaleString()}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {totalEarnings > 0 ? ((item.amount / totalEarnings) * 100).toFixed(1) : 0}% of total
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </CardContent>
                 </Card>
-                <Card className="col-span-3">
+                <Card className="col-span-1 lg:col-span-3">
                     <CardHeader>
                         <CardTitle>Top Selling Items</CardTitle>
                         <CardDescription>
@@ -340,6 +447,42 @@ export function AdminV2Dashboard() {
                     </CardContent>
                 </Card>
             </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Overview</CardTitle>
+                </CardHeader>
+                <CardContent className="pl-2">
+                    <ResponsiveContainer width="100%" height={350}>
+                        <BarChart data={chartData}>
+                            <XAxis
+                                dataKey="date"
+                                stroke="#888888"
+                                fontSize={12}
+                                tickLine={false}
+                                axisLine={false}
+                            />
+                            <YAxis
+                                stroke="#888888"
+                                fontSize={12}
+                                tickLine={false}
+                                axisLine={false}
+                                tickFormatter={(value) => `₹${value}`}
+                            />
+                            <Tooltip
+                                cursor={{ fill: 'transparent' }}
+                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', color: 'black' }}
+                            />
+                            <Bar
+                                dataKey="sales"
+                                fill="currentColor"
+                                radius={[4, 4, 0, 0]}
+                                className="fill-primary"
+                            />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </CardContent>
+            </Card>
         </div>
     );
 }

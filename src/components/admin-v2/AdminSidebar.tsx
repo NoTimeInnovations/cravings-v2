@@ -18,7 +18,6 @@ const sidebarItems: SidebarItem[] = [
     { title: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
     { title: "Orders", icon: ShoppingBag, id: "orders" },
     { title: "Menu", icon: UtensilsCrossed, id: "menu" },
-    { title: "Report", icon: FileBarChart, id: "report" },
     { title: "Settings", icon: Settings, id: "settings" },
 ];
 

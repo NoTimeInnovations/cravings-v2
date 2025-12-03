@@ -4,9 +4,14 @@ import { Settings, Menu, UtensilsCrossed } from "lucide-react";
 import { SheetTrigger } from "@/components/ui/sheet";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Partner, useAuthStore } from "@/store/authStore";
+import { OrderNotification } from "./OrderNotification";
 
+interface AdminNavbarProps {
+    onToggleSidebar?: () => void;
+    isSidebarOpen?: boolean;
+}
 
-export function AdminNavbar() {
+export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps) {
     const { userData } = useAuthStore();
 
     return (
@@ -18,6 +23,10 @@ export function AdminNavbar() {
                         <span className="sr-only">Toggle sidebar</span>
                     </Button>
                 </SheetTrigger>
+                <Button variant="ghost" size="icon" className="hidden lg:flex" onClick={onToggleSidebar}>
+                    <Menu className="h-6 w-6" />
+                    <span className="sr-only">Toggle sidebar</span>
+                </Button>
                 <div className="flex items-center gap-2">
                     <UtensilsCrossed className="h-6 w-6 text-orange-600 dark:text-orange-400" />
                     <span className="text-xl font-bold text-orange-600 dark:text-orange-400">Cravings</span>
@@ -25,6 +34,7 @@ export function AdminNavbar() {
             </div>
 
             <div className="flex items-center gap-4">
+                <OrderNotification />
                 <ModeToggle />
                 <div className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded-full cursor-pointer select-none">
                     <Settings className="h-5 w-5 text-gray-600 dark:text-gray-400" />

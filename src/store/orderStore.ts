@@ -109,13 +109,13 @@ export interface Order {
   };
   tableName?: string | null;
   extraCharges?:
-    | {
-        name: string;
-        amount: number;
-        charge_type?: string;
-        id?: string;
-      }[]
-    | null;
+  | {
+    name: string;
+    amount: number;
+    charge_type?: string;
+    id?: string;
+  }[]
+  | null;
 }
 
 export interface DeliveryInfo {
@@ -176,10 +176,10 @@ interface OrderState {
     gstIncluded?: number,
     extraCharges?:
       | {
-          name: string;
-          amount: number;
-          charge_type?: string;
-        }[]
+        name: string;
+        amount: number;
+        charge_type?: string;
+      }[]
       | null,
     deliveryCharge?: number,
     notes?: string
@@ -212,6 +212,12 @@ interface OrderState {
     orderId: string,
     status: OrderStatusHistoryTypes,
     orders: Order[]
+  ) => Promise<void>;
+  updateOrderPaymentMethod: (
+    orderId: string,
+    paymentMethod: string,
+    orders: Order[],
+    setOrders: (orders: Order[]) => void
   ) => Promise<void>;
 }
 
@@ -311,9 +317,9 @@ const useOrderStore = create(
           const updatedOrders = orders.map((o) =>
             o.id === orderId
               ? {
-                  ...o,
-                  status_history: updatedStatusHistory,
-                }
+                ...o,
+                status_history: updatedStatusHistory,
+              }
               : o
           );
 
@@ -397,6 +403,37 @@ const useOrderStore = create(
         }
       },
 
+      updateOrderPaymentMethod: async (
+        orderId: string,
+        paymentMethod: string,
+        orders: Order[],
+        setOrders: (orders: Order[]) => void
+      ) => {
+        try {
+          const response = await fetchFromHasura(
+            `mutation UpdateOrderPaymentMethod($orderId: uuid!, $paymentMethod: String!) {
+                update_orders_by_pk(pk_columns: {id: $orderId}, _set: {payment_method: $paymentMethod}) {
+                  id
+                  payment_method
+                }
+              }`,
+            { orderId, paymentMethod }
+          );
+
+          if (response.errors) throw new Error(response.errors[0].message);
+
+          const updatedOrders = orders.map((order) =>
+            order.id === orderId ? { ...order, payment_method: paymentMethod as any } : order
+          );
+
+          setOrders(updatedOrders);
+          toast.success("Payment method updated");
+        } catch (error) {
+          console.error(error);
+          toast.error("Failed to update payment method");
+        }
+      },
+
       setOpenPlaceOrderModal: (open) => {
         set({ open_place_order_modal: open });
       },
@@ -464,7 +501,7 @@ const useOrderStore = create(
         }
 
         if (!partnerId) {
-          return () => {};
+          return () => { };
         }
 
         return subscribeToHasura({
@@ -491,7 +528,7 @@ const useOrderStore = create(
         const { userData } = useAuthStore.getState();
 
         if (!userData?.id) {
-          return () => {};
+          return () => { };
         }
 
         const now = new Date();
@@ -532,7 +569,7 @@ const useOrderStore = create(
         const { userData } = useAuthStore.getState();
 
         if (!userData?.id) {
-          return () => {};
+          return () => { };
         }
 
         return subscribeToHasura({
@@ -807,7 +844,7 @@ const useOrderStore = create(
           if (deleteItemsResponse.errors) {
             throw new Error(
               deleteItemsResponse.errors[0]?.message ||
-                "Failed to delete order items"
+              "Failed to delete order items"
             );
           }
 
@@ -884,10 +921,10 @@ const useOrderStore = create(
         gstIncluded?: number,
         extraCharges?:
           | {
-              name: string;
-              amount: number;
-              charge_type?: string;
-            }[]
+            name: string;
+            amount: number;
+            charge_type?: string;
+          }[]
           | null,
         deliveryCharge?: number,
         notes?: string
@@ -997,12 +1034,12 @@ const useOrderStore = create(
               delivery_location:
                 type === "delivery"
                   ? {
-                      type: "Point",
-                      coordinates: [
-                        state.coordinates?.lng || 0,
-                        state.coordinates?.lat || 0,
-                      ],
-                    }
+                    type: "Point",
+                    coordinates: [
+                      state.coordinates?.lng || 0,
+                      state.coordinates?.lat || 0,
+                    ],
+                  }
                   : null,
               notes: notes || null,
               display_id: getNextDisplayOrderNumber.toString(),
@@ -1155,10 +1192,10 @@ const useOrderStore = create(
             // Ensure captain data is properly structured
             const captainData = order.captainid
               ? {
-                  id: order.captainid.id,
-                  name: order.captainid.name,
-                  email: order.captainid.email,
-                }
+                id: order.captainid.id,
+                name: order.captainid.name,
+                email: order.captainid.email,
+              }
               : null;
 
             return {
@@ -1232,7 +1269,7 @@ const useOrderStore = create(
 );
 
 function transformOrderFromHasura(order: any): Order {
-  console.log("Order recived for transformation" , order)
+  console.log("Order recived for transformation", order)
   return {
     id: order.id,
     items: order.order_items.map((item: any) => ({
