@@ -1,0 +1,55 @@
+"use client";
+
+import { useState } from "react";
+import { AdminNavbar } from "@/components/admin-v2/AdminNavbar";
+import { AdminSidebar } from "@/components/admin-v2/AdminSidebar";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { AdminV2Dashboard } from "@/components/admin-v2/AdminV2Dashboard";
+
+export default function AdminPage() {
+    const [activeView, setActiveView] = useState("Dashboard");
+    const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+    return (
+        <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
+            <div className="min-h-screen flex flex-col bg-orange-50 dark:bg-background">
+                <AdminNavbar />
+
+                <div className="flex flex-1 overflow-hidden">
+                    {/* Desktop Sidebar */}
+                    <aside className="hidden lg:block w-64 border-r bg-background overflow-y-auto">
+                        <AdminSidebar activeView={activeView} onNavigate={setActiveView} />
+                    </aside>
+
+                    {/* Mobile Sidebar (Sheet) */}
+                    <SheetContent side="left" className="p-0 w-64">
+                        <div className="py-4">
+                            <div className="px-4 mb-4">
+                                <span className="text-xl font-bold text-orange-600 dark:text-orange-400">Cravings Admin</span>
+                            </div>
+                            <AdminSidebar
+                                activeView={activeView}
+                                onNavigate={(view) => {
+                                    setActiveView(view);
+                                    setIsMobileOpen(false);
+                                }}
+                            />
+                        </div>
+                    </SheetContent>
+
+                    {/* Main Content */}
+                    <main className="flex-1 overflow-y-auto p-6">
+                        <h1 className="text-3xl font-bold mb-6">{activeView}</h1>
+                        {activeView === "Dashboard" ? (
+                            <AdminV2Dashboard />
+                        ) : (
+                            <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-gray-500 bg-card h-96 flex items-center justify-center">
+                                Content for {activeView}
+                            </div>
+                        )}
+                    </main>
+                </div>
+            </div>
+        </Sheet>
+    );
+}

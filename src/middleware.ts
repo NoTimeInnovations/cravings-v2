@@ -270,6 +270,15 @@ export async function middleware(request: NextRequest) {
     }
 
     const userRole = decrypted.role as keyof typeof roleAccessRules;
+
+    if (userRole === "partner" && pathname === "/admin" && country !== "IN") {
+      return NextResponse.rewrite(new URL("/admin-v2", request.url), {
+        request: {
+          headers: requestHeaders,
+        },
+      });
+    }
+
     const userRules = roleAccessRules[userRole] || roleAccessRules.user;
 
     // Special handling for inactive partners
