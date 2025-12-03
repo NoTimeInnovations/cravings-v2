@@ -8,7 +8,6 @@ import "./globals.css";
 import "@smastrom/react-rating/style.css";
 import { Toaster } from "@/components/ui/sonner";
 import AuthInitializer from "@/providers/AuthInitializer";
-import { ThemeProvider } from "@/providers/theme-provider";
 import BottomNav from "@/components/BottomNav";
 import { Navbar } from "@/components/Navbar";
 import { getAuthCookie } from "./auth/actions";
@@ -48,7 +47,7 @@ const bottomNavFilter = [
   "get-started",
 ];
 
-const navbarFilter = ["get-started" , "7eb04e2d-9c20-42ba-a6b6-fce8019cad5f"];
+const navbarFilter = ["get-started", "7eb04e2d-9c20-42ba-a6b6-fce8019cad5f"];
 
 const hideWhatsappGroupJoinDialog = ["Krishnakripa-Residency"];
 
@@ -114,27 +113,20 @@ export default async function RootLayout({
         />
       </head>
       <body className={`antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <AuthInitializer />
-          {(user?.role === "user" || !user) && !isWhatsappDialogHidden && country === "IN" && (
-            <WhatsappGroupJoinAlertDialog isPetraz={isPetraz} />
-          )}
-          <Toaster richColors closeButton />
-          {/* <Snow /> */}
-          {!isNavbarHidden && !(user?.role === "partner" && country !== "IN") ? <Navbar userData={user} country={country} /> : null}
-          {/* <RateUsModal /> */}
+        <AuthInitializer />
+        {(user?.role === "user" || !user) && !isWhatsappDialogHidden && country === "IN" && (
+          <WhatsappGroupJoinAlertDialog isPetraz={isPetraz} />
+        )}
+        <Toaster richColors closeButton />
+        {/* <Snow /> */}
+        {!isNavbarHidden && !(user?.role === "partner" && country !== "IN") ? <Navbar userData={user} country={country} /> : null}
+        {/* <RateUsModal /> */}
 
-          {/* pwa install is currently turned off */}
-          {/* <PwaInstallPrompt /> */}
+        {/* pwa install is currently turned off */}
+        {/* <PwaInstallPrompt /> */}
 
-          {children}
-          {!isBottomNavHidden && !(user?.role === "partner" && country !== "IN") ? <BottomNav userData={user} country={country} /> : null}
-        </ThemeProvider>
+        {children}
+        {!isBottomNavHidden && !(user?.role === "partner" && country !== "IN") ? <BottomNav userData={user} country={country} /> : null}
       </body>
     </html>
   );
