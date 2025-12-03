@@ -1,12 +1,16 @@
+"use client";
+
 import {
     LayoutDashboard,
     ShoppingBag,
     UtensilsCrossed,
     FileBarChart,
     Settings,
+    UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/store/authStore";
 
 interface SidebarItem {
     title: string;
@@ -18,6 +22,7 @@ const sidebarItems: SidebarItem[] = [
     { title: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
     { title: "Orders", icon: ShoppingBag, id: "orders" },
     { title: "Menu", icon: UtensilsCrossed, id: "menu" },
+    { title: "Captains", icon: UserCog, id: "captains" },
     { title: "Settings", icon: Settings, id: "settings" },
 ];
 
@@ -28,11 +33,20 @@ interface AdminSidebarProps {
 }
 
 export function AdminSidebar({ activeView, onNavigate, className }: AdminSidebarProps) {
+    const { features } = useAuthStore();
+
+    const filteredItems = sidebarItems.filter((item) => {
+        if (item.id === "captains") {
+            return features?.captainordering?.enabled;
+        }
+        return true;
+    });
+
     return (
         <div className={cn("flex flex-col h-full py-4", className)}>
             <div className="px-3 py-2">
                 <div className="space-y-1">
-                    {sidebarItems.map((item) => (
+                    {filteredItems.map((item) => (
                         <Button
                             key={item.id}
                             variant={activeView === item.title ? "secondary" : "ghost"}
