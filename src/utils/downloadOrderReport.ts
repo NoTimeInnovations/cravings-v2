@@ -38,7 +38,8 @@ export const downloadOrderReport = async (
     topItemsData: TopItem[],
     activeTab: "today" | "month" | "custom",
     dateRange: { startDate: Date; endDate: Date },
-    userData: Partner | null
+    userData: Partner | null,
+    allOrders: any[] = []
 ) => {
     if (!reportData) return;
 
@@ -216,6 +217,64 @@ export const downloadOrderReport = async (
             createCell(item.category, tableCellStyle),
             createCell(item.quantity, tableCellStyle),
         ]),
+        [],
+        [createCell("All Orders", sectionHeaderStyle)],
+        [
+            createCell("Order ID", tableHeaderStyle),
+            createCell("Order Display ID", tableHeaderStyle),
+            createCell("Created At", tableHeaderStyle),
+            createCell("Order Type", tableHeaderStyle),
+            createCell("Table/Address", tableHeaderStyle),
+            createCell("Items", tableHeaderStyle),
+            createCell("Extra Charges", tableHeaderStyle),
+            createCell("Payment Method", tableHeaderStyle),
+            createCell("Status", tableHeaderStyle),
+            createCell("Total Price", tableHeaderStyle)
+        ],
+        ...allOrders.map((order: any) => {
+            const displayId = `${order.display_id} - ${format(
+                new Date(order.created_at),
+                "MMM dd"
+            )}`;
+            const createdAt = format(
+                new Date(order.created_at),
+                "MMM dd, yyyy hh:mm a"
+            );
+            const items = order.order_items
+                .map(
+                    (item: any) =>
+                        `${item.quantity} x ${item.menu.name} (${currencySymbol}${item.menu.price})`
+                )
+                .join(", ");
+
+            const extraCharges = order.extra_charges
+                ? order.extra_charges
+                    .map(
+                        (charge: any) =>
+                            `${charge.name}: ${currencySymbol}${charge.amount}`
+                    )
+                    .join(", ")
+                : "N/A";
+
+            return [
+                createCell(order.id.slice(0, 8), tableCellStyle),
+                createCell(displayId, tableCellStyle),
+                createCell(createdAt, tableCellStyle),
+                createCell(order.type, tableCellStyle),
+                createCell(
+                    order.table_name ||
+                    order.table_number ||
+                    order.delivery_address ||
+                    "N/A",
+                    tableCellStyle
+                ),
+                createCell(items, tableCellStyle),
+                createCell(extraCharges, tableCellStyle),
+                createCell(order.payment_method || "N/A", tableCellStyle),
+                createCell(order.status, tableCellStyle),
+                createCell(order.total_price, tableCellStyle, "n", currencyFormat),
+            ];
+        }),
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
@@ -225,12 +284,20 @@ export const downloadOrderReport = async (
         XLSX.utils.decode_range(`A3:D3`),
         XLSX.utils.decode_range(`A10:D10`),
         XLSX.utils.decode_range(`A15:D15`),
+        XLSX.utils.decode_range(`A${16 + topItemsData.length + 2}:J${16 + topItemsData.length + 2}`),
     ];
 
     ws["!cols"] = [
         { wch: 30 }, // Label
-        { wch: 15 }, // Value 1
-        { wch: 15 }, // Value 2
+        { wch: 20 }, // Value 1
+        { wch: 20 }, // Value 2
+        { wch: 15 }, // Order Type
+        { wch: 25 }, // Table/Address
+        { wch: 40 }, // Items
+        { wch: 20 }, // Extra Charges
+        { wch: 15 }, // Payment Method
+        { wch: 15 }, // Status
+        { wch: 15 }, // Total Price
     ];
 
     const wb = XLSX.utils.book_new();

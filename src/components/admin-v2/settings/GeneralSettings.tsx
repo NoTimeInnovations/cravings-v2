@@ -138,13 +138,10 @@ export function GeneralSettings() {
     return (
         <div className="space-y-6">
             <Card>
-                <CardHeader>
-                    <CardTitle>Store Status</CardTitle>
-                    <CardDescription>Turn your store on or off for customers.</CardDescription>
-                </CardHeader>
+
                 <CardContent className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                        <Label className="text-base">Accepting Orders</Label>
+                        <Label className="text-base">Turn on store / Turn off Store</Label>
                         <p className="text-sm text-muted-foreground">
                             {isShopOpen ? "Your store is currently open." : "Your store is currently closed."}
                         </p>

@@ -357,9 +357,7 @@ export function AdminV2AllOrders() {
                                                         <DropdownMenuItem onClick={() => handlePrintBill(order)}>
                                                             Print Bill
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => setEditingOrderId(order.id)}>
-                                                            Edit Order
-                                                        </DropdownMenuItem>
+
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
 

@@ -45,9 +45,10 @@ const bottomNavFilter = [
   "qrScan",
   "business",
   "get-started",
+  "admin-v2",
 ];
 
-const navbarFilter = ["get-started", "7eb04e2d-9c20-42ba-a6b6-fce8019cad5f"];
+const navbarFilter = ["get-started", "7eb04e2d-9c20-42ba-a6b6-fce8019cad5f", "admin-v2"];
 
 const hideWhatsappGroupJoinDialog = ["Krishnakripa-Residency"];
 
@@ -119,14 +120,14 @@ export default async function RootLayout({
         )}
         <Toaster richColors closeButton />
         {/* <Snow /> */}
-        {!isNavbarHidden && !(user?.role === "partner" && country !== "IN") ? <Navbar userData={user} country={country} /> : null}
+        {!isNavbarHidden ? <Navbar userData={user} country={country} /> : null}
         {/* <RateUsModal /> */}
 
         {/* pwa install is currently turned off */}
         {/* <PwaInstallPrompt /> */}
 
         {children}
-        {!isBottomNavHidden && !(user?.role === "partner" && country !== "IN") ? <BottomNav userData={user} country={country} /> : null}
+        {!isBottomNavHidden ? <BottomNav userData={user} country={country} /> : null}
       </body>
     </html>
   );
