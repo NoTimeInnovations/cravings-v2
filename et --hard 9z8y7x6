@@ -1,0 +1,19 @@
+[33m0385e69[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m)[m HEAD@{0}: commit: direct pricing removal
+[33mc33ff12[m HEAD@{1}: pull --force: Fast-forward
+[33m85c0c58[m HEAD@{2}: checkout: moving from landing_page_global to main
+[33mbde0a67[m[33m ([m[1;31morigin/landing_page_global[m[33m, [m[1;32mlanding_page_global[m[33m)[m HEAD@{3}: commit: feat: Revamp Home and About Us pages with updated metadata, improved layout, and enhanced content for better user engagement
+[33m85c0c58[m HEAD@{4}: checkout: moving from main to landing_page_global
+[33m85c0c58[m HEAD@{5}: pull --force: Fast-forward
+[33m3203c94[m HEAD@{6}: pull --force: Fast-forward
+[33m70ee31a[m HEAD@{7}: pull --tags origin main: Merge made by the 'ort' strategy.
+[33mb1456cb[m HEAD@{8}: commit: refactor: remove location-based pricing logic and restore pricing toggle functionality
+[33m728f298[m HEAD@{9}: pull --tags origin main: Merge made by the 'ort' strategy.
+[33m0e0788f[m HEAD@{10}: commit: feat: implement location-based pricing logic and update INR to USD conversion rate
+[33m0a51c0e[m HEAD@{11}: pull --force: Fast-forward
+[33m17af5b6[m HEAD@{12}: commit: Enhance MenuTab cancel functionality to restore scroll position after closing edit modal
+[33me2d839b[m HEAD@{13}: pull --tags origin main: Merge made by the 'ort' strategy.
+[33m4670a08[m HEAD@{14}: commit: Implement delete confirmation modal in MenuTab and remove unused state and imports
+[33med3ca55[m HEAD@{15}: commit: Refactor HomePage pricing section and update navigation to open hotels in a new tab
+[33m386e12b[m HEAD@{16}: pull --tags origin main: Merge made by the 'ort' strategy.
+[33ma06e2a5[m HEAD@{17}: commit: Update dependencies in bun.lock and enhance HomePage with new features and pricing plans
+[33m5652fe7[m HEAD@{18}: clone: from https://github.com/NoTimeInnovations/cravings-v2.git
