@@ -15,7 +15,7 @@ const PrivacyPolicyPage = () => {
 
                 <div className="space-y-8 text-gray-700 leading-relaxed">
                     <p>
-                        Cravings (“we”, “our”, “us”) is committed to protecting your privacy. This policy explains what information we collect, how we use it, and your rights.
+                        Cravings, operated by <strong>INNOVIZE NOTIME PRIVATE LIMITED</strong> (“we”, “our”, “us”), is committed to protecting your privacy. This policy explains what information we collect, how we use it, and your rights.
                     </p>
 
                     <section>

@@ -15,7 +15,7 @@ const TermsAndConditionsPage = () => {
 
                 <div className="space-y-8 text-gray-700 leading-relaxed">
                     <p>
-                        Welcome to Cravings. By accessing or using our digital menu platform (“Service”), you agree to the following Terms & Conditions. Please read them carefully.
+                        Welcome to Cravings, a product of <strong>INNOVIZE NOTIME PRIVATE LIMITED</strong>. By accessing or using our digital menu platform (“Service”), you agree to the following Terms & Conditions. Please read them carefully.
                     </p>
 
                     <section>

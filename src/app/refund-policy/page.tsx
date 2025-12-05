@@ -15,7 +15,7 @@ const RefundPolicyPage = () => {
 
                 <div className="space-y-8 text-gray-700 leading-relaxed">
                     <p>
-                        Cravings is a SaaS product with monthly or yearly subscription plans. Our refund policy is designed to be fair while preventing abuse.
+                        Cravings (operated by <strong>INNOVIZE NOTIME PRIVATE LIMITED</strong>) is a SaaS product with monthly or yearly subscription plans. Our refund policy is designed to be fair while preventing abuse.
                     </p>
 
                     <section>
