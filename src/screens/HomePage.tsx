@@ -12,7 +12,7 @@ export default function HomePage() {
 
   const INR_TO_USD_RATE = 88;
   const inrToUsd = (inr: number) => Math.round(inr / INR_TO_USD_RATE);
-  
+
 
   // Restaurant partners data from hotel-list.txt
   const restaurants = [
@@ -367,12 +367,12 @@ export default function HomePage() {
           </div>
 
           {/* Pricing Toggle */}
-          <div className="flex justify-center mb-12">
+          {/* <div className="flex justify-center mb-12">
             <div className="bg-gray-100 p-1 rounded-lg inline-flex">
               <button
                 className={`px-6 py-2 rounded-md font-medium transition-colors ${isIndianPricing
-                    ? 'bg-orange-500 text-white'
-                    : 'text-gray-700 hover:bg-gray-200'
+                  ? 'bg-orange-500 text-white'
+                  : 'text-gray-700 hover:bg-gray-200'
                   }`}
                 onClick={() => setIsIndianPricing(true)}
               >
@@ -380,41 +380,39 @@ export default function HomePage() {
               </button>
               <button
                 className={`px-6 py-2 rounded-md font-medium transition-colors ${!isIndianPricing
-                    ? 'bg-orange-500 text-white'
-                    : 'text-gray-700 hover:bg-gray-200'
+                  ? 'bg-orange-500 text-white'
+                  : 'text-gray-700 hover:bg-gray-200'
                   }`}
                 onClick={() => setIsIndianPricing(false)}
               >
                 International Pricing
               </button>
             </div>
-          </div>
+          </div> */}
 
           {/* Pricing Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
-            {/* Lite Plan */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-16">
+            {/* Basic Plan */}
             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
               <div className="p-8 border-b border-gray-100 bg-gradient-to-br from-orange-50 to-white">
-                <h3 className="text-2xl font-bold text-gray-900">Lite</h3>
-                <div className="mt-4 flex items-baseline gap-2">
-                  {isIndianPricing ? (
-                    <>
-                      <span className="text-4xl font-bold text-orange-500">₹1500</span>
-                      <span className="text-lg text-gray-600">lifetime</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-4xl font-bold text-orange-500">$30</span>
-                      <span className="text-lg text-gray-600">lifetime</span>
-                    </>
-                  )}
-                </div>
+                <h3 className="text-2xl font-bold text-gray-900">Basic</h3>
+                <p className="mt-4 text-lg text-gray-600">
+                  Perfect for restaurants looking to digitize their menu.
+                </p>
               </div>
               <div className="p-8 space-y-5">
                 {[
-                  "Unlimited menu updates",
-                  "Color changing option to match brand",
-                  "AI-based suggestions and image upload option",
+                  "Customizable digital menu with price visibility control",
+                  "Must Try dishes",
+                  "Flexible color schemes and layout options",
+                  "Unlimited menu and content updates",
+                  "Add social media links and contact information",
+                  "Shop open/close status control",
+                  "Easy menu item hiding and unhiding",
+                  "Google reviews integration",
+                  "Unlimited users",
+                  "Unlimited scans",
+                  "Mobile app to manage menu",
                 ].map((feature, i) => (
                   <div key={i} className="flex items-center gap-3 group">
                     <div className="bg-orange-100 rounded-full p-1">
@@ -430,13 +428,13 @@ export default function HomePage() {
                 <Button
                   onClick={() =>
                     window.open(
-                      "https://wa.me/918590115462?text=Hi! I'm interested in the Lite plan. Can you share more details?",
+                      "https://wa.me/918590115462?text=Hi! I'm interested in the Basic digital menu plan. Can you share more details?",
                       "_blank"
                     )
                   }
                   className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3"
                 >
-                  Select Plan
+                  Message Us
                 </Button>
               </div>
             </div>
@@ -448,93 +446,22 @@ export default function HomePage() {
               </div>
               <div className="p-8 border-b border-gray-100 bg-gradient-to-br from-orange-50 to-white">
                 <h3 className="text-2xl font-bold text-gray-900">Pro</h3>
-                <div className="mt-4 flex items-baseline gap-2">
-                  {isIndianPricing ? (
-                    <>
-                      <span className="text-4xl font-bold text-orange-500">₹3000</span>
-                      <span className="text-lg text-gray-600">Yearly</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-4xl font-bold text-orange-500">
-                        ${inrToUsd(3500)}
-                      </span>
-                      <span className="text-lg text-gray-600">Yearly</span>
-                    </>
-                  )}
-                </div>
+                <p className="mt-4 text-lg text-gray-600">
+                  Comprehensive solution for full restaurant management.
+                </p>
               </div>
               <div className="p-8 space-y-5">
                 {[
-                  "Customizable digital menu with price visibility control",
-                  "Must Try dishes",
-                  "Flexible color schemes and layout options",
-                  "Unlimited menu and content updates",
-                  "Add social media links and contact information",
-                  "Multiple location support",
-                  "Shop open/close status control",
-                  "Easy menu item hiding and unhiding",
-                  "Google reviews integration",
-                  "Offer posting & New dish marketing options",
-                ].map((feature, i) => (
-                  <div key={i} className="flex items-center gap-3 group">
-                    <div className="bg-orange-100 rounded-full p-1">
-                      <Check className="h-4 w-4 text-orange-600" />
-                    </div>
-                    <span className="text-gray-700 group-hover:text-orange-600 transition-colors">
-                      {feature}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="p-8 border-t border-gray-100 bg-gray-50 space-y-4">
-                <Button
-                  onClick={() =>
-                    window.open(
-                      "https://wa.me/918590115462?text=Hi! I'm interested in the Pro plan. Can you share more details?",
-                      "_blank"
-                    )
-                  }
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3"
-                >
-                  Select Plan
-                </Button>
-              </div>
-            </div>
-
-            {/* Advanced Plan */}
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
-              <div className="p-8 border-b border-gray-100 bg-gradient-to-br from-orange-50 to-white">
-                <h3 className="text-2xl font-bold text-gray-900">Advanced</h3>
-                <div className="mt-4 flex items-baseline gap-2">
-                  {isIndianPricing ? (
-                    <>
-                      <span className="text-4xl font-bold text-orange-500">₹6000</span>
-                      <span className="text-lg text-gray-600">yearly</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-4xl font-bold text-orange-500">
-                        ${inrToUsd(10000)}
-                      </span>
-                      <span className="text-lg text-gray-600">yearly</span>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="p-8 space-y-5">
-                {[
-                  "All Pro features included",
+                  "All Basic features included",
                   "Billing and ordering system",
                   "Table ordering system",
                   "Delivery ordering via WhatsApp",
                   "Captain ordering system",
                   "Inbuilt POS system",
-                  "Multi-location & KOT/KDS system",
+                  "KOT/KDS system",
                   "Admin dashboard for order tracking",
                   "Advanced reporting & analytics",
-                  "Automatic stock updates",
-                  "GST and extra charge management",
+                  "Mobile app and desktop software to manage order and menu",
                 ].map((feature, i) => (
                   <div key={i} className="flex items-center gap-3 group">
                     <div className="bg-orange-100 rounded-full p-1">
@@ -550,13 +477,13 @@ export default function HomePage() {
                 <Button
                   onClick={() =>
                     window.open(
-                      "https://wa.me/918590115462?text=Hi! I'm interested in the Advanced plan with billing & ordering features.",
+                      "https://wa.me/918590115462?text=Hi! I'm interested in the Pro plan with billing & ordering features. Can you share more details?",
                       "_blank"
                     )
                   }
                   className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3"
                 >
-                  Select Plan
+                  Book a Demo
                 </Button>
               </div>
             </div>

@@ -98,7 +98,7 @@ export const calculateDeliveryDistanceAndCost = async (
       const applicableRange = delivery_ranges.find(
         (range) => distanceInKm >= range.from_km && distanceInKm <= range.to_km
       );
-      
+
       if (applicableRange) {
         calculatedCost = applicableRange.rate;
       } else {
@@ -250,9 +250,9 @@ const OrderDrawer = ({
 
     // Get location from localStorage or from the order store
     let locationLink = "";
-    const userLocationData = localStorage?.getItem("user-location-store") || 
+    const userLocationData = localStorage?.getItem("user-location-store") ||
       JSON.stringify({ state: { coords: useOrderStore.getState().coordinates } });
-    
+
     if (userLocationData) {
       try {
         const location = JSON.parse(userLocationData);
@@ -272,16 +272,16 @@ const OrderDrawer = ({
       : 0;
     const qrCharge = qrGroup?.extra_charge
       ? getExtraCharge(
-          items || [],
-          qrGroup.extra_charge,
-          qrGroup.charge_type || "FLAT_FEE"
-        )
+        items || [],
+        qrGroup.extra_charge,
+        qrGroup.charge_type || "FLAT_FEE"
+      )
       : 0;
     const deliveryCharge =
       !isQrScan &&
-      orderType === "delivery" &&
-      deliveryInfo?.cost &&
-      !deliveryInfo?.isOutOfRange
+        orderType === "delivery" &&
+        deliveryInfo?.cost &&
+        !deliveryInfo?.isOutOfRange
         ? deliveryInfo.cost
         : 0;
     const grandTotal = baseTotal + gstAmount + qrCharge + deliveryCharge;
@@ -294,73 +294,66 @@ const OrderDrawer = ({
       currentSelectedArea &&
       currentSelectedArea.trim() !== "";
 
-  const showTableLabel = hotelData?.id !== '33f5474e-4644-4e47-a327-94684c71b170'; // Krishnakripa Residency
-  const nowTime = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: tz }).format(new Date());
-  const whatsappMsg = `
-    *🍽️ Order Details 🍽️*
+    const showTableLabel = hotelData?.id !== '33f5474e-4644-4e47-a327-94684c71b170'; // Krishnakripa Residency
+    const nowTime = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: tz }).format(new Date());
+    const whatsappMsg = `
+    ${hotelData?.id === '7eb04e2d-9c20-42ba-a6b6-fce8019cad5f' ? '*Order Details*' : '*🍽️ Order Details 🍽️*'}
     
     *Order ID:* ${finalOrderId ? finalOrderId.slice(0, 8) : 'N/A'}
-    ${
-      (tableNumber ?? 0) > 0
+    ${(tableNumber ?? 0) > 0
         ? `${showTableLabel ? "*Table:* " : ""}${qrData?.table_name || tableNumber}`
         : `*Order Type:* ${orderType || "Delivery"}`
-    }
-    ${
-      shouldShowHotelLocation
+      }
+    ${shouldShowHotelLocation
         ? `\n*Hotel Location:* ${currentSelectedArea.toUpperCase()}`
         : ""
-    }
-    ${
-      orderType === "delivery"
+      }
+    ${orderType === "delivery"
         ? `\n*Delivery Address:* ${savedAddress}${locationLink}`
         : ""
-    }
-    ${
-      (user as User)?.phone ? `\n*Customer Phone:* ${(user as User).phone} \n` : ""  
-    }
-*Time:* ${nowTime}
+      }
+    ${(user as User)?.phone ? `\n*Customer Phone:* ${(user as User).phone} \n` : ""
+      }
+* Time:* ${nowTime}
     
     *📋 Order Items:*
     ${items
-      ?.map(
-        (item, index) =>
-          `${index + 1}. ${item.name} (${item.category.name})
+        ?.map(
+          (item, index) =>
+            `${index + 1}. ${item.name} (${item.category.name})
        ➤ Qty: ${item.quantity} × ${hotelData.currency}${item.price.toFixed(
-            2
-          )} = ${hotelData.currency}${(item.price * item.quantity).toFixed(2)}`
-      )
-      .join("\n\n")}
+              2
+            )} = ${hotelData.currency}${(item.price * item.quantity).toFixed(2)}`
+        )
+        .join("\n\n")
+      }
     
-    *Subtotal:* ${hotelData.currency}${baseTotal.toFixed(2)}
+    * Subtotal:* ${hotelData.currency}${baseTotal.toFixed(2)}
     
-    ${
-      hotelData?.gst_percentage
-        ? `*${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${hotelData.gst_percentage}%):* ${
-            hotelData.currency
-          }${gstAmount.toFixed(2)}`
+    ${hotelData?.gst_percentage
+        ? `*${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${hotelData.gst_percentage}%):* ${hotelData.currency
+        }${gstAmount.toFixed(2)}`
         : ""
-    }
+      }
     
-    ${
-      !isQrScan &&
-      orderType === "delivery" &&
-      deliveryInfo?.cost &&
-      !deliveryInfo?.isOutOfRange
+    ${!isQrScan &&
+        orderType === "delivery" &&
+        deliveryInfo?.cost &&
+        !deliveryInfo?.isOutOfRange
         ? `*Delivery Charge:* ${hotelData.currency}${deliveryInfo.cost.toFixed(
-            2
-          )}`
+          2
+        )}`
         : ""
-    }
+      }
     
-    ${
-      qrGroup?.extra_charge
+    ${qrGroup?.extra_charge
         ? `*${qrGroup.name}:* ${hotelData.currency}${qrCharge.toFixed(2)}`
         : ""
-    }
+      }
     
-    *Total Price:* ${hotelData.currency}${grandTotal.toFixed(2)}
+    * Total Price:* ${hotelData.currency}${grandTotal.toFixed(2)}
     ${orderNote ? `\n*📝 Note:* ${orderNote}` : ""}
-    `;
+  `;
 
     const number =
       selectedWhatsAppNumber ||
@@ -368,9 +361,8 @@ const OrderDrawer = ({
       hotelData?.phone ||
       "8590115462";
 
-    return `https://api.whatsapp.com/send?phone=${
-      hotelData?.country_code || "+91"
-    }${number}&text=${encodeURIComponent(whatsappMsg)}`;
+    return `https://api.whatsapp.com/send?phone=${hotelData?.country_code || "+91"
+      }${number}& text=${encodeURIComponent(whatsappMsg)} `;
   };
 
   // Modified: Intercept "View Order" click
@@ -392,7 +384,7 @@ const OrderDrawer = ({
     // Get country code from hotelData
     const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, '') || '91'; // Default to India if not available
     const phoneDigits = getPhoneDigitsForCountry(countryCode);
-    
+
     if (!phoneNumber || !validatePhoneNumber(phoneNumber, countryCode)) {
       toast.error(getPhoneValidationError(countryCode));
       return;
@@ -461,19 +453,17 @@ const OrderDrawer = ({
       {/* Bottom Drawer */}
       <div
         style={{ ...styles.border }}
-        className={`fixed ${
-          isMoveUp
+        className={`fixed ${isMoveUp
             ? isBottomNavHidden
               ? "bottom-24 sm:bottom-0"
               : "bottom-16 sm:bottom-0"
             : "bottom-0"
-        } z-[200] left-1/2 -translate-x-1/2 transition-all duration-300 ${
-          !open_drawer_bottom
+          } z - [200] left - 1 / 2 - translate - x - 1 / 2 transition - all duration - 300 ${!open_drawer_bottom
             ? "translate-y-[200%]"
             : isBottomNavHidden
-            ? "translate-y-full"
-            : "translate-y-0"
-        } lg:max-w-[50%] bg-white text-black w-full px-[8%] py-6 rounded-t-[35px] bottom-bar-shadow flex items-center justify-between`}
+              ? "translate-y-full"
+              : "translate-y-0"
+          } lg: max - w - [50 %] bg - white text - black w - full px - [8 %] py - 6 rounded - t - [35px] bottom - bar - shadow flex items - center justify - between`}
       >
         <div>
           <div className="flex gap-2 items-center font-black text-xl">
@@ -537,7 +527,7 @@ const OrderDrawer = ({
 
             <div className="space-y-2">
               <Label htmlFor="phone">
-                Phone Number 
+                Phone Number
               </Label>
               <div className="flex gap-2">
                 <div className="flex items-center px-3 bg-gray-100 rounded-md text-sm font-medium">
