@@ -6,6 +6,7 @@ import { UtensilsCrossed, Edit, Tag, Zap, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import RestaurantMarquee from "@/components/international/RestaurantMarquee";
 import HeroButtons from "@/components/international/HeroButtons";
+import PricingSection from "@/components/international/PricingSection";
 
 export const metadata: Metadata = {
     title: "Cravings Digital Menu | The Smartest Menu Creator for Restaurants",
@@ -218,61 +219,7 @@ export default function InternationalPage() {
             </section>
 
             {/* Pricing */}
-            <section className="py-24 bg-gradient-to-br from-orange-50 to-white" id="pricing">
-                <div className="max-w-5xl mx-auto px-6 text-center">
-                    <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Simple, Transparent Pricing</h2>
-                    <p className="text-lg text-gray-600 mb-12">Everything you need to grow your restaurant.</p>
-
-                    <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-orange-100 max-w-3xl mx-auto transform hover:-translate-y-1 transition-transform duration-300">
-                        <div className="bg-orange-600 py-3 text-white text-sm font-bold tracking-wide uppercase">
-                            Most Popular
-                        </div>
-                        <div className="p-10 md:p-12">
-                            <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-10">
-                                <div className="text-left">
-                                    <h3 className="text-2xl font-bold text-gray-900 mb-1">Standard Plan</h3>
-                                    <p className="text-gray-500 text-sm">Perfect for modern restaurants</p>
-                                </div>
-                                <div className="text-right">
-                                    <div className="flex items-baseline justify-end gap-1">
-                                        <span className="text-5xl font-extrabold text-gray-900">$25</span>
-                                        <span className="text-gray-500 font-medium">/month</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 text-left mb-10">
-                                {[
-                                    "Unlimited menu items",
-                                    "Real-time updates",
-                                    "QR Code generation",
-                                    "Image hosting",
-                                    "Offer management",
-                                    "Availability toggle",
-                                    "Basic Analytics",
-                                    "Priority Support"
-                                ].map((feature, i) => (
-                                    <div key={i} className="flex items-center gap-3">
-                                        <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                                            <UtensilsCrossed className="h-3 w-3 text-green-600" />
-                                        </div>
-                                        <span className="text-gray-700 font-medium">{feature}</span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="flex flex-col gap-4">
-                                <Link href="/get-started" className="block w-full">
-                                    <Button className="w-full bg-orange-600 hover:bg-orange-700 text-white text-lg py-6 rounded-xl shadow-md">
-                                        Start Your Free Trial
-                                    </Button>
-                                </Link>
-                                <p className="text-xs text-gray-400">Cancel anytime. No questions asked.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <PricingSection />
 
             {/* Footer CTA */}
             <footer className="bg-white py-20 border-t border-gray-100">
