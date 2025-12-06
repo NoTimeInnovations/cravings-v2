@@ -11,6 +11,8 @@ import {
     Check,
     UtensilsCrossed,
     ArrowLeft,
+    X,
+    FileText,
 } from "lucide-react";
 import { GoogleGenerativeAI, Schema } from "@google/generative-ai";
 import { toast } from "sonner";
@@ -35,21 +37,43 @@ interface HotelDetails {
     banner?: string;
     phone: string;
     country: string;
+    state?: string;
+    district?: string;
+    facebook_link?: string;
+    instagram_link?: string;
 }
 
 // --- Constants ---
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(API_KEY);
+const STORAGE_KEY = "cravings_onboarding_state";
+
+const COUNTRIES = ["India", "United States", "United Kingdom", "Canada", "Australia", "United Arab Emirates"];
+const STATES = [
+    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat",
+    "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh",
+    "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab",
+    "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh",
+    "Uttarakhand", "West Bengal", "Delhi"
+];
+const KERALA_DISTRICTS = [
+    "Alappuzha", "Ernakulam", "Idukki", "Kannur", "Kasaragod", "Kollam", "Kottayam",
+    "Kozhikode", "Malappuram", "Palakkad", "Pathanamthitta", "Thiruvananthapuram",
+    "Thrissur", "Wayanad"
+];
 
 export default function GetStartedPage() {
     const router = useRouter();
     const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-    const [menuImage, setMenuImage] = useState<File | null>(null);
-    const [menuImagePreview, setMenuImagePreview] = useState<string | null>(null);
+    const [menuFiles, setMenuFiles] = useState<File[]>([]);
     const [hotelDetails, setHotelDetails] = useState<HotelDetails>({
         name: "",
         phone: "",
-        country: "",
+        country: "India",
+        state: "",
+        district: "",
+        facebook_link: "",
+        instagram_link: "",
     });
     const [isExtractingMenu, setIsExtractingMenu] = useState(false);
     const [extractedItems, setExtractedItems] = useState<MenuItem[]>([]);
@@ -62,7 +86,7 @@ export default function GetStartedPage() {
         accent: "#ea580c",
     });
     const [showAuthModal, setShowAuthModal] = useState(false);
-    const [authCredentials, setAuthCredentials] = useState({ email: "", password: "" });
+    const [authCredentials, setAuthCredentials] = useState({ email: "", password: "", referralCode: "" });
 
     useEffect(() => {
         if (bannerPreview) {
@@ -116,6 +140,46 @@ export default function GetStartedPage() {
         }
     }, [bannerPreview]);
 
+    // --- Persistence & Hydration ---
+
+    // Hydrate from localStorage
+    useEffect(() => {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+            try {
+                const parsed = JSON.parse(stored);
+                // If we were on step 3 but have no items, it means extraction was incomplete/interrupted.
+                // Reset to start.
+                if (parsed.step === 3 && (!parsed.extractedItems || parsed.extractedItems.length === 0)) {
+                    setStep(1);
+                    // Don't restore other state to be safe, or maybe just restore details?
+                    // Let's restore details but reset step.
+                    if (parsed.hotelDetails) setHotelDetails(parsed.hotelDetails);
+                } else {
+                    if (parsed.step) setStep(parsed.step);
+                    if (parsed.hotelDetails) setHotelDetails(parsed.hotelDetails);
+                    if (parsed.extractedItems) setExtractedItems(parsed.extractedItems);
+                    if (parsed.selectedPalette) setSelectedPalette(parsed.selectedPalette);
+                    if (parsed.colorPalettes) setColorPalettes(parsed.colorPalettes);
+                }
+            } catch (e) {
+                console.error("Failed to parse stored state", e);
+            }
+        }
+    }, []);
+
+    // Persist to localStorage
+    useEffect(() => {
+        const stateToSave = {
+            step,
+            hotelDetails,
+            extractedItems,
+            selectedPalette,
+            colorPalettes
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+    }, [step, hotelDetails, extractedItems, selectedPalette, colorPalettes]);
+
 
 
     useEffect(() => {
@@ -125,15 +189,17 @@ export default function GetStartedPage() {
             const items = e.clipboardData?.items;
             if (!items) return;
 
+            const newFiles: File[] = [];
             for (let i = 0; i < items.length; i++) {
-                if (items[i].type.indexOf("image") !== -1) {
+                if (items[i].type.indexOf("image") !== -1 || items[i].type === "application/pdf") {
                     const blob = items[i].getAsFile();
-                    if (blob) {
-                        setMenuImage(blob);
-                        setMenuImagePreview(URL.createObjectURL(blob));
-                        toast.success("Image pasted successfully!");
-                    }
+                    if (blob) newFiles.push(blob);
                 }
+            }
+
+            if (newFiles.length > 0) {
+                setMenuFiles(prev => [...prev, ...newFiles]);
+                toast.success(`${newFiles.length} file(s) added!`);
             }
         };
 
@@ -143,12 +209,14 @@ export default function GetStartedPage() {
 
     // --- Handlers ---
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            setMenuImage(file);
-            setMenuImagePreview(URL.createObjectURL(file));
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            setMenuFiles(prev => [...prev, ...Array.from(e.target.files!)]);
         }
+    };
+
+    const removeFile = (index: number) => {
+        setMenuFiles(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,7 +231,7 @@ export default function GetStartedPage() {
         }
     };
 
-    const handleDetailsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleDetailsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setHotelDetails((prev) => ({ ...prev, [name]: value }));
     };
@@ -245,7 +313,7 @@ export default function GetStartedPage() {
     };
 
     const extractMenu = async (): Promise<MenuItem[]> => {
-        if (!menuImage) throw new Error("No menu image provided");
+        if (menuFiles.length === 0) throw new Error("No menu files provided");
 
         setIsExtractingMenu(true);
         try {
@@ -280,7 +348,7 @@ export default function GetStartedPage() {
                 },
             });
 
-            const prompt = `Extract each distinct dish as a separate item from the provided images. 
+            const prompt = `Extract each distinct dish as a separate item from the provided menu files (images or PDFs). 
       For each item, provide:
       - name: The name of the dish.
       - price: The minimum price.
@@ -288,15 +356,23 @@ export default function GetStartedPage() {
       - category: The main heading.
       - variants: (Optional) Array of {name, price} for sizes.`;
 
-            const base64 = await new Promise<string>((resolve) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve((reader.result as string).split(",")[1]);
-                reader.readAsDataURL(menuImage);
-            });
+            const fileParts = await Promise.all(menuFiles.map(async (file) => {
+                const base64 = await new Promise<string>((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve((reader.result as string).split(",")[1]);
+                    reader.readAsDataURL(file);
+                });
+                return {
+                    inlineData: {
+                        data: base64,
+                        mimeType: file.type
+                    }
+                };
+            }));
 
             const result = await model.generateContent([
                 prompt,
-                { inlineData: { data: base64, mimeType: menuImage.type } },
+                ...fileParts
             ]);
 
             const parsedMenu = JSON.parse(result.response.text());
@@ -317,7 +393,7 @@ export default function GetStartedPage() {
     };
 
     const handleStep1Next = () => {
-        if (!menuImage) return;
+        if (menuFiles.length === 0) return;
 
         // Start extraction in background
         extractionPromise.current = extractMenu().catch((err) => {
@@ -380,6 +456,7 @@ export default function GetStartedPage() {
             currency: "USD",
             is_shop_open: true,
             theme: JSON.stringify(selectedPalette),
+            referral_code: authCredentials.referralCode,
         };
 
         // Construct Categories Data
@@ -423,6 +500,8 @@ export default function GetStartedPage() {
         });
 
         setShowAuthModal(false);
+        localStorage.removeItem(STORAGE_KEY);
+        console.log("LocalStorage cleared.");
         setStep(4); // Move to pricing
     };
 
@@ -444,16 +523,17 @@ export default function GetStartedPage() {
                 </p>
             </div>
 
-            <div className={`border-2 border-dashed rounded-3xl p-6 md:p-10 transition-colors cursor-pointer relative group ${menuImage ? "border-green-500 bg-green-50" : "border-gray-200 hover:bg-gray-50"}`}>
+            <div className={`border-2 border-dashed rounded-3xl p-6 md:p-10 transition-colors relative group ${menuFiles.length > 0 ? "border-green-500 bg-green-50" : "border-gray-200 hover:bg-gray-50"}`}>
                 <input
                     type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
+                    accept="image/*,application/pdf"
+                    multiple
+                    onChange={handleFileUpload}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
                 <div className="flex flex-col items-center gap-4">
-                    <div className={`w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 ${menuImage ? "bg-green-100" : "bg-orange-100"}`}>
-                        {menuImage ? (
+                    <div className={`w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 ${menuFiles.length > 0 ? "bg-green-100" : "bg-orange-100"}`}>
+                        {menuFiles.length > 0 ? (
                             <Check className="w-6 h-6 md:w-8 md:h-8 text-green-600" />
                         ) : (
                             <Upload className="w-6 h-6 md:w-8 md:h-8 text-orange-600" />
@@ -461,18 +541,52 @@ export default function GetStartedPage() {
                     </div>
                     <div className="space-y-1">
                         <p className="font-semibold text-gray-900 text-sm md:text-base">
-                            {menuImage ? "1 Image Selected" : "Click to upload, drag & drop, or paste"}
+                            {menuFiles.length > 0 ? `${menuFiles.length} File(s) Selected` : "Click to upload, drag & drop, or paste"}
                         </p>
                         <p className="text-xs md:text-sm text-gray-500">
-                            {menuImage ? "Click to change" : "JPG, PNG up to 10MB"}
+                            JPG, PNG, PDF up to 10MB
                         </p>
+                        {menuFiles.length > 0 && (
+                            <p className="text-xs text-green-600 font-medium">Click area to add more</p>
+                        )}
                     </div>
                 </div>
             </div>
 
+            {/* File Preview List */}
+            {menuFiles.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {menuFiles.map((file, idx) => (
+                        <div key={idx} className="relative group/file aspect-square rounded-xl overflow-hidden border border-gray-200">
+                            {file.type.startsWith('image/') ? (
+                                <img
+                                    src={URL.createObjectURL(file)}
+                                    alt={`Page ${idx + 1}`}
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <div className="w-full h-full bg-red-50 flex flex-col items-center justify-center p-2 text-center">
+                                    <FileText className="w-8 h-8 text-red-500 mb-2" />
+                                    <span className="text-xs text-red-700 w-full truncate px-2 font-medium">
+                                        {file.name}
+                                    </span>
+                                </div>
+                            )}
+                            <button
+                                onClick={() => removeFile(idx)}
+                                className="absolute top-2 right-2 bg-white/90 hover:bg-red-50 text-red-600 rounded-full p-1.5 shadow-sm opacity-100 md:opacity-0 md:group-hover/file:opacity-100 transition-all scale-100 active:scale-95"
+                            >
+                                <X size={14} />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )
+            }
+
             <Button
                 onClick={handleStep1Next}
-                disabled={!menuImage}
+                disabled={menuFiles.length === 0}
                 className="w-full h-10 md:h-11 text-base md:text-lg rounded-full bg-orange-600 hover:bg-orange-700"
             >
                 Next Step <ChevronRight className="ml-2 w-4 h-4 md:w-5 md:h-5" />
@@ -544,17 +658,94 @@ export default function GetStartedPage() {
                     />
                 </div>
 
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="country" className="text-sm">Country</Label>
+                    <Label htmlFor="facebook_link" className="text-sm">Facebook Link (Optional)</Label>
                     <Input
-                        id="country"
-                        name="country"
-                        placeholder="e.g. India"
-                        value={hotelDetails.country}
+                        id="facebook_link"
+                        name="facebook_link"
+                        placeholder="https://facebook.com/..."
+                        value={hotelDetails.facebook_link}
                         onChange={handleDetailsChange}
                         className="h-10 md:h-11 rounded-xl text-sm md:text-base"
                     />
                 </div>
+                <div className="space-y-2">
+                    <Label htmlFor="instagram_link" className="text-sm">Instagram Link (Optional)</Label>
+                    <Input
+                        id="instagram_link"
+                        name="instagram_link"
+                        placeholder="https://instagram.com/..."
+                        value={hotelDetails.instagram_link}
+                        onChange={handleDetailsChange}
+                        className="h-10 md:h-11 rounded-xl text-sm md:text-base"
+                    />
+                </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="country" className="text-sm">Country</Label>
+                    <select
+                        id="country"
+                        name="country"
+                        value={hotelDetails.country}
+                        onChange={handleDetailsChange}
+                        className="w-full h-10 md:h-11 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        <option value="" disabled>Select Country</option>
+                        {COUNTRIES.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="state" className="text-sm">State</Label>
+                    {hotelDetails.country === "India" ? (
+                        <select
+                            id="state"
+                            name="state"
+                            value={hotelDetails.state}
+                            onChange={handleDetailsChange}
+                            className="w-full h-10 md:h-11 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <option value="" disabled>Select State</option>
+                            {STATES.map(s => (
+                                <option key={s} value={s}>{s}</option>
+                            ))}
+                        </select>
+                    ) : (
+                        <Input
+                            id="state"
+                            name="state"
+                            placeholder="State / Province"
+                            value={hotelDetails.state}
+                            onChange={handleDetailsChange}
+                            className="h-10 md:h-11 rounded-xl text-sm md:text-base"
+                        />
+                    )}
+                </div>
+
+                {hotelDetails.state === "Kerala" && (
+                    <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="district" className="text-sm">District</Label>
+                        <select
+                            id="district"
+                            name="district"
+                            value={hotelDetails.district}
+                            onChange={handleDetailsChange}
+                            className="w-full h-10 md:h-11 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <option value="" disabled>Select District</option>
+                            {KERALA_DISTRICTS.map(d => (
+                                <option key={d} value={d}>{d}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
             </div>
 
             <Button
@@ -811,6 +1002,17 @@ export default function GetStartedPage() {
                                     placeholder="••••••••"
                                     value={authCredentials.password}
                                     onChange={(e) => setAuthCredentials(prev => ({ ...prev, password: e.target.value }))}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="referral" className="text-sm">Referral Code (Optional)</Label>
+                                <Input
+                                    id="referral"
+                                    name="referral"
+                                    placeholder="Enter code"
+                                    value={authCredentials.referralCode}
+                                    onChange={(e) => setAuthCredentials(prev => ({ ...prev, referralCode: e.target.value }))}
+                                    className="h-10 rounded-xl"
                                 />
                             </div>
                         </div>
