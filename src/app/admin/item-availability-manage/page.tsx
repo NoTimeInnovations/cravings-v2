@@ -4,6 +4,8 @@ import ItemAvailabilityManage from "@/components/admin/ItemAvailabilityManage";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import React from "react";
 
+export const dynamic = "force-dynamic";
+
 const fetchAllMenu = async () => {
   try {
     const cookies = await getAuthCookie();
