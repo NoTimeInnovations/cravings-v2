@@ -41,6 +41,7 @@ interface HotelDetails {
     district?: string;
     facebook_link?: string;
     instagram_link?: string;
+    location_link?: string;
 }
 
 // --- Constants ---
@@ -64,7 +65,7 @@ const KERALA_DISTRICTS = [
 
 export default function GetStartedPage() {
     const router = useRouter();
-    const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+    const [step, setStep] = useState<1 | 2 | 3>(1);
     const [menuFiles, setMenuFiles] = useState<File[]>([]);
     const [hotelDetails, setHotelDetails] = useState<HotelDetails>({
         name: "",
@@ -74,6 +75,7 @@ export default function GetStartedPage() {
         district: "",
         facebook_link: "",
         instagram_link: "",
+        location_link: "",
     });
     const [isExtractingMenu, setIsExtractingMenu] = useState(false);
     const [extractedItems, setExtractedItems] = useState<MenuItem[]>([]);
@@ -502,7 +504,7 @@ export default function GetStartedPage() {
         setShowAuthModal(false);
         localStorage.removeItem(STORAGE_KEY);
         console.log("LocalStorage cleared.");
-        setStep(4); // Move to pricing
+        router.push("/pricing");
     };
 
     const handleBuyNow = () => {
@@ -685,6 +687,18 @@ export default function GetStartedPage() {
                 </div>
             </div>
 
+            <div className="space-y-2">
+                <Label htmlFor="location_link" className="text-sm">Google Maps Location Link (Optional)</Label>
+                <Input
+                    id="location_link"
+                    name="location_link"
+                    placeholder="https://maps.google.com/..."
+                    value={hotelDetails.location_link}
+                    onChange={handleDetailsChange}
+                    className="h-10 md:h-11 rounded-xl text-sm md:text-base"
+                />
+            </div>
+
             <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="country" className="text-sm">Country</Label>
@@ -859,91 +873,13 @@ export default function GetStartedPage() {
         );
     };
 
-    const renderStep4 = () => (
-        <div className="max-w-4xl mx-auto text-center space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-            <div className="space-y-4">
-                <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900">
-                    Simple, Transparent Pricing
-                </h1>
-                <p className="text-xl text-gray-500 max-w-2xl mx-auto">
-                    Everything you need to run a digital menu. No hidden fees.
-                </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
-                {/* Free Tier */}
-                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                    <h3 className="text-xl font-semibold text-gray-900">Starter</h3>
-                    <div className="mt-4 flex items-baseline justify-center text-gray-900">
-                        <span className="text-5xl font-bold tracking-tight">Free</span>
-                    </div>
-                    <p className="mt-4 text-sm text-gray-500">
-                        Perfect for trying out the platform.
-                    </p>
-                    <ul className="mt-8 space-y-4 text-left">
-                        <li className="flex gap-3">
-                            <Check className="h-5 w-5 text-green-500" />
-                            <span className="text-gray-700">Up to 20 menu items</span>
-                        </li>
-                        <li className="flex gap-3">
-                            <Check className="h-5 w-5 text-green-500" />
-                            <span className="text-gray-700">Basic QR Code</span>
-                        </li>
-                    </ul>
-                    <Button
-                        variant="outline"
-                        className="mt-8 w-full rounded-full"
-                        onClick={() => toast.info("Free plan selected")}
-                    >
-                        Continue Free
-                    </Button>
-                </div>
-
-                {/* Pro Tier */}
-                <div className="bg-orange-50 p-8 rounded-3xl border-2 border-orange-100 shadow-lg relative overflow-hidden">
-                    <div className="absolute top-0 right-0 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl">
-                        POPULAR
-                    </div>
-                    <h3 className="text-xl font-semibold text-orange-900">Pro</h3>
-                    <div className="mt-4 flex items-baseline justify-center text-gray-900">
-                        <span className="text-5xl font-bold tracking-tight">$25</span>
-                        <span className="ml-1 text-xl text-gray-500">/mo</span>
-                    </div>
-                    <p className="mt-4 text-sm text-gray-500">
-                        For growing restaurants.
-                    </p>
-                    <ul className="mt-8 space-y-4 text-left">
-                        <li className="flex gap-3">
-                            <Check className="h-5 w-5 text-orange-600" />
-                            <span className="text-gray-700">Unlimited items</span>
-                        </li>
-                        <li className="flex gap-3">
-                            <Check className="h-5 w-5 text-orange-600" />
-                            <span className="text-gray-700">Custom Branding</span>
-                        </li>
-                        <li className="flex gap-3">
-                            <Check className="h-5 w-5 text-orange-600" />
-                            <span className="text-gray-700">Analytics & Insights</span>
-                        </li>
-                    </ul>
-                    <Button
-                        className="mt-8 w-full rounded-full bg-orange-600 hover:bg-orange-700 text-white shadow-md shadow-orange-200"
-                        onClick={handleBuyNow}
-                    >
-                        Buy Now
-                    </Button>
-                </div>
-            </div>
-        </div>
-    );
-
     return (
         <div className="min-h-screen max-w-screen overflow-x-hidden bg-white font-sans">
             {/* Header */}
             <header className="border-b border-gray-100 bg-white/80 backdrop-blur-md z-50">
                 <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        {step > 1 && step < 4 && (
+                        {step > 1 && (
                             <button
                                 onClick={() => setStep((s) => (s - 1) as any)}
                                 className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors"
@@ -956,11 +892,10 @@ export default function GetStartedPage() {
                             <span className="text-xl font-bold text-gray-900">Cravings</span>
                         </div>
                     </div>
-                    {step < 4 && (
-                        <div className="text-sm font-medium text-gray-500">
-                            Step {step} of 3
-                        </div>
-                    )}
+                    {/* Step Indicator */}
+                    <div className="text-sm font-medium text-gray-500">
+                        Step {step} of 3
+                    </div>
                 </div>
             </header>
 
@@ -971,7 +906,6 @@ export default function GetStartedPage() {
                 {step === 1 && renderStep1()}
                 {step === 2 && renderStep2()}
                 {step === 3 && renderStep3()}
-                {step === 4 && renderStep4()}
             </main>
 
             {/* Auth Modal */}

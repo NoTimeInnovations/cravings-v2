@@ -27,8 +27,9 @@ const plans = [
             "Unlimited edits",
             "Priority support"
         ],
-        buttonText: "Get Standard",
+        buttonText: "Coming Soon",
         popular: true,
+        disabled: true,
     },
     {
         name: "Plus",
@@ -41,8 +42,9 @@ const plans = [
             "Dedicated member support",
             "Marketing kit"
         ],
-        buttonText: "Get Plus",
+        buttonText: "Coming Soon",
         popular: false,
+        disabled: true,
     }
 ];
 
@@ -94,16 +96,25 @@ export default function PricingSection({ hideHeader = false }: { hideHeader?: bo
                                     ))}
                                 </div>
 
-                                <Link href="/get-started" className="block w-full mt-auto">
+                                {plan.disabled ? (
                                     <Button
-                                        className={`w-full py-6 rounded-xl shadow-md text-lg ${plan.popular
-                                            ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                                            : 'bg-white border-2 border-orange-100 text-orange-600 hover:bg-orange-50 hover:border-orange-200'
-                                            }`}
+                                        disabled
+                                        className="w-full py-6 rounded-xl shadow-none text-lg bg-gray-100 text-gray-400 border-2 border-transparent cursor-not-allowed"
                                     >
                                         {plan.buttonText}
                                     </Button>
-                                </Link>
+                                ) : (
+                                    <Link href="/get-started" className="block w-full mt-auto">
+                                        <Button
+                                            className={`w-full py-6 rounded-xl shadow-md text-lg ${plan.popular
+                                                ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                                                : 'bg-white border-2 border-orange-100 text-orange-600 hover:bg-orange-50 hover:border-orange-200'
+                                                }`}
+                                        >
+                                            {plan.buttonText}
+                                        </Button>
+                                    </Link>
+                                )}
                             </div>
                         </div>
                     ))}
