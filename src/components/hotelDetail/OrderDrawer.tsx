@@ -19,7 +19,7 @@ import { Loader2 } from "lucide-react";
 import { validatePhoneNumber, getPhoneValidationError } from "@/lib/getUserCountry";
 import { getPhoneDigitsForCountry } from "@/lib/countryPhoneMap";
 
-const bottomNavFilter = ["PETRAZ", "HENZU"];
+
 
 export const getGstAmount = (price: number, gstPercentage: number) => {
   return (price * gstPercentage) / 100;
@@ -174,9 +174,7 @@ const OrderDrawer = ({
   const [features, setFeatures] = useState<FeatureFlags | null>(null);
   const [isMoveUp, setMoveUp] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const isBottomNavHidden = bottomNavFilter.some((filter) =>
-    pathname.includes(filter)
-  );
+  const isBottomNavHidden = true;
 
   // Client timezone (used for formatting times in messages)
   const tz = typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";

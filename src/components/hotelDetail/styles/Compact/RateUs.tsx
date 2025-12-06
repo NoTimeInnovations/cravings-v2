@@ -108,7 +108,7 @@ const RateUs: React.FC<{ hoteldata: HotelData; socialLinks: SocialLinks }> = ({
       {(canRate && !hasRated) && (
         <Button
           onClick={() => handleModalOpenChange(true)}
-          className={`fixed left-4 z-50 shadow-lg rounded-full transition-all duration-500 ${isMoveUp ? hasItems ? "bottom-44" : "bottom-20" : hasItems ? "bottom-28" : "bottom-4"}`}
+          className={`fixed left-4 z-50 shadow-lg rounded-full transition-all duration-500 ${isMoveUp ? hasItems ? "bottom-28" : "bottom-4" : hasItems ? "bottom-28" : "bottom-4"}`}
         >
           <Star className="mr-2 h-4 w-4" /> Rate Us
         </Button>
