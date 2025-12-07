@@ -375,18 +375,18 @@ const AddressManagementModal = ({
     try {
       const fullAddress = isIndia
         ? [
-            flatNo,
-            houseNo,
-            roadNo,
-            street,
-            area,
-            district,
-            landmark ? `near ${landmark}` : null,
-            city,
-            pincode,
-          ]
-            .filter(Boolean)
-            .join(", ")
+          flatNo,
+          houseNo,
+          roadNo,
+          street,
+          area,
+          district,
+          landmark ? `near ${landmark}` : null,
+          city,
+          pincode,
+        ]
+          .filter(Boolean)
+          .join(", ")
         : customLocation.trim(); // For non-India, use customLocation as full address
 
       const normalizedLabel = label === "Other" ? customLabel.trim() : label;
@@ -410,7 +410,7 @@ const AddressManagementModal = ({
         isDefault: false,
       };
 
-      
+
 
       onSaved(addr);
       onClose();
@@ -430,7 +430,7 @@ const AddressManagementModal = ({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] bg-white h-[100dvh]">
+    <div className="fixed inset-0 z-[70] bg-white h-[100dvh] flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-white">
         <div className="flex items-center gap-3">
@@ -446,7 +446,7 @@ const AddressManagementModal = ({
         </Button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 max-h-[calc(100vh-140px)]">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {/* Location Selection */}
         {/* This block shows the choice buttons */}
         {!coordinates && !showMap ? (
@@ -853,17 +853,15 @@ const UnifiedAddressSection = ({
         >
           <span className="text-sm">
             {selectedAddress
-              ? `${selectedAddress.label}${
-                  selectedAddress.customLabel
-                    ? ` (${selectedAddress.customLabel})`
-                    : ""
-                }`
+              ? `${selectedAddress.label}${selectedAddress.customLabel
+                ? ` (${selectedAddress.customLabel})`
+                : ""
+              }`
               : "Select address"}
           </span>
           <ChevronDown
-            className={`h-4 w-4 transition-transform ${
-              showDropdown ? "rotate-180" : ""
-            }`}
+            className={`h-4 w-4 transition-transform ${showDropdown ? "rotate-180" : ""
+              }`}
           />
         </button>
 
@@ -1130,9 +1128,8 @@ const OrderTypeCard = ({
               : "Select order type"}
           </span>
           <svg
-            className={`w-4 h-4 transition-transform ${
-              isOpen ? "rotate-180" : ""
-            }`}
+            className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""
+              }`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -1219,9 +1216,8 @@ const MultiWhatsappCard = ({
             {selectedLocation ? selectedLocation.toUpperCase() : "Select Area"}
           </span>
           <svg
-            className={`w-4 h-4 transition-transform ${
-              isOpen ? "rotate-180" : ""
-            }`}
+            className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""
+              }`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -1391,10 +1387,10 @@ const BillCard = ({
 
   const qrExtraCharges = qrGroup?.extra_charge
     ? getExtraCharge(
-        items,
-        qrGroup.extra_charge,
-        qrGroup.charge_type || "FLAT_FEE"
-      )
+      items,
+      qrGroup.extra_charge,
+      qrGroup.charge_type || "FLAT_FEE"
+    )
     : 0;
 
   const deliveryCharges =
@@ -1438,9 +1434,8 @@ const BillCard = ({
 
         {gstPercentage ? (
           <div className="flex justify-between">
-            <span>{`${
-              hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"
-            } (${gstPercentage}%)`}</span>
+            <span>{`${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"
+              } (${gstPercentage}%)`}</span>
             <span>
               {currency}
               {gstAmount.toFixed(2)}
@@ -1514,7 +1509,7 @@ const LoginDrawer = ({
     // Get country code from hotelData
     const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, '') || '91';
     const phoneDigits = getPhoneDigitsForCountry(countryCode);
-    
+
     if (!phoneNumber || !validatePhoneNumber(phoneNumber, countryCode)) {
       toast.error(getPhoneValidationError(countryCode));
       return;
@@ -1967,9 +1962,8 @@ const PlaceOrderModal = ({
   return (
     <>
       <div
-        className={`fixed inset-0 z-[600] bg-gray-50 text-black ${
-          open_place_order_modal ? "block" : "hidden"
-        }`}
+        className={`fixed inset-0 z-[600] bg-gray-50 text-black ${open_place_order_modal ? "block" : "hidden"
+          }`}
       >
         <div className="sticky top-0 bg-white border-b">
           <div className="flex items-center gap-4 p-4">
@@ -2072,12 +2066,12 @@ const PlaceOrderModal = ({
                 (isDelivery &&
                   orderType === "delivery" &&
                   (totalPrice ?? 0) < minimumOrderAmount)) && (
-                <div className="text-sm text-red-600 p-2 bg-red-50 rounded text-center">
-                  Minimum order amount for delivery is
-                  {hotelData?.currency || "₹"}
-                  {deliveryInfo?.minimumOrderAmount.toFixed(2)}
-                </div>
-              )}
+                  <div className="text-sm text-red-600 p-2 bg-red-50 rounded text-center">
+                    Minimum order amount for delivery is
+                    {hotelData?.currency || "₹"}
+                    {deliveryInfo?.minimumOrderAmount.toFixed(2)}
+                  </div>
+                )}
 
               <div className="flex flex-col gap-3 mt-6">
                 {user?.role !== "partner" && user?.role !== "superadmin" ? (
