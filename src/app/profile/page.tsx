@@ -23,8 +23,9 @@ import {
 import { useLocationStore } from "@/store/geolocationStore";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import OfferLoadinPage from "@/components/OfferLoadinPage";
+import FullScreenLoader from "@/components/ui/FullScreenLoader";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -1778,7 +1779,7 @@ export default function ProfilePage() {
   };
 
   if (isLoading) {
-    return <OfferLoadinPage message="Loading Profile...." />;
+    return <FullScreenLoader isLoading={true} loadingTexts={["Fetching your profile...", "Loading settings...", "Almost there..."]} />;
   }
 
   return (

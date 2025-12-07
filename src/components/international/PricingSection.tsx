@@ -1,7 +1,11 @@
-import React from "react";
+"use client";
+import React, { useState } from "react";
 import { Check, UtensilsCrossed, Zap, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { onBoardUserSignup } from "@/app/actions/onBoardUserSignup";
+import FullScreenLoader from "@/components/ui/FullScreenLoader";
 
 const plans = [
     {
@@ -48,9 +52,45 @@ const plans = [
     }
 ];
 
+
+
 export default function PricingSection({ hideHeader = false }: { hideHeader?: boolean }) {
+    const router = useRouter();
+    const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+
+    const handlePlanClick = async () => {
+        const onboardingData = localStorage.getItem("onboarding_data");
+
+        if (onboardingData) {
+            setIsCreatingAccount(true);
+            try {
+                const parsedData = JSON.parse(onboardingData);
+                await onBoardUserSignup(parsedData);
+                // Optional: Redirect or show success message after completion
+                // For now, per instructions, we just wait for it to finish
+            } catch (error) {
+                console.error("Signup failed", error);
+            } finally {
+                setIsCreatingAccount(false);
+            }
+        } else {
+            router.push("/get-started");
+        }
+    };
+
     return (
         <section className="py-24 bg-gradient-to-br from-orange-50 to-white" id="pricing">
+            {/* Full Screen Loader Overlay */}
+            <FullScreenLoader
+                isLoading={isCreatingAccount}
+                loadingTexts={[
+                    "Creating your account...",
+                    "Setting up your digital menu...",
+                    "Configuring your dashboard...",
+                    "Almost there..."
+                ]}
+            />
+
             <div className="max-w-7xl mx-auto px-6 text-center">
                 {!hideHeader && (
                     <>
@@ -104,8 +144,10 @@ export default function PricingSection({ hideHeader = false }: { hideHeader?: bo
                                         {plan.buttonText}
                                     </Button>
                                 ) : (
-                                    <Link href="/get-started" className="block w-full mt-auto">
+                                    <div className="block w-full mt-auto">
                                         <Button
+                                            onClick={handlePlanClick}
+                                            disabled={isCreatingAccount}
                                             className={`w-full py-6 rounded-xl shadow-md text-lg ${plan.popular
                                                 ? 'bg-orange-600 hover:bg-orange-700 text-white'
                                                 : 'bg-white border-2 border-orange-100 text-orange-600 hover:bg-orange-50 hover:border-orange-200'
@@ -113,7 +155,7 @@ export default function PricingSection({ hideHeader = false }: { hideHeader?: bo
                                         >
                                             {plan.buttonText}
                                         </Button>
-                                    </Link>
+                                    </div>
                                 )}
                             </div>
                         </div>

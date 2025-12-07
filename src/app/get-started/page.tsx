@@ -20,6 +20,7 @@ import { CompactMenuPreview, ColorPalette } from "@/components/get-started/Compa
 import { useRouter } from "next/navigation";
 import ColorThief from "colorthief";
 import axios from "axios";
+import { uploadFileToS3 } from "@/app/actions/aws-s3";
 
 // --- Types ---
 interface MenuItem {
@@ -42,6 +43,7 @@ interface HotelDetails {
     facebook_link?: string;
     instagram_link?: string;
     location_link?: string;
+    currency: string;
 }
 
 // --- Constants ---
@@ -49,7 +51,16 @@ const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(API_KEY);
 const STORAGE_KEY = "cravings_onboarding_state";
 
-const COUNTRIES = ["India", "United States", "United Kingdom", "Canada", "Australia", "United Arab Emirates"];
+const COUNTRY_META_DATA: Record<string, { code: string; currency: string; symbol: string }> = {
+    "India": { code: "+91", currency: "INR", symbol: "₹" },
+    "United States": { code: "+1", currency: "USD", symbol: "$" },
+    "United Kingdom": { code: "+44", currency: "GBP", symbol: "£" },
+    "Canada": { code: "+1", currency: "CAD", symbol: "$" },
+    "Australia": { code: "+61", currency: "AUD", symbol: "$" },
+    "United Arab Emirates": { code: "+971", currency: "AED", symbol: "AED" },
+};
+
+const COUNTRIES = Object.keys(COUNTRY_META_DATA);
 const STATES = [
     "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat",
     "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh",
@@ -63,10 +74,25 @@ const KERALA_DISTRICTS = [
     "Thrissur", "Wayanad"
 ];
 
+// --- Currencies for Selector ---
+const CURRENCIES = Array.from(new Set(Object.values(COUNTRY_META_DATA).map(m => m.symbol)));
+
+// --- Helper Functions ---
+const sanitizePhone = (phone: string, countryCode: string): string => {
+    let cleaned = phone.trim();
+    if (countryCode && cleaned.startsWith(countryCode)) {
+        cleaned = cleaned.substring(countryCode.length).trim();
+    } else if (countryCode && cleaned.startsWith(countryCode.replace("+", ""))) {
+        cleaned = cleaned.substring(countryCode.replace("+", "").length).trim();
+    }
+    return cleaned;
+};
+
 export default function GetStartedPage() {
     const router = useRouter();
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [menuFiles, setMenuFiles] = useState<File[]>([]);
+    const [bannerFile, setBannerFile] = useState<File | null>(null);
     const [hotelDetails, setHotelDetails] = useState<HotelDetails>({
         name: "",
         phone: "",
@@ -76,6 +102,7 @@ export default function GetStartedPage() {
         facebook_link: "",
         instagram_link: "",
         location_link: "",
+        currency: "₹",
     });
     const [isExtractingMenu, setIsExtractingMenu] = useState(false);
     const [extractedItems, setExtractedItems] = useState<MenuItem[]>([]);
@@ -182,8 +209,6 @@ export default function GetStartedPage() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
     }, [step, hotelDetails, extractedItems, selectedPalette, colorPalettes]);
 
-
-
     useEffect(() => {
         const handlePaste = (e: ClipboardEvent) => {
             if (step !== 1) return;
@@ -224,18 +249,28 @@ export default function GetStartedPage() {
     const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
+            setBannerFile(file);
             setBannerPreview(URL.createObjectURL(file));
-            // In a real app, we'd upload this. For demo, we use the object URL.
             setHotelDetails((prev) => ({
                 ...prev,
-                banner: URL.createObjectURL(file),
+                banner: URL.createObjectURL(file), // Still use blob URL for preview
             }));
         }
     };
 
     const handleDetailsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        setHotelDetails((prev) => ({ ...prev, [name]: value }));
+
+        if (name === "country") {
+            const meta = COUNTRY_META_DATA[value];
+            setHotelDetails((prev) => ({
+                ...prev,
+                [name]: value,
+                currency: meta ? meta.symbol : prev.currency // Auto-select currency symbol
+            }));
+        } else {
+            setHotelDetails((prev) => ({ ...prev, [name]: value }));
+        }
     };
 
     const fetchImagesInBackground = async (items: MenuItem[]) => {
@@ -431,11 +466,37 @@ export default function GetStartedPage() {
         setShowAuthModal(true);
     };
 
-    const handleFinalPublish = () => {
+    const handleFinalPublish = async () => {
         if (!authCredentials.email || !authCredentials.password) {
             toast.error("Please enter email and password");
             return;
         }
+
+        const countryMeta = COUNTRY_META_DATA[hotelDetails.country] || { code: "+91", currency: "INR", symbol: "₹" };
+
+        let bannerUrl = "";
+        if (bannerFile) {
+            try {
+                toast.loading("Uploading banner...");
+                const timestamp = Date.now();
+                const safeName = bannerFile.name.replace(/[^a-zA-Z0-9.]/g, "_");
+                bannerUrl = await uploadFileToS3(bannerFile, `banners/${timestamp}-${safeName}`);
+                toast.dismiss();
+                toast.success("Banner uploaded!");
+            } catch (error) {
+                console.error("Banner upload failed:", error);
+                toast.dismiss();
+                toast.error("Failed to upload banner, proceeding without it.");
+            }
+        }
+
+        const finalPhone = sanitizePhone(hotelDetails.phone, countryMeta.code);
+
+        const socialLinksData = {
+            instagram: hotelDetails.instagram_link,
+            facebook: hotelDetails.facebook_link,
+            location: hotelDetails.location_link
+        };
 
         // Construct Partner Data
         const partnerData = {
@@ -444,20 +505,31 @@ export default function GetStartedPage() {
             password: authCredentials.password,
             email: authCredentials.email,
             store_name: hotelDetails.name,
-            phone: hotelDetails.phone,
+            phone: finalPhone,
             country: hotelDetails.country,
-            location: "",
+            location: hotelDetails.location_link || "",
             status: "active",
             upi_id: "",
             whatsapp_numbers: [],
-            district: "",
+            district: hotelDetails.district || "",
+            state: hotelDetails.state || "",
             delivery_status: false,
             geo_location: { type: "Point", coordinates: [0, 0] },
             delivery_rate: 0,
             delivery_rules: { rules: [] },
-            currency: "USD",
+            currency: hotelDetails.currency,
+            country_code: countryMeta.code,
+            social_links: JSON.stringify(socialLinksData),
+            store_banner: bannerUrl,
             is_shop_open: true,
-            theme: JSON.stringify(selectedPalette),
+            theme: JSON.stringify({
+                colors: {
+                    text: selectedPalette.text,
+                    bg: selectedPalette.background,
+                    accent: selectedPalette.accent
+                },
+                menuStyle: "compact"
+            }),
             referral_code: authCredentials.referralCode,
         };
 
@@ -502,6 +574,13 @@ export default function GetStartedPage() {
         });
 
         setShowAuthModal(false);
+        // Save structured data for the pricing page to pick up
+        localStorage.setItem("onboarding_data", JSON.stringify({
+            partner: partnerData,
+            menu: menuData,
+            categories: categoriesData
+        }));
+
         localStorage.removeItem(STORAGE_KEY);
         console.log("LocalStorage cleared.");
         router.push("/pricing");
@@ -697,6 +776,22 @@ export default function GetStartedPage() {
                     onChange={handleDetailsChange}
                     className="h-10 md:h-11 rounded-xl text-sm md:text-base"
                 />
+            </div>
+
+            {/* Currency Selector */}
+            <div className="space-y-2">
+                <Label htmlFor="currency" className="text-sm">Currency</Label>
+                <select
+                    id="currency"
+                    name="currency"
+                    value={hotelDetails.currency}
+                    onChange={handleDetailsChange}
+                    className="w-full h-10 md:h-11 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    {CURRENCIES.map(symbol => (
+                        <option key={symbol} value={symbol}>{symbol}</option>
+                    ))}
+                </select>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">

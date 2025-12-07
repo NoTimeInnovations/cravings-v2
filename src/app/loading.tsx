@@ -1,8 +1,9 @@
-import OfferLoadinPage from "@/components/OfferLoadinPage";
+import FullScreenLoader from "@/components/ui/FullScreenLoader";
 import React from "react";
 
 const Loading = () => {
-  return <OfferLoadinPage message="Loading...." />;
+  return <FullScreenLoader isLoading={true} loadingTexts={["Loading Cravings...", "Preparing deliciousness...", "Almost there..."]} />;
 };
 
 export default Loading;
+

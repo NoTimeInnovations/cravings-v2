@@ -27,6 +27,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import FullScreenLoader from "@/components/ui/FullScreenLoader";
 import { Loader2, IndianRupee, ShoppingBag, Truck, TrendingUp, Download } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Partner, useAuthStore } from "@/store/authStore";
@@ -328,7 +329,7 @@ export function AdminV2Dashboard() {
   };
 
   if (loading) {
-    return <div className="flex h-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    return <FullScreenLoader isLoading={true} loadingTexts={["Fetching dashboard data...", "Crunching numbers...", "Just a moment..."]} />;
   }
 
   return (
