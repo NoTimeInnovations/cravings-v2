@@ -60,8 +60,8 @@ const CategoryListBtn: React.FC<{ categories: Category[] }> = ({
   // Determines the button's vertical position based on scroll and cart status
   const bottomPositionClass = isMoveUp
     ? hasItems
-      ? "bottom-44" // Scrolled up with items
-      : "bottom-20" // Scrolled up without items
+      ? "bottom-28" // Scrolled up with items
+      : "bottom-4" // Scrolled up without items
     : hasItems
     ? "bottom-28" // Scrolled down with items
     : "bottom-4"; // Scrolled down without items

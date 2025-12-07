@@ -19,6 +19,10 @@ interface UseBulkUploadProps {
   onProgress?: (current: number, total: number) => void;
 }
 
+export const sanitizeForImageGen = (text: string): string => {
+  return text.replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, " ").trim();
+};
+
 export const useBulkUpload = (props?: UseBulkUploadProps) => {
   const { onProgress } = props || {};
   const [loading, setLoading] = useState(false);
@@ -45,7 +49,7 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
   const [isExtractingMenu, setIsExtractingMenu] = useState(false);
   const [extractionError, setExtractionError] = useState<string | null>(null);
   const [menuImageFiles, setMenuImageFiles] = useState<File[]>([]);
-  const [menuImagePreviews , setMenuImagePreviews] = useState<string[]>([]);
+  const [menuImagePreviews, setMenuImagePreviews] = useState<string[]>([]);
 
   const validateMenuItem = (item: MenuItem) => {
     if (!item.name || typeof item.name !== "string") {
@@ -64,6 +68,8 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
       price: Number(item.price),
     };
   };
+
+
 
   useEffect(() => {
     if (userData?.role === "partner") {
@@ -374,10 +380,10 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
       // Get user's geolocation or use default coordinates
       const lat = "28.6139"; // Default to Delhi, India
       const lng = "77.2090";
-      
-      // Extract all item names (no sanitization needed, backend handles it)
-      const itemNames = items.map(item => item.name);
-      
+
+      // Extract all item names and sanitize them
+      const itemNames = items.map((item) => sanitizeForImageGen(item.name));
+
       // Use the images-v2 endpoint for batch processing
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images-v2`,
@@ -396,31 +402,27 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
       const pollInterval = 2000; // 2 seconds
       const maxPolls = 60; // Max 2 minutes
       let pollCount = 0;
-      
+
       while (pollCount < maxPolls) {
         await new Promise(resolve => setTimeout(resolve, pollInterval));
-        
+
         const pingResponse = await axios.get(
           `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/ping`,
           {
             params: { partner: userData?.email || "default@partner.com" }
           }
         );
-        
+
         const { status, processedNumber } = pingResponse.data;
-        
+
         // Update progress via callback
         if (onProgress) {
           onProgress(processedNumber || 0, items.length);
         } else {
           toast.info(`Processing: ${processedNumber}/${items.length} items completed`);
         }
+
         if (status === "completed") {
-          // Helper function to sanitize item names (same as backend)
-          const sanitizeToEnglish = (text: string): string => {
-            return text.replace(/[^a-zA-Z0-9\s.,!?'"-]/g, '').trim();
-          };
-          
           // Get the results
           const resultsResponse = await axios.get(
             `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/get`,
@@ -428,10 +430,10 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
               params: { partner: userData?.email || "default@partner.com" }
             }
           );
-          
+
           // Transform results to match expected format
           const results = items.map(item => {
-            const itemName = sanitizeToEnglish(item.name);
+            const itemName = sanitizeForImageGen(item.name);
             const imageUrls = resultsResponse.data[itemName] || [];
             return {
               ...item,
@@ -439,23 +441,22 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
               extra_images: imageUrls
             };
           });
-          
+
           localStorage.removeItem('imageProcessingState');
           return results;
         } else if (status === "failed") {
           localStorage.removeItem('imageProcessingState');
           throw new Error("Image generation failed");
         }
-        
+
         pollCount++;
       }
-      
+
       localStorage.removeItem('imageProcessingState');
       throw new Error("Timeout waiting for image generation");
     } catch (err) {
       console.error(
-        `${endpoint} error: ${
-          err instanceof Error ? err.message : "Unknown error"
+        `${endpoint} error: ${err instanceof Error ? err.message : "Unknown error"
         }`
       );
       throw err;
@@ -490,7 +491,7 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
         successMessage,
         onProgress
       );
-      
+
       setMenuItems(results);
       localStorage?.setItem("bulkMenuItems", JSON.stringify(results));
       localStorage.removeItem('imageProcessingState');
@@ -498,8 +499,7 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
       toast.success(successMessage);
     } catch (err) {
       console.error(
-        `Batch processing error: ${
-          err instanceof Error ? err.message : "Unknown error"
+        `Batch processing error: ${err instanceof Error ? err.message : "Unknown error"
         }`
       );
       localStorage.removeItem('imageProcessingState');
@@ -513,9 +513,8 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
     try {
       toast.loading(
         retryCount > 0
-          ? `Retrying menu extraction (attempt ${
-              retryCount + 1
-            }/${MAX_RETRIES})...`
+          ? `Retrying menu extraction (attempt ${retryCount + 1
+          }/${MAX_RETRIES})...`
           : "Extracting menu items..."
       );
 
@@ -629,14 +628,14 @@ Variants:
     }
   };
 
-   const handleMenuImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files) {
-        const filesArray = Array.from(e.target.files);
-        setMenuImageFiles(filesArray);
-        const previews = filesArray.map((file) => URL.createObjectURL(file));
-        setMenuImagePreviews(previews);
-      }
-    };
+  const handleMenuImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      setMenuImageFiles(filesArray);
+      const previews = filesArray.map((file) => URL.createObjectURL(file));
+      setMenuImagePreviews(previews);
+    }
+  };
 
   // Updated handlers
   const handleGenerateImages = () =>

@@ -18,7 +18,7 @@ export async function revalidatePath(path: string) {
 export async function revalidateTag(tag: string) {
   try {
     console.log("Revalidating tag:", tag);
-    nextRevalidateTag(tag);
+    nextRevalidateTag(tag, {});
     return { success: true };
   } catch (error) {
     console.error("Tag revalidation error:", error);

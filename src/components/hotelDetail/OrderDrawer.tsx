@@ -19,7 +19,7 @@ import { Loader2 } from "lucide-react";
 import { validatePhoneNumber, getPhoneValidationError } from "@/lib/getUserCountry";
 import { getPhoneDigitsForCountry } from "@/lib/countryPhoneMap";
 
-const bottomNavFilter = ["PETRAZ", "HENZU"];
+
 
 export const getGstAmount = (price: number, gstPercentage: number) => {
   return (price * gstPercentage) / 100;
@@ -174,9 +174,7 @@ const OrderDrawer = ({
   const [features, setFeatures] = useState<FeatureFlags | null>(null);
   const [isMoveUp, setMoveUp] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const isBottomNavHidden = bottomNavFilter.some((filter) =>
-    pathname.includes(filter)
-  );
+  const isBottomNavHidden = true;
 
   // Client timezone (used for formatting times in messages)
   const tz = typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
@@ -458,12 +456,12 @@ const OrderDrawer = ({
               ? "bottom-24 sm:bottom-0"
               : "bottom-16 sm:bottom-0"
             : "bottom-0"
-          } z - [200] left - 1 / 2 - translate - x - 1 / 2 transition - all duration - 300 ${!open_drawer_bottom
+          } z-[200] left-1/2 -translate-x-1/2 transition-all duration-300 ${!open_drawer_bottom
             ? "translate-y-[200%]"
             : isBottomNavHidden
               ? "translate-y-full"
               : "translate-y-0"
-          } lg: max - w - [50 %] bg - white text - black w - full px - [8 %] py - 6 rounded - t - [35px] bottom - bar - shadow flex items - center justify - between`}
+          } lg:max-w-[50%] bg-white text-black w-full px-[8%] py-6 rounded-t-[35px] bottom-bar-shadow flex items-center justify-between`}
       >
         <div>
           <div className="flex gap-2 items-center font-black text-xl">

@@ -41,7 +41,7 @@ export default function InternationalPage() {
                         </div>
 
                         <h1 className="text-5xl lg:text-6xl font-extrabold text-gray-900 leading-tight mb-6 tracking-tight">
-                            Create Your Digital Menu Instantly: <span className="text-orange-600">The Smartest Menu Creator</span>
+                            Create Your Digital Menu Instantly: <span className="block text-3xl lg:text-4xl text-orange-600 mt-2">The Smartest Menu Creator</span>
                         </h1>
 
                         <p className="text-xl text-gray-700 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
@@ -75,28 +75,19 @@ export default function InternationalPage() {
                         </div>
                     </div>
 
-                    <div className="flex-1 w-full max-w-xl lg:max-w-none relative">
-                        <div className="rounded-2xl overflow-hidden shadow-2xl border-4 border-white bg-white transform hover:scale-[1.01] transition-transform duration-500">
-                            <Image
-                                src="/placeholder-menu-qr.jpg"
-                                alt="Cravings Digital Menu creator software interface showing menu editing and QR preview"
-                                width={900}
-                                height={600}
-                                priority
-                                className="w-full h-auto"
-                            />
-                        </div>
-                        <div className="absolute -bottom-6 -right-6 md:right-10 p-4 bg-white rounded-xl shadow-xl border border-gray-100 animate-bounce-subtle">
-                            <div className="flex items-center gap-3">
-                                <div className="flex gap-0.5">
-                                    {[1, 2, 3, 4, 5].map((s) => (
-                                        <Star key={s} className="h-5 w-5 text-yellow-400 fill-yellow-400" />
-                                    ))}
-                                </div>
-                                <div>
-                                    <div className="font-bold text-gray-900">4.9/5</div>
-                                    <div className="text-xs text-gray-500">Restaurant Rating</div>
-                                </div>
+                    <div className="flex flex-1 relative justify-center items-center w-full max-w-xl lg:max-w-none">
+                        {/* Tablet Frame */}
+                        <div className="relative mx-auto border-gray-800 dark:border-gray-800 bg-gray-800 border-[14px] rounded-[2rem] h-[600px] w-[400px] shadow-2xl transform hover:scale-[1.005] transition-transform duration-500">
+                            {/* Camera / Top Sensor */}
+                            <div className="w-2 h-2 bg-gray-700 rounded-full absolute top-1.5 left-1/2 -translate-x-1/2"></div>
+
+                            <div className="rounded-[1.2rem] overflow-hidden w-full h-full bg-white dark:bg-gray-800 relative bg-gray-50 text-center">
+                                <iframe
+                                    src="https://www.cravings.live/hotels/LE-GRAND-CAFE/20f7e974-f19e-4c11-b6b7-4385f61f27bf"
+                                    className="w-[calc(100%+17px)] h-[calc(100%+17px)] border-none -ml-[1px] -mt-[1px]"
+                                    title="Demo Menu"
+                                    loading="lazy"
+                                />
                             </div>
                         </div>
                     </div>
