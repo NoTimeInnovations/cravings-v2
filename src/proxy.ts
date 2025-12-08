@@ -18,7 +18,7 @@ declare module 'next/server' {
   }
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const authToken = request.cookies.get("new_auth_token")?.value;
   const pathname = request.nextUrl.pathname;
   const cookieStore = await cookies();
