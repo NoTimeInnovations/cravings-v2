@@ -24,13 +24,11 @@ export async function middleware(request: NextRequest) {
   const cookieStore = await cookies();
   const requestHeaders = new Headers(request.headers);
 
-  // const country = request.geo?.country || request.headers.get('x-vercel-ip-country');
+  let country = request.geo?.country || request.headers.get('x-vercel-ip-country');
 
-  let country = "US"
-
+  country = "IN"
   console.log("Country ", country)
-  requestHeaders.set("x-user-country", country);
-
+  if (country) requestHeaders.set("x-user-country", country);
 
   if (
     pathname.includes("/hotels") ||
@@ -76,9 +74,11 @@ export async function middleware(request: NextRequest) {
     "/captainlogin",
     "/about-us",
     "/api/auth",
+    "/pricing",
     "/captainlogin",
     "/partnerlogin",
     "/newlogin",
+    "/get-started",
     "/demo",
   ];
 
@@ -105,13 +105,7 @@ export async function middleware(request: NextRequest) {
 
   // Handle root path rewrite based on role
   if (pathname === "/") {
-    if (country && country !== "IN") {
-      return NextResponse.rewrite(new URL("/international", request.url), {
-        request: {
-          headers: requestHeaders,
-        },
-      });
-    }
+
 
     try {
       let decrypted: { id: string; role: string; status?: string } | undefined;
@@ -246,7 +240,12 @@ export async function middleware(request: NextRequest) {
   // If no auth token, redirect based on the route
   if (!authToken) {
     const isSuperadminRoute = pathname.startsWith("/superadmin");
-    const redirectPath = isSuperadminRoute ? "/explore" : "/explore";
+    let redirectPath = isSuperadminRoute ? "/explore" : "/explore";
+
+    if (country !== "IN") {
+      redirectPath = "/";
+    }
+
     return NextResponse.redirect(new URL(redirectPath, request.url));
   }
 
@@ -272,7 +271,7 @@ export async function middleware(request: NextRequest) {
     const userRole = decrypted.role as keyof typeof roleAccessRules;
 
     if (userRole === "partner" && pathname === "/admin" && country !== "IN") {
-      return NextResponse.rewrite(new URL("/admin-v2", request.url), {
+      return NextResponse.rewrite(new URL("/admin", request.url), {
         request: {
           headers: requestHeaders,
         },
@@ -325,7 +324,8 @@ export async function middleware(request: NextRequest) {
     });
   } catch (error) {
     console.error("Auth verification failed:", error);
-    const response = NextResponse.redirect(new URL("/explore", request.url));
+    const redirectPath = country !== "IN" ? "/" : "/explore";
+    const response = NextResponse.redirect(new URL(redirectPath, request.url));
     response.cookies.delete("new_auth_token");
     return response;
   }

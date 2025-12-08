@@ -48,7 +48,7 @@ const bottomNavFilter = [
   "admin-v2",
 ];
 
-const navbarFilter = ["get-started", "7eb04e2d-9c20-42ba-a6b6-fce8019cad5f", "admin-v2"];
+const navbarFilter = ["get-started", "7eb04e2d-9c20-42ba-a6b6-fce8019cad5f", "admin-v2" , "20f7e974-f19e-4c11-b6b7-4385f61f27bf"];
 
 const hideWhatsappGroupJoinDialog = ["Krishnakripa-Residency"];
 

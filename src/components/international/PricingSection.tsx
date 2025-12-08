@@ -1,11 +1,14 @@
 "use client";
 import React, { useState } from "react";
+import { toast } from "sonner";
 import { Check, UtensilsCrossed, Zap, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { onBoardUserSignup } from "@/app/actions/onBoardUserSignup";
 import FullScreenLoader from "@/components/ui/FullScreenLoader";
+import { getBannerFile, clearBannerFile } from "@/lib/bannerStorage";
+import { uploadFileToS3 } from "@/app/actions/aws-s3";
 
 const plans = [
     {
@@ -54,7 +57,22 @@ const plans = [
 
 
 
-export default function PricingSection({ hideHeader = false }: { hideHeader?: boolean }) {
+
+export default function PricingSection({ hideHeader = false, country = "US" }: { hideHeader?: boolean; country?: string }) {
+    const isIndia = country === "IN";
+    const currencySymbol = isIndia ? "₹" : "$";
+
+    // Adjust prices based on country
+    const displayPlans = plans.map(plan => {
+        let price = plan.price;
+        if (isIndia) {
+            if (plan.name === "Standard") price = "₹699";
+            else if (plan.name === "Plus") price = "₹1499";
+            else if (plan.name === "Free") price = "₹0";
+        }
+        return { ...plan, price };
+    });
+
     const router = useRouter();
     const [isCreatingAccount, setIsCreatingAccount] = useState(false);
 
@@ -65,9 +83,37 @@ export default function PricingSection({ hideHeader = false }: { hideHeader?: bo
             setIsCreatingAccount(true);
             try {
                 const parsedData = JSON.parse(onboardingData);
+
+                // Handle deferred banner upload
+                if (parsedData.partner && parsedData.partner.store_banner === "PENDING_UPLOAD") {
+                    const bannerFile = await getBannerFile();
+                    if (bannerFile) {
+                        try {
+                            const timestamp = Date.now();
+                            const safeName = bannerFile.name.replace(/[^a-zA-Z0-9.]/g, "_");
+                            // Determine folder: existing code used 'banners/'
+                            const bannerUrl = await uploadFileToS3(bannerFile, `banners/${timestamp}-${safeName}`);
+                            parsedData.partner.store_banner = bannerUrl;
+                            await clearBannerFile();
+                        } catch (e) {
+                            console.error("Banner upload failed during checkout", e);
+                            parsedData.partner.store_banner = "";
+                        }
+                    } else {
+                        parsedData.partner.store_banner = "";
+                    }
+                }
+
                 await onBoardUserSignup(parsedData);
-                // Optional: Redirect or show success message after completion
-                // For now, per instructions, we just wait for it to finish
+
+                // Clear local storage on success
+                localStorage.removeItem("onboarding_data");
+                localStorage.removeItem("cravings_onboarding_state");
+
+                localStorage.removeItem("cravings_onboarding_state");
+
+                toast.success("Account created successfully!");
+                router.push("/login"); // Redirect directly
             } catch (error) {
                 console.error("Signup failed", error);
             } finally {
@@ -84,6 +130,7 @@ export default function PricingSection({ hideHeader = false }: { hideHeader?: bo
             <FullScreenLoader
                 isLoading={isCreatingAccount}
                 loadingTexts={[
+                    "Uploading your banner...",
                     "Creating your account...",
                     "Setting up your digital menu...",
                     "Configuring your dashboard...",
@@ -100,7 +147,7 @@ export default function PricingSection({ hideHeader = false }: { hideHeader?: bo
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {plans.map((plan, index) => (
+                    {displayPlans.map((plan, index) => (
                         <div
                             key={index}
                             className={`relative bg-white rounded-3xl shadow-xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 ${plan.popular

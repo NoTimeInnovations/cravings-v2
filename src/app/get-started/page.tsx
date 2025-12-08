@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import ColorThief from "colorthief";
 import axios from "axios";
 import { uploadFileToS3 } from "@/app/actions/aws-s3";
+import { saveBannerFile } from "@/lib/bannerStorage";
 
 // --- Types ---
 interface MenuItem {
@@ -477,16 +478,10 @@ export default function GetStartedPage() {
         let bannerUrl = "";
         if (bannerFile) {
             try {
-                toast.loading("Uploading banner...");
-                const timestamp = Date.now();
-                const safeName = bannerFile.name.replace(/[^a-zA-Z0-9.]/g, "_");
-                bannerUrl = await uploadFileToS3(bannerFile, `banners/${timestamp}-${safeName}`);
-                toast.dismiss();
-                toast.success("Banner uploaded!");
+                await saveBannerFile(bannerFile);
+                bannerUrl = "PENDING_UPLOAD";
             } catch (error) {
-                console.error("Banner upload failed:", error);
-                toast.dismiss();
-                toast.error("Failed to upload banner, proceeding without it.");
+                console.error("Failed to save banner locally:", error);
             }
         }
 

@@ -199,7 +199,7 @@ export default function Login() {
         )}
         {/* Owner login link */}
         <div className="mt-4 text-center">
-          <Link href="/newlogin" className="text-sm text-orange-600 hover:underline">
+          <Link href="/pricing" className="text-sm text-orange-600 hover:underline">
             Are you an owner?
           </Link>
         </div>

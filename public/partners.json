@@ -1,0 +1,37 @@
+[
+    {
+        "url": "https://www.cravings.live/qrScan/CHICKING-OOTY/6ec40577-e2d5-4a47-80ec-5e63ab9f9677",
+        "logo": "/logos/chicking.png",
+        "name": "Chicking"
+    },
+    {
+        "url": "https://www.cravings.live/hotels/3305e7f2-7e35-4ddc-8ced-c57e164d9247",
+        "logo": "/logos/malayalees.jpg",
+        "name": "80's Malayalees"
+    },
+    {
+        "url": "https://www.cravings.live/hotels/f58ebdef-b59b-435e-a3bf-90e562a456ed",
+        "logo": "/logos/proyal.png",
+        "name": "Proyal"
+    },
+    {
+        "url": "https://www.cravings.live/hotels/9e159a20-8c81-4986-b471-3876de315fc7",
+        "logo": "/logos/malabar.jpg",
+        "name": "Malabar Juice"
+    },
+    {
+        "url": "https://www.cravings.live/hotels/LE-GRAND-CAFE/20f7e974-f19e-4c11-b6b7-4385f61f27bf",
+        "logo": "/logos/legrand.png",
+        "name": "Le Grand Cafe"
+    },
+    {
+        "url": "#",
+        "logo": "/logos/burger.png",
+        "name": "Burger King (Demo)"
+    },
+    {
+        "url": "#",
+        "logo": "/logos/pizza.png",
+        "name": "Pizza Hut (Demo)"
+    }
+]

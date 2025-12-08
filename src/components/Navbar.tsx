@@ -152,11 +152,6 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
           >
             Sign In
           </Button>
-          <Link href="/partner">
-            <Button className="inline-flex items-center h-fit text-nowrap text-xs gap-2 px-3 md:px-4 py-2 font-medium text-white bg-orange-600 rounded-full hover:bg-orange-700 transition-colors">
-              Partner with Us
-            </Button>
-          </Link>
         </>
       );
     }

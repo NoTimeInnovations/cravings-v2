@@ -7,7 +7,12 @@ export const metadata: Metadata = {
     description: "Choose the perfect plan for your restaurant. Simple, transparent pricing with no hidden fees.",
 };
 
-export default function PricingPage() {
+import { headers } from "next/headers";
+
+export default async function PricingPage() {
+    const headersList = await headers();
+    const country = headersList.get("x-user-country") || "US";
+
     return (
         <div className="min-h-screen w-full font-sans text-gray-900 pt-20 bg-orange-50">
             <div className="max-w-7xl mx-auto px-6 text-center py-10">
@@ -19,7 +24,7 @@ export default function PricingPage() {
                 </p>
             </div>
 
-            <PricingSection hideHeader={true} />
+            <PricingSection hideHeader={true} country={country} />
         </div>
     );
 }
