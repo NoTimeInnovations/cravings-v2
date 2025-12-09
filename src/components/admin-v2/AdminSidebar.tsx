@@ -7,6 +7,7 @@ import {
     FileBarChart,
     Settings,
     UserCog,
+    QrCode,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ const sidebarItems: SidebarItem[] = [
     { title: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
     { title: "Orders", icon: ShoppingBag, id: "orders" },
     { title: "Menu", icon: UtensilsCrossed, id: "menu" },
+    { title: "QrCodes", icon: QrCode, id: "qrcodes" },
     { title: "Captains", icon: UserCog, id: "captains" },
     { title: "Settings", icon: Settings, id: "settings" },
 ];

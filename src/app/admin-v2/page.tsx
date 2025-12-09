@@ -10,6 +10,7 @@ import { AdminV2Orders } from "@/components/admin-v2/AdminV2Orders";
 import { AdminV2Menu } from "@/components/admin-v2/AdminV2Menu";
 import { AdminV2Settings } from "@/components/admin-v2/AdminV2Settings";
 import { AdminV2CaptainSettings } from "@/components/admin-v2/AdminV2CaptainSettings";
+import { AdminV2QrCodes } from "@/components/admin-v2/AdminV2QrCodes";
 import { useAdminStore } from "@/store/adminStore";
 
 export default function AdminPage() {
@@ -51,7 +52,7 @@ export default function AdminPage() {
 
                     {/* Main Content */}
                     <main className="flex-1 overflow-y-auto p-6">
-                        {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && (
+                        {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "QrCodes" && (
                             <h1 className="text-3xl font-bold mb-6">{activeView}</h1>
                         )}
                         {activeView === "Dashboard" ? (
@@ -60,6 +61,8 @@ export default function AdminPage() {
                             <AdminV2Orders />
                         ) : activeView === "Menu" ? (
                             <AdminV2Menu />
+                        ) : activeView === "QrCodes" ? (
+                            <AdminV2QrCodes />
                         ) : activeView === "Settings" ? (
                             <AdminV2Settings />
                         ) : activeView === "Captains" ? (

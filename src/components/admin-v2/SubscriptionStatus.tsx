@@ -21,7 +21,8 @@ export function SubscriptionStatus() {
     const status = sub?.status || "active";
     const expiry = sub?.expiryDate ? parseISO(sub.expiryDate) : null;
     const scansUsed = sub?.usage?.scans_cycle || 0;
-    const scanLimit = sub?.plan?.scan_limit || 1000;
+    // Check both scan_limit and max_scan_count (international plans might use max_scan_count)
+    const scanLimit = sub?.plan?.scan_limit ?? sub?.plan?.max_scan_count ?? 1000;
     const isUnlimited = scanLimit === -1;
 
     const usagePercent = isUnlimited ? 0 : Math.min(100, (scansUsed / scanLimit) * 100);
@@ -74,19 +75,24 @@ export function SubscriptionStatus() {
                         </div>
                     </div>
 
-                    {/* Usage Stats - Only for International Plans */}
-                    {isInternational && isInternationalPlan && (
-                        <div className="flex-1 w-full md:w-auto max-w-md space-y-2">
-                            <div className="flex justify-between text-sm font-medium text-gray-700 dark:text-gray-300">
-                                <span>Monthly Scans</span>
-                                <span>{scansUsed} / {isUnlimited ? "Unlimited" : scanLimit}</span>
-                            </div>
-                            {!isUnlimited && (
-                                <Progress value={usagePercent} className="h-2" color={usagePercent > 90 ? "bg-red-500" : "bg-orange-500"} />
-                            )}
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Resets on 1st of every month</p>
+                    {/* Usage Stats - Show Scan Limit for everyone, Usage only for International */}
+                    <div className="flex-1 w-full md:w-auto max-w-md space-y-2">
+                        <div className="flex justify-between text-sm font-medium text-gray-700 dark:text-gray-300">
+                            <span>{isInternational && isInternationalPlan ? "Monthly Scans" : "Monthly Scan Limit"}</span>
+                            <span>
+                                {isInternational && isInternationalPlan
+                                    ? `${scansUsed} / ${isUnlimited ? "Unlimited" : scanLimit}`
+                                    : `${isUnlimited ? "Unlimited" : scanLimit}`
+                                }
+                            </span>
                         </div>
-                    )}
+                        {isInternational && isInternationalPlan && !isUnlimited && (
+                            <>
+                                <Progress value={usagePercent} className="h-2" color={usagePercent > 90 ? "bg-red-500" : "bg-orange-500"} />
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Resets on 1st of every month</p>
+                            </>
+                        )}
+                    </div>
 
                     {/* Actions */}
                     <div className="flex gap-3">
