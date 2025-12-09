@@ -225,12 +225,13 @@ const PrintOrderPage = () => {
         const grandTotal = subtotal + gstAmount;
 
         // Generate UPI payment QR code if enabled
+        let upiString = null;
         if (
           orders_by_pk.partner?.show_payment_qr &&
           orders_by_pk.partner?.upi_id
         ) {
           try {
-            const upiString = `upi://pay?pa=${orders_by_pk.partner.upi_id}&pn=${encodeURIComponent(
+            upiString = `upi://pay?pa=${orders_by_pk.partner.upi_id}&pn=${encodeURIComponent(
               orders_by_pk.partner.store_name || "Store"
             )}&am=${grandTotal.toFixed(2)}&cu=INR`;
             const qrDataUrl = await QRCode.toDataURL(upiString, {
@@ -311,6 +312,10 @@ const PrintOrderPage = () => {
               currency: formattedOrder.partner?.currency || "$",
               gst_no: formattedOrder.partner?.gst_no,
               address: formattedOrder.partner?.address,
+              fssai_licence_no: formattedOrder.fssai_licence_no,
+              country: formattedOrder.partner?.country,
+              payment_upi_string: upiString,
+              show_powered_by_cravings: !DONT_SHOW_POWERED_BY_FOR_PARTNER_IDS.includes(formattedOrder.partner_id),
             },
             null,
             2
