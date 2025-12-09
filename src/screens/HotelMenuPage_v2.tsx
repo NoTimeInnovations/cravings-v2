@@ -7,7 +7,7 @@ import { Category } from "@/store/categoryStore_hasura";
 import OrderDrawer from "@/components/hotelDetail/OrderDrawer";
 import useOrderStore from "@/store/orderStore";
 // Import useMemo and useCallback
-import { useEffect, useMemo, useCallback } from "react";
+import { useEffect, useMemo, useCallback, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getFeatures } from "@/lib/getFeatures";
 import { QrGroup } from "@/app/admin/qr-management/page";
@@ -92,14 +92,22 @@ const HotelMenuPage = ({
     setQrData(qrData || null);
   }, [qrData, setQrData]);
 
+  const [limitReached, setLimitReached] = useState(false);
+
   useEffect(() => {
     const handleUpdateQrCount = async () => {
       if (!qrId) return;
       const canUpdateScanCount = !(await getQrScanCookie(qrId));
       if (canUpdateScanCount) {
         try {
-          await fetchFromHasura(INCREMENT_QR_CODE_SCAN_COUNT, { id: qrId });
-          await setQrScanCookie(qrId);
+          const { trackQrScan } = await import("@/app/actions/trackQrScan");
+          const result = await trackQrScan(qrId);
+
+          if (result.success) {
+            await setQrScanCookie(qrId);
+          } else if (result.limitReached) {
+            setLimitReached(true);
+          }
         } catch (error) {
           console.error("Failed to update QR scan count:", error);
         }
@@ -110,6 +118,21 @@ const HotelMenuPage = ({
       handleUpdateQrCount();
     }
   }, [qrId]);
+
+  if (limitReached) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4 py-8">
+        <div className="text-center p-4 sm:p-8 bg-white rounded-3xl shadow-lg w-full max-w-[90%] sm:max-w-md mx-auto">
+          <h1 className="text-xl sm:text-3xl font-bold mb-4 text-orange-600">
+            Monthly Limit Reached
+          </h1>
+          <p className="mb-6 text-sm sm:text-base text-gray-600">
+            This restaurant has reached its monthly scan limit. Please contact the staff or try again next month.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     if (hoteldata?.id) {
@@ -268,7 +291,7 @@ const HotelMenuPage = ({
     const endTime = convertTimeToMinutes(
       hoteldata.delivery_rules.delivery_time_allowed.to ?? "23:59"
     );
-    
+
     if (startTime > endTime) {
       return currentTime >= startTime || currentTime <= endTime;
     } else {

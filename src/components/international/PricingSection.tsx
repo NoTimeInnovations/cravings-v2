@@ -1,88 +1,95 @@
 "use client";
+
 import React, { useState } from "react";
 import { toast } from "sonner";
-import { Check, UtensilsCrossed, Zap, Star } from "lucide-react";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { onBoardUserSignup } from "@/app/actions/onBoardUserSignup";
 import FullScreenLoader from "@/components/ui/FullScreenLoader";
 import { getBannerFile, clearBannerFile } from "@/lib/bannerStorage";
 import { uploadFileToS3 } from "@/app/actions/aws-s3";
+import { useAuthStore } from "@/store/authStore";
+import plansData from "@/data/plans.json";
 
-const plans = [
-    {
-        name: "Free",
-        price: "$0",
-        description: "Perfect for trying out Cravings",
-        features: [
-            "100 scans per month",
-            "Create 2 offers per month",
-            "10 menu edits per month",
-            "Chat support"
-        ],
-        buttonText: "Start for Free",
-        popular: false,
-    },
-    {
-        name: "Standard",
-        price: "$9",
-        description: "For growing restaurants",
-        features: [
-            "1000 scans per month",
-            "Create up to 10 offers",
-            "Unlimited edits",
-            "Priority support"
-        ],
-        buttonText: "Coming Soon",
-        popular: true,
-        disabled: true,
-    },
-    {
-        name: "Plus",
-        price: "$19",
-        description: "For high-volume venues",
-        features: [
-            "Unlimited scans",
-            "Unlimited offers",
-            "Unlimited edits",
-            "Dedicated member support",
-            "Marketing kit"
-        ],
-        buttonText: "Coming Soon",
-        popular: false,
-        disabled: true,
-    }
-];
-
-
-
-
-export default function PricingSection({ hideHeader = false, country = "US" }: { hideHeader?: boolean; country?: string }) {
-    const isIndia = country === "IN";
-    const currencySymbol = isIndia ? "₹" : "$";
-
-    // Adjust prices based on country
-    const displayPlans = plans.map(plan => {
-        let price = plan.price;
-        if (isIndia) {
-            if (plan.name === "Standard") price = "₹699";
-            else if (plan.name === "Plus") price = "₹1499";
-            else if (plan.name === "Free") price = "₹0";
-        }
-        return { ...plan, price };
-    });
-
+const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHeader?: boolean; country?: string }) => {
+    const { userData } = useAuthStore();
     const router = useRouter();
     const [isCreatingAccount, setIsCreatingAccount] = useState(false);
 
-    const handlePlanClick = async () => {
+    const isIndia = propCountry === "IN";
+
+    // Select plans based on country
+    const displayPlans = isIndia ? plansData.india : plansData.international;
+
+    const handlePlanClick = async (plan: any) => {
+        // 1. If Logged In -> Upgrade Flow
+        if (userData) {
+            setIsCreatingAccount(true);
+            try {
+                const { upgradePlan } = await import("@/app/actions/upgradePlan");
+                const result = await upgradePlan(userData.id, plan);
+
+                if (result.success) {
+                    toast.success(`Plan upgraded to ${plan.name} successfully!`);
+                    // Ideally close modal or refresh. Component doesn't control modal, 
+                    // but we can just toast and maybe reload window to update state
+                    window.location.reload();
+                } else {
+                    toast.error("Upgrade failed. Please try again.");
+                }
+            } catch (e) {
+                console.error("Upgrade error", e);
+                toast.error("Something went wrong");
+            } finally {
+                setIsCreatingAccount(false);
+            }
+            return;
+        }
+
+        // 2. If Onboarding Data -> Signup Flow
         const onboardingData = localStorage.getItem("onboarding_data");
 
         if (onboardingData) {
             setIsCreatingAccount(true);
             try {
                 const parsedData = JSON.parse(onboardingData);
+
+                // --- INJECT PLAN DETAILS ---
+                const now = new Date();
+                const periodDays = plan.id === "in_trial" ? 20 : (plan.period_days || 365);
+                const expiryDate = new Date(now.getTime() + periodDays * 24 * 60 * 60 * 1000);
+
+                const subscriptionDetails = {
+                    plan: plan,
+                    status: "active",
+                    startDate: now.toISOString(),
+                    expiryDate: expiryDate.toISOString(),
+                    usage: {
+                        scans_cycle: 0,
+                        last_reset: now.toISOString(),
+                    }
+                };
+
+                // Helper to generate feature flags string from plan
+                // e.g., "ordering-true,delivery-false"
+                // Default all to false first
+                const defaultFlags = [
+                    "ordering-false", "delivery-false", "multiwhatsapp-false",
+                    "pos-false", "stockmanagement-false", "captainordering-false",
+                    "purchasemanagement-false"
+                ];
+
+                const enabledMap = plan.features_enabled || {};
+                const finalFlags = defaultFlags.map(flag => {
+                    const [key] = flag.split("-");
+                    if (enabledMap[key]) return `${key}-true`;
+                    return flag;
+                });
+
+                parsedData.partner.subscription_details = subscriptionDetails;
+                parsedData.partner.feature_flags = finalFlags.join(",");
+                // ---------------------------
 
                 // Handle deferred banner upload
                 if (parsedData.partner && parsedData.partner.store_banner === "PENDING_UPLOAD") {
@@ -91,7 +98,6 @@ export default function PricingSection({ hideHeader = false, country = "US" }: {
                         try {
                             const timestamp = Date.now();
                             const safeName = bannerFile.name.replace(/[^a-zA-Z0-9.]/g, "_");
-                            // Determine folder: existing code used 'banners/'
                             const bannerUrl = await uploadFileToS3(bannerFile, `banners/${timestamp}-${safeName}`);
                             parsedData.partner.store_banner = bannerUrl;
                             await clearBannerFile();
@@ -104,18 +110,17 @@ export default function PricingSection({ hideHeader = false, country = "US" }: {
                     }
                 }
 
-                await onBoardUserSignup(parsedData);
+                const result = await onBoardUserSignup(parsedData);
 
                 // Clear local storage on success
                 localStorage.removeItem("onboarding_data");
                 localStorage.removeItem("cravings_onboarding_state");
 
-                localStorage.removeItem("cravings_onboarding_state");
-
                 toast.success("Account created successfully!");
-                router.push("/login"); // Redirect directly
+                router.push("/login?signup=success");
             } catch (error) {
                 console.error("Signup failed", error);
+                toast.error("Failed to create account. Please try again.");
             } finally {
                 setIsCreatingAccount(false);
             }
@@ -147,12 +152,12 @@ export default function PricingSection({ hideHeader = false, country = "US" }: {
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {displayPlans.map((plan, index) => (
+                    {displayPlans.map((plan: any, index: number) => (
                         <div
                             key={index}
                             className={`relative bg-white rounded-3xl shadow-xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 ${plan.popular
-                                ? 'border-orange-200 ring-2 ring-orange-100 shadow-orange-100'
-                                : 'border-gray-100'
+                                    ? 'border-orange-200 ring-2 ring-orange-100 shadow-orange-100'
+                                    : 'border-gray-100'
                                 }`}
                         >
                             {plan.popular && (
@@ -169,11 +174,11 @@ export default function PricingSection({ hideHeader = false, country = "US" }: {
 
                                 <div className="flex items-baseline justify-center mb-8">
                                     <span className="text-4xl font-extrabold text-gray-900">{plan.price}</span>
-                                    <span className="text-gray-500 font-medium ml-1">/month</span>
+                                    {plan.period && <span className="text-gray-500 font-medium ml-1">{plan.period}</span>}
                                 </div>
 
                                 <div className="space-y-4 mb-8 flex-grow">
-                                    {plan.features.map((feature, i) => (
+                                    {plan.features.map((feature: string, i: number) => (
                                         <div key={i} className="flex items-start gap-3 text-left">
                                             <div className="mt-0.5 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
                                                 <Check className="h-3 w-3 text-green-600" />
@@ -193,11 +198,11 @@ export default function PricingSection({ hideHeader = false, country = "US" }: {
                                 ) : (
                                     <div className="block w-full mt-auto">
                                         <Button
-                                            onClick={handlePlanClick}
+                                            onClick={() => handlePlanClick(plan)}
                                             disabled={isCreatingAccount}
                                             className={`w-full py-6 rounded-xl shadow-md text-lg ${plan.popular
-                                                ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                                                : 'bg-white border-2 border-orange-100 text-orange-600 hover:bg-orange-50 hover:border-orange-200'
+                                                    ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                                                    : 'bg-white border-2 border-orange-100 text-orange-600 hover:bg-orange-50 hover:border-orange-200'
                                                 }`}
                                         >
                                             {plan.buttonText}
@@ -216,3 +221,5 @@ export default function PricingSection({ hideHeader = false, country = "US" }: {
         </section>
     );
 }
+
+export default PricingSection;

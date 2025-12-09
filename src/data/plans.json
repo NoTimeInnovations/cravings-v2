@@ -1,0 +1,121 @@
+{
+    "international": [
+        {
+            "id": "int_free",
+            "name": "Free",
+            "price": "$0",
+            "description": "Perfect for trying out Cravings",
+            "features": [
+                "100 scans per month",
+                "Create 2 offers per month",
+                "10 menu edits per month",
+                "Chat support"
+            ],
+            "buttonText": "Start Free",
+            "popular": false,
+            "period": "/month",
+            "period_days": 30,
+            "max_scan_count": 100
+        },
+        {
+            "id": "int_standard",
+            "name": "Standard",
+            "price": "$9",
+            "description": "For growing restaurants",
+            "features": [
+                "Digital menu",
+                "Unlimited items & categories",
+                "Unlimited scans"
+            ],
+            "buttonText": "Coming Soon",
+            "popular": false,
+            "disabled": true,
+            "period": "/month",
+            "period_days": 30,
+            "max_scan_count": 1000,
+            "scan_limit": -1
+        },
+        {
+            "id": "int_plus",
+            "name": "Plus",
+            "price": "$19",
+            "description": "For growing businesses",
+            "features": [
+                "Everything in Standard",
+                "Order management",
+                "Inventory management",
+                "Waitneer calling system"
+            ],
+            "buttonText": "Coming Soon",
+            "popular": true,
+            "disabled": true,
+            "period": "/month",
+            "period_days": 30,
+            "max_scan_count": -1,
+            "scan_limit": -1
+        }
+    ],
+    "india": [
+        {
+            "id": "in_trial",
+            "name": "Free Trial",
+            "price": "Free",
+            "description": "Try all features risk-free",
+            "features": [
+                "All features included",
+                "20 days validity",
+                "No credit card required"
+            ],
+            "buttonText": "Start Free Trial",
+            "popular": false,
+            "period": "",
+            "period_days": 20,
+            "disabled": false,
+            "features_enabled": {
+                "ordering": true
+            },
+            "scan_limit": 1000
+        },
+        {
+            "id": "in_digital",
+            "name": "Digital Menu",
+            "price": "₹1000",
+            "description": "Essential digital menu",
+            "features": [
+                "Digital menu",
+                "Unlimited items",
+                "QR code generation",
+                "10 menu edits per month",
+                "Chat support"
+            ],
+            "buttonText": "Start Free",
+            "popular": false,
+            "period": "/month",
+            "period_days": 365,
+            "disabled": false,
+            "scan_limit": 2000
+        },
+        {
+            "id": "in_ordering",
+            "name": "Menu + Ordering",
+            "price": "₹3000",
+            "description": "Complete ordering solution",
+            "features": [
+                "Everything in Digital Menu",
+                "Table ordering",
+                "Kitchen display system",
+                "WhatsApp integration",
+                "Inventory management"
+            ],
+            "buttonText": "Get Started",
+            "popular": true,
+            "period": "/year",
+            "period_days": 365,
+            "disabled": false,
+            "features_enabled": {
+                "ordering": true
+            },
+            "scan_limit": 10000
+        }
+    ]
+}

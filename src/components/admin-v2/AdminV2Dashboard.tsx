@@ -35,6 +35,9 @@ import { downloadOrderReport } from "@/utils/downloadOrderReport";
 
 const formatDate = (date: Date) => format(date, "yyyy-MM-dd");
 
+import { SubscriptionStatus } from "./SubscriptionStatus";
+
+
 export function AdminV2Dashboard() {
   const { userData } = useAuthStore();
   const [dateRange, setDateRange] = useState({
@@ -334,6 +337,7 @@ export function AdminV2Dashboard() {
 
   return (
     <div className="space-y-6">
+      <SubscriptionStatus />
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)} className="w-full sm:w-auto">
           <TabsList>

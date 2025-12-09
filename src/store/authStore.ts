@@ -100,6 +100,16 @@ export interface Partner extends BaseUser {
   distance_meters?: number;
   common_offers?: CommonOffer[];
   hide_unavailable?: boolean;
+  subscription_details?: {
+    plan: any;
+    status: "active" | "expired" | "cancelled";
+    startDate: string;
+    expiryDate: string;
+    usage?: {
+      scans_cycle: number;
+      last_reset: string;
+    };
+  };
 }
 
 export interface SuperAdmin extends BaseUser {

@@ -115,6 +115,20 @@ export const onBoardUserSignup = async (data: OnboardingData) => {
             });
         }
 
+        // Send Welcome Email
+        try {
+            const planName = partnerPayload.subscription_details?.plan?.name || "Free Trial";
+            const { sendWelcomeEmail } = await import("@/lib/email"); // Dynamic import to avoid issues if lib not present? No, standard import is fine usually.
+            await sendWelcomeEmail(partnerPayload.email, {
+                partnerName: partnerPayload.name,
+                planName: planName,
+                loginLink: "https://cravings.live/login"
+            });
+        } catch (emailError) {
+            console.error("Failed to send welcome email:", emailError);
+            // Don't block signup success
+        }
+
         // Return success
         return { success: true, partnerId: newPartnerId };
 

@@ -53,7 +53,9 @@ export const partnerIdQuery = `
       delivery_rules
       country_code
       location_details
+      location_details
       hide_unavailable
+      subscription_details
     }
   }
 `;
@@ -90,7 +92,9 @@ export const partnerLoginQuery = `
       delivery_rate
       delivery_rules
       country_code
+      country_code
       hide_unavailable
+      subscription_details
     }
   }
 `;
@@ -167,7 +171,10 @@ export const partnerMutation = `
     phone
     district
     country
+    country
     state
+    feature_flags
+    subscription_details
   }
 }`;
 

@@ -1,4 +1,5 @@
 import Admin from "@/screens/Admin";
+import { redirect } from "next/navigation";
 import React from "react";
 import { getAuthCookie } from "../auth/actions";
 import { unstable_cache } from "next/cache";
@@ -14,7 +15,7 @@ import OfferLoadinPage from "@/components/OfferLoadinPage";
 const page = async () => {
   const userId = (await getAuthCookie())?.id;
 
-  if(!userId) {
+  if (!userId) {
     return <OfferLoadinPage message="Loading..." />
   }
 
@@ -23,7 +24,7 @@ const page = async () => {
       try {
         return fetchFromHasura(getPartnerAndOffersQuery, {
           id: userId,
-          offer_types: ["delivery" , "all" , "dine_in"]
+          offer_types: ["delivery", "all", "dine_in"]
         });
       } catch (error) {
         console.error("Error fetching partner data:", error);
@@ -42,6 +43,10 @@ const page = async () => {
       partnerId: userId,
     }
   );
+
+  if (userData?.subscription_details) {
+    redirect("/admin-v2");
+  }
 
   const lastSubscription = getLastSubscription?.partner_subscriptions[0];
 

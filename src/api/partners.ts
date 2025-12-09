@@ -148,7 +148,9 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     delivery_rate
     business_type
     delivery_rules
+    delivery_rules
     hide_unavailable
+    subscription_details
     menus(where: {
     deletion_status: {_eq: 0},
     _and: [
