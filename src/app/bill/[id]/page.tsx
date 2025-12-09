@@ -188,8 +188,8 @@ const PrintOrderPage = () => {
           notes: orders_by_pk.notes || "",
           address:
             orders_by_pk.partner?.address ||
-            geoData?.features[0].properties.place_formatted ||
             orders_by_pk.partner?.location_details ||
+            geoData?.features[0].properties.place_formatted ||
             null,
           fssai_licence_no:
             orders_by_pk.partner?.fssai_licence_no || null,
@@ -311,7 +311,7 @@ const PrintOrderPage = () => {
               },
               currency: formattedOrder.partner?.currency || "$",
               gst_no: formattedOrder.partner?.gst_no,
-              address: formattedOrder.partner?.address,
+              address: formattedOrder?.address,
               fssai_licence_no: formattedOrder.fssai_licence_no,
               country: formattedOrder.partner?.country,
               payment_upi_string: upiString,
