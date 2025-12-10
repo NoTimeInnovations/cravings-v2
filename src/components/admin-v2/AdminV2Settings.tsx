@@ -19,7 +19,7 @@ export function AdminV2Settings() {
 
     const handleLogout = async () => {
         await signOut();
-        router.push("/auth");
+        router.push("/");
     };
 
     return (
