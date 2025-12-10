@@ -13,7 +13,7 @@ export default function HeroButtons() {
                 onClick={() => router.push("/get-started")}
                 className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-6 rounded-full text-lg shadow-lg hover:shadow-xl transition-all"
             >
-                Start Your Free Trial Today
+                Get free Menu
             </Button>
 
             <Button

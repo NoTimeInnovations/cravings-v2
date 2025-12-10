@@ -22,6 +22,11 @@ import ColorThief from "colorthief";
 import axios from "axios";
 import { uploadFileToS3 } from "@/app/actions/aws-s3";
 import { saveBannerFile } from "@/lib/bannerStorage";
+import { onBoardUserSignup } from "@/app/actions/onBoardUserSignup";
+import plansData from "@/data/plans.json";
+import { Eye, EyeOff, Copy, ExternalLink, LayoutDashboard, Share2 } from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
+import FullScreenLoader from "@/components/ui/FullScreenLoader";
 
 // --- Types ---
 interface MenuItem {
@@ -116,7 +121,10 @@ export default function GetStartedPage() {
         accent: "#ea580c",
     });
     const [showAuthModal, setShowAuthModal] = useState(false);
-    const [authCredentials, setAuthCredentials] = useState({ email: "", password: "", referralCode: "" });
+    const [authCredentials, setAuthCredentials] = useState({ email: "", password: "123456", referralCode: "" });
+    const [registrationSuccess, setRegistrationSuccess] = useState(false);
+    const [signupResult, setSignupResult] = useState<any>(null);
+    const [isPublishing, setIsPublishing] = useState(false);
 
     useEffect(() => {
         if (bannerPreview) {
@@ -468,117 +476,173 @@ export default function GetStartedPage() {
     };
 
     const handleFinalPublish = async () => {
-        if (!authCredentials.email || !authCredentials.password) {
-            toast.error("Please enter email and password");
+        if (!authCredentials.email) {
+            toast.error("Please enter your email");
             return;
         }
 
-        const countryMeta = COUNTRY_META_DATA[hotelDetails.country] || { code: "+91", currency: "INR", symbol: "₹" };
+        setIsPublishing(true);
+        try {
+            const countryMeta = COUNTRY_META_DATA[hotelDetails.country] || { code: "+91", currency: "INR", symbol: "₹" };
+            let bannerUrl = "";
 
-        let bannerUrl = "";
-        if (bannerFile) {
-            try {
-                await saveBannerFile(bannerFile);
-                bannerUrl = "PENDING_UPLOAD";
-            } catch (error) {
-                console.error("Failed to save banner locally:", error);
+            // Handle Banner Upload
+            if (bannerFile) {
+                try {
+                    const timestamp = Date.now();
+                    const extension = bannerFile.name.split('.').pop() || 'png';
+                    const safeName = `banner_${timestamp}.${extension}`;
+                    // Attempt direct upload if credentials available, else fallback logic (or simplistic save)
+                    // Since we are creating account directly, we should try to upload to S3 if possible
+                    // However, onboarding flow usually does this. 
+                    // Let's use the same logic as PricingSection: upload if we can, or just send empty and let user upload later?
+                    // Actually, PricingSection uploads it.
+                    bannerUrl = await uploadFileToS3(bannerFile, `banners/${timestamp}-${safeName}`);
+                } catch (error) {
+                    console.error("Failed to upload banner:", error);
+                    // Fallback to placeholder or empty
+                }
             }
-        }
 
-        const finalPhone = sanitizePhone(hotelDetails.phone, countryMeta.code);
+            const finalPhone = sanitizePhone(hotelDetails.phone, countryMeta.code);
 
-        const socialLinksData = {
-            instagram: hotelDetails.instagram_link,
-            facebook: hotelDetails.facebook_link,
-            location: hotelDetails.location_link
-        };
-
-        // Construct Partner Data
-        const partnerData = {
-            role: "partner",
-            name: hotelDetails.name,
-            password: authCredentials.password,
-            email: authCredentials.email,
-            store_name: hotelDetails.name,
-            phone: finalPhone,
-            country: hotelDetails.country,
-            location: hotelDetails.location_link || "",
-            status: "active",
-            upi_id: "",
-            whatsapp_numbers: [],
-            district: hotelDetails.district || "",
-            state: hotelDetails.state || "",
-            delivery_status: false,
-            geo_location: { type: "Point", coordinates: [0, 0] },
-            delivery_rate: 0,
-            delivery_rules: { rules: [] },
-            currency: hotelDetails.currency,
-            country_code: countryMeta.code,
-            social_links: JSON.stringify(socialLinksData),
-            store_banner: bannerUrl,
-            is_shop_open: true,
-            theme: JSON.stringify({
-                colors: {
-                    text: selectedPalette.text,
-                    bg: selectedPalette.background,
-                    accent: selectedPalette.accent
-                },
-                menuStyle: "compact"
-            }),
-            referral_code: authCredentials.referralCode,
-        };
-
-        // Construct Categories Data
-        const uniqueCategories = Array.from(new Set(extractedItems.map(i => i.category)));
-        const categoriesData = uniqueCategories.reduce((acc, catName, index) => {
-            acc[catName] = {
-                name: catName,
-                priority: index,
-                is_active: true,
-                id: `temp-cat-${index}`
+            const socialLinksData = {
+                instagram: hotelDetails.instagram_link,
+                facebook: hotelDetails.facebook_link,
+                location: hotelDetails.location_link
             };
-            return acc;
-        }, {} as Record<string, any>);
 
-        // Construct Menu Data
-        const menuData = {
-            items: extractedItems.reduce((acc, item, index) => {
-                const itemId = `temp-item-${index}`;
-                acc[itemId] = {
-                    name: item.name,
-                    price: item.price,
-                    description: item.description,
-                    category: categoriesData[item.category],
-                    image_url: item.image || "",
-                    variants: item.variants || [],
-                    is_veg: item.is_veg,
-                    is_available: true,
-                    is_top: false,
+            // --- PLAN SELECTION ---
+            // If country is India -> in_trial
+            // Else -> int_free
+            const isIndia = hotelDetails.country === "India";
+            const planId = isIndia ? "in_trial" : "int_free";
+            const planList = isIndia ? plansData.india : plansData.international;
+            const selectedPlan = planList.find((p: any) => p.id === planId) || planList[0];
+
+            // --- SUBSCRIPTION DETAILS ---
+            const now = new Date();
+            const periodDays = selectedPlan.id === "in_trial" ? 20 : (selectedPlan.period_days || 30);
+            const expiryDate = new Date(now.getTime() + periodDays * 24 * 60 * 60 * 1000);
+
+            const subscriptionDetails = {
+                plan: selectedPlan,
+                status: "active",
+                startDate: now.toISOString(),
+                expiryDate: expiryDate.toISOString(),
+                usage: {
+                    scans_cycle: 0,
+                    last_reset: now.toISOString(),
+                }
+            };
+
+            // --- FEATURE FLAGS ---
+            const defaultFlags = [
+                "ordering-false", "delivery-false", "multiwhatsapp-false",
+                "pos-false", "stockmanagement-false", "captainordering-false",
+                "purchasemanagement-false"
+            ];
+            const enabledMap = (selectedPlan as any).features_enabled || {};
+            const finalFlags = defaultFlags.map((flag: string) => {
+                const [key] = flag.split("-");
+                if (enabledMap[key]) return `${key}-true`;
+                return flag;
+            });
+
+
+            // Construct Partner Data
+            const partnerData = {
+                role: "partner",
+                name: hotelDetails.name,
+                password: authCredentials.password || "123456", // Default password
+                email: authCredentials.email,
+                store_name: hotelDetails.name,
+                phone: finalPhone,
+                country: hotelDetails.country,
+                location: hotelDetails.location_link || "",
+                status: "active",
+                upi_id: "",
+                whatsapp_numbers: [],
+                district: hotelDetails.district || "",
+                state: hotelDetails.state || "",
+                delivery_status: false,
+                geo_location: { type: "Point", coordinates: [0, 0] },
+                delivery_rate: 0,
+                delivery_rules: { rules: [] },
+                currency: hotelDetails.currency,
+                country_code: countryMeta.code,
+                social_links: JSON.stringify(socialLinksData),
+                store_banner: bannerUrl || "",
+                is_shop_open: true,
+                theme: JSON.stringify({
+                    colors: {
+                        text: selectedPalette.text,
+                        bg: selectedPalette.background,
+                        accent: selectedPalette.accent
+                    },
+                    menuStyle: "compact"
+                }),
+                referral_code: authCredentials.referralCode,
+                subscription_details: subscriptionDetails,
+                feature_flags: finalFlags.join(",")
+            };
+
+            // Construct Categories Data
+            const uniqueCategories = Array.from(new Set(extractedItems.map(i => i.category)));
+            const categoriesData = uniqueCategories.reduce((acc, catName, index) => {
+                acc[catName] = {
+                    name: catName,
                     priority: index,
-                    tags: [],
-                    stocks: []
+                    is_active: true,
+                    id: `temp-cat-${index}`
                 };
                 return acc;
-            }, {} as Record<string, any>)
-        };
+            }, {} as Record<string, any>);
 
-        console.log("Publish Data:", {
-            partner: partnerData,
-            menu: menuData,
-            categories: categoriesData
-        });
+            // Construct Menu Data
+            const menuData = {
+                items: extractedItems.reduce((acc, item, index) => {
+                    const itemId = `temp-item-${index}`;
+                    acc[itemId] = {
+                        name: item.name,
+                        price: item.price,
+                        description: item.description,
+                        is_veg: item.is_veg,
+                        image_url: item.image,
+                        is_available: true,
+                        category_id: `temp-cat-${uniqueCategories.indexOf(item.category)}`,
+                        category: { name: item.category }, // Passed for onBoardUserSignup compatibility
+                        variants: item.variants || []
+                    };
+                    return acc;
+                }, {} as Record<string, any>),
+                categories: categoriesData
+            };
 
-        setShowAuthModal(false);
-        // Save structured data for the pricing page to pick up
-        localStorage.setItem("onboarding_data", JSON.stringify({
-            partner: partnerData,
-            menu: menuData,
-            categories: categoriesData
-        }));
+            const fullData = {
+                partner: partnerData,
+                categories: categoriesData,
+                menu: { items: menuData.items }
+            };
 
-        localStorage.removeItem(STORAGE_KEY);
-        console.log("LocalStorage cleared.");
-        router.push("/pricing");
+            // Call Signup Action
+            const result = await onBoardUserSignup(fullData);
+
+            // Clear local storage
+            localStorage.removeItem("cravings_onboarding_state");
+            localStorage.removeItem("onboarding_data");
+
+            setSignupResult(result);
+            setRegistrationSuccess(true);
+            setShowAuthModal(false);
+            toast.success("Account created successfully!");
+
+        } catch (error) {
+            console.error("Signup failed:", error);
+            toast.error("Failed to create account. Please try again.");
+        } finally {
+            setIsPublishing(false);
+        }
     };
 
     const handleBuyNow = () => {
@@ -862,6 +926,72 @@ export default function GetStartedPage() {
         </div>
     );
 
+
+
+    const renderSuccessView = () => (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full max-w-md mx-auto md:mx-0">
+            <div className="space-y-2 text-center md:text-left">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto md:mx-0 mb-4">
+                    <Check className="w-8 h-8 text-green-600" />
+                </div>
+                <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+                    Your Menu is Live!
+                </h1>
+                <p className="text-gray-500">
+                    Congratulations! Your digital menu has been created and is ready to share.
+                </p>
+            </div>
+
+            <div className="space-y-4">
+                <Button
+                    className="w-full flex items-center justify-center gap-2 h-12 text-lg rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-md hover:shadow-lg transition-all"
+                    onClick={() => {
+                        const url = `https://www.cravings.live/hotels/${hotelDetails.name.replace(/ /g, "-")}/${signupResult?.partnerId}`;
+                        window.open(url, "_blank");
+                    }}
+                >
+                    <ExternalLink size={20} />
+                    View Menu
+                </Button>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <Button
+                        variant="outline"
+                        className="w-full flex items-center justify-center gap-2 h-12 rounded-xl"
+                        onClick={() => {
+                            const url = `https://www.cravings.live/hotels/${hotelDetails.name.replace(/ /g, "-")}/${signupResult?.partnerId}`;
+                            navigator.clipboard.writeText(url);
+                            toast.success("Menu link copied to clipboard!");
+                        }}
+                    >
+                        <Copy size={18} />
+                        Share
+                    </Button>
+
+                    <Button
+                        variant="outline"
+                        className="w-full flex items-center justify-center gap-2 h-12 rounded-xl border-orange-200 text-orange-700 bg-orange-50 hover:bg-orange-100"
+                        onClick={async () => {
+                            try {
+                                // Auto-login logic
+                                const { signInPartnerWithEmail } = useAuthStore.getState();
+                                await signInPartnerWithEmail(authCredentials.email, "123456");
+                                router.push("/admin-v2");
+                            } catch (e) {
+                                console.error("Auto-login failed", e);
+                                toast.error("Redirecting to login...");
+                                router.push("/login");
+                            }
+                        }}
+                    >
+                        <LayoutDashboard size={18} />
+                        Dashboard
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+
     const renderStep3 = () => {
         // If still extracting, show loading state
         if (isExtractingMenu || extractedItems.length === 0) {
@@ -883,56 +1013,60 @@ export default function GetStartedPage() {
         }
 
         return (
-            <div className="max-w-4xl mx-auto flex flex-col md:flex-row md:items-start gap-8 animate-in fade-in duration-700 md:pt-12">
-                <div className="hidden md:block flex-1 space-y-6">
-                    <div className="space-y-2">
-                        <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-                            Your Menu is Ready!
-                        </h1>
-                        <p className="text-gray-500">
-                            We've extracted {extractedItems.length} items from your image.
-                            Here's how it looks. You can edit the items in the dashboard after publishing.
-                        </p>
-                    </div>
-
-
-
-                    <div className="hidden md:block space-y-6">
-                        {colorPalettes.length > 0 && (
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-medium text-gray-700">Choose a Theme</h3>
-                                <div className="grid grid-cols-4 gap-3">
-                                    {colorPalettes.map((palette, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => setSelectedPalette(palette)}
-                                            className={`h-16 rounded-xl border-2 flex items-center justify-center relative overflow-hidden transition-all ${selectedPalette === palette ? "border-orange-600 ring-2 ring-orange-100" : "border-gray-200 hover:border-gray-300"
-                                                }`}
-                                            style={{ backgroundColor: palette.background }}
-                                        >
-                                            <div className="flex flex-col items-center gap-1">
-                                                <span className="text-xs font-bold" style={{ color: palette.text }}>Aa</span>
-                                                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: palette.accent }} />
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
+            <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-start gap-8 animate-in fade-in duration-700 md:pt-12 pb-24 md:pb-0">
+                <div className={`flex-1 space-y-6 ${registrationSuccess ? "block" : "hidden md:block"}`}>
+                    {registrationSuccess ? renderSuccessView() : (
+                        <>
+                            <div className="space-y-2">
+                                <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+                                    Your Menu is Ready!
+                                </h1>
+                                <p className="text-gray-500">
+                                    We've extracted {extractedItems.length} items from your image.
+                                    Here's how it looks. You can edit the items in the dashboard after publishing.
+                                </p>
                             </div>
-                        )}
 
-                        <Button
-                            onClick={handlePublish}
-                            className="w-full h-14 text-lg rounded-full bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200"
-                        >
-                            Publish Live <ChevronRight className="ml-2 w-5 h-5" />
-                        </Button>
-                    </div>
+                            <div className="hidden md:block space-y-6">
+                                {colorPalettes.length > 0 && (
+                                    <div className="space-y-3">
+                                        <h3 className="text-sm font-medium text-gray-700">Choose a Theme</h3>
+                                        <div className="grid grid-cols-4 gap-3">
+                                            {colorPalettes.map((palette, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => setSelectedPalette(palette)}
+                                                    className={`h-16 rounded-xl border-2 flex items-center justify-center relative overflow-hidden transition-all ${selectedPalette === palette ? "border-orange-600 ring-2 ring-orange-100" : "border-gray-200 hover:border-gray-300"
+                                                        }`}
+                                                    style={{ backgroundColor: palette.background }}
+                                                >
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <span className="text-xs font-bold" style={{ color: palette.text }}>Aa</span>
+                                                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: palette.accent }} />
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <Button
+                                    onClick={handlePublish}
+                                    className="w-full h-14 text-lg rounded-full bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200"
+                                >
+                                    Publish Live <ChevronRight className="ml-2 w-5 h-5" />
+                                </Button>
+                            </div>
+                        </>
+                    )}
                 </div>
 
-                <div className="flex-1 flex justify-center relative w-full overflow-hidden">
+                <div className="flex-1 flex justify-center relative w-full overflow-hidden order-first md:order-none">
                     <CompactMenuPreview items={extractedItems} hotelDetails={hotelDetails} colorPalette={selectedPalette} />
+                </div>
 
-                    {/* Mobile Publish Button (Fixed Bottom) */}
+                {/* Mobile Publish Button (Fixed Bottom) - Hide if success */}
+                {!registrationSuccess && (
                     <div className="md:hidden fixed bottom-6 left-6 right-6 z-50 flex flex-col gap-3">
                         {colorPalettes.length > 0 && (
                             <div className="bg-white/60 backdrop-blur-xl p-2 rounded-full shadow-2xl border border-white/50">
@@ -958,14 +1092,23 @@ export default function GetStartedPage() {
                             Publish Live <ChevronRight className="ml-2 w-5 h-5" />
                         </Button>
                     </div>
-                </div>
+                )}
             </div>
         );
     };
 
     return (
-        <div className="min-h-screen max-w-screen overflow-x-hidden bg-white font-sans">
-            {/* Header */}
+        <div className="min-h-screen bg-gray-50 flex flex-col pt-16 md:pt-20">
+            <FullScreenLoader
+                isLoading={isPublishing}
+                loadingTexts={[
+                    "Creating your account...",
+                    "Setting up your digital menu...",
+                    "Configuring dashboard...",
+                    "Almost there..."
+                ]}
+            />
+            {/* Header Steps */}
             <header className="border-b border-gray-100 bg-white/80 backdrop-blur-md z-50">
                 <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -998,66 +1141,64 @@ export default function GetStartedPage() {
                 {step === 3 && renderStep3()}
             </main>
 
-            {/* Auth Modal */}
-            {showAuthModal && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-300">
-                        <div className="space-y-2 text-center">
-                            <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
-                            <p className="text-sm text-gray-500">Set up your credentials to manage your menu.</p>
-                        </div>
+            {/* Final Success View - NOW INTEGRATED IN renderStep3 */}
 
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Email</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    placeholder="you@example.com"
-                                    value={authCredentials.email}
-                                    onChange={(e) => setAuthCredentials(prev => ({ ...prev, email: e.target.value }))}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="password">Password</Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    placeholder="••••••••"
-                                    value={authCredentials.password}
-                                    onChange={(e) => setAuthCredentials(prev => ({ ...prev, password: e.target.value }))}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="referral" className="text-sm">Referral Code (Optional)</Label>
-                                <Input
-                                    id="referral"
-                                    name="referral"
-                                    placeholder="Enter code"
-                                    value={authCredentials.referralCode}
-                                    onChange={(e) => setAuthCredentials(prev => ({ ...prev, referralCode: e.target.value }))}
-                                    className="h-10 rounded-xl"
-                                />
-                            </div>
-                        </div>
+            {!registrationSuccess && (
+                <>
+                    {/* Auth Modal */}
 
-                        <div className="flex gap-3">
-                            <Button
-                                variant="outline"
-                                className="flex-1 rounded-full"
-                                onClick={() => setShowAuthModal(false)}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                className="flex-1 rounded-full bg-orange-600 hover:bg-orange-700"
-                                onClick={handleFinalPublish}
-                            >
-                                Confirm & Publish
-                            </Button>
+                    {showAuthModal && (
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                            <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-300">
+                                <div className="space-y-2 text-center">
+                                    <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
+                                    <p className="text-sm text-gray-500">Set up your credentials to manage your menu.</p>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="email">Email</Label>
+                                        <Input
+                                            id="email"
+                                            type="email"
+                                            placeholder="you@example.com"
+                                            value={authCredentials.email}
+                                            onChange={(e) => setAuthCredentials(prev => ({ ...prev, email: e.target.value }))}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="referral" className="text-sm">Referral Code (Optional)</Label>
+                                        <Input
+                                            id="referral"
+                                            name="referral"
+                                            placeholder="Enter code"
+                                            value={authCredentials.referralCode}
+                                            onChange={(e) => setAuthCredentials(prev => ({ ...prev, referralCode: e.target.value }))}
+                                            className="h-10 rounded-xl"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3">
+                                    <Button
+                                        variant="outline"
+                                        className="flex-1 rounded-full"
+                                        onClick={() => setShowAuthModal(false)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        className="flex-1 rounded-full bg-orange-600 hover:bg-orange-700"
+                                        onClick={handleFinalPublish}
+                                    >
+                                        Confirm & Publish
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    )}
+                </>
             )}
         </div>
     );

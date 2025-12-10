@@ -88,7 +88,7 @@ export default function HowItWorks() {
             >
                 <Link href="/get-started">
                     <Button className="bg-orange-600 hover:bg-orange-700 text-white px-10 py-6 rounded-full text-xl shadow-xl shadow-orange-200 hover:shadow-orange-300 transition-all hover:-translate-y-1">
-                        Start your free trial <ArrowRight className="ml-2 w-6 h-6" />
+                        Get free Menu <ArrowRight className="ml-2 w-6 h-6" />
                     </Button>
                 </Link>
             </motion.div>
