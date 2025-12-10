@@ -23,6 +23,12 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
     const displayPlans = isIndia ? plansData.india : plansData.international;
 
     const handlePlanClick = async (plan: any) => {
+        // WhatsApp Redirect for Indian Paid Plans
+        if (isIndia && plan.id !== 'in_trial') {
+            window.open(`https://wa.me/918590115462?text=Hi! I'm interested in the ${plan.name} plan`, '_blank');
+            return;
+        }
+
         // 1. If Logged In -> Upgrade Flow
         if (userData) {
             setIsCreatingAccount(true);
@@ -156,8 +162,8 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
                         <div
                             key={index}
                             className={`relative bg-white rounded-3xl shadow-xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 ${plan.popular
-                                    ? 'border-orange-200 ring-2 ring-orange-100 shadow-orange-100'
-                                    : 'border-gray-100'
+                                ? 'border-orange-200 ring-2 ring-orange-100 shadow-orange-100'
+                                : 'border-gray-100'
                                 }`}
                         >
                             {plan.popular && (
@@ -201,8 +207,8 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
                                             onClick={() => handlePlanClick(plan)}
                                             disabled={isCreatingAccount}
                                             className={`w-full py-6 rounded-xl shadow-md text-lg ${plan.popular
-                                                    ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                                                    : 'bg-white border-2 border-orange-100 text-orange-600 hover:bg-orange-50 hover:border-orange-200'
+                                                ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                                                : 'bg-white border-2 border-orange-100 text-orange-600 hover:bg-orange-50 hover:border-orange-200'
                                                 }`}
                                         >
                                             {plan.buttonText}

@@ -37,6 +37,7 @@ type QrCode = {
         store_name: string;
     };
     created_at: string;
+    no_of_scans: number;
 };
 
 // Query to get ONLY the current partner's QRs
@@ -48,6 +49,7 @@ const GET_PARTNER_QRS_QUERY = `
       table_number
       table_name
       partner_id
+      no_of_scans
       partner {
         store_name
       }
@@ -323,6 +325,7 @@ export function AdminV2QrCodes() {
             worksheet.columns = [
                 { header: "Table No", key: "table_no", width: 15 },
                 { header: "QR Code", key: "qr_code", width: 30 },
+                { header: "Scans", key: "scans", width: 10 },
             ];
             // If selected, use selected. Else use all in current view? Or should we fetch ALL for export? 
             // User behavior: usually export all if none selected, or export selected.
@@ -344,7 +347,7 @@ export function AdminV2QrCodes() {
                     "-"
                 )}/${qrdata.id}`;
                 const base64 = await QRCode.toDataURL(qrUrl);
-                worksheet.addRow([qrdata.table_number || qrdata.table_name || "N/A", ""]);
+                worksheet.addRow([qrdata.table_number || qrdata.table_name || "N/A", "", qrdata.no_of_scans || 0]);
                 const imageId = workbook.addImage({ base64, extension: "png" });
                 worksheet.addImage(imageId, {
                     tl: { col: 1, row: i + 1 },
@@ -418,6 +421,7 @@ export function AdminV2QrCodes() {
                             </TableHead>
                             <TableHead>Table No</TableHead>
                             <TableHead>Table Name</TableHead>
+                            <TableHead>Scans</TableHead>
                             <TableHead>Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -441,6 +445,7 @@ export function AdminV2QrCodes() {
                                     </TableCell>
                                     <TableCell className="font-medium">{qr.table_number || "-"}</TableCell>
                                     <TableCell>{qr.table_name || "-"}</TableCell>
+                                    <TableCell>{qr.no_of_scans || 0}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
                                             <Button variant="ghost" size="icon" onClick={() => openView(qr)} title="View QR">

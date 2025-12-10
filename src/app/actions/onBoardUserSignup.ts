@@ -5,6 +5,7 @@ import { partnerMutation } from "@/api/auth";
 import { addCategory } from "@/api/category";
 import { addMenu } from "@/api/menu";
 import { setAuthCookie } from "@/app/auth/actions";
+import { INSERT_QR_CODE } from "@/api/qrcodes";
 
 interface OnboardingData {
     partner: any;
@@ -43,6 +44,22 @@ export const onBoardUserSignup = async (data: OnboardingData) => {
             feature_flags: "",
             status: "active",
         });
+
+        // 1.5 Create Default QR Code (Table 1)
+        try {
+            await fetchFromHasura(INSERT_QR_CODE, {
+                object: {
+                    partner_id: newPartnerId,
+                    table_number: 1,
+                    qr_number: "1", // Assuming string or handled by DB default/type
+                    created_at: new Date().toISOString(),
+                    no_of_scans: 0
+                }
+            });
+        } catch (qrError) {
+            console.error("Failed to create default QR code:", qrError);
+            // Non-blocking, continue signup
+        }
 
         // 2. Create Categories
         // We need to map the temporary IDs (or names) to the real IDs created

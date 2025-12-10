@@ -80,19 +80,22 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
         if (!scrollContainerRef.current) return;
 
         const container = scrollContainerRef.current;
-        const scrollPosition = container.scrollTop;
-        const offset = 20;
+        const containerRect = container.getBoundingClientRect();
+        const headerOffset = 130; // Height of sticky header + buffer
 
         let currentActive = activeCatIndex;
 
+        // Find the section that is currently crossing the "header line"
         for (let i = 0; i < categories.length; i++) {
             const section = categoryRefs.current[i];
             if (!section) continue;
 
-            const sectionTop = section.offsetTop;
-            const sectionHeight = section.offsetHeight;
+            const sectionRect = section.getBoundingClientRect();
 
-            if (scrollPosition >= sectionTop - offset && scrollPosition < sectionTop + sectionHeight - offset) {
+            // Check if section top is above or near the trigger point
+            // and section bottom is below the trigger point
+            if (sectionRect.top <= containerRect.top + headerOffset &&
+                sectionRect.bottom > containerRect.top + headerOffset) {
                 currentActive = i;
                 break;
             }
@@ -106,9 +109,19 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
     const scrollToCategory = (index: number) => {
         setActiveCatIndex(index);
         const section = categoryRefs.current[index];
-        if (section && scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTo({
-                top: section.offsetTop,
+        const container = scrollContainerRef.current;
+
+        if (section && container) {
+            // Calculate relative position manually to avoid offsetParent issues
+            const sectionRect = section.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const currentScroll = container.scrollTop;
+
+            // Target position = Current Scroll + (Distance from section top to container top) - Sticky Header Offset
+            const scrollTarget = currentScroll + (sectionRect.top - containerRect.top) - 80;
+
+            container.scrollTo({
+                top: scrollTarget,
                 behavior: 'smooth'
             });
         }
@@ -116,7 +129,9 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
 
     return (
         <div
-            className="w-full overflow-x-hidden md:max-w-md md:mx-auto md:shadow-xl md:rounded-3xl overflow-hidden md:border border-gray-200 min-h-[calc(100vh-4rem)] md:min-h-0 md:h-[600px] flex flex-col relative transition-colors duration-300 max-w-[100vw]"
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="w-full overflow-x-hidden md:max-w-md md:mx-auto md:shadow-xl md:rounded-3xl overflow-y-auto scrollbar-hide md:border border-gray-200 min-h-[calc(100vh-4rem)] md:min-h-0 md:h-[600px] flex flex-col relative transition-colors duration-300 max-w-[100vw]"
             style={{ backgroundColor: colorPalette.background, color: colorPalette.text }}
         >
             {/* Header / Banner - matching Compact.tsx styling */}
@@ -129,13 +144,26 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                             className="w-full h-full object-cover"
                         />
                     ) : (
-                        <div
-                            className="w-full h-full flex items-center justify-center"
-                            style={{ backgroundColor: `${colorPalette.accent}20`, color: colorPalette.accent }}
-                        >
-                            {/* Placeholder */}
+                        <div className="w-full h-full bg-orange-600 flex items-center justify-center relative overflow-hidden"
+                            style={{ backgroundColor: colorPalette.accent }}>
+                            <div className="absolute inset-0 opacity-10"
+                                style={{
+                                    backgroundImage: "radial-gradient(#fff 2px, transparent 2px)",
+                                    backgroundSize: "20px 20px"
+                                }}
+                            ></div>
                         </div>
                     )}
+
+                    {/* Center Overlay - Handwriting Font */}
+                    {!hotelDetails.banner && (
+                        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                            <h1 className="text-5xl font-handwriting text-white drop-shadow-md text-center px-4 font-bold">
+                                {hotelDetails.name}
+                            </h1>
+                        </div>
+                    )}
+
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 </div>
 
@@ -154,7 +182,7 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
             </div>
 
             {/* Links  */}
-            <div className="p-4 flex items-center gap-2 max-w-full overflow-x-scroll scrollbar-hide">
+            <div className="p-4 sm:mt-4 flex items-center gap-2 max-w-full overflow-x-scroll scrollbar-hide">
                 <SocialLinks socialLinks={{
                     phone: hotelDetails.phone,
                     whatsapp: `https://wa.me/${hotelDetails.phone}`,
@@ -227,45 +255,43 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
             {/* Categories Navigation - Sticky */}
             <div className="sticky top-0 z-10">
                 <div
-                className="overflow-x-scroll w-full flex gap-2 p-2 shadow-md scrollbar-hide border-b relative transition-colors duration-300"
-                style={{
-                    backgroundColor: colorPalette.background,
-                    borderColor: `${colorPalette.text}10`
-                }}
-            >
-                {/* Animated border element */}
-                <div
-                    className="absolute bottom-0 h-0.5 transition-all duration-300 ease-in-out"
+                    className="overflow-x-scroll w-full flex gap-2 p-2 shadow-md scrollbar-hide border-b relative transition-colors duration-300"
                     style={{
-                        left: `${borderStyle.left}px`,
-                        width: `${borderStyle.width}px`,
-                        backgroundColor: colorPalette.accent
+                        backgroundColor: colorPalette.background,
+                        borderColor: `${colorPalette.text}10`
                     }}
-                />
-
-                {categories.map((category, index) => (
+                >
+                    {/* Animated border element */}
                     <div
-                        key={category}
-                        ref={(el) => { navRefs.current[index] = el; }}
-                        onClick={() => scrollToCategory(index)}
-                        className="p-3 text-nowrap cursor-pointer flex-shrink-0 transition-colors"
+                        className="absolute bottom-0 h-0.5 transition-all duration-300 ease-in-out"
                         style={{
-                            color: activeCatIndex === index ? colorPalette.accent : colorPalette.text,
-                            fontWeight: activeCatIndex === index ? 600 : 500,
-                            opacity: activeCatIndex === index ? 1 : 0.7
+                            left: `${borderStyle.left}px`,
+                            width: `${borderStyle.width}px`,
+                            backgroundColor: colorPalette.accent
                         }}
-                    >
-                        {category}
-                    </div>
-                ))}
-            </div>
+                    />
+
+                    {categories.map((category, index) => (
+                        <div
+                            key={category}
+                            ref={(el) => { navRefs.current[index] = el; }}
+                            onClick={() => scrollToCategory(index)}
+                            className="p-3 text-nowrap cursor-pointer flex-shrink-0 transition-colors"
+                            style={{
+                                color: activeCatIndex === index ? colorPalette.accent : colorPalette.text,
+                                fontWeight: activeCatIndex === index ? 600 : 500,
+                                opacity: activeCatIndex === index ? 1 : 0.7
+                            }}
+                        >
+                            {category}
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {/* Menu Content - matching Compact.tsx grid structure */}
             <div
-                ref={scrollContainerRef}
-                onScroll={handleScroll}
-                className="grid gap-4 p-4 pb-24 overflow-y-auto scrollbar-hide max-h-[500px] md:max-h-none md:flex-1 relative"
+                className="grid gap-4 p-4 pb-24 relative"
             >
                 {Object.entries(groupedItems).map(([category, categoryItems], index) => {
                     // Filter items based on veg filter

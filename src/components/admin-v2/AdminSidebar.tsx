@@ -41,6 +41,9 @@ export function AdminSidebar({ activeView, onNavigate, className }: AdminSidebar
         if (item.id === "captains") {
             return features?.captainordering?.enabled;
         }
+        if (item.id === "orders") {
+            return features?.ordering?.enabled;
+        }
         return true;
     });
 

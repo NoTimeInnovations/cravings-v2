@@ -26,7 +26,7 @@ export async function proxy(request: NextRequest) {
 
   let country = request.geo?.country || request.headers.get('x-vercel-ip-country');
 
-  country = "US"
+  country = "IN"
   console.log("Country ", country)
   if (country) requestHeaders.set("x-user-country", country);
 

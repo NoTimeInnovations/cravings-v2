@@ -27,7 +27,7 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                     <Menu className="h-6 w-6" />
                     <span className="sr-only">Toggle sidebar</span>
                 </Button>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 hidden lg:flex">
                     <UtensilsCrossed className="h-6 w-6 text-orange-600 dark:text-orange-400" />
                     <span className="text-xl font-bold text-orange-600 dark:text-orange-400">Cravings</span>
                 </div>

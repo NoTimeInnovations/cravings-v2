@@ -139,7 +139,7 @@ export function GeneralSettings() {
         <div className="space-y-6">
             <Card>
 
-                <CardContent className="flex items-center justify-between">
+                <CardContent className="flex pt-6 items-center justify-between">
                     <div className="space-y-0.5">
                         <Label className="text-base">Turn on store / Turn off Store</Label>
                         <p className="text-sm text-muted-foreground">

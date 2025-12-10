@@ -48,6 +48,8 @@ export function AdminV2Dashboard() {
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [qrId, setQrId] = useState<string | null>(null);
+  const [storeName, setStoreName] = useState<string>("");
 
   const TODAY_ORDERS_QUERY = (today: string) => `
     query TodayOrders {
@@ -193,6 +195,18 @@ export function AdminV2Dashboard() {
     }
   `;
 
+  // Added Query for View Menu Button
+  const GET_ONE_QR = `
+    query GetOneQr($partner_id: uuid!) {
+      qr_codes(where: {partner_id: {_eq: $partner_id}}, limit: 1) {
+        id
+        partner {
+            store_name
+        }
+      }
+    }
+  `;
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -214,7 +228,17 @@ export function AdminV2Dashboard() {
           });
           break;
       }
+
       setReportData(result);
+
+      // Fetch QR for button
+      if (!qrId) {
+        const qrRes = await fetchFromHasura(GET_ONE_QR, { partner_id: userData?.id });
+        if (qrRes?.qr_codes?.[0]) {
+          setQrId(qrRes.qr_codes[0].id);
+          setStoreName(qrRes.qr_codes[0].partner.store_name);
+        }
+      }
     } catch (error) {
       console.error("Error fetching report data:", error);
     } finally {
@@ -353,7 +377,16 @@ export function AdminV2Dashboard() {
             onUpdate={handleDateRangeUpdate}
           />
         )}
-        <div className="w-full sm:w-auto">
+        <div className="w-full sm:w-auto flex gap-2">
+          {qrId && (
+            <Button
+              variant="outline"
+              onClick={() => window.open(`/qrScan/${storeName?.replace(/\s+/g, "-")}/${qrId}`, '_blank')}
+              className="w-full sm:w-auto"
+            >
+              View Menu
+            </Button>
+          )}
           <Button
             onClick={async () => {
               setIsDownloading(true);

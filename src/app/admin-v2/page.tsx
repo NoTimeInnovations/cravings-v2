@@ -1,5 +1,7 @@
 "use client";
 
+import { UtensilsCrossed } from "lucide-react";
+
 import { useState } from "react";
 import { AdminNavbar } from "@/components/admin-v2/AdminNavbar";
 import { AdminSidebar } from "@/components/admin-v2/AdminSidebar";
@@ -37,8 +39,9 @@ export default function AdminPage() {
                     {/* Mobile Sidebar (Sheet) */}
                     <SheetContent side="left" className="p-0 w-64">
                         <div className="py-4">
-                            <div className="px-4 mb-4">
-                                <span className="text-xl font-bold text-orange-600 dark:text-orange-400">Cravings Admin</span>
+                            <div className="px-4 mb-4 flex items-center gap-2">
+                                <UtensilsCrossed className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                                <span className="text-xl font-bold text-orange-600 dark:text-orange-400">Cravings</span>
                             </div>
                             <AdminSidebar
                                 activeView={activeView}

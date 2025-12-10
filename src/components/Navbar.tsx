@@ -31,6 +31,8 @@ const HIDDEN_PATHS = [
   "/hotels/DOWNTREE/4ba747b0-827c-48de-b148-70e7a573564a",
   "/whatsappQr/[id]",
   "/get-started",
+  "/admin-v2/.*",
+  "/admin-v2"
 ];
 
 export function Navbar({ userData, country }: { userData: any; country?: string }) {

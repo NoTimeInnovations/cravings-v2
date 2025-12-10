@@ -6,7 +6,7 @@ import CancelConfirmationEmail from '@/components/emails/CancelConfirmationEmail
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM_EMAIL = 'support@cravings.live'; // Update with verified domain if available, else use resend default for testing often 'onboarding@resend.dev' but presumably user has domain
+const FROM_EMAIL = 'help@support.cravings.live'; // Update with verified domain if available, else use resend default for testing often 'onboarding@resend.dev' but presumably user has domain
 
 export async function sendWelcomeEmail(to: string, props: { partnerName: string; planName: string; loginLink?: string }) {
     if (!process.env.RESEND_API_KEY) {
