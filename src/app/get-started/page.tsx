@@ -13,6 +13,7 @@ import {
     ArrowLeft,
     X,
     FileText,
+    AlertCircle,
 } from "lucide-react";
 import { GoogleGenerativeAI, Schema } from "@google/generative-ai";
 import { toast } from "sonner";
@@ -122,6 +123,7 @@ export default function GetStartedPage() {
     const [registrationSuccess, setRegistrationSuccess] = useState(false);
     const [signupResult, setSignupResult] = useState<any>(null);
     const [isPublishing, setIsPublishing] = useState(false);
+    const [extractionError, setExtractionError] = useState<string | null>(null);
 
 
 
@@ -299,6 +301,7 @@ export default function GetStartedPage() {
         if (menuFiles.length === 0) throw new Error("No menu files provided");
 
         setIsExtractingMenu(true);
+        setExtractionError(null);
         try {
             const model = genAI.getGenerativeModel({
                 model: "gemini-2.5-flash",
@@ -366,13 +369,31 @@ export default function GetStartedPage() {
             fetchImagesInBackground(parsedMenu);
 
             return parsedMenu;
-        } catch (error) {
+        } catch (error: any) {
             console.error("Extraction failed:", error);
+            setExtractionError(error.message || "Failed to extract menu. Please try again.");
             toast.error("Failed to extract menu. Please try again.");
             throw error;
         } finally {
             setIsExtractingMenu(false);
         }
+    };
+
+    const handleRetryExtraction = async () => {
+        setExtractionError(null);
+        try {
+            extractionPromise.current = extractMenu();
+            await extractionPromise.current;
+        } catch (e) {
+            // Error already handled
+        }
+    };
+
+    const handleCancelExtraction = () => {
+        setExtractionError(null);
+        setMenuFiles([]);
+        setExtractedItems([]);
+        setStep(1);
     };
 
     const handleStep1Next = () => {
@@ -909,6 +930,39 @@ export default function GetStartedPage() {
     );
 
     const renderStep3 = () => {
+        // Error State
+        if (extractionError) {
+            return (
+                <div className="max-w-md mx-auto text-center space-y-8 animate-in fade-in duration-500 mt-12 bg-white p-8 rounded-3xl shadow-sm border border-red-100">
+                    <div className="space-y-4">
+                        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+                            <AlertCircle className="w-10 h-10 text-red-600" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-900">Extraction Failed</h2>
+                        <p className="text-gray-500">
+                            {extractionError}
+                        </p>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                        <Button
+                            onClick={handleRetryExtraction}
+                            className="w-full h-11 text-base rounded-full bg-orange-600 hover:bg-orange-700"
+                        >
+                            Try Again
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={handleCancelExtraction}
+                            className="w-full h-11 text-base rounded-full"
+                        >
+                            Cancel & Upload Again
+                        </Button>
+                    </div>
+                </div>
+            );
+        }
+
         // If still extracting, show loading state
         if (isExtractingMenu || extractedItems.length === 0) {
             return (
