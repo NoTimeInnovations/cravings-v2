@@ -41,6 +41,11 @@ const Compact = ({
   const themeButtonRef = useRef<HTMLButtonElement>(null);
   const hasOffers = offers && offers.length > 0;
   const [vegFilter, setVegFilter] = useState<"all" | "veg" | "non-veg">("all");
+  const [bannerError, setBannerError] = useState(false);
+
+  useEffect(() => {
+    setBannerError(false);
+  }, [hoteldata?.store_banner]);
 
   // Check if any menu items have is_veg set (not null)
   const hasVegFilter = useMemo(() => {
@@ -180,16 +185,23 @@ const Compact = ({
         <div className="relative">
           {/* image */}
           <div className="w-full h-[30vh] relative overflow-hidden">
-            {hoteldata?.store_banner ? <img
-              src={hoteldata?.store_banner}
-              alt="Hotel Logo"
-              className="w-full h-full object-cover"
-            /> : (
+            {hoteldata?.store_banner &&
+              hoteldata?.store_banner !== "" &&
+              !bannerError ? (
+              <img
+                src={hoteldata?.store_banner}
+                alt="Hotel Logo"
+                className="w-full h-full object-cover"
+                onError={() => setBannerError(true)}
+              />
+            ) : (
               <div className="w-full h-full bg-orange-600 flex items-center justify-center relative overflow-hidden">
-                <div className="absolute inset-0 opacity-10"
+                <div
+                  className="absolute inset-0 opacity-10"
                   style={{
-                    backgroundImage: "radial-gradient(#fff 2px, transparent 2px)",
-                    backgroundSize: "20px 20px"
+                    backgroundImage:
+                      "radial-gradient(#fff 2px, transparent 2px)",
+                    backgroundSize: "20px 20px",
                   }}
                 ></div>
               </div>
@@ -197,15 +209,15 @@ const Compact = ({
           </div>
 
           {/* Center Overlay - Handwriting Font */}
-          {
-            !hoteldata?.store_banner && (
+          {(!hoteldata?.store_banner ||
+            hoteldata?.store_banner === "" ||
+            bannerError) && (
               <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
                 <h1 className="text-5xl font-handwriting text-white drop-shadow-md text-center px-4 font-bold">
                   {hoteldata?.store_name}
                 </h1>
               </div>
-            )
-          }
+            )}
 
           {/* hotel details (Original Footer) */}
           <div className="absolute bottom-0 gap-2 left-0 w-full p-5 bg-gradient-to-t from-black/80 to-transparent text-white flex flex-col items-start justify-end z-20">
