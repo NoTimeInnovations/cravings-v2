@@ -95,6 +95,10 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link href="https://db.onlinewebfonts.com/c/88f10bf18a36407ef36bf30bc25a3618?family=SuisseIntl-Regular" rel="stylesheet" />
+        <link href="https://db.onlinewebfonts.com/c/03d5b20d124cd26dc873bd4a8e42313e?family=SuisseIntl-Light" rel="stylesheet" />
+        <link href="https://db.onlinewebfonts.com/c/653d9381828e9577fb1e417dc047f89d?family=SuisseIntl-SemiBold" rel="stylesheet" />
+        <link href="https://db.onlinewebfonts.com/c/d1a580023d40c546276decde1c711e60?family=SuisseIntl-Bold" rel="stylesheet" />
         {/* Google Analytics Script */}
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX`}
@@ -113,7 +117,7 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className={`antialiased`}>
+      <body className={`antialiased font-sans`}>
         <AuthInitializer />
         {(user?.role === "user" || !user) && !isWhatsappDialogHidden && country === "IN" && (
           <WhatsappGroupJoinAlertDialog isPetraz={isPetraz} />

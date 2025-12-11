@@ -43,7 +43,7 @@ export default function Hero() {
                         </span>
                     </div>
 
-                    <h1 className="text-4xl lg:text-7xl font-extrabold text-gray-900 leading-[1.1] mb-6 tracking-tight">
+                    <h1 className="text-4xl lg:text-7xl font-semibold text-gray-900 leading-[1.1] mb-6 tracking-tight">
                         The Ultimate <br />
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-500">
                             Digital Menu Creator

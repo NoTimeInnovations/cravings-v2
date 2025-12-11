@@ -17,6 +17,7 @@ export default {
 			},
 			fontFamily: {
 				handwriting: ['"Dancing Script"', 'cursive'],
+				sans: ['SuisseIntl-Regular', 'sans-serif'],
 			},
 			colors: {
 				background: 'hsl(var(--background))',
