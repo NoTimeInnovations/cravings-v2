@@ -18,10 +18,7 @@ import { GoogleGenerativeAI, Schema } from "@google/generative-ai";
 import { toast } from "sonner";
 import { CompactMenuPreview, ColorPalette } from "@/components/get-started/CompactMenuPreview";
 import { useRouter } from "next/navigation";
-import ColorThief from "colorthief";
 import axios from "axios";
-import { uploadFileToS3 } from "@/app/actions/aws-s3";
-import { saveBannerFile } from "@/lib/bannerStorage";
 import { onBoardUserSignup } from "@/app/actions/onBoardUserSignup";
 import plansData from "@/data/plans.json";
 import { Eye, EyeOff, Copy, ExternalLink, LayoutDashboard, Share2 } from "lucide-react";
@@ -98,7 +95,7 @@ export default function GetStartedPage() {
     const router = useRouter();
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [menuFiles, setMenuFiles] = useState<File[]>([]);
-    const [bannerFile, setBannerFile] = useState<File | null>(null);
+
     const [hotelDetails, setHotelDetails] = useState<HotelDetails>({
         name: "",
         phone: "",
@@ -112,7 +109,7 @@ export default function GetStartedPage() {
     });
     const [isExtractingMenu, setIsExtractingMenu] = useState(false);
     const [extractedItems, setExtractedItems] = useState<MenuItem[]>([]);
-    const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+
     const extractionPromise = useRef<Promise<MenuItem[]> | null>(null);
     const [colorPalettes, setColorPalettes] = useState<ColorPalette[]>([]);
     const [selectedPalette, setSelectedPalette] = useState<ColorPalette>({
@@ -126,57 +123,7 @@ export default function GetStartedPage() {
     const [signupResult, setSignupResult] = useState<any>(null);
     const [isPublishing, setIsPublishing] = useState(false);
 
-    useEffect(() => {
-        if (bannerPreview) {
-            const img = new Image();
-            img.src = bannerPreview;
-            img.onload = () => {
-                try {
-                    const colorThief = new ColorThief();
-                    const palette = colorThief.getPalette(img, 5);
 
-                    if (palette) {
-                        const rgbToHex = (r: number, g: number, b: number) => '#' + [r, g, b].map(x => {
-                            const hex = x.toString(16);
-                            return hex.length === 1 ? '0' + hex : hex;
-                        }).join('');
-
-                        const colors = palette.map((c: number[]) => ({
-                            rgb: c,
-                            hex: rgbToHex(c[0], c[1], c[2]),
-                            brightness: (c[0] * 299 + c[1] * 587 + c[2] * 114) / 1000
-                        }));
-
-                        colors.sort((a: any, b: any) => b.brightness - a.brightness);
-
-                        const getSaturation = (r: number, g: number, b: number) => {
-                            const max = Math.max(r, g, b), min = Math.min(r, g, b);
-                            if (max === min) return 0;
-                            return (max - min) / max;
-                        };
-
-                        const vibrantColors = [...colors].sort((a: any, b: any) =>
-                            getSaturation(b.rgb[0], b.rgb[1], b.rgb[2]) - getSaturation(a.rgb[0], a.rgb[1], a.rgb[2])
-                        );
-
-                        const accent = vibrantColors[0].hex;
-                        const accent2 = vibrantColors[1]?.hex || accent;
-
-                        const generated: ColorPalette[] = [
-                            { text: "#000000", background: "#ffffff", accent: "#ea580c" }, // Default
-                            { background: colors[0].hex, text: colors[colors.length - 1].hex, accent: accent }, // Light
-                            { background: colors[colors.length - 1].hex, text: colors[0].hex, accent: accent }, // Dark
-                            { background: colors[0].hex, text: "#000000", accent: accent2 } // Alternative
-                        ];
-
-                        setColorPalettes(generated);
-                    }
-                } catch (e) {
-                    console.error("Color extraction failed", e);
-                }
-            };
-        }
-    }, [bannerPreview]);
 
     // --- Persistence & Hydration ---
 
@@ -255,17 +202,7 @@ export default function GetStartedPage() {
         setMenuFiles(prev => prev.filter((_, i) => i !== index));
     };
 
-    const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            setBannerFile(file);
-            setBannerPreview(URL.createObjectURL(file));
-            setHotelDetails((prev) => ({
-                ...prev,
-                banner: URL.createObjectURL(file), // Still use blob URL for preview
-            }));
-        }
-    };
+
 
     const handleDetailsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -487,22 +424,7 @@ export default function GetStartedPage() {
             let bannerUrl = "";
 
             // Handle Banner Upload
-            if (bannerFile) {
-                try {
-                    const timestamp = Date.now();
-                    const extension = bannerFile.name.split('.').pop() || 'png';
-                    const safeName = `banner_${timestamp}.${extension}`;
-                    // Attempt direct upload if credentials available, else fallback logic (or simplistic save)
-                    // Since we are creating account directly, we should try to upload to S3 if possible
-                    // However, onboarding flow usually does this. 
-                    // Let's use the same logic as PricingSection: upload if we can, or just send empty and let user upload later?
-                    // Actually, PricingSection uploads it.
-                    bannerUrl = await uploadFileToS3(bannerFile, `banners/${timestamp}-${safeName}`);
-                } catch (error) {
-                    console.error("Failed to upload banner:", error);
-                    // Fallback to placeholder or empty
-                }
-            }
+
 
             const finalPhone = sanitizePhone(hotelDetails.phone, countryMeta.code);
 
@@ -765,32 +687,7 @@ export default function GetStartedPage() {
             </div>
 
             <div className="space-y-2 md:space-y-6 bg-white rounded-3xl">
-                <div className="space-y-2">
-                    <Label htmlFor="banner" className="text-sm">Banner Image (Optional)</Label>
-                    <div className="border border-gray-200 rounded-xl p-3 md:p-4 flex items-center gap-4 relative overflow-hidden">
-                        <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleBannerUpload}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                        />
-                        {bannerPreview ? (
-                            <img
-                                src={bannerPreview}
-                                alt="Banner"
-                                className="w-12 h-12 md:w-16 md:h-16 rounded-lg object-cover"
-                            />
-                        ) : (
-                            <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-100 rounded-lg flex items-center justify-center">
-                                <Upload size={20} className="text-gray-400" />
-                            </div>
-                        )}
-                        <div className="flex-1">
-                            <p className="text-sm font-medium">Upload Banner</p>
-                            <p className="text-xs text-gray-500">Recommended 800x400px</p>
-                        </div>
-                    </div>
-                </div>
+
 
                 <div className="space-y-2">
                     <Label htmlFor="name" className="text-sm">Restaurant Name</Label>
@@ -1033,7 +930,7 @@ export default function GetStartedPage() {
 
         return (
             <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-start gap-8 animate-in fade-in duration-700 md:pt-12 pb-24 md:pb-0">
-                <div className={`flex-1 space-y-6 ${registrationSuccess ? "block" : "hidden md:block"}`}>
+                <div className={`flex-1 space-y-6 ${registrationSuccess ? "hidden md:block" : "hidden md:block"}`}>
                     {registrationSuccess ? renderSuccessView() : (
                         <>
                             <div className="space-y-2">
@@ -1117,6 +1014,66 @@ export default function GetStartedPage() {
                         >
                             Publish Live <ChevronRight className="ml-2 w-5 h-5" />
                         </Button>
+                    </div>
+                )}
+
+                {/* Mobile Success Floating Card */}
+                {registrationSuccess && (
+                    <div className="md:hidden fixed bottom-6 left-6 right-6 z-50 flex flex-col gap-3 animate-in slide-in-from-bottom-10 duration-700">
+                        <div className="bg-white/90 backdrop-blur-xl p-5 rounded-[2rem] shadow-2xl border border-white/50 space-y-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <Check className="w-6 h-6 text-green-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900 leading-tight">Menu is Live!</h3>
+                                    <p className="text-xs text-gray-500">Ready to share with customers</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <Button
+                                    className="w-full h-11 text-sm rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-lg"
+                                    onClick={() => {
+                                        const url = `https://www.cravings.live/hotels/${hotelDetails.name.replace(/ /g, "-")}/${signupResult?.partnerId}`;
+                                        window.open(url, "_blank");
+                                    }}
+                                >
+                                    <ExternalLink size={16} className="mr-2" />
+                                    View
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="w-full h-11 text-sm rounded-xl bg-white"
+                                    onClick={() => {
+                                        const url = `https://www.cravings.live/hotels/${hotelDetails.name.replace(/ /g, "-")}/${signupResult?.partnerId}`;
+                                        navigator.clipboard.writeText(url);
+                                        toast.success("Link copied!");
+                                    }}
+                                >
+                                    <Share2 size={16} className="mr-2" />
+                                    Share
+                                </Button>
+                            </div>
+
+                            <Button
+                                variant="ghost"
+                                className="w-full h-10 text-sm rounded-xl text-gray-600 hover:bg-gray-100"
+                                onClick={async () => {
+                                    try {
+                                        const { signInPartnerWithEmail } = useAuthStore.getState();
+                                        await signInPartnerWithEmail(authCredentials.email, "123456");
+                                        router.push("/admin-v2");
+                                    } catch (e) {
+                                        console.error("Auto-login failed", e);
+                                        router.push("/login");
+                                    }
+                                }}
+                            >
+                                <LayoutDashboard size={16} className="mr-2" />
+                                Go to Dashboard
+                            </Button>
+                        </div>
                     </div>
                 )}
             </div>
