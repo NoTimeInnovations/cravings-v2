@@ -626,21 +626,40 @@ export default function GetStartedPage() {
             };
 
             // Call Signup Action
-            const result = await onBoardUserSignup(fullData);
+            const signupData = await onBoardUserSignup(fullData);
 
             // Clear local storage
             localStorage.removeItem("cravings_onboarding_state");
             localStorage.removeItem("onboarding_data");
 
-            setSignupResult(result);
+            // 5. Trigger Background Image Generation if needed
+            const itemsMissingImages = extractedItems.filter(item => !item.image);
+            if (itemsMissingImages.length > 0) {
+                // Fire and forget
+                fetch(process.env.NEXT_PUBLIC_SERVER_URL + "/api/auto-gen-images", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        partnerId: signupData.partnerId,
+                        items: itemsMissingImages.map(item => ({
+                            name: item.name,
+                            description: item.description,
+                            category: item.category
+                        })),
+                        email: authCredentials.email
+                    })
+                }).catch(err => console.error("Failed to trigger background image gen", err));
+            }
+
+            // 6. Show Success UI
             setRegistrationSuccess(true);
-            setShowAuthModal(false);
-            toast.success("Account created successfully!");
+            setSignupResult(signupData);
+            setIsPublishing(false);
+            window.scrollTo({ top: 0, behavior: "smooth" });
 
         } catch (error) {
-            console.error("Signup failed:", error);
-            toast.error("Failed to create account. Please try again.");
-        } finally {
+            console.error("Signup finalization failed", error);
+            toast.error("Failed to finalize signup. Please try again.");
             setIsPublishing(false);
         }
     };
@@ -1025,6 +1044,13 @@ export default function GetStartedPage() {
                                     We've extracted {extractedItems.length} items from your image.
                                     Here's how it looks. You can edit the items in the dashboard after publishing.
                                 </p>
+                                <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mt-2">
+                                    <p className="text-xs text-blue-700">
+                                        <strong>Note:</strong> You can edit the menu and menu-images in the dashboard after account creation.
+                                        Images will be generated and updated in approx {Math.ceil((extractedItems.length * 2) / 60)} minutes.
+                                        We will notify you via email once completed.
+                                    </p>
+                                </div>
                             </div>
 
                             <div className="hidden md:block space-y-6">
@@ -1098,7 +1124,7 @@ export default function GetStartedPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col pt-16 md:pt-20">
+        <div className="min-h-screen bg-gray-50 flex flex-col">
             <FullScreenLoader
                 isLoading={isPublishing}
                 loadingTexts={[

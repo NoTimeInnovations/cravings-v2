@@ -118,7 +118,7 @@
 //             </Link>
 
 //             {/* Add rate this menu item */}
-//             <section className="px-3 pt-10 pb-5 flex sm:justify-center sm:pt-20 sm:pb-10">
+//             <section className="px-3 pt-10 pb-5 flex sm:justify-center sm:pb-10">
 //               <RateThis type="menuItem" />
 //             </section>
 
