@@ -18,7 +18,7 @@ export async function sendWelcomeEmail(to: string, props: { partnerName: string;
             from: FROM_EMAIL,
             to,
             subject: 'Welcome to Cravings! 🚀',
-            react: WelcomeEmail(props),
+            react: WelcomeEmail({ ...props, email: to }),
         });
     } catch (error) {
         console.error('Failed to send welcome email', error);
@@ -43,7 +43,7 @@ export async function sendUpgradeEmail(to: string, props: { partnerName: string;
 
 export async function sendCancellationRequestEmail(props: { partnerName: string; partnerId: string; partnerEmail: string; reason: string }) {
     if (!process.env.RESEND_API_KEY) return;
-    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'support@cravings.live';
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'help@support.cravings.live';
     try {
         // 1. Notify Admin
         await resend.emails.send({

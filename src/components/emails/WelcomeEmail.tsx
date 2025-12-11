@@ -16,12 +16,14 @@ import * as React from "react";
 interface WelcomeEmailProps {
     partnerName: string;
     planName: string;
+    email: string;
     loginLink?: string;
 }
 
 export const WelcomeEmail = ({
     partnerName = "Partner",
     planName = "Free Trial",
+    email,
     loginLink = "https://cravings.live/login",
 }: WelcomeEmailProps) => (
     <Html>
@@ -41,6 +43,11 @@ export const WelcomeEmail = ({
                     <Text style={text}>
                         You have successfully subscribed to the <strong>{planName}</strong> plan.
                     </Text>
+                    <Section style={credentialsContainer}>
+                        <Text style={credentialText}><strong>Your Login Credentials:</strong></Text>
+                        <Text style={credentialText}>Email: {email}</Text>
+                        <Text style={credentialText}>Password: 123456</Text>
+                    </Section>
                     <Section style={btnContainer}>
                         <Button style={button} href={loginLink}>
                             Access Dashboard
@@ -56,7 +63,7 @@ export const WelcomeEmail = ({
                 </Section>
             </Container>
         </Body>
-    </Html>
+    </Html >
 );
 
 const main = {
@@ -127,6 +134,22 @@ const footer = {
     color: "#8898aa",
     fontSize: "12px",
     lineHeight: "16px",
+};
+
+const credentialsContainer = {
+    padding: "24px",
+    backgroundColor: "#fff7ed",
+    borderRadius: "8px",
+    border: "1px solid #ffedd5",
+    margin: "24px 0",
+};
+
+const credentialText = {
+    color: "#333",
+    fontSize: "14px",
+    lineHeight: "24px",
+    textAlign: "left" as const,
+    margin: "0 0 8px",
 };
 
 export default WelcomeEmail;
