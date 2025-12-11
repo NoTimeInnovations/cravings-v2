@@ -7,8 +7,8 @@
             "description": "Perfect for trying out Cravings",
             "features": [
                 "100 scans per month",
-                "Create 2 offers per month",
-                "10 menu edits per month",
+                "Unlimited offers",
+                "Unlimited edits",
                 "Chat support"
             ],
             "buttonText": "Start Free",
@@ -23,9 +23,10 @@
             "price": "$9",
             "description": "For growing restaurants",
             "features": [
-                "Digital menu",
-                "Unlimited items & categories",
-                "Unlimited scans"
+                "1000 scans per month",
+                "Unlimited offers",
+                "Unlimited edits",
+                "Priority chat support"
             ],
             "buttonText": "Coming Soon",
             "popular": false,
@@ -41,10 +42,12 @@
             "price": "$19",
             "description": "For growing businesses",
             "features": [
-                "Everything in Standard",
+                "Unlimited scans",
+                "Unlimited offers",
+                "Unlimited edits",
+                "Priority chat support",
                 "Order management",
-                "Inventory management",
-                "Waitneer calling system"
+                "Captain ordering"
             ],
             "buttonText": "Coming Soon",
             "popular": true,
@@ -63,8 +66,7 @@
             "description": "Try all features risk-free",
             "features": [
                 "All features included",
-                "20 days validity",
-                "No credit card required"
+                "20 days validity"
             ],
             "buttonText": "Get Free Menu",
             "popular": false,
@@ -74,7 +76,7 @@
             "features_enabled": {
                 "ordering": true
             },
-            "scan_limit": 1000
+            "scan_limit": -1
         },
         {
             "id": "in_digital",
@@ -85,15 +87,15 @@
                 "Digital menu",
                 "Unlimited items",
                 "QR code generation",
-                "10 menu edits per month",
+                "Unlimited edits",
                 "Chat support"
             ],
             "buttonText": "Start Free",
             "popular": false,
-            "period": "/month",
+            "period": "/year",
             "period_days": 365,
             "disabled": false,
-            "scan_limit": 2000
+            "scan_limit": -1
         },
         {
             "id": "in_ordering",
@@ -105,7 +107,10 @@
                 "Table ordering",
                 "Kitchen display system",
                 "WhatsApp integration",
-                "Inventory management"
+                "Inventory management",
+                "Unlimited offers",
+                "Unlimited edits",
+                "Priority chat support"
             ],
             "buttonText": "Get Started",
             "popular": true,
@@ -115,7 +120,7 @@
             "features_enabled": {
                 "ordering": true
             },
-            "scan_limit": 10000
+            "scan_limit": -1
         }
     ]
 }
