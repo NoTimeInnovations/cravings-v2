@@ -360,7 +360,7 @@ const OrderDrawer = ({
       "8590115462";
 
     return `https://api.whatsapp.com/send?phone=${hotelData?.country_code || "+91"
-      }${number}& text=${encodeURIComponent(whatsappMsg)} `;
+      }${number}&text=${encodeURIComponent(whatsappMsg)}`;
   };
 
   // Modified: Intercept "View Order" click
