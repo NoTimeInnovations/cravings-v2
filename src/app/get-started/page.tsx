@@ -304,7 +304,7 @@ export default function GetStartedPage() {
         setExtractionError(null);
         try {
             const model = genAI.getGenerativeModel({
-                model: "gemini-2.5-flash",
+                model: "gemini-2.5-pro",
                 generationConfig: {
                     responseMimeType: "application/json",
                     responseSchema: {
