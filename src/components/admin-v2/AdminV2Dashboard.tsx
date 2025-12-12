@@ -32,14 +32,13 @@ import { Loader2, IndianRupee, ShoppingBag, Truck, TrendingUp, Download } from "
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { downloadOrderReport } from "@/utils/downloadOrderReport";
+import { SubscriptionStatus } from "./SubscriptionStatus";
 
 const formatDate = (date: Date) => format(date, "yyyy-MM-dd");
 
-import { SubscriptionStatus } from "./SubscriptionStatus";
-
-
 export function AdminV2Dashboard() {
   const { userData } = useAuthStore();
+
   const [dateRange, setDateRange] = useState({
     startDate: subDays(new Date(), 7),
     endDate: new Date(),

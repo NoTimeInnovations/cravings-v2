@@ -8,6 +8,7 @@ import {
     Settings,
     UserCog,
     QrCode,
+    LifeBuoy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,20 @@ export function AdminSidebar({ activeView, onNavigate, className }: AdminSidebar
                     ))}
                 </div>
             </div>
-        </div>
+
+            <div className="mt-auto px-3 py-4 border-t border-border">
+                <Button
+                    variant={activeView === "Help & Support" ? "secondary" : "ghost"}
+                    className={cn(
+                        "w-full justify-start text-muted-foreground",
+                        activeView === "Help & Support" && "bg-orange-100 text-orange-600 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/40 font-medium"
+                    )}
+                    onClick={() => onNavigate("Help & Support")}
+                >
+                    <LifeBuoy className={cn("mr-2 h-4 w-4", activeView === "Help & Support" && "text-orange-600 dark:text-orange-400")} />
+                    Help & Support
+                </Button>
+            </div>
+        </div >
     );
 }

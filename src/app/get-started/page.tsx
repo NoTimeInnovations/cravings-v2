@@ -304,7 +304,7 @@ export default function GetStartedPage() {
         setExtractionError(null);
         try {
             const model = genAI.getGenerativeModel({
-                model: "gemini-2.5-pro",
+                model: "gemini-2.5-flash-lite",
                 generationConfig: {
                     responseMimeType: "application/json",
                     responseSchema: {
@@ -711,7 +711,7 @@ export default function GetStartedPage() {
 
 
                 <div className="space-y-2">
-                    <Label htmlFor="name" className="text-sm">Restaurant Name</Label>
+                    <Label htmlFor="name" className="text-sm">Restaurant Name <span className="text-red-500">*</span></Label>
                     <Input
                         id="name"
                         name="name"
@@ -723,7 +723,7 @@ export default function GetStartedPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-sm">WhatsApp Number</Label>
+                    <Label htmlFor="phone" className="text-sm">WhatsApp Number <span className="text-red-500">*</span></Label>
                     <Input
                         id="phone"
                         name="phone"
@@ -776,7 +776,7 @@ export default function GetStartedPage() {
 
             {/* Currency Selector */}
             <div className="space-y-2">
-                <Label htmlFor="currency" className="text-sm">Currency</Label>
+                <Label htmlFor="currency" className="text-sm">Currency <span className="text-red-500">*</span></Label>
                 <select
                     id="currency"
                     name="currency"
@@ -792,7 +792,7 @@ export default function GetStartedPage() {
 
             <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="country" className="text-sm">Country</Label>
+                    <Label htmlFor="country" className="text-sm">Country <span className="text-red-500">*</span></Label>
                     <select
                         id="country"
                         name="country"
@@ -808,7 +808,7 @@ export default function GetStartedPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="state" className="text-sm">State</Label>
+                    <Label htmlFor="state" className="text-sm">State <span className="text-red-500">*</span></Label>
                     {hotelDetails.country === "India" ? (
                         <select
                             id="state"
@@ -836,7 +836,7 @@ export default function GetStartedPage() {
 
                 {hotelDetails.state === "Kerala" && (
                     <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="district" className="text-sm">District</Label>
+                        <Label htmlFor="district" className="text-sm">District <span className="text-red-500">*</span></Label>
                         <select
                             id="district"
                             name="district"
@@ -1188,8 +1188,8 @@ export default function GetStartedPage() {
                         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
                             <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-300">
                                 <div className="space-y-2 text-center">
-                                    <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
-                                    <p className="text-sm text-gray-500">Set up your credentials to manage your menu.</p>
+                                    <h2 className="text-2xl font-bold text-gray-900">Enter your email to create menu</h2>
+                                    <p className="text-sm text-gray-500">We need this to send you the login details for your menu dashboard.</p>
                                 </div>
 
                                 <div className="space-y-4">
@@ -1201,18 +1201,6 @@ export default function GetStartedPage() {
                                             placeholder="you@example.com"
                                             value={authCredentials.email}
                                             onChange={(e) => setAuthCredentials(prev => ({ ...prev, email: e.target.value }))}
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label htmlFor="referral" className="text-sm">Referral Code (Optional)</Label>
-                                        <Input
-                                            id="referral"
-                                            name="referral"
-                                            placeholder="Enter code"
-                                            value={authCredentials.referralCode}
-                                            onChange={(e) => setAuthCredentials(prev => ({ ...prev, referralCode: e.target.value }))}
-                                            className="h-10 rounded-xl"
                                         />
                                     </div>
                                 </div>
