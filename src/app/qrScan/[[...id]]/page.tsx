@@ -345,14 +345,43 @@ const page = async ({
       }
     }
 
+    // Check for Subscription Expiry
+    // We prioritize the JSONB expiryDate as managed by SubscriptionManagementV2
+    const expiryDateStr = sub?.expiryDate || freshSubscription?.expiry_date;
+    const isExpired = expiryDateStr && new Date(expiryDateStr) < new Date();
+
+    if (isExpired) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4 py-8">
+          <div className="text-center p-4 sm:p-8 bg-white rounded-3xl shadow-lg w-full max-w-[90%] sm:max-w-md mx-auto">
+            <h1 className="text-xl sm:text-3xl font-bold mb-4 text-orange-600">
+              Hotel Subscription Expired
+            </h1>
+            <p className="mb-6 text-sm sm:text-base text-gray-600">
+              This hotel's subscription has expired and services are temporarily suspended.
+            </p>
+            <div className="text-gray-700 bg-gray-100 p-4 rounded-md">
+              <p className="font-medium text-sm sm:text-base">
+                Contact Support:
+              </p>
+              <a
+                href="tel:+916238969297"
+                className="text-blue-600 hover:text-blue-800 block mt-2 text-sm sm:text-base"
+              >
+                +91 6238969297
+              </a>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     if (hoteldata?.status === "inactive") {
       return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4 py-8">
           <div className="text-center p-4 sm:p-8 bg-white rounded-3xl shadow-lg w-full max-w-[90%] sm:max-w-md mx-auto">
             <h1 className="text-xl sm:text-3xl font-bold mb-4 text-orange-600">
-              {new Date(freshSubscription?.expiry_date) < new Date()
-                ? "Hotel Subscription Expired"
-                : "Hotel is Currently Inactive"}
+              Hotel is Currently Inactive
             </h1>
             <p className="mb-6 text-sm sm:text-base text-gray-600">
               This hotel is temporarily unavailable. For assistance, please
