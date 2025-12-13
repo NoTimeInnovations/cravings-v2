@@ -2,11 +2,13 @@ import {
   getPartnerAndOffersQuery,
   getPartnerSubscriptionQuery,
 } from "@/api/partners";
-import { GET_QR_TABLE, INCREMENT_QR_CODE_SCAN_COUNT } from "@/api/qrcodes";
+import { GET_QR_TABLE, INCREMENT_QR_CODE_SCAN_COUNT, INSERT_QR_SCAN } from "@/api/qrcodes";
 import {
   getAuthCookie,
   getQrScanCookie,
   setQrScanCookie,
+  getScanRateLimitCookie,
+  setScanRateLimitCookie,
 } from "@/app/auth/actions";
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
 import { ThemeConfig } from "@/components/hotelDetail/ThemeChangeButton";
@@ -327,10 +329,15 @@ const page = async ({
         // INCREMENT SCAN COUNT
         // Only increment the specific QR code if NOT owner.
         if (auth?.id !== hoteldata.id) {
-          try {
-            await fetchFromHasura(INCREMENT_QR_CODE_SCAN_COUNT, { id: validQrId });
-          } catch (err) {
-            console.error("Failed to update scan counts", err);
+          const isRateLimited = await getScanRateLimitCookie(validQrId);
+          if (!isRateLimited) {
+            try {
+              await fetchFromHasura(INCREMENT_QR_CODE_SCAN_COUNT, { id: validQrId });
+              await fetchFromHasura(INSERT_QR_SCAN, { qr_id: validQrId });
+              await setScanRateLimitCookie(validQrId);
+            } catch (err) {
+              console.error("Failed to update scan counts or log scan", err);
+            }
           }
         }
       }
@@ -339,9 +346,14 @@ const page = async ({
       // User asked for specific logic for international. 
       // We will increment QR count regardless as it's useful.
       if (auth?.id !== hoteldata.id) {
-        try {
-          await fetchFromHasura(INCREMENT_QR_CODE_SCAN_COUNT, { id: validQrId });
-        } catch (e) { console.error(e) }
+        const isRateLimited = await getScanRateLimitCookie(validQrId);
+        if (!isRateLimited) {
+          try {
+            await fetchFromHasura(INCREMENT_QR_CODE_SCAN_COUNT, { id: validQrId });
+            await fetchFromHasura(INSERT_QR_SCAN, { qr_id: validQrId });
+            await setScanRateLimitCookie(validQrId);
+          } catch (e) { console.error(e) }
+        }
       }
     }
 

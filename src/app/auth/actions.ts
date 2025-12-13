@@ -8,11 +8,11 @@ export const getAuthCookie = async () => {
   const cookie = (await cookies()).get("new_auth_token")?.value;
   return cookie
     ? (decryptText(cookie) as {
-        id: string;
-        role: string;
-        feature_flags: string;
-        status: string;
-      })
+      id: string;
+      role: string;
+      feature_flags: string;
+      status: string;
+    })
     : null;
 };
 
@@ -200,4 +200,17 @@ export const clearAllCookies = async () => {
   for (const cookie of allCookies) {
     cookieStore.delete(cookie.name);
   }
+};
+
+export const setScanRateLimitCookie = async (qrId: string) => {
+  (await cookies()).set(`rate_limit_scan_${qrId}`, "true", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 10, // 10 seconds
+  });
+};
+
+export const getScanRateLimitCookie = async (qrId: string) => {
+  const cookie = (await cookies()).get(`rate_limit_scan_${qrId}`)?.value;
+  return !!cookie;
 };

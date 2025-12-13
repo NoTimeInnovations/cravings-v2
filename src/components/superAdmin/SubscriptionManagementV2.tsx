@@ -265,6 +265,29 @@ const SubscriptionManagementV2 = () => {
 
     const filteredPlans = getFilteredPlans();
 
+    const getSubscriptionStatus = (partner: Partner) => {
+        if (!partner.subscription_details) return "Inactive";
+        if (partner.subscription_details.expiryDate) {
+            const expiry = parseISO(partner.subscription_details.expiryDate);
+            const today = new Date();
+            if (isValid(expiry) && format(expiry, 'yyyy-MM-dd') < format(today, 'yyyy-MM-dd')) {
+                return "Expired";
+            }
+        }
+        return partner.subscription_details.status || "Inactive";
+    };
+
+    const getStatusColor = (status: string) => {
+        switch (status.toLowerCase()) {
+            case 'active':
+                return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+            case 'expired':
+                return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+            default:
+                return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400";
+        }
+    };
+
     // RENDER FUNCTIONS
 
     const renderEditView = () => (
@@ -449,11 +472,9 @@ const SubscriptionManagementV2 = () => {
                                     <TableCell>
                                         <span className={cn(
                                             "px-2 py-1 rounded-full text-xs font-medium",
-                                            partner.subscription_details?.status === 'active'
-                                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                                                : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"
+                                            getStatusColor(getSubscriptionStatus(partner))
                                         )}>
-                                            {partner.subscription_details?.status || "Inactive"}
+                                            {getSubscriptionStatus(partner)}
                                         </span>
                                     </TableCell>
                                     <TableCell>
@@ -496,11 +517,9 @@ const SubscriptionManagementV2 = () => {
                                 </div>
                                 <span className={cn(
                                     "px-2 py-1 rounded-full text-xs font-medium",
-                                    partner.subscription_details?.status === 'active'
-                                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                                        : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"
+                                    getStatusColor(getSubscriptionStatus(partner))
                                 )}>
-                                    {partner.subscription_details?.status || "Inactive"}
+                                    {getSubscriptionStatus(partner)}
                                 </span>
                             </div>
 

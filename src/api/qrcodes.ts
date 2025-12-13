@@ -92,3 +92,11 @@ export const DELETE_QR_CODE = `
     }
   }
 `;
+
+export const INSERT_QR_SCAN = `
+  mutation InsertQrScan($qr_id: uuid!) {
+    insert_qr_scans_one(object: {qr_id: $qr_id}) {
+      id
+    }
+  }
+`;
