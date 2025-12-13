@@ -33,7 +33,7 @@
             "disabled": true,
             "period": "/month",
             "period_days": 30,
-            "max_scan_count": 1000,
+            "max_scan_count": 1500,
             "scan_limit": -1
         },
         {
