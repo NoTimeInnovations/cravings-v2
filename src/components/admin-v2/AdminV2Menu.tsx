@@ -175,7 +175,6 @@ export function AdminV2Menu() {
                                                     <TableHead className="w-[200px]">Name</TableHead>
                                                     <TableHead className="w-[120px]">Price</TableHead>
                                                     <TableHead className="hidden md:table-cell">Description</TableHead>
-                                                    <TableHead className="w-[100px] text-center">Available</TableHead>
                                                     <TableHead className="w-[80px] text-right">Action</TableHead>
                                                 </TableRow>
                                             </TableHeader>
@@ -222,12 +221,6 @@ export function AdminV2Menu() {
                                                             <p className="truncate text-sm text-muted-foreground" title={item.description}>
                                                                 {item.description || "-"}
                                                             </p>
-                                                        </TableCell>
-                                                        <TableCell className="text-center">
-                                                            <Switch
-                                                                checked={item.is_available}
-                                                                onCheckedChange={() => handleAvailabilityToggle(item)}
-                                                            />
                                                         </TableCell>
                                                         <TableCell className="text-right">
                                                             <Button

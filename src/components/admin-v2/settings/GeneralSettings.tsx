@@ -146,7 +146,7 @@ export function GeneralSettings() {
 
                 <CardContent className="flex pt-6 items-center justify-between">
                     <div className="space-y-0.5">
-                        <Label className="text-base">Turn on store / Turn off Store</Label>
+                        <Label className="text-base">Close / Open Store</Label>
                         <p className="text-sm text-muted-foreground">
                             {isShopOpen ? "Your store is currently open." : "Your store is currently closed."}
                         </p>

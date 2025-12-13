@@ -36,12 +36,14 @@ interface CompactMenuPreviewProps {
     items: MenuItem[];
     hotelDetails: HotelDetails;
     colorPalette?: ColorPalette;
+    currency?: string;
 }
 
 export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
     items,
     hotelDetails,
     colorPalette = { text: "#000000", background: "#ffffff", accent: "#ea580c" }, // Default to orange-600
+    currency = "$",
 }) => {
     const [activeCatIndex, setActiveCatIndex] = useState<number>(0);
     const [vegFilter, setVegFilter] = useState<"all" | "veg" | "non-veg">("all");
@@ -345,9 +347,9 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                                             {/* Price on bottom left */}
                                             <div className="mt-3 text-lg font-semibold" style={{ color: colorPalette.accent }}>
                                                 {item.variants && item.variants.length > 0 ? (
-                                                    <>From $ {item.price}</>
+                                                    <>{currency} {item.price}</>
                                                 ) : (
-                                                    <>$ {item.price}</>
+                                                    <>{currency} {item.price}</>
                                                 )}
                                             </div>
                                         </div>

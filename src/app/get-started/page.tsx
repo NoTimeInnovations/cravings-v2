@@ -493,11 +493,11 @@ export default function GetStartedPage() {
             // --- FEATURE FLAGS ---
             const defaultFlags = ["ordering-false"];
             const enabledMap = (selectedPlan as any).features_enabled || {};
-            
+
             let finalFlags: string[] = [];
-            
+
             if (selectedPlan.id === 'in_trial' || selectedPlan.id === 'in_ordering') {
-                 finalFlags = defaultFlags.map((flag: string) => {
+                finalFlags = defaultFlags.map((flag: string) => {
                     const [key] = flag.split("-");
                     if (enabledMap[key]) return `${key}-true`;
                     return flag;
@@ -978,15 +978,15 @@ export default function GetStartedPage() {
         // If still extracting, show loading state
         if (isExtractingMenu || extractedItems.length === 0) {
             return (
-                <div className="max-w-md mx-auto text-center space-y-8 animate-in fade-in duration-500 mt-12">
+                <div className="max-w-md mx-auto text-center space-y-6 md:space-y-8 animate-in fade-in duration-500 min-h-[50vh] flex flex-col items-center justify-center">
                     <div className="space-y-4">
-                        <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto">
-                            <Loader2 className="w-10 h-10 text-orange-600 animate-spin" />
+                        <div className="w-16 h-16 md:w-20 md:h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto">
+                            <Loader2 className="w-8 h-8 md:w-10 md:h-10 text-orange-600 animate-spin" />
                         </div>
-                        <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+                        <h1 className="text-xl md:text-3xl font-bold tracking-tight text-gray-900">
                             Extracting Your Menu
                         </h1>
-                        <p className="text-gray-500">
+                        <p className="text-sm md:text-base text-gray-500">
                             Please wait while we process your menu image...
                         </p>
                     </div>
@@ -1051,7 +1051,7 @@ export default function GetStartedPage() {
                 </div>
 
                 <div className="flex-1 flex justify-center relative w-full overflow-hidden order-first md:order-none">
-                    <CompactMenuPreview items={extractedItems} hotelDetails={hotelDetails} colorPalette={selectedPalette} />
+                    <CompactMenuPreview items={extractedItems} hotelDetails={hotelDetails} colorPalette={selectedPalette} currency={hotelDetails.currency} />
                 </div>
 
                 {/* Mobile Publish Button (Fixed Bottom) - Hide if success */}
