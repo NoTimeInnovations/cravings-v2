@@ -228,7 +228,19 @@ const SubscriptionManagementV2 = () => {
                 status: "active" as const
             };
 
-            const res = await updateSubscriptionV2(selectedPartner.id, newDetails);
+            // Calculate Feature Flags
+            let featureFlagsStr = "";
+            if (foundPlan?.id === 'in_trial' || foundPlan?.id === 'in_ordering') {
+                const defaultFlags = ["ordering-false"];
+                const enabledMap = (foundPlan as any)?.features_enabled || {};
+                const finalFlags = defaultFlags.map(flag => {
+                    const [key] = flag.split("-");
+                    return enabledMap[key] ? `${key}-true` : flag;
+                });
+                featureFlagsStr = finalFlags.join(",");
+            }
+
+            const res = await updateSubscriptionV2(selectedPartner.id, newDetails, featureFlagsStr);
             if (res.success) {
                 toast.success("Subscription updated successfully");
                 setViewMode('list');
@@ -282,7 +294,19 @@ const SubscriptionManagementV2 = () => {
                     status: "active" as const
                 };
 
-                const resSub = await updateSubscriptionV2(selectedPartner.id, newDetails);
+                // Calculate Feature Flags
+                let featureFlagsStr = "";
+                if (foundPlan?.id === 'in_trial' || foundPlan?.id === 'in_ordering') {
+                    const defaultFlags = ["ordering-false"];
+                    const enabledMap = (foundPlan as any)?.features_enabled || {};
+                    const finalFlags = defaultFlags.map(flag => {
+                        const [key] = flag.split("-");
+                        return enabledMap[key] ? `${key}-true` : flag;
+                    });
+                    featureFlagsStr = finalFlags.join(",");
+                }
+
+                const resSub = await updateSubscriptionV2(selectedPartner.id, newDetails, featureFlagsStr);
                 if (!resSub.success) {
                     toast.warning("Payment recorded, but failed to update subscription plan.");
                 } else {

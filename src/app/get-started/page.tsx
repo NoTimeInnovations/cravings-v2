@@ -441,6 +441,16 @@ export default function GetStartedPage() {
 
         setIsPublishing(true);
         try {
+            // Check email uniqueness
+            const { checkEmailUnique } = await import("@/app/actions/checkEmail");
+            const { isUnique } = await checkEmailUnique(authCredentials.email);
+
+            if (!isUnique) {
+                toast.error("This email is already registered. Please login or use a different email.");
+                setIsPublishing(false);
+                return;
+            }
+
             const countryMeta = COUNTRY_META_DATA[hotelDetails.country] || { code: "+91", currency: "INR", symbol: "₹" };
             let bannerUrl = "";
 
@@ -481,17 +491,18 @@ export default function GetStartedPage() {
             };
 
             // --- FEATURE FLAGS ---
-            const defaultFlags = [
-                "ordering-false", "delivery-false", "multiwhatsapp-false",
-                "pos-false", "stockmanagement-false", "captainordering-false",
-                "purchasemanagement-false"
-            ];
+            const defaultFlags = ["ordering-false"];
             const enabledMap = (selectedPlan as any).features_enabled || {};
-            const finalFlags = defaultFlags.map((flag: string) => {
-                const [key] = flag.split("-");
-                if (enabledMap[key]) return `${key}-true`;
-                return flag;
-            });
+            
+            let finalFlags: string[] = [];
+            
+            if (selectedPlan.id === 'in_trial' || selectedPlan.id === 'in_ordering') {
+                 finalFlags = defaultFlags.map((flag: string) => {
+                    const [key] = flag.split("-");
+                    if (enabledMap[key]) return `${key}-true`;
+                    return flag;
+                });
+            }
 
 
             // Construct Partner Data
@@ -724,7 +735,7 @@ export default function GetStartedPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-sm">WhatsApp Number <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="phone" className="text-sm">Number <span className="text-red-500">*</span></Label>
                     <Input
                         id="phone"
                         name="phone"
@@ -884,7 +895,7 @@ export default function GetStartedPage() {
                 <Button
                     className="w-full flex items-center justify-center gap-2 h-12 text-lg rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-md hover:shadow-lg transition-all"
                     onClick={() => {
-                        const url = `https://www.cravings.live/hotels/${hotelDetails.name.replace(/ /g, "-")}/${signupResult?.partnerId}`;
+                        const url = `https://www.cravings.live/qrScan/${hotelDetails.name.replace(/ /g, "-")}/${signupResult?.firstQrCodeId}`;
                         window.open(url, "_blank");
                     }}
                 >
@@ -897,7 +908,7 @@ export default function GetStartedPage() {
                         variant="outline"
                         className="w-full flex items-center justify-center gap-2 h-12 rounded-xl"
                         onClick={() => {
-                            const url = `https://www.cravings.live/hotels/${hotelDetails.name.replace(/ /g, "-")}/${signupResult?.partnerId}`;
+                            const url = `https://www.cravings.live/qrScan/${hotelDetails.name.replace(/ /g, "-")}/${signupResult?.firstQrCodeId}`;
                             navigator.clipboard.writeText(url);
                             toast.success("Menu link copied to clipboard!");
                         }}
@@ -1069,6 +1080,11 @@ export default function GetStartedPage() {
                         >
                             Publish Live <ChevronRight className="ml-2 w-5 h-5" />
                         </Button>
+                        <div className="bg-blue-50/90 backdrop-blur-md border border-blue-100 p-3 rounded-xl shadow-lg">
+                            <p className="text-xs text-blue-700 text-center">
+                                Note: Images will be generated and updated to your menu in approx {Math.ceil((extractedItems.length * 2) / 60)} minutes.
+                            </p>
+                        </div>
                     </div>
                 )}
 
@@ -1090,7 +1106,7 @@ export default function GetStartedPage() {
                                 <Button
                                     className="w-full h-11 text-sm rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-lg"
                                     onClick={() => {
-                                        const url = `https://www.cravings.live/hotels/${hotelDetails.name.replace(/ /g, "-")}/${signupResult?.partnerId}`;
+                                        const url = `https://www.cravings.live/qrScan/${hotelDetails.name.replace(/ /g, "-")}/${signupResult?.firstQrCodeId}`;
                                         window.open(url, "_blank");
                                     }}
                                 >
@@ -1101,7 +1117,7 @@ export default function GetStartedPage() {
                                     variant="outline"
                                     className="w-full h-11 text-sm rounded-xl bg-white"
                                     onClick={() => {
-                                        const url = `https://www.cravings.live/hotels/${hotelDetails.name.replace(/ /g, "-")}/${signupResult?.partnerId}`;
+                                        const url = `https://www.cravings.live/qrScan/${hotelDetails.name.replace(/ /g, "-")}/${signupResult?.firstQrCodeId}`;
                                         navigator.clipboard.writeText(url);
                                         toast.success("Link copied!");
                                     }}
@@ -1128,6 +1144,11 @@ export default function GetStartedPage() {
                                 <LayoutDashboard size={16} className="mr-2" />
                                 Go to Dashboard
                             </Button>
+                            <div className="bg-blue-50/90 backdrop-blur-md border border-blue-100 p-3 rounded-xl shadow-lg">
+                                <p className="text-xs text-blue-700 text-center">
+                                    Note: Images will be generated and updated to your menu in approx {Math.ceil((extractedItems.length * 2) / 60)} minutes.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 )}

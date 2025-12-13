@@ -90,19 +90,22 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
 
                 // Helper to generate feature flags string from plan
                 // e.g., "ordering-true,delivery-false"
-                // Default all to false first
-                const defaultFlags = [
-                    "ordering-false", "delivery-false", "multiwhatsapp-false",
-                    "pos-false", "stockmanagement-false", "captainordering-false",
-                    "purchasemanagement-false"
-                ];
 
-                const enabledMap = plan.features_enabled || {};
-                const finalFlags = defaultFlags.map(flag => {
-                    const [key] = flag.split("-");
-                    if (enabledMap[key]) return `${key}-true`;
-                    return flag;
-                });
+                let finalFlags: string[] = [];
+
+                if (plan.id === 'in_trial' || plan.id === 'in_ordering') {
+                    const defaultFlags = [
+                        "ordering-false", "delivery-false", "multiwhatsapp-false",
+                        "pos-false", "stockmanagement-false", "captainordering-false",
+                        "purchasemanagement-false"
+                    ];
+                    const enabledMap = plan.features_enabled || {};
+                    finalFlags = defaultFlags.map(flag => {
+                        const [key] = flag.split("-");
+                        if (enabledMap[key]) return `${key}-true`;
+                        return flag;
+                    });
+                }
 
                 parsedData.partner.subscription_details = subscriptionDetails;
                 parsedData.partner.feature_flags = finalFlags.join(",");

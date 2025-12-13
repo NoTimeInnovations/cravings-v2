@@ -4,6 +4,7 @@ import { Settings, Menu, UtensilsCrossed } from "lucide-react";
 import { SheetTrigger } from "@/components/ui/sheet";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Partner, useAuthStore } from "@/store/authStore";
+import { useAdminStore } from "@/store/adminStore";
 import { OrderNotification } from "./OrderNotification";
 
 interface AdminNavbarProps {
@@ -13,6 +14,7 @@ interface AdminNavbarProps {
 
 export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps) {
     const { userData } = useAuthStore();
+    const { setActiveView } = useAdminStore();
 
     return (
         <nav className="flex items-center justify-between px-4 py-3 bg-background border-b border-border">
@@ -36,7 +38,10 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
             <div className="flex items-center gap-4">
                 <OrderNotification />
                 <ModeToggle />
-                <div className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded-full cursor-pointer select-none">
+                <div
+                    onClick={() => setActiveView("Settings")}
+                    className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded-full cursor-pointer select-none"
+                >
                     <Settings className="h-5 w-5 text-gray-600 dark:text-gray-400" />
                     <Avatar>
                         <AvatarImage className="object-cover" src={(userData as Partner)?.store_banner} />

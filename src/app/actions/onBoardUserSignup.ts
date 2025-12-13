@@ -46,8 +46,9 @@ export const onBoardUserSignup = async (data: OnboardingData) => {
         });
 
         // 1.5 Create Default QR Code (Table 1)
+        let firstQrCodeId = null;
         try {
-            await fetchFromHasura(INSERT_QR_CODE, {
+            const qrResponse = await fetchFromHasura(INSERT_QR_CODE, {
                 object: {
                     partner_id: newPartnerId,
                     table_number: 1,
@@ -55,7 +56,11 @@ export const onBoardUserSignup = async (data: OnboardingData) => {
                     created_at: new Date().toISOString(),
                     no_of_scans: 0
                 }
-            });
+            }) as any;
+
+            if (qrResponse?.insert_qr_codes_one?.id) {
+                firstQrCodeId = qrResponse.insert_qr_codes_one.id;
+            }
         } catch (qrError) {
             console.error("Failed to create default QR code:", qrError);
             // Non-blocking, continue signup
@@ -147,7 +152,7 @@ export const onBoardUserSignup = async (data: OnboardingData) => {
         }
 
         // Return success
-        return { success: true, partnerId: newPartnerId };
+        return { success: true, partnerId: newPartnerId, firstQrCodeId };
 
     } catch (error) {
         console.error("onBoardUserSignup Error:", error);

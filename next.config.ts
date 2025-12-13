@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '2mb'
     },
+    scrollRestoration : false
   },
   allowedDevOrigins: ['192.168.20.6', 'localhost', '192.168.1.16'],
 
