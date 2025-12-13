@@ -18,6 +18,14 @@ import { usePartnerStore } from "@/store/usePartnerStore";
 import { filterOffersByType } from "@/lib/offerFilters";
 // import getTimestampWithTimezone from "@/lib/getTimeStampWithTimezon";
 
+import { AlertTriangle } from "lucide-react";
+import {
+  ScanLimitReachedCard,
+  SubscriptionExpiredCard,
+  SubscriptionInactiveCard
+} from "@/components/SubscriptionStatusCards";
+
+
 export async function generateMetadata({
   params,
 }: {
@@ -32,7 +40,7 @@ export async function generateMetadata({
       try {
         const partnerData = await fetchFromHasura(getPartnerAndOffersQuery, {
           id,
-          offer_types: ["delivery" , "all"]
+          offer_types: ["delivery", "all"]
         });
 
         return {
@@ -66,8 +74,8 @@ export async function generateMetadata({
       description:
         hotel.description ||
         "Welcome to " +
-          hotel.store_name +
-          "! Enjoy a comfortable stay with us.",
+        hotel.store_name +
+        "! Enjoy a comfortable stay with us.",
     },
   };
 }
@@ -125,7 +133,7 @@ const HotelPage = async ({
       try {
         return fetchFromHasura(getPartnerAndOffersQuery, {
           id,
-          offer_types: ["delivery" , "all"]
+          offer_types: ["delivery", "all"]
         });
       } catch (error) {
         console.error("Error fetching hotel data:", error);
@@ -209,18 +217,18 @@ const HotelPage = async ({
     const today = new Date().setHours(0, 0, 0, 0);
     filteredOffers = search
       ? offers
-          .filter(
-            (offer) => new Date(offer.end_time).setHours(0, 0, 0, 0) < today
+        .filter(
+          (offer) => new Date(offer.end_time).setHours(0, 0, 0, 0) < today
+        )
+        .filter((offer) =>
+          Object.values(offer).some((value) =>
+            String(value).toLowerCase().includes(search.trim().toLowerCase())
           )
-          .filter((offer) =>
-            Object.values(offer).some((value) =>
-              String(value).toLowerCase().includes(search.trim().toLowerCase())
-            )
-          )
+        )
       : offers.filter(
-          (offer) => new Date(offer.end_time).setHours(0, 0, 0, 0) >= today
-        );
-    
+        (offer) => new Date(offer.end_time).setHours(0, 0, 0, 0) >= today
+      );
+
     // Filter offers based on offer_type for hotels page
     filteredOffers = filterOffersByType(filteredOffers, 'hotels');
   }
@@ -261,10 +269,10 @@ const HotelPage = async ({
         const transformedExtraCharge = Array.isArray(extraCharge)
           ? extraCharge
           : typeof extraCharge === "number"
-          ? [{ min_amount: 0, max_amount: null, charge: extraCharge }]
-          : typeof extraCharge === "object" && extraCharge?.rules
-          ? extraCharge.rules
-          : [{ min_amount: 0, max_amount: null, charge: 0 }];
+            ? [{ min_amount: 0, max_amount: null, charge: extraCharge }]
+            : typeof extraCharge === "object" && extraCharge?.rules
+              ? extraCharge.rules
+              : [{ min_amount: 0, max_amount: null, charge: 0 }];
 
         table0QrGroup = {
           id: table0QrCode.qr_group.id,
@@ -290,40 +298,60 @@ const HotelPage = async ({
     menus: menuItemWithOfferPrice,
   };
 
-  const getLastSubscription = await fetchFromHasura(
+  // Fetch fresh subscription details for scan limit checks (uncached)
+  const freshSubscriptionRes = await fetchFromHasura(
     getPartnerSubscriptionQuery,
     {
       partnerId: hoteldata?.id || "",
     }
   );
+  const freshSubscription = freshSubscriptionRes?.partner_subscriptions?.[0];
 
-  const lastSubscription = getLastSubscription?.partner_subscriptions?.[0];
+  // --- Subscription & Scan Limit Logic ---
+  const sub = freshSubscription?.subscription_details || hoteldata?.subscription_details;
+  const isInternational = hoteldata?.country !== "IN";
+  const subPlan = sub?.plan;
+
+  if (isInternational && sub && hoteldata) {
+    const plans = await import("@/data/plans.json").then(mod => mod.default);
+    const planDetails = plans.international.find((p: any) => p.id === subPlan?.id);
+
+    if (planDetails) {
+      const GET_PARTNER_TOTAL_SCANS = `
+          query GetPartnerTotalScans($partner_id: uuid!) {
+            qr_codes_aggregate(where: {partner_id: {_eq: $partner_id}}) {
+              aggregate {
+                sum {
+                  no_of_scans
+                }
+              }
+            }
+          }
+        `;
+
+      const scanStats = await fetchFromHasura(GET_PARTNER_TOTAL_SCANS, { partner_id: hoteldata.id });
+      const currentTotalScans = scanStats?.qr_codes_aggregate?.aggregate?.sum?.no_of_scans || 0;
+
+      const limit = planDetails.max_scan_count ?? planDetails.scan_limit ?? 1000;
+      const isUnlimited = limit === -1;
+
+      // CHECK LIMIT
+      if (!isUnlimited && currentTotalScans >= limit) {
+        return <ScanLimitReachedCard />;
+      }
+    }
+  }
+
+  // Check for Subscription Expiry
+  const expiryDateStr = sub?.expiryDate || freshSubscription?.expiry_date;
+  const isExpired = expiryDateStr && new Date(expiryDateStr) < new Date();
+
+  if (isExpired) {
+    return <SubscriptionExpiredCard />;
+  }
 
   if (hoteldata?.status === "inactive") {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4 py-8">
-        <div className="text-center p-4 sm:p-8 bg-white rounded-3xl shadow-lg w-full max-w-[90%] sm:max-w-md mx-auto">
-          <h1 className="text-xl sm:text-3xl font-bold mb-4 text-orange-600">
-            {new Date(lastSubscription?.expiry_date) < new Date()
-              ? "Hotel Subscription Expired"
-              : "Hotel is Currently Inactive"}
-          </h1>
-          <p className="mb-6 text-sm sm:text-base text-gray-600">
-            This hotel is temporarily unavailable. For assistance, please
-            contact our support team.
-          </p>
-          <div className="text-gray-700 bg-gray-100 p-4 rounded-md">
-            <p className="font-medium text-sm sm:text-base">Contact Support:</p>
-            <a
-              href="tel:+916238969297"
-              className="text-blue-600 hover:text-blue-800 block mt-2 text-sm sm:text-base"
-            >
-              +91 6238969297
-            </a>
-          </div>
-        </div>
-      </div>
-    );
+    return <SubscriptionInactiveCard />;
   }
 
   let filteredMenus: HotelDataMenus[] = [];
@@ -393,7 +421,7 @@ const HotelPage = async ({
         tableNumber={0}
         qrId={null}
         qrGroup={table0QrGroup}
-        selectedCategory={ cat }
+        selectedCategory={cat}
       />
     </>
   );

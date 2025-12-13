@@ -2,6 +2,11 @@ import {
   getPartnerAndOffersQuery,
   getPartnerSubscriptionQuery,
 } from "@/api/partners";
+import {
+  ScanLimitReachedCard,
+  SubscriptionExpiredCard,
+  SubscriptionInactiveCard
+} from "@/components/SubscriptionStatusCards";
 import { GET_QR_TABLE, INCREMENT_QR_CODE_SCAN_COUNT, INSERT_QR_SCAN } from "@/api/qrcodes";
 import {
   getAuthCookie,
@@ -303,26 +308,7 @@ const page = async ({
 
         // CHECK LIMIT
         if (!isUnlimited && currentTotalScans >= limit) {
-          return (
-            <div className="flex h-screen w-full items-center justify-center bg-gray-50 p-4">
-              <div className="w-full max-w-md rounded-lg border bg-card p-6 text-card-foreground shadow-sm">
-                <div className="flex flex-col space-y-4 text-center">
-                  <div className="space-y-2">
-                    <AlertTriangle className="mx-auto h-10 w-10 text-red-500" />
-                    <h2 className="text-2xl font-bold tracking-tight">
-                      Scan Limit Reached
-                    </h2>
-                    <p className="text-muted-foreground">
-                      This restaurant has reached its scan limit for the Free Plan.
-                    </p>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Please contact restaurant staff to upgrade their plan.
-                  </p>
-                </div>
-              </div>
-            </div>
-          );
+          return <ScanLimitReachedCard />;
         }
 
 
@@ -363,56 +349,11 @@ const page = async ({
     const isExpired = expiryDateStr && new Date(expiryDateStr) < new Date();
 
     if (isExpired) {
-      return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4 py-8">
-          <div className="text-center p-4 sm:p-8 bg-white rounded-3xl shadow-lg w-full max-w-[90%] sm:max-w-md mx-auto">
-            <h1 className="text-xl sm:text-3xl font-bold mb-4 text-orange-600">
-              Hotel Subscription Expired
-            </h1>
-            <p className="mb-6 text-sm sm:text-base text-gray-600">
-              This hotel's subscription has expired and services are temporarily suspended.
-            </p>
-            <div className="text-gray-700 bg-gray-100 p-4 rounded-md">
-              <p className="font-medium text-sm sm:text-base">
-                Contact Support:
-              </p>
-              <a
-                href="tel:+916238969297"
-                className="text-blue-600 hover:text-blue-800 block mt-2 text-sm sm:text-base"
-              >
-                +91 6238969297
-              </a>
-            </div>
-          </div>
-        </div>
-      );
+      return <SubscriptionExpiredCard />;
     }
 
     if (hoteldata?.status === "inactive") {
-      return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4 py-8">
-          <div className="text-center p-4 sm:p-8 bg-white rounded-3xl shadow-lg w-full max-w-[90%] sm:max-w-md mx-auto">
-            <h1 className="text-xl sm:text-3xl font-bold mb-4 text-orange-600">
-              Hotel is Currently Inactive
-            </h1>
-            <p className="mb-6 text-sm sm:text-base text-gray-600">
-              This hotel is temporarily unavailable. For assistance, please
-              contact our support team.
-            </p>
-            <div className="text-gray-700 bg-gray-100 p-4 rounded-md">
-              <p className="font-medium text-sm sm:text-base">
-                Contact Support:
-              </p>
-              <a
-                href="tel:+916238969297"
-                className="text-blue-600 hover:text-blue-800 block mt-2 text-sm sm:text-base"
-              >
-                +91 6238969297
-              </a>
-            </div>
-          </div>
-        </div>
-      );
+      return <SubscriptionInactiveCard />;
     }
 
     const menuItemWithOfferPrice = hoteldata?.menus?.map((item) => {

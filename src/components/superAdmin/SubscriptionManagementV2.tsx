@@ -21,7 +21,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { format, parseISO, isValid } from "date-fns";
+import { format, parseISO, isValid, addDays } from "date-fns";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import plansData from "@/data/plans.json";
 import { addPaymentV2, updateSubscriptionV2, getPaymentHistory } from "@/app/actions/subscriptionV2";
@@ -71,6 +71,7 @@ const SubscriptionManagementV2 = () => {
         amount: 0,
         date: new Date(),
         notes: "",
+        planId: "", // Add planId to payment form
     });
 
     const [actionLoading, setActionLoading] = useState(false);
@@ -168,8 +169,42 @@ const SubscriptionManagementV2 = () => {
             amount: 0,
             date: new Date(),
             notes: "",
+            planId: "",
         });
         setViewMode('payment');
+    };
+
+    const handlePlanChange = (val: string, isEditMode: boolean = true) => {
+        const foundPlan = [...plansData.india, ...plansData.international].find(p => p.id === val);
+        const daysToAdd = foundPlan?.period_days || 365; // Default to 1 year if not found
+        const newExpiry = addDays(new Date(), daysToAdd);
+
+        if (isEditMode) {
+            setEditForm({
+                ...editForm,
+                planId: val,
+                expiryDate: newExpiry
+            });
+        } else {
+            setPaymentForm({
+                ...paymentForm,
+                planId: val,
+                // We might want to pre-fill amount based on plan price too? 
+                // Let's at least auto-set amount if it's 0 or user hasn't typed?
+                // For now, just set planId. User might want to override amount.
+            });
+            // Optional: Auto-fill amount from plan price
+            if (foundPlan) {
+                // Parse price string e.g. "₹1000" or "$9"
+                const priceString = foundPlan.price.replace(/[^0-9.]/g, '');
+                const price = parseFloat(priceString);
+                if (!isNaN(price)) {
+                    setPaymentForm(prev => ({ ...prev, planId: val, amount: price }));
+                } else {
+                    setPaymentForm(prev => ({ ...prev, planId: val }));
+                }
+            }
+        }
     };
 
     const saveSubscription = async () => {
@@ -213,21 +248,52 @@ const SubscriptionManagementV2 = () => {
         setActionLoading(true);
 
         try {
-            const res = await addPaymentV2({
+            // 1. Record Payment
+            const resPayment = await addPaymentV2({
                 partnerId: selectedPartner.id,
                 amount: paymentForm.amount,
                 date: paymentForm.date.toISOString().split('T')[0], // format as YYYY-MM-DD
-                paymentDetails: { notes: paymentForm.notes }
+                paymentDetails: { notes: paymentForm.notes, planId: paymentForm.planId }
             });
 
-            if (res.success) {
-                toast.success("Payment recorded successfully");
-                setViewMode('list');
-                // Maybe we want to extend subscription automatically? 
-                // For now, adhering to user request: just payment button.
-            } else {
-                toast.error(res.error || "Failed to add payment");
+            if (!resPayment.success) {
+                toast.error(resPayment.error || "Failed to add payment");
+                setActionLoading(false);
+                return;
             }
+
+            // 2. If Plan is selected, Update Subscription
+            if (paymentForm.planId) {
+                const foundPlan = [...plansData.india, ...plansData.international].find(p => p.id === paymentForm.planId);
+                const planForUpdate = foundPlan ? {
+                    id: foundPlan.id,
+                    name: foundPlan.name
+                } : null;
+
+                const daysToAdd = foundPlan?.period_days || 365;
+                const newExpiry = addDays(new Date(), daysToAdd).toISOString();
+
+                const newDetails = {
+                    startDate: new Date().toISOString(),
+                    // We preserve existing details but override plan and status
+                    ...selectedPartner.subscription_details,
+                    plan: planForUpdate,
+                    expiryDate: newExpiry,
+                    status: "active" as const
+                };
+
+                const resSub = await updateSubscriptionV2(selectedPartner.id, newDetails);
+                if (!resSub.success) {
+                    toast.warning("Payment recorded, but failed to update subscription plan.");
+                } else {
+                    toast.success("Payment recorded and subscription updated.");
+                }
+            } else {
+                toast.success("Payment recorded successfully");
+            }
+
+            setViewMode('list');
+
         } catch (error) {
             toast.error("An error occurred");
         } finally {
@@ -301,7 +367,7 @@ const SubscriptionManagementV2 = () => {
                         <Label>Select Plan</Label>
                         <Select
                             value={editForm.planId}
-                            onValueChange={(val) => setEditForm({ ...editForm, planId: val })}
+                            onValueChange={(val) => handlePlanChange(val, true)}
                         >
                             <SelectTrigger>
                                 <SelectValue placeholder="Select a plan" />
@@ -348,6 +414,27 @@ const SubscriptionManagementV2 = () => {
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
+                    <div className="space-y-2">
+                        <Label>Select Plan (Optional - Automatically Updates Subscription)</Label>
+                        <Select
+                            value={paymentForm.planId}
+                            onValueChange={(val) => handlePlanChange(val, false)}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a plan to upgrade/renew" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">-- No Plan Change --</SelectItem>
+                                {filteredPlans.india.length > 0 && filteredPlans.india.map(plan => (
+                                    <SelectItem key={plan.id} value={plan.id}>{plan.name} - {plan.price}</SelectItem>
+                                ))}
+                                {filteredPlans.international.length > 0 && filteredPlans.international.map(plan => (
+                                    <SelectItem key={plan.id} value={plan.id}>{plan.name} (Intl) - {plan.price}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <div className="space-y-2">
                         <Label>Amount</Label>
                         <Input
