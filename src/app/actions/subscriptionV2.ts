@@ -67,7 +67,7 @@ export async function updateSubscriptionV2(partnerId: string, subscriptionDetail
       throw new Error(result.errors[0].message);
     }
 
-    await revalidateTag(`partner-${partnerId}`);
+    await revalidateTag(`${partnerId}`);
     return { success: true, data: result.update_partners_by_pk };
   } catch (error) {
     console.error("Error updating subscription:", error);
