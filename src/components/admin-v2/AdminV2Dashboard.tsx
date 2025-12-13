@@ -28,7 +28,18 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import FullScreenLoader from "@/components/ui/FullScreenLoader";
-import { Loader2, IndianRupee, ShoppingBag, Truck, TrendingUp, Download } from "lucide-react";
+import { getFeatures } from "@/lib/getFeatures";
+import { GET_SCAN_ANALYTICS } from "@/api/analytics";
+import { GET_QR_CODES_BY_PARTNER } from "@/api/qrcodes";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Loader2, IndianRupee, ShoppingBag, Truck, TrendingUp, Download, QrCode } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { downloadOrderReport } from "@/utils/downloadOrderReport";
@@ -39,16 +50,30 @@ const formatDate = (date: Date) => format(date, "yyyy-MM-dd");
 export function AdminV2Dashboard() {
   const { userData } = useAuthStore();
 
+  const [isMounted, setIsMounted] = useState(false);
   const [dateRange, setDateRange] = useState({
     startDate: subDays(new Date(), 7),
     endDate: new Date(),
   });
+
+  useEffect(() => {
+    setIsMounted(true);
+    setDateRange({
+      startDate: subDays(new Date(), 7),
+      endDate: new Date(),
+    });
+  }, []);
   const [activeTab, setActiveTab] = useState<"today" | "month" | "custom">("today");
   const [reportData, setReportData] = useState<any>(null);
+  const [scanData, setScanData] = useState<any>(null);
+  const [qrCodesMap, setQrCodesMap] = useState<Map<string, any>>(new Map());
   const [loading, setLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   const [qrId, setQrId] = useState<string | null>(null);
   const [storeName, setStoreName] = useState<string>("");
+
+  const features = (userData as Partner)?.feature_flags ? getFeatures((userData as Partner).feature_flags || "") : null;
+  const isOrderingEnabled = features?.ordering.enabled;
 
   const TODAY_ORDERS_QUERY = (today: string) => `
     query TodayOrders {
@@ -210,25 +235,68 @@ export function AdminV2Dashboard() {
     setLoading(true);
     try {
       let result;
+      let scanResult;
       const today = formatDate(new Date());
       const startOfMonthDate = formatDate(startOfMonth(new Date()));
 
-      switch (activeTab) {
-        case "today":
-          result = await fetchFromHasura(TODAY_ORDERS_QUERY(today));
-          break;
-        case "month":
-          result = await fetchFromHasura(MONTHLY_ORDERS_QUERY(startOfMonthDate, today));
-          break;
-        case "custom":
-          result = await fetchFromHasura(CUSTOM_DATE_ORDERS_QUERY, {
-            startDate: format(dateRange.startDate, "yyyy-MM-dd'T'00:00:00'Z'"),
-            endDate: format(dateRange.endDate, "yyyy-MM-dd'T'23:59:59'Z'"),
-          });
-          break;
+      let start, end;
+
+      if (activeTab === "today") {
+        start = `${today}T00:00:00Z`;
+        end = `${today}T23:59:59Z`;
+      } else if (activeTab === "month") {
+        start = `${startOfMonthDate}T00:00:00Z`;
+        end = `${today}T23:59:59Z`;
+      } else {
+        start = format(dateRange.startDate, "yyyy-MM-dd'T'00:00:00'Z'");
+        end = format(dateRange.endDate, "yyyy-MM-dd'T'23:59:59'Z'");
       }
 
-      setReportData(result);
+      if (isOrderingEnabled) {
+        switch (activeTab) {
+          case "today":
+            result = await fetchFromHasura(TODAY_ORDERS_QUERY(today));
+            break;
+          case "month":
+            result = await fetchFromHasura(MONTHLY_ORDERS_QUERY(startOfMonthDate, today));
+            break;
+          case "custom":
+            result = await fetchFromHasura(CUSTOM_DATE_ORDERS_QUERY, {
+              startDate: start,
+              endDate: end,
+            });
+            break;
+        }
+        setReportData(result);
+      }
+
+      // Fetch Scan Analytics
+      if (userData?.id) {
+        // 1. Get all QR codes for this partner
+        const qrCodesRes = await fetchFromHasura(GET_QR_CODES_BY_PARTNER, { partner_id: userData.id });
+        const qrCodes = qrCodesRes?.qr_codes || [];
+
+        if (qrCodes.length > 0) {
+          // Create map for easy lookup
+          const map = new Map();
+          const ids: string[] = [];
+          qrCodes.forEach((qr: any) => {
+            map.set(qr.id, qr);
+            ids.push(qr.id);
+          });
+          setQrCodesMap(map);
+
+          // 2. Get scans for these QR IDs
+          scanResult = await fetchFromHasura(GET_SCAN_ANALYTICS, {
+            qr_ids: ids,
+            startDate: start,
+            endDate: end
+          });
+          setScanData(scanResult);
+        } else {
+          setScanData({ total_scans: { aggregate: { count: 0 } }, scans_list: [] });
+        }
+      }
 
       // Fetch QR for button
       if (!qrId) {
@@ -243,7 +311,7 @@ export function AdminV2Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, dateRange.startDate, dateRange.endDate, userData?.id]);
+  }, [activeTab, dateRange.startDate, dateRange.endDate, userData?.id, isOrderingEnabled]);
 
   useEffect(() => {
     if (userData) {
@@ -257,11 +325,7 @@ export function AdminV2Dashboard() {
 
   const prepareChartData = () => {
     if (!reportData?.daily_sales?.nodes) return [];
-    // Group by date if needed, or just map if already aggregated (though query returns individual orders, so we might need to aggregate locally if the query doesn't do it)
-    // The original query returns individual orders in 'nodes'. We should aggregate them by date or hour depending on the view.
-    // For simplicity, let's just map them for now, but ideally we should group.
 
-    // Simple aggregation by date
     const grouped = reportData.daily_sales.nodes.reduce((acc: any, order: any) => {
       const date = format(new Date(order.created_at), "MMM dd");
       acc[date] = (acc[date] || 0) + order.total_price;
@@ -272,6 +336,29 @@ export function AdminV2Dashboard() {
       date,
       sales,
     }));
+  };
+
+  const prepareScanChartData = () => {
+    if (!scanData?.scans_list) return [];
+
+    const grouped = scanData.scans_list.reduce((acc: any, scan: any) => {
+      const date = format(new Date(scan.created_at), activeTab === 'today' ? "HH:00" : "MMM dd");
+      acc[date] = (acc[date] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Fill in gaps if needed, but for now simple mapping
+    // For today, we might want to ensure all hours are present? Maybe too complex for now.
+
+    return Object.entries(grouped).map(([date, count]) => ({
+      date,
+      count,
+    })).sort((a, b) => {
+      if (activeTab === 'today') {
+        return parseInt(a.date) - parseInt(b.date);
+      }
+      return 0; // Already somewhat sorted or rely on string sort
+    });
   };
 
   const prepareTopItemsData = () => {
@@ -294,6 +381,7 @@ export function AdminV2Dashboard() {
   };
 
   const chartData = prepareChartData();
+  const scanChartData = prepareScanChartData();
   const topItems = prepareTopItemsData();
   const totalEarnings = reportData?.orders_aggregate?.aggregate?.sum?.total_price || 0;
   const totalOrders = reportData?.orders_aggregate?.aggregate?.count || 0;
@@ -354,8 +442,12 @@ export function AdminV2Dashboard() {
     }
   };
 
-  if (loading) {
-    return <FullScreenLoader isLoading={true} loadingTexts={["Fetching dashboard data...", "Crunching numbers...", "Just a moment..."]} />;
+  if (loading || !isMounted) {
+    return (
+      <div className="flex h-[50vh] w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+      </div>
+    );
   }
 
   return (
@@ -386,195 +478,300 @@ export function AdminV2Dashboard() {
               View Menu
             </Button>
           )}
-          <Button
-            onClick={async () => {
-              setIsDownloading(true);
-              const allOrders = await prepareAllOrdersData();
-              await downloadOrderReport(reportData, topItems, activeTab, dateRange, userData as Partner, allOrders);
-              setIsDownloading(false);
-            }}
-            disabled={loading || isDownloading}
-            className="w-full sm:w-auto"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            {isDownloading ? "Downloading..." : "Download Report"}
-          </Button>
+          {isOrderingEnabled && (
+            <Button
+              onClick={async () => {
+                setIsDownloading(true);
+                const allOrders = await prepareAllOrdersData();
+                await downloadOrderReport(reportData, topItems, activeTab, dateRange, userData as Partner, allOrders);
+                setIsDownloading(false);
+              }}
+              disabled={loading || isDownloading}
+              className="w-full sm:w-auto"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {isDownloading ? "Downloading..." : "Download Report"}
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <IndianRupee className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">₹{totalEarnings.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              {activeTab === 'today' ? 'For today' : activeTab === 'month' ? 'This month' : 'Selected period'}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Orders</CardTitle>
-            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalOrders}</div>
-            <p className="text-xs text-muted-foreground">
-              Completed orders
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Deliveries</CardTitle>
-            <Truck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalDeliveries}</div>
-            <p className="text-xs text-muted-foreground">
-              Delivery orders
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Order Value</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">₹{avgOrderValue.toFixed(0)}</div>
-            <p className="text-xs text-muted-foreground">
-              Per order average
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {isOrderingEnabled ? (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                <IndianRupee className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">₹{totalEarnings.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">
+                  {activeTab === 'today' ? 'For today' : activeTab === 'month' ? 'This month' : 'Selected period'}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Orders</CardTitle>
+                <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalOrders}</div>
+                <p className="text-xs text-muted-foreground">
+                  Completed orders
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Deliveries</CardTitle>
+                <Truck className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalDeliveries}</div>
+                <p className="text-xs text-muted-foreground">
+                  Delivery orders
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Avg. Order Value</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">₹{avgOrderValue.toFixed(0)}</div>
+                <p className="text-xs text-muted-foreground">
+                  Per order average
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-1 lg:col-span-4">
-          <CardHeader>
-            <CardTitle>Payment Analysis</CardTitle>
-            <CardDescription>
-              Breakdown of orders by payment method
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[
-                {
-                  label: "Cash",
-                  count: reportData?.cash_orders?.aggregate?.count || 0,
-                  amount: reportData?.cash_orders?.aggregate?.sum?.total_price || 0,
-                  color: "bg-green-500"
-                },
-                {
-                  label: "UPI",
-                  count: reportData?.upi_orders?.aggregate?.count || 0,
-                  amount: reportData?.upi_orders?.aggregate?.sum?.total_price || 0,
-                  color: "bg-blue-500"
-                },
-                {
-                  label: "Card",
-                  count: reportData?.card_orders?.aggregate?.count || 0,
-                  amount: reportData?.card_orders?.aggregate?.sum?.total_price || 0,
-                  color: "bg-purple-500"
-                },
-                {
-                  label: "Not Selected",
-                  count: reportData?.null_payment_orders?.aggregate?.count || 0,
-                  amount: reportData?.null_payment_orders?.aggregate?.sum?.total_price || 0,
-                  color: "bg-gray-500"
-                }
-              ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-2 h-10 rounded-full ${item.color}`} />
-                    <div>
-                      <p className="font-medium">{item.label}</p>
-                      <p className="text-sm text-muted-foreground">{item.count} orders</p>
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-7">
+            <Card className="col-span-1 lg:col-span-4">
+              <CardHeader>
+                <CardTitle>Payment Analysis</CardTitle>
+                <CardDescription>
+                  Breakdown of orders by payment method
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {[
+                    {
+                      label: "Cash",
+                      count: reportData?.cash_orders?.aggregate?.count || 0,
+                      amount: reportData?.cash_orders?.aggregate?.sum?.total_price || 0,
+                      color: "bg-green-500"
+                    },
+                    {
+                      label: "UPI",
+                      count: reportData?.upi_orders?.aggregate?.count || 0,
+                      amount: reportData?.upi_orders?.aggregate?.sum?.total_price || 0,
+                      color: "bg-blue-500"
+                    },
+                    {
+                      label: "Card",
+                      count: reportData?.card_orders?.aggregate?.count || 0,
+                      amount: reportData?.card_orders?.aggregate?.sum?.total_price || 0,
+                      color: "bg-purple-500"
+                    },
+                    {
+                      label: "Not Selected",
+                      count: reportData?.null_payment_orders?.aggregate?.count || 0,
+                      amount: reportData?.null_payment_orders?.aggregate?.sum?.total_price || 0,
+                      color: "bg-gray-500"
+                    }
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-2 h-10 rounded-full ${item.color}`} />
+                        <div>
+                          <p className="font-medium">{item.label}</p>
+                          <p className="text-sm text-muted-foreground">{item.count} orders</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold">₹{item.amount.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {totalEarnings > 0 ? ((item.amount / totalEarnings) * 100).toFixed(1) : 0}% of total
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold">₹{item.amount.toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {totalEarnings > 0 ? ((item.amount / totalEarnings) * 100).toFixed(1) : 0}% of total
-                    </p>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="col-span-1 lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Top Selling Items</CardTitle>
-            <CardDescription>
-              Most popular items for this period
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-8">
-              {topItems.map((item: any, index: number) => (
-                <div key={index} className="flex items-center">
-                  <div className="ml-4 space-y-1">
-                    <p className="text-sm font-medium leading-none">{item.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {item.category}
-                    </p>
-                  </div>
-                  <div className="ml-auto font-medium">
-                    {item.quantity} sold
-                  </div>
+              </CardContent>
+            </Card>
+            <Card className="col-span-1 lg:col-span-3">
+              <CardHeader>
+                <CardTitle>Top Selling Items</CardTitle>
+                <CardDescription>
+                  Most popular items for this period
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-8">
+                  {topItems.map((item: any, index: number) => (
+                    <div key={index} className="flex items-center">
+                      <div className="ml-4 space-y-1">
+                        <p className="text-sm font-medium leading-none">{item.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {item.category}
+                        </p>
+                      </div>
+                      <div className="ml-auto font-medium">
+                        {item.quantity} sold
+                      </div>
+                    </div>
+                  ))}
+                  {topItems.length === 0 && (
+                    <div className="text-center text-muted-foreground py-8">
+                      No data available
+                    </div>
+                  )}
                 </div>
-              ))}
-              {topItems.length === 0 && (
-                <div className="text-center text-muted-foreground py-8">
-                  No data available
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              </CardContent>
+            </Card>
+          </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Overview</CardTitle>
-        </CardHeader>
-        <CardContent className="pl-2">
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={chartData}>
-              <XAxis
-                dataKey="date"
-                stroke="#888888"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                stroke="#888888"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(value) => `₹${value}`}
-              />
-              <Tooltip
-                cursor={{ fill: 'transparent' }}
-                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', color: 'black' }}
-              />
-              <Bar
-                dataKey="sales"
-                fill="currentColor"
-                radius={[4, 4, 0, 0]}
-                className="fill-primary"
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-    </div >
+          <Card>
+            <CardHeader>
+              <CardTitle>Overview</CardTitle>
+            </CardHeader>
+            <CardContent className="pl-2">
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={chartData}>
+                  <XAxis
+                    dataKey="date"
+                    stroke="#888888"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="#888888"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => `₹${value}`}
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'transparent' }}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', color: 'black' }}
+                  />
+                  <Bar
+                    dataKey="sales"
+                    fill="currentColor"
+                    radius={[4, 4, 0, 0]}
+                    className="fill-primary"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </>
+      ) : null}
+
+      {/* Scan Analytics Section */}
+      <div className="space-y-6 pt-6 border-t">
+        <h2 className="text-2xl font-bold tracking-tight">Scan Analytics</h2>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Scans</CardTitle>
+              <QrCode className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {scanData?.total_scans?.aggregate?.count || 0}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {activeTab === 'today' ? 'Scanned today' : activeTab === 'month' ? 'Scanned this month' : 'In selected period'}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+          <Card className="col-span-1">
+            <CardHeader>
+              <CardTitle>Scan Trends</CardTitle>
+            </CardHeader>
+            <CardContent className="pl-2">
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={scanChartData}>
+                  <XAxis
+                    dataKey="date"
+                    stroke="#888888"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="#888888"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'transparent' }}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', color: 'black' }}
+                  />
+                  <Bar
+                    dataKey="count"
+                    fill="#ea580c" // Orange color
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card className="col-span-1">
+            <CardHeader>
+              <CardTitle>Recent Scans</CardTitle>
+              <CardDescription>
+                Latest scans details
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-[400px] overflow-auto p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Time</TableHead>
+                    <TableHead>Table</TableHead>
+                    <TableHead>QR Number</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {scanData?.scans_list?.map((scan: any) => {
+                    const qr = qrCodesMap.get(scan.qr_id);
+                    return (
+                      <TableRow key={scan.id}>
+                        <TableCell>
+                          {format(new Date(scan.created_at), "MMM dd, hh:mm a")}
+                        </TableCell>
+                        <TableCell>{qr?.table_name || qr?.table_number || "-"}</TableCell>
+                        <TableCell>{qr?.qr_number || "-"}</TableCell>
+                      </TableRow>
+                    )
+                  })}
+                  {(!scanData?.scans_list || scanData.scans_list.length === 0) && (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                        No scans found
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
   );
 }

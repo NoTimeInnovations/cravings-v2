@@ -101,12 +101,12 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
                     <Select
                         defaultValue={order.status}
                         onValueChange={handleUpdateOrderStatus}
                     >
-                        <SelectTrigger className={`w-[140px] ${getStatusColor(order.status)} border-none`}>
+                        <SelectTrigger className={`w-[130px] ${getStatusColor(order.status)} border-none shrink-0`}>
                             <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
@@ -120,7 +120,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
 
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm">
+                            <Button variant="outline" size="sm" className="shrink-0">
                                 <Printer className="h-4 w-4 mr-2" />
                                 Print
                             </Button>
@@ -136,9 +136,9 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     </DropdownMenu>
 
                     {onEdit && (
-                        <Button variant="outline" size="sm" onClick={onEdit}>
+                        <Button variant="outline" size="sm" onClick={onEdit} className="shrink-0">
                             <Edit className="h-4 w-4 mr-2" />
-                            Edit Order
+                            Edit
                         </Button>
                     )}
                 </div>
@@ -148,13 +148,16 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 <div className="p-4 border rounded-lg bg-card">
                     <h3 className="font-semibold mb-3">Customer Details</h3>
                     <div className="text-sm space-y-2">
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Table:</span>
-                            <span className="font-medium">{order.tableName || order.tableNumber || "N/A"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="text-muted-foreground">Type:</span>
-                            <span className="font-medium capitalize">{order.type}</span>
+                        <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Order Info:</span>
+                            <div className="flex gap-2">
+                                <Badge variant="outline" className="font-medium">
+                                    Table: {order.tableName || order.tableNumber || "N/A"}
+                                </Badge>
+                                <Badge variant="secondary" className="font-medium capitalize">
+                                    {order.type === "table_order" ? "Dine-in" : order.type}
+                                </Badge>
+                            </div>
                         </div>
                         {order.deliveryAddress && (
                             <div className="flex justify-between">
@@ -170,17 +173,19 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                         )}
                     </div>
                 </div>
-                <div className="p-4 border rounded-lg bg-card">
+            </div>
+
+            {order.payment_method && (
+                <div className="border rounded-lg bg-card p-4">
                     <h3 className="font-semibold mb-3">Payment Details</h3>
                     <div className="text-sm space-y-2">
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Method:</span>
-                            <span className="font-medium">{order.payment_method || "N/A"}</span>
+                            <span className="font-medium">{order.payment_method}</span>
                         </div>
-
                     </div>
                 </div>
-            </div>
+            )}
 
             <div className="border rounded-lg overflow-hidden">
                 <div className="bg-muted/50 px-4 py-3 border-b">

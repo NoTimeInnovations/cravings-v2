@@ -15,11 +15,11 @@ export default async function PricingPage() {
 
     return (
         <div className="min-h-screen w-full font-sans text-gray-900 bg-orange-50">
-            <div className="max-w-7xl mx-auto px-6 text-center py-10">
-                <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-6">
+            <div className="max-w-7xl mx-auto px-4 text-center py-6 md:py-10">
+                <h1 className="text-2xl md:text-5xl font-extrabold text-gray-900 mb-3 md:mb-6">
                     Plans that scale with your business
                 </h1>
-                <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+                <p className="text-sm md:text-xl text-gray-600 max-w-2xl mx-auto">
                     Start for free and upgrade as you grow. No credit card required to start.
                 </p>
             </div>

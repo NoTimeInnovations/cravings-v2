@@ -159,8 +159,17 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
 
                     {/* Center Overlay - Handwriting Font */}
                     {!hotelDetails.banner && (
-                        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                            <h1 className="text-5xl font-handwriting text-white drop-shadow-md text-center px-4 font-bold">
+                        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none p-4">
+                            <h1
+                                className={`font-handwriting text-white drop-shadow-md text-center font-bold break-words w-full ${(hotelDetails.name?.length || 0) > 35
+                                        ? "text-2xl"
+                                        : (hotelDetails.name?.length || 0) > 25
+                                            ? "text-3xl"
+                                            : (hotelDetails.name?.length || 0) > 15
+                                                ? "text-4xl"
+                                                : "text-5xl"
+                                    }`}
+                            >
                                 {hotelDetails.name}
                             </h1>
                         </div>

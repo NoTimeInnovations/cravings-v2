@@ -1133,8 +1133,12 @@ export default function GetStartedPage() {
                                 onClick={async () => {
                                     try {
                                         const { signInPartnerWithEmail } = useAuthStore.getState();
-                                        await signInPartnerWithEmail(authCredentials.email, "123456");
-                                        router.push("/admin-v2");
+                                        const partner = await signInPartnerWithEmail(authCredentials.email, "123456");
+                                        if (partner && partner.subscription_details) {
+                                            router.push("/admin-v2");
+                                        } else {
+                                            router.push("/admin");
+                                        }
                                     } catch (e) {
                                         console.error("Auto-login failed", e);
                                         router.push("/login");

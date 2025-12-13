@@ -182,6 +182,6 @@ export function PaymentLegalSettings() {
                     Save Changes
                 </Button>
             </div>
-        </div>
+        </div >
     );
 }

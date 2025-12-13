@@ -120,6 +120,11 @@ body {
   display: none;
 }
 
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 .animate-tooltip {
   animation: animateTooltip 0.5s ease;
 }

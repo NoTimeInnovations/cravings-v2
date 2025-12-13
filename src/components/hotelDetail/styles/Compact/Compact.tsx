@@ -212,8 +212,17 @@ const Compact = ({
           {(!hoteldata?.store_banner ||
             hoteldata?.store_banner === "" ||
             bannerError) && (
-              <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                <h1 className="text-5xl font-handwriting text-white drop-shadow-md text-center px-4 font-bold">
+              <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none p-4">
+                <h1
+                  className={`font-handwriting text-white drop-shadow-md text-center font-bold break-words w-full ${(hoteldata?.store_name?.length || 0) > 35
+                      ? "text-2xl"
+                      : (hoteldata?.store_name?.length || 0) > 25
+                        ? "text-3xl"
+                        : (hoteldata?.store_name?.length || 0) > 15
+                          ? "text-4xl"
+                          : "text-5xl"
+                    }`}
+                >
                   {hoteldata?.store_name}
                 </h1>
               </div>

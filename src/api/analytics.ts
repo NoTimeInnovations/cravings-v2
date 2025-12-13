@@ -188,6 +188,32 @@ export const getUserMetrics = `
       aggregate {
         count
       }
+`;
+
+// Query to get scan analytics by QR IDs (avoids relationship dependency)
+export const GET_SCAN_ANALYTICS = `
+  query GetScanAnalytics($qr_ids: [uuid!], $startDate: timestamptz!, $endDate: timestamptz!) {
+    total_scans: qr_scans_aggregate(
+      where: {
+        qr_id: { _in: $qr_ids }
+        created_at: { _gte: $startDate, _lte: $endDate }
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    
+    scans_list: qr_scans(
+      where: {
+        qr_id: { _in: $qr_ids }
+        created_at: { _gte: $startDate, _lte: $endDate }
+      }
+      order_by: { created_at: desc }
+    ) {
+      id
+      created_at
+      qr_id
     }
   }
-`; 
+`;

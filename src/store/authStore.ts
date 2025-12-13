@@ -161,7 +161,7 @@ interface AuthState {
     password: string
   ) => Promise<Partner>;
   signInWithPhone: (phone: string, partnerId?: string, countryInfo?: UserCountryInfo) => Promise<User | null>;
-  signInPartnerWithEmail: (email: string, password: string) => Promise<void>;
+  signInPartnerWithEmail: (email: string, password: string) => Promise<Partner | void>;
   signInSuperAdminWithEmail: (email: string, password: string) => Promise<void>;
   signInCaptainWithEmail: (email: string, password: string) => Promise<void>;
   fetchUser: () => Promise<void>;
@@ -436,6 +436,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         id: partner.id,
         password: partner.password || "123456",
       });
+      return partner;
     } catch (error) {
       throw error;
     }

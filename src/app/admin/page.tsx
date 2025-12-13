@@ -46,6 +46,7 @@ const page = async () => {
 
   if (userData?.subscription_details) {
     redirect("/admin-v2");
+    return null;
   }
 
   const lastSubscription = getLastSubscription?.partner_subscriptions[0];

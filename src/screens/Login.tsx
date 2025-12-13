@@ -34,7 +34,7 @@ export default function Login() {
 
   const handleUserSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!userCountryInfo) {
       toast.error("Unable to detect your country. Please try again.");
       return;
@@ -42,7 +42,7 @@ export default function Login() {
 
     // Remove +91 or country code if present
     const cleanedPhone = userPhone.replace(/^\+\d+/, "");
-    
+
     if (!validatePhoneNumber(cleanedPhone, userCountryInfo.countryCode)) {
       toast.error(getPhoneValidationError(userCountryInfo.countryCode));
       return;
@@ -71,9 +71,14 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await signInPartnerWithEmail(partnerData.email, partnerData.password);
+      const partner = await signInPartnerWithEmail(partnerData.email, partnerData.password);
       await Notification.token.save();
-      navigate.push("/admin");
+
+      if (partner && partner.subscription_details) {
+        navigate.push("/admin-v2");
+      } else {
+        navigate.push("/admin");
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to sign in");
       console.error("Sign in error:", error);
@@ -96,18 +101,16 @@ export default function Login() {
           <Button
             type="button"
             onClick={() => setMode("user")}
-            className={`flex-1 ${
-              mode === "user" ? "bg-orange-600" : "bg-gray-200"
-            }`}
+            className={`flex-1 ${mode === "user" ? "bg-orange-600" : "bg-gray-200"
+              }`}
           >
             Sign in as User
           </Button>
           <Button
             type="button"
             onClick={() => setMode("partner")}
-            className={`flex-1 ${
-              mode === "partner" ? "bg-orange-600" : "bg-gray-200"
-            }`}
+            className={`flex-1 ${mode === "partner" ? "bg-orange-600" : "bg-gray-200"
+              }`}
           >
             Sign in as Partner
           </Button>
@@ -172,7 +175,7 @@ export default function Login() {
                 <Input
                   id="password"
                   type="password"
-                  
+
                   placeholder="Enter your password"
                   value={partnerData.password}
                   onChange={(e) =>

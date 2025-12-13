@@ -18,6 +18,21 @@ import { Loader2, Upload, Save, Power } from "lucide-react";
 import ImageCropper from "@/components/ImageCropper";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { getSocialLinks } from "@/lib/getSocialLinks";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const Currencies = [
+    { label: "INR", value: "₹" },
+    { label: "USD", value: "$" },
+    { label: "SR", value: "SR" },
+    { label: "AED", value: "AED" },
+    { label: "EUR", value: "€" },
+    { label: "GBP", value: "£" },
+    { label: "KWD", value: "د.ك" },
+    { label: "BHD", value: "د.ب" },
+    { label: "QAR", value: "ر.ق" },
+    { label: "OMR", value: "ر.ع." },
+    { label: "None", value: " " },
+];
 
 export function GeneralSettings() {
     const { userData, setState } = useAuthStore();
@@ -28,6 +43,7 @@ export function GeneralSettings() {
     const [footNote, setFootNote] = useState("");
     const [instaLink, setInstaLink] = useState("");
     const [isShopOpen, setIsShopOpen] = useState(true);
+    const [currency, setCurrency] = useState("₹");
 
     // Password State
     const [newPassword, setNewPassword] = useState("");
@@ -47,8 +63,10 @@ export function GeneralSettings() {
             setPhone(userData.phone || "");
             setWhatsappNumber(userData.whatsapp_numbers?.[0]?.number || userData.phone || "");
             setFootNote(userData.footnote || "");
+            setFootNote(userData.footnote || "");
             setIsShopOpen(userData.is_shop_open);
             setBannerImage((userData as any).store_banner || null);
+            setCurrency(userData.currency || "₹");
 
             const socialLinks = getSocialLinks(userData as HotelData);
             setInstaLink(socialLinks.instagram || "");
@@ -65,7 +83,8 @@ export function GeneralSettings() {
                 footnote: footNote,
                 is_shop_open: isShopOpen,
                 whatsapp_numbers: [{ number: whatsappNumber, area: "default" }],
-                social_links: { instagram: instaLink }
+                social_links: { instagram: instaLink },
+                currency: currency
             };
 
             await fetchFromHasura(updatePartnerMutation, {

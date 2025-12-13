@@ -172,9 +172,7 @@ const OrderDrawer = ({
   const pathname = usePathname();
   const [isQrScan, setIsQrScan] = useState(false);
   const [features, setFeatures] = useState<FeatureFlags | null>(null);
-  const [isMoveUp, setMoveUp] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
-  const isBottomNavHidden = true;
+
 
   // Client timezone (used for formatting times in messages)
   const tz = typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
@@ -208,9 +206,7 @@ const OrderDrawer = ({
 
   useEffect(() => {
     setOpenDrawerBottom((items?.length || 0) > 0 ? true : false);
-    if (isBottomNavHidden && (items?.length || 0) > 0) {
-      setMoveUp(true);
-    }
+
   }, [items, setOpenDrawerBottom]);
 
   const calculateGrandTotal = () => {
@@ -416,26 +412,7 @@ const OrderDrawer = ({
     }
   };
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
 
-      if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        if ((items?.length ?? 0) > 0 && isBottomNavHidden) {
-          setMoveUp(true);
-        } else {
-          setMoveUp(false);
-        }
-      } else if (currentScrollY < lastScrollY) {
-        setMoveUp(true);
-      }
-
-      setLastScrollY(currentScrollY);
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollY]);
 
   return (
     <>
@@ -450,47 +427,20 @@ const OrderDrawer = ({
 
       {/* Bottom Drawer */}
       <div
-        style={{ ...styles.border }}
-        className={`fixed ${isMoveUp
-            ? isBottomNavHidden
-              ? "bottom-24 sm:bottom-0"
-              : "bottom-16 sm:bottom-0"
-            : "bottom-0"
-          } z-[200] left-1/2 -translate-x-1/2 transition-all duration-300 ${!open_drawer_bottom
-            ? "translate-y-[200%]"
-            : isBottomNavHidden
-              ? "translate-y-full"
-              : "translate-y-0"
-          } lg:max-w-[50%] bg-white text-black w-full px-[8%] py-6 rounded-t-[35px] bottom-bar-shadow flex items-center justify-between`}
+        onClick={handlePlaceOrder}
+        style={{
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+          backgroundColor: styles.accent || "#ea580c",
+          color: "#ffffff",
+        }}
+        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl flex items-center justify-between transition-transform duration-300 cursor-pointer ${open_drawer_bottom ? "translate-y-0" : "translate-y-[200%]"
+          }`}
       >
-        <div>
-          <div className="flex gap-2 items-center font-black text-xl">
-            <div>PRICE :</div>
-            <div style={{ color: styles.accent }}>
-              {hotelData.currency}
-              {items?.reduce((acc, item) => {
-                return acc + item.price * item.quantity;
-              }, 0) || 0}
-            </div>
-          </div>
-          <div className="flex gap-2 items-center text-sm text-black/70">
-            <div>Items :</div>
-            <div>{items?.length}</div>
-            {!isQrScan &&
-              orderType === "delivery" &&
-              deliveryInfo &&
-              items?.length &&
-              !deliveryInfo.isOutOfRange && (
-                <div className="ml-2">(Delivery)</div>
-              )}
-          </div>
+        <div className="font-semibold text-lg">
+          {items?.length || 0} item{(items?.length || 0) !== 1 ? "s" : ""} added
         </div>
 
-        <div
-          onClick={handlePlaceOrder}
-          style={{ color: styles.accent }}
-          className="font-black relative cursor-pointer"
-        >
+        <div className="font-bold text-lg flex items-center gap-2">
           View Order
         </div>
       </div>

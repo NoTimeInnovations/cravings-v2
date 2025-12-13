@@ -447,23 +447,27 @@ export function AdminV2Orders() {
                             </div>
                         </CardHeader>
                         <CardContent className="p-3 space-y-3">
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                                <div className="flex items-center gap-2">
-                                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                                    <span className="font-medium">{order.tableName || order.tableNumber || "N/A"}</span>
-                                </div>
-                                <div className="flex items-center gap-2 justify-end">
-                                    <CreditCard className="h-4 w-4 text-muted-foreground" />
-                                    <span className="capitalize">{order.payment_method || "N/A"}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Clock className="h-4 w-4 text-muted-foreground" />
-                                    <span>{format(new Date(order.createdAt), "hh:mm a")}</span>
-                                </div>
-                                <div className="flex items-center justify-end">
+                            <div className="flex flex-col gap-2 text-sm">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                                        <span className="font-medium">{order.tableName || order.tableNumber || "N/A"}</span>
+                                    </div>
                                     <Badge variant="outline" className="capitalize text-xs">
                                         {order.type === "table_order" ? "Dine-in" : order.type}
                                     </Badge>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <Clock className="h-4 w-4 text-muted-foreground" />
+                                        <span>{format(new Date(order.createdAt), "hh:mm a")}</span>
+                                    </div>
+                                    {order.payment_method && (
+                                        <div className="flex items-center gap-2">
+                                            <CreditCard className="h-4 w-4 text-muted-foreground" />
+                                            <span className="capitalize">{order.payment_method}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </CardContent>

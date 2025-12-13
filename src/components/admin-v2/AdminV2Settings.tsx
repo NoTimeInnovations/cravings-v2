@@ -14,8 +14,10 @@ import { useAuthStore } from "@/store/authStore";
 import { useRouter } from "next/navigation";
 
 export function AdminV2Settings() {
-    const { signOut } = useAuthStore();
+    const { signOut, features } = useAuthStore();
     const router = useRouter();
+
+    const showOrderRelatedSettings = features?.ordering?.enabled;
 
     const handleLogout = async () => {
         await signOut();
@@ -39,8 +41,12 @@ export function AdminV2Settings() {
                 <TabsList className="flex w-full sm:w-auto overflow-x-auto justify-start">
                     <TabsTrigger value="general">General</TabsTrigger>
                     <TabsTrigger value="location">Location</TabsTrigger>
-                    <TabsTrigger value="delivery">Delivery</TabsTrigger>
-                    <TabsTrigger value="payment">Payment & Legal</TabsTrigger>
+                    {showOrderRelatedSettings && (
+                        <>
+                            <TabsTrigger value="delivery">Delivery</TabsTrigger>
+                            <TabsTrigger value="payment">Payment & Legal</TabsTrigger>
+                        </>
+                    )}
                     <TabsTrigger value="features">Features</TabsTrigger>
                 </TabsList>
 
@@ -52,13 +58,17 @@ export function AdminV2Settings() {
                     <LocationSettings />
                 </TabsContent>
 
-                <TabsContent value="delivery" className="space-y-4">
-                    <DeliverySettings />
-                </TabsContent>
+                {showOrderRelatedSettings && (
+                    <>
+                        <TabsContent value="delivery" className="space-y-4">
+                            <DeliverySettings />
+                        </TabsContent>
 
-                <TabsContent value="payment" className="space-y-4">
-                    <PaymentLegalSettings />
-                </TabsContent>
+                        <TabsContent value="payment" className="space-y-4">
+                            <PaymentLegalSettings />
+                        </TabsContent>
+                    </>
+                )}
 
                 <TabsContent value="features" className="space-y-4">
                     <FeatureSettings />
