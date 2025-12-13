@@ -10,6 +10,13 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import {
+    Card,
+    CardContent,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -25,7 +32,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { FileText, Trash2, Eye, Printer, MoreVertical, ReceiptText, Search } from "lucide-react";
+import { FileText, Trash2, Eye, Printer, MoreVertical, ReceiptText, Search, CreditCard, Clock, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
@@ -303,7 +310,8 @@ export function AdminV2Orders() {
                 </Button>
             </div>
 
-            <div className="rounded-md border bg-card">
+            {/* Desktop Table View */}
+            <div className="hidden md:block rounded-md border bg-card">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -334,7 +342,7 @@ export function AdminV2Orders() {
                                     </Badge>
                                 </TableCell>
                                 <TableCell>{format(new Date(order.createdAt), "yyyy-MM-dd")}</TableCell>
-                                <TableCell>{format(new Date(order.createdAt), "HH:mm")}</TableCell>
+                                <TableCell>{format(new Date(order.createdAt), "hh:mm a")}</TableCell>
                                 <TableCell>
                                     <Badge variant="secondary" className="uppercase">
                                         {order.type === "table_order" ? "Dine-in" : order.type}
@@ -408,6 +416,100 @@ export function AdminV2Orders() {
                         )}
                     </TableBody>
                 </Table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+                {filteredOrders.map((order) => (
+                    <Card key={order.id} className="overflow-hidden">
+                        <CardHeader className="bg-muted/40 p-3">
+                            <div className="flex justify-between items-center">
+                                <CardTitle className="text-sm font-medium">
+                                    {(Number(order.display_id) ?? 0) > 0
+                                        ? `Invoice #${order.display_id}-${getDateOnly(order.createdAt)}`
+                                        : `Order #${order.id.slice(0, 8)}`}
+                                </CardTitle>
+                                <Select
+                                    defaultValue={order.status}
+                                    onValueChange={(val) => handleUpdateOrderStatus(order.id, val)}
+                                >
+                                    <SelectTrigger className={`w-[110px] h-7 text-xs border-none ${getStatusColor(order.status)}`}>
+                                        <SelectValue placeholder="Status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="pending">Pending</SelectItem>
+                                        <SelectItem value="accepted">Accepted</SelectItem>
+                                        <SelectItem value="ready">Ready</SelectItem>
+                                        <SelectItem value="completed">Completed</SelectItem>
+                                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-3 space-y-3">
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div className="flex items-center gap-2">
+                                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                                    <span className="font-medium">{order.tableName || order.tableNumber || "N/A"}</span>
+                                </div>
+                                <div className="flex items-center gap-2 justify-end">
+                                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                                    <span className="capitalize">{order.payment_method || "N/A"}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Clock className="h-4 w-4 text-muted-foreground" />
+                                    <span>{format(new Date(order.createdAt), "hh:mm a")}</span>
+                                </div>
+                                <div className="flex items-center justify-end">
+                                    <Badge variant="outline" className="capitalize text-xs">
+                                        {order.type === "table_order" ? "Dine-in" : order.type}
+                                    </Badge>
+                                </div>
+                            </div>
+                        </CardContent>
+                        <CardFooter className="bg-muted/10 p-2 flex justify-between border-t">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-8">
+                                        <Printer className="h-4 w-4 mr-2" /> Print
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start">
+                                    <DropdownMenuItem onClick={() => window.open(`/kot/${order.id}`, '_blank')}>
+                                        Print KOT
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handlePrintBill(order)}>
+                                        Print Bill
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            <div className="flex gap-1">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-green-600"
+                                    onClick={() => setSelectedOrderId(order.id)}
+                                >
+                                    <ReceiptText className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-red-500"
+                                    onClick={() => handleDeleteOrder(order.id)}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </CardFooter>
+                    </Card>
+                ))}
+                {filteredOrders.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                        No orders found
+                    </div>
+                )}
             </div>
 
             {/* Pagination Controls - Reusing logic from OrdersTab if needed, or simple buttons */}

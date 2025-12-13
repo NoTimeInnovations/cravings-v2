@@ -9,6 +9,13 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import {
+    Card,
+    CardContent,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -409,7 +416,8 @@ export function AdminV2QrCodes() {
             </div>
 
             {/* List */}
-            <div className="rounded-md border bg-card">
+            {/* Desktop Table View */}
+            <div className="hidden md:block rounded-md border bg-card">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -467,6 +475,58 @@ export function AdminV2QrCodes() {
                         )}
                     </TableBody>
                 </Table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+                {loading ? (
+                    <div className="text-center py-8">Loading...</div>
+                ) : qrs.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">No QR codes found.</div>
+                ) : (
+                    qrs.map((qr) => (
+                        <Card key={qr.id} className="overflow-hidden">
+                            <CardHeader className="bg-muted/40 p-3">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <Checkbox
+                                            checked={selectedQrs.has(qr.id)}
+                                            onCheckedChange={(checked) => handleSelectQr(qr.id, checked as boolean)}
+                                        />
+                                        <CardTitle className="text-sm font-medium">
+                                            Table {qr.table_number || "N/A"}
+                                        </CardTitle>
+                                    </div>
+                                    {qr.table_name && (
+                                        <span className="text-xs text-muted-foreground bg-white px-2 py-1 rounded border">
+                                            {qr.table_name}
+                                        </span>
+                                    )}
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-3">
+                                <div className="flex items-center justify-between">
+                                    <div className="text-sm text-muted-foreground">Scans</div>
+                                    <div className="font-medium">{qr.no_of_scans || 0}</div>
+                                </div>
+                            </CardContent>
+                            <CardFooter className="bg-muted/10 p-2 flex justify-between border-t gap-1">
+                                <Button variant="ghost" size="sm" className="flex-1 h-8" onClick={() => openView(qr)}>
+                                    <Eye className="h-4 w-4 mr-2" /> View
+                                </Button>
+                                <Button variant="ghost" size="sm" className="flex-1 h-8" onClick={() => handleCopyLink(qr)}>
+                                    <Copy className="h-4 w-4 mr-2" /> Copy
+                                </Button>
+                                <Button variant="ghost" size="sm" className="flex-1 h-8" onClick={() => openEdit(qr)}>
+                                    <Edit className="h-4 w-4 mr-2" /> Edit
+                                </Button>
+                                <Button variant="ghost" size="sm" className="flex-1 h-8 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => openDelete(qr.id)}>
+                                    <Trash2 className="h-4 w-4 mr-2" /> Del
+                                </Button>
+                            </CardFooter>
+                        </Card>
+                    ))
+                )}
             </div>
 
             <div className="flex items-center justify-end gap-4">

@@ -79,7 +79,7 @@ export function SubscriptionStatus() {
     return (
         <div className="space-y-4 mb-6">
             {isExpired && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="border-red-600 text-red-700 [&>svg]:text-red-700">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>Subscription Expired</AlertTitle>
                     <AlertDescription>
@@ -89,7 +89,7 @@ export function SubscriptionStatus() {
                 </Alert>
             )}
 
-            <Card className="border-orange-100 bg-orange-50/50 dark:bg-orange-950/10 dark:border-orange-900">
+            <Card className="border-orange-600 bg-orange-50/50 dark:bg-orange-950/10 dark:border-orange-900">
                 <CardContent className="p-6">
                     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
 
