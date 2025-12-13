@@ -473,6 +473,7 @@ export default function GetStartedPage() {
                 status: "active",
                 startDate: now.toISOString(),
                 expiryDate: expiryDate.toISOString(),
+                isFreePlanUsed: true,
                 usage: {
                     scans_cycle: 0,
                     last_reset: now.toISOString(),

@@ -13,7 +13,7 @@ mutation UpdatePartnerSubscription($id: uuid!, $subscription_details: jsonb!, $f
 }
 `;
 
-export async function upgradePlan(partnerId: string, newPlan: any) {
+export async function upgradePlan(partnerId: string, newPlan: any, isFreePlanUsed: boolean = false) {
     try {
         const now = new Date();
         const periodDays = newPlan.period_days || 30; // Default 30?
@@ -28,6 +28,7 @@ export async function upgradePlan(partnerId: string, newPlan: any) {
             status: "active",
             startDate: now.toISOString(),
             expiryDate: expiryDate.toISOString(),
+            isFreePlanUsed,
             usage: {
                 scans_cycle: 0,
                 last_reset: now.toISOString(),
