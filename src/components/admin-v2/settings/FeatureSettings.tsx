@@ -20,7 +20,8 @@ export function FeatureSettings() {
 
     useEffect(() => {
         if (userData?.role === "partner") {
-            const currentFeatures = getFeatures(userData.feature_flags || "");
+            const fetflags = userData.feature_flags;
+            const currentFeatures = getFeatures(userData.feature_flags as string);
 
             // Determine Plan Features
             const planId = userData.subscription_details?.plan?.id;
@@ -37,48 +38,31 @@ export function FeatureSettings() {
                 if (userPlan.features_enabled) {
                     planEnabledFeatures = userPlan.features_enabled;
                 }
-                // If not, we might need a mapping from plan feature descriptions to keys.
-                // However, observing plans.json, only 'india' plans have 'features_enabled'.
-                // International plans don't have explicit feature keys map, only description strings.
-                // We will currently trust the `features_enabled` map if valid, and fallback to current behavior (string check) or stricter check.
-                // Given the prompt "don't show... if access is not given", we must be strict.
 
-                // If the plan specifically enables a feature key, we grant access.
-                // If 'features_enabled' is missing (like in int_free), we assume NO features are accessible unless defaults allow?
-                // Or we rely solely on what's in 'features_enabled'.
+                // Logic update: Access should be granted if Plan grants it OR if DB string (currentFeatures) grants it.
+                // We only explicitly revoke access if NEITHER grants it.
+                // Actually, if Plan grants it, we ensure it's true.
+                // If Plan denies it (is missing), we check if DB overrides it.
 
                 if (userPlan.features_enabled) {
                     Object.keys(currentFeatures).forEach(key => {
-                        // Access is true ONLY if the plan allows it.
-                        // We use the 'features_enabled' object from plans.json.
-                        // Type logic might be loose here, assuming keys match.
+                        // If plan allows it, ensure access is true.
                         if (planEnabledFeatures[key]) {
                             currentFeatures[key as keyof typeof currentFeatures].access = true;
-                        } else {
-                            currentFeatures[key as keyof typeof currentFeatures].access = false;
                         }
+                        // If plan doesn't allow it, we DO NOT FORCE FALSE if it's already true from "getFeatures" (DB override)
+                        // This allows manual overrides via the database string.
                     });
                 } else {
-                    // Fallback for plans without explicit feature map (like international plans in the JSON provided)
-                    // If no map, maybe we shouldn't show any toggles? Or assume current behavior?
-                    // based on "int_standard" having "Digital menu", "Unlimited items". No mention of Ordering/Delivery.
-                    // It seems International plans MIGHT NOT support these extra features yet or they are processed differently.
-                    // The user is likely on an Indian plan given the screenshot context implies "access not given".
-                    // We will default to: If no 'features_enabled' map, assume NO extra features access for safety, 
-                    // OR keep existing behavior but clear keys not in DB string?
-                    // Let's iterate: The user saw rows because they were in DB string.
-                    // If we overwrite access based on Plan purely, we solve the visibility.
+                    // Fallback for plans without explicit feature map.
+                    // If no map in plan, we used to disable all.
+                    // Now, we will respect `getFeatures` result.
+                    // If getFeatures (DB) says true, we keep it true.
+                    // We only force false if we want strict Plan enforcement blocking overrides.
+                    // Given the bug report "it should be true", we trust the DB string.
 
-                    // If plan has no `features_enabled` defined, we effectively disable all.
-                    // Unless we want to be permissive. Let's be restrictive as requested.
-
-                    // Exception: If we want to allow manually granted overrides (outside plan), we'd need another flag.
-                    // But usually Plan dictates "Access".
-                    if (!userPlan.features_enabled) {
-                        Object.keys(currentFeatures).forEach(key => {
-                            currentFeatures[key as keyof typeof currentFeatures].access = false;
-                        });
-                    }
+                    // So we do nothing here! The default state from getFeatures is preserved.
+                    // If the user has "ordering-true" in DB, access is true.
                 }
             }
 

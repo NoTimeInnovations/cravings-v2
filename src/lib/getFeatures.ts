@@ -98,6 +98,8 @@ export const getFeatures = (perm: string) => {
   if (perm) {
     const parts = perm.split(",");
 
+    console.log("parts", parts);
+
     for (const part of parts) {
       const [key, value] = part.split("-");
 
@@ -125,7 +127,5 @@ export const getFeatures = (perm: string) => {
       }
     }
   }
-
   return permissions;
 };
-
