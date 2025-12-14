@@ -36,16 +36,25 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-[50%] z-50 grid w-full translate-x-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200',
-        'top-[50%] translate-y-[-50%] h-[50vh] rounded-t-lg overflow-y-auto',
-        'sm:max-w-lg sm:rounded-lg sm:h-auto',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
-        'data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-top-[48%]',
+        'fixed z-50 grid w-full gap-4 bg-background p-6 shadow-lg duration-200',
+
+        // Mobile: Full Screen, pinned to edges, no transforms
+        'inset-0 h-full max-w-none rounded-none border-none',
+
+        // Desktop: Centered Dialog
+        'sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-lg sm:w-full sm:rounded-lg sm:border sm:h-auto',
+
+        'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+        'data-[state=closed]:slide-out-to-bottom-[100%] data-[state=open]:slide-in-from-bottom-[100%]',
         'sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%] sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]',
         className
       )}
       {...props}
     >
+      <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M18 6 6 18" /><path d="m6 6 18 18" /></svg>
+        <span className="sr-only">Close</span>
+      </DialogClose>
       {children}
     </DialogPrimitive.Content>
   </DialogPortal>
