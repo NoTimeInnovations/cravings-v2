@@ -214,7 +214,15 @@ export default function GetStartedPage() {
             setHotelDetails((prev) => ({
                 ...prev,
                 [name]: value,
-                currency: meta ? meta.symbol : prev.currency // Auto-select currency symbol
+                currency: meta ? meta.symbol : prev.currency, // Auto-select currency symbol
+                state: "", // Clear state when country changes
+                district: "" // Clear district when country changes
+            }));
+        } else if (name === "state") {
+            setHotelDetails((prev) => ({
+                ...prev,
+                [name]: value,
+                district: "" // Clear district when state changes
             }));
         } else {
             setHotelDetails((prev) => ({ ...prev, [name]: value }));
@@ -646,7 +654,7 @@ export default function GetStartedPage() {
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
                 <div className="flex flex-col items-center gap-4">
-                    <div className={`w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 ${menuFiles.length > 0 ? "bg-green-100" : "bg-orange-100"}`}>
+                    <div className={`w-12 h-12 md:w-16 md:h-16 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 ${menuFiles.length > 0 ? "bg-green-100" : "bg-orange-100"}`}>
                         {menuFiles.length > 0 ? (
                             <Check className="w-6 h-6 md:w-8 md:h-8 text-green-600" />
                         ) : (
@@ -688,7 +696,7 @@ export default function GetStartedPage() {
                             )}
                             <button
                                 onClick={() => removeFile(idx)}
-                                className="absolute top-2 right-2 bg-white/90 hover:bg-red-50 text-red-600 rounded-full p-1.5 shadow-sm opacity-100 md:opacity-0 md:group-hover/file:opacity-100 transition-all scale-100 active:scale-95"
+                                className="absolute top-2 right-2 bg-white/90 hover:bg-red-50 text-red-600 rounded-lg p-1.5 shadow-sm opacity-100 md:opacity-0 md:group-hover/file:opacity-100 transition-all scale-100 active:scale-95"
                             >
                                 <X size={14} />
                             </button>
@@ -701,7 +709,7 @@ export default function GetStartedPage() {
             <Button
                 onClick={handleStep1Next}
                 disabled={menuFiles.length === 0}
-                className="w-full h-10 md:h-11 text-base md:text-lg rounded-full bg-orange-600 hover:bg-orange-700"
+                className="w-full h-10 md:h-11 text-base md:text-lg rounded-lg bg-orange-600 hover:bg-orange-700"
             >
                 Next Step <ChevronRight className="ml-2 w-4 h-4 md:w-5 md:h-5" />
             </Button>
@@ -786,21 +794,7 @@ export default function GetStartedPage() {
                 />
             </div>
 
-            {/* Currency Selector */}
-            <div className="space-y-2">
-                <Label htmlFor="currency" className="text-sm">Currency <span className="text-red-500">*</span></Label>
-                <select
-                    id="currency"
-                    name="currency"
-                    value={hotelDetails.currency}
-                    onChange={handleDetailsChange}
-                    className="w-full h-10 md:h-11 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    {CURRENCIES.map(symbol => (
-                        <option key={symbol} value={symbol}>{symbol}</option>
-                    ))}
-                </select>
-            </div>
+
 
             <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">

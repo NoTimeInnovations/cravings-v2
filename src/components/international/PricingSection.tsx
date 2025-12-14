@@ -216,7 +216,7 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
                                     {isPlanDisabled ? (
                                         <Button
                                             disabled
-                                            className="w-full py-3 md:py-6 rounded-xl shadow-none text-base md:text-lg bg-gray-100 text-gray-400 border-2 border-transparent cursor-not-allowed h-auto"
+                                            className="w-full py-4 rounded-lg shadow-none text-sm font-semibold bg-gray-100 text-gray-400 border-2 border-transparent cursor-not-allowed h-auto"
                                         >
                                             {buttonText}
                                         </Button>
@@ -225,9 +225,9 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
                                             <Button
                                                 onClick={() => handlePlanClick(plan)}
                                                 disabled={isCreatingAccount}
-                                                className={`w-full py-3 md:py-6 rounded-xl shadow-md text-base md:text-lg h-auto ${plan.popular
-                                                    ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                                                    : 'bg-white border-2 border-orange-100 text-orange-600 hover:bg-orange-50 hover:border-orange-200'
+                                                className={`w-full py-4 rounded-lg text-sm font-semibold h-auto transition-all ${plan.popular
+                                                    ? 'bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-200 hover:shadow-orange-300'
+                                                    : 'bg-white border-2 border-orange-100 text-orange-600 hover:bg-orange-50 hover:border-orange-200 shadow-sm hover:shadow-md'
                                                     }`}
                                             >
                                                 {buttonText}

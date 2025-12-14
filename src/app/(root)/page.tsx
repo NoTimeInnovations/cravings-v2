@@ -151,12 +151,12 @@ export default async function Home() {
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link href="/get-started">
-              <Button className="bg-orange-600 hover:bg-orange-700 text-white px-10 py-6 rounded-full text-xl shadow-lg w-full sm:w-auto hover:shadow-orange-200 transition-all">
+              <Button className="bg-orange-600 hover:bg-orange-700 text-white px-10 py-6 rounded-lg text-xl shadow-lg w-full sm:w-auto hover:shadow-orange-200 transition-all">
                 Get Started Now
               </Button>
             </Link>
             <a href="https://wa.me/918590115462?text=Hi!%20I%27m%20interested%20in%20Cravings%20Digital%20Menu" target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" className="border-2 border-gray-200 text-gray-700 hover:border-orange-600 hover:text-orange-600 px-10 py-6 rounded-full text-xl w-full sm:w-auto">
+              <Button variant="outline" className="border-2 border-gray-200 text-gray-700 hover:border-orange-600 hover:text-orange-600 px-10 py-6 rounded-lg text-xl w-full sm:w-auto">
                 Contact Sales
               </Button>
             </a>

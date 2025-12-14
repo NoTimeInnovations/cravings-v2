@@ -32,7 +32,8 @@ const HIDDEN_PATHS = [
   "/whatsappQr/[id]",
   "/get-started",
   "/admin-v2/.*",
-  "/admin-v2"
+  "/admin-v2",
+  "/pricing"
 ];
 
 export function Navbar({ userData, country }: { userData: any; country?: string }) {
@@ -150,7 +151,7 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
             onClick={() => router.push("/login")}
             size="lg"
             variant="outline"
-            className="inline-flex items-center h-fit text-nowrap text-xs gap-2 px-3 md:px-4 py-2 font-medium text-white bg-orange-600 rounded-full hover:bg-orange-700 transition-colors"
+            className="inline-flex items-center h-fit text-nowrap text-xs gap-2 px-3 md:px-4 py-2 font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors"
           >
             Sign In
           </Button>
@@ -241,7 +242,7 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
               {userData && !isInstalled ? (
                 <button
                   onClick={handleInstallClick}
-                  className="inline-flex items-center h-fit text-nowrap text-xs gap-2 px-3 md:px-4 py-2 font-medium text-white bg-orange-600 rounded-full hover:bg-orange-700 transition-colors"
+                  className="inline-flex items-center h-fit text-nowrap text-xs gap-2 px-3 md:px-4 py-2 font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors"
                 >
                   <Download className="w-4 h-4" />
                   {/* <span className="">Install</span> */}

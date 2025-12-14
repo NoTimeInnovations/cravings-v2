@@ -79,7 +79,7 @@ export default function Hero() {
                         className="absolute inset-0 bg-gradient-to-tr from-orange-200/30 to-rose-200/30 rounded-full blur-3xl -z-10"
                     />
 
-                    <div className="relative w-[300px] h-[520px] lg:w-[360px] lg:h-[600px]">
+                    <div className="relative w-[260px] h-[460px] lg:w-[360px] lg:h-[600px]">
                         {/* Phone Frame */}
                         <div className="absolute inset-0 border-gray-800 bg-gray-900 border-[8px] lg:border-[12px] rounded-[2rem] lg:rounded-[2.5rem] shadow-2xl z-20 overflow-hidden">
                             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-5 lg:w-32 lg:h-6 bg-gray-900 rounded-b-xl z-30"></div>
@@ -89,7 +89,7 @@ export default function Hero() {
                                 <div className="absolute inset-0 bg-white overflow-hidden z-0">
                                     <iframe
                                         src="https://www.cravings.live/hotels/LE-GRAND-CAFE/20f7e974-f19e-4c11-b6b7-4385f61f27bf"
-                                        className="w-[calc(100%+17px)] h-[calc(100%+17px)] border-none -ml-[1px] -mt-[1px]"
+                                        className="scale-[0.6] sm:scale-[0.8] w-[calc(100%+178px)]  sm:w-[calc(100%+98px)] h-[calc(100%+308px)] sm:h-[calc(100%+160px)] border-none  -ml-[85px]  sm:-ml-[43px] -mt-[150px] sm:-mt-[75px]"
                                         title="Demo Menu"
                                     />
                                 </div>

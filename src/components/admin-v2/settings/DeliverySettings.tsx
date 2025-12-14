@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { updatePartnerMutation } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { Loader2, Save, Plus, Trash2 } from "lucide-react";
 import { DeliveryRules, DeliveryRange } from "@/store/orderStore";
+import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 
 export function DeliverySettings() {
     const { userData, setState } = useAuthStore();
@@ -55,7 +56,7 @@ export function DeliverySettings() {
         }
     }, [userData]);
 
-    const handleSaveDelivery = async () => {
+    const handleSaveDelivery = useCallback(async () => {
         if (!userData) return;
         setIsSaving(true);
         try {
@@ -78,7 +79,18 @@ export function DeliverySettings() {
         } finally {
             setIsSaving(false);
         }
-    };
+    }, [userData, deliveryRate, deliveryRules, setState]);
+
+    const { setSaveAction, setIsSaving: setGlobalIsSaving } = useAdminSettingsStore();
+
+    useEffect(() => {
+        setSaveAction(handleSaveDelivery);
+        return () => setSaveAction(null);
+    }, [handleSaveDelivery, setSaveAction]);
+
+    useEffect(() => {
+        setGlobalIsSaving(isSaving);
+    }, [isSaving]);
 
     const addRange = () => {
         const newRange: DeliveryRange = { from_km: 0, to_km: 1, rate: 0 };
@@ -312,12 +324,7 @@ export function DeliverySettings() {
                 </CardContent>
             </Card>
 
-            <div className="flex justify-end">
-                <Button onClick={handleSaveDelivery} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Save Changes
-                </Button>
-            </div>
+
         </div>
     );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLocationStore } from "@/store/geolocationStore";
+import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
@@ -86,7 +87,7 @@ export function LocationSettings() {
         };
     }, [mapDialogOpen, geoLocation]); // Removed marker from dependency to avoid loop
 
-    const handleSaveLocation = async () => {
+    const handleSaveLocation = useCallback(async () => {
         if (!userData) return;
         setIsSaving(true);
         try {
@@ -125,7 +126,17 @@ export function LocationSettings() {
         } finally {
             setIsSaving(false);
         }
-    };
+    }, [userData, location, locationDetails, placeId, selectedLocation, setState]);
+    const { setSaveAction, setIsSaving: setGlobalIsSaving } = useAdminSettingsStore();
+
+    useEffect(() => {
+        setSaveAction(handleSaveLocation);
+        return () => setSaveAction(null);
+    }, [handleSaveLocation, setSaveAction]);
+
+    useEffect(() => {
+        setGlobalIsSaving(isSaving);
+    }, [isSaving]);
 
     const handleGetCurrentLocation = async () => {
         try {
@@ -230,12 +241,7 @@ export function LocationSettings() {
                 </CardContent>
             </Card>
 
-            <div className="flex justify-end">
-                <Button onClick={handleSaveLocation} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Save Changes
-                </Button>
-            </div>
+
 
             <Dialog open={mapDialogOpen} onOpenChange={setMapDialogOpen}>
                 <DialogContent className="max-w-4xl h-[80vh] flex flex-col">

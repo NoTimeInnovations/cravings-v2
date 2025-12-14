@@ -36,18 +36,29 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
             </div>
 
             <div className="flex items-center gap-4">
+                {userData?.role === 'partner' && !(userData as Partner).is_shop_open && (
+                    <div className="hidden sm:flex items-center px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-semibold rounded-full border border-red-200 dark:border-red-800 animate-pulse">
+                        <span className="relative flex h-2 w-2 mr-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                        </span>
+                        Store Closed
+                    </div>
+                )}
                 <OrderNotification />
                 <ModeToggle />
-                <div
-                    onClick={() => setActiveView("Settings")}
-                    className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded-full cursor-pointer select-none"
-                >
-                    <Settings className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-                    <Avatar>
-                        <AvatarImage className="object-cover" src={(userData as Partner)?.store_banner} />
-                        <AvatarFallback>CN</AvatarFallback>
-                    </Avatar>
-                </div>
+                {userData?.role === 'partner' && (
+                    <div
+                        className="cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => setActiveView("Settings")}
+                        title="Settings"
+                    >
+                        <Avatar>
+                            <AvatarImage src={(userData as Partner).store_banner} className="object-cover" />
+                            <AvatarFallback>{(userData as Partner).store_name?.slice(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                    </div>
+                )}
             </div>
         </nav>
     );

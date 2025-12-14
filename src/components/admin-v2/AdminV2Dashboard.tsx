@@ -730,46 +730,7 @@ export function AdminV2Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="col-span-1">
-            <CardHeader>
-              <CardTitle>Recent Scans</CardTitle>
-              <CardDescription>
-                Latest scans details
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="h-[400px] overflow-auto p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Table</TableHead>
-                    <TableHead>QR Number</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {scanData?.scans_list?.map((scan: any) => {
-                    const qr = qrCodesMap.get(scan.qr_id);
-                    return (
-                      <TableRow key={scan.id}>
-                        <TableCell>
-                          {format(new Date(scan.created_at), "MMM dd, hh:mm a")}
-                        </TableCell>
-                        <TableCell>{qr?.table_name || qr?.table_number || "-"}</TableCell>
-                        <TableCell>{qr?.qr_number || "-"}</TableCell>
-                      </TableRow>
-                    )
-                  })}
-                  {(!scanData?.scans_list || scanData.scans_list.length === 0) && (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                        No scans found
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+
         </div>
       </div>
     </div>

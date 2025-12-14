@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -19,20 +19,9 @@ import ImageCropper from "@/components/ImageCropper";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { getSocialLinks } from "@/lib/getSocialLinks";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 
-const Currencies = [
-    { label: "INR", value: "₹" },
-    { label: "USD", value: "$" },
-    { label: "SR", value: "SR" },
-    { label: "AED", value: "AED" },
-    { label: "EUR", value: "€" },
-    { label: "GBP", value: "£" },
-    { label: "KWD", value: "د.ك" },
-    { label: "BHD", value: "د.ب" },
-    { label: "QAR", value: "ر.ق" },
-    { label: "OMR", value: "ر.ع." },
-    { label: "None", value: " " },
-];
+
 
 export function GeneralSettings() {
     const { userData, setState } = useAuthStore();
@@ -43,7 +32,7 @@ export function GeneralSettings() {
     const [footNote, setFootNote] = useState("");
     const [instaLink, setInstaLink] = useState("");
     const [isShopOpen, setIsShopOpen] = useState(true);
-    const [currency, setCurrency] = useState("₹");
+
 
     // Password State
     const [newPassword, setNewPassword] = useState("");
@@ -66,14 +55,14 @@ export function GeneralSettings() {
             setFootNote(userData.footnote || "");
             setIsShopOpen(userData.is_shop_open);
             setBannerImage((userData as any).store_banner || null);
-            setCurrency(userData.currency || "₹");
+
 
             const socialLinks = getSocialLinks(userData as HotelData);
             setInstaLink(socialLinks.instagram || "");
         }
     }, [userData]);
 
-    const handleSaveGeneral = async () => {
+    const handleSaveGeneral = useCallback(async () => {
         if (!userData) return;
         setIsSaving(true);
         try {
@@ -84,7 +73,7 @@ export function GeneralSettings() {
                 is_shop_open: isShopOpen,
                 whatsapp_numbers: [{ number: whatsappNumber, area: "default" }],
                 social_links: { instagram: instaLink },
-                currency: currency
+
             };
 
             await fetchFromHasura(updatePartnerMutation, {
@@ -101,7 +90,19 @@ export function GeneralSettings() {
         } finally {
             setIsSaving(false);
         }
-    };
+    }, [userData, description, phone, footNote, isShopOpen, whatsappNumber, instaLink, setState]);
+
+    const { setSaveAction, setIsSaving: setGlobalIsSaving } = useAdminSettingsStore();
+
+    useEffect(() => {
+        setSaveAction(handleSaveGeneral);
+        return () => setSaveAction(null);
+    }, [handleSaveGeneral, setSaveAction]);
+
+    // Update global isSaving 
+    useEffect(() => {
+        setGlobalIsSaving(isSaving);
+    }, [isSaving]);
 
     const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
@@ -159,118 +160,129 @@ export function GeneralSettings() {
         }
     };
 
+    const handleShopToggle = async (checked: boolean) => {
+        if (!userData) return;
+
+        setIsShopOpen(checked);
+        setIsSaving(true);
+
+        try {
+            await fetchFromHasura(updatePartnerMutation, {
+                id: userData.id,
+                updates: { is_shop_open: checked }
+            });
+
+            revalidateTag(userData.id);
+            // Update global state
+            setState({ is_shop_open: checked });
+
+            toast.success(`Store is now ${checked ? 'Open' : 'Closed'}`);
+        } catch (error) {
+            console.error("Error updating shop status:", error);
+            // Revert state
+            setIsShopOpen(!checked);
+            toast.error("Failed to update store status");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <div className="space-y-6">
-            <Card>
+            <div className="grid gap-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Store Status</CardTitle>
+                        <CardDescription>Manage your store's online availability.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex items-center justify-between">
+                        <div className="space-y-1">
+                            <Label>Online Status</Label>
+                            <p className="text-sm text-muted-foreground">
+                                {isShopOpen ? "Your store is currently open." : "Your store is currently closed."}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Power className={`h-4 w-4 ${isShopOpen ? "text-green-500" : "text-red-500"}`} />
+                            <Switch checked={isShopOpen} onCheckedChange={handleShopToggle} />
+                        </div>
+                    </CardContent>
+                </Card>
 
-                <CardContent className="flex pt-6 items-center justify-between">
-                    <div className="space-y-0.5">
-                        <Label className="text-base">Close / Open Store</Label>
-                        <p className="text-sm text-muted-foreground">
-                            {isShopOpen ? "Your store is currently open." : "Your store is currently closed."}
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Power className={`h-4 w-4 ${isShopOpen ? "text-green-500" : "text-red-500"}`} />
-                        <Switch checked={isShopOpen} onCheckedChange={setIsShopOpen} />
-                    </div>
-                </CardContent>
-            </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Store Banner</CardTitle>
+                        <CardDescription>This image will be displayed at the top of your store page.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border bg-muted">
+                            {bannerImage ? (
+                                <Img src={bannerImage} alt="Store Banner" className="h-full w-full object-cover" />
+                            ) : (
+                                <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                                    No banner image
+                                </div>
+                            )}
+                            {isBannerUploading && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+                                    <Loader2 className="h-6 w-6 animate-spin" />
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <Button variant="outline" className="relative" disabled={isBannerUploading}>
+                                <Upload className="mr-2 h-4 w-4" />
+                                Upload New Banner
+                                <Input
+                                    type="file"
+                                    className="absolute inset-0 cursor-pointer opacity-0"
+                                    accept="image/*"
+                                    onChange={handleBannerChange}
+                                    disabled={isBannerUploading}
+                                />
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Store Banner</CardTitle>
-                    <CardDescription>This image will be displayed at the top of your store page.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border bg-muted">
-                        {bannerImage ? (
-                            <Img src={bannerImage} alt="Store Banner" className="h-full w-full object-cover" />
-                        ) : (
-                            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                                No banner image
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Store Details</CardTitle>
+                        <CardDescription>Update your store's basic information.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label>Phone Number</Label>
+                                <Input
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
+                                    placeholder="+91..."
+                                />
                             </div>
-                        )}
-                        {isBannerUploading && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-                                <Loader2 className="h-6 w-6 animate-spin" />
+                            <div className="space-y-2">
+                                <Label>WhatsApp Number</Label>
+                                <Input
+                                    value={whatsappNumber}
+                                    onChange={(e) => setWhatsappNumber(e.target.value)}
+                                    placeholder="+91..."
+                                />
                             </div>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <Button variant="outline" className="relative" disabled={isBannerUploading}>
-                            <Upload className="mr-2 h-4 w-4" />
-                            Upload New Banner
-                            <Input
-                                type="file"
-                                className="absolute inset-0 cursor-pointer opacity-0"
-                                accept="image/*"
-                                onChange={handleBannerChange}
-                                disabled={isBannerUploading}
-                            />
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Store Details</CardTitle>
-                    <CardDescription>Update your store's basic information.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label>Description</Label>
-                        <Textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Tell customers about your store..."
-                            rows={4}
-                        />
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                            <Label>Phone Number</Label>
-                            <Input
-                                value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
-                                placeholder="+91..."
-                            />
                         </div>
                         <div className="space-y-2">
-                            <Label>WhatsApp Number</Label>
+                            <Label>Instagram Link</Label>
                             <Input
-                                value={whatsappNumber}
-                                onChange={(e) => setWhatsappNumber(e.target.value)}
-                                placeholder="+91..."
+                                value={instaLink}
+                                onChange={(e) => setInstaLink(e.target.value)}
+                                placeholder="https://instagram.com/..."
                             />
                         </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Instagram Link</Label>
-                        <Input
-                            value={instaLink}
-                            onChange={(e) => setInstaLink(e.target.value)}
-                            placeholder="https://instagram.com/..."
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Footnote</Label>
-                        <Input
-                            value={footNote}
-                            onChange={(e) => setFootNote(e.target.value)}
-                            placeholder="Displayed at the bottom of receipts/menu..."
-                        />
-                    </div>
-                </CardContent>
-            </Card>
 
-            <div className="flex justify-end">
-                <Button onClick={handleSaveGeneral} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Save Changes
-                </Button>
-            </div>
+                    </CardContent>
+                </Card>
+
+            </div >
 
             {isCropperOpen && selectedImageUrl && (
                 <ImageCropper
@@ -279,7 +291,8 @@ export function GeneralSettings() {
                     onCropComplete={(url) => handleCropComplete(url)}
                     onClose={() => setIsCropperOpen(false)}
                 />
-            )}
+            )
+            }
 
             <Card>
                 <CardHeader>
@@ -347,6 +360,6 @@ export function GeneralSettings() {
                     </Button>
                 </div>
             </Card>
-        </div>
+        </div >
     );
 }

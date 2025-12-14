@@ -111,7 +111,13 @@ export function FeatureSettings() {
             // Update local state with the object format for UI
             setState({ feature_flags: featureString });
             setFeatures(updatedFeatures);
-            toast.success(`${key} ${enabled ? 'enabled' : 'disabled'}`);
+            toast.success(`${key} ${enabled ? 'enabled' : 'disabled'}`, {
+                description: "Reload to apply changes",
+                action: {
+                    label: 'Reload',
+                    onClick: () => window.location.reload(),
+                },
+            });
         } catch (error) {
             console.error("Error updating feature:", error);
             toast.error("Failed to update feature");

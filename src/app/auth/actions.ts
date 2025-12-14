@@ -206,7 +206,7 @@ export const setScanRateLimitCookie = async (qrId: string) => {
   (await cookies()).set(`rate_limit_scan_${qrId}`, "true", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    maxAge: 10, // 10 seconds
+    maxAge: 3600, // 1 hour
   });
 };
 

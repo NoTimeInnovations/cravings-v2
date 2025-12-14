@@ -12,6 +12,21 @@ import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useRouter } from "next/navigation";
+import { useAdminSettingsStore } from "@/store/adminSettingsStore";
+import { Loader2, Save } from "lucide-react";
+
+function SaveButton() {
+    const { saveAction, isSaving } = useAdminSettingsStore();
+
+    if (!saveAction) return null;
+
+    return (
+        <Button onClick={saveAction} disabled={isSaving} size="sm" className="bg-orange-600 hover:bg-orange-700 text-white dark:text-white">
+            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            <span className="hidden sm:inline">Save Changes</span>
+        </Button>
+    );
+}
 
 export function AdminV2Settings() {
     const { signOut, features } = useAuthStore();
@@ -31,10 +46,13 @@ export function AdminV2Settings() {
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
                     <p className="text-muted-foreground">Manage your store preferences and configurations.</p>
                 </div>
-                <Button variant="destructive" size="sm" onClick={handleLogout} className="flex items-center gap-2">
-                    <LogOut className="h-4 w-4" />
-                    <span className="hidden sm:inline">Log Out</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                    <SaveButton />
+                    <Button variant="destructive" size="sm" onClick={handleLogout} className="flex items-center gap-2">
+                        <LogOut className="h-4 w-4" />
+                        <span className="hidden sm:inline">Log Out</span>
+                    </Button>
+                </div>
             </div>
 
             <Tabs defaultValue="general" className="space-y-4">

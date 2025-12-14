@@ -66,11 +66,11 @@ const countries = [
 
 // List of Indian states
 const indianStates = [
-  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", 
-  "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", 
-  "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", 
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana",
+  "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
+  "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
   "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
-  "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", 
+  "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu",
   "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
 ];
 
@@ -305,7 +305,7 @@ export default function RegistrationForm({
   };
 
   const onSubmit = (data: any) => {
-  /* eslint-enable @typescript-eslint/no-explicit-any */
+    /* eslint-enable @typescript-eslint/no-explicit-any */
     try {
       // Prepare the data for the next step
       const updatedData = {
@@ -387,8 +387,8 @@ export default function RegistrationForm({
               className="absolute inset-0 w-0 h-0 opacity-0"
               onChange={handleLogoChange}
             />
-            <label 
-              htmlFor="logo" 
+            <label
+              htmlFor="logo"
               className="absolute inset-0 cursor-pointer"
               aria-label="Upload logo"
             />
@@ -409,7 +409,7 @@ export default function RegistrationForm({
 
         <div className="flex items-center justify-between">
           <Label htmlFor="isIndia">Is your business located in India?</Label>
-          <Switch 
+          <Switch
             id="isIndia"
             checked={isIndia}
             onCheckedChange={(checked) => {
@@ -427,7 +427,7 @@ export default function RegistrationForm({
           <Label htmlFor="phone">Phone Number</Label>
           {!isIndia ? (
             <div className="flex gap-2">
-              <Select 
+              <Select
                 onValueChange={(value) => {
                   setSelectedCountryCode(value);
                   setValue("countryCode", value);
@@ -470,10 +470,11 @@ export default function RegistrationForm({
           <>
             <div className="space-y-2">
               <Label htmlFor="state">State</Label>
-              <Select 
+              <Select
                 onValueChange={(value) => {
                   setValue("state", value);
                   setSelectedState(value);
+                  setValue("district", "");
                 }}
                 defaultValue={businessData.area}
               >
@@ -495,7 +496,7 @@ export default function RegistrationForm({
 
             <div className="space-y-2">
               <Label htmlFor="district">District</Label>
-              <Select 
+              <Select
                 onValueChange={(value) => setValue("district", value)}
                 defaultValue={businessData.district}
               >
@@ -518,7 +519,7 @@ export default function RegistrationForm({
         ) : (
           <div className="space-y-2">
             <Label htmlFor="country">Country</Label>
-            <Select 
+            <Select
               onValueChange={(value) => {
                 setValue("country", value);
                 // Find and set the country code when country changes

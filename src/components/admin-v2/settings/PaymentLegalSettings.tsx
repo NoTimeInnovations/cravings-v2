@@ -1,38 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { updatePartnerMutation } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { Loader2, Save } from "lucide-react";
+import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 
-const Currencies = [
-    { label: "INR", value: "₹" },
-    { label: "USD", value: "$" },
-    { label: "SR", value: "SR" },
-    { label: "AED", value: "AED" },
-    { label: "EUR", value: "€" },
-    { label: "GBP", value: "£" },
-    { label: "KWD", value: "د.ك" },
-    { label: "BHD", value: "د.ب" },
-    { label: "QAR", value: "ر.ق" },
-    { label: "OMR", value: "ر.ع." },
-    { label: "None", value: " " },
-];
+
 
 export function PaymentLegalSettings() {
     const { userData, setState } = useAuthStore();
     const [isSaving, setIsSaving] = useState(false);
 
-    const [currency, setCurrency] = useState("₹");
+
     const [upiId, setUpiId] = useState("");
     const [showPaymentQr, setShowPaymentQr] = useState(false);
     const [fssaiLicenceNo, setFssaiLicenceNo] = useState("");
@@ -44,7 +33,7 @@ export function PaymentLegalSettings() {
 
     useEffect(() => {
         if (userData?.role === "partner") {
-            setCurrency(userData.currency || "₹");
+
             setUpiId(userData.upi_id || "");
             setShowPaymentQr(userData.show_payment_qr || false);
             setFssaiLicenceNo(userData.fssai_licence_no || "");
@@ -54,12 +43,12 @@ export function PaymentLegalSettings() {
         }
     }, [userData]);
 
-    const handleSavePayment = async () => {
+    const handleSavePayment = useCallback(async () => {
         if (!userData) return;
         setIsSaving(true);
         try {
             const updates = {
-                currency,
+
                 upi_id: upiId,
                 show_payment_qr: showPaymentQr,
                 fssai_licence_no: fssaiLicenceNo,
@@ -81,31 +70,28 @@ export function PaymentLegalSettings() {
         } finally {
             setIsSaving(false);
         }
-    };
+    }, [userData, upiId, showPaymentQr, fssaiLicenceNo, gstNo, gstEnabled, gstPercentage, setState]);
+
+    const { setSaveAction, setIsSaving: setGlobalIsSaving } = useAdminSettingsStore();
+
+    useEffect(() => {
+        setSaveAction(handleSavePayment);
+        return () => setSaveAction(null);
+    }, [handleSavePayment, setSaveAction]);
+
+    useEffect(() => {
+        setGlobalIsSaving(isSaving);
+    }, [isSaving]);
 
     return (
         <div className="space-y-6">
             <Card>
                 <CardHeader>
                     <CardTitle>Payment Configuration</CardTitle>
-                    <CardDescription>Manage currency and payment methods.</CardDescription>
+                    <CardDescription>Manage payment methods.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label>Currency</Label>
-                        <Select value={currency} onValueChange={setCurrency}>
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {Currencies.map((curr) => (
-                                    <SelectItem key={curr.value} value={curr.value}>
-                                        {curr.label} ({curr.value})
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+
 
                     <div className="space-y-2">
                         <Label>UPI ID</Label>
@@ -176,12 +162,7 @@ export function PaymentLegalSettings() {
                 </CardContent>
             </Card>
 
-            <div className="flex justify-end">
-                <Button onClick={handleSavePayment} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Save Changes
-                </Button>
-            </div>
+
         </div >
     );
 }
