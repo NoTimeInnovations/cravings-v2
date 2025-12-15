@@ -234,8 +234,6 @@ export function AdminV2Dashboard() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      let result;
-      let scanResult;
       const today = formatDate(new Date());
       const startOfMonthDate = formatDate(startOfMonth(new Date()));
 
@@ -252,26 +250,25 @@ export function AdminV2Dashboard() {
         end = format(dateRange.endDate, "yyyy-MM-dd'T'23:59:59'Z'");
       }
 
-      if (isOrderingEnabled) {
+      const fetchOrders = async () => {
+        if (!isOrderingEnabled) return null;
         switch (activeTab) {
           case "today":
-            result = await fetchFromHasura(TODAY_ORDERS_QUERY(today));
-            break;
+            return await fetchFromHasura(TODAY_ORDERS_QUERY(today));
           case "month":
-            result = await fetchFromHasura(MONTHLY_ORDERS_QUERY(startOfMonthDate, today));
-            break;
+            return await fetchFromHasura(MONTHLY_ORDERS_QUERY(startOfMonthDate, today));
           case "custom":
-            result = await fetchFromHasura(CUSTOM_DATE_ORDERS_QUERY, {
+            return await fetchFromHasura(CUSTOM_DATE_ORDERS_QUERY, {
               startDate: start,
               endDate: end,
             });
-            break;
+          default:
+            return null;
         }
-        setReportData(result);
-      }
+      };
 
-      // Fetch Scan Analytics
-      if (userData?.id) {
+      const fetchScanAnalytics = async () => {
+        if (!userData?.id) return null;
         // 1. Get all QR codes for this partner
         const qrCodesRes = await fetchFromHasura(GET_QR_CODES_BY_PARTNER, { partner_id: userData.id });
         const qrCodes = qrCodesRes?.qr_codes || [];
@@ -284,34 +281,50 @@ export function AdminV2Dashboard() {
             map.set(qr.id, qr);
             ids.push(qr.id);
           });
-          setQrCodesMap(map);
 
           // 2. Get scans for these QR IDs
-          scanResult = await fetchFromHasura(GET_SCAN_ANALYTICS, {
+          const scanResult = await fetchFromHasura(GET_SCAN_ANALYTICS, {
             qr_ids: ids,
             startDate: start,
             endDate: end
           });
-          setScanData(scanResult);
-        } else {
-          setScanData({ total_scans: { aggregate: { count: 0 } }, scans_list: [] });
+          return { scanResult, map };
         }
+        return { scanResult: { total_scans: { aggregate: { count: 0 } }, scans_list: [] }, map: new Map() };
+      };
+
+      const fetchOneQr = async () => {
+        if (qrId || !userData?.id) return null;
+        return await fetchFromHasura(GET_ONE_QR, { partner_id: userData.id });
+      };
+
+      // Execute all independent fetches in parallel
+      const [orderResult, scanDataResult, oneQrResult] = await Promise.all([
+        fetchOrders(),
+        fetchScanAnalytics(),
+        fetchOneQr()
+      ]);
+
+      if (orderResult) {
+        setReportData(orderResult);
       }
 
-      // Fetch QR for button
-      if (!qrId) {
-        const qrRes = await fetchFromHasura(GET_ONE_QR, { partner_id: userData?.id });
-        if (qrRes?.qr_codes?.[0]) {
-          setQrId(qrRes.qr_codes[0].id);
-          setStoreName(qrRes.qr_codes[0].partner.store_name);
-        }
+      if (scanDataResult) {
+        if (scanDataResult.map) setQrCodesMap(scanDataResult.map);
+        if (scanDataResult.scanResult) setScanData(scanDataResult.scanResult);
       }
+
+      if (oneQrResult?.qr_codes?.[0]) {
+        setQrId(oneQrResult.qr_codes[0].id);
+        setStoreName(oneQrResult.qr_codes[0].partner.store_name);
+      }
+
     } catch (error) {
       console.error("Error fetching report data:", error);
     } finally {
       setLoading(false);
     }
-  }, [activeTab, dateRange.startDate, dateRange.endDate, userData?.id, isOrderingEnabled]);
+  }, [activeTab, dateRange.startDate, dateRange.endDate, userData?.id, isOrderingEnabled, qrId]);
 
   useEffect(() => {
     if (userData) {

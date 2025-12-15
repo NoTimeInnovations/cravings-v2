@@ -6,14 +6,30 @@ import { useState } from "react";
 import { AdminNavbar } from "@/components/admin-v2/AdminNavbar";
 import { AdminSidebar } from "@/components/admin-v2/AdminSidebar";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { AdminV2Dashboard } from "@/components/admin-v2/AdminV2Dashboard";
-import { AdminV2Orders } from "@/components/admin-v2/AdminV2Orders";
+import dynamic from "next/dynamic";
+import { Loader2 } from "lucide-react";
 
-import { AdminV2Menu } from "@/components/admin-v2/AdminV2Menu";
-import { AdminV2Settings } from "@/components/admin-v2/AdminV2Settings";
-import { AdminV2CaptainSettings } from "@/components/admin-v2/AdminV2CaptainSettings";
-import { AdminV2QrCodes } from "@/components/admin-v2/AdminV2QrCodes";
-import { AdminV2HelpSupport } from "@/components/admin-v2/AdminV2HelpSupport";
+const AdminV2Dashboard = dynamic(() => import("@/components/admin-v2/AdminV2Dashboard").then(mod => mod.AdminV2Dashboard), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
+const AdminV2Orders = dynamic(() => import("@/components/admin-v2/AdminV2Orders").then(mod => mod.AdminV2Orders), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
+const AdminV2Menu = dynamic(() => import("@/components/admin-v2/AdminV2Menu").then(mod => mod.AdminV2Menu), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
+const AdminV2Settings = dynamic(() => import("@/components/admin-v2/AdminV2Settings").then(mod => mod.AdminV2Settings), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
+const AdminV2CaptainSettings = dynamic(() => import("@/components/admin-v2/AdminV2CaptainSettings").then(mod => mod.AdminV2CaptainSettings), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
+const AdminV2QrCodes = dynamic(() => import("@/components/admin-v2/AdminV2QrCodes").then(mod => mod.AdminV2QrCodes), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
+const AdminV2HelpSupport = dynamic(() => import("@/components/admin-v2/AdminV2HelpSupport").then(mod => mod.AdminV2HelpSupport), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
 import { useAdminStore } from "@/store/adminStore";
 
 export default function AdminPage() {
