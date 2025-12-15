@@ -140,6 +140,7 @@ const AddressManagementModal = ({
           lng: editAddress.longitude,
         });
       }
+      setShowMap(true); // Open map by default for editing too? usually yes or no. For editing we have coords, so map shows.
     } else {
       // Reset form for new address
       setLabel("Home");
@@ -155,6 +156,7 @@ const AddressManagementModal = ({
       setCustomLocation("");
       setPincode("");
       setCoordinates(null);
+      setShowMap(true); // Automatically show map for new address
     }
   }, [editAddress, open]);
 
@@ -200,8 +202,10 @@ const AddressManagementModal = ({
       style: "mapbox://styles/mapbox/streets-v11",
       center: coordinates
         ? [coordinates.lng, coordinates.lat]
-        : [76.322455, 10.050525],
-      zoom: 10,
+        : hotelData?.geo_location?.coordinates
+          ? [hotelData?.geo_location.coordinates[0], hotelData?.geo_location.coordinates[1]]
+          : [76.322455, 10.050525],
+      zoom: 15,
       accessToken: token,
     });
 
