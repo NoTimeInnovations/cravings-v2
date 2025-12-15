@@ -289,11 +289,21 @@ const OrderDrawer = ({
       currentSelectedArea.trim() !== "";
 
     const showTableLabel = hotelData?.id !== '33f5474e-4644-4e47-a327-94684c71b170'; // Krishnakripa Residency
-    const nowTime = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: tz }).format(new Date());
+    const nowTime = new Intl.DateTimeFormat("en-GB", { hour: "numeric", minute: "numeric", hour12: true, timeZone: tz }).format(new Date());
+
+    const currentOrder = useOrderStore.getState().order;
+    const displayId = currentOrder?.id === finalOrderId ? currentOrder?.display_id : null;
+    const dateParts = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).formatToParts(new Date());
+    const day = dateParts.find(p => p.type === 'day')?.value;
+    const month = dateParts.find(p => p.type === 'month')?.value;
+
+    const shortId = displayId || (finalOrderId ? finalOrderId.slice(0, 4).toUpperCase() : 'N/A');
+    const formattedOrderId = `${shortId}-${month} ${day}`;
+
     const whatsappMsg = `
     ${hotelData?.id === '7eb04e2d-9c20-42ba-a6b6-fce8019cad5f' ? '*Order Details*' : '*🍽️ Order Details 🍽️*'}
     
-    *Order ID:* ${finalOrderId ? finalOrderId.slice(0, 8) : 'N/A'}
+    *Order ID:* ${formattedOrderId}
     ${(tableNumber ?? 0) > 0
         ? `${showTableLabel ? "*Table:* " : ""}${qrData?.table_name || tableNumber}`
         : `*Order Type:* ${orderType || "Delivery"}`
