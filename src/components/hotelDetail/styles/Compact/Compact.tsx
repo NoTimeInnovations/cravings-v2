@@ -94,7 +94,7 @@ const Compact = ({
   useEffect(() => {
     const handleScroll = () => {
       // Added a buffer to the sticky position for more accurate detection
-      const scrollPosition = window.scrollY + 70;
+      const scrollPosition = window.scrollY + 200;
       let currentActiveIndex = 0;
 
       // Find which category header is currently at or above the scroll position
