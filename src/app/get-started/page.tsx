@@ -793,7 +793,7 @@ export default function GetStartedPage() {
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-sm">Number <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="phone" className="text-sm">Phone Number<span className="text-red-500">*</span></Label>
                     <Input
                         id="phone"
                         name="phone"
@@ -1015,7 +1015,7 @@ export default function GetStartedPage() {
                     </div>
                 </div>
             );
-        }
+    }
 
 
 
