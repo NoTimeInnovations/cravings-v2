@@ -70,7 +70,8 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
                 });
 
                 // 2. Open WhatsApp
-                const text = `Hi! I'm ${partnerName} from ${storeName} (ID: ${userData.id}). I'm interested in upgrading to the ${plan.name} plan.`;
+                const currentPlan = (userData as any).subscription_details?.plan?.name || "Trial";
+                const text = `Hi, im ${storeName} i would like to upgrade to ${plan.name} from ${currentPlan} my email is ${userData.email}`;
                 const encodedText = encodeURIComponent(text);
                 window.open(`https://wa.me/918590115462?text=${encodedText}`, '_blank');
 

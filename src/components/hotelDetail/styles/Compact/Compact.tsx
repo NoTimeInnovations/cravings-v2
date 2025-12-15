@@ -2,9 +2,8 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { formatDisplayName } from "@/store/categoryStore_hasura";
-import ThemeChangeButton from "../../ThemeChangeButton";
 import ItemCard from "./ItemCard";
-import { MapPin } from "lucide-react";
+import { MapPin, Palette, Check, X, ChevronRight, Loader2, ArrowLeft } from "lucide-react";
 import SocialLinks from "./SocialLinks";
 import RateUs from "./RateUs";
 import CategoryListBtn from "./CategoryListBtn";
@@ -13,6 +12,29 @@ import OffersList from "./OffersList";
 import { Offer } from "@/store/offerStore_hasura";
 import { ThemeConfig } from "tailwindcss/types/config";
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
+import { HexColorPicker } from "react-colorful";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { fetchFromHasura } from "@/lib/hasuraClient";
+import { updatePartnerMutation } from "@/api/partners";
+import { revalidateTag } from "@/app/actions/revalidate";
+
+// Helper to check darkness for contrast
+const isColorDark = (hex: string) => {
+  const c = hex.substring(1);      // strip #
+  const rgb = parseInt(c, 16);   // convert rrggbb to decimal
+  const r = (rgb >> 16) & 0xff;  // extract red
+  const g = (rgb >> 8) & 0xff;  // extract green
+  const b = (rgb >> 0) & 0xff;  // extract blue
+  const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b; // per ITU-R BT.709
+  return luma < 128;
+};
+
+const PRESETS = [
+  { background: "#ffffff", text: "#000000", accent: "#ea580c" }, // Classic Orange
+  { background: "#0f172a", text: "#ffffff", accent: "#fbbf24" }, // Midnight Gold
+  { background: "#f0fdf4", text: "#14532d", accent: "#16a34a" }, // Fresh Green
+];
 
 const Compact = ({
   styles,
@@ -32,7 +54,14 @@ const Compact = ({
   qrId,
 }: DefaultHotelPageProps) => {
   const [activeCatIndex, setActiveCatIndex] = useState<number>(0);
-  const [isThemeDialogOpen, setIsThemeDialogOpen] = useState(false);
+
+  // Custom Theme State
+  const [showThemeCustomizer, setShowThemeCustomizer] = useState(false);
+  const [isCustomMode, setIsCustomMode] = useState(false);
+  const [localStyles, setLocalStyles] = useState(styles || { color: "#000", backgroundColor: "#fff", accent: "#ea580c" });
+  const [mobileTab, setMobileTab] = useState<'backgroundColor' | 'color' | 'accent'>('accent');
+  const [isSavingTheme, setIsSavingTheme] = useState(false);
+
   const categoryHeadersRef = useRef<(HTMLHeadingElement | null)[]>([]);
   const categoriesContainerRef = useRef<HTMLDivElement>(null);
   const borderRef = useRef<HTMLDivElement>(null);
@@ -42,6 +71,13 @@ const Compact = ({
   const hasOffers = offers && offers.length > 0;
   const [vegFilter, setVegFilter] = useState<"all" | "veg" | "non-veg">("all");
   const [bannerError, setBannerError] = useState(false);
+
+  // Sync props to local state if not editing
+  useEffect(() => {
+    if (!showThemeCustomizer && styles) {
+      setLocalStyles(styles);
+    }
+  }, [styles, showThemeCustomizer]);
 
   useEffect(() => {
     setBannerError(false);
@@ -148,6 +184,40 @@ const Compact = ({
     scrollCategoryIntoView(index);
   };
 
+  // Theme Saving Logic
+  const handleSaveTheme = async () => {
+    if (!hoteldata?.id) return;
+    setIsSavingTheme(true);
+    try {
+      const updatedTheme = {
+        ...theme,
+        colors: {
+          text: localStyles.color,
+          bg: localStyles.backgroundColor,
+          accent: localStyles.accent,
+        }
+      };
+
+      await fetchFromHasura(updatePartnerMutation, {
+        id: hoteldata.id,
+        updates: {
+          theme: JSON.stringify(updatedTheme),
+        },
+      });
+
+      toast.success("Theme updated successfully!");
+      await revalidateTag(hoteldata.id);
+      setShowThemeCustomizer(false);
+      window.location.reload();
+    } catch (error) {
+      console.error("Failed to save theme:", error);
+      toast.error("Failed to save theme");
+    } finally {
+      setIsSavingTheme(false);
+    }
+  };
+
+
   // Memoize the category list to prevent re-creation on every render
   // UPDATED: Remove "Offer" category from compact design
   const allCategories = React.useMemo(
@@ -165,8 +235,8 @@ const Compact = ({
     <>
       <main
         style={{
-          color: styles?.color || "#000",
-          backgroundColor: styles?.backgroundColor || "#fff",
+          color: localStyles?.color || "#000",
+          backgroundColor: localStyles?.backgroundColor || "#fff",
         }}
         className="max-w-xl mx-auto relative pb-40 "
       >
@@ -195,7 +265,10 @@ const Compact = ({
                 onError={() => setBannerError(true)}
               />
             ) : (
-              <div className="w-full h-full bg-orange-600 flex items-center justify-center relative overflow-hidden">
+              <div
+                className="w-full h-full flex items-center justify-center relative overflow-hidden"
+                style={{ backgroundColor: localStyles?.accent || "#ea580c" }}
+              >
                 <div
                   className="absolute inset-0 opacity-10"
                   style={{
@@ -253,32 +326,24 @@ const Compact = ({
         {(socialLinks || isOwner) && (
           <div
             style={{
-              borderColor: styles?.border?.borderColor || "#0000001D",
+              borderColor: localStyles?.border?.borderColor || "#0000001D",
             }}
             className="flex overflow-x-auto scrollbar-hide gap-2 p-4 border-b-[1px] z-20"
           >
             <SocialLinks socialLinks={socialLinks} />
             {isOwner && (
               <div
-                onClick={() => setIsThemeDialogOpen(true)}
-                className="flex items-center gap-2 border-[1px] border-gray-300 p-2 rounded-md bg-gray-50 cursor-pointer"
+                onClick={() => setShowThemeCustomizer(!showThemeCustomizer)}
+                className="flex items-center gap-2 border-[1px] border-gray-300 p-2 rounded-md bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                role="button"
+                aria-label="Customize Theme"
               >
-                <ThemeChangeButton
-                  isOpen={isThemeDialogOpen}
-                  iconSize={15}
-                  hotelData={hoteldata}
-                  theme={
-                    {
-                      ...theme,
-                      colors: {
-                        ...theme?.colors,
-                        text: "#000",
-                      },
-                    } as typeof theme
-                  }
+                <Palette
+                  size={15}
+                  style={{ color: "#000" }}
                 />
-                <span className="text-xs text-nowrap text-gray-500">
-                  Change Theme
+                <span className="text-xs text-nowrap text-gray-500 font-medium">
+                  {showThemeCustomizer ? "Close Editor" : "Change Theme"}
                 </span>
               </div>
             )}
@@ -291,7 +356,7 @@ const Compact = ({
           <SearchItems
             menu={hoteldata?.menus}
             hoteldata={hoteldata}
-            styles={styles}
+            styles={localStyles}
             tableNumber={tableNumber}
           />
         </div>
@@ -302,15 +367,15 @@ const Compact = ({
             <button
               onClick={() => setVegFilter("all")}
               style={{
-                borderColor: styles?.border?.borderColor || "#0000001D",
+                borderColor: localStyles?.border?.borderColor || "#0000001D",
                 color:
                   vegFilter === "all"
-                    ? styles?.backgroundColor || "#fff"
-                    : styles?.color || "#000",
+                    ? localStyles?.backgroundColor || "#fff"
+                    : localStyles?.color || "#000",
                 backgroundColor:
                   vegFilter === "all"
-                    ? styles?.accent || "#000"
-                    : styles?.backgroundColor || "#fff",
+                    ? localStyles?.accent || "#000"
+                    : localStyles?.backgroundColor || "#fff",
               }}
               className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 transition-colors"
             >
@@ -322,13 +387,13 @@ const Compact = ({
                 borderColor:
                   vegFilter === "veg"
                     ? "#22c55e"
-                    : styles?.border?.borderColor || "#0000001D",
+                    : localStyles?.border?.borderColor || "#0000001D",
                 color:
-                  vegFilter === "veg" ? "white" : styles?.color || "#000",
+                  vegFilter === "veg" ? "white" : localStyles?.color || "#000",
                 backgroundColor:
                   vegFilter === "veg"
                     ? "#22c55e"
-                    : styles?.backgroundColor || "#fff",
+                    : localStyles?.backgroundColor || "#fff",
               }}
               className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 flex items-center gap-1 transition-colors"
             >
@@ -349,13 +414,13 @@ const Compact = ({
                 borderColor:
                   vegFilter === "non-veg"
                     ? "#ef4444"
-                    : styles?.border?.borderColor || "#0000001D",
+                    : localStyles?.border?.borderColor || "#0000001D",
                 color:
-                  vegFilter === "non-veg" ? "white" : styles?.color || "#000",
+                  vegFilter === "non-veg" ? "white" : localStyles?.color || "#000",
                 backgroundColor:
                   vegFilter === "non-veg"
                     ? "#ef4444"
-                    : styles?.backgroundColor || "#fff",
+                    : localStyles?.backgroundColor || "#fff",
               }}
               className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 flex items-center gap-1 transition-colors"
             >
@@ -376,9 +441,9 @@ const Compact = ({
         {/* Categories Navigation */}
         <div
           style={{
-            backgroundColor: styles?.backgroundColor || "#fff",
-            color: styles?.color || "#000",
-            borderColor: styles?.border?.borderColor || "#0000001D",
+            backgroundColor: localStyles?.backgroundColor || "#fff",
+            color: localStyles?.color || "#000",
+            borderColor: localStyles?.border?.borderColor || "#0000001D",
           }}
           ref={categoriesContainerRef}
           className="overflow-x-auto w-full flex gap-2 p-2 sticky top-0 z-10 shadow-md scrollbar-hide border-[1px] "
@@ -389,7 +454,7 @@ const Compact = ({
             ref={borderRef}
             className="absolute bottom-0 left-0 h-0.5 transition-all duration-300 ease-in-out "
             style={{
-              backgroundColor: styles?.accent || "#000",
+              backgroundColor: localStyles?.accent || "#000",
               width: "0px", // Initial width set to 0, updated by useEffect
             }}
           />
@@ -402,8 +467,8 @@ const Compact = ({
               style={{
                 color:
                   activeCatIndex === index
-                    ? styles?.accent || "#000"
-                    : styles?.color || "gray",
+                    ? localStyles?.accent || "#000"
+                    : localStyles?.color || "gray",
               }}
               onClick={() => handleCategoryClick(index, category)}
               key={category.id}
@@ -476,8 +541,8 @@ const Compact = ({
                       categoryHeadersRef.current[index] = el;
                     }}
                     style={{
-                      color: styles?.accent || "#000",
-                      backgroundColor: styles?.backgroundColor || "#fff",
+                      color: localStyles?.accent || "#000",
+                      backgroundColor: localStyles?.backgroundColor || "#fff",
                     }}
                     className="text-xl font-bold sticky top-[64px] z-[9] py-4"
                   >
@@ -581,7 +646,7 @@ const Compact = ({
                           hoteldata={hoteldata}
                           item={item}
                           offerData={offerData}
-                          styles={styles}
+                          styles={localStyles}
                           key={item.id}
                           hasMultipleVariantsOnOffer={
                             hasMultipleVariantsOnOffer
@@ -603,6 +668,94 @@ const Compact = ({
               );
             })}
         </div>
+
+        {/* Floating Theme Customizer */}
+        {showThemeCustomizer && (
+          <div className="fixed bottom-6 left-4 right-4 z-50 flex flex-col gap-3 max-w-xl mx-auto">
+            <div className="flex justify-end mb-1">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="rounded-full shadow-sm bg-white/90 backdrop-blur"
+                onClick={() => setShowThemeCustomizer(false)}
+              >
+                <X size={16} className="mr-1" /> Close
+              </Button>
+            </div>
+            {!isCustomMode ? (
+              <div className="bg-white/90 backdrop-blur-xl p-3 rounded-2xl shadow-2xl border border-white/50 animate-in slide-in-from-bottom-5 fade-in duration-300">
+                <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide pb-1">
+                  {PRESETS.map((palette, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setLocalStyles(prev => ({ ...prev, color: palette.text, backgroundColor: palette.background, accent: palette.accent }));
+                      }}
+                      className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${localStyles.backgroundColor === palette.background && localStyles.accent === palette.accent ? "border-orange-600 scale-110 ring-2 ring-orange-100" : "border-white/50"
+                        }`}
+                      style={{ backgroundColor: palette.background }}
+                    >
+                      <div className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: palette.accent }} />
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => setIsCustomMode(true)}
+                    className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${isCustomMode ? "border-orange-600 scale-110 ring-2 ring-orange-100" : "border-gray-200"
+                      } bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100`}
+                  >
+                    <Palette size={18} className="text-gray-700" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white/95 backdrop-blur-xl p-4 rounded-3xl shadow-2xl border border-gray-100 animate-in slide-in-from-bottom-10 fade-in duration-300 space-y-4">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setIsCustomMode(false)}
+                    className="p-2 -ml-2 rounded-full hover:bg-gray-100 text-gray-500"
+                  >
+                    <ArrowLeft size={20} />
+                  </button>
+                  <div className="flex bg-gray-100 rounded-lg p-1">
+                    {(['backgroundColor', 'color', 'accent'] as const).map((tab) => {
+                      const label = tab === 'backgroundColor' ? 'Background' : tab === 'color' ? 'Text' : 'Accent';
+                      return (
+                        <button
+                          key={tab}
+                          onClick={() => setMobileTab(tab)}
+                          className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all ${mobileTab === tab ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="w-8" /> {/* Spacer */}
+                </div>
+
+                <div className="flex justify-center pb-2">
+                  {/* Map mobileTab to style property */}
+                  <HexColorPicker
+                    color={localStyles[mobileTab] as string}
+                    onChange={(c) => setLocalStyles(prev => ({ ...prev, [mobileTab]: c }))}
+                    style={{ width: '100%', height: '160px' }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <Button
+              onClick={handleSaveTheme}
+              disabled={isSavingTheme}
+              className="w-full h-12 text-base rounded-full bg-green-600 hover:bg-green-700 shadow-xl"
+            >
+              {isSavingTheme ? <Loader2 className="animate-spin mr-2" /> : <Check className="mr-2 w-5 h-5" />}
+              Save Theme
+            </Button>
+          </div>
+        )}
+
       </main>
     </>
   );

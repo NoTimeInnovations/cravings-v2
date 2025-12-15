@@ -208,7 +208,7 @@ export function DeliverySettings() {
                             ) : (
                                 <div className="space-y-4 border rounded-lg p-4 bg-muted/20">
                                     <div className="flex items-center justify-between">
-                                        <Label className="text-base font-semibold">Variable Pricing Logic</Label>
+                                        <Label className="text-base font-semibold">Variable Pricing</Label>
                                         <Select
                                             value={deliveryRules.delivery_mode || "basic"}
                                             onValueChange={(val: "basic" | "advanced") => setDeliveryRules(prev => ({

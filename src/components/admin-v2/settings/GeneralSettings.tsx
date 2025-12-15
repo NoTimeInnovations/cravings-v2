@@ -14,7 +14,7 @@ import { updatePartnerMutation } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { deleteFileFromS3, uploadFileToS3 } from "@/app/actions/aws-s3";
 import Img from "@/components/Img";
-import { Loader2, Upload, Save, Power } from "lucide-react";
+import { Loader2, Upload, Save, Power, LogOut } from "lucide-react";
 import ImageCropper from "@/components/ImageCropper";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { getSocialLinks } from "@/lib/getSocialLinks";
@@ -92,17 +92,53 @@ export function GeneralSettings() {
         }
     }, [userData, description, phone, footNote, isShopOpen, whatsappNumber, instaLink, setState]);
 
-    const { setSaveAction, setIsSaving: setGlobalIsSaving } = useAdminSettingsStore();
+    const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
     useEffect(() => {
         setSaveAction(handleSaveGeneral);
-        return () => setSaveAction(null);
-    }, [handleSaveGeneral, setSaveAction]);
+        return () => {
+            setSaveAction(null);
+            setHasChanges(false);
+        };
+    }, [handleSaveGeneral, setSaveAction, setHasChanges]);
 
     // Update global isSaving 
     useEffect(() => {
         setGlobalIsSaving(isSaving);
-    }, [isSaving]);
+    }, [isSaving, setGlobalIsSaving]);
+
+    // Check for changes
+    useEffect(() => {
+        if (!userData) return;
+
+        const data = userData as any;
+        const initialDescription = data.description || "";
+        const initialPhone = data.phone || "";
+        const initialWhatsapp = data.whatsapp_numbers?.[0]?.number || data.phone || "";
+        const initialFootnote = data.footnote || "";
+        const initialIsShopOpen = data.is_shop_open;
+        const initialInsta = getSocialLinks(userData as HotelData).instagram || "";
+
+        const hasChanges =
+            description !== initialDescription ||
+            phone !== initialPhone ||
+            whatsappNumber !== initialWhatsapp ||
+            footNote !== initialFootnote ||
+            isShopOpen !== initialIsShopOpen ||
+            instaLink !== initialInsta;
+
+        setHasChanges(hasChanges);
+
+    }, [
+        description,
+        phone,
+        whatsappNumber,
+        footNote,
+        isShopOpen,
+        instaLink,
+        userData,
+        setHasChanges
+    ]);
 
     const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
@@ -313,11 +349,13 @@ export function GeneralSettings() {
                         <Label>Confirm Password</Label>
                         <Input
                             type="password"
+                            pattern=".{6,}"
+                            title="Password must be at least 6 characters long"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="••••••••"
                         />
-                    </div>
+                    </div>  
                 </CardContent>
                 <div className="flex justify-end p-6 pt-0">
                     <Button
@@ -355,11 +393,24 @@ export function GeneralSettings() {
                         variant="outline"
                         className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
                     >
-                        {isPasswordSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Update Password
+                        {isPasswordSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <>Update <Save className="ml-2 h-4 w-4" /></>}
                     </Button>
                 </div>
             </Card>
+
+            <div className="flex justify-start pt-6 border-t">
+                <Button
+                    variant="destructive"
+                    onClick={async () => {
+                        await useAuthStore.getState().signOut();
+                        window.location.href = "/";
+                    }}
+                    className="flex items-center gap-2"
+                >
+                    <LogOut className="h-4 w-4" />
+                    Log Out
+                </Button>
+            </div>
         </div >
     );
 }

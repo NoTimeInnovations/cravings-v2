@@ -9,48 +9,73 @@ import { PaymentLegalSettings } from "./settings/PaymentLegalSettings";
 import { FeatureSettings } from "./settings/FeatureSettings";
 
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, ExternalLink } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useRouter } from "next/navigation";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { Loader2, Save } from "lucide-react";
+import { useEffect, useState } from "react";
 
-function SaveButton() {
-    const { saveAction, isSaving } = useAdminSettingsStore();
+function FloatingSaveButton() {
+    const { saveAction, isSaving, hasChanges } = useAdminSettingsStore();
+    const [isVisible, setIsVisible] = useState(false);
 
-    if (!saveAction) return null;
+    useEffect(() => {
+        if (saveAction && hasChanges) {
+            setIsVisible(true);
+        } else {
+            setIsVisible(false);
+        }
+    }, [saveAction, hasChanges]);
+
+    if (!isVisible || !saveAction) return null;
 
     return (
-        <Button onClick={saveAction} disabled={isSaving} size="sm" className="bg-orange-600 hover:bg-orange-700 text-white dark:text-white">
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            <span className="hidden sm:inline">Save Changes</span>
-        </Button>
+        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 duration-300">
+            <Button
+                onClick={saveAction}
+                disabled={isSaving}
+                className="bg-orange-600 hover:bg-orange-700 text-white shadow-xl rounded-full h-12 px-6"
+            >
+                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                <span className="font-semibold">Save Changes</span>
+            </Button>
+        </div>
     );
 }
 
 export function AdminV2Settings() {
-    const { signOut, features } = useAuthStore();
+    const { userData, signOut, features } = useAuthStore();
     const router = useRouter();
 
     const showOrderRelatedSettings = features?.ordering?.enabled;
 
-    const handleLogout = async () => {
-        await signOut();
-        router.push("/");
+    const firstQrCodeId = (userData as any)?.qr_codes?.[0]?.id;
+    const hotelNameSlug = (userData as any)?.name?.replace(/ /g, "-");
+
+    const handleViewMenu = () => {
+        if (hotelNameSlug && firstQrCodeId) {
+            const url = `https://www.cravings.live/qrScan/${hotelNameSlug}/${firstQrCodeId}`;
+            window.open(url, "_blank");
+        }
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex items-center justify-between">
+        <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+            <div className="flex items-center justify-between gap-5">
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
                     <p className="text-muted-foreground">Manage your store preferences and configurations.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <SaveButton />
-                    <Button variant="destructive" size="sm" onClick={handleLogout} className="flex items-center gap-2">
-                        <LogOut className="h-4 w-4" />
-                        <span className="hidden sm:inline">Log Out</span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleViewMenu}
+                        className="flex items-center gap-2 border-orange-200 text-orange-700 bg-orange-50 hover:bg-orange-100"
+                    >
+                        <ExternalLink className="h-4 w-4" />
+                        <span className="inline">View Menu</span>
                     </Button>
                 </div>
             </div>
@@ -92,6 +117,8 @@ export function AdminV2Settings() {
                     <FeatureSettings />
                 </TabsContent>
             </Tabs>
+
+            <FloatingSaveButton />
         </div>
     );
 }
