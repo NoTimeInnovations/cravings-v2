@@ -5,6 +5,7 @@ import { formatDisplayName } from "@/store/categoryStore_hasura";
 import ItemCard from "./ItemCard";
 import { MapPin, Palette, Check, X, ChevronRight, Loader2, ArrowLeft } from "lucide-react";
 import SocialLinks from "./SocialLinks";
+import OrderDrawer from "../../OrderDrawer";
 import RateUs from "./RateUs";
 import CategoryListBtn from "./CategoryListBtn";
 import SearchItems from "./SearchItems";
@@ -755,6 +756,14 @@ const Compact = ({
             </Button>
           </div>
         )}
+
+        <OrderDrawer
+          styles={localStyles}
+          hotelData={hoteldata}
+          tableNumber={tableNumber}
+          qrId={qrId || undefined}
+          qrGroup={qrGroup}
+        />
 
       </main>
     </>
