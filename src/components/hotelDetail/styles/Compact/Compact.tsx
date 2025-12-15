@@ -359,6 +359,7 @@ const Compact = ({
             hoteldata={hoteldata}
             styles={localStyles}
             tableNumber={tableNumber}
+            auth={auth}
           />
         </div>
 
@@ -661,6 +662,7 @@ const Compact = ({
                           activeOffers={
                             isUpcomingOffer ? upcomingOffers : activeOffers
                           }
+                          auth={auth}
                         />
                       );
                     })}
@@ -757,13 +759,19 @@ const Compact = ({
           </div>
         )}
 
-        <OrderDrawer
-          styles={localStyles}
-          hotelData={hoteldata}
-          tableNumber={tableNumber}
-          qrId={qrId || undefined}
-          qrGroup={qrGroup}
-        />
+        {auth?.role === "partner" ? (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl bg-black text-white text-center font-semibold shadow-xl">
+            Login as user to place order
+          </div>
+        ) : (
+          <OrderDrawer
+            styles={localStyles}
+            hotelData={hoteldata}
+            tableNumber={tableNumber}
+            qrId={qrId || undefined}
+            qrGroup={qrGroup}
+          />
+        )}
 
       </main>
     </>

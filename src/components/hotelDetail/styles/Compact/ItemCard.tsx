@@ -23,6 +23,7 @@ const ItemCard = ({
   isOfferCategory,
   isUpcomingOffer = false,
   activeOffers = [],
+  auth,
 }: {
   item: HotelDataMenus;
   styles: DefaultHotelPageProps["styles"];
@@ -36,6 +37,7 @@ const ItemCard = ({
   isUpcomingOffer?: boolean;
   isOfferCategory?: boolean;
   activeOffers?: any[];
+  auth?: any;
 }) => {
   const [showVariants, setShowVariants] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
@@ -73,6 +75,8 @@ const ItemCard = ({
     (hoteldata?.delivery_rules?.isDeliveryActive ?? true) &&
     isWithinDeliveryTime();
 
+  const isPartnersRole = auth?.role === "partner";
+
   const hasStockFeature = getFeatures(feature_flags || "")?.stockmanagement
     ?.enabled;
   const isOutOfStock =
@@ -88,6 +92,9 @@ const ItemCard = ({
     Record<string, number>
   >({});
   const shouldShowPrice = hoteldata?.currency !== "🚫";
+
+  // ... (rest of the file stays same until showAddButton logic)
+
 
   const discountPercentage =
     offerData && shouldShowPrice
@@ -253,7 +260,8 @@ const ItemCard = ({
     isOrderable &&
     hasPrice &&
     (hasOrderingFeature || hasDeliveryFeature) &&
-    !item.is_price_as_per_size;
+    !item.is_price_as_per_size &&
+    !isPartnersRole;
 
   const mainOfferPrice = offerData?.offer_price;
   const hasValidMainOffer = typeof mainOfferPrice === "number";
