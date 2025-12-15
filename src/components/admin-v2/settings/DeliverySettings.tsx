@@ -81,16 +81,55 @@ export function DeliverySettings() {
         }
     }, [userData, deliveryRate, deliveryRules, setState]);
 
-    const { setSaveAction, setIsSaving: setGlobalIsSaving } = useAdminSettingsStore();
+    const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
     useEffect(() => {
         setSaveAction(handleSaveDelivery);
-        return () => setSaveAction(null);
-    }, [handleSaveDelivery, setSaveAction]);
+        return () => {
+            setSaveAction(null);
+            setHasChanges(false);
+        };
+    }, [handleSaveDelivery, setSaveAction, setHasChanges]);
 
     useEffect(() => {
         setGlobalIsSaving(isSaving);
-    }, [isSaving]);
+    }, [isSaving, setGlobalIsSaving]);
+
+    // Check for changes
+    useEffect(() => {
+        if (!userData) return;
+        const data = userData as any;
+
+        const initialRate = data.delivery_rate || 0;
+
+        const hasAdvancedRules = data.delivery_rules?.delivery_ranges && data.delivery_rules.delivery_ranges.length > 0;
+        const hasLegacyRules = data.delivery_rules?.first_km_range;
+        const deliveryMode = data.delivery_rules?.delivery_mode || (hasAdvancedRules ? "advanced" : "basic");
+
+        const initialRules = {
+            delivery_radius: data.delivery_rules?.delivery_radius || 5,
+            delivery_ranges: data.delivery_rules?.delivery_ranges || [],
+            first_km_range: data.delivery_rules?.first_km_range || (deliveryMode === "basic" && !hasLegacyRules ? { km: 1, rate: 0 } : undefined),
+            delivery_mode: deliveryMode,
+            is_fixed_rate: data.delivery_rules?.is_fixed_rate || false,
+            minimum_order_amount: data.delivery_rules?.minimum_order_amount || 0,
+            delivery_time_allowed: data.delivery_rules?.delivery_time_allowed || null,
+            isDeliveryActive: data.delivery_rules?.isDeliveryActive ?? true,
+            needDeliveryLocation: data.delivery_rules?.needDeliveryLocation ?? true,
+        };
+
+        const hasChanges =
+            deliveryRate !== initialRate ||
+            JSON.stringify(deliveryRules) !== JSON.stringify(initialRules);
+
+        setHasChanges(hasChanges);
+
+    }, [
+        userData,
+        deliveryRate,
+        deliveryRules,
+        setHasChanges
+    ]);
 
     const addRange = () => {
         const newRange: DeliveryRange = { from_km: 0, to_km: 1, rate: 0 };

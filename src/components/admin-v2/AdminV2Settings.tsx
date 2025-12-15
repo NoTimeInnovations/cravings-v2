@@ -65,7 +65,7 @@ export function AdminV2Settings() {
             <div className="flex items-center justify-between gap-5">
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
-                    <p className="text-muted-foreground">Manage your store preferences and configurations.</p>
+                    <p className="text-muted-foreground">Manage your store configurations.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button

@@ -56,6 +56,9 @@ export const partnerIdQuery = `
       location_details
       hide_unavailable
       subscription_details
+      qr_codes(limit: 1) {
+        id
+      }
     }
   }
 `;
@@ -95,6 +98,9 @@ export const partnerLoginQuery = `
       country_code
       hide_unavailable
       subscription_details
+      qr_codes(limit: 1) {
+        id
+      }
     }
   }
 `;

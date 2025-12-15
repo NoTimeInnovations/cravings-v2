@@ -472,7 +472,10 @@ export function AdminV2Dashboard() {
           {qrId && (
             <Button
               variant="outline"
-              onClick={() => window.open(`/qrScan/${storeName?.replace(/\s+/g, "-")}/${qrId}`, '_blank')}
+              onClick={() => {
+                const hotelNameSlug = storeName?.replace(/ /g, "-");
+                window.open(`https://www.cravings.live/qrScan/${hotelNameSlug}/${qrId}`, '_blank');
+              }}
               className="w-full sm:w-auto"
             >
               View Menu

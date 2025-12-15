@@ -127,16 +127,44 @@ export function LocationSettings() {
             setIsSaving(false);
         }
     }, [userData, location, locationDetails, placeId, selectedLocation, setState]);
-    const { setSaveAction, setIsSaving: setGlobalIsSaving } = useAdminSettingsStore();
+    const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
     useEffect(() => {
         setSaveAction(handleSaveLocation);
-        return () => setSaveAction(null);
-    }, [handleSaveLocation, setSaveAction]);
+        return () => {
+            setSaveAction(null);
+            setHasChanges(false);
+        };
+    }, [handleSaveLocation, setSaveAction, setHasChanges]);
 
     useEffect(() => {
         setGlobalIsSaving(isSaving);
-    }, [isSaving]);
+    }, [isSaving, setGlobalIsSaving]);
+
+    // Check for changes
+    useEffect(() => {
+        if (!userData) return;
+        const data = userData as any;
+
+        const initialLocation = data.location || "";
+        const initialDetails = data.location_details || "";
+        const initialPlaceId = data.place_id || "";
+
+        const hasChanges =
+            location !== initialLocation ||
+            locationDetails !== initialDetails ||
+            placeId !== initialPlaceId ||
+            selectedLocation !== null;
+
+        setHasChanges(hasChanges);
+    }, [
+        location,
+        locationDetails,
+        placeId,
+        selectedLocation,
+        userData,
+        setHasChanges
+    ]);
 
     const handleGetCurrentLocation = async () => {
         try {

@@ -72,16 +72,52 @@ export function PaymentLegalSettings() {
         }
     }, [userData, upiId, showPaymentQr, fssaiLicenceNo, gstNo, gstEnabled, gstPercentage, setState]);
 
-    const { setSaveAction, setIsSaving: setGlobalIsSaving } = useAdminSettingsStore();
+    const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
     useEffect(() => {
         setSaveAction(handleSavePayment);
-        return () => setSaveAction(null);
-    }, [handleSavePayment, setSaveAction]);
+        return () => {
+            setSaveAction(null);
+            setHasChanges(false);
+        };
+    }, [handleSavePayment, setSaveAction, setHasChanges]);
 
     useEffect(() => {
         setGlobalIsSaving(isSaving);
-    }, [isSaving]);
+    }, [isSaving, setGlobalIsSaving]);
+
+    // Check for changes
+    useEffect(() => {
+        if (!userData) return;
+        const data = userData as any;
+
+        const initialUpi = data.upi_id || "";
+        const initialQr = data.show_payment_qr || false;
+        const initialFssai = data.fssai_licence_no || "";
+        const initialGstNo = data.gst_no || "";
+        const initialGstPerc = data.gst_percentage || 0;
+        const initialGstEnabled = (data.gst_percentage || 0) > 0;
+
+        const hasChanges =
+            upiId !== initialUpi ||
+            showPaymentQr !== initialQr ||
+            fssaiLicenceNo !== initialFssai ||
+            gstNo !== initialGstNo ||
+            gstPercentage !== initialGstPerc ||
+            gstEnabled !== initialGstEnabled;
+
+        setHasChanges(hasChanges);
+
+    }, [
+        upiId,
+        showPaymentQr,
+        fssaiLicenceNo,
+        gstNo,
+        gstPercentage,
+        gstEnabled,
+        userData,
+        setHasChanges
+    ]);
 
     return (
         <div className="space-y-6">

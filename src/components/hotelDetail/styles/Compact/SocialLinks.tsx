@@ -68,9 +68,13 @@ const SocialLinks = ({ socialLinks }: { socialLinks: SocialLinks }) => {
               color: "#ad46ff",
               backgroundColor: "#fbf7ff",
             }}
-            href={socialLinks.instagram}
+            href={
+              socialLinks.instagram.startsWith("http")
+                ? socialLinks.instagram
+                : `${socialLinks.instagram}`
+            }
             icon={<FaInstagram size={15} />}
-            text={socialLinks.instagram?.split("/").pop() || "Instagram"}
+            text="Instagram"
           />
         </div>
       ) : null}
