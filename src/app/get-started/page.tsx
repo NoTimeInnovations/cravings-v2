@@ -14,6 +14,14 @@ import {
     X,
     FileText,
     AlertCircle,
+    Eye,
+    EyeOff,
+    Copy,
+    ExternalLink,
+    LayoutDashboard,
+    Share2,
+    Palette,
+    Plus
 } from "lucide-react";
 import { GoogleGenerativeAI, Schema } from "@google/generative-ai";
 import { toast } from "sonner";
@@ -22,9 +30,11 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import { onBoardUserSignup } from "@/app/actions/onBoardUserSignup";
 import plansData from "@/data/plans.json";
-import { Eye, EyeOff, Copy, ExternalLink, LayoutDashboard, Share2 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import FullScreenLoader from "@/components/ui/FullScreenLoader";
+import { HexColorPicker } from "react-colorful";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 // --- Types ---
 interface MenuItem {
@@ -92,6 +102,41 @@ const sanitizePhone = (phone: string, countryCode: string): string => {
     return cleaned;
 };
 
+// Helper to check darkness for contrast
+const isColorDark = (hex: string) => {
+    const c = hex.substring(1);      // strip #
+    const rgb = parseInt(c, 16);   // convert rrggbb to decimal
+    const r = (rgb >> 16) & 0xff;  // extract red
+    const g = (rgb >> 8) & 0xff;  // extract green
+    const b = (rgb >> 0) & 0xff;  // extract blue
+    const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b; // per ITU-R BT.709
+    return luma < 128;
+};
+
+const CustomColorPicker = ({ label, color, onChange }: { label: string, color: string, onChange: (c: string) => void }) => (
+    <div className="flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-gray-600 uppercase tracking-wider">{label}</span>
+        <Popover>
+            <PopoverTrigger asChild>
+                <button
+                    className="w-full h-10 rounded-lg border border-gray-200 shadow-sm flex items-center justify-between px-3 hover:border-orange-300 transition-colors"
+                    style={{ backgroundColor: color }}
+                >
+                    <span className={`text-xs font-mono px-1.5 py-0.5 rounded bg-white/20 backdrop-blur-md ${isColorDark(color) ? 'text-white' : 'text-black'}`}>
+                        {color}
+                    </span>
+                </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-3" side="top">
+                <HexColorPicker
+                    color={color}
+                    onChange={onChange}
+                />
+            </PopoverContent>
+        </Popover>
+    </div>
+);
+
 export default function GetStartedPage() {
     const router = useRouter();
     const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -112,12 +157,19 @@ export default function GetStartedPage() {
     const [extractedItems, setExtractedItems] = useState<MenuItem[]>([]);
 
     const extractionPromise = useRef<Promise<MenuItem[]> | null>(null);
-    const [colorPalettes, setColorPalettes] = useState<ColorPalette[]>([]);
-    const [selectedPalette, setSelectedPalette] = useState<ColorPalette>({
-        text: "#000000",
-        background: "#ffffff",
-        accent: "#ea580c",
-    });
+
+    // Presets
+    const PRESETS: ColorPalette[] = [
+        { text: "#000000", background: "#ffffff", accent: "#ea580c" }, // Classic Orange
+        { text: "#ffffff", background: "#0f172a", accent: "#fbbf24" }, // Midnight Gold
+        { text: "#14532d", background: "#f0fdf4", accent: "#16a34a" }, // Fresh Green
+    ];
+
+    const [colorPalettes, setColorPalettes] = useState<ColorPalette[]>(PRESETS);
+    const [selectedPalette, setSelectedPalette] = useState<ColorPalette>(PRESETS[0]);
+    const [isCustomMode, setIsCustomMode] = useState(false);
+    const [mobileTab, setMobileTab] = useState<'background' | 'text' | 'accent'>('accent');
+
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [authCredentials, setAuthCredentials] = useState({ email: "", password: "123456", referralCode: "" });
     const [registrationSuccess, setRegistrationSuccess] = useState(false);
@@ -417,7 +469,7 @@ export default function GetStartedPage() {
     };
 
     const handleNextToExtraction = async () => {
-        if (!hotelDetails.name || !hotelDetails.phone) {
+        if (!hotelDetails.name || !hotelDetails.phone || !authCredentials.email) {
             toast.error("Please fill in all details");
             return;
         }
@@ -437,9 +489,7 @@ export default function GetStartedPage() {
         }
     };
 
-    const handlePublish = () => {
-        setShowAuthModal(true);
-    };
+
 
     const handleFinalPublish = async () => {
         if (!authCredentials.email) {
@@ -755,44 +805,23 @@ export default function GetStartedPage() {
                     />
                 </div>
 
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="facebook_link" className="text-sm">Facebook Link (Optional)</Label>
+                    <Label htmlFor="email" className="text-sm">Email <span className="text-red-500">*</span></Label>
                     <Input
-                        id="facebook_link"
-                        name="facebook_link"
-                        placeholder="https://facebook.com/..."
-                        value={hotelDetails.facebook_link}
-                        onChange={handleDetailsChange}
+                        id="email"
+                        name="email"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={authCredentials.email}
+                        onChange={(e) => setAuthCredentials(prev => ({ ...prev, email: e.target.value }))}
                         className="h-10 md:h-11 rounded-xl text-sm md:text-base"
                     />
+                    <p className="text-xs text-gray-500">We'll send your dashboard login details here.</p>
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="instagram_link" className="text-sm">Instagram Link (Optional)</Label>
-                    <Input
-                        id="instagram_link"
-                        name="instagram_link"
-                        placeholder="https://instagram.com/..."
-                        value={hotelDetails.instagram_link}
-                        onChange={handleDetailsChange}
-                        className="h-10 md:h-11 rounded-xl text-sm md:text-base"
-                    />
-                </div>
+
             </div>
 
-            <div className="space-y-2">
-                <Label htmlFor="location_link" className="text-sm">Google Maps Location Link (Optional)</Label>
-                <Input
-                    id="location_link"
-                    name="location_link"
-                    placeholder="https://maps.google.com/..."
-                    value={hotelDetails.location_link}
-                    onChange={handleDetailsChange}
-                    className="h-10 md:h-11 rounded-xl text-sm md:text-base"
-                />
-            </div>
+
 
 
 
@@ -988,6 +1017,8 @@ export default function GetStartedPage() {
             );
         }
 
+
+
         return (
             <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-start gap-8 animate-in fade-in duration-700 md:pt-12 pb-24 md:pb-0">
                 <div className={`flex-1 space-y-6 ${registrationSuccess ? "hidden md:block" : "hidden md:block"}`}>
@@ -998,43 +1029,75 @@ export default function GetStartedPage() {
                                     Your Menu is Ready!
                                 </h1>
                                 <p className="text-gray-500">
-                                    We've extracted {extractedItems.length} items from your image.
-                                    Here's how it looks. You can edit the items in the dashboard after publishing.
+                                    We've extracted {extractedItems.length} items.
+                                    Customize your theme below.
                                 </p>
                                 <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mt-2">
                                     <p className="text-xs text-blue-700">
-                                        <strong>Note:</strong> You can edit the menu and menu-images in the dashboard after account creation.
-                                        Images will be generated and updated in approx {Math.ceil((extractedItems.length * 2) / 60)} minutes.
-                                        We will notify you via email once completed.
+                                        <strong>Note:</strong> Images will be generated in background approx {Math.ceil((extractedItems.length * 2) / 60)} minutes.
                                     </p>
                                 </div>
                             </div>
 
                             <div className="hidden md:block space-y-6">
-                                {colorPalettes.length > 0 && (
-                                    <div className="space-y-3">
-                                        <h3 className="text-sm font-medium text-gray-700">Choose a Theme</h3>
-                                        <div className="grid grid-cols-4 gap-3">
-                                            {colorPalettes.map((palette, idx) => (
-                                                <button
-                                                    key={idx}
-                                                    onClick={() => setSelectedPalette(palette)}
-                                                    className={`h-16 rounded-xl border-2 flex items-center justify-center relative overflow-hidden transition-all ${selectedPalette === palette ? "border-orange-600 ring-2 ring-orange-100" : "border-gray-200 hover:border-gray-300"
-                                                        }`}
-                                                    style={{ backgroundColor: palette.background }}
-                                                >
-                                                    <div className="flex flex-col items-center gap-1">
-                                                        <span className="text-xs font-bold" style={{ color: palette.text }}>Aa</span>
-                                                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: palette.accent }} />
-                                                    </div>
-                                                </button>
-                                            ))}
-                                        </div>
+                                <div className="space-y-4">
+                                    <h3 className="text-sm font-medium text-gray-700">Choose a Theme</h3>
+                                    <div className="grid grid-cols-4 gap-3">
+                                        {PRESETS.map((palette, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => {
+                                                    setSelectedPalette(palette);
+                                                    setIsCustomMode(false);
+                                                }}
+                                                className={`h-16 rounded-xl border-2 flex items-center justify-center relative overflow-hidden transition-all ${!isCustomMode && selectedPalette.background === palette.background && selectedPalette.accent === palette.accent ? "border-orange-600 ring-2 ring-orange-100" : "border-gray-200 hover:border-gray-300"
+                                                    }`}
+                                                style={{ backgroundColor: palette.background }}
+                                            >
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <span className="text-xs font-bold" style={{ color: palette.text }}>Aa</span>
+                                                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: palette.accent }} />
+                                                </div>
+                                            </button>
+                                        ))}
+
+                                        {/* Custom Rainbow Button */}
+                                        <button
+                                            onClick={() => setIsCustomMode(true)}
+                                            className={`h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 relative overflow-hidden transition-all ${isCustomMode ? "border-orange-600 ring-2 ring-orange-100" : "border-gray-200 hover:border-gray-300"
+                                                } bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100`}
+                                        >
+                                            <Palette size={20} className="text-gray-700" />
+                                            <span className="text-[10px] font-bold text-gray-600">Custom</span>
+                                        </button>
                                     </div>
-                                )}
+
+                                    {/* Custom Color Editor (slide down) */}
+                                    {isCustomMode && (
+                                        <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 space-y-4 animate-in slide-in-from-top-2">
+                                            <div className="grid grid-cols-3 gap-3">
+                                                <CustomColorPicker
+                                                    label="Background"
+                                                    color={selectedPalette.background}
+                                                    onChange={(c) => setSelectedPalette(p => ({ ...p, background: c }))}
+                                                />
+                                                <CustomColorPicker
+                                                    label="Text"
+                                                    color={selectedPalette.text}
+                                                    onChange={(c) => setSelectedPalette(p => ({ ...p, text: c }))}
+                                                />
+                                                <CustomColorPicker
+                                                    label="Accent"
+                                                    color={selectedPalette.accent}
+                                                    onChange={(c) => setSelectedPalette(p => ({ ...p, accent: c }))}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
 
                                 <Button
-                                    onClick={handlePublish}
+                                    onClick={handleFinalPublish}
                                     className="w-full h-14 text-lg rounded-full bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200"
                                 >
                                     Publish Live <ChevronRight className="ml-2 w-5 h-5" />
@@ -1048,37 +1111,77 @@ export default function GetStartedPage() {
                     <CompactMenuPreview items={extractedItems} hotelDetails={hotelDetails} colorPalette={selectedPalette} currency={hotelDetails.currency} />
                 </div>
 
-                {/* Mobile Publish Button (Fixed Bottom) - Hide if success */}
+                {/* Mobile Floating Bar */}
                 {!registrationSuccess && (
-                    <div className="md:hidden fixed bottom-6 left-6 right-6 z-50 flex flex-col gap-3">
-                        {colorPalettes.length > 0 && (
-                            <div className="bg-white/60 backdrop-blur-xl p-2 rounded-full shadow-2xl border border-white/50">
-                                <div className="flex justify-between items-center px-2">
-                                    {colorPalettes.map((palette, idx) => (
+                    <div className="md:hidden fixed bottom-6 left-4 right-4 z-50 flex flex-col gap-3">
+                        {!isCustomMode ? (
+                            <div className="bg-white/80 backdrop-blur-xl p-3 rounded-2xl shadow-2xl border border-white/50 animate-in slide-in-from-bottom-5 fade-in duration-300">
+                                <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide pb-1">
+                                    {PRESETS.map((palette, idx) => (
                                         <button
                                             key={idx}
-                                            onClick={() => setSelectedPalette(palette)}
-                                            className={`w-10 h-10 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${selectedPalette === palette ? "border-orange-600 scale-110 ring-2 ring-orange-100" : "border-white/50"
+                                            onClick={() => {
+                                                setSelectedPalette(palette);
+                                                setIsCustomMode(false);
+                                            }}
+                                            className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${selectedPalette.background === palette.background && selectedPalette.accent === palette.accent ? "border-orange-600 scale-110 ring-2 ring-orange-100" : "border-white/50"
                                                 }`}
                                             style={{ backgroundColor: palette.background }}
                                         >
-                                            <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: palette.accent }} />
+                                            <div className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: palette.accent }} />
                                         </button>
                                     ))}
+
+                                    <button
+                                        onClick={() => setIsCustomMode(true)}
+                                        className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${isCustomMode ? "border-orange-600 scale-110 ring-2 ring-orange-100" : "border-gray-200"
+                                            } bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100`}
+                                    >
+                                        <Palette size={18} className="text-gray-700" />
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-white/95 backdrop-blur-xl p-4 rounded-3xl shadow-2xl border border-gray-100 animate-in slide-in-from-bottom-10 fade-in duration-300 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <button
+                                        onClick={() => setIsCustomMode(false)}
+                                        className="p-2 -ml-2 rounded-full hover:bg-gray-100 text-gray-500"
+                                    >
+                                        <ArrowLeft size={20} />
+                                    </button>
+                                    <div className="flex bg-gray-100 rounded-lg p-1">
+                                        {(['background', 'text', 'accent'] as const).map((tab) => (
+                                            <button
+                                                key={tab}
+                                                onClick={() => setMobileTab(tab)}
+                                                className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all ${mobileTab === tab ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                                            >
+                                                {tab}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="w-8" /> {/* Spacer */}
+                                </div>
+
+                                <div className="flex justify-center pb-2">
+                                    <HexColorPicker
+                                        color={selectedPalette[mobileTab]}
+                                        onChange={(c) => setSelectedPalette(prev => ({ ...prev, [mobileTab]: c }))}
+                                        style={{ width: '100%', height: '160px' }}
+                                    />
                                 </div>
                             </div>
                         )}
-                        <Button
-                            onClick={handlePublish}
-                            className="w-full h-12 text-base rounded-full bg-green-600 hover:bg-green-700 shadow-xl"
-                        >
-                            Publish Live <ChevronRight className="ml-2 w-5 h-5" />
-                        </Button>
-                        <div className="bg-blue-50/90 backdrop-blur-md border border-blue-100 p-3 rounded-xl shadow-lg">
-                            <p className="text-xs text-blue-700 text-center">
-                                Note: Images will be generated and updated to your menu in approx {Math.ceil((extractedItems.length * 2) / 60)} minutes.
-                            </p>
-                        </div>
+
+                        {!isCustomMode && (
+                            <Button
+                                onClick={handleFinalPublish}
+                                className="w-full h-12 text-base rounded-full bg-green-600 hover:bg-green-700 shadow-xl"
+                            >
+                                Publish Live <ChevronRight className="ml-2 w-5 h-5" />
+                            </Button>
+                        )}
                     </div>
                 )}
 
@@ -1200,51 +1303,7 @@ export default function GetStartedPage() {
 
             {/* Final Success View - NOW INTEGRATED IN renderStep3 */}
 
-            {!registrationSuccess && (
-                <>
-                    {/* Auth Modal */}
 
-                    {showAuthModal && (
-                        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                            <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-300">
-                                <div className="space-y-2 text-center">
-                                    <h2 className="text-2xl font-bold text-gray-900">Enter your email to create menu</h2>
-                                    <p className="text-sm text-gray-500">We need this to send you the login details for your menu dashboard.</p>
-                                </div>
-
-                                <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="email">Email</Label>
-                                        <Input
-                                            id="email"
-                                            type="email"
-                                            placeholder="you@example.com"
-                                            value={authCredentials.email}
-                                            onChange={(e) => setAuthCredentials(prev => ({ ...prev, email: e.target.value }))}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-3">
-                                    <Button
-                                        variant="outline"
-                                        className="flex-1 rounded-full"
-                                        onClick={() => setShowAuthModal(false)}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        className="flex-1 rounded-full bg-orange-600 hover:bg-orange-700"
-                                        onClick={handleFinalPublish}
-                                    >
-                                        Confirm & Publish
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </>
-            )}
         </div>
     );
 }

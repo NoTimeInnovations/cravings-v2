@@ -29,6 +29,7 @@ import { cookies } from "next/headers";
 import { Metadata } from "next";
 import React from "react";
 import { filterOffersByType } from "@/lib/offerFilters";
+import { startOfMonth, endOfMonth } from "date-fns";
 
 const isUUID = (str: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
@@ -288,20 +289,29 @@ const page = async ({
       if (planDetails) {
         // Fetch aggregated scan count for the partner
         // We can do this via a separate query
-        const GET_PARTNER_TOTAL_SCANS = `
-          query GetPartnerTotalScans($partner_id: uuid!) {
-            qr_codes_aggregate(where: {partner_id: {_eq: $partner_id}}) {
+        const now = new Date();
+        const startDate = startOfMonth(now).toISOString();
+        const endDate = endOfMonth(now).toISOString();
+
+        const GET_PARTNER_MONTHLY_SCANS = `
+          query GetPartnerMonthlyScans($partner_id: uuid!, $startDate: timestamptz!, $endDate: timestamptz!) {
+            qr_scans_aggregate(where: {
+              qr_code: { partner_id: {_eq: $partner_id} },
+              created_at: {_gte: $startDate, _lte: $endDate}
+            }) {
               aggregate {
-                sum {
-                  no_of_scans
-                }
+                count
               }
             }
           }
         `;
 
-        const scanStats = await fetchFromHasura(GET_PARTNER_TOTAL_SCANS, { partner_id: hoteldata.id });
-        const currentTotalScans = scanStats?.qr_codes_aggregate?.aggregate?.sum?.no_of_scans || 0;
+        const scanStats = await fetchFromHasura(GET_PARTNER_MONTHLY_SCANS, {
+          partner_id: hoteldata.id,
+          startDate,
+          endDate
+        });
+        const currentTotalScans = scanStats?.qr_scans_aggregate?.aggregate?.count || 0;
 
         const limit = planDetails.max_scan_count ?? planDetails.scan_limit ?? 1000;
         const isUnlimited = limit === -1;

@@ -21,8 +21,9 @@ export async function notifyPlanInterest({
     partnerPhone,
     storeName,
     planName,
-    planId
-}: NotifyPlanInterestProps) {
+    planId,
+    partnerId // Added partnerId
+}: NotifyPlanInterestProps & { partnerId: string }) { // Update type definition inline or above
     if (!process.env.RESEND_API_KEY) {
         return { success: false, message: "Email service not configured" };
     }
@@ -43,6 +44,7 @@ export async function notifyPlanInterest({
                     <li><strong>Partner Name:</strong> ${partnerName}</li>
                     <li><strong>Email:</strong> ${partnerEmail}</li>
                     <li><strong>Phone:</strong> ${partnerPhone}</li>
+                    <li><strong>Partner ID:</strong> ${partnerId}</li>
                     <li><strong>Plan ID:</strong> ${planId}</li>
                 </ul>
                 <p>Please contact them as soon as possible.</p>

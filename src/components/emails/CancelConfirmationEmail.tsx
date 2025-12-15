@@ -20,7 +20,7 @@ export const CancelConfirmationEmail = ({
 }: CancelConfirmationEmailProps) => (
     <Html>
         <Head />
-        <Preview>We received your cancellation request</Preview>
+        <Preview>We received your cancellation request. We're sorry to see you go.</Preview>
         <Body style={main}>
             <Container style={container}>
                 <Section style={header}>
@@ -30,14 +30,19 @@ export const CancelConfirmationEmail = ({
                     <Heading style={h1}>Cancellation Request Received</Heading>
                     <Text style={text}>Hi {partnerName},</Text>
                     <Text style={text}>
-                        We have received your request to cancel your subscription. We are sorry to see you go!
+                        We have received your request to cancel your subscription. We are truly sorry to hear that you're thinking of leaving.
                     </Text>
+
+                    <Section style={infoBox}>
+                        <Text style={text}>
+                            Our support team will process your request within <strong>24-48 hours</strong>. We will reach out if we need any further information regarding refunds or account closure.
+                        </Text>
+                    </Section>
+
                     <Text style={text}>
-                        Our support team will process your request within 24-48 hours and contact you if any further information is needed regarding refunds or account closure.
+                        In the meantime, your account remains active and your menu is still live.
                     </Text>
-                    <Text style={text}>
-                        In the meantime, your account remains active.
-                    </Text>
+
                     <Hr style={hr} />
                     <Text style={footer}>
                         © 2024 Cravings. All rights reserved.
@@ -50,51 +55,69 @@ export const CancelConfirmationEmail = ({
 
 const main = {
     backgroundColor: "#f6f9fc",
-    fontFamily: 'sans-serif',
+    fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Ubuntu,sans-serif',
 };
 
 const container = {
     backgroundColor: "#ffffff",
-    margin: "0 auto",
+    margin: "40px auto",
     padding: "20px 0 48px",
+    borderRadius: "16px",
+    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.05)",
+    maxWidth: "600px",
+    overflow: "hidden" as const,
 };
 
 const header = {
-    padding: "24px",
+    padding: "32px",
     textAlign: "center" as const,
+    backgroundColor: "#ffffff",
 };
 
 const logo = {
-    fontSize: "24px",
-    fontWeight: "bold",
+    fontSize: "32px",
+    fontWeight: "800",
     color: "#ea580c",
+    letterSpacing: "-1px",
 };
 
 const content = {
-    padding: "0 48px",
+    padding: "0 40px",
 };
 
 const h1 = {
-    color: "#333",
-    fontSize: "24px",
-    fontWeight: "bold",
-    margin: "30px 0",
+    color: "#1a1a1a",
+    fontSize: "26px",
+    fontWeight: "700",
+    textAlign: "left" as const,
+    margin: "0 0 24px",
 };
 
 const text = {
-    color: "#333",
+    color: "#4a4a4a",
     fontSize: "16px",
-    lineHeight: "24px",
+    lineHeight: "26px",
+    margin: "16px 0",
+};
+
+const infoBox = {
+    backgroundColor: "#f9f9f9",
+    borderRadius: "12px",
+    padding: "16px 20px",
+    margin: "24px 0",
+    border: "1px solid #eee",
 };
 
 const hr = {
-    borderColor: "#e6ebf1",
-    margin: "20px 0",
+    borderColor: "#e5e7eb",
+    margin: "40px 0 24px",
 };
 
 const footer = {
-    color: "#8898aa",
-    fontSize: "12px",
+    color: "#9ca3af",
+    fontSize: "13px",
+    lineHeight: "20px",
+    textAlign: "center" as const,
 };
 
 export default CancelConfirmationEmail;

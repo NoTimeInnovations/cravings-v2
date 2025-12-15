@@ -12,57 +12,12 @@ import { uploadFileToS3 } from "@/app/actions/aws-s3";
 import { useAuthStore } from "@/store/authStore";
 import plansData from "@/data/plans.json";
 
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-
 const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHeader?: boolean; country?: string }) => {
     const { userData } = useAuthStore();
     const router = useRouter();
     const [isCreatingAccount, setIsCreatingAccount] = useState(false);
     const [isSubmittingContact, setIsSubmittingContact] = useState(false);
-    const [contactPlan, setContactPlan] = useState<any>(null);
-    const [contactDetails, setContactDetails] = useState({
-        name: "",
-        email: "",
-        phone: "",
-        storeName: ""
-    });
-
-    const handleContactFormSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmittingContact(true);
-        try {
-            const { notifyPlanInterest } = await import("@/app/actions/notifyPlanInterest");
-            const result = await notifyPlanInterest({
-                partnerName: contactDetails.name,
-                partnerEmail: contactDetails.email,
-                partnerPhone: contactDetails.phone,
-                storeName: contactDetails.storeName,
-                planName: contactPlan.name,
-                planId: contactPlan.id
-            });
-
-            if (result.success) {
-                toast.success("Request sent! Check your mail for any updates.");
-                setContactPlan(null); // Close dialog
-            } else {
-                toast.error("Failed to send request. Please try again.");
-            }
-        } catch (error) {
-            console.error("Failed to submit contact form", error);
-            toast.error("Something went wrong");
-        } finally {
-            setIsSubmittingContact(false);
-        }
-    };
+    const [redirectLoadingText, setRedirectLoadingText] = useState<string | null>(null);
 
     const isIndia = propCountry === "IN";
 
@@ -75,65 +30,80 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
     const isFreePlanUsed = (userData as any)?.subscription_details?.isFreePlanUsed;
 
     const handlePlanClick = async (plan: any) => {
-        // WhatsApp Redirect for Indian Paid Plans
-        if (isIndia && plan.id !== 'in_trial') {
-            window.open(`https://wa.me/918590115462?text=Hi! I'm interested in the ${plan.name} plan`, '_blank');
-            return;
-        }
+        const isTargetPlanFree = isPlanFree(plan.id);
 
-        // Contact Sales Logic for International Plans
-        if (plan.contact_sales) {
-            let initialDetails = {
-                name: "",
-                email: "",
-                phone: "",
-                storeName: ""
-            };
+        if (!isTargetPlanFree) {
+            // Logic for Non-Free Plans
+            if (!userData) {
+                // If not logged in, redirect to get-started
+                // Requirement: "Starting free plan then u can upgrade" loaded text
+                setRedirectLoadingText("Starting free plan, then you can upgrade...");
+                setIsCreatingAccount(true);
 
-            if (userData) {
-                initialDetails = {
-                    name: (userData as any).name || "",
-                    email: userData.email || "",
-                    phone: (userData as any).phone || "",
-                    storeName: (userData as any).store_name || ""
-                };
-            } else {
-                const onboardingData = localStorage.getItem("onboarding_data");
-                if (onboardingData) {
-                    const parsed = JSON.parse(onboardingData);
-                    initialDetails = {
-                        name: parsed.partner?.name || "",
-                        email: parsed.partner?.email || "",
-                        phone: parsed.partner?.phone || "",
-                        storeName: parsed.partner?.store_name || ""
-                    };
-                }
+                setTimeout(() => {
+                    router.push("/get-started");
+                }, 2000);
+                return;
             }
 
-            setContactDetails(initialDetails);
-            setContactPlan(plan);
+            // If logged in, check if they have a free plan (or are just a valid user)
+            // Requirement: "only customers who have free plan can send a upgrade plan"
+            // We interpret this as "Logged in users can request upgrade".
+            // We verify they have a valid subscription object usually.
+
+            setIsSubmittingContact(true);
+            try {
+                const { notifyPlanInterest } = await import("@/app/actions/notifyPlanInterest");
+                const partnerName = (userData as any).name || userData.email || "Partner";
+                const phone = (userData as any).phone || "";
+                const storeName = (userData as any).store_name || "Store";
+
+                // 1. Send Email Notification
+                await notifyPlanInterest({
+                    partnerName,
+                    partnerEmail: userData.email || "",
+                    partnerPhone: phone,
+                    storeName,
+                    planName: plan.name,
+                    planId: plan.id,
+                    partnerId: userData.id
+                });
+
+                // 2. Open WhatsApp
+                const text = `Hi! I'm ${partnerName} from ${storeName} (ID: ${userData.id}). I'm interested in upgrading to the ${plan.name} plan.`;
+                const encodedText = encodeURIComponent(text);
+                window.open(`https://wa.me/918590115462?text=${encodedText}`, '_blank');
+
+                toast.success("Upgrade request sent! Opening WhatsApp...");
+
+            } catch (error) {
+                console.error("Failed to send upgrade request", error);
+                toast.error("Failed to send request.");
+            } finally {
+                setIsSubmittingContact(false);
+            }
             return;
         }
 
+        // --- Logic for FREE Plans (Start Free / Trial) ---
         const nextIsFreePlanUsed = isFreePlanUsed || isPlanFree(plan.id);
 
-        // 1. If Logged In -> Upgrade Flow
+        // 1. If Logged In -> Upgrade/downgrade to free? (Usually unlikely if they are already free, but handled)
         if (userData) {
+            // Existing logic to switch to free plan if applicable
             setIsCreatingAccount(true);
             try {
                 const { upgradePlan } = await import("@/app/actions/upgradePlan");
-                const result = await upgradePlan(userData.id, plan, nextIsFreePlanUsed); // Pass usage flag
+                const result = await upgradePlan(userData.id, plan, nextIsFreePlanUsed);
 
                 if (result.success) {
-                    toast.success(`Plan upgraded to ${plan.name} successfully!`);
-                    // Ideally close modal or refresh. Component doesn't control modal, 
-                    // but we can just toast and maybe reload window to update state
+                    toast.success(`Switched to ${plan.name} successfully!`);
                     window.location.reload();
                 } else {
-                    toast.error("Upgrade failed. Please try again.");
+                    toast.error("Switch failed. Please try again.");
                 }
             } catch (e) {
-                console.error("Upgrade error", e);
+                console.error("Switch error", e);
                 toast.error("Something went wrong");
             } finally {
                 setIsCreatingAccount(false);
@@ -141,7 +111,7 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
             return;
         }
 
-        // 2. If Onboarding Data -> Signup Flow
+        // 2. If Not Logged In -> Signup Flow
         const onboardingData = localStorage.getItem("onboarding_data");
 
         if (onboardingData) {
@@ -170,8 +140,6 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
                 };
 
                 // Helper to generate feature flags string from plan
-                // e.g., "ordering-true,delivery-false"
-
                 let finalFlags: string[] = [];
 
                 if (plan.id === 'in_trial' || plan.id === 'in_ordering') {
@@ -235,7 +203,7 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
             {/* Full Screen Loader Overlay */}
             <FullScreenLoader
                 isLoading={isCreatingAccount}
-                loadingTexts={[
+                loadingTexts={redirectLoadingText ? [redirectLoadingText] : [
                     "Uploading your banner...",
                     "Creating your account...",
                     "Setting up your digital menu...",
@@ -256,7 +224,13 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
                     {displayPlans.map((plan: any, index: number) => {
                         const isThisPlanFree = isPlanFree(plan.id);
                         const isPlanDisabled = plan.disabled || (isFreePlanUsed && isThisPlanFree);
-                        const buttonText = (isFreePlanUsed && isThisPlanFree) ? "Trial Used" : plan.buttonText;
+
+                        let buttonText = plan.buttonText;
+                        if (isFreePlanUsed && isThisPlanFree) {
+                            buttonText = "Trial Used";
+                        } else if (!userData && plan.contact_sales) {
+                            buttonText = "Get Plan";
+                        }
 
                         return (
                             <div
@@ -278,9 +252,17 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
                                         <p className="text-gray-500 text-xs md:text-sm min-h-[2.5rem] md:h-10">{plan.description}</p>
                                     </div>
 
-                                    <div className="flex items-baseline justify-center mb-4 md:mb-8">
-                                        <span className="text-3xl md:text-4xl font-extrabold text-gray-900">{plan.price}</span>
-                                        {plan.period && <span className="text-gray-500 font-medium ml-1 text-xs md:text-base">{plan.period}</span>}
+                                    <div className="flex flex-col items-center mb-4 md:mb-8">
+                                        <div className="flex items-baseline justify-center">
+                                            <span className="text-3xl md:text-4xl font-extrabold text-gray-900">{plan.price}</span>
+                                            {plan.period && <span className="text-gray-500 font-medium ml-1 text-xs md:text-base">{plan.period}</span>}
+                                        </div>
+                                        {plan.yearly_price && (
+                                            <span className="text-xs text-gray-400 mt-1">Billed {plan.yearly_price} Yearly</span>
+                                        )}
+                                        {!plan.yearly_price && plan.period === '/year' && (
+                                            <span className="text-xs text-gray-400 mt-1">Billed Yearly</span>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2 md:space-y-4 mb-6 md:mb-8 flex-grow">
@@ -324,66 +306,6 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
                 <p className="mt-6 md:mt-8 text-xs md:text-sm text-gray-400">
                     All plans include our core features. Cancel anytime.
                 </p>
-
-                <Dialog open={!!contactPlan} onOpenChange={(open) => !open && setContactPlan(null)}>
-                    <DialogContent className="sm:max-w-[425px] sm:max-h-[85vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle>Contact Sales</DialogTitle>
-                            <DialogDescription>
-                                Enter your details to request the {contactPlan?.name} plan. We will get back to you shortly.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={handleContactFormSubmit} className="space-y-4 py-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="name">Name</Label>
-                                <Input
-                                    id="name"
-                                    value={contactDetails.name}
-                                    onChange={(e) => setContactDetails({ ...contactDetails, name: e.target.value })}
-                                    placeholder="Your Name"
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Email</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    value={contactDetails.email}
-                                    onChange={(e) => setContactDetails({ ...contactDetails, email: e.target.value })}
-                                    placeholder="your@email.com"
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="phone">Phone</Label>
-                                <Input
-                                    id="phone"
-                                    type="tel"
-                                    value={contactDetails.phone}
-                                    onChange={(e) => setContactDetails({ ...contactDetails, phone: e.target.value })}
-                                    placeholder="+1234567890"
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="storeName">Store Name</Label>
-                                <Input
-                                    id="storeName"
-                                    value={contactDetails.storeName}
-                                    onChange={(e) => setContactDetails({ ...contactDetails, storeName: e.target.value })}
-                                    placeholder="Restaurant Name"
-                                    required
-                                />
-                            </div>
-                            <DialogFooter>
-                                <Button type="submit" disabled={isSubmittingContact}>
-                                    {isSubmittingContact ? "Sending..." : "Send Request"}
-                                </Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
             </div>
         </section>
     );

@@ -31,7 +31,7 @@ const LinkItem = ({
 const SocialLinks = ({ socialLinks }: { socialLinks: SocialLinks }) => {
   return (
     <>
-      {socialLinks.phone ? (
+      {socialLinks.phone && socialLinks.phone !== "" ? (
         <div>
           <LinkItem
             styles={{
@@ -45,7 +45,7 @@ const SocialLinks = ({ socialLinks }: { socialLinks: SocialLinks }) => {
           />
         </div>
       ) : null}
-      {socialLinks.whatsapp ? (
+      {socialLinks.whatsapp && socialLinks.whatsapp !== "" ? (
         <div>
           <LinkItem
             styles={{
@@ -60,7 +60,7 @@ const SocialLinks = ({ socialLinks }: { socialLinks: SocialLinks }) => {
         </div>
       ) : null}
 
-      {socialLinks.instagram ? (
+      {socialLinks.instagram && socialLinks.instagram !== "" ? (
         <div>
           <LinkItem
             styles={{
@@ -75,7 +75,7 @@ const SocialLinks = ({ socialLinks }: { socialLinks: SocialLinks }) => {
         </div>
       ) : null}
 
-      {socialLinks.location ? (
+      {socialLinks.location && socialLinks.location !== "" ? (
         <div>
           <LinkItem
             styles={{

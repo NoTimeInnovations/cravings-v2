@@ -6,7 +6,7 @@
             "price": "$0",
             "description": "Perfect for trying out Cravings",
             "features": [
-                "100 scans per month",
+                "50 scans per month",
                 "Unlimited offers",
                 "Unlimited edits",
                 "Chat support"
@@ -15,7 +15,7 @@
             "popular": false,
             "period": "/month",
             "period_days": 30,
-            "max_scan_count": 100
+            "max_scan_count": 50
         },
         {
             "id": "int_standard",
@@ -23,7 +23,7 @@
             "price": "$9",
             "description": "For growing restaurants",
             "features": [
-                "1000 scans per month",
+                "500 scans per month",
                 "Unlimited offers",
                 "Unlimited edits",
                 "Priority chat support"
@@ -33,9 +33,10 @@
             "disabled": false,
             "contact_sales": true,
             "period": "/month",
-            "period_days": 30,
-            "max_scan_count": 1500,
-            "scan_limit": -1
+            "period_days": 365,
+            "max_scan_count": 500,
+            "scan_limit": -1,
+            "yearly_price": "$108"
         },
         {
             "id": "int_plus",
@@ -46,18 +47,17 @@
                 "Unlimited scans",
                 "Unlimited offers",
                 "Unlimited edits",
-                "Priority chat support",
-                "Order management",
-                "Captain ordering"
+                "Priority chat support"
             ],
             "buttonText": "Contact Sales",
             "popular": true,
             "disabled": false,
             "contact_sales": true,
             "period": "/month",
-            "period_days": 30,
+            "period_days": 365,
             "max_scan_count": -1,
-            "scan_limit": -1
+            "scan_limit": -1,
+            "yearly_price": "$228"
         }
     ],
     "india": [
@@ -67,7 +67,7 @@
             "price": "Free",
             "description": "Try all features risk-free",
             "features": [
-                "All features included",
+                "All features included (Digital Menu + Ordering)",
                 "20 days validity"
             ],
             "buttonText": "Get Free Menu",

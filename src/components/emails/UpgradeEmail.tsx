@@ -27,7 +27,7 @@ export const UpgradeEmail = ({
 }: UpgradeEmailProps) => (
     <Html>
         <Head />
-        <Preview>Your plan has been upgraded!</Preview>
+        <Preview>Your plan has been upgraded! Enjoy your new features.</Preview>
         <Body style={main}>
             <Container style={container}>
                 <Section style={header}>
@@ -37,21 +37,26 @@ export const UpgradeEmail = ({
                     <Heading style={h1}>Plan Upgraded Successfully 🚀</Heading>
                     <Text style={text}>Hi {partnerName},</Text>
                     <Text style={text}>
-                        Great news! Your account has been successfully upgraded to the <strong>{newPlanName}</strong>.
+                        Great news! Your account has been successfully upgraded to the <span style={highlight}>{newPlanName}</span>.
                     </Text>
-                    <Text style={text}>
-                        You now have access to:
-                    </Text>
-                    <ul>
-                        {features.map((feature, i) => (
-                            <li key={i} style={li}>{feature}</li>
-                        ))}
-                    </ul>
+
+                    <Section style={featureBox}>
+                        <Text style={featureTitle}>What's included in your new plan:</Text>
+                        <ul style={list}>
+                            {features.map((feature, i) => (
+                                <li key={i} style={li}>
+                                    {feature}
+                                </li>
+                            ))}
+                        </ul>
+                    </Section>
+
                     <Section style={btnContainer}>
                         <Button style={button} href={loginLink}>
-                            View Dashboard
+                            Go to Dashboard
                         </Button>
                     </Section>
+
                     <Hr style={hr} />
                     <Text style={footer}>
                         © 2024 Cravings. All rights reserved.
@@ -69,70 +74,106 @@ const main = {
 
 const container = {
     backgroundColor: "#ffffff",
-    margin: "0 auto",
+    margin: "40px auto",
     padding: "20px 0 48px",
+    borderRadius: "16px",
+    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.05)",
+    maxWidth: "600px",
+    overflow: "hidden" as const,
 };
 
 const header = {
-    padding: "24px",
+    padding: "32px",
     textAlign: "center" as const,
+    backgroundColor: "#ffffff",
 };
 
 const logo = {
-    fontSize: "24px",
-    fontWeight: "bold",
+    fontSize: "32px",
+    fontWeight: "800",
     color: "#ea580c",
+    letterSpacing: "-1px",
 };
 
 const content = {
-    padding: "0 48px",
+    padding: "0 40px",
 };
 
 const h1 = {
-    color: "#333",
-    fontSize: "24px",
-    fontWeight: "bold",
-    margin: "30px 0",
+    color: "#1a1a1a",
+    fontSize: "26px",
+    fontWeight: "700",
+    textAlign: "left" as const,
+    margin: "0 0 24px",
 };
 
 const text = {
-    color: "#333",
+    color: "#4a4a4a",
     fontSize: "16px",
-    lineHeight: "24px",
+    lineHeight: "26px",
+    margin: "16px 0",
+};
+
+const highlight = {
+    color: "#ea580c",
+    fontWeight: "600",
+};
+
+const featureBox = {
+    backgroundColor: "#f9fafb",
+    borderRadius: "12px",
+    padding: "24px",
+    margin: "24px 0",
+    border: "1px solid #e5e7eb",
+};
+
+const featureTitle = {
+    color: "#1a1a1a",
+    fontSize: "16px",
+    fontWeight: "600",
+    margin: "0 0 16px",
+};
+
+const list = {
+    paddingLeft: "20px",
+    margin: 0,
 };
 
 const li = {
-    color: "#333",
-    fontSize: "16px",
+    color: "#4a4a4a",
+    fontSize: "15px",
     lineHeight: "24px",
     marginBottom: "8px",
 };
 
 const btnContainer = {
     textAlign: "center" as const,
-    margin: "32px 0",
+    margin: "32px 0 40px",
 };
 
 const button = {
     backgroundColor: "#ea580c",
-    borderRadius: "5px",
+    borderRadius: "12px",
     color: "#fff",
     fontSize: "16px",
-    fontWeight: "bold",
+    fontWeight: "600",
     textDecoration: "none",
     textAlign: "center" as const,
-    display: "block",
-    padding: "12px 24px",
+    display: "inline-block",
+    padding: "16px 32px",
+    boxShadow: "0 4px 6px -1px rgba(234, 88, 12, 0.2)",
 };
 
 const hr = {
-    borderColor: "#e6ebf1",
-    margin: "20px 0",
+    borderColor: "#e5e7eb",
+    margin: "40px 0 24px",
 };
 
 const footer = {
-    color: "#8898aa",
-    fontSize: "12px",
+    color: "#9ca3af",
+    fontSize: "13px",
+    lineHeight: "20px",
+    textAlign: "center" as const,
 };
 
 export default UpgradeEmail;

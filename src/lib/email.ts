@@ -3,10 +3,11 @@ import WelcomeEmail from '@/components/emails/WelcomeEmail';
 import UpgradeEmail from '@/components/emails/UpgradeEmail';
 import CancelRequestEmail from '@/components/emails/CancelRequestEmail';
 import CancelConfirmationEmail from '@/components/emails/CancelConfirmationEmail';
+import SupportEmail from '@/components/emails/SupportEmail';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM_EMAIL = 'help@support.cravings.live'; // Update with verified domain if available, else use resend default for testing often 'onboarding@resend.dev' but presumably user has domain
+const FROM_EMAIL = 'Cravings <info@support.cravings.live>'; // Update with verified domain if available, else use resend default for testing often 'onboarding@resend.dev' but presumably user has domain
 
 export async function sendWelcomeEmail(to: string, props: { partnerName: string; planName: string; loginLink?: string }) {
     if (!process.env.RESEND_API_KEY) {
@@ -72,7 +73,7 @@ export async function sendSupportEmail(props: { name: string; email: string; sub
         console.warn("RESEND_API_KEY is missing. Support email not sent.");
         return;
     }
-    const SUPPORT_EMAIL = 'query@support.cravings.live';
+    const SUPPORT_EMAIL = 'Cravings Support <query@support.cravings.live>';
     const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'help@support.cravings.live';
 
     try {
@@ -81,13 +82,7 @@ export async function sendSupportEmail(props: { name: string; email: string; sub
             to: ADMIN_EMAIL,
             replyTo: props.email,
             subject: `Support Request: ${props.subject}`,
-            html: `
-                <h2>New Support Request</h2>
-                <p><strong>From:</strong> ${props.name} (${props.email})</p>
-                <p><strong>Subject:</strong> ${props.subject}</p>
-                <h3>Message:</h3>
-                <p>${props.message}</p>
-            `,
+            react: SupportEmail(props),
         });
     } catch (error) {
         console.error('Failed to send support email', error);

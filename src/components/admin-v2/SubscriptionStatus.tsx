@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Crown, AlertTriangle, ShieldCheck } from "lucide-react";
-import { formatDistanceToNow, parseISO, format } from "date-fns";
+import { formatDistanceToNow, parseISO, format, startOfMonth, endOfMonth } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import PricingSection from "@/components/international/PricingSection";
 import { toast } from "sonner";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { useEffect } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import plansData from "@/data/plans.json";
 
 export function SubscriptionStatus() {
     const { userData } = useAuthStore();
@@ -33,7 +34,13 @@ export function SubscriptionStatus() {
     const dbStatus = sub?.status || "active";
     const status = isExpired ? "expired" : dbStatus;
 
-    const scanLimit = sub?.plan?.scan_limit ?? sub?.plan?.max_scan_count ?? 1000;
+
+
+    // Resolve plan definition from JSON to ensure latest limits are used
+    const jsonPlan = plansData.international.find(p => p.id === sub?.plan?.id)
+        || plansData.india.find(p => p.id === sub?.plan?.id);
+
+    const scanLimit = (jsonPlan as any)?.max_scan_count ?? (jsonPlan as any)?.scan_limit ?? sub?.plan?.scan_limit ?? sub?.plan?.max_scan_count ?? 1000;
     const isUnlimited = scanLimit === -1;
 
     // Calculate percentage based on state-based scansUsed
@@ -55,20 +62,29 @@ export function SubscriptionStatus() {
         if (!userData?.id || !isInternational) return;
 
         const fetchScans = async () => {
-            const GET_PARTNER_TOTAL_SCANS = `
-              query GetPartnerTotalScans($partner_id: uuid!) {
-                qr_codes_aggregate(where: {partner_id: {_eq: $partner_id}}) {
+            const now = new Date();
+            const startDate = startOfMonth(now).toISOString();
+            const endDate = endOfMonth(now).toISOString();
+
+            const GET_PARTNER_MONTHLY_SCANS = `
+              query GetPartnerMonthlyScans($partner_id: uuid!, $startDate: timestamptz!, $endDate: timestamptz!) {
+                qr_scans_aggregate(where: {
+                  qr_code: { partner_id: {_eq: $partner_id} },
+                  created_at: {_gte: $startDate, _lte: $endDate}
+                }) {
                   aggregate {
-                    sum {
-                      no_of_scans
-                    }
+                    count
                   }
                 }
               }
             `;
             try {
-                const res = await fetchFromHasura(GET_PARTNER_TOTAL_SCANS, { partner_id: userData.id });
-                setScansUsed(res?.qr_codes_aggregate?.aggregate?.sum?.no_of_scans || 0);
+                const res = await fetchFromHasura(GET_PARTNER_MONTHLY_SCANS, {
+                    partner_id: userData.id,
+                    startDate,
+                    endDate
+                });
+                setScansUsed(res?.qr_scans_aggregate?.aggregate?.count || 0);
             } catch (e) {
                 console.error("Failed to fetch scan stats", e);
             }
