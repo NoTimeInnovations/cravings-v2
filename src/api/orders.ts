@@ -14,8 +14,17 @@ export const getOrdersOfPartnerQuery = `
       delivery_address
       status
       partner_id
-}
-}`;
+      display_id
+      table_name
+      payment_method
+      order_items {
+        id
+        quantity
+        item
+      }
+    }
+  }
+`;
 
 //mutation
 export const createOrderMutation = `
@@ -249,6 +258,7 @@ subscription GetPartnerOrders($partner_id: uuid!, $today_start: timestamptz!, $t
     total_price
     created_at
     table_number
+    table_name
     notes
     qr_id
     type

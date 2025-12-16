@@ -50,12 +50,13 @@ interface POSState {
   deliveryAddress?: string;
   setDeliveryAddress: (address: string) => void;
   setUserPhone: (phone: string | null) => void;
+  tables: { id: string; number: number; name?: string }[];
   tableNumbers: number[];
   tableNumber: number | null;
   setTableNumber: (tableNumber: number | null) => void;
   tableName: string | null;
   setTableName: (tableName: string | null) => void;
-  paymentMethod?: "cash" | "card" | "upi";  
+  paymentMethod?: "cash" | "card" | "upi";
   setPaymentMethod: (method: "cash" | "card" | "upi") => void;
   addToCart: (item: MenuItem) => void;
   removeFromCart: (itemId: string) => void;
@@ -95,6 +96,7 @@ interface POSState {
   orderNote: string;
   setOrderNote: (note: string) => void;
   refreshOrdersAfterUpdate: () => void;
+  updateOrderStatus: (orderId: string, status: string) => Promise<void>;
 }
 
 export const usePOSStore = create<POSState>((set, get) => ({
@@ -107,6 +109,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   userPhone: null,
   tableNumber: null,
   tableNumbers: [],
+  tables: [],
   postCheckoutModalOpen: false,
   editOrderModalOpen: false,
   cartModalOpen: false,
@@ -139,7 +142,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         },
       });
     }
-    
+
   },
 
   setPostCheckoutModalOpen: (open) => {
@@ -151,7 +154,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   setEditOrderModalOpen: (open) => set({ editOrderModalOpen: open }),
   setCartModalOpen: (open) => set({ cartModalOpen: open }),
   closeAllModalsAndPOS: () => {
-    set({ 
+    set({
       postCheckoutModalOpen: false,
       editOrderModalOpen: false,
       cartModalOpen: false,
@@ -205,7 +208,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         );
 
         // console.log("All QR codes for partner:", response.qr_codes);
-        
+
         if (!response.qr_codes || !Array.isArray(response.qr_codes)) {
           console.error("Invalid response format:", response);
           return;
@@ -213,26 +216,30 @@ export const usePOSStore = create<POSState>((set, get) => ({
 
         // Get all table numbers, including 0
         const qrCodes = response.qr_codes as QrCodeData[];
-        const tableNumbers = qrCodes
-          .filter((qr) => qr.table_number !== null && qr.table_number !== undefined)
+
+        const validQrs = qrCodes.filter((qr) =>
+          qr.table_number !== null &&
+          qr.table_number !== undefined &&
+          qr.table_number !== 0
+        );
+
+        const tableNumbers = validQrs
           .map((qr) => Number(qr.table_number))
-          .sort((a: number, b: number) => a - b); // Sort numerically
+          .sort((a: number, b: number) => a - b);
 
-        
+        const tables = validQrs
+          .map((qr) => ({
+            id: qr.id,
+            number: Number(qr.table_number),
+            name: qr.table_name || undefined
+          }))
+          .sort((a, b) => a.number - b.number);
 
-        // console.log("Extracted table numbers:", tableNumbers);
-        
-        if (tableNumbers.length === 0) {
-          console.warn("No table numbers found in qr_codes for partner:", partnerId);
-          // Log all QR codes that might have null table numbers
-          qrCodes.forEach((qr) => {
-            if (qr.table_number === null || qr.table_number === undefined) {
-              console.log("QR code with null/undefined table number:", qr);
-            }
-          });
+        if (tables.length === 0) {
+          console.warn("No active tables found for partner:", partnerId);
         }
 
-        set({ tableNumbers , qrCodeData: qrCodes || null });
+        set({ tableNumbers, tables, qrCodeData: qrCodes || null });
       } else {
         // For partners, use their own ID
         const partnerId = userData.id;
@@ -261,12 +268,26 @@ export const usePOSStore = create<POSState>((set, get) => ({
         }
 
         const qrCodes = response.qr_codes as QrCodeData[];
-        const tableNumbers = qrCodes
-          .filter((qr) => qr.table_number !== null && qr.table_number !== undefined)
+
+        const validQrs = qrCodes.filter((qr) =>
+          qr.table_number !== null &&
+          qr.table_number !== undefined &&
+          qr.table_number !== 0
+        );
+
+        const tableNumbers = validQrs
           .map((qr) => Number(qr.table_number))
           .sort((a: number, b: number) => a - b);
 
-        set({ tableNumbers });
+        const tables = validQrs
+          .map((qr) => ({
+            id: qr.id,
+            number: Number(qr.table_number),
+            name: qr.table_name || undefined
+          }))
+          .sort((a, b) => a.number - b.number);
+
+        set({ tableNumbers, tables });
       }
     } catch (error) {
       console.error("Error fetching partner tables:", error);
@@ -276,16 +297,16 @@ export const usePOSStore = create<POSState>((set, get) => ({
 
   setTableNumber: (tableNumber: number | null) => {
     set({ tableNumber });
-    
+
     // Clear QR group first when changing table numbers
     set({ qrGroup: null });
-    
+
     // Remove any existing QR group charges from extraCharges when switching tables
     set((state) => ({
       extraCharges: state.extraCharges.filter(charge => !charge.id.startsWith('qr-group-')),
       removedQrGroupCharges: [], // Clear removed QR group charges when switching tables
     }));
-    
+
     // If table number is set, fetch QR group for that table
     if (tableNumber !== null) {
       const { fetchQrGroupForTable } = get();
@@ -420,9 +441,9 @@ export const usePOSStore = create<POSState>((set, get) => ({
         partner_id: (userData as Captain)?.partner_id,
         raw: userData
       });
-      
+
       const userId = userData?.id;
-      
+
       // Get partner ID based on user type
       let partnerId: string;
       let gstPercentage: number;
@@ -444,9 +465,9 @@ export const usePOSStore = create<POSState>((set, get) => ({
         });
         gstPercentage = partnerData.gst_percentage || 0;
       }
-      
+
       console.log("Final partnerId being used:", partnerId);
-      
+
       if (!userId || !partnerId) {
         throw new Error("User ID or Partner ID is not available");
       }
@@ -459,7 +480,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
 
       // Prepare all extra charges (manual + QR group)
       const allExtraCharges = [...extraCharges];
-      
+
       // QR group charges are now included in extraCharges, so no need to add them separately
 
       const grandTotal =
@@ -484,7 +505,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         gstIncluded: gstPercentage,
         captainId: isCaptainOrder ? userId : null,
         orderNote: orderNote,
-        paymentMethod 
+        paymentMethod
       });
 
       const getNextDisplayOrderNumber = await getNextOrderNumber(partnerId);
@@ -509,7 +530,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         captain_id: isCaptainOrder ? userId : null,
         notes: orderNote || null,
         phone: get().userPhone || null,
-        display_id: getNextDisplayOrderNumber.toString(), 
+        display_id: getNextDisplayOrderNumber.toString(),
         table_name: get().tableName || null,
       });
 
@@ -597,9 +618,10 @@ export const usePOSStore = create<POSState>((set, get) => ({
         orderedby: isCaptainOrder ? "captain" : undefined,
         captain_id: isCaptainOrder ? userId : undefined,
         notes: orderNote || undefined,
-        display_id : getNextDisplayOrderNumber.toString(),
+        display_id: getNextDisplayOrderNumber.toString(),
         payment_method: paymentMethod || undefined,
-      };
+        extra_charges: allExtraCharges, // For consistency with UI that expects snake_case from DB
+      } as any;
 
       set({ order: newOrder, postCheckoutModalOpen: true });
       toast.success("Order placed successfully!");
@@ -621,7 +643,16 @@ export const usePOSStore = create<POSState>((set, get) => ({
       const response = await fetchFromHasura(getOrdersOfPartnerQuery, {
         partner_id: useAuthStore.getState().userData?.id,
       });
-      set({ pastBills: response.orders, loadingBills: false });
+      const mappedOrders = response.orders.map((order: any) => ({
+        ...order,
+        createdAt: order.created_at,
+        tableNumber: order.table_number,
+        totalPrice: order.total_price,
+        items: order.order_items,
+        gstIncluded: order.gst_included, // Map gst_included to camelCase
+        tableName: order.table_name || order.qr_code?.table_name,
+      }));
+      set({ pastBills: mappedOrders, loadingBills: false });
     } catch (error) {
       console.error("Error fetching past bills:", error);
       set({ loadingBills: false });
@@ -651,7 +682,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
     try {
       const userData = useAuthStore.getState().userData;
       let partnerId: string;
-      
+
       if (userData?.role === "captain") {
         const captainData = userData as Captain;
         partnerId = captainData.partner_id;
@@ -659,17 +690,17 @@ export const usePOSStore = create<POSState>((set, get) => ({
         const partnerData = userData as Partner;
         partnerId = partnerData.id;
       }
-      
+
       if (!partnerId) {
         console.error("Partner ID not available");
         return;
       }
 
       const qrGroup = await getQrGroupForTable(partnerId, tableNumber);
-      
+
       if (qrGroup) {
         set({ qrGroup });
-        
+
         // Calculate the QR group charge amount
         const { cartItems } = get();
         const qrGroupCharges = getExtraCharge(
@@ -677,12 +708,12 @@ export const usePOSStore = create<POSState>((set, get) => ({
           qrGroup.extra_charge,
           qrGroup.charge_type || "FLAT_FEE"
         );
-        
+
         // Only add as extra charge if it's not already removed and has a positive amount
         const { removedQrGroupCharges, extraCharges } = get();
         const isAlreadyRemoved = removedQrGroupCharges.includes(qrGroup.id);
         const isAlreadyAdded = extraCharges.some(charge => charge.name === qrGroup.name);
-        
+
         if (!isAlreadyRemoved && qrGroupCharges > 0 && !isAlreadyAdded) {
           // Add QR group charge as an extra charge
           const newCharge: ExtraCharge = {
@@ -690,7 +721,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
             name: qrGroup.name,
             amount: qrGroupCharges,
           };
-          
+
           set((state) => ({
             extraCharges: [...state.extraCharges, newCharge],
           }));
@@ -721,21 +752,21 @@ export const usePOSStore = create<POSState>((set, get) => ({
 
   addQrGroupCharge: (qrGroupId: string) => {
     const { qrGroup, cartItems, extraCharges } = get();
-    
+
     if (qrGroup && qrGroup.id === qrGroupId) {
       const qrGroupCharges = getExtraCharge(
         cartItems as any[],
         qrGroup.extra_charge,
         qrGroup.charge_type || "FLAT_FEE"
       );
-      
+
       if (qrGroupCharges > 0) {
         const newCharge: ExtraCharge = {
           id: `qr-group-${qrGroupId}`,
           name: qrGroup.name,
           amount: qrGroupCharges,
         };
-        
+
         set((state) => ({
           removedQrGroupCharges: state.removedQrGroupCharges.filter((id) => id !== qrGroupId),
           extraCharges: [...state.extraCharges, newCharge],
@@ -752,4 +783,31 @@ export const usePOSStore = create<POSState>((set, get) => ({
     const event = new CustomEvent('orderUpdated', { detail: { timestamp: Date.now() } });
     window.dispatchEvent(event);
   },
+
+  updateOrderStatus: async (orderId: string, status: string) => {
+    try {
+      await fetchFromHasura(
+        `mutation UpdateOrderStatus($id: uuid!, $status: String!) {
+          update_orders_by_pk(pk_columns: {id: $id}, _set: {status: $status}) {
+            id
+            status
+          }
+        }`,
+        { id: orderId, status }
+      );
+
+      // Update local state
+      const { pastBills } = get();
+      set({
+        pastBills: pastBills.map(order =>
+          order.id === orderId ? { ...order, status: status as any } : order
+        )
+      });
+
+      toast.success(`Order status updated to ${status}`);
+    } catch (error) {
+      console.error("Error updating order status:", error);
+      toast.error("Failed to update order status");
+    }
+  }
 }));

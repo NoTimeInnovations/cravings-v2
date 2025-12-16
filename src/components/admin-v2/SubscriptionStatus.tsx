@@ -66,10 +66,20 @@ export function SubscriptionStatus() {
             const startDate = startOfMonth(now).toISOString();
             const endDate = endOfMonth(now).toISOString();
 
+            // 1. Get Partner's QR Codes
+            const GET_PARTNER_QR_IDS = `
+                query GetPartnerQrIds($partner_id: uuid!) {
+                    qr_codes(where: {partner_id: {_eq: $partner_id}}) {
+                        id
+                    }
+                }
+            `;
+
+            // 2. Get Scans for those QR Codes
             const GET_PARTNER_MONTHLY_SCANS = `
-              query GetPartnerMonthlyScans($partner_id: uuid!, $startDate: timestamptz!, $endDate: timestamptz!) {
+              query GetPartnerMonthlyScans($qr_ids: [uuid!], $startDate: timestamptz!, $endDate: timestamptz!) {
                 qr_scans_aggregate(where: {
-                  qr_code: { partner_id: {_eq: $partner_id} },
+                  qr_id: {_in: $qr_ids},
                   created_at: {_gte: $startDate, _lte: $endDate}
                 }) {
                   aggregate {
@@ -78,9 +88,23 @@ export function SubscriptionStatus() {
                 }
               }
             `;
+
             try {
+                // Fetch QR IDs
+                const qrRes = await fetchFromHasura(GET_PARTNER_QR_IDS, {
+                    partner_id: userData.id
+                });
+
+                const qrIds = qrRes?.qr_codes?.map((qr: any) => qr.id) || [];
+
+                if (qrIds.length === 0) {
+                    setScansUsed(0);
+                    return;
+                }
+
+                // Fetch Scan Count
                 const res = await fetchFromHasura(GET_PARTNER_MONTHLY_SCANS, {
-                    partner_id: userData.id,
+                    qr_ids: qrIds,
                     startDate,
                     endDate
                 });

@@ -107,11 +107,10 @@ const PrintOrderPage = () => {
     if (order?.tableNumber === 0 || order?.type === "delivery")
       return "Delivery";
     if (!order?.tableNumber) return "Takeaway";
-    return ` ${
-      isParcel
+    return ` ${isParcel
         ? `Parcel (Table ${order?.tableName || order?.tableNumber})`
         : `Table ${order?.tableName || order?.tableNumber}`
-    }`;
+      }`;
   };
 
   useEffect(() => {
@@ -189,7 +188,7 @@ const PrintOrderPage = () => {
           address:
             orders_by_pk.partner?.address ||
             orders_by_pk.partner?.location_details ||
-            geoData?.features[0].properties.place_formatted ||
+            geoData?.features?.[0]?.properties?.place_formatted ||
             null,
           fssai_licence_no:
             orders_by_pk.partner?.fssai_licence_no || null,
@@ -260,9 +259,9 @@ const PrintOrderPage = () => {
               display_id:
                 (Number(formattedOrder.display_id) ?? 0) > 0
                   ? `${formattedOrder.display_id}-${getDateOnly(
-                      formattedOrder.created_at,
-                      tz
-                    )}`
+                    formattedOrder.created_at,
+                    tz
+                  )}`
                   : formattedOrder.id.slice(0, 8),
               created_at: new Intl.DateTimeFormat("en-GB", {
                 timeZone: tz,
@@ -282,21 +281,21 @@ const PrintOrderPage = () => {
               delivery_address: formattedOrder.deliveryAddress,
               delivery_location: formattedOrder.delivery_location
                 ? {
-                    coordinates: formattedOrder.delivery_location.coordinates,
-                    google_maps_link: `https://www.google.com/maps/place/${formattedOrder.delivery_location.coordinates[1]},${formattedOrder.delivery_location.coordinates[0]}`,
-                  }
+                  coordinates: formattedOrder.delivery_location.coordinates,
+                  google_maps_link: `https://www.google.com/maps/place/${formattedOrder.delivery_location.coordinates[1]},${formattedOrder.delivery_location.coordinates[0]}`,
+                }
                 : null,
               order_items: formattedOrder.items,
               extra_charges:
                 formattedOrder.extra_charges?.length > 0
                   ? formattedOrder.extra_charges.map((charge: any) => ({
-                      name: charge.name,
-                      price: getExtraCharge(
-                        formattedOrder?.items || [],
-                        charge.amount || 0,
-                        charge.charge_type as QrGroup["charge_type"]
-                      ),
-                    }))
+                    name: charge.name,
+                    price: getExtraCharge(
+                      formattedOrder?.items || [],
+                      charge.amount || 0,
+                      charge.charge_type as QrGroup["charge_type"]
+                    ),
+                  }))
                   : [],
               customer_phone:
                 formattedOrder.phone || formattedOrder.user?.phone,
@@ -399,16 +398,16 @@ const PrintOrderPage = () => {
         style={
           silentPrint
             ? {
-                fontFamily: "monospace",
-                maxWidth: printWidth,
-              }
+              fontFamily: "monospace",
+              maxWidth: printWidth,
+            }
             : {
-                fontFamily: "monospace",
-                maxWidth: printWidth,
-                margin: "0 auto",
-                padding: "16px",
-                backgroundColor: "transparent",
-              }
+              fontFamily: "monospace",
+              maxWidth: printWidth,
+              margin: "0 auto",
+              padding: "16px",
+              backgroundColor: "transparent",
+            }
         }
       >
         {/* Header */}
@@ -464,72 +463,72 @@ const PrintOrderPage = () => {
         {(order?.tableNumber === 0 ||
           order.deliveryAddress !== "" ||
           order.type == "delivery") && (
-          <>
-            <div className="border-t border-black my-2"></div>
-            <div className="text-sm">
-              <div className="font-bold text-sm uppercase mb-1">
-                Order Details:
-              </div>
-              {/* Takeaway Phone */}
-              {(order.user?.phone || order.phone) && (
-                <>
-                  <div className="text-sm flex gap-2 mb-1">
-                    <div className="font-medium">Customer Phone:</div>
-                    <div className="text-sm">
-                      {order.user?.phone || order.phone}
-                    </div>
-                  </div>
-                </>
-              )}
-              {order.deliveryAddress && (
-                <div className="mb-1 flex gap-2">
-                  <div className="font-medium h-fit">Address:</div>
-                  <div className="text-[12px]">{order.deliveryAddress}</div>
+            <>
+              <div className="border-t border-black my-2"></div>
+              <div className="text-sm">
+                <div className="font-bold text-sm uppercase mb-1">
+                  Order Details:
                 </div>
-              )}
-              {!order.tableNumber &&
-                order.delivery_location &&
-                order.delivery_location?.coordinates[1] > 0 &&
-                order.delivery_location?.coordinates[0] > 0 && (
+                {/* Takeaway Phone */}
+                {(order.user?.phone || order.phone) && (
                   <>
-                    <div className="text-sm flex gap-2">
-                      <div className="font-medium">Delivery Location:</div>
-                      <br />
+                    <div className="text-sm flex gap-2 mb-1">
+                      <div className="font-medium">Customer Phone:</div>
                       <div className="text-sm">
-                        <img
-                          alt="QR Code for Delivery Location"
-                          className="w-16 h-16"
-                          src={order.qrCode}
-                        />
+                        {order.user?.phone || order.phone}
                       </div>
                     </div>
                   </>
                 )}
+                {order.deliveryAddress && (
+                  <div className="mb-1 flex gap-2">
+                    <div className="font-medium h-fit">Address:</div>
+                    <div className="text-[12px]">{order.deliveryAddress}</div>
+                  </div>
+                )}
+                {!order.tableNumber &&
+                  order.delivery_location &&
+                  order.delivery_location?.coordinates[1] > 0 &&
+                  order.delivery_location?.coordinates[0] > 0 && (
+                    <>
+                      <div className="text-sm flex gap-2">
+                        <div className="font-medium">Delivery Location:</div>
+                        <br />
+                        <div className="text-sm">
+                          <img
+                            alt="QR Code for Delivery Location"
+                            className="w-16 h-16"
+                            src={order.qrCode}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
 
-              {order.notes && (
-                <>
-                  <div className="font-bold text-sm uppercase mb-1">
-                    Order Notes:
-                  </div>
-                  <div className="text-sm mb-1 whitespace-pre-wrap">
-                    {order.notes || "N/A"}
-                  </div>
-                </>
-              )}
+                {order.notes && (
+                  <>
+                    <div className="font-bold text-sm uppercase mb-1">
+                      Order Notes:
+                    </div>
+                    <div className="text-sm mb-1 whitespace-pre-wrap">
+                      {order.notes || "N/A"}
+                    </div>
+                  </>
+                )}
 
-              {order.payment_method && (
-                <div className="flex gap-2">
-                  <div className="font-bold text-sm uppercase mb-1">
-                    Pay Via:
+                {order.payment_method && (
+                  <div className="flex gap-2">
+                    <div className="font-bold text-sm uppercase mb-1">
+                      Pay Via:
+                    </div>
+                    <div className="text-sm mb-1 whitespace-pre-wrap uppercase">
+                      {order.payment_method || "N/A"}
+                    </div>
                   </div>
-                  <div className="text-sm mb-1 whitespace-pre-wrap uppercase">
-                    {order.payment_method || "N/A"}
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
-        )}
+                )}
+              </div>
+            </>
+          )}
 
         <div className="border-b border-black my-2"></div>
 
@@ -617,11 +616,10 @@ const PrintOrderPage = () => {
           <p>Thank you for your visit!</p>
           <p className="mt-1">
             {order?.partner?.gst_no
-              ? `${
-                  order?.partner?.country === "United Arab Emirates"
-                    ? "VAT"
-                    : "GST"
-                }: ${order?.partner.gst_no}`
+              ? `${order?.partner?.country === "United Arab Emirates"
+                ? "VAT"
+                : "GST"
+              }: ${order?.partner.gst_no}`
               : ""}
           </p>
           {order?.fssai_licence_no && (
@@ -636,7 +634,7 @@ const PrintOrderPage = () => {
               ID: {order.id.slice(0, 8)}
             </h2>
           )}
-          
+
           {/* UPI Payment QR Code */}
           {paymentQrCode && (
             <div className="mt-3 pt-3 border-t border-dashed border-gray-400">
@@ -654,7 +652,7 @@ const PrintOrderPage = () => {
               </p>
             </div>
           )}
-          
+
           {!DONT_SHOW_POWERED_BY_FOR_PARTNER_IDS.includes(order?.partner_id) && (
             <p className="mt-2 text-xs text-gray-500">Powered By Cravings</p>
           )}

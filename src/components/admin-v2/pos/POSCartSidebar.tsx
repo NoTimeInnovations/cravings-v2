@@ -3,22 +3,37 @@ import { usePOSStore } from "@/store/posStore";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Minus, Plus, Trash2, ShoppingCart, CreditCard, ChevronDown, Utensils, ShoppingBag, Loader2, CheckCircle } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, CreditCard, ChevronDown, Utensils, ShoppingBag, Loader2, CheckCircle, Clock, Receipt, XCircle, FileText, Check, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
 import Img from "@/components/Img";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
-
+import { hasuraClient, subscribeToHasura } from "@/lib/hasuraSubscription";
+import { subscriptionQuery } from "@/api/orders";
+import { startOfDay, endOfDay, parseISO, format, isSameDay } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { ArrowLeft, Printer } from "lucide-react";
 
-export function POSCartSidebar() {
+interface POSCartSidebarProps {
+    onMobileBack?: () => void;
+}
+
+export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
     const {
         cartItems,
         removeFromCart,
@@ -30,17 +45,32 @@ export function POSCartSidebar() {
         setUserPhone,
         tableNumber,
         setTableNumber,
-        tableNumbers,
+        tables,
+        tableName,
+        setTableName,
         checkout,
-        setPostCheckoutModalOpen
+        setPostCheckoutModalOpen,
+        pastBills,
+        fetchPastBills,
+        loadingBills,
+        updateOrderStatus,
+        deleteBill,
+        extraCharges,
+        addExtraCharge,
+        removeExtraCharge
     } = usePOSStore();
     const { userData } = useAuthStore();
     const partnerData = userData as Partner;
 
     // UI States
+    const [viewMode, setViewMode] = useState<"current" | "today">("current");
     const [orderType, setOrderType] = useState<"dine-in" | "takeaway">("dine-in");
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
     const [isOrderPlaced, setIsOrderPlaced] = useState(false);
+    const [selectedOrder, setSelectedOrder] = useState<any>(null);
+    const [newChargeName, setNewChargeName] = useState("");
+    const [newChargeAmount, setNewChargeAmount] = useState("");
+    const [isAddingExtraCharge, setIsAddingExtraCharge] = useState(false);
 
     // Sync order type with table selection
     useEffect(() => {
@@ -48,6 +78,49 @@ export function POSCartSidebar() {
             setOrderType("dine-in");
         }
     }, [tableNumber]);
+
+    // Real-time subscription for today's orders
+    useEffect(() => {
+        if (!userData?.id) return;
+
+        const todayStart = startOfDay(new Date()).toISOString();
+        const todayEnd = endOfDay(new Date()).toISOString();
+
+        // Use the subscription to get real-time updates for today's orders
+        const unsubscribe = subscribeToHasura({
+            query: subscriptionQuery,
+            variables: {
+                partner_id: userData.id,
+                today_start: todayStart,
+                today_end: todayEnd
+            },
+            onNext: (data) => {
+                if (data?.data?.orders) {
+                    // Map Hasura snake_case to camelCase for the UI
+                    const mappedOrders = data.data.orders.map((order: any) => ({
+                        ...order,
+                        createdAt: order.created_at,
+                        tableNumber: order.table_number,
+                        totalPrice: order.total_price,
+                        gstIncluded: order.gst_included,
+                        tableName: order.table_name || order.qr_code?.table_name,
+                    }));
+                    usePOSStore.setState({ pastBills: mappedOrders });
+                }
+            },
+            onError: (err) => console.error("Subscription error:", err)
+        });
+
+        return () => {
+            // unsubscribe passed as value/promise? 
+            // subscribeToHasura returns a cleanup function directly.
+            if (typeof unsubscribe === 'function') {
+                unsubscribe();
+            } else if (unsubscribe && typeof (unsubscribe as any).dispose === 'function') {
+                (unsubscribe as any).dispose();
+            }
+        };
+    }, [userData?.id]);
 
     const handleOrderTypeChange = (type: "dine-in" | "takeaway") => {
         setOrderType(type);
@@ -72,6 +145,11 @@ export function POSCartSidebar() {
 
             // Fade out and clear after 1 second
             setTimeout(() => {
+                const completedOrder = usePOSStore.getState().order;
+                if (completedOrder) {
+                    setSelectedOrder(completedOrder);
+                    setViewMode("today");
+                }
                 setIsOrderPlaced(false);
                 setIsPlacingOrder(false);
                 clearCart();
@@ -85,127 +163,212 @@ export function POSCartSidebar() {
         }
     };
 
-    const gstAmount = getGstAmount(totalAmount, partnerData?.gst_percentage || 0);
-    const grandTotal = totalAmount + gstAmount;
+    const handleStatusUpdate = async (orderId: string, status: string) => {
+        await updateOrderStatus(orderId, status);
+        if (selectedOrder && selectedOrder.id === orderId) {
+            setSelectedOrder({ ...selectedOrder, status });
+        }
+    };
+
+    const handleAddExtraCharge = () => {
+        if (!newChargeName || !newChargeAmount) return;
+        addExtraCharge({
+            name: newChargeName,
+            amount: parseFloat(newChargeAmount)
+        });
+        setNewChargeName("");
+        setNewChargeAmount("");
+        setIsAddingExtraCharge(false);
+    };
+
+    const todaysOrders = pastBills.filter(order =>
+        order.createdAt && isSameDay(parseISO(order.createdAt), new Date())
+    ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    const hasPendingOrders = todaysOrders.some(order => order.status === 'pending');
+
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case "completed": return "bg-green-100 text-green-800";
+            case "pending": return "bg-yellow-100 text-yellow-800";
+            case "cancelled": return "bg-red-100 text-red-800";
+            case "accepted": return "bg-blue-100 text-blue-800";
+            case "ready": return "bg-purple-100 text-purple-800";
+            default: return "bg-gray-100 text-gray-800";
+        }
+    };
+
+    const extraChargesTotal = extraCharges.reduce((acc, curr) => acc + curr.amount, 0);
+    const taxableAmount = totalAmount + extraChargesTotal;
+    const gstAmount = getGstAmount(taxableAmount, partnerData?.gst_percentage || 0);
+    const grandTotal = taxableAmount + gstAmount;
+
+    const selectedOrderSubtotal = selectedOrder
+        ? (selectedOrder.items || selectedOrder.order_items)?.reduce((acc: number, item: any) => {
+            const itemData = item.item || item;
+            const price = itemData.price || 0;
+            const quantity = item.quantity || 1;
+            return acc + (price * quantity);
+        }, 0)
+        : 0;
+
+    const selectedOrderExtraCharges = selectedOrder?.extraCharges || selectedOrder?.extra_charges || [];
+    const selectedOrderExtraChargesTotal = selectedOrderExtraCharges.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0);
+
+    const selectedOrderTaxableAmount = selectedOrderSubtotal + selectedOrderExtraChargesTotal;
+
+    const selectedOrderGstAmount = selectedOrder
+        ? getGstAmount(selectedOrderTaxableAmount, selectedOrder.gstIncluded || 0)
+        : 0;
 
     return (
-        <div className="flex flex-col h-full bg-card relative">
-            {/* Loading/Success Overlay */}
-            {(isPlacingOrder || isOrderPlaced) && (
-                <div className={`absolute inset-0 z-50 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center transition-opacity duration-300 ${isOrderPlaced ? 'opacity-100' : 'opacity-100'}`}>
-                    {isOrderPlaced ? (
-                        <div className="flex flex-col items-center text-green-600 animate-in zoom-in duration-300">
-                            <CheckCircle className="h-16 w-16 mb-4" />
-                            <h3 className="text-2xl font-bold">Order Placed!</h3>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center text-orange-600">
-                            <Loader2 className="h-12 w-12 animate-spin mb-4" />
-                            <p className="font-medium text-lg">Placing Order...</p>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Header: Customer Info & Order Type */}
-            <div className="p-4 border-b space-y-3 bg-muted/30">
-                <div className="flex items-center justify-between">
-                    <h2 className="font-semibold text-lg flex items-center gap-2">
-                        <ShoppingCart className="h-5 w-5 text-orange-600" />
+        <div className="flex flex-col md:h-full h-auto bg-card relative">
+            {/* View Switcher */}
+            <div className="p-2 border-b bg-muted/50">
+                <div className="flex bg-muted rounded-lg p-1 h-10 border">
+                    <button
+                        className={`flex-1 flex items-center justify-center text-sm font-medium rounded-md transition-all ${viewMode === 'current' ? 'bg-white text-orange-600 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                        onClick={() => setViewMode('current')}
+                    >
+                        <ShoppingCart className="h-4 w-4 mr-2" />
                         Current Order
-                    </h2>
-                    {cartItems.length > 0 && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => clearCart()}
-                            className="text-muted-foreground hover:text-red-600 h-8"
-                        >
-                            <Trash2 className="h-4 w-4 mr-1" />
-                            Clear
-                        </Button>
-                    )}
+                    </button>
+                    <button
+                        className={`flex-1 flex items-center justify-center text-sm font-medium rounded-md transition-all relative ${viewMode === 'today' ? 'bg-white text-orange-600 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                        onClick={() => setViewMode('today')}
+                    >
+                        <Clock className="h-4 w-4 mr-2" />
+                        Today's Orders
+                        {hasPendingOrders && (
+                            <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-600 border border-white animate-pulse" />
+                        )}
+                    </button>
                 </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                    <Input
-                        placeholder="Customer Phone"
-                        value={userPhone || ""}
-                        onChange={(e) => setUserPhone(e.target.value)}
-                        className="h-9 text-sm"
-                    />
-
-                    {/* Order Type Selector */}
-                    <div className="flex bg-muted rounded-md p-1 h-9 border">
-                        <button
-                            className={`flex-1 flex items-center justify-center text-xs font-medium rounded-sm transition-all ${orderType === 'dine-in' ? 'bg-white text-orange-600 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                            onClick={() => handleOrderTypeChange('dine-in')}
-                        >
-                            <Utensils className="h-3 w-3 mr-1" />
-                            Dine-In
-                        </button>
-                        <button
-                            className={`flex-1 flex items-center justify-center text-xs font-medium rounded-sm transition-all ${orderType === 'takeaway' ? 'bg-white text-orange-600 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                            onClick={() => handleOrderTypeChange('takeaway')}
-                        >
-                            <ShoppingBag className="h-3 w-3 mr-1" />
-                            Takeaway
-                        </button>
-                    </div>
-                </div>
-
-                {/* Table Selector - Only visible for Dine-In */}
-                {orderType === 'dine-in' && (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="w-full justify-between h-9">
-                                {tableNumber ? `Table ${tableNumber}` : "Select Table"}
-                                <ChevronDown className="h-3 w-3 opacity-50" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="max-h-[200px] overflow-y-auto w-[var(--radix-dropdown-menu-trigger-width)]">
-                            {tableNumbers.map((num) => (
-                                <DropdownMenuItem key={num} onClick={() => setTableNumber(num)}>
-                                    Table {num}
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                )}
             </div>
 
-            {/* Cart Items */}
-            <ScrollArea className="flex-1 p-4">
-                {cartItems.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-40 text-muted-foreground space-y-2 opacity-50">
-                        <ShoppingCart className="h-10 w-10" />
-                        <p className="text-sm">Cart is empty</p>
-                    </div>
-                ) : (
-                    <div className="space-y-3">
-                        {cartItems.map((item) => (
-                            <div key={item.id} className="flex gap-3 bg-background p-2 rounded-lg border shadow-sm group">
-                                <div className="h-16 w-16 rounded-md overflow-hidden flex-shrink-0 bg-muted">
-                                    {item.image_url ? (
-                                        <Img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
-                                    ) : (
-                                        <div className="h-full w-full flex items-center justify-center bg-orange-100 text-orange-600 text-xs font-bold">
-                                            ITEM
-                                        </div>
-                                    )}
+            {viewMode === "current" ? (
+                <>
+                    {/* Loading/Success Overlay */}
+                    {(isPlacingOrder || isOrderPlaced) && (
+                        <div className={`absolute inset-0 z-50 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center transition-opacity duration-300 ${isOrderPlaced ? 'opacity-100' : 'opacity-100'}`}>
+                            {isOrderPlaced ? (
+                                <div className="flex flex-col items-center text-green-600 animate-in zoom-in duration-300">
+                                    <CheckCircle className="h-16 w-16 mb-4" />
+                                    <h3 className="text-2xl font-bold">Order Placed!</h3>
                                 </div>
-                                <div className="flex-1 min-w-0 flex flex-col justify-between">
-                                    <div>
-                                        <h4 className="font-medium text-sm truncate" title={item.name}>{item.name}</h4>
-                                        <p className="text-xs text-muted-foreground">
-                                            {formatCurrency(item.price)} x {item.quantity}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <div className="font-semibold text-sm">
-                                            {formatCurrency(item.price * item.quantity)}
+                            ) : (
+                                <div className="flex flex-col items-center text-orange-600">
+                                    <Loader2 className="h-12 w-12 animate-spin mb-4" />
+                                    <p className="font-medium text-lg">Placing Order...</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Header: Customer Info & Order Type */}
+                    <div className="p-4 border-b space-y-3 bg-muted/30">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {onMobileBack && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 md:hidden"
+                                        onClick={onMobileBack}
+                                    >
+                                        <ArrowLeft className="h-4 w-4" />
+                                    </Button>
+                                )}
+                                <h2 className="font-semibold text-lg flex items-center gap-2">
+                                    <span className="text-orange-600">#</span> New Order
+                                </h2>
+                            </div>
+                            {cartItems.length > 0 && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => clearCart()}
+                                    className="text-muted-foreground hover:text-red-600 h-8"
+                                >
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Clear
+                                </Button>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <Input
+                                placeholder="Customer Phone"
+                                value={userPhone || ""}
+                                onChange={(e) => setUserPhone(e.target.value)}
+                                className="h-9 text-sm"
+                            />
+
+                            {/* Order Type Selector */}
+                            <div className="flex bg-muted rounded-md p-1 h-9 border">
+                                <button
+                                    className={`flex-1 flex items-center justify-center text-xs font-medium rounded-sm transition-all ${orderType === 'dine-in' ? 'bg-white text-orange-600 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                    onClick={() => handleOrderTypeChange('dine-in')}
+                                >
+                                    <Utensils className="h-3 w-3 mr-1" />
+                                    Dine-In
+                                </button>
+                                <button
+                                    className={`flex-1 flex items-center justify-center text-xs font-medium rounded-sm transition-all ${orderType === 'takeaway' ? 'bg-white text-orange-600 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                    onClick={() => handleOrderTypeChange('takeaway')}
+                                >
+                                    <ShoppingBag className="h-3 w-3 mr-1" />
+                                    Takeaway
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Table Selector - Only visible for Dine-In */}
+                        {orderType === 'dine-in' && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="sm" className="w-full justify-between h-9">
+                                        {tableNumber
+                                            ? (tableName || `Table ${tableNumber}`)
+                                            : "Select Table"}
+                                        <ChevronDown className="h-3 w-3 opacity-50" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="max-h-[200px] overflow-y-auto w-[var(--radix-dropdown-menu-trigger-width)]">
+                                    {tables.map((table) => (
+                                        <DropdownMenuItem
+                                            key={table.id}
+                                            onClick={() => {
+                                                setTableNumber(table.number);
+                                                setTableName(table.name || null);
+                                            }}
+                                        >
+                                            {table.name || `Table ${table.number}`}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
+                    </div>
+
+                    {/* Cart Items */}
+                    <ScrollArea className="md:flex-1 p-4">
+                        {cartItems.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-40 text-muted-foreground space-y-2 opacity-50">
+                                <ShoppingCart className="h-10 w-10" />
+                                <p className="text-sm">Cart is empty</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {cartItems.map((item) => (
+                                    <div key={item.id} className="flex justify-between items-center bg-background p-2 rounded-lg border shadow-sm group gap-2 w-full">
+                                        <div className="flex-1 min-w-0 grid gap-0.5">
+                                            <h4 className="font-medium text-sm truncate pr-2" title={item.name}>{item.name}</h4>
+                                            <p className="text-xs text-muted-foreground">
+                                                {formatCurrency(item.price)} x {item.quantity} = <span className="font-semibold text-foreground">{formatCurrency(item.price * item.quantity)}</span>
+                                            </p>
                                         </div>
-                                        <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
+                                        <div className="flex items-center gap-1 bg-muted rounded-md p-0.5 shrink-0">
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
@@ -225,49 +388,266 @@ export function POSCartSidebar() {
                                             </Button>
                                         </div>
                                     </div>
-                                </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
-                )}
-            </ScrollArea>
-
-            {/* Footer: Totals & Actions */}
-            <div className="p-4 border-t bg-muted/30 space-y-3">
-                <div className="space-y-1.5 text-sm">
-                    <div className="flex justify-between text-muted-foreground">
-                        <span>Subtotal</span>
-                        <span>{formatCurrency(totalAmount)}</span>
-                    </div>
-                    {(partnerData?.gst_percentage || 0) > 0 && (
-                        <div className="flex justify-between text-muted-foreground">
-                            <span>GST ({partnerData?.gst_percentage}%)</span>
-                            <span>{formatCurrency(gstAmount)}</span>
-                        </div>
-                    )}
-                    <Separator className="my-2" />
-                    <div className="flex justify-between font-bold text-lg">
-                        <span>Total</span>
-                        <span>{formatCurrency(grandTotal)}</span>
-                    </div>
-                </div>
-
-                <div className="pt-2">
-                    <Button
-                        size="lg"
-                        className="w-full bg-orange-600 hover:bg-orange-700 text-white shadow-md hover:shadow-lg transition-all"
-                        onClick={handlePlaceOrder}
-                        disabled={cartItems.length === 0 || isPlacingOrder}
-                    >
-                        {isPlacingOrder ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <CreditCard className="mr-2 h-4 w-4" />
                         )}
-                        {isPlacingOrder ? "Placing Order..." : "Place Order"}
-                    </Button>
-                </div>
-            </div>
-        </div>
+                    </ScrollArea>
+
+                    {/* Footer: Totals & Actions */}
+                    <div className="p-4 border-t bg-muted/30 space-y-3">
+                        {/* Extra Charges Section */}
+                        <div className="space-y-2">
+                            {isAddingExtraCharge ? (
+                                <div className="flex items-center gap-2 animate-in slide-in-from-top-2 duration-200">
+                                    <Input
+                                        placeholder="Charge Name"
+                                        value={newChargeName}
+                                        onChange={(e) => setNewChargeName(e.target.value)}
+                                        className="h-8 text-xs flex-1"
+                                        autoFocus
+                                    />
+                                    <Input
+                                        type="number"
+                                        placeholder="Amount"
+                                        value={newChargeAmount}
+                                        onChange={(e) => setNewChargeAmount(e.target.value)}
+                                        className="h-8 text-xs w-16"
+                                    />
+                                    <Button size="sm" variant="ghost" onClick={handleAddExtraCharge} className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50">
+                                        <CheckCircle className="h-4 w-4" />
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={() => setIsAddingExtraCharge(false)} className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50">
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ) : (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full text-xs h-8 border-dashed text-muted-foreground hover:text-foreground"
+                                    onClick={() => setIsAddingExtraCharge(true)}
+                                >
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Add Extra Charge
+                                </Button>
+                            )}
+                            {extraCharges.length > 0 && (
+                                <div className="space-y-1">
+                                    {extraCharges.map((charge) => (
+                                        <div key={charge.id} className="flex justify-between items-center text-xs bg-muted/50 p-1.5 rounded">
+                                            <span>{charge.name}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span>{formatCurrency(charge.amount)}</span>
+                                                <button onClick={() => removeExtraCharge(charge.id)} className="text-red-500 hover:text-red-700">
+                                                    <Trash2 className="h-3 w-3" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <Separator />
+
+
+                        <div className="space-y-1.5 text-sm">
+                            <div className="flex justify-between text-muted-foreground">
+                                <span>Subtotal</span>
+                                <span>{formatCurrency(totalAmount)}</span>
+                            </div>
+                            <div className="flex justify-between text-muted-foreground">
+                                <span>Extra Charges</span>
+                                <span>{formatCurrency(extraChargesTotal)}</span>
+                            </div>
+                            {(partnerData?.gst_percentage || 0) > 0 && (
+                                <div className="flex justify-between text-muted-foreground">
+                                    <span>GST ({partnerData?.gst_percentage}%)</span>
+                                    <span>{formatCurrency(gstAmount)}</span>
+                                </div>
+                            )}
+                            <Separator className="my-2" />
+                            <div className="flex justify-between font-bold text-lg">
+                                <span>Total</span>
+                                <span>{formatCurrency(grandTotal)}</span>
+                            </div>
+                        </div>
+
+                        <div className="pt-2">
+                            <Button
+                                size="lg"
+                                className="w-full bg-orange-600 hover:bg-orange-700 text-white shadow-md hover:shadow-lg transition-all"
+                                onClick={handlePlaceOrder}
+                                disabled={(cartItems.length === 0 && extraChargesTotal === 0) || isPlacingOrder}
+                            >
+                                {isPlacingOrder ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    <CreditCard className="mr-2 h-4 w-4" />
+                                )}
+                                {isPlacingOrder ? "Placing Order..." : "Place Order"}
+                            </Button>
+                        </div>
+                    </div>
+                </>
+            ) : (
+                selectedOrder ? (
+                    <div className="flex flex-col h-full animate-in slide-in-from-right-10 duration-200">
+                        <div className="p-2 border-b flex items-center gap-2 bg-muted/20">
+                            <Button variant="ghost" size="icon" onClick={() => setSelectedOrder(null)} className="h-8 w-8">
+                                <ArrowLeft className="h-4 w-4" />
+                            </Button>
+                            <div>
+                                <h3 className="font-semibold text-sm">
+                                    Order #{selectedOrder.display_id || selectedOrder.id?.slice(0, 8)}
+                                </h3>
+                                <p className="text-xs text-muted-foreground">
+                                    {selectedOrder.tableName || `Table ${selectedOrder.tableNumber}`} • {selectedOrder.type}
+                                </p>
+                            </div>
+                            <Select
+                                defaultValue={selectedOrder.status}
+                                onValueChange={(val) => handleStatusUpdate(selectedOrder.id, val)}
+                            >
+                                <SelectTrigger className={`w-[110px] h-7 text-xs border-none ml-auto ${getStatusColor(selectedOrder.status)}`}>
+                                    <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="accepted">Accepted</SelectItem>
+                                    <SelectItem value="ready">Ready</SelectItem>
+                                    <SelectItem value="completed">Completed</SelectItem>
+                                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <ScrollArea className="md:flex-1 p-4">
+                            <div className="space-y-4">
+                                <div className="space-y-3">
+                                    {(selectedOrder.items || selectedOrder.order_items)?.map((item: any, idx: number) => {
+                                        const itemData = item.item || item;
+                                        const unitPrice = itemData.price || 0;
+                                        const quantity = item.quantity || 1;
+                                        return (
+                                            <div key={idx} className="flex justify-between items-start text-sm">
+                                                <div className="flex gap-2">
+                                                    <span className="font-medium text-muted-foreground">{quantity}x</span>
+                                                    <div>
+                                                        <span className="font-medium">{itemData.name}</span>
+                                                    </div>
+                                                </div>
+                                                <span className="font-medium">{formatCurrency(unitPrice * quantity)}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <Separator />
+                                <div className="space-y-1.5 text-sm">
+                                    <div className="flex justify-between text-muted-foreground">
+                                        <span>Subtotal</span>
+                                        <span>{formatCurrency(selectedOrderSubtotal)}</span>
+                                    </div>
+                                    {selectedOrderExtraChargesTotal > 0 && (
+                                        <>
+                                            {selectedOrderExtraCharges.map((charge: any, idx: number) => (
+                                                <div key={idx} className="flex justify-between text-muted-foreground text-xs pl-2 border-l-2 border-muted">
+                                                    <span>{charge.name}</span>
+                                                    <span>{formatCurrency(charge.amount)}</span>
+                                                </div>
+                                            ))}
+                                            <div className="flex justify-between text-muted-foreground">
+                                                <span>Extra Charges</span>
+                                                <span>{formatCurrency(selectedOrderExtraChargesTotal)}</span>
+                                            </div>
+                                        </>
+                                    )}
+                                    {(selectedOrder.gstIncluded || 0) > 0 && (
+                                        <div className="flex justify-between text-muted-foreground">
+                                            <span>GST ({selectedOrder.gstIncluded}%)</span>
+                                            <span>{formatCurrency(selectedOrderGstAmount)}</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <Separator />
+                                <div className="flex justify-between font-bold text-base">
+                                    <span>Total</span>
+                                    <span>{formatCurrency(selectedOrder.totalPrice)}</span>
+                                </div>
+
+                                {selectedOrder.notes && (
+                                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md text-sm border-l-2 border-yellow-50 mt-4">
+                                        <p className="font-medium text-yellow-800 dark:text-yellow-200 text-xs mb-1">Note:</p>
+                                        <p className="text-muted-foreground italic">{selectedOrder.notes}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </ScrollArea>
+
+                        <div className="p-4 border-t bg-muted/10 grid grid-cols-2 gap-3">
+                            <Button variant="outline" className="w-full" onClick={() => window.open(`/bill/${selectedOrder.id}`, '_blank')}>
+                                <Printer className="h-4 w-4 mr-2" />
+                                Bill
+                            </Button>
+                            <Button variant="outline" className="w-full" onClick={() => window.open(`/kot/${selectedOrder.id}`, '_blank')}>
+                                <FileText className="h-4 w-4 mr-2" />
+                                KOT
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col md:h-full h-auto">
+                        <div className="p-4 border-b bg-muted/30 flex justify-between items-center">
+                            <h2 className="font-semibold text-lg">Today's Orders</h2>
+                            <Button variant="ghost" size="sm" onClick={() => fetchPastBills()} disabled={loadingBills}>
+                                {loadingBills ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
+                            </Button>
+                        </div>
+                        <ScrollArea className="md:flex-1">
+                            {todaysOrders.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center p-8 text-center h-full text-muted-foreground">
+                                    <Clock className="h-12 w-12 mb-4 opacity-20" />
+                                    <p>No orders yet today</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2 p-4">
+                                    {todaysOrders.map((order) => (
+                                        <div
+                                            key={order.id}
+                                            className="p-3 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors bg-card shadow-sm"
+                                            onClick={() => setSelectedOrder(order)}
+                                        >
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-sm">#{order.display_id || order.id.slice(0, 4)}</span>
+                                                    <Badge variant="outline" className="text-[10px] h-5 px-1.5">
+                                                        {format(parseISO(order.createdAt), "h:mm a")}
+                                                    </Badge>
+                                                </div>
+                                                <Badge className={
+                                                    order.status === 'completed' ? 'bg-green-100 text-green-800 border-none' :
+                                                        order.status === 'cancelled' ? 'bg-red-100 text-red-800 border-none' :
+                                                            'bg-yellow-100 text-yellow-800 border-none'
+                                                }>
+                                                    {order.status}
+                                                </Badge>
+                                            </div>
+                                            <div className="flex justify-between items-center text-sm">
+                                                <span className="text-muted-foreground">
+                                                    {order.tableName || `Table ${order.tableNumber}`} • {order.type}
+                                                </span>
+                                                <span className="font-medium text-foreground">
+                                                    {formatCurrency(order.totalPrice)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </ScrollArea>
+                    </div>
+                )
+            )
+            }
+        </div >
     );
 }
