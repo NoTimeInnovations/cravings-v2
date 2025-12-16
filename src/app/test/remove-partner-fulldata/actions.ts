@@ -2,6 +2,15 @@
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
 
+
+
+const DELETE_PARTNER_PAYMENTS = `
+  mutation DeletePartnerPayments($partner_id: uuid!) {
+    delete_partner_payments(where: {partner_id: {_eq: $partner_id}}) {
+      affected_rows
+    }
+  }
+`;
 const GET_PARTNER_QR_IDS = `
   query GetPartnerQrIds($partner_id: uuid!) {
     qr_codes(where: {partner_id: {_eq: $partner_id}}) {
@@ -53,17 +62,19 @@ const DELETE_ORDERS = `
 // Offer Items typically don't exist as a standalone table if they are just JSON or part of menu.
 // Removing DELETE_OFFER_ITEMS based on previous error.
 
-const DELETE_OFFER_GROUPS = `
-  mutation DeleteOfferGroups($partner_id: uuid!) {
-    delete_offer_group(where: {offers: {partner_id: {_eq: $partner_id}}}) {
+
+
+const DELETE_OFFERS = `
+  mutation DeleteOffers($partner_id: uuid!) {
+    delete_offers(where: {partner_id: {_eq: $partner_id}}) {
       affected_rows
     }
   }
 `;
 
-const DELETE_OFFERS = `
-  mutation DeleteOffers($partner_id: uuid!) {
-    delete_offers(where: {partner_id: {_eq: $partner_id}}) {
+const DELETE_STOCKS = `
+  mutation DeleteStocks($partner_id: uuid!) {
+    delete_stocks(where: {menu: {partner_id: {_eq: $partner_id}}}) {
       affected_rows
     }
   }
@@ -86,8 +97,8 @@ const DELETE_CATEGORY = `
 `;
 
 const DELETE_DEVICE_TOKENS = `
-  mutation DeleteDeviceTokens($partner_id: uuid!) {
-    delete_device_tokens(where: {user_id: {_eq: $partner_id}}) {
+  mutation DeleteDeviceTokens($user_id: String!) {
+    delete_device_tokens(where: {user_id: {_eq: $user_id}}) {
       affected_rows
     }
   }
@@ -147,6 +158,8 @@ export async function searchPartners(query: string) {
   }
 }
 
+// Removed GET_OFFER_GROUP_IDS and DELETE_OFFER_GROUPS_BY_IDS as schema link is unclear and causing errors.
+
 export async function deletePartnerFullData(partnerId: string) {
   const results: Record<string, any> = {};
   const errors: string[] = [];
@@ -163,7 +176,7 @@ export async function deletePartnerFullData(partnerId: string) {
   };
 
   try {
-    // 0. Pre-fetch QR IDs for manual scan deletion
+    // 0. Pre-fetch QR IDs
     const qrData = await fetchFromHasura(GET_PARTNER_QR_IDS, { partner_id: partnerId });
     const qrIds = qrData?.qr_codes?.map((q: any) => q.id) || [];
 
@@ -180,16 +193,26 @@ export async function deletePartnerFullData(partnerId: string) {
     // 2. Dependencies
     await runDelete("orders", DELETE_ORDERS);
     await runDelete("offers", DELETE_OFFERS);
-    await runDelete("offer_groups", DELETE_OFFER_GROUPS); // Now using filter on offers relationship
+
+    // Skipped offer_groups deletion due to schema ambiguity
+
     await runDelete("qr_codes", DELETE_QR_CODES);
 
     // 3. More dependencies
     await runDelete("qr_groups", DELETE_QR_GROUPS);
+
+    // Stocks depend on menu, so delete stocks first
+    await runDelete("stocks", DELETE_STOCKS);
     await runDelete("menu", DELETE_MENU);
+
     await runDelete("category", DELETE_CATEGORY);
-    await runDelete("device_tokens", DELETE_DEVICE_TOKENS);
+
+    // Device tokens uses userId string
+    await runDelete("device_tokens", DELETE_DEVICE_TOKENS, { user_id: partnerId });
+
     await runDelete("captain", DELETE_CAPTAIN);
     await runDelete("payments", DELETE_PAYMENTS);
+    await runDelete("partner_payments", DELETE_PARTNER_PAYMENTS);
     await runDelete("followers", DELETE_FOLLOWERS);
 
     // 4. Partner
