@@ -3,6 +3,7 @@
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { parseISO, isSameMonth } from "date-fns";
 import { INSERT_QR_SCAN } from "@/api/qrcodes";
+import plans from "@/data/plans.json";
 
 // Query to get QR and Partner details
 const GET_QR_PARTNER = `
@@ -11,6 +12,7 @@ query GetQrPartner($qrId: uuid!) {
     id
     partner {
       id
+      country
       subscription_details
     }
   }
@@ -36,11 +38,25 @@ export async function trackQrScan(qrId: string) {
     }
 
     const partner = qrCode.partner;
-    let subDetails = partner.subscription_details || {
-      plan: null,
-      status: "active",
-      usage: { scans_cycle: 0, last_reset: new Date().toISOString() }
-    };
+    let subDetails = partner.subscription_details;
+
+    // If subscription details are missing or plan is missing, initialize with default
+    if (!subDetails || !subDetails.plan) {
+      const isIndia = partner.country === "IN";
+      const defaultPlan = isIndia
+        ? plans.india.find((p) => p.id === "in_trial")
+        : plans.international.find((p) => p.id === "int_free");
+
+      if (!subDetails) {
+        subDetails = {
+          plan: defaultPlan,
+          status: "active",
+          usage: { scans_cycle: 0, last_reset: new Date().toISOString() },
+        };
+      } else {
+        subDetails.plan = defaultPlan;
+      }
+    }
 
     // Initialize usage if missing
     if (!subDetails.usage) {
