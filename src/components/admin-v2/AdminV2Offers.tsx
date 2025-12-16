@@ -37,9 +37,7 @@ export function AdminV2Offers() {
         (async () => {
             if (userData) {
                 await fetchPartnerOffers();
-                setTimeout(() => {
-                    setIsOfferFetched(true);
-                }, 2000);
+                setIsOfferFetched(true);
             }
         })();
     }, [userData]);

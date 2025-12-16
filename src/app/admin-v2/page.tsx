@@ -42,6 +42,12 @@ export default function AdminPage() {
     const { activeView, setActiveView } = useAdminStore();
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [renderedViews, setRenderedViews] = useState<string[]>([]);
+
+    // Track visited views to keep them mounted
+    if (!renderedViews.includes(activeView)) {
+        setRenderedViews([...renderedViews, activeView]);
+    }
 
     return (
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
@@ -81,27 +87,45 @@ export default function AdminPage() {
                         {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && activeView !== "POS" && (
                             <h1 className="text-3xl font-bold mb-6">{activeView}</h1>
                         )}
-                        {activeView === "Dashboard" ? (
-                            <AdminV2Dashboard />
-                        ) : activeView === "Orders" ? (
-                            <AdminV2Orders />
-                        ) : activeView === "Menu" ? (
-                            <AdminV2Menu />
-                        ) : activeView === "Offers" ? (
-                            <AdminV2Offers />
-                        ) : activeView === "QrCodes" ? (
-                            <AdminV2QrCodes />
-                        ) : activeView === "Settings" ? (
-                            <AdminV2Settings />
-                        ) : activeView === "Captains" ? (
-                            <AdminV2CaptainSettings />
-                        ) : activeView === "Help & Support" ? (
-                            <AdminV2HelpSupport />
-                        ) : activeView === "POS" ? (
-                            <AdminV2POS />
-                        ) : (
-                            <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-gray-500 bg-card h-96 flex items-center justify-center">
-                                Content for {activeView}
+
+                        {renderedViews.includes("Dashboard") && (
+                            <div className={activeView === "Dashboard" ? "block" : "hidden"}>
+                                <AdminV2Dashboard />
+                            </div>
+                        )}
+                        {renderedViews.includes("Orders") && (
+                            <div className={activeView === "Orders" ? "block" : "hidden"}>
+                                <AdminV2Orders />
+                            </div>
+                        )}
+                        {renderedViews.includes("Menu") && (
+                            <div className={activeView === "Menu" ? "block" : "hidden"}>
+                                <AdminV2Menu />
+                            </div>
+                        )}
+                        {renderedViews.includes("Offers") && (
+                            <div className={activeView === "Offers" ? "block" : "hidden"}>
+                                <AdminV2Offers />
+                            </div>
+                        )}
+                        {renderedViews.includes("QrCodes") && (
+                            <div className={activeView === "QrCodes" ? "block" : "hidden"}>
+                                <AdminV2QrCodes />
+                            </div>
+                        )}
+                        {renderedViews.includes("Settings") && (
+                            <div className={activeView === "Settings" ? "block" : "hidden"}>
+                                <AdminV2Settings />
+                            </div>
+                        )}
+                        {renderedViews.includes("Captains") && (
+                            <div className={activeView === "Captains" ? "block" : "hidden"}>
+                                <AdminV2CaptainSettings />
+                            </div>
+                        )}
+                        {renderedViews.includes("Help & Support") && (
+                            <div className={activeView === "Help & Support" ? "block" : "hidden"}>
+                                <AdminV2HelpSupport />
                             </div>
                         )}
                     </main>
