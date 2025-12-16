@@ -33,6 +33,9 @@ const AdminV2Offers = dynamic(() => import("@/components/admin-v2/AdminV2Offers"
 const AdminV2HelpSupport = dynamic(() => import("@/components/admin-v2/AdminV2HelpSupport").then(mod => mod.AdminV2HelpSupport), {
     loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
 });
+const AdminV2POS = dynamic(() => import("@/components/admin-v2/AdminV2POS").then(mod => mod.AdminV2POS), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
 import { useAdminStore } from "@/store/adminStore";
 
 export default function AdminPage() {
@@ -75,7 +78,7 @@ export default function AdminPage() {
 
                     {/* Main Content */}
                     <main className="flex-1 overflow-y-auto p-6">
-                        {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && (
+                        {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && activeView !== "POS" && (
                             <h1 className="text-3xl font-bold mb-6">{activeView}</h1>
                         )}
                         {activeView === "Dashboard" ? (
@@ -94,6 +97,8 @@ export default function AdminPage() {
                             <AdminV2CaptainSettings />
                         ) : activeView === "Help & Support" ? (
                             <AdminV2HelpSupport />
+                        ) : activeView === "POS" ? (
+                            <AdminV2POS />
                         ) : (
                             <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-gray-500 bg-card h-96 flex items-center justify-center">
                                 Content for {activeView}
