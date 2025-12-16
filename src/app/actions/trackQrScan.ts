@@ -3,7 +3,6 @@
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { parseISO, isSameMonth } from "date-fns";
 import { INSERT_QR_SCAN } from "@/api/qrcodes";
-import plans from "@/data/plans.json";
 
 // Query to get QR and Partner details
 const GET_QR_PARTNER = `
@@ -12,7 +11,6 @@ query GetQrPartner($qrId: uuid!) {
     id
     partner {
       id
-      country
       subscription_details
     }
   }
@@ -36,63 +34,6 @@ export async function trackQrScan(qrId: string) {
     if (!qrCode || !qrCode.partner) {
       return { success: false, error: "QR Code or Partner not found" };
     }
-
-    const partner = qrCode.partner;
-    let subDetails = partner.subscription_details;
-
-    // If subscription details are missing or plan is missing, initialize with default
-    if (!subDetails || !subDetails.plan) {
-      const isIndia = partner.country === "IN";
-      const defaultPlan = isIndia
-        ? plans.india.find((p) => p.id === "in_trial")
-        : plans.international.find((p) => p.id === "int_free");
-
-      if (!subDetails) {
-        subDetails = {
-          plan: defaultPlan,
-          status: "active",
-          usage: { scans_cycle: 0, last_reset: new Date().toISOString() },
-        };
-      } else {
-        subDetails.plan = defaultPlan;
-      }
-    }
-
-    // Initialize usage if missing
-    if (!subDetails.usage) {
-      subDetails.usage = { scans_cycle: 0, last_reset: new Date().toISOString() };
-    }
-
-    // 2. Check Plan & Limits
-    const now = new Date();
-    const lastReset = parseISO(subDetails.usage.last_reset || now.toISOString());
-
-    // Reset if new month
-    if (!isSameMonth(now, lastReset)) {
-      subDetails.usage.scans_cycle = 0;
-      subDetails.usage.last_reset = now.toISOString();
-    }
-
-    // Get Limit
-    // Default to 1000 if not set, or -1 for unlimited
-    const limit = subDetails.plan?.scan_limit;
-    // If limit is undefined, assume some default or unlimited? 
-    // Based on plans.json, free trial has 1000, others have limits or -1.
-
-    const effectiveLimit = limit === undefined ? 1000 : limit;
-
-    if (effectiveLimit !== -1 && subDetails.usage.scans_cycle >= effectiveLimit) {
-      return { success: false, error: "Scan limit reached", limitReached: true };
-    }
-
-    // 3. Increment
-    subDetails.usage.scans_cycle += 1;
-
-    // 4. Save
-    await fetchFromHasura(UPDATE_PARTNER_SUBSCRIPTION, {
-      id: partner.id,
-      subscription_details: subDetails
-    });
 
     // 5. Track Scan in Analytics Table
     await fetchFromHasura(INSERT_QR_SCAN, {

@@ -27,16 +27,11 @@ export async function fixPartnerSubscription(partnerId: string) {
 
     let subDetails = partner.subscription_details || {
       status: "active",
-      usage: { scans_cycle: 0, last_reset: new Date().toISOString() }
     };
 
     // Fix logic: Assign plan
     subDetails.plan = defaultPlan;
 
-    // Ensure usage exists
-    if (!subDetails.usage) {
-      subDetails.usage = { scans_cycle: 0, last_reset: new Date().toISOString() };
-    }
     if (!subDetails.status) subDetails.status = "active";
 
 

@@ -542,10 +542,6 @@ export default function GetStartedPage() {
                 startDate: now.toISOString(),
                 expiryDate: expiryDate.toISOString(),
                 isFreePlanUsed: true,
-                usage: {
-                    scans_cycle: 0,
-                    last_reset: now.toISOString(),
-                }
             };
 
             // --- FEATURE FLAGS ---
@@ -1015,7 +1011,7 @@ export default function GetStartedPage() {
                     </div>
                 </div>
             );
-    }
+        }
 
 
 

@@ -134,10 +134,6 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
                     startDate: now.toISOString(),
                     expiryDate: expiryDate.toISOString(),
                     isFreePlanUsed: signupIsFreeUsed,
-                    usage: {
-                        scans_cycle: 0,
-                        last_reset: now.toISOString(),
-                    }
                 };
 
                 // Helper to generate feature flags string from plan

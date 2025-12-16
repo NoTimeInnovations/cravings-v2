@@ -105,10 +105,6 @@ export interface Partner extends BaseUser {
     status: "active" | "expired" | "cancelled";
     startDate: string;
     expiryDate: string;
-    usage?: {
-      scans_cycle: number;
-      last_reset: string;
-    };
   };
 }
 

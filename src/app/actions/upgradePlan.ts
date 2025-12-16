@@ -29,10 +29,6 @@ export async function upgradePlan(partnerId: string, newPlan: any, isFreePlanUse
             startDate: now.toISOString(),
             expiryDate: expiryDate.toISOString(),
             isFreePlanUsed,
-            usage: {
-                scans_cycle: 0,
-                last_reset: now.toISOString(),
-            }
         };
 
         // Generate feature flags
