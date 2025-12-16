@@ -105,8 +105,6 @@ const HotelMenuPage = ({
 
           if (result.success) {
             await setQrScanCookie(qrId);
-          } else if (result.limitReached) {
-            setLimitReached(true);
           }
         } catch (error) {
           console.error("Failed to update QR scan count:", error);

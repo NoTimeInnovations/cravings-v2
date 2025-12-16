@@ -1,7 +1,6 @@
 "use server";
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { parseISO, isSameMonth } from "date-fns";
 import { INSERT_QR_SCAN } from "@/api/qrcodes";
 
 // Query to get QR and Partner details
@@ -17,13 +16,7 @@ query GetQrPartner($qrId: uuid!) {
 }
 `;
 
-const UPDATE_PARTNER_SUBSCRIPTION = `
-mutation UpdatePartnerSubscription($id: uuid!, $subscription_details: jsonb!) {
-  update_partners_by_pk(pk_columns: {id: $id}, _set: {subscription_details: $subscription_details}) {
-    id
-  }
-}
-`;
+
 
 export async function trackQrScan(qrId: string) {
   try {
