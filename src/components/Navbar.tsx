@@ -8,7 +8,7 @@ import {
   ShoppingBag,
   UserCircle,
 } from "lucide-react";
-import { Button } from "./ui/button";
+
 import { getFeatures } from "@/lib/getFeatures";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -147,14 +147,12 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
     if (!userData) {
       return (
         <>
-          <Button
-            onClick={() => router.push("/login")}
-            size="lg"
-            variant="outline"
+          <Link
+            href="/login"
             className="inline-flex items-center h-fit text-nowrap text-xs gap-2 px-3 md:px-4 py-2 font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors"
           >
             Sign In
-          </Button>
+          </Link>
         </>
       );
     }
