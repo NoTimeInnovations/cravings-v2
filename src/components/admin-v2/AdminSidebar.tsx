@@ -9,6 +9,7 @@ import {
     UserCog,
     QrCode,
     LifeBuoy,
+    Percent,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ const sidebarItems: SidebarItem[] = [
     { title: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
     { title: "Orders", icon: ShoppingBag, id: "orders" },
     { title: "Menu", icon: UtensilsCrossed, id: "menu" },
+    { title: "Offers", icon: Percent, id: "offers" },
     { title: "QrCodes", icon: QrCode, id: "qrcodes" },
     { title: "Captains", icon: UserCog, id: "captains" },
     { title: "Settings", icon: Settings, id: "settings" },

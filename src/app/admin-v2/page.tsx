@@ -27,6 +27,9 @@ const AdminV2CaptainSettings = dynamic(() => import("@/components/admin-v2/Admin
 const AdminV2QrCodes = dynamic(() => import("@/components/admin-v2/AdminV2QrCodes").then(mod => mod.AdminV2QrCodes), {
     loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
 });
+const AdminV2Offers = dynamic(() => import("@/components/admin-v2/AdminV2Offers").then(mod => mod.AdminV2Offers), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
 const AdminV2HelpSupport = dynamic(() => import("@/components/admin-v2/AdminV2HelpSupport").then(mod => mod.AdminV2HelpSupport), {
     loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
 });
@@ -72,7 +75,7 @@ export default function AdminPage() {
 
                     {/* Main Content */}
                     <main className="flex-1 overflow-y-auto p-6">
-                        {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "QrCodes" && activeView !== "Help & Support" && (
+                        {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && (
                             <h1 className="text-3xl font-bold mb-6">{activeView}</h1>
                         )}
                         {activeView === "Dashboard" ? (
@@ -81,6 +84,8 @@ export default function AdminPage() {
                             <AdminV2Orders />
                         ) : activeView === "Menu" ? (
                             <AdminV2Menu />
+                        ) : activeView === "Offers" ? (
+                            <AdminV2Offers />
                         ) : activeView === "QrCodes" ? (
                             <AdminV2QrCodes />
                         ) : activeView === "Settings" ? (
