@@ -155,7 +155,9 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                     Table: {order.tableName || order.tableNumber || "N/A"}
                                 </Badge>
                                 <Badge variant="secondary" className="font-medium capitalize">
-                                    {order.type === "table_order" ? "Dine-in" : order.type}
+                                    {(order.type === 'delivery' && !order.deliveryAddress)
+                                        ? "Takeaway"
+                                        : (order.type === "table_order" ? "Dine-in" : order.type)}
                                 </Badge>
                             </div>
                         </div>

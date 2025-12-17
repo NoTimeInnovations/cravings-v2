@@ -23,6 +23,7 @@ query GetOrder($id: uuid!) {
     notes
     table_name
     partner_id
+    delivery_address
     extra_charges
     qr_code{
       table_name
@@ -52,14 +53,17 @@ const PrintKOTPage = () => {
   const printWidth = searchParams.get("w") || "72mm";
   const tz = typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
 
-    const getOrderTypeText = (order: Order) => {
-    if (order.tableNumber === 0 || order.type === "delivery") return "Delivery";
+  const getOrderTypeText = (order: Order) => {
+    if (order.type === "delivery") {
+      // @ts-ignore
+      return order.deliveryAddress ? "Delivery" : "Takeaway";
+    }
+    if (order.tableNumber === 0) return "Delivery";
     if (!order.tableNumber) return "Takeaway";
-    return ` ${
-      isParcel
-        ? `Parcel (Table ${order.tableName || order.tableNumber})`
-        : `Table ${order.tableName || order.tableNumber}`
-    }`;
+    return ` ${isParcel
+      ? `Parcel (Table ${order.tableName || order.tableNumber})`
+      : `Table ${order.tableName || order.tableNumber}`
+      }`;
   };
 
   useEffect(() => {
@@ -82,6 +86,7 @@ const PrintKOTPage = () => {
           tableNumber: orders_by_pk.table_number,
           tableName:
             orders_by_pk.qr_code?.table_name || orders_by_pk.table_name || null,
+          deliveryAddress: orders_by_pk.delivery_address,
           extra_charges: (orders_by_pk.extra_charges ?? []).map(
             (charge: any) => ({
               id: charge.id,
@@ -107,9 +112,9 @@ const PrintKOTPage = () => {
               display_id:
                 (Number(formattedOrder.display_id) ?? 0) > 0
                   ? `${formattedOrder.display_id}-${getDateOnly(
-                      formattedOrder.created_at,
-                      tz
-                    )}`
+                    formattedOrder.created_at,
+                    tz
+                  )}`
                   : formattedOrder.id.slice(0, 8),
               created_at: new Intl.DateTimeFormat("en-GB", { timeZone: tz }).format(
                 new Date(formattedOrder.created_at)
@@ -170,16 +175,16 @@ const PrintKOTPage = () => {
         style={
           silentPrint
             ? {
-                fontFamily: "monospace",
-                maxWidth: printWidth,
-              }
+              fontFamily: "monospace",
+              maxWidth: printWidth,
+            }
             : {
-                fontFamily: "monospace",
-                maxWidth: printWidth,
-                margin: "0 auto",
-                padding: "16px",
-                backgroundColor: "white",
-              }
+              fontFamily: "monospace",
+              maxWidth: printWidth,
+              margin: "0 auto",
+              padding: "16px",
+              backgroundColor: "white",
+            }
         }
       >
         {/* Header */}

@@ -645,12 +645,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setState: (updates) => {
-    set((state) => ({
-      ...state,
-      userData: state.userData
+    set((state) => {
+      const updatedUserData = state.userData
         ? ({ ...state.userData, ...updates } as AuthUser)
-        : null,
-    }));
+        : null;
+
+      let updatedFeatures = state.features;
+
+      if (updates && "feature_flags" in updates) {
+        updatedFeatures = getFeatures((updates as any).feature_flags);
+      }
+
+      return {
+        ...state,
+        userData: updatedUserData,
+        features: updatedFeatures,
+      };
+    });
   },
 
   createPartner: async (

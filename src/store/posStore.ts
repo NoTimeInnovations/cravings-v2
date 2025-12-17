@@ -56,6 +56,8 @@ interface POSState {
   setTableNumber: (tableNumber: number | null) => void;
   tableName: string | null;
   setTableName: (tableName: string | null) => void;
+  posOrderType: "dine-in" | "takeaway";
+  setPosOrderType: (type: "dine-in" | "takeaway") => void;
   paymentMethod?: "cash" | "card" | "upi";
   setPaymentMethod: (method: "cash" | "card" | "upi") => void;
   addToCart: (item: MenuItem) => void;
@@ -97,6 +99,7 @@ interface POSState {
   setOrderNote: (note: string) => void;
   refreshOrdersAfterUpdate: () => void;
   updateOrderStatus: (orderId: string, status: string) => Promise<void>;
+  updateOrderPaymentMethod: (orderId: string, paymentMethod: string) => Promise<void>;
 }
 
 export const usePOSStore = create<POSState>((set, get) => ({
@@ -122,6 +125,9 @@ export const usePOSStore = create<POSState>((set, get) => ({
   tableName: null,
   qrCodeData: [],
   paymentMethod: undefined,
+  posOrderType: "dine-in",
+
+  setPosOrderType: (type) => set({ posOrderType: type }),
 
   setPaymentMethod: (method) => {
     set({ paymentMethod: method });
@@ -382,7 +388,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   clearCart: () => {
-    set({ cartItems: [], totalAmount: 0, extraCharges: [], removedQrGroupCharges: [], orderNote: "", paymentMethod: undefined });
+    set({ cartItems: [], totalAmount: 0, extraCharges: [], removedQrGroupCharges: [], orderNote: "", paymentMethod: undefined, posOrderType: "dine-in" });
   },
 
   addExtraCharge: (charge: Omit<ExtraCharge, "id">) => {
@@ -433,7 +439,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   checkout: async () => {
     try {
       set({ loading: true });
-      const { cartItems, extraCharges, isCaptainOrder, qrGroup, orderNote, paymentMethod } = get();
+      const { cartItems, extraCharges, isCaptainOrder, qrGroup, orderNote, paymentMethod, posOrderType } = get();
       const userData = useAuthStore.getState().userData;
       console.log("User Data:", {
         id: userData?.id,
@@ -488,6 +494,14 @@ export const usePOSStore = create<POSState>((set, get) => ({
         allExtraCharges.reduce((sum, charge) => sum + charge.amount, 0) +
         getGstAmount(foodSubtotal, gstPercentage);
 
+      // Determine order type and type string
+      // If posOrderType is takeaway, use "delivery" with no address.
+      // Else "pos" (or should we use "table_order"?)
+      // Stick to existing "pos" for dine-in unless directed otherwise, but ensure takeaway logic is applied.
+
+      const isTakeaway = posOrderType === "takeaway";
+      const orderTypeString = isTakeaway ? "delivery" : "pos";
+
       const orderId = uuidv4();
       const createdAt = new Date().toISOString();
 
@@ -498,7 +512,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         isCaptainOrder,
         createdAt,
         totalPrice: foodSubtotal,
-        type: "pos",
+        type: orderTypeString,
         status: "completed" as "completed",
         tableNumber: get().tableNumber,
         extraCharges: allExtraCharges,
@@ -522,9 +536,9 @@ export const usePOSStore = create<POSState>((set, get) => ({
         qrId: null,
         partnerId,
         userId: null,
-        type: "pos",
+        type: orderTypeString,
         status: "completed" as "completed",
-        delivery_address: get().deliveryAddress || null,
+        delivery_address: isTakeaway ? null : (get().deliveryAddress || null), // Ensure null for takeaway
         delivery_location: null,
         orderedby: isCaptainOrder ? "captain" : null,
         captain_id: isCaptainOrder ? userId : null,
@@ -541,7 +555,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
             id: orderId,
             totalPrice: foodSubtotal,
             partnerId,
-            type: "pos",
+            type: orderTypeString,
             status: "completed" as "completed",
             tableNumber: get().tableNumber,
             extraCharges: allExtraCharges,
@@ -612,7 +626,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         },
         gstIncluded: gstPercentage,
         extraCharges: allExtraCharges,
-        type: "pos",
+        type: orderTypeString,
         deliveryAddress: get().deliveryAddress || undefined,
         phone: get().userPhone || "N/A",
         orderedby: isCaptainOrder ? "captain" : undefined,
@@ -808,6 +822,34 @@ export const usePOSStore = create<POSState>((set, get) => ({
     } catch (error) {
       console.error("Error updating order status:", error);
       toast.error("Failed to update order status");
+    }
+  },
+
+  updateOrderPaymentMethod: async (orderId: string, paymentMethod: string) => {
+    try {
+      await fetchFromHasura(
+        `mutation UpdateOrderPaymentMethod($id: uuid!, $payment_method: String!) {
+          update_orders_by_pk(pk_columns: {id: $id}, _set: {payment_method: $payment_method}) {
+            id
+            payment_method
+          }
+        }`,
+        { id: orderId, payment_method: paymentMethod }
+      );
+
+      const { pastBills } = get();
+      set({
+        pastBills: pastBills.map(order =>
+          order.id === orderId ? { ...order, payment_method: paymentMethod as "cash" | "card" | "upi" } : order
+        ),
+        order: get().order?.id === orderId ? { ...get().order!, payment_method: paymentMethod as "cash" | "card" | "upi" } : get().order
+      });
+
+      toast.success(`Payment method updated to ${paymentMethod}`);
+    } catch (error) {
+      console.error("Error updating payment method:", error);
+      toast.error("Failed to update payment method");
+      throw error;
     }
   }
 }));

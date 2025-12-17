@@ -48,7 +48,7 @@ export function AdminV2Settings() {
     const { userData, signOut, features } = useAuthStore();
     const router = useRouter();
 
-    const showOrderRelatedSettings = features?.ordering?.enabled;
+    const showOrderRelatedSettings = features?.ordering?.access;
 
     const firstQrCodeId = (userData as any)?.qr_codes?.[0]?.id;
     const hotelNameSlug = (userData as any)?.name?.replace(/ /g, "-");

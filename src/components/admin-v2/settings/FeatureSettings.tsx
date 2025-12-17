@@ -21,7 +21,7 @@ export function FeatureSettings() {
     useEffect(() => {
         if (userData?.role === "partner") {
             const fetflags = userData.feature_flags;
-            const currentFeatures = getFeatures(userData.feature_flags as string);
+            const currentFeatures = getFeatures(fetflags || null);
 
             // Determine Plan Features
             const planId = userData.subscription_details?.plan?.id;
@@ -37,32 +37,6 @@ export function FeatureSettings() {
                 // Check if the plan has 'features_enabled' property which lists specific keys
                 if (userPlan.features_enabled) {
                     planEnabledFeatures = userPlan.features_enabled;
-                }
-
-                // Logic update: Access should be granted if Plan grants it OR if DB string (currentFeatures) grants it.
-                // We only explicitly revoke access if NEITHER grants it.
-                // Actually, if Plan grants it, we ensure it's true.
-                // If Plan denies it (is missing), we check if DB overrides it.
-
-                if (userPlan.features_enabled) {
-                    Object.keys(currentFeatures).forEach(key => {
-                        // If plan allows it, ensure access is true.
-                        if (planEnabledFeatures[key]) {
-                            currentFeatures[key as keyof typeof currentFeatures].access = true;
-                        }
-                        // If plan doesn't allow it, we DO NOT FORCE FALSE if it's already true from "getFeatures" (DB override)
-                        // This allows manual overrides via the database string.
-                    });
-                } else {
-                    // Fallback for plans without explicit feature map.
-                    // If no map in plan, we used to disable all.
-                    // Now, we will respect `getFeatures` result.
-                    // If getFeatures (DB) says true, we keep it true.
-                    // We only force false if we want strict Plan enforcement blocking overrides.
-                    // Given the bug report "it should be true", we trust the DB string.
-
-                    // So we do nothing here! The default state from getFeatures is preserved.
-                    // If the user has "ordering-true" in DB, access is true.
                 }
             }
 

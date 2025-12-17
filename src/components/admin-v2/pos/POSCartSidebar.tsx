@@ -57,25 +57,30 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
         deleteBill,
         extraCharges,
         addExtraCharge,
-        removeExtraCharge
+        removeExtraCharge,
+        posOrderType,
+        setPosOrderType,
+        updateOrderPaymentMethod
     } = usePOSStore();
     const { userData } = useAuthStore();
     const partnerData = userData as Partner;
 
     // UI States
     const [viewMode, setViewMode] = useState<"current" | "today">("current");
-    const [orderType, setOrderType] = useState<"dine-in" | "takeaway">("dine-in");
+    // const [orderType, setOrderType] = useState<"dine-in" | "takeaway">("dine-in"); // Moved to store
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
     const [isOrderPlaced, setIsOrderPlaced] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<any>(null);
     const [newChargeName, setNewChargeName] = useState("");
     const [newChargeAmount, setNewChargeAmount] = useState("");
+
     const [isAddingExtraCharge, setIsAddingExtraCharge] = useState(false);
+    const [isSelectingPaymentMethod, setIsSelectingPaymentMethod] = useState(false);
 
     // Sync order type with table selection
     useEffect(() => {
         if (tableNumber) {
-            setOrderType("dine-in");
+            setPosOrderType("dine-in");
         }
     }, [tableNumber]);
 
@@ -104,6 +109,7 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                         totalPrice: order.total_price,
                         gstIncluded: order.gst_included,
                         tableName: order.table_name || order.qr_code?.table_name,
+                        deliveryAddress: order.delivery_address // Ensure deliveryAddress is mapped
                     }));
                     usePOSStore.setState({ pastBills: mappedOrders });
                 }
@@ -123,14 +129,14 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
     }, [userData?.id]);
 
     const handleOrderTypeChange = (type: "dine-in" | "takeaway") => {
-        setOrderType(type);
+        setPosOrderType(type);
         if (type === "takeaway") {
             setTableNumber(null);
         }
     };
 
     const handlePlaceOrder = async () => {
-        if (orderType === "dine-in" && !tableNumber) {
+        if (posOrderType === "dine-in" && !tableNumber) {
             toast.error("Please select a table for Dine-in orders");
             return;
         }
@@ -221,6 +227,27 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
         ? getGstAmount(selectedOrderTaxableAmount, selectedOrder.gstIncluded || 0)
         : 0;
 
+
+
+    const handlePrintBill = () => {
+        if (!selectedOrder) return;
+        if (selectedOrder.payment_method) {
+            window.open(`/bill/${selectedOrder.id}`, '_blank');
+        } else {
+            setIsSelectingPaymentMethod(true);
+        }
+    };
+
+    const handlePaymentSelection = async (method: string) => {
+        if (!selectedOrder) return;
+        await updateOrderPaymentMethod(selectedOrder.id, method);
+        if (selectedOrder) {
+            setSelectedOrder({ ...selectedOrder, payment_method: method });
+        }
+        window.open(`/bill/${selectedOrder.id}`, '_blank');
+        setIsSelectingPaymentMethod(false);
+    };
+
     return (
         <div className="flex flex-col md:h-full h-auto bg-card relative">
             {/* View Switcher */}
@@ -307,14 +334,14 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                             {/* Order Type Selector */}
                             <div className="flex bg-muted rounded-md p-1 h-9 border">
                                 <button
-                                    className={`flex-1 flex items-center justify-center text-xs font-medium rounded-sm transition-all ${orderType === 'dine-in' ? 'bg-white text-orange-600 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                    className={`flex-1 flex items-center justify-center text-xs font-medium rounded-sm transition-all ${posOrderType === 'dine-in' ? 'bg-white text-orange-600 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                                     onClick={() => handleOrderTypeChange('dine-in')}
                                 >
                                     <Utensils className="h-3 w-3 mr-1" />
                                     Dine-In
                                 </button>
                                 <button
-                                    className={`flex-1 flex items-center justify-center text-xs font-medium rounded-sm transition-all ${orderType === 'takeaway' ? 'bg-white text-orange-600 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                    className={`flex-1 flex items-center justify-center text-xs font-medium rounded-sm transition-all ${posOrderType === 'takeaway' ? 'bg-white text-orange-600 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                                     onClick={() => handleOrderTypeChange('takeaway')}
                                 >
                                     <ShoppingBag className="h-3 w-3 mr-1" />
@@ -324,7 +351,7 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                         </div>
 
                         {/* Table Selector - Only visible for Dine-In */}
-                        {orderType === 'dine-in' && (
+                        {posOrderType === 'dine-in' && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="outline" size="sm" className="w-full justify-between h-9">
@@ -501,7 +528,11 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                                     Order #{selectedOrder.display_id || selectedOrder.id?.slice(0, 8)}
                                 </h3>
                                 <p className="text-xs text-muted-foreground">
-                                    {selectedOrder.tableName || `Table ${selectedOrder.tableNumber}`} • {selectedOrder.type}
+                                    {selectedOrder.tableName || `Table ${selectedOrder.tableNumber}`} • {
+                                        (selectedOrder.type === 'delivery' && !selectedOrder.deliveryAddress) ? "Takeaway" :
+                                            (selectedOrder.type === 'table_order' || selectedOrder.type === 'pos') ? "Dine-in" :
+                                                selectedOrder.type
+                                    }
                                 </p>
                             </div>
                             <Select
@@ -583,15 +614,47 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                             </div>
                         </ScrollArea>
 
-                        <div className="p-4 border-t bg-muted/10 grid grid-cols-2 gap-3">
-                            <Button variant="outline" className="w-full" onClick={() => window.open(`/bill/${selectedOrder.id}`, '_blank')}>
-                                <Printer className="h-4 w-4 mr-2" />
-                                Bill
-                            </Button>
-                            <Button variant="outline" className="w-full" onClick={() => window.open(`/kot/${selectedOrder.id}`, '_blank')}>
-                                <FileText className="h-4 w-4 mr-2" />
-                                KOT
-                            </Button>
+                        <div className="p-4 border-t bg-muted/10">
+                            {isSelectingPaymentMethod ? (
+                                <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="font-semibold text-sm">Select Payment Method</h4>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setIsSelectingPaymentMethod(false)}
+                                            className="h-6 w-6 p-0"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <Button variant="outline" onClick={() => handlePaymentSelection('cash')} className="flex flex-col h-auto py-3 gap-1 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200">
+                                            <span className="text-xl">💵</span>
+                                            <span className="text-xs font-medium">Cash</span>
+                                        </Button>
+                                        <Button variant="outline" onClick={() => handlePaymentSelection('upi')} className="flex flex-col h-auto py-3 gap-1 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200">
+                                            <span className="text-xl">📱</span>
+                                            <span className="text-xs font-medium">UPI</span>
+                                        </Button>
+                                        <Button variant="outline" onClick={() => handlePaymentSelection('card')} className="flex flex-col h-auto py-3 gap-1 hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200">
+                                            <span className="text-xl">💳</span>
+                                            <span className="text-xs font-medium">Card</span>
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Button variant="outline" className="w-full" onClick={handlePrintBill}>
+                                        <Printer className="h-4 w-4 mr-2" />
+                                        Bill
+                                    </Button>
+                                    <Button variant="outline" className="w-full" onClick={() => window.open(`/kot/${selectedOrder.id}`, '_blank')}>
+                                        <FileText className="h-4 w-4 mr-2" />
+                                        KOT
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ) : (
@@ -633,7 +696,11 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                                             </div>
                                             <div className="flex justify-between items-center text-sm">
                                                 <span className="text-muted-foreground">
-                                                    {order.tableName || `Table ${order.tableNumber}`} • {order.type}
+                                                    {order.tableName || `Table ${order.tableNumber}`} • {
+                                                        (order.type === 'delivery' && !order.deliveryAddress) ? "Takeaway" :
+                                                            (order.type === 'table_order' || order.type === 'pos') ? "Dine-in" :
+                                                                order.type
+                                                    }
                                                 </span>
                                                 <span className="font-medium text-foreground">
                                                     {formatCurrency(order.totalPrice)}

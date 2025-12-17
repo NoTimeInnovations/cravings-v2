@@ -104,12 +104,14 @@ const PrintOrderPage = () => {
   const printWidth = searchParams.get("w") || "72mm";
 
   const getOrderTypeText = (order: any) => {
-    if (order?.tableNumber === 0 || order?.type === "delivery")
-      return "Delivery";
+    if (order?.type === "delivery") {
+      return order.deliveryAddress ? "Delivery" : "Takeaway";
+    }
+    if (order?.tableNumber === 0) return "Delivery";
     if (!order?.tableNumber) return "Takeaway";
     return ` ${isParcel
-        ? `Parcel (Table ${order?.tableName || order?.tableNumber})`
-        : `Table ${order?.tableName || order?.tableNumber}`
+      ? `Parcel (Table ${order?.tableName || order?.tableNumber})`
+      : `Table ${order?.tableName || order?.tableNumber}`
       }`;
   };
 

@@ -39,7 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, IndianRupee, ShoppingBag, Truck, TrendingUp, Download, QrCode } from "lucide-react";
+import { Loader2, IndianRupee, ShoppingBag, Truck, TrendingUp, Download, QrCode, RefreshCcw } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { downloadOrderReport } from "@/utils/downloadOrderReport";
@@ -482,6 +482,15 @@ export function AdminV2Dashboard() {
           />
         )}
         <div className="w-full sm:w-auto flex gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={fetchData}
+            disabled={loading}
+            className="shrink-0"
+          >
+            <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
           {qrId && (
             <Button
               variant="outline"

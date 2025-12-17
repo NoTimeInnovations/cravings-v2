@@ -63,7 +63,10 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
   return parts.join(",");
 };
 
-export const getFeatures = (perm: string) => {
+export const getFeatures = (perm: string | null) => {
+
+  console.log("Perm: ", perm);
+
   const permissions: FeatureFlags = {
     ordering: {
       access: false,
@@ -95,9 +98,12 @@ export const getFeatures = (perm: string) => {
     }
   };
 
-  if (perm) {
-    const parts = perm.split(",");
+  if (!perm) {
+    return permissions;
+  }
 
+  if (perm && perm.length > 0) {
+    const parts = perm.split(",");
 
     for (const part of parts) {
       const [key, value] = part.split("-");

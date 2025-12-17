@@ -329,7 +329,9 @@ export function AdminV2AllOrders() {
                                         <TableCell>{format(new Date(order.createdAt), "hh:mm a")}</TableCell>
                                         <TableCell>
                                             <Badge variant="secondary" className="uppercase">
-                                                {order.type === "table_order" ? "Dine-in" : order.type}
+                                                {(order.type === 'delivery' && !order.deliveryAddress)
+                                                    ? "Takeaway"
+                                                    : (order.type === "table_order" ? "Dine-in" : order.type)}
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
@@ -444,7 +446,9 @@ export function AdminV2AllOrders() {
                                         </div>
                                         <div className="flex items-center justify-end">
                                             <Badge variant="outline" className="capitalize text-xs">
-                                                {order.type === "table_order" ? "Dine-in" : order.type}
+                                                {(order.type === 'delivery' && !order.deliveryAddress)
+                                                    ? "Takeaway"
+                                                    : (order.type === "table_order" ? "Dine-in" : order.type)}
                                             </Badge>
                                         </div>
                                     </div>
