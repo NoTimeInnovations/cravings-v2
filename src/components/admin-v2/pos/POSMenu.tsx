@@ -59,14 +59,14 @@ export function POSMenu() {
             />
 
             {/* Desktop: Vertical Category Sidebar */}
-            <div className="hidden lg:flex w-64 flex-col border-r bg-card h-full">
+            <div className="hidden lg:flex w-40 flex-col border-r bg-card h-full">
                 <div className="p-4 border-b font-semibold text-lg">Categories</div>
                 <div className="flex-1 overflow-y-auto p-2 space-y-1">
                     {groupedItems && Object.keys(groupedItems).map((category) => (
                         <button
                             key={category}
                             onClick={() => setSelectedCategory(category)}
-                            className={`w-full text-left capitalize px-4 py-3 rounded-md text-sm font-medium transition-colors text-lg ${selectedCategory === category
+                            className={`w-full text-left capitalize px-3 py-2 rounded-md font-medium transition-colors text-sm ${selectedCategory === category
                                 ? "bg-orange-50 text-orange-600 border-l-4 border-orange-600"
                                 : "dark:text-white hover:bg-gray-50 hover:text-gray-900"
                                 }`}

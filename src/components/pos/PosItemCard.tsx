@@ -108,7 +108,8 @@ const PosItemCard = ({ item }: { item: MenuItem }) => {
                 return (
                   <div
                     key={variant.name}
-                    className="flex items-center justify-between p-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors border border-transparent"
+                    className="flex items-center justify-between p-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors border border-transparent cursor-pointer"
+                    onClick={() => addToCart(variantItem)}
                   >
                     <div className="flex-1">
                       <p className="text-sm font-medium text-foreground">{variant.name}</p>
@@ -130,7 +131,10 @@ const PosItemCard = ({ item }: { item: MenuItem }) => {
 
   // If the item has NO VARIANTS, render the simple card
   return (
-    <Card className="h-full hover:shadow-md transition-all border shadow-sm group active:scale-[0.98] duration-200 bg-card">
+    <Card
+      onClick={() => addToCart(item)}
+      className="h-full hover:shadow-md transition-all cursor-pointer border shadow-sm group active:scale-[0.98] duration-200 bg-card"
+    >
       <CardContent className="p-3">
         <div className="flex justify-between items-start gap-2 h-full">
           <div className="flex-1 flex flex-col min-w-0 justify-between h-full">

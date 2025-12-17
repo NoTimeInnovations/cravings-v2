@@ -61,7 +61,15 @@ export default function AdminPage() {
                             }`}
                     >
                         <div className="w-64">
-                            <AdminSidebar activeView={activeView} onNavigate={setActiveView} />
+                            <AdminSidebar
+                                activeView={activeView}
+                                onNavigate={(view) => {
+                                    setActiveView(view);
+                                    if (view === "POS") {
+                                        setIsSidebarOpen(false);
+                                    }
+                                }}
+                            />
                         </div>
                     </aside>
 
@@ -83,7 +91,7 @@ export default function AdminPage() {
                     </SheetContent>
 
                     {/* Main Content */}
-                    <main className={`flex-1 overflow-y-auto ${activeView === "POS" ? "p-0 md:p-6" : "p-6"}`}>
+                    <main className={`flex-1 overflow-y-auto ${activeView === "POS" ? "p-0 md:p-2" : "p-6"}`}>
                         {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && activeView !== "POS" && (
                             <h1 className="text-3xl font-bold mb-6">{activeView}</h1>
                         )}
