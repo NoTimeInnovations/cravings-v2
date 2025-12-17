@@ -5,9 +5,25 @@ import { useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { getAuthCookie, getTempUserIdCookie, setTempUserIdCookie } from "@/app/auth/actions";
 import { Notification } from "@/app/actions/notification";
+import { usePathname, useRouter } from "next/navigation";
 
 const AuthInitializer = () => {
-  const { fetchUser } = useAuthStore();
+  const { fetchUser, userData, loading } = useAuthStore();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!loading && userData?.role === "partner") {
+      const restrictedPaths = ["/", "/explore"];
+      if (restrictedPaths.includes(pathname)) {
+        if ((userData as any).subscription_details) {
+          router.push("/admin-v2");
+        } else {
+          router.push("/admin");
+        }
+      }
+    }
+  }, [userData, loading, pathname, router]);
 
 
   useEffect(() => {
