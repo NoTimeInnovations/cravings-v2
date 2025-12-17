@@ -57,7 +57,7 @@ export function AdminV2POS() {
                         ${activeTab === "cart" ? "flex" : "hidden"}
                     `}
                 >
-                    <POSCartSidebar onMobileBack={() => setActiveTab("menu")} />
+                    <POSCartSidebar key={activeTab} onMobileBack={() => setActiveTab("menu")} />
                 </div>
             </div>
 

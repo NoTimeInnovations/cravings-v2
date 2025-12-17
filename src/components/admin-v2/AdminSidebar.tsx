@@ -25,11 +25,11 @@ interface SidebarItem {
 const sidebarItems: SidebarItem[] = [
     { title: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
     { title: "Orders", icon: ShoppingBag, id: "orders" },
-    { title: "POS", icon: CreditCard, id: "pos" },
     { title: "Menu", icon: UtensilsCrossed, id: "menu" },
     { title: "Offers", icon: Percent, id: "offers" },
     { title: "QrCodes", icon: QrCode, id: "qrcodes" },
     { title: "Captains", icon: UserCog, id: "captains" },
+    { title: "POS", icon: CreditCard, id: "pos" },
     { title: "Settings", icon: Settings, id: "settings" },
 ];
 
