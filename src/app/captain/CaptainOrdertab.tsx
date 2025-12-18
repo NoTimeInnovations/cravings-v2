@@ -8,7 +8,6 @@ import { Loader2 } from "lucide-react";
 import { usePOSStore } from "@/store/posStore";
 import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
 import OrderItemCard from "@/components/captain/OrderItemCard";
-import { EditCaptainOrderModal } from "./pos/EditCaptainOrderModal";
 import { revalidateTag } from "@/app/actions/revalidate";
 
 const CaptainOrdersTab = () => {
@@ -54,7 +53,7 @@ const CaptainOrdersTab = () => {
         try {
           setLoading(true);
           const fetchedOrders = await fetchOrderOfPartner(captainData.partner_id);
-          
+
           if (!fetchedOrders) {
             setOrders([]);
             setLoading(false);
@@ -90,7 +89,7 @@ const CaptainOrdersTab = () => {
 
       // Always reset to page 1 and show the latest orders
       setCurrentPage(1);
-        setOrders(processedOrders.slice(0, ordersPerPage));
+      setOrders(processedOrders.slice(0, ordersPerPage));
       prevOrdersRef.current = processedOrders;
     });
 
@@ -106,11 +105,11 @@ const CaptainOrdersTab = () => {
         try {
           setLoading(true);
           const fetchedOrders = await fetchOrderOfPartner(captainData.partner_id);
-          
+
           if (fetchedOrders) {
             const processedOrders = processAndFilterOrders(fetchedOrders);
             setTotalOrders(processedOrders.length);
-            
+
             // Reset to first page and show updated orders
             setCurrentPage(1);
             setOrders(processedOrders.slice(0, ordersPerPage));
@@ -126,7 +125,7 @@ const CaptainOrdersTab = () => {
     };
 
     window.addEventListener('orderUpdated', handleOrderUpdate);
-    
+
     return () => {
       window.removeEventListener('orderUpdated', handleOrderUpdate);
     };
@@ -138,9 +137,9 @@ const CaptainOrdersTab = () => {
     try {
       setLoading(true);
       const offset = currentPage * ordersPerPage;
-      
+
       const fetchedOrders = await fetchOrderOfPartner(captainData.partner_id);
-      
+
       if (!fetchedOrders) return;
 
       const processedOrders = processAndFilterOrders(fetchedOrders);
@@ -200,7 +199,7 @@ const CaptainOrdersTab = () => {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 h-[calc(100vh-200px)]">
-      
+
       {/* Fixed Header */}
       <div className="flex-none p-4 border-b">
       </div>
@@ -236,8 +235,8 @@ const CaptainOrdersTab = () => {
                 // Use the order's totalPrice if it exists and matches our calculation
                 // Otherwise use our calculated total
                 const calculatedTotal = totalPriceWithGst + extraChargesTotal;
-                const grantTotal = order.totalPrice === calculatedTotal ? 
-                  order.totalPrice : 
+                const grantTotal = order.totalPrice === calculatedTotal ?
+                  order.totalPrice :
                   calculatedTotal;
 
                 return (
@@ -283,7 +282,7 @@ const CaptainOrdersTab = () => {
       )}
 
       {/* Edit Order Modal */}
-      <EditCaptainOrderModal />
+      {/* <EditCaptainOrderModal /> */}
     </div>
   );
 };

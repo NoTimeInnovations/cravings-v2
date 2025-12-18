@@ -162,7 +162,10 @@ export const useMenuStore = create<MenuState>((set, get) => ({
 
     if (!hotelId && !userData) throw new Error("No partner ID provided and user data not found");
 
-    const targetId = hotelId || userData.id;
+    let targetId = hotelId || userData.id;
+    if (userData.role === 'captain' && !hotelId) {
+      targetId = (userData as any).partner_id;
+    }
 
     // Only check cache if forceRefresh is false
     if (!forceRefresh) {

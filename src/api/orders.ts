@@ -17,6 +17,10 @@ export const getOrdersOfPartnerQuery = `
       display_id
       table_name
       payment_method
+      notes
+      gst_included
+      extra_charges
+      phone
       order_items {
         id
         quantity

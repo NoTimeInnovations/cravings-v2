@@ -1,28 +1,36 @@
 "use client";
 
-import { useAuthStore } from "@/store/authStore";
-import { useRouter, usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, PlusCircle, X, Trash2 } from "lucide-react";
-import CaptainOrdersTab from "./CaptainOrdertab";
-import { CaptainPOS } from "./pos/CaptainPOS";
-import { Captaincart } from "./pos/Captaincart";
-import { CaptainCheckoutModal } from "./pos/CaptainCheckoutModal";
-import { EditCaptainOrderModal } from "./pos/EditCaptainOrderModal";
-import { toast } from "sonner";
+import { useEffect, useState } from "react";
+import { useAuthStore, Captain } from "@/store/authStore";
 import { usePOSStore } from "@/store/posStore";
-import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { Loader2, LogOut, ShoppingCart, Utensils, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { POSMenu } from "@/components/admin-v2/pos/POSMenu";
+import { POSCartSidebar } from "@/components/admin-v2/pos/POSCartSidebar";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export default function CaptainDashboard() {
   const router = useRouter();
-  const { signOut, userData } = useAuthStore();
-  const { cartItems, clearCart, isPOSOpen, setIsPOSOpen } = usePOSStore();
   const pathname = usePathname();
+  const { signOut, userData } = useAuthStore();
+  const {
+    setIsPOSOpen,
+    getPartnerTables,
+    cartItems,
+    pastBills,
+    fetchPastBills,
+    editingOrderId,
+    clearCart
+  } = usePOSStore();
+
+  const [activeTab, setActiveTab] = useState<"menu" | "cart">("menu");
 
   useEffect(() => {
-    // Redirect to login if not authenticated as captain
-    if (!userData || userData.role !== "captain") {
+    // Redirect logic
+    if (!userData) {
+      // router.replace("/captainlogin"); 
+    } else if (userData.role !== "captain") {
       router.replace("/captainlogin");
     }
   }, [userData, router]);
@@ -34,119 +42,128 @@ export default function CaptainDashboard() {
     }
   }, [userData, pathname, router]);
 
+  useEffect(() => {
+    setIsPOSOpen(true);
+    if (userData) {
+      getPartnerTables();
+      fetchPastBills(); // Fetch orders for the sidebar
+    }
+    return () => setIsPOSOpen(false);
+  }, [userData, getPartnerTables, setIsPOSOpen, fetchPastBills]);
+
   const handleSignOut = () => {
     signOut();
     router.push("/captainlogin");
   };
 
-  const handleClearCart = () => {
-    if (cartItems.length === 0) {
-      toast.error("Cart is already empty");
-      return;
-    }
-    clearCart();
-    toast.success("Cart cleared successfully");
-  };
+  if (!userData) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+      </div>
+    );
+  }
 
   return (
-    <div className="h-screen flex flex-col">
-      {/* Fixed Header */}
-      <div className="flex-none p-3 sm:p-4 border-b bg-white">
-        <div className="container mx-auto">
-          <div className="flex justify-between items-center">
-            <h1 className="text-xl sm:text-2xl font-bold">Captain Dashboard</h1>
-            {userData?.role === 'captain' && (userData as any)?.partner?.store_name && (
-              <div className="text-xl sm:text-2xl font-bold mr-6">
-                {(userData as any).partner.store_name}
-              </div>
-            )}
-            <Button
-              variant="outline"
-              onClick={handleSignOut}
-              className="flex items-center gap-2 text-sm sm:text-base"
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Sign Out</span>
-              <span className="sm:hidden">Logout</span>
-            </Button>
-          </div>
+    <div className="h-screen flex flex-col bg-background">
+      {/* Header */}
+      <div className="flex-none px-4 py-3 border-b bg-card flex justify-between items-center shadow-sm z-20">
+        <div className="flex items-center max-w-[45%]">
+          <h1 className="font-bold text-base sm:text-xl text-orange-600 leading-tight line-clamp-2 break-words">
+            {(userData as any).partner?.store_name || "POS"}
+          </h1>
         </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 container mx-auto p-2 sm:p-4 overflow-hidden flex flex-col">
-        {/* Create New Order Button */}
-        <div className="flex-none flex justify-end mb-3 sm:mb-4">
-          <Button 
-            className="flex items-center gap-2 text-sm sm:text-base w-full sm:w-auto"
-            onClick={() => setIsPOSOpen(true)}
+        <div className="flex items-center gap-4">
+          <ModeToggle />
+          <div className="text-sm font-medium hidden sm:block">
+            {userData.role === 'captain' ? (userData as Captain).name : userData.email}
+          </div>
+          <Button
+            onClick={handleSignOut}
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-red-600"
           >
-            <PlusCircle className="h-4 w-4" />
-            <span className="hidden sm:inline">Create New Order</span>
-            <span className="sm:hidden">New Order</span>
+            <LogOut className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Sign Out</span>
           </Button>
         </div>
-
-        {/* Orders Management */}
-        <Card className="flex-1 flex flex-col min-h-0">
-          <CardHeader className="flex-none p-3 sm:p-4">
-            <CardTitle className="text-lg sm:text-xl">All Orders</CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 p-0">
-            <CaptainOrdersTab />
-          </CardContent>
-        </Card>
       </div>
 
-      {/* POS Overlay */}
-      {isPOSOpen && (
-        <div className="fixed inset-0 bg-white z-50 flex flex-col">
-          <div className="flex-none p-4 border-b">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Create New Order</h2>
-              <div className="flex items-center gap-2">
-                {cartItems.length > 0 && (
-                  <Button
-                    variant="outline"
-                    onClick={handleClearCart}
-                    className="h-8 flex items-center gap-2"
-                    title="Clear Cart"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span className="text-sm">Clear Cart</span>
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    if (cartItems.length > 0) {
-                      toast.error("Please complete or cancel the current order first");
-                      return;
-                    }
-                    setIsPOSOpen(false);
-                  }}
-                  className="h-8 w-8"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-          <div className="flex-1 overflow-hidden flex flex-col">
-            <div className="flex-1 overflow-y-auto p-4">
-              <CaptainPOS />
-            </div>
-            <div className="flex-none border-t">
-              <Captaincart />
-            </div>
-          </div>
+      {editingOrderId && (
+        <div className="flex-none bg-orange-100 dark:bg-orange-950/30 px-4 py-2 flex justify-between items-center border-b border-orange-200 dark:border-orange-900">
+          <p className="text-sm font-medium text-orange-800 dark:text-orange-200">
+            Editing Order #{pastBills.find(b => b.id === editingOrderId)?.display_id || editingOrderId.slice(0, 8)}
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => clearCart()}
+            className="h-7 text-xs text-orange-800 dark:text-orange-200 hover:bg-orange-200 dark:hover:bg-orange-900/50"
+          >
+            <X className="h-3.5 w-3.5 mr-1" />
+            Cancel Edit
+          </Button>
         </div>
       )}
 
-      {/* Modals */}
-      <CaptainCheckoutModal />
-      <EditCaptainOrderModal />
+      {/* Main Content (Mimicking AdminV2POS) */}
+      <div className="flex-1 flex flex-col md:overflow-hidden overflow-auto relative bg-muted/10">
+        <div className="flex-1 flex gap-0 md:gap-4 md:p-4 p-0 md:overflow-hidden overflow-visible relative">
+
+          {/* Left Side: Menu (Grid) */}
+          <div
+            className={`
+              flex-1 overflow-hidden rounded-lg md:border bg-card shadow-sm flex flex-col md:flex
+              ${activeTab === "menu" ? "flex" : "hidden"}
+            `}
+          >
+            <POSMenu />
+          </div>
+
+          {/* Right Side: Cart (Sidebar) */}
+          <div
+            className={`
+              md:w-[400px] w-full flex-shrink-0 flex flex-col rounded-lg md:border bg-card shadow-sm md:overflow-hidden overflow-visible md:flex
+              ${activeTab === "cart" ? "flex" : "hidden"}
+            `}
+          >
+            {/* Pass onMobileBack to allow switching back to Menu on mobile */}
+            <POSCartSidebar key={activeTab} onMobileBack={() => setActiveTab("menu")} />
+          </div>
+        </div>
+
+        {/* Mobile Floating Cart Button */}
+        {activeTab === "menu" && (
+          <div className="md:hidden fixed bottom-6 right-6 z-50">
+            <button
+              onClick={() => setActiveTab(activeTab === "menu" ? "cart" : "menu")}
+              className="relative bg-orange-600 text-white p-4 rounded-full shadow-lg hover:bg-orange-700 transition-all active:scale-95 flex items-center justify-center"
+            >
+              {activeTab === "menu" ? (
+                <div className="relative">
+                  <ShoppingCart className="h-6 w-6" />
+                  {cartItems.reduce((acc, item) => acc + item.quantity, 0) > 0 && (
+                    <span className="absolute -top-3 -right-3 bg-white text-orange-600 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center border-2 border-orange-600">
+                      {cartItems.reduce((acc, item) => acc + item.quantity, 0)}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <Utensils className="h-6 w-6" />
+              )}
+
+              {/* Blinking Red Dot for Pending Orders */}
+              {pastBills.some(order => order.status === 'pending') && (
+                <span className="absolute top-0 left-0 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white"></span>
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

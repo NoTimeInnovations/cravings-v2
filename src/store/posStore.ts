@@ -8,6 +8,8 @@ import {
 import {
   createOrderMutation,
   getOrdersOfPartnerQuery,
+  updateOrderMutation,
+  updateOrderItemsMutation,
 } from "@/api/orders";
 import { deleteBillMutation } from "@/api/pos";
 import { getNextOrderNumber, Order } from "./orderStore";
@@ -100,6 +102,9 @@ interface POSState {
   refreshOrdersAfterUpdate: () => void;
   updateOrderStatus: (orderId: string, status: string) => Promise<void>;
   updateOrderPaymentMethod: (orderId: string, paymentMethod: string) => Promise<void>;
+  editingOrderId: string | null;
+  loadOrderIntoCart: (order: any) => void;
+  updateOrder: () => Promise<void>;
 }
 
 export const usePOSStore = create<POSState>((set, get) => ({
@@ -126,6 +131,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   qrCodeData: [],
   paymentMethod: undefined,
   posOrderType: "dine-in",
+  editingOrderId: null,
 
   setPosOrderType: (type) => set({ posOrderType: type }),
 
@@ -388,7 +394,93 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   clearCart: () => {
-    set({ cartItems: [], totalAmount: 0, extraCharges: [], removedQrGroupCharges: [], orderNote: "", paymentMethod: undefined, posOrderType: "dine-in" });
+    set({ cartItems: [], totalAmount: 0, extraCharges: [], removedQrGroupCharges: [], orderNote: "", paymentMethod: undefined, posOrderType: "dine-in", editingOrderId: null, userPhone: null, tableNumber: null, tableName: null });
+  },
+
+  loadOrderIntoCart: (order) => {
+    const items = (order.order_items || order.items || []).map((item: any) => ({
+      ...(item.menu || item.item || item),
+      id: item.menu?.id || item.item?.id || item.id,
+      quantity: item.quantity,
+    }));
+
+    const extraCharges = (order.extra_charges || order.extraCharges || []).map((charge: any) => ({
+      ...charge,
+      id: charge.id || uuidv4(),
+    }));
+
+    set({
+      cartItems: items,
+      extraCharges: extraCharges,
+      totalAmount: items.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0),
+      userPhone: order.phone || null,
+      tableNumber: order.table_number || order.tableNumber || null,
+      tableName: order.table_name || order.tableName || null,
+      orderNote: order.notes || order.orderNote || "",
+      posOrderType: (order.type === 'delivery' && !order.delivery_address) ? 'takeaway' : 'dine-in',
+      editingOrderId: order.id,
+    });
+  },
+
+  updateOrder: async () => {
+    const {
+      editingOrderId,
+      cartItems,
+      extraCharges,
+      userPhone,
+      tableNumber,
+      orderNote,
+      totalAmount
+    } = get();
+
+    if (!editingOrderId) return;
+
+    set({ loading: true });
+    try {
+      const userData = useAuthStore.getState().userData;
+      const partnerData = userData as Partner;
+      const gstPercentage = partnerData?.gst_percentage || 0;
+
+      const extraChargesTotal = extraCharges.reduce((acc, curr) => acc + curr.amount, 0);
+      const taxableAmount = totalAmount + extraChargesTotal;
+      const gstAmount = getGstAmount(taxableAmount, gstPercentage);
+      const grandTotal = taxableAmount + gstAmount;
+
+      // Update order basic info
+      await fetchFromHasura(updateOrderMutation, {
+        id: editingOrderId,
+        totalPrice: grandTotal,
+        phone: userPhone || "",
+        tableNumber: tableNumber || null,
+        extraCharges: extraCharges.length > 0 ? extraCharges : null,
+        notes: orderNote || null,
+      });
+
+      // Update order items by deleting and re-inserting
+      await fetchFromHasura(updateOrderItemsMutation, {
+        orderId: editingOrderId,
+        items: cartItems.map((item) => ({
+          order_id: editingOrderId,
+          menu_id: item.id?.split("|")[0],
+          quantity: item.quantity,
+          item: {
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            category: item.category,
+          },
+        })),
+      });
+
+      toast.success("Order updated successfully");
+      await get().fetchPastBills();
+      get().clearCart();
+    } catch (error) {
+      console.error("Failed to update order:", error);
+      toast.error("Failed to update order");
+    } finally {
+      set({ loading: false });
+    }
   },
 
   addExtraCharge: (charge: Omit<ExtraCharge, "id">) => {
@@ -513,7 +605,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         createdAt,
         totalPrice: foodSubtotal,
         type: orderTypeString,
-        status: "completed" as "completed",
+        status: "accepted" as "accepted",
         tableNumber: get().tableNumber,
         extraCharges: allExtraCharges,
         gstIncluded: gstPercentage,
@@ -537,7 +629,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         partnerId,
         userId: null,
         type: orderTypeString,
-        status: "completed" as "completed",
+        status: "accepted" as "accepted",
         delivery_address: isTakeaway ? null : (get().deliveryAddress || null), // Ensure null for takeaway
         delivery_location: null,
         orderedby: isCaptainOrder ? "captain" : null,
@@ -556,7 +648,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
             totalPrice: foodSubtotal,
             partnerId,
             type: orderTypeString,
-            status: "completed" as "completed",
+            status: "accepted" as "accepted",
             tableNumber: get().tableNumber,
             extraCharges: allExtraCharges,
             gstIncluded: gstPercentage,
@@ -618,7 +710,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         createdAt,
         tableNumber: get().tableNumber,
         qrId: undefined,
-        status: "completed",
+        status: "accepted",
         partnerId,
         userId: undefined,
         user: {
@@ -654,8 +746,16 @@ export const usePOSStore = create<POSState>((set, get) => ({
   fetchPastBills: async () => {
     try {
       set({ loadingBills: true });
+      const userData = useAuthStore.getState().userData;
+      let partnerId = userData?.id;
+
+      if (userData?.role === 'captain') {
+        const captainData = userData as Captain;
+        partnerId = captainData.partner_id;
+      }
+
       const response = await fetchFromHasura(getOrdersOfPartnerQuery, {
-        partner_id: useAuthStore.getState().userData?.id,
+        partner_id: partnerId,
       });
       const mappedOrders = response.orders.map((order: any) => ({
         ...order,

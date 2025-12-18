@@ -10,11 +10,11 @@ import { getAuthCookie } from "@/app/auth/actions";
 import { redirect } from "next/navigation";
 import { getFeatures } from "@/lib/getFeatures";
 // import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
-import { CaptainPOS} from "./CaptainPOS";
-import{ Captaincart} from "./Captaincart"
+import { CaptainPOS } from "./CaptainPOS";
+import { Captaincart } from "./Captaincart"
 import AuthInitializer from "@/providers/AuthInitializer";
 import { CaptainCheckoutModal } from "./CaptainCheckoutModal";
-import { EditCaptainOrderModal } from "./EditCaptainOrderModal";
+// import { EditCaptainOrderModal } from "./EditCaptainOrderModal";
 
 const Page = async () => {
   const cookies = await getAuthCookie();
@@ -52,7 +52,7 @@ const Page = async () => {
           <Captaincart />
         </div>
         <CaptainCheckoutModal />
-       
+
       </div>
     </>
   );

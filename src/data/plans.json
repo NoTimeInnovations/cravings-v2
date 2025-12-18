@@ -20,7 +20,7 @@
         {
             "id": "int_standard",
             "name": "Standard",
-            "price": "$49",
+            "price": "$9",
             "description": "For growing restaurants",
             "features": [
                 "500 scans per month",
@@ -41,7 +41,7 @@
         {
             "id": "int_plus",
             "name": "Plus",
-            "price": "$99",
+            "price": "$29",
             "description": "For growing businesses",
             "features": [
                 "Unlimited scans",
@@ -57,7 +57,7 @@
             "period_days": 365,
             "max_scan_count": -1,
             "scan_limit": -1,
-            "yearly_price": "$228"
+            "yearly_price": "$348"
         }
     ],
     "india": [

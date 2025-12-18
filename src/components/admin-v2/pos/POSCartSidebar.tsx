@@ -3,7 +3,7 @@ import { usePOSStore } from "@/store/posStore";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Minus, Plus, Trash2, ShoppingCart, CreditCard, ChevronDown, Utensils, ShoppingBag, Loader2, CheckCircle, Clock, Receipt, XCircle, FileText, Check, X } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, CreditCard, ChevronDown, Utensils, ShoppingBag, Loader2, CheckCircle, Clock, Receipt, XCircle, FileText, Check, X, Save } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
@@ -61,19 +61,24 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
         removeExtraCharge,
         posOrderType,
         setPosOrderType,
-        updateOrderPaymentMethod
+        updateOrderPaymentMethod,
+        editingOrderId,
+        loadOrderIntoCart,
+        updateOrder
     } = usePOSStore();
     const { userData } = useAuthStore();
     const partnerData = userData as Partner;
 
     // UI States
     const [viewMode, setViewMode] = useState<"current" | "today">("current");
-    // const [orderType, setOrderType] = useState<"dine-in" | "takeaway">("dine-in"); // Moved to store
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
     const [isOrderPlaced, setIsOrderPlaced] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<any>(null);
     const [newChargeName, setNewChargeName] = useState("");
     const [newChargeAmount, setNewChargeAmount] = useState("");
+
+    // Fresh version of the selected order from the store's list
+    const activeOrderData = selectedOrder ? (pastBills.find(o => o.id === selectedOrder.id) || selectedOrder) : null;
 
     const [isAddingExtraCharge, setIsAddingExtraCharge] = useState(false);
     const [isSelectingPaymentMethod, setIsSelectingPaymentMethod] = useState(false);
@@ -147,7 +152,12 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
 
         setIsPlacingOrder(true);
         try {
-            await checkout();
+            if (editingOrderId) {
+                await updateOrder();
+                setViewMode("today"); // Go back to orders list after update
+            } else {
+                await checkout();
+            }
             // Suppress the store's modal state since we use inline feedback
             setPostCheckoutModalOpen(false);
 
@@ -155,18 +165,27 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
 
             // Fade out and clear after 1 second
             setTimeout(() => {
-                const completedOrder = usePOSStore.getState().order;
-                if (completedOrder) {
-                    setSelectedOrder(completedOrder);
+                const currentOrder = usePOSStore.getState().order;
+                const activeEditingId = editingOrderId;
+
+                if (currentOrder) {
+                    setSelectedOrder(currentOrder);
                     setViewMode("today");
+                } else if (activeEditingId) {
+                    // It was an update, try to find the fresh order in pastBills
+                    const fresh = usePOSStore.getState().pastBills.find(b => b.id === activeEditingId);
+                    if (fresh) {
+                        setSelectedOrder(fresh);
+                        setViewMode("today");
+                    }
                 }
+
                 setIsOrderPlaced(false);
                 setIsPlacingOrder(false);
                 clearCart();
                 setTableNumber(null);
                 setTableName(null);
                 setUserPhone(null);
-                // Optionally reset other states if needed
             }, 1000);
         } catch (error) {
             console.error("Failed to place order:", error);
@@ -177,11 +196,11 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
     };
 
     const handleStatusUpdate = async (orderId: string, status: string) => {
-        if (selectedOrder?.status === "completed") {
+        if (activeOrderData?.status === "completed") {
             setPendingAction(() => async () => {
                 await updateOrderStatus(orderId, status);
-                if (selectedOrder && selectedOrder.id === orderId) {
-                    setSelectedOrder({ ...selectedOrder, status });
+                if (activeOrderData && activeOrderData.id === orderId) {
+                    setSelectedOrder({ ...activeOrderData, status });
                 }
             });
             setActionDescription("modify this completed order");
@@ -190,8 +209,8 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
         }
 
         await updateOrderStatus(orderId, status);
-        if (selectedOrder && selectedOrder.id === orderId) {
-            setSelectedOrder({ ...selectedOrder, status });
+        if (activeOrderData && activeOrderData.id === orderId) {
+            setSelectedOrder({ ...activeOrderData, status });
         }
     };
 
@@ -228,8 +247,8 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
     const gstAmount = getGstAmount(taxableAmount, partnerData?.gst_percentage || 0);
     const grandTotal = taxableAmount + gstAmount;
 
-    const selectedOrderSubtotal = selectedOrder
-        ? (selectedOrder.items || selectedOrder.order_items)?.reduce((acc: number, item: any) => {
+    const activeOrderDataSubtotal = activeOrderData
+        ? (activeOrderData.items || activeOrderData.order_items)?.reduce((acc: number, item: any) => {
             const itemData = item.item || item;
             const price = itemData.price || 0;
             const quantity = item.quantity || 1;
@@ -237,38 +256,38 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
         }, 0)
         : 0;
 
-    const selectedOrderExtraCharges = selectedOrder?.extraCharges || selectedOrder?.extra_charges || [];
-    const selectedOrderExtraChargesTotal = selectedOrderExtraCharges.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0);
+    const activeOrderDataExtraCharges = activeOrderData?.extraCharges || activeOrderData?.extra_charges || [];
+    const activeOrderDataExtraChargesTotal = activeOrderDataExtraCharges.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0);
 
-    const selectedOrderTaxableAmount = selectedOrderSubtotal + selectedOrderExtraChargesTotal;
+    const activeOrderDataTaxableAmount = activeOrderDataSubtotal + activeOrderDataExtraChargesTotal;
 
-    const selectedOrderGstAmount = selectedOrder
-        ? getGstAmount(selectedOrderTaxableAmount, selectedOrder.gstIncluded || 0)
+    const activeOrderDataGstAmount = activeOrderData
+        ? getGstAmount(activeOrderDataTaxableAmount, activeOrderData.gstIncluded || 0)
         : 0;
 
 
 
     const handlePrintBill = () => {
-        if (!selectedOrder) return;
-        if (selectedOrder.payment_method) {
-            window.open(`/bill/${selectedOrder.id}`, '_blank');
+        if (!activeOrderData) return;
+        if (activeOrderData.payment_method) {
+            window.open(`/bill/${activeOrderData.id}`, '_blank');
         } else {
             setIsSelectingPaymentMethod(true);
         }
     };
 
     const handlePaymentSelection = async (method: string) => {
-        if (!selectedOrder) return;
-        await updateOrderPaymentMethod(selectedOrder.id, method);
-        if (selectedOrder) {
-            setSelectedOrder({ ...selectedOrder, payment_method: method });
+        if (!activeOrderData) return;
+        await updateOrderPaymentMethod(activeOrderData.id, method);
+        if (activeOrderData) {
+            setSelectedOrder({ ...activeOrderData, payment_method: method });
         }
-        window.open(`/bill/${selectedOrder.id}`, '_blank');
+        window.open(`/bill/${activeOrderData.id}`, '_blank');
         setIsSelectingPaymentMethod(false);
     };
 
     return (
-        <div className="flex flex-col md:h-full h-auto bg-card relative">
+        <div className="flex flex-col h-full bg-card relative">
             {/* View Switcher */}
             <div className="p-2 border-b bg-muted/50">
                 <div className="flex bg-muted rounded-lg p-1 h-10 border">
@@ -326,7 +345,7 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                                     </Button>
                                 )}
                                 <h2 className="font-semibold text-lg flex items-center gap-2">
-                                    <span className="text-orange-600">#</span> New Order
+                                    <span className="text-orange-600">#</span> {editingOrderId ? `Editing Order #${pastBills.find(b => b.id === editingOrderId)?.display_id || editingOrderId.slice(0, 4)}` : "New Order"}
                                 </h2>
                             </div>
                             {cartItems.length > 0 && (
@@ -398,7 +417,7 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                     </div>
 
                     {/* Cart Items */}
-                    <ScrollArea className="md:flex-1 p-4">
+                    <ScrollArea className="flex-1 p-4">
                         {cartItems.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-40 text-muted-foreground space-y-2 opacity-50">
                                 <ShoppingCart className="h-10 w-10" />
@@ -521,22 +540,26 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                         <div className="pt-2">
                             <Button
                                 size="lg"
-                                className="w-full bg-orange-600 hover:bg-orange-700 text-white shadow-md hover:shadow-lg transition-all"
+                                className={`w-full ${editingOrderId ? 'bg-blue-600 hover:bg-blue-700' : 'bg-orange-600 hover:bg-orange-700'} text-white shadow-md hover:shadow-lg transition-all`}
                                 onClick={handlePlaceOrder}
                                 disabled={(cartItems.length === 0 && extraChargesTotal === 0) || isPlacingOrder}
                             >
                                 {isPlacingOrder ? (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : editingOrderId ? (
+                                    <Save className="mr-2 h-4 w-4" />
                                 ) : (
                                     <CreditCard className="mr-2 h-4 w-4" />
                                 )}
-                                {isPlacingOrder ? "Placing Order..." : "Place Order"}
+                                {isPlacingOrder
+                                    ? (editingOrderId ? "Updating Order..." : "Placing Order...")
+                                    : (editingOrderId ? "Update Order" : "Place Order")}
                             </Button>
                         </div>
                     </div>
                 </>
             ) : (
-                selectedOrder ? (
+                activeOrderData ? (
                     <div className="flex flex-col h-full animate-in slide-in-from-right-10 duration-200">
                         <div className="p-2 border-b flex items-center gap-2 bg-muted/20">
                             <Button variant="ghost" size="icon" onClick={() => setSelectedOrder(null)} className="h-8 w-8">
@@ -544,37 +567,37 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                             </Button>
                             <div>
                                 <h3 className="font-semibold text-sm">
-                                    Order #{selectedOrder.display_id || selectedOrder.id?.slice(0, 8)}
+                                    Order #{activeOrderData.display_id || activeOrderData.id?.slice(0, 8)}
                                 </h3>
                                 <p className="text-xs text-muted-foreground">
-                                    {selectedOrder.tableName || `Table ${selectedOrder.tableNumber}`} • {
-                                        (selectedOrder.type === 'delivery' && !selectedOrder.deliveryAddress) ? "Takeaway" :
-                                            (selectedOrder.type === 'table_order' || selectedOrder.type === 'pos') ? "Dine-in" :
-                                                selectedOrder.type
+                                    {activeOrderData.tableName || `Table ${activeOrderData.tableNumber}`} • {
+                                        (activeOrderData.type === 'delivery' && !activeOrderData.deliveryAddress) ? "Takeaway" :
+                                            (activeOrderData.type === 'table_order' || activeOrderData.type === 'pos') ? "Dine-in" :
+                                                activeOrderData.type
                                     }
                                 </p>
                             </div>
                             <Select
-                                value={selectedOrder.status}
-                                onValueChange={(val) => handleStatusUpdate(selectedOrder.id, val)}
+                                value={activeOrderData.status}
+                                disabled={userData?.role === 'captain' && activeOrderData.status === 'completed'}
+                                onValueChange={(val) => handleStatusUpdate(activeOrderData.id, val)}
                             >
-                                <SelectTrigger className={`w-[110px] h-7 text-xs border-none ml-auto ${getStatusColor(selectedOrder.status)}`}>
+                                <SelectTrigger className={`w-[110px] h-7 text-xs border-none ml-auto ${getStatusColor(activeOrderData.status)}`}>
                                     <SelectValue placeholder="Status" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="pending">Pending</SelectItem>
                                     <SelectItem value="accepted">Accepted</SelectItem>
-                                    <SelectItem value="ready">Ready</SelectItem>
                                     <SelectItem value="completed">Completed</SelectItem>
                                     <SelectItem value="cancelled">Cancelled</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
 
-                        <ScrollArea className="md:flex-1 p-4">
+                        <ScrollArea className="flex-1 p-4">
                             <div className="space-y-4">
                                 <div className="space-y-3">
-                                    {(selectedOrder.items || selectedOrder.order_items)?.map((item: any, idx: number) => {
+                                    {(activeOrderData.items || activeOrderData.order_items)?.map((item: any, idx: number) => {
                                         const itemData = item.item || item;
                                         const unitPrice = itemData.price || 0;
                                         const quantity = item.quantity || 1;
@@ -595,11 +618,11 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                                 <div className="space-y-1.5 text-sm">
                                     <div className="flex justify-between text-muted-foreground">
                                         <span>Subtotal</span>
-                                        <span>{formatCurrency(selectedOrderSubtotal)}</span>
+                                        <span>{formatCurrency(activeOrderDataSubtotal)}</span>
                                     </div>
-                                    {selectedOrderExtraChargesTotal > 0 && (
+                                    {activeOrderDataExtraChargesTotal > 0 && (
                                         <>
-                                            {selectedOrderExtraCharges.map((charge: any, idx: number) => (
+                                            {activeOrderDataExtraCharges.map((charge: any, idx: number) => (
                                                 <div key={idx} className="flex justify-between text-muted-foreground text-xs pl-2 border-l-2 border-muted">
                                                     <span>{charge.name}</span>
                                                     <span>{formatCurrency(charge.amount)}</span>
@@ -607,27 +630,27 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                                             ))}
                                             <div className="flex justify-between text-muted-foreground">
                                                 <span>Extra Charges</span>
-                                                <span>{formatCurrency(selectedOrderExtraChargesTotal)}</span>
+                                                <span>{formatCurrency(activeOrderDataExtraChargesTotal)}</span>
                                             </div>
                                         </>
                                     )}
-                                    {(selectedOrder.gstIncluded || 0) > 0 && (
+                                    {(activeOrderData.gstIncluded || 0) > 0 && (
                                         <div className="flex justify-between text-muted-foreground">
-                                            <span>GST ({selectedOrder.gstIncluded}%)</span>
-                                            <span>{formatCurrency(selectedOrderGstAmount)}</span>
+                                            <span>GST ({activeOrderData.gstIncluded}%)</span>
+                                            <span>{formatCurrency(activeOrderDataGstAmount)}</span>
                                         </div>
                                     )}
                                 </div>
                                 <Separator />
                                 <div className="flex justify-between font-bold text-base">
                                     <span>Total</span>
-                                    <span>{formatCurrency(selectedOrder.totalPrice)}</span>
+                                    <span>{formatCurrency(activeOrderData.totalPrice)}</span>
                                 </div>
 
-                                {selectedOrder.notes && (
+                                {activeOrderData.notes && (
                                     <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md text-sm border-l-2 border-yellow-50 mt-4">
                                         <p className="font-medium text-yellow-800 dark:text-yellow-200 text-xs mb-1">Note:</p>
-                                        <p className="text-muted-foreground italic">{selectedOrder.notes}</p>
+                                        <p className="text-muted-foreground italic">{activeOrderData.notes}</p>
                                     </div>
                                 )}
                             </div>
@@ -668,10 +691,24 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                                         <Printer className="h-4 w-4 mr-2" />
                                         Bill
                                     </Button>
-                                    <Button variant="outline" className="w-full" onClick={() => window.open(`/kot/${selectedOrder.id}`, '_blank')}>
+                                    <Button variant="outline" className="w-full" onClick={() => window.open(`/kot/${activeOrderData.id}`, '_blank')}>
                                         <FileText className="h-4 w-4 mr-2" />
                                         KOT
                                     </Button>
+                                    {(userData?.role !== 'captain' || activeOrderData.status !== 'completed') && (
+                                        <Button
+                                            variant="outline"
+                                            className="w-full col-span-2 border-primary/20 hover:bg-primary/5 text-primary"
+                                            onClick={() => {
+                                                loadOrderIntoCart(activeOrderData);
+                                                setViewMode("current");
+                                                // Stay in cart view instead of switching back to menu
+                                            }}
+                                        >
+                                            <span className="mr-2">✏️</span>
+                                            Edit Order
+                                        </Button>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -684,7 +721,7 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                                 {loadingBills ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
                             </Button>
                         </div>
-                        <ScrollArea className="md:flex-1">
+                        <ScrollArea className="flex-1">
                             {todaysOrders.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center p-8 text-center h-full text-muted-foreground">
                                     <Clock className="h-12 w-12 mb-4 opacity-20" />
