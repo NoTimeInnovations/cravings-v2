@@ -9,18 +9,18 @@ import { ArrowRight } from "lucide-react";
 const steps = [
     {
         number: "1",
-        title: "Create Account",
-        description: "Sign up for free. No credit card required. Choose a template that fits your brand."
+        title: "Create your menu",
+        description: "Upload your menu (PDF or images) or add items manually. No credit card needed. No technical setup."
     },
     {
         number: "2",
-        title: "Build Your Menu",
-        description: "Add your items, upload photos, and organize categories with our easy editor."
+        title: "Customize & update",
+        description: "Edit prices, items, availability, offers, and photos anytime. Match your menu to your brand with colors and layout."
     },
     {
         number: "3",
-        title: "Share & Profit",
-        description: "Download your QR code, place it on tables, and start taking orders."
+        title: "Share with customers",
+        description: "Scan the QR code or share the link. Customers always see your latest menu — no reprints needed."
     }
 ];
 

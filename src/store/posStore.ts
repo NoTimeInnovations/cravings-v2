@@ -14,6 +14,15 @@ import {
 import { deleteBillMutation } from "@/api/pos";
 import { getNextOrderNumber, Order } from "./orderStore";
 import { v4 as uuidv4 } from "uuid";
+
+const updateQrCodeOccupiedStatusMutation = `
+  mutation UpdateQrCodeOccupiedStatus($id: uuid!, $is_occupied: Boolean!) {
+    update_qr_codes_by_pk(pk_columns: {id: $id}, _set: {is_occupied: $is_occupied}) {
+      id
+      is_occupied
+    }
+  }
+`;
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
 import { QrGroup } from "@/app/admin/qr-management/page";
@@ -27,6 +36,7 @@ interface QrCodeData {
   partner_id: string;
   no_of_scans: number;
   table_name?: string | null;
+  is_occupied?: boolean;
 }
 
 interface CartItem extends MenuItem {
@@ -52,7 +62,7 @@ interface POSState {
   deliveryAddress?: string;
   setDeliveryAddress: (address: string) => void;
   setUserPhone: (phone: string | null) => void;
-  tables: { id: string; number: number; name?: string }[];
+  tables: { id: string; number: number; name?: string; is_occupied?: boolean }[];
   tableNumbers: number[];
   tableNumber: number | null;
   setTableNumber: (tableNumber: number | null) => void;
@@ -211,6 +221,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
               partner_id
               no_of_scans
               table_name
+              is_occupied
             }
           }
         `,
@@ -243,7 +254,8 @@ export const usePOSStore = create<POSState>((set, get) => ({
           .map((qr) => ({
             id: qr.id,
             number: Number(qr.table_number),
-            name: qr.table_name || undefined
+            name: qr.table_name || undefined,
+            is_occupied: qr.is_occupied
           }))
           .sort((a, b) => a.number - b.number);
 
@@ -266,6 +278,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
               table_number
               partner_id
               no_of_scans
+              is_occupied
             }
           }
         `,
@@ -295,7 +308,8 @@ export const usePOSStore = create<POSState>((set, get) => ({
           .map((qr) => ({
             id: qr.id,
             number: Number(qr.table_number),
-            name: qr.table_name || undefined
+            name: qr.table_name || undefined,
+            is_occupied: qr.is_occupied
           }))
           .sort((a, b) => a.number - b.number);
 
@@ -570,6 +584,24 @@ export const usePOSStore = create<POSState>((set, get) => ({
         throw new Error("User ID or Partner ID is not available");
       }
 
+      // If table number is selected and order is dine-in, mark table as occupied
+      const currentTable = get().tables.find(t => t.number === get().tableNumber);
+      if (currentTable && posOrderType === "dine-in") {
+        try {
+          await fetchFromHasura(updateQrCodeOccupiedStatusMutation, {
+            id: currentTable.id,
+            is_occupied: true
+          });
+          // Optimistic update of local state
+          set((state) => ({
+            tables: state.tables.map(t => t.id === currentTable.id ? { ...t, is_occupied: true } : t)
+          }));
+        } catch (error) {
+          console.error("Failed to mark table as occupied:", error);
+          // Don't block checkout if this fails, but maybe log it
+        }
+      }
+
       // Calculate amounts
       const foodSubtotal = cartItems.reduce(
         (sum, item) => sum + item.price * item.quantity,
@@ -673,7 +705,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         {
           orderItems: cartItems.map((item) => ({
             order_id: orderId,
-            menu_id: item.id?.split("|")[0],
+            menu_id: item.id?.split("|")[0].split("_custom_")[0],
             quantity: item.quantity,
             item: {
               id: item.id,
@@ -919,12 +951,35 @@ export const usePOSStore = create<POSState>((set, get) => ({
       );
 
       // Update local state
-      const { pastBills } = get();
+      const { pastBills, tables } = get();
       set({
         pastBills: pastBills.map(order =>
           order.id === orderId ? { ...order, status: status as any } : order
         )
       });
+
+      // If completing or cancelling, release the table
+      if (status === 'completed' || status === 'cancelled') {
+        const order = pastBills.find(o => o.id === orderId);
+        if (order && order.tableNumber) {
+          // Find the table ID from the tables list using tableNumber
+          const table = tables.find(t => t.number === order.tableNumber);
+          if (table) {
+            try {
+              await fetchFromHasura(updateQrCodeOccupiedStatusMutation, {
+                id: table.id,
+                is_occupied: false
+              });
+              // Optimistic update
+              set((state) => ({
+                tables: state.tables.map(t => t.id === table.id ? { ...t, is_occupied: false } : t)
+              }));
+            } catch (err) {
+              console.error("Failed to release table occupancy:", err);
+            }
+          }
+        }
+      }
 
       toast.success(`Order status updated to ${status}`);
     } catch (error) {

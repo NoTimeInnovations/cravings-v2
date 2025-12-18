@@ -14,6 +14,7 @@ import { useCategoryStore, formatDisplayName } from "@/store/categoryStore_hasur
 import { useAuthStore } from "@/store/authStore";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 
 interface AdminV2EditMenuItemProps {
     item: MenuItem;
@@ -37,6 +38,8 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
         ...item,
         price: item.price.toString(),
         tags: item.tags || [],
+        is_price_as_per_size: item.is_price_as_per_size || false,
+        is_top: item.is_top || false,
     });
 
     const [variants, setVariants] = useState<Variant[]>(item.variants || []);
@@ -60,8 +63,8 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
             return;
         }
 
-        if (variants.length === 0 && (!editingItem.price || parseFloat(editingItem.price) <= 0)) {
-            toast.error("Please set either a base price or add options");
+        if (variants.length === 0 && (!editingItem.price || parseFloat(editingItem.price) <= 0) && !editingItem.is_price_as_per_size) {
+            toast.error("Please set either a base price, add options, or enable 'Price as per Size'");
             return;
         }
 
@@ -69,13 +72,15 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
         try {
             await updateItem(item.id!, {
                 name: editingItem.name,
-                price: parseFloat(editingItem.price),
+                price: editingItem.is_price_as_per_size ? 0 : parseFloat(editingItem.price),
                 image_url: editingItem.image_url,
                 description: editingItem.description,
                 category: editingItem.category,
                 is_veg: editingItem.is_veg,
                 variants: variants.length > 0 ? variants : [],
                 tags: editingItem.tags,
+                is_price_as_per_size: editingItem.is_price_as_per_size,
+                is_top: editingItem.is_top,
             });
             toast.success("Item updated successfully");
             onBack();
@@ -261,6 +266,30 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                                         />
                                         <span className="text-sm">⚪ Other</span>
                                     </label>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4 pt-2">
+                                <div className="flex items-center justify-between border rounded-lg p-3">
+                                    <div className="space-y-0.5">
+                                        <label className="text-sm font-medium">Top Dish / Bestseller</label>
+                                        <p className="text-xs text-muted-foreground">Mark this item as a bestseller</p>
+                                    </div>
+                                    <Switch
+                                        checked={editingItem.is_top}
+                                        onCheckedChange={(checked) => setEditingItem({ ...editingItem, is_top: checked })}
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-between border rounded-lg p-3">
+                                    <div className="space-y-0.5">
+                                        <label className="text-sm font-medium">Price as per Size / Custom</label>
+                                        <p className="text-xs text-muted-foreground">Prompt for price when adding to cart</p>
+                                    </div>
+                                    <Switch
+                                        checked={editingItem.is_price_as_per_size}
+                                        onCheckedChange={(checked) => setEditingItem({ ...editingItem, is_price_as_per_size: checked })}
+                                    />
                                 </div>
                             </div>
                         </CardContent>

@@ -6,7 +6,7 @@
             "price": "$0",
             "description": "Perfect for trying out Cravings",
             "features": [
-                "50 scans per month",
+                "100 scans per month",
                 "Unlimited offers",
                 "Unlimited edits",
                 "Chat support"
@@ -15,7 +15,7 @@
             "popular": false,
             "period": "/month",
             "period_days": 30,
-            "max_scan_count": 50
+            "max_scan_count": 100
         },
         {
             "id": "int_standard",
@@ -23,7 +23,7 @@
             "price": "$9",
             "description": "For growing restaurants",
             "features": [
-                "500 scans per month",
+                "1000 scans per month",
                 "Unlimited offers",
                 "Unlimited edits",
                 "Priority chat support"
@@ -34,7 +34,7 @@
             "contact_sales": true,
             "period": "/month",
             "period_days": 365,
-            "max_scan_count": 500,
+            "max_scan_count": 1000,
             "scan_limit": -1,
             "yearly_price": "$108"
         },

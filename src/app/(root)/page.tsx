@@ -64,16 +64,16 @@ export default async function Home() {
         <p>Get your digital menu running in minutes.</p>
         <ol>
           <li>
-            <h3>Create Account</h3>
-            <p>Sign up for free. No credit card required. Choose a template that fits your brand.</p>
+            <h3>Create your menu</h3>
+            <p>Upload your menu (PDF or images) or add items manually. No credit card needed. No technical setup.</p>
           </li>
           <li>
-            <h3>Build Your Menu</h3>
-            <p>Add your items, upload photos, and organize categories with our easy editor.</p>
+            <h3>Customize & update</h3>
+            <p>Edit prices, items, availability, offers, and photos anytime. Match your menu to your brand with colors and layout.</p>
           </li>
           <li>
-            <h3>Share & Profit</h3>
-            <p>Download your QR code, place it on tables, and start taking orders.</p>
+            <h3>Share with customers</h3>
+            <p>Scan the QR code or share the link. Customers always see your latest menu — no reprints needed.</p>
           </li>
         </ol>
 
@@ -85,8 +85,8 @@ export default async function Home() {
             <p>Perfect for trying out Cravings.</p>
             <ul>
               <li>100 scans per month</li>
-              <li>Create 2 offers per month</li>
-              <li>10 menu edits per month</li>
+              <li>Unlimited offers</li>
+              <li>Unlimited edits</li>
               <li>Chat support</li>
             </ul>
           </li>
@@ -95,20 +95,19 @@ export default async function Home() {
             <p>For growing restaurants.</p>
             <ul>
               <li>1000 scans per month</li>
-              <li>Create up to 10 offers</li>
+              <li>Unlimited offers</li>
               <li>Unlimited edits</li>
               <li>Priority support</li>
             </ul>
           </li>
           <li>
-            <h3>Plus Plan ($19/month)</h3>
+            <h3>Plus Plan ($29/month)</h3>
             <p>For high-volume venues.</p>
             <ul>
               <li>Unlimited scans</li>
               <li>Unlimited offers</li>
               <li>Unlimited edits</li>
-              <li>Dedicated member support</li>
-              <li>Marketing kit</li>
+              <li>Priority chat support</li>
             </ul>
           </li>
         </ul>

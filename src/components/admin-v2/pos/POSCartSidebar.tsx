@@ -3,7 +3,7 @@ import { usePOSStore } from "@/store/posStore";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Minus, Plus, Trash2, ShoppingCart, CreditCard, ChevronDown, Utensils, ShoppingBag, Loader2, CheckCircle, Clock, Receipt, XCircle, FileText, Check, X, Save } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, CreditCard, ChevronDown, Utensils, ShoppingBag, Loader2, CheckCircle, Clock, Receipt, XCircle, FileText, Check, X, Save, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
@@ -65,7 +65,9 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
         updateOrderPaymentMethod,
         editingOrderId,
         loadOrderIntoCart,
-        updateOrder
+        updateOrder,
+        orderNote,
+        setOrderNote
     } = usePOSStore();
     const { userData } = useAuthStore();
     const partnerData = userData as Partner;
@@ -82,6 +84,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     const activeOrderData = selectedOrder ? (pastBills.find(o => o.id === selectedOrder.id) || selectedOrder) : null;
 
     const [isAddingExtraCharge, setIsAddingExtraCharge] = useState(false);
+    const [isAddingNote, setIsAddingNote] = useState(false);
     const [isSelectingPaymentMethod, setIsSelectingPaymentMethod] = useState(false);
     const [passwordModalOpen, setPasswordModalOpen] = useState(false);
     const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
@@ -355,8 +358,18 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                     onClick={() => clearCart()}
                                     className="text-muted-foreground hover:text-red-600 h-8"
                                 >
-                                    <Trash2 className="h-4 w-4 mr-1" />
-                                    Clear
+                                    {
+                                        editingOrderId ? (
+                                            <>
+                                                <X className="h-4 w-4 mr-1" />
+                                                Cancel</>
+                                        ) : (
+                                            <>
+                                                <Trash2 className="h-4 w-4 mr-1" />
+                                                Clear
+                                            </>
+                                        )
+                                    }
                                 </Button>
                             )}
                         </div>
@@ -400,17 +413,26 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent className="max-h-[200px] overflow-y-auto w-[var(--radix-dropdown-menu-trigger-width)]">
-                                    {tables.map((table) => (
-                                        <DropdownMenuItem
-                                            key={table.id}
-                                            onClick={() => {
-                                                setTableNumber(table.number);
-                                                setTableName(table.name || null);
-                                            }}
-                                        >
-                                            {table.name || `Table ${table.number}`}
-                                        </DropdownMenuItem>
-                                    ))}
+                                    {tables
+                                        .filter(table => {
+                                            // If editing an order and this is the currently selected table, always show it.
+                                            if (editingOrderId && table.number === tableNumber) {
+                                                return true;
+                                            }
+                                            // Otherwise, only show tables that are not occupied.
+                                            return !table.is_occupied;
+                                        })
+                                        .map((table) => (
+                                            <DropdownMenuItem
+                                                key={table.id}
+                                                onClick={() => {
+                                                    setTableNumber(table.number);
+                                                    setTableName(table.name || null);
+                                                }}
+                                            >
+                                                {table.name || `Table ${table.number}`}
+                                            </DropdownMenuItem>
+                                        ))}
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         )}
@@ -485,16 +507,48 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                         <X className="h-4 w-4" />
                                     </Button>
                                 </div>
+                            ) : isAddingNote ? (
+                                <div className="flex items-center gap-2 animate-in slide-in-from-top-2 duration-200">
+                                    <Input
+                                        placeholder="Add Order Note..."
+                                        value={orderNote}
+                                        onChange={(e) => setOrderNote(e.target.value)}
+                                        className="h-8 text-xs flex-1"
+                                        autoFocus
+                                    />
+                                    <Button size="sm" variant="ghost" onClick={() => setIsAddingNote(false)} className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50">
+                                        <CheckCircle className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             ) : (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="w-full text-xs h-8 border-dashed text-muted-foreground hover:text-foreground"
-                                    onClick={() => setIsAddingExtraCharge(true)}
-                                >
-                                    <Plus className="h-3 w-3 mr-1" />
-                                    Add Extra Charge
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1 text-[10px] h-8 border-dashed text-muted-foreground hover:text-foreground px-2"
+                                        onClick={() => setIsAddingExtraCharge(true)}
+                                    >
+                                        <Plus className="h-3 w-3 mr-1" />
+                                        Add Charge
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1 text-[10px] h-8 border-dashed text-muted-foreground hover:text-foreground px-2"
+                                        onClick={() => setIsAddingNote(true)}
+                                    >
+                                        <MessageSquare className="h-3 w-3 mr-1" />
+                                        {orderNote ? 'Edit Note' : 'Add Note'}
+                                    </Button>
+                                </div>
+                            )}
+                            {orderNote && !isAddingNote && (
+                                <div className="flex items-center justify-between text-[10px] bg-blue-50 dark:bg-blue-950/30 p-1.5 rounded text-blue-700 dark:text-blue-300">
+                                    <span className="truncate italic flex-1 mr-2 px-1">Note: {orderNote}</span>
+                                    <button onClick={() => setOrderNote("")} className="text-blue-500 hover:text-blue-700">
+                                        <Trash2 className="h-3 w-3" />
+                                    </button>
+                                </div>
                             )}
                             {extraCharges.length > 0 && (
                                 <div className="space-y-1">

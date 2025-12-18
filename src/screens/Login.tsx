@@ -16,7 +16,7 @@ type LoginMode = "user" | "partner";
 export default function Login() {
   const { signInWithPhone, signInPartnerWithEmail } = useAuthStore();
   const navigate = useRouter();
-  const [mode, setMode] = useState<LoginMode>("user");
+  const [mode, setMode] = useState<LoginMode>("partner");
   const [isLoading, setIsLoading] = useState(false);
   const [userPhone, setUserPhone] = useState("");
   const [userCountryInfo, setUserCountryInfo] = useState<UserCountryInfo | null>(null);
@@ -100,19 +100,19 @@ export default function Login() {
         <div className="flex gap-2 mb-6">
           <Button
             type="button"
-            onClick={() => setMode("user")}
-            className={`flex-1 ${mode === "user" ? "bg-orange-600" : "bg-gray-200"
-              }`}
-          >
-            Sign in as User
-          </Button>
-          <Button
-            type="button"
             onClick={() => setMode("partner")}
             className={`flex-1 ${mode === "partner" ? "bg-orange-600" : "bg-gray-200"
               }`}
           >
             Sign in as Partner
+          </Button>
+          <Button
+            type="button"
+            onClick={() => setMode("user")}
+            className={`flex-1 ${mode === "user" ? "bg-orange-600" : "bg-gray-200"
+              }`}
+          >
+            Sign in as User
           </Button>
         </div>
 
