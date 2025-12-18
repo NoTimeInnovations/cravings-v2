@@ -23,6 +23,13 @@ const AuthInitializer = () => {
         }
       }
     }
+
+    if (!loading && userData?.role === "captain") {
+      const restrictedPaths = ["/", "/explore"];
+      if (restrictedPaths.includes(pathname)) {
+        router.push("/captain");
+      }
+    }
   }, [userData, loading, pathname, router]);
 
 

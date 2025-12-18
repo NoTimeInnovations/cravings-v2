@@ -21,7 +21,8 @@ export default function CaptainDashboard() {
     pastBills,
     fetchPastBills,
     editingOrderId,
-    clearCart
+    clearCart,
+    setIsCaptainOrder
   } = usePOSStore();
 
   const [activeTab, setActiveTab] = useState<"menu" | "cart">("menu");
@@ -44,6 +45,7 @@ export default function CaptainDashboard() {
 
   useEffect(() => {
     setIsPOSOpen(true);
+    setIsCaptainOrder(true);
     if (userData) {
       getPartnerTables();
       fetchPastBills(); // Fetch orders for the sidebar

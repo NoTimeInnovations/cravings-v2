@@ -15,12 +15,14 @@ export function AdminV2POS() {
         editOrderModalOpen,
         getPartnerTables,
         cartItems,
-        pastBills
+        pastBills,
+        setIsCaptainOrder
     } = usePOSStore();
     const { userData } = useAuthStore();
 
     useEffect(() => {
         setIsPOSOpen(true);
+        setIsCaptainOrder(false);
         if (userData) {
             getPartnerTables();
         }

@@ -21,6 +21,7 @@ export const getOrdersOfPartnerQuery = `
       gst_included
       extra_charges
       phone
+      captain_id
       order_items {
         id
         quantity

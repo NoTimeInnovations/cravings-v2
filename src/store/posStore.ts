@@ -757,7 +757,15 @@ export const usePOSStore = create<POSState>((set, get) => ({
       const response = await fetchFromHasura(getOrdersOfPartnerQuery, {
         partner_id: partnerId,
       });
-      const mappedOrders = response.orders.map((order: any) => ({
+
+      let orders = response.orders;
+
+      // If user is a captain, filter to show only their orders
+      if (userData?.role === 'captain') {
+        orders = orders.filter((order: any) => order.captain_id === userData.id);
+      }
+
+      const mappedOrders = orders.map((order: any) => ({
         ...order,
         createdAt: order.created_at,
         tableNumber: order.table_number,
