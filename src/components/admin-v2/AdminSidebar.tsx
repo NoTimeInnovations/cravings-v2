@@ -47,7 +47,7 @@ export function AdminSidebar({ activeView, onNavigate, className }: AdminSidebar
             return features?.captainordering?.enabled;
         }
         if (item.id === "orders") {
-            return features?.ordering?.enabled;
+            return features?.ordering?.enabled || features?.delivery?.enabled || features?.pos?.enabled;
         }
         if (item.id === "pos") {
             return features?.pos?.enabled;

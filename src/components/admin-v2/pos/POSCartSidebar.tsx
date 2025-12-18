@@ -28,6 +28,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Printer } from "lucide-react";
+import { PasswordProtectionModal } from "../PasswordProtectionModal";
 
 interface POSCartSidebarProps {
     onMobileBack?: () => void;
@@ -76,6 +77,9 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
 
     const [isAddingExtraCharge, setIsAddingExtraCharge] = useState(false);
     const [isSelectingPaymentMethod, setIsSelectingPaymentMethod] = useState(false);
+    const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+    const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+    const [actionDescription, setActionDescription] = useState("");
 
     // Sync order type with table selection
     useEffect(() => {
@@ -159,6 +163,9 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                 setIsOrderPlaced(false);
                 setIsPlacingOrder(false);
                 clearCart();
+                setTableNumber(null);
+                setTableName(null);
+                setUserPhone(null);
                 // Optionally reset other states if needed
             }, 1000);
         } catch (error) {
@@ -170,6 +177,18 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
     };
 
     const handleStatusUpdate = async (orderId: string, status: string) => {
+        if (selectedOrder?.status === "completed") {
+            setPendingAction(() => async () => {
+                await updateOrderStatus(orderId, status);
+                if (selectedOrder && selectedOrder.id === orderId) {
+                    setSelectedOrder({ ...selectedOrder, status });
+                }
+            });
+            setActionDescription("modify this completed order");
+            setPasswordModalOpen(true);
+            return;
+        }
+
         await updateOrderStatus(orderId, status);
         if (selectedOrder && selectedOrder.id === orderId) {
             setSelectedOrder({ ...selectedOrder, status });
@@ -536,7 +555,7 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                                 </p>
                             </div>
                             <Select
-                                defaultValue={selectedOrder.status}
+                                value={selectedOrder.status}
                                 onValueChange={(val) => handleStatusUpdate(selectedOrder.id, val)}
                             >
                                 <SelectTrigger className={`w-[110px] h-7 text-xs border-none ml-auto ${getStatusColor(selectedOrder.status)}`}>
@@ -715,6 +734,12 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                 )
             )
             }
-        </div >
+            <PasswordProtectionModal
+                isOpen={passwordModalOpen}
+                onClose={() => setPasswordModalOpen(false)}
+                onSuccess={() => pendingAction?.()}
+                actionDescription={actionDescription}
+            />
+        </div>
     );
 }

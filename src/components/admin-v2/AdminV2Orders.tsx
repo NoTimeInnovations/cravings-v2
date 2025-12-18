@@ -48,6 +48,8 @@ import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { AdminV2EditOrder } from "./AdminV2EditOrder";
 import { Edit } from "lucide-react";
 
+import { PasswordProtectionModal } from "./PasswordProtectionModal";
+
 export function AdminV2Orders() {
     const { userData } = useAuthStore();
     const { selectedOrderId, setSelectedOrderId, setActiveView } = useAdminStore();
@@ -73,7 +75,9 @@ export function AdminV2Orders() {
         hasPreviousPage,
     } = useOrderSubscriptionStore();
 
-
+    const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+    const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+    const [actionDescription, setActionDescription] = useState("");
 
     const selectedOrder = orders.find(o => o.id === selectedOrderId) || null;
 
@@ -87,13 +91,28 @@ export function AdminV2Orders() {
     const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
     const editingOrder = orders.find(o => o.id === editingOrderId) || null;
 
+    const handleDeleteOrder = async (order: Order) => {
+        if (order.status === "completed") {
+            setPendingAction(() => async () => {
+                if (confirm("Are you sure you want to delete this order?")) {
+                    const success = await deleteOrder(order.id);
+                    if (success) {
+                        removeOrder(order.id);
+                        toast.success("Order deleted successfully");
+                    } else {
+                        toast.error("Failed to delete order");
+                    }
+                }
+            });
+            setActionDescription("delete this completed order");
+            setPasswordModalOpen(true);
+            return;
+        }
 
-
-    const handleDeleteOrder = async (orderId: string) => {
         if (confirm("Are you sure you want to delete this order?")) {
-            const success = await deleteOrder(orderId);
+            const success = await deleteOrder(order.id);
             if (success) {
-                removeOrder(orderId);
+                removeOrder(order.id);
                 toast.success("Order deleted successfully");
             } else {
                 toast.error("Failed to delete order");
@@ -101,7 +120,32 @@ export function AdminV2Orders() {
         }
     };
 
+    const handleEditOrder = (order: Order) => {
+        if (order.status === "completed") {
+            setPendingAction(() => () => setEditingOrderId(order.id));
+            setActionDescription("edit this completed order");
+            setPasswordModalOpen(true);
+        } else {
+            setEditingOrderId(order.id);
+        }
+    };
+
     const handleUpdateOrderStatus = async (orderId: string, status: string) => {
+        const order = orders.find(o => o.id === orderId);
+        if (order?.status === "completed") {
+            setPendingAction(() => async () => {
+                try {
+                    await updateOrderStatus(orders, orderId, status as any, setOrders);
+                    toast.success("Order status updated");
+                } catch (error) {
+                    toast.error("Failed to update status");
+                }
+            });
+            setActionDescription("update status of this completed order");
+            setPasswordModalOpen(true);
+            return;
+        }
+
         try {
             await updateOrderStatus(orders, orderId, status as any, setOrders);
             toast.success("Order status updated");
@@ -152,11 +196,19 @@ export function AdminV2Orders() {
 
     if (selectedOrderId && selectedOrder) {
         return (
-            <OrderDetails
-                order={selectedOrder}
-                onBack={() => setSelectedOrderId(null)}
-                onEdit={() => setEditingOrderId(selectedOrder.id)}
-            />
+            <>
+                <OrderDetails
+                    order={selectedOrder}
+                    onBack={() => setSelectedOrderId(null)}
+                    onEdit={() => handleEditOrder(selectedOrder)}
+                />
+                <PasswordProtectionModal
+                    isOpen={passwordModalOpen}
+                    onClose={() => setPasswordModalOpen(false)}
+                    onSuccess={() => pendingAction?.()}
+                    actionDescription={actionDescription}
+                />
+            </>
         );
     } else if (selectedOrderId && !selectedOrder) {
         // Handle case where selected order is not in current list (e.g. pagination or not loaded yet)
@@ -352,7 +404,7 @@ export function AdminV2Orders() {
                                 </TableCell>
                                 <TableCell>
                                     <Select
-                                        defaultValue={order.status}
+                                        value={order.status}
                                         onValueChange={(val) => handleUpdateOrderStatus(order.id, val)}
                                     >
                                         <SelectTrigger className={`w-[130px] h-8 border-none ${getStatusColor(order.status)}`}>
@@ -401,7 +453,7 @@ export function AdminV2Orders() {
                                             variant="ghost"
                                             size="icon"
                                             className="h-8 w-8"
-                                            onClick={() => handleDeleteOrder(order.id)}
+                                            onClick={() => handleDeleteOrder(order)}
                                         >
                                             <Trash2 className="h-4 w-4 text-red-500" />
                                         </Button>
@@ -432,7 +484,7 @@ export function AdminV2Orders() {
                                         : `Order #${order.id.slice(0, 8)}`}
                                 </CardTitle>
                                 <Select
-                                    defaultValue={order.status}
+                                    value={order.status}
                                     onValueChange={(val) => handleUpdateOrderStatus(order.id, val)}
                                 >
                                     <SelectTrigger className={`w-[110px] h-7 text-xs border-none ${getStatusColor(order.status)}`}>
@@ -505,7 +557,7 @@ export function AdminV2Orders() {
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 text-red-500"
-                                    onClick={() => handleDeleteOrder(order.id)}
+                                    onClick={() => handleDeleteOrder(order)}
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -544,6 +596,13 @@ export function AdminV2Orders() {
                 isOpen={paymentModalOpen}
                 onClose={() => setPaymentModalOpen(false)}
                 onConfirm={handlePaymentMethodConfirm}
+            />
+
+            <PasswordProtectionModal
+                isOpen={passwordModalOpen}
+                onClose={() => setPasswordModalOpen(false)}
+                onSuccess={() => pendingAction?.()}
+                actionDescription={actionDescription}
             />
         </div >
     );

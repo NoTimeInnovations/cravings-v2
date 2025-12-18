@@ -37,6 +37,7 @@ import { format } from "date-fns";
 import { getDateOnly } from "@/lib/formatDate";
 import { OrderDetails } from "./OrderDetails";
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
+import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { AdminV2EditOrder } from "./AdminV2EditOrder";
 
 export function AdminV2AllOrders() {
@@ -57,6 +58,10 @@ export function AdminV2AllOrders() {
     const [orderToPrint, setOrderToPrint] = useState<string | null>(null);
     const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
     const editingOrder = orders.find(o => o.id === editingOrderId) || null;
+
+    const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+    const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+    const [actionDescription, setActionDescription] = useState("");
 
     useEffect(() => {
         const loadOrders = async () => {
@@ -87,12 +92,37 @@ export function AdminV2AllOrders() {
         setCurrentPage(1);
     }, [filter, sortBy, searchQuery, orderType]);
 
-    const handleDeleteOrder = async (orderId: string) => {
+    const handleDeleteOrder = async (order: Order) => {
+        if (order.status === "completed") {
+            setPendingAction(() => async () => {
+                if (confirm("Are you sure you want to delete this order?")) {
+                    try {
+                        const success = await deleteOrder(order.id);
+                        if (success) {
+                            setOrders(prevOrders => prevOrders.filter(o => o.id !== order.id));
+                            toast.success("Order deleted successfully");
+                            return true;
+                        } else {
+                            toast.error("Failed to delete order");
+                            return false;
+                        }
+                    } catch (error) {
+                        console.error("Error deleting order:", error);
+                        toast.error("Failed to delete order");
+                        return false;
+                    }
+                }
+            });
+            setActionDescription("delete this completed order");
+            setPasswordModalOpen(true);
+            return;
+        }
+
         if (confirm("Are you sure you want to delete this order?")) {
             try {
-                const success = await deleteOrder(orderId);
+                const success = await deleteOrder(order.id);
                 if (success) {
-                    setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
+                    setOrders(prevOrders => prevOrders.filter(o => o.id !== order.id));
                     toast.success("Order deleted successfully");
                     return true;
                 } else {
@@ -107,7 +137,32 @@ export function AdminV2AllOrders() {
         }
     };
 
+    const handleEditOrder = (order: Order) => {
+        if (order.status === "completed") {
+            setPendingAction(() => () => setEditingOrderId(order.id));
+            setActionDescription("edit this completed order");
+            setPasswordModalOpen(true);
+        } else {
+            setEditingOrderId(order.id);
+        }
+    };
+
     const handleUpdateOrderStatus = async (orderId: string, status: string) => {
+        const order = orders.find(o => o.id === orderId);
+        if (order?.status === "completed") {
+            setPendingAction(() => async () => {
+                try {
+                    await updateOrderStatus(orders, orderId, status as any, setOrders);
+                    toast.success("Order status updated");
+                } catch (error) {
+                    toast.error("Failed to update status");
+                }
+            });
+            setActionDescription("update status of this completed order");
+            setPasswordModalOpen(true);
+            return;
+        }
+
         try {
             await updateOrderStatus(orders, orderId, status as any, setOrders);
             toast.success("Order status updated");
@@ -219,11 +274,19 @@ export function AdminV2AllOrders() {
 
     if (selectedOrder) {
         return (
-            <OrderDetails
-                order={selectedOrder}
-                onBack={() => setSelectedOrder(null)}
-                onEdit={() => setEditingOrderId(selectedOrder.id)}
-            />
+            <>
+                <OrderDetails
+                    order={selectedOrder}
+                    onBack={() => setSelectedOrder(null)}
+                    onEdit={() => handleEditOrder(selectedOrder)}
+                />
+                <PasswordProtectionModal
+                    isOpen={passwordModalOpen}
+                    onClose={() => setPasswordModalOpen(false)}
+                    onSuccess={() => pendingAction?.()}
+                    actionDescription={actionDescription}
+                />
+            </>
         );
     }
 
@@ -336,7 +399,7 @@ export function AdminV2AllOrders() {
                                         </TableCell>
                                         <TableCell>
                                             <Select
-                                                defaultValue={order.status}
+                                                value={order.status}
                                                 onValueChange={(val) => handleUpdateOrderStatus(order.id, val)}
                                             >
                                                 <SelectTrigger className={`w-[130px] h-8 border-none ${getStatusColor(order.status)}`}>
@@ -383,7 +446,7 @@ export function AdminV2AllOrders() {
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-8 w-8"
-                                                    onClick={() => handleDeleteOrder(order.id)}
+                                                    onClick={() => handleDeleteOrder(order)}
                                                 >
                                                     <Trash2 className="h-4 w-4 text-red-500" />
                                                 </Button>
@@ -414,7 +477,7 @@ export function AdminV2AllOrders() {
                                                 : `Order #${order.id.slice(0, 8)}`}
                                         </CardTitle>
                                         <Select
-                                            defaultValue={order.status}
+                                            value={order.status}
                                             onValueChange={(val) => handleUpdateOrderStatus(order.id, val)}
                                         >
                                             <SelectTrigger className={`w-[110px] h-7 text-xs border-none ${getStatusColor(order.status)}`}>
@@ -483,7 +546,7 @@ export function AdminV2AllOrders() {
                                             variant="ghost"
                                             size="icon"
                                             className="h-8 w-8 text-red-500"
-                                            onClick={() => handleDeleteOrder(order.id)}
+                                            onClick={() => handleDeleteOrder(order)}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
@@ -530,6 +593,13 @@ export function AdminV2AllOrders() {
                 isOpen={paymentModalOpen}
                 onClose={() => setPaymentModalOpen(false)}
                 onConfirm={handlePaymentMethodConfirm}
+            />
+
+            <PasswordProtectionModal
+                isOpen={passwordModalOpen}
+                onClose={() => setPasswordModalOpen(false)}
+                onSuccess={() => pendingAction?.()}
+                actionDescription={actionDescription}
             />
         </div>
     );

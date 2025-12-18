@@ -32,6 +32,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
+import { PasswordProtectionModal } from "./PasswordProtectionModal";
 
 interface OrderDetailsProps {
     order: Order | null;
@@ -44,10 +45,25 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
     const { updateOrderStatus, updateOrderPaymentMethod } = useOrderStore();
     const { setOrders, orders } = useOrderSubscriptionStore();
     const [paymentModalOpen, setPaymentModalOpen] = React.useState(false);
+    const [passwordModalOpen, setPasswordModalOpen] = React.useState(false);
+    const [pendingAction, setPendingAction] = React.useState<(() => void) | null>(null);
 
     if (!order) return null;
 
     const handleUpdateOrderStatus = async (status: string) => {
+        if (order.status === "completed") {
+            setPendingAction(() => async () => {
+                try {
+                    await updateOrderStatus(orders, order.id, status as any, setOrders);
+                    toast.success("Order status updated");
+                } catch (error) {
+                    toast.error("Failed to update status");
+                }
+            });
+            setPasswordModalOpen(true);
+            return;
+        }
+
         try {
             await updateOrderStatus(orders, order.id, status as any, setOrders);
             toast.success("Order status updated");
@@ -103,7 +119,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
 
                 <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
                     <Select
-                        defaultValue={order.status}
+                        value={order.status}
                         onValueChange={handleUpdateOrderStatus}
                     >
                         <SelectTrigger className={`w-[130px] ${getStatusColor(order.status)} border-none shrink-0`}>
@@ -235,6 +251,13 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 isOpen={paymentModalOpen}
                 onClose={() => setPaymentModalOpen(false)}
                 onConfirm={handlePaymentMethodConfirm}
+            />
+
+            <PasswordProtectionModal
+                isOpen={passwordModalOpen}
+                onClose={() => setPasswordModalOpen(false)}
+                onSuccess={() => pendingAction?.()}
+                actionDescription="edit this completed order"
             />
         </div >
     );
