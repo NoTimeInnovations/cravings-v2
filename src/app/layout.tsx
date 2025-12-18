@@ -123,7 +123,7 @@ export default async function RootLayout({
         {(user?.role === "user" || !user) && !isWhatsappDialogHidden && country === "IN" && (
           <WhatsappGroupJoinAlertDialog isPetraz={isPetraz} />
         )}
-        <Toaster richColors closeButton />
+        <Toaster richColors closeButton position="top-center" />
         {/* <Snow /> */}
         {!isNavbarHidden ? <Navbar userData={user} country={country} /> : null}
         {/* <RateUsModal /> */}
