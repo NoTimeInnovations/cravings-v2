@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Settings, Menu, UtensilsCrossed } from "lucide-react";
+import { Settings, Menu, UtensilsCrossed, Printer } from "lucide-react";
 import { SheetTrigger } from "@/components/ui/sheet";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { useAdminStore } from "@/store/adminStore";
 import { OrderNotification } from "./OrderNotification";
+import { getFeatures } from "@/lib/getFeatures";
 
 interface AdminNavbarProps {
     onToggleSidebar?: () => void;
@@ -45,6 +46,25 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                         Store Closed
                     </div>
                 )}
+                {userData?.role === 'partner' && (() => {
+                    const features = getFeatures((userData as Partner).feature_flags || "");
+                    const hasPrintingFeatures = features.ordering.access || features.delivery.access || features.pos.access;
+
+                    if (hasPrintingFeatures) {
+                        return (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="lg:hidden"
+                                onClick={() => console.log("PRINTER SETTINGS OPEN")}
+                                title="Printer Settings"
+                            >
+                                <Printer className="h-5 w-5" />
+                            </Button>
+                        );
+                    }
+                    return null;
+                })()}
                 <OrderNotification />
                 <ModeToggle />
                 {userData?.role === 'partner' && (
