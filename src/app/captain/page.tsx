@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuthStore, Captain } from "@/store/authStore";
 import { usePOSStore } from "@/store/posStore";
 import { useRouter, usePathname } from "next/navigation";
-import { Loader2, LogOut, ShoppingCart, Utensils, X } from "lucide-react";
+import { Loader2, LogOut, ShoppingCart, Utensils, X, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { POSMenu } from "@/components/admin-v2/pos/POSMenu";
 import { POSCartSidebar } from "@/components/admin-v2/pos/POSCartSidebar";
@@ -26,6 +26,15 @@ export default function CaptainDashboard() {
   } = usePOSStore();
 
   const [activeTab, setActiveTab] = useState<"menu" | "cart">("menu");
+  const [cartInitialView, setCartInitialView] = useState<"current" | "today">("current");
+
+  const handleSwitchToCart = (view: "current" | "today" = "current") => {
+    setCartInitialView(view);
+    setActiveTab("cart");
+    if (view === "today") {
+      fetchPastBills();
+    }
+  };
 
   useEffect(() => {
     // Redirect logic
@@ -131,18 +140,41 @@ export default function CaptainDashboard() {
             `}
           >
             {/* Pass onMobileBack to allow switching back to Menu on mobile */}
-            <POSCartSidebar key={activeTab} onMobileBack={() => setActiveTab("menu")} />
+            <POSCartSidebar
+              key={`${activeTab}-${cartInitialView}`}
+              onMobileBack={() => setActiveTab("menu")}
+              initialViewMode={cartInitialView}
+            />
           </div>
         </div>
 
-        {/* Mobile Floating Cart Button */}
+        {/* Mobile Floating Cart/Orders Buttons */}
         {activeTab === "menu" && (
-          <div className="md:hidden fixed bottom-6 right-6 z-50">
-            <button
-              onClick={() => setActiveTab(activeTab === "menu" ? "cart" : "menu")}
-              className="relative bg-orange-600 text-white p-4 rounded-full shadow-lg hover:bg-orange-700 transition-all active:scale-95 flex items-center justify-center"
-            >
-              {activeTab === "menu" ? (
+          <>
+            {/* Bottom Left: Orders */}
+            <div className="md:hidden fixed bottom-6 left-6 z-50">
+              <button
+                onClick={() => handleSwitchToCart("today")}
+                className="relative bg-white dark:bg-zinc-900 text-orange-600 p-4 rounded-full shadow-lg border border-orange-100 dark:border-orange-900/50 hover:bg-orange-50 transition-all active:scale-95 flex items-center justify-center"
+              >
+                <div className="relative">
+                  <Receipt className="h-6 w-6" />
+                  {pastBills.some(order => order.status === 'pending') && (
+                    <span className="absolute -top-3 -right-3 flex h-4 w-4">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white dark:border-zinc-900"></span>
+                    </span>
+                  )}
+                </div>
+              </button>
+            </div>
+
+            {/* Bottom Right: Cart */}
+            <div className="md:hidden fixed bottom-6 right-6 z-50">
+              <button
+                onClick={() => handleSwitchToCart("current")}
+                className="relative bg-orange-600 text-white p-4 rounded-full shadow-lg hover:bg-orange-700 transition-all active:scale-95 flex items-center justify-center"
+              >
                 <div className="relative">
                   <ShoppingCart className="h-6 w-6" />
                   {cartItems.reduce((acc, item) => acc + item.quantity, 0) > 0 && (
@@ -151,19 +183,9 @@ export default function CaptainDashboard() {
                     </span>
                   )}
                 </div>
-              ) : (
-                <Utensils className="h-6 w-6" />
-              )}
-
-              {/* Blinking Red Dot for Pending Orders */}
-              {pastBills.some(order => order.status === 'pending') && (
-                <span className="absolute top-0 left-0 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white"></span>
-                </span>
-              )}
-            </button>
-          </div>
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>

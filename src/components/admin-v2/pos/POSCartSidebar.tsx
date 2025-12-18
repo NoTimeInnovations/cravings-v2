@@ -32,9 +32,10 @@ import { PasswordProtectionModal } from "../PasswordProtectionModal";
 
 interface POSCartSidebarProps {
     onMobileBack?: () => void;
+    initialViewMode?: "current" | "today";
 }
 
-export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
+export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: POSCartSidebarProps) {
     const {
         cartItems,
         removeFromCart,
@@ -70,7 +71,7 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
     const partnerData = userData as Partner;
 
     // UI States
-    const [viewMode, setViewMode] = useState<"current" | "today">("current");
+    const [viewMode, setViewMode] = useState<"current" | "today">(initialViewMode);
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
     const [isOrderPlaced, setIsOrderPlaced] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -237,7 +238,6 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
             case "pending": return "bg-yellow-100 text-yellow-800";
             case "cancelled": return "bg-red-100 text-red-800";
             case "accepted": return "bg-blue-100 text-blue-800";
-            case "ready": return "bg-purple-100 text-purple-800";
             default: return "bg-gray-100 text-gray-800";
         }
     };
@@ -716,7 +716,19 @@ export function POSCartSidebar({ onMobileBack }: POSCartSidebarProps) {
                 ) : (
                     <div className="flex flex-col md:h-full h-auto">
                         <div className="p-4 border-b bg-muted/30 flex justify-between items-center">
-                            <h2 className="font-semibold text-lg">Today's Orders</h2>
+                            <div className="flex items-center gap-2">
+                                {onMobileBack && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 md:hidden"
+                                        onClick={onMobileBack}
+                                    >
+                                        <ArrowLeft className="h-4 w-4" />
+                                    </Button>
+                                )}
+                                <h2 className="font-semibold text-lg">Today's Orders</h2>
+                            </div>
                             <Button variant="ghost" size="sm" onClick={() => fetchPastBills()} disabled={loadingBills}>
                                 {loadingBills ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
                             </Button>
