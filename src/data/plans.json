@@ -20,7 +20,7 @@
         {
             "id": "int_standard",
             "name": "Standard",
-            "price": "$9",
+            "price": "$99",
             "description": "For growing restaurants",
             "features": [
                 "500 scans per month",
@@ -41,7 +41,7 @@
         {
             "id": "int_plus",
             "name": "Plus",
-            "price": "$19",
+            "price": "$199",
             "description": "For growing businesses",
             "features": [
                 "Unlimited scans",
