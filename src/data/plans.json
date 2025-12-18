@@ -23,7 +23,7 @@
             "price": "$9",
             "description": "For growing restaurants",
             "features": [
-                "1000 scans per month",
+                "500 scans per month",
                 "Unlimited offers",
                 "Unlimited edits",
                 "Priority chat support"
@@ -34,7 +34,7 @@
             "contact_sales": true,
             "period": "/month",
             "period_days": 365,
-            "max_scan_count": 1000,
+            "max_scan_count": 500,
             "scan_limit": -1,
             "yearly_price": "$108"
         },

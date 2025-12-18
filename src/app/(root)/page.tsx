@@ -94,7 +94,7 @@ export default async function Home() {
             <h3>Standard Plan ($9/month)</h3>
             <p>For growing restaurants.</p>
             <ul>
-              <li>1000 scans per month</li>
+              <li>500 scans per month</li>
               <li>Unlimited offers</li>
               <li>Unlimited edits</li>
               <li>Priority support</li>
