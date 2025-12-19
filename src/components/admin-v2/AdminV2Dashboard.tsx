@@ -251,7 +251,7 @@ export function AdminV2Dashboard() {
       }
 
       const fetchOrders = async () => {
-        if (!isOrderingEnabled) return null;
+        // if (!isOrderingEnabled) return null;
         switch (activeTab) {
           case "today":
             return await fetchFromHasura(TODAY_ORDERS_QUERY(today));

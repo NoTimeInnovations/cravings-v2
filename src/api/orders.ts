@@ -251,10 +251,7 @@ subscription GetPartnerOrders($partner_id: uuid!, $today_start: timestamptz!, $t
   orders(
     where: { 
       partner_id: { _eq: $partner_id },
-      _or: [
-        { orderedby: { _is_null: true } },
-        { orderedby: { _eq: "captain" } }
-      ],
+
       created_at: { _gte: $today_start, _lte: $today_end }
     }
     order_by: { created_at: desc }
@@ -329,10 +326,7 @@ subscription GetPaginatedPartnerOrders(
   orders(
     where: { 
       partner_id: { _eq: $partner_id },
-      _or: [
-        { orderedby: { _is_null: true } },
-        { orderedby: { _eq: "captain" } }
-      ],
+
       created_at: { _gte: $today_start, _lte: $today_end }
     }
     order_by: { created_at: desc }
@@ -405,10 +399,7 @@ subscription GetOrdersCount($partner_id: uuid!) {
   orders_aggregate(
     where: { 
       partner_id: { _eq: $partner_id },
-      _or: [
-        { orderedby: { _is_null: true } },
-        { orderedby: { _eq: "captain" } }
-      ]
+
     }
   ) {
     aggregate {
