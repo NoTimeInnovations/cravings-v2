@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const PosItemCard = ({ item }: { item: MenuItem }) => {
-  const { addToCart, cartItems, decreaseQuantity, removeFromCart } = usePOSStore();
+  const { addToCart, cartItems, decreaseQuantity, removeFromCart, savedPrices, setSavedPrice } = usePOSStore();
   const { userData } = useAuthStore();
   const hasVariants = item.variants && item.variants.length > 0;
 
@@ -24,8 +24,20 @@ const PosItemCard = ({ item }: { item: MenuItem }) => {
   const handleAddToCartClick = (e: React.MouseEvent, itemData: MenuItem) => {
     e.stopPropagation();
     if (itemData.is_price_as_per_size) {
-      setCustomPrice("");
-      setIsPriceModalOpen(true);
+      const savedPrice = savedPrices[itemData.id!];
+      if (savedPrice) {
+        // If price is already saved, use it and add to cart directly
+        const customItem = {
+          ...itemData,
+          id: itemData.id, // Use original ID to allow quantity grouping
+          price: savedPrice,
+          name: `${itemData.name} (${(userData as Partner)?.currency || '₹'}${savedPrice})`
+        };
+        addToCart(customItem);
+      } else {
+        setCustomPrice("");
+        setIsPriceModalOpen(true);
+      }
     } else {
       addToCart(itemData);
     }
@@ -36,9 +48,12 @@ const PosItemCard = ({ item }: { item: MenuItem }) => {
     const price = parseFloat(customPrice);
     if (isNaN(price) || price <= 0) return;
 
+    // Save the price for this item session
+    setSavedPrice(item.id!, price);
+
     const customItem = {
       ...item,
-      id: `${item.id}_custom_${Date.now()}`,
+      id: item.id, // Use original ID instead of generating new one
       price: price,
       name: `${item.name} (${(userData as Partner)?.currency || '₹'}${price})`
     };
@@ -217,7 +232,9 @@ const PosItemCard = ({ item }: { item: MenuItem }) => {
                 </h3>
                 <p className="text-sm font-bold text-card-foreground">
                   {item.is_price_as_per_size ? (
-                    <span className="text-xs font-medium italic text-muted-foreground">Price as per size</span>
+                    <span className="text-xs font-medium italic text-muted-foreground">
+                      Price as per size {savedPrices[item.id!] ? `(${(userData as Partner)?.currency || '₹'}${savedPrices[item.id!]})` : ""}
+                    </span>
                   ) : (
                     <>
                       {(userData as Partner)?.currency}

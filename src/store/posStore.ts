@@ -115,6 +115,9 @@ interface POSState {
   editingOrderId: string | null;
   loadOrderIntoCart: (order: any) => void;
   updateOrder: () => Promise<void>;
+  savedPrices: Record<string, number>;
+  setSavedPrice: (itemId: string, price: number) => void;
+  removeSavedPrice: (itemId: string) => void;
 }
 
 export const usePOSStore = create<POSState>((set, get) => ({
@@ -142,6 +145,24 @@ export const usePOSStore = create<POSState>((set, get) => ({
   paymentMethod: undefined,
   posOrderType: "dine-in",
   editingOrderId: null,
+  savedPrices: {},
+
+  setSavedPrice: (itemId: string, price: number) => {
+    set((state) => ({
+      savedPrices: {
+        ...state.savedPrices,
+        [itemId]: price,
+      },
+    }));
+  },
+
+  removeSavedPrice: (itemId: string) => {
+    set((state) => {
+      const newSavedPrices = { ...state.savedPrices };
+      delete newSavedPrices[itemId];
+      return { savedPrices: newSavedPrices };
+    });
+  },
 
   setPosOrderType: (type) => set({ posOrderType: type }),
 
@@ -408,7 +429,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   clearCart: () => {
-    set({ cartItems: [], totalAmount: 0, extraCharges: [], removedQrGroupCharges: [], orderNote: "", paymentMethod: undefined, posOrderType: "dine-in", editingOrderId: null, userPhone: null, tableNumber: null, tableName: null });
+    set({ cartItems: [], totalAmount: 0, extraCharges: [], removedQrGroupCharges: [], orderNote: "", paymentMethod: undefined, posOrderType: "dine-in", editingOrderId: null, userPhone: null, tableNumber: null, tableName: null, savedPrices: {} });
   },
 
   loadOrderIntoCart: (order) => {
