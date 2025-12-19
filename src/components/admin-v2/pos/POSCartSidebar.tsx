@@ -270,9 +270,13 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
 
 
 
-    const handlePrintBill = () => {
+    const handlePrintBill = async () => {
         if (!activeOrderData) return;
         if (activeOrderData.payment_method) {
+            if (activeOrderData.status !== 'completed') {
+                await updateOrderStatus(activeOrderData.id, 'completed');
+                setSelectedOrder((prev: any) => ({ ...prev, status: 'completed' }));
+            }
             window.open(`/bill/${activeOrderData.id}`, '_blank');
         } else {
             setIsSelectingPaymentMethod(true);
@@ -281,9 +285,15 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
 
     const handlePaymentSelection = async (method: string) => {
         if (!activeOrderData) return;
+
+        // Update payment method
         await updateOrderPaymentMethod(activeOrderData.id, method);
+
+        // Update status to completed
+        await updateOrderStatus(activeOrderData.id, 'completed');
+
         if (activeOrderData) {
-            setSelectedOrder({ ...activeOrderData, payment_method: method });
+            setSelectedOrder({ ...activeOrderData, payment_method: method, status: 'completed' });
         }
         window.open(`/bill/${activeOrderData.id}`, '_blank');
         setIsSelectingPaymentMethod(false);
