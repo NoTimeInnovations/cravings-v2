@@ -53,7 +53,6 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
             // 1. Create Subscription on Server
             const response = await createSubscriptionAction(plan.id, plan.rz_plan_id, (userData as any).id, (userData as any).store_name);
 
-            console.log("Subscription Response:", response);
 
             if (!response.success || !response.subscription_id) {
                 toast.error("Could not initiate payment. Please contact support.");
@@ -138,7 +137,6 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
                 const storeName = (userData as any).store_name || "Store";
 
                 if (isIndia) {
-                    console.log("handlePayment", plan);
                     await handlePayment(plan);
                     return;
                 }

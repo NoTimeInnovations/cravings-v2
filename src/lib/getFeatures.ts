@@ -64,9 +64,6 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
 };
 
 export const getFeatures = (perm: string | null) => {
-
-  console.log("Perm: ", perm);
-
   const permissions: FeatureFlags = {
     ordering: {
       access: false,
