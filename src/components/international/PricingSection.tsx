@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,13 @@ import { getBannerFile, clearBannerFile } from "@/lib/bannerStorage";
 import { uploadFileToS3 } from "@/app/actions/aws-s3";
 import { useAuthStore } from "@/store/authStore";
 import plansData from "@/data/plans.json";
+import { createSubscriptionAction, verifySubscriptionAction } from "@/app/actions/razorpay_payments";
+
+declare global {
+    interface Window {
+        Razorpay: any;
+    }
+}
 
 const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHeader?: boolean; country?: string }) => {
     const { userData } = useAuthStore();
@@ -20,14 +27,90 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
     const [redirectLoadingText, setRedirectLoadingText] = useState<string | null>(null);
 
     const isIndia = propCountry === "IN";
+    // const isIndia = true;
 
     // Select plans based on country
-    const displayPlans = isIndia ? plansData.india : plansData.international;
+    const displayPlans = !isIndia ? plansData.international : plansData.india;
 
+    useEffect(() => {
+        if (isIndia) {
+            const script = document.createElement("script");
+            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.async = true;
+            document.body.appendChild(script);
+        }
+    }, [isIndia]);
 
     // Helper to check if plan is free
     const isPlanFree = (pid: string) => pid === 'int_free' || pid === 'in_trial';
     const isFreePlanUsed = (userData as any)?.subscription_details?.isFreePlanUsed;
+
+    const handlePayment = async (plan: any) => {
+        setIsCreatingAccount(true);
+        setRedirectLoadingText("Initializing Secure Payment...");
+
+        try {
+            // 1. Create Subscription on Server
+            const response = await createSubscriptionAction(plan.id, plan.rz_plan_id, (userData as any).id, (userData as any).store_name);
+
+            console.log("Subscription Response:", response);
+
+            if (!response.success || !response.subscription_id) {
+                toast.error("Could not initiate payment. Please contact support.");
+                setIsCreatingAccount(false);
+                return;
+            }
+
+            // 2. Open Razorpay Modal
+            const options = {
+                key: response.key_id,
+                subscription_id: response.subscription_id,
+                name: "Cravings App",
+                description: `Upgrade to ${plan.name}`,
+                handler: async function (response: any) {
+                    setRedirectLoadingText("Verifying Payment...");
+
+                    // 3. Verify on Server
+                    const verifyRes = await verifySubscriptionAction(
+                        response.razorpay_payment_id,
+                        response.razorpay_subscription_id,
+                        response.razorpay_signature,
+                        (userData as any).id,
+                        plan
+                    );
+
+                    if (verifyRes.success) {
+                        toast.success("Upgrade Successful! Welcome to " + plan.name);
+                        router.push("/admin-v2");
+                    } else {
+                        toast.error("Payment verification failed. Please contact support.");
+                        setIsCreatingAccount(false);
+                    }
+                },
+                prefill: {
+                    name: (userData as any).name || "",
+                    email: (userData as any).email || "",
+                    contact: (userData as any).phone || ""
+                },
+                theme: {
+                    color: "#EA580C" // Orange-600 to match your UI
+                }
+            };
+
+            const rzp = new window.Razorpay(options);
+            rzp.on('payment.failed', function (response: any) {
+                toast.error(response.error.description);
+                setIsCreatingAccount(false);
+            });
+
+            rzp.open();
+
+        } catch (error) {
+            console.error("Payment Error", error);
+            toast.error("Something went wrong with payment");
+            setIsCreatingAccount(false);
+        }
+    };
 
     const handlePlanClick = async (plan: any) => {
         const isTargetPlanFree = isPlanFree(plan.id);
@@ -46,17 +129,19 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
                 return;
             }
 
-            // If logged in, check if they have a free plan (or are just a valid user)
-            // Requirement: "only customers who have free plan can send a upgrade plan"
-            // We interpret this as "Logged in users can request upgrade".
-            // We verify they have a valid subscription object usually.
-
+            // If logged in
             setIsSubmittingContact(true);
             try {
                 const { notifyPlanInterest } = await import("@/app/actions/notifyPlanInterest");
                 const partnerName = (userData as any).name || userData.email || "Partner";
                 const phone = (userData as any).phone || "";
                 const storeName = (userData as any).store_name || "Store";
+
+                if (isIndia) {
+                    console.log("handlePayment", plan);
+                    await handlePayment(plan);
+                    return;
+                }
 
                 // 1. Send Email Notification
                 await notifyPlanInterest({
@@ -89,9 +174,8 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
         // --- Logic for FREE Plans (Start Free / Trial) ---
         const nextIsFreePlanUsed = isFreePlanUsed || isPlanFree(plan.id);
 
-        // 1. If Logged In -> Upgrade/downgrade to free? (Usually unlikely if they are already free, but handled)
+        // 1. If Logged In -> Upgrade/downgrade to free?
         if (userData) {
-            // Existing logic to switch to free plan if applicable
             setIsCreatingAccount(true);
             try {
                 const { upgradePlan } = await import("@/app/actions/upgradePlan");
@@ -178,7 +262,6 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
 
                 const result = await onBoardUserSignup(parsedData);
 
-                // Clear local storage on success
                 localStorage.removeItem("onboarding_data");
                 localStorage.removeItem("cravings_onboarding_state");
 
@@ -197,7 +280,6 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
 
     return (
         <section className="py-6 md:py-24 bg-gradient-to-br from-orange-50 to-white" id="pricing">
-            {/* Full Screen Loader Overlay */}
             <FullScreenLoader
                 isLoading={isCreatingAccount}
                 loadingTexts={redirectLoadingText ? [redirectLoadingText] : [
@@ -220,11 +302,28 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
                 <div className="flex flex-nowrap overflow-x-auto snap-x snap-mandatory gap-4 px-4 pb-4 -mx-4 md:grid md:grid-cols-3 md:gap-8 md:overflow-visible md:p-0 md:m-0 scrollbar-hidden">
                     {displayPlans.map((plan: any, index: number) => {
                         const isThisPlanFree = isPlanFree(plan.id);
-                        const isPlanDisabled = plan.disabled || (isFreePlanUsed && isThisPlanFree);
+                        
+                        // Check if this is the user's current plan
+                        const currentPlanId = (userData as any)?.subscription_details?.plan?.id;
+                        const isCurrentPlan = userData && currentPlanId === plan.id;
+                        
+                        const isPlanDisabled = plan.disabled || (isFreePlanUsed && isThisPlanFree) || isCurrentPlan;
 
-                        let buttonText = plan.buttonText;
-                        if (isFreePlanUsed && isThisPlanFree) {
+                        // Determine Button Text Logic
+                        let buttonText = plan.buttonText || "Get Plan";
+
+                        if (isCurrentPlan) {
+                            // Logic: Signed in and this is their active plan
+                            buttonText = "Current Plan";
+                        } else if (isThisPlanFree && isFreePlanUsed) {
+                            // Logic: It's a free plan, but they already used their trial
                             buttonText = "Trial Used";
+                        } else if (!userData && !isThisPlanFree) {
+                            // Logic: Not signed in, looking at a paid plan -> CTA to start trial/signup
+                            buttonText = "Get Free Trial";
+                        } else if (userData && isIndia && isFreePlanUsed && !isThisPlanFree) {
+                            // Logic: Signed in, India, Trial Used, looking at a Paid Plan
+                            buttonText = "Get Now";
                         } else if (!userData && plan.contact_sales) {
                             buttonText = "Get Plan";
                         }

@@ -11,7 +11,7 @@ import { headers } from "next/headers";
 
 export default async function PricingPage() {
     const headersList = await headers();
-    const country = headersList.get("x-user-country") || "US";
+    const country = headersList.get("x-user-country") || "IN";
 
     return (
         <div className="min-h-screen w-full font-sans text-gray-900 bg-orange-50">

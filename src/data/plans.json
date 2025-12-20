@@ -82,6 +82,8 @@
         },
         {
             "id": "in_digital",
+            "rz_plan_id" : "plan_RtsiLYTs1J0XAP",
+            "rz_plan_id_test" : "plan_Rtr7NqpbsPBTq5",
             "name": "Digital Menu",
             "price": "₹1500",
             "description": "Essential digital menu",
@@ -101,6 +103,8 @@
         },
         {
             "id": "in_ordering",
+            "rz_plan_id" : "plan_RtsjPhPF68TVwL",
+            "rz_plan_id_test" : "plan_Rtr8hnnJoYJalf",
             "name": "Menu + Ordering",
             "price": "₹3000",
             "description": "Complete ordering solution",
