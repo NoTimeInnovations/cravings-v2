@@ -486,6 +486,16 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                         </div>
                                     </div>
                                 ))}
+                                {editingOrderId && (
+                                    <Button
+                                        variant="outline"
+                                        className="w-full border-dashed text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200"
+                                        onClick={() => onMobileBack?.()}
+                                    >
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        Add Item
+                                    </Button>
+                                )}
                             </div>
                         )}
                     </ScrollArea>
