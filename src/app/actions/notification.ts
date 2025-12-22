@@ -167,6 +167,8 @@ class PartnerNotification {
       }
     );
 
+    console.log("Order notification payload : " , message)
+
     const response = await fetch(`${BASE_URL}/api/notifications/send`, {
       method: "POST",
       body: JSON.stringify({
