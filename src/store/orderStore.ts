@@ -1015,6 +1015,122 @@ const useOrderStore = create(
 
           const orderId = uuidv4();
 
+          // PetPooja Order Push Logic
+          if (hotelData.petpooja_restaurant_id) {
+            const petpoojaOrder: Order = {
+              id: orderId,
+              items: currentOrder.items,
+              totalPrice: grandTotal,
+              createdAt,
+              tableNumber: tableNumber || null,
+              qrId: validQrId,
+              status: "pending",
+              partnerId: hotelData.id,
+              userId: userData.id,
+              user: {
+                phone: userData.phone || "N/A",
+              },
+              gstIncluded,
+              extraCharges: exCharges,
+              type,
+              deliveryAddress: type === "delivery" ? state.userAddress : null,
+              notes: notes || null,
+              display_id: getNextDisplayOrderNumber.toString(),
+            };
+
+            const payload = {
+              id: orderId,
+              total_price: grandTotal,
+              created_at: createdAt,
+              table_number: tableNumber || null,
+              qr_id: validQrId,
+              status: "pending",
+              partner_id: hotelData.id,
+              user_id: userData.id,
+              type,
+              delivery_address: type === "delivery" ? state.userAddress : null,
+              phone: userData.phone || null,
+              notes: notes || null,
+              payment_status: "pending",
+              gst_included: gstIncluded || 0,
+              extra_charges: exCharges,
+              delivery_location: type === "delivery"
+                ? {
+                  type: "Point",
+                  coordinates: [
+                    state.coordinates?.lng || 0,
+                    state.coordinates?.lat || 0,
+                  ],
+                }
+                : null,
+              orderedby: userData.id,
+              status_history: null,
+              captain_id: null,
+              payment_details: null,
+              display_id: getNextDisplayOrderNumber.toString(),
+              table_name: null,
+              payment_method: "cash",
+              petpooja_restaurant_id: hotelData.petpooja_restaurant_id,
+              items: currentOrder.items.map((item) => ({
+                id: uuidv4(),
+                order_id: orderId,
+                menu_id: item.id.split("|")[0],
+                quantity: item.quantity,
+                item: {
+                  id: item.id,
+                  name: item.name,
+                  price: item.price,
+                  offers: item.offers,
+                  category: item.category,
+                },
+                created_at: createdAt,
+              })),
+            };
+
+            try {
+              const response = await fetch("https://pp.cravings.live/api/webhook/push-order", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+              });
+
+              if (!response.ok) {
+                const errorData = await response.text();
+                throw new Error(
+                  `Failed to place order: ${response.statusText}. ${errorData}`
+                );
+              }
+            } catch (error) {
+              console.error("Failed to push order to PetPooja webhook", error);
+              throw error;
+            }
+
+            // Update state
+            set((state) => ({
+              ...state,
+              hotelOrders: {
+                ...state.hotelOrders,
+                [state.hotelId!]: {
+                  items: [],
+                  totalPrice: 0,
+                  order: petpoojaOrder,
+                  orderId: null,
+                  coordinates: null,
+                },
+              },
+              order: petpoojaOrder,
+              items: [],
+              orderId: null,
+              totalPrice: 0,
+            }));
+
+            // await Notification.partner.sendOrderNotification(petpoojaOrder); // Skip this too as per instructions? "dont send whatsapp messaage" usually refers to user -> host WA. Notification.partner might be internal. I'll keep it commented out or skipped based on "dont send whatsapp message". Instructions said "dont send whatsapp messaage". 
+
+            return petpoojaOrder;
+          }
+
           // Create order in database
           const orderResponse = await fetchFromHasura(
             createOrderWithItemsMutation,

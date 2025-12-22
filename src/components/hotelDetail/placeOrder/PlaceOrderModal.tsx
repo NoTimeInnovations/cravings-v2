@@ -2084,10 +2084,12 @@ const PlaceOrderModal = ({
                       <Button
                         onClick={() =>
                           handlePlaceOrder(() => {
-                            const whatsappLink = getWhatsappLink(
-                              orderId as string
-                            );
-                            window.open(whatsappLink, "_blank");
+                            if (!hotelData.petpooja_restaurant_id) {
+                              const whatsappLink = getWhatsappLink(
+                                orderId as string
+                              );
+                              window.open(whatsappLink, "_blank");
+                            }
                           })
                         }
                         disabled={
@@ -2110,45 +2112,71 @@ const PlaceOrderModal = ({
                         )}
                       </Button>
                     ) : (
-                      <Link
-                        href={getWhatsappLink(orderId as string)}
-                        target="_blank"
-                        onClick={(e) => {
-                          const isDisabled =
-                            isPlaceOrderDisabled ||
-                            !user ||
-                            items?.length === 0 ||
-                            (isDelivery &&
-                              orderType === "delivery" &&
-                              (totalPrice ?? 0) < minimumOrderAmount);
+                      <>
+                        {hotelData.petpooja_restaurant_id ? (
+                          <Button
+                            onClick={() => handlePlaceOrder()}
+                            disabled={
+                              isPlaceOrderDisabled ||
+                              !user ||
+                              items?.length === 0 ||
+                              (isDelivery &&
+                                orderType === "delivery" &&
+                                (totalPrice ?? 0) < minimumOrderAmount)
+                            }
+                            className="w-full"
+                          >
+                            {orderStatus === "loading" ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Placing Order...
+                              </>
+                            ) : (
+                              "Place Order"
+                            )}
+                          </Button>
+                        ) : (
+                          <Link
+                            href={getWhatsappLink(orderId as string)}
+                            target="_blank"
+                            onClick={(e) => {
+                              const isDisabled =
+                                isPlaceOrderDisabled ||
+                                !user ||
+                                items?.length === 0 ||
+                                (isDelivery &&
+                                  orderType === "delivery" &&
+                                  (totalPrice ?? 0) < minimumOrderAmount);
 
-                          if (isDisabled) {
-                            e.preventDefault();
-                          }
-                        }}
-                      >
-                        <Button
-                          onClick={() => handlePlaceOrder()}
-                          disabled={
-                            isPlaceOrderDisabled ||
-                            !user ||
-                            items?.length === 0 ||
-                            (isDelivery &&
-                              orderType === "delivery" &&
-                              (totalPrice ?? 0) < minimumOrderAmount)
-                          }
-                          className="w-full"
-                        >
-                          {orderStatus === "loading" ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Placing Order...
-                            </>
-                          ) : (
-                            "Place Order"
-                          )}
-                        </Button>
-                      </Link>
+                              if (isDisabled) {
+                                e.preventDefault();
+                              }
+                            }}
+                          >
+                            <Button
+                              onClick={() => handlePlaceOrder()}
+                              disabled={
+                                isPlaceOrderDisabled ||
+                                !user ||
+                                items?.length === 0 ||
+                                (isDelivery &&
+                                  orderType === "delivery" &&
+                                  (totalPrice ?? 0) < minimumOrderAmount)
+                              }
+                              className="w-full"
+                            >
+                              {orderStatus === "loading" ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Placing Order...
+                                </>
+                              ) : (
+                                "Place Order"
+                              )}
+                            </Button>
+                          </Link>
+                        )}
+                      </>
                     )}
                   </>
                 ) : (

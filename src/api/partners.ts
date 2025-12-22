@@ -140,6 +140,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     currency
     place_id
     theme
+    petpooja_restaurant_id
     gst_no
     gst_percentage
     geo_location
@@ -336,6 +337,7 @@ export interface Partner {
   description: string;
   phone?: string;
   district?: string;
+  petpooja_restaurant_id?: string;
 }
 
 export interface UpdatePartnerStatusResponse {
