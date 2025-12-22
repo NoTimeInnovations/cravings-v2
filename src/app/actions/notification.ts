@@ -30,12 +30,10 @@ const getMessage = (
     apns: {
       payload: {
         aps: {
-          sound: "custom_sound.caf",
+          sound : "custom_sound.caf",
           contentAvailable: true,
         },
-        headers: {
-          "apns-priority": "10", // 10 is immediate, 5 is power-efficient
-        },
+        
       },
     },
     data: data || {},
@@ -164,7 +162,7 @@ class PartnerNotification {
       {
         url: "https://www.cravings.live/admin/orders",
         channel_id: "cravings_channel_1",
-        sound: "custom_sound",
+        sound: "custom_sound.caf",
         order_id: order.id,
       }
     );
@@ -245,12 +243,13 @@ class PartnerNotification {
 
       const message = getMessage(
         notificationMessage?.title ||
-        `New Offer: ${offer.menu.name} at ${offer?.partner?.store_name}`,
+          `New Offer: ${offer.menu.name} at ${offer?.partner?.store_name}`,
         notificationMessage?.body ||
-        `Check out the new offer: ${offer.menu.name} for just ${(offer?.partner as HotelData)?.currency ?? "₹"
-        }${offer.offer_price}. Valid until ${new Date(
-          offer?.end_time
-        ).toLocaleDateString()}`,
+          `Check out the new offer: ${offer.menu.name} for just ${
+            (offer?.partner as HotelData)?.currency ?? "₹"
+          }${offer.offer_price}. Valid until ${new Date(
+            offer?.end_time
+          ).toLocaleDateString()}`,
         tokens,
         {
           url: `https://www.cravings.live/offers/${offer?.id || ""}`,
