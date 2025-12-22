@@ -416,8 +416,9 @@ export function AdminV2Dashboard() {
     });
     return Array.from(itemMap.entries())
       .map(([name, stats]) => ({ name, ...stats }))
+
       .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 5);
+      .filter((item) => item.quantity > 0);
 
   };
 
@@ -690,7 +691,7 @@ export function AdminV2Dashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-8">
+                <div className="space-y-8 max-h-[400px] overflow-y-auto pr-2">
                   {topItems.map((item: any, index: number) => (
                     <div key={index} className="flex items-center">
                       <div className="ml-4 space-y-1">
