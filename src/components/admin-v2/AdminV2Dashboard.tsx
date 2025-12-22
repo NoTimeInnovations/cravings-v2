@@ -74,6 +74,11 @@ export function AdminV2Dashboard() {
 
   const features = (userData as Partner)?.feature_flags ? getFeatures((userData as Partner).feature_flags || "") : null;
   const isOrderingEnabled = features?.ordering.enabled;
+  const isAnyOrderingEnabled =
+    features?.ordering.enabled ||
+    features?.pos.enabled ||
+    features?.delivery.enabled ||
+    features?.captainordering.enabled;
 
   const TODAY_ORDERS_QUERY = (today: string) => `
     query TodayOrders {
@@ -557,7 +562,7 @@ export function AdminV2Dashboard() {
               View Menu
             </Button>
           )}
-          {isOrderingEnabled && (
+          {isAnyOrderingEnabled && (
             <Button
               onClick={async () => {
                 setIsDownloading(true);
@@ -575,7 +580,7 @@ export function AdminV2Dashboard() {
         </div>
       </div>
 
-      {isOrderingEnabled ? (
+      {isAnyOrderingEnabled ? (
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>

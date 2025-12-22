@@ -73,7 +73,7 @@ export interface Order {
   notes?: string | null;
   tableNumber?: number | null;
   qrId?: string | null;
-  status: "pending" | "completed" | "cancelled" | "preparing";
+  status: "pending" | "completed" | "cancelled" | "preparing" | "accepted";
   partnerId: string;
   display_id?: string;
   status_history?: OrderStatusStorage;
