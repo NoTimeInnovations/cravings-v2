@@ -151,6 +151,8 @@ class PartnerNotification {
       (token: { device_token: string }) => token.device_token
     );
 
+    console.log("Tokens found : ", tokens)
+
     if (tokens.length === 0) {
       return;
     }
