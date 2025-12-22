@@ -30,10 +30,10 @@ const getMessage = (
     apns: {
       payload: {
         aps: {
-          sound : "custom_sound.caf",
+          sound: "custom_sound.caf",
           contentAvailable: true,
         },
-        
+
       },
     },
     data: data || {},
@@ -133,7 +133,11 @@ class PartnerNotification {
     const { device_tokens } = await fetchFromHasura(
       `
       query GetPartnerDeviceTokens($partnerId: String!) {
-        device_tokens(where: {user_id: {_eq: $partnerId}}) {
+        device_tokens(
+          where: { user_id: { _eq: $partnerId } },
+          order_by: { created_at: desc },
+          limit: 3
+        ) {
           device_token
         }
       }
@@ -167,7 +171,7 @@ class PartnerNotification {
       }
     );
 
-    console.log("Order notification payload : " , message)
+    console.log("Order notification payload : ", message)
 
     const response = await fetch(`${BASE_URL}/api/notifications/send`, {
       method: "POST",
@@ -245,13 +249,12 @@ class PartnerNotification {
 
       const message = getMessage(
         notificationMessage?.title ||
-          `New Offer: ${offer.menu.name} at ${offer?.partner?.store_name}`,
+        `New Offer: ${offer.menu.name} at ${offer?.partner?.store_name}`,
         notificationMessage?.body ||
-          `Check out the new offer: ${offer.menu.name} for just ${
-            (offer?.partner as HotelData)?.currency ?? "₹"
-          }${offer.offer_price}. Valid until ${new Date(
-            offer?.end_time
-          ).toLocaleDateString()}`,
+        `Check out the new offer: ${offer.menu.name} for just ${(offer?.partner as HotelData)?.currency ?? "₹"
+        }${offer.offer_price}. Valid until ${new Date(
+          offer?.end_time
+        ).toLocaleDateString()}`,
         tokens,
         {
           url: `https://www.cravings.live/offers/${offer?.id || ""}`,
