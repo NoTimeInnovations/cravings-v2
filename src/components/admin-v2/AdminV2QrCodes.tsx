@@ -208,6 +208,7 @@ export function AdminV2QrCodes() {
             // Optimistic update
             setQrs(prev => prev.map(q => q.id === qrId ? { ...q, is_occupied: isOccupied } : q));
             toast.success(`Table marked as ${isOccupied ? "Occupied" : "Vacant"}`);
+            window.location.reload();
         } catch (error) {
             console.error("Error updating occupancy:", error);
             toast.error("Failed to update status");
