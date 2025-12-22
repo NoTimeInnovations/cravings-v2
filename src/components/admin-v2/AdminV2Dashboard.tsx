@@ -120,6 +120,15 @@ export function AdminV2Dashboard() {
         menu { name, price, category { name } }
         quantity
       }
+      category_stats: order_items(
+        where: {order: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}
+      ) {
+        menu {
+          category { name }
+          price
+        }
+        quantity
+      }
     }
   `;
 
@@ -168,6 +177,15 @@ export function AdminV2Dashboard() {
         menu { name, price, category { name } }
         quantity
       }
+      category_stats: order_items(
+        where: {order: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}
+      ) {
+        menu {
+          category { name }
+          price
+        }
+        quantity
+      }
     }
   `;
 
@@ -214,6 +232,15 @@ export function AdminV2Dashboard() {
       }
       top_items: order_items(where: {order: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}) {
         menu { name, price, category { name } }
+        quantity
+      }
+      category_stats: order_items(
+        where: {order: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}
+      ) {
+        menu {
+          category { name }
+          price
+        }
         quantity
       }
     }
@@ -391,11 +418,37 @@ export function AdminV2Dashboard() {
       .map(([name, stats]) => ({ name, ...stats }))
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 5);
+
+  };
+
+  const prepareCategoryData = () => {
+    if (!reportData?.category_stats) return [];
+    const categoryMap = new Map<
+      string,
+      { quantity: number; revenue: number }
+    >();
+    reportData.category_stats.forEach((item: any) => {
+      const categoryName = item.menu.category.name;
+      const existing = categoryMap.get(categoryName) || {
+        quantity: 0,
+        revenue: 0,
+      };
+      categoryMap.set(categoryName, {
+        quantity: existing.quantity + item.quantity,
+        revenue: existing.revenue + item.menu.price * item.quantity,
+      });
+    });
+    return Array.from(categoryMap.entries()).map(([name, stats]) => ({
+      name,
+      quantity: stats.quantity,
+      revenue: stats.revenue,
+    })).sort((a, b) => b.quantity - a.quantity);
   };
 
   const chartData = prepareChartData();
   const scanChartData = prepareScanChartData();
   const topItems = prepareTopItemsData();
+  const categoryData = prepareCategoryData();
   const totalEarnings = reportData?.orders_aggregate?.aggregate?.sum?.total_price || 0;
   const totalOrders = reportData?.orders_aggregate?.aggregate?.count || 0;
   const totalDeliveries = reportData?.delivery_orders?.aggregate?.count || 0;
@@ -655,6 +708,44 @@ export function AdminV2Dashboard() {
                     <div className="text-center text-muted-foreground py-8">
                       No data available
                     </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-7">
+            <Card className="col-span-1 lg:col-span-7">
+              <CardHeader>
+                <CardTitle>Category Analysis</CardTitle>
+                <CardDescription>
+                  Sales breakdown by category {activeTab === 'today' ? 'for today' : activeTab === 'month' ? 'for this month' : 'for selected period'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                  {categoryData.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8">
+                      No data available
+                    </div>
+                  ) : (
+                    categoryData.map((item, index) => (
+                      <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-2 h-10 rounded-full bg-orange-500`} />
+                          <div>
+                            <p className="font-medium">{item.name}</p>
+                            <p className="text-sm text-muted-foreground">{item.quantity} items sold</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold">₹{item.revenue.toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {totalEarnings > 0 ? ((item.revenue / totalEarnings) * 100).toFixed(1) : 0}% of total
+                          </p>
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
               </CardContent>
