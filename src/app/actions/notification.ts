@@ -1,3 +1,4 @@
+"use client";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Order } from "@/store/orderStore";
 import { getAuthCookie, getTempUserIdCookie } from "../auth/actions";
@@ -29,7 +30,11 @@ const getMessage = (
     },
     apns: {
       payload: {
-        aps: {},
+        aps: {
+          sound: "custom_sound.caf",
+          contentAvailable: true,
+        },
+
       },
     },
     data: data || {},
@@ -129,7 +134,11 @@ class PartnerNotification {
     const { device_tokens } = await fetchFromHasura(
       `
       query GetPartnerDeviceTokens($partnerId: String!) {
-        device_tokens(where: {user_id: {_eq: $partnerId}}) {
+        device_tokens(
+          where: { user_id: { _eq: $partnerId } },
+          order_by: { created_at: desc },
+          limit: 3
+        ) {
           device_token
         }
       }
@@ -142,6 +151,8 @@ class PartnerNotification {
     const tokens = device_tokens?.map(
       (token: { device_token: string }) => token.device_token
     );
+
+    console.log("Tokens found : ", tokens)
 
     if (tokens.length === 0) {
       return;
@@ -158,10 +169,12 @@ class PartnerNotification {
       {
         url: "https://www.cravings.live/admin/orders",
         channel_id: "cravings_channel_1",
-        sound: "custom_sound",
+        sound: "custom_sound.caf",
         order_id: order.id,
       }
     );
+
+    console.log("Order notification payload : ", message)
 
     const response = await fetch(`${BASE_URL}/api/notifications/send`, {
       method: "POST",
@@ -239,13 +252,12 @@ class PartnerNotification {
 
       const message = getMessage(
         notificationMessage?.title ||
-          `New Offer: ${offer.menu.name} at ${offer?.partner?.store_name}`,
+        `New Offer: ${offer.menu.name} at ${offer?.partner?.store_name}`,
         notificationMessage?.body ||
-          `Check out the new offer: ${offer.menu.name} for just ${
-            (offer?.partner as HotelData)?.currency ?? "₹"
-          }${offer.offer_price}. Valid until ${new Date(
-            offer?.end_time
-          ).toLocaleDateString()}`,
+        `Check out the new offer: ${offer.menu.name} for just ${(offer?.partner as HotelData)?.currency ?? "₹"
+        }${offer.offer_price}. Valid until ${new Date(
+          offer?.end_time
+        ).toLocaleDateString()}`,
         tokens,
         {
           url: `https://www.cravings.live/offers/${offer?.id || ""}`,

@@ -33,6 +33,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { updateQrCodeOccupiedStatusMutation } from "@/api/orders";
 
 type QrCode = {
     id: string;
@@ -45,6 +47,7 @@ type QrCode = {
     };
     created_at: string;
     no_of_scans: number;
+    is_occupied: boolean;
 };
 
 // Query to get ONLY the current partner's QRs
@@ -61,6 +64,7 @@ const GET_PARTNER_QRS_QUERY = `
         store_name
       }
       created_at
+      is_occupied
     }
     qr_codes_aggregate(where: $where) {
       aggregate {
@@ -190,6 +194,26 @@ export function AdminV2QrCodes() {
         }, 500);
         return () => { if (tableSearchDebounceTimer.current) clearTimeout(tableSearchDebounceTimer.current); };
     }, [tableSearch]);
+
+
+
+    const handleOccupancyChange = async (qrId: string, value: string) => {
+        const isOccupied = value === "occupied";
+        try {
+            await fetchFromHasura(updateQrCodeOccupiedStatusMutation, {
+                id: qrId,
+                is_occupied: isOccupied
+            });
+
+            // Optimistic update
+            setQrs(prev => prev.map(q => q.id === qrId ? { ...q, is_occupied: isOccupied } : q));
+            toast.success(`Table marked as ${isOccupied ? "Occupied" : "Vacant"}`);
+            window.location.reload();
+        } catch (error) {
+            console.error("Error updating occupancy:", error);
+            toast.error("Failed to update status");
+        }
+    };
 
     // Handlers
     const handleSelectQr = (id: string, checked: boolean) => {
@@ -429,6 +453,7 @@ export function AdminV2QrCodes() {
                             </TableHead>
                             <TableHead>Table No</TableHead>
                             <TableHead>Table Name</TableHead>
+                            <TableHead>Status</TableHead>
                             <TableHead>Scans</TableHead>
                             <TableHead>Actions</TableHead>
                         </TableRow>
@@ -453,6 +478,20 @@ export function AdminV2QrCodes() {
                                     </TableCell>
                                     <TableCell className="font-medium">{qr.table_number || "-"}</TableCell>
                                     <TableCell>{qr.table_name || "-"}</TableCell>
+                                    <TableCell>
+                                        <Select
+                                            value={qr.is_occupied ? "occupied" : "vacant"}
+                                            onValueChange={(val) => handleOccupancyChange(qr.id, val)}
+                                        >
+                                            <SelectTrigger className={`w-[110px] h-8 border-none ${qr.is_occupied ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="vacant">Vacant</SelectItem>
+                                                <SelectItem value="occupied">Occupied</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </TableCell>
                                     <TableCell>{qr.no_of_scans || 0}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
@@ -502,6 +541,18 @@ export function AdminV2QrCodes() {
                                             {qr.table_name}
                                         </span>
                                     )}
+                                    <Select
+                                        value={qr.is_occupied ? "occupied" : "vacant"}
+                                        onValueChange={(val) => handleOccupancyChange(qr.id, val)}
+                                    >
+                                        <SelectTrigger className={`w-[90px] h-7 text-xs border-none ${qr.is_occupied ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="vacant">Vacant</SelectItem>
+                                            <SelectItem value="occupied">Occupied</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </CardHeader>
                             <CardContent className="p-3">

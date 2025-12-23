@@ -299,6 +299,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
               table_number
               partner_id
               no_of_scans
+              table_name
               is_occupied
             }
           }
