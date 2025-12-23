@@ -441,19 +441,19 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-            <div className="flex items-center justify-between gap-4 border-b pb-4">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={onBack}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                    <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0">
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div>
-                        <h2 className="text-2xl font-bold">Edit Order #{order?.display_id || order?.id?.split("-")[0]}</h2>
-                        <p className="text-muted-foreground">
+                        <h2 className="text-lg sm:text-2xl font-bold">Edit Order #{order?.display_id || order?.id?.split("-")[0]}</h2>
+                        <p className="text-sm text-muted-foreground">
                             {tableNumber ? `Table ${tableNumber}` : "No Table"}
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
                     <Select
                         value={status}
                         onValueChange={handleStatusUpdate}
@@ -472,6 +472,8 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                     <Button
                         onClick={handleUpdateOrder}
                         disabled={updating || loading || !items || items.length === 0}
+                        size="sm"
+                        className="flex-1 sm:flex-none"
                     >
                         {updating ? (
                             <>
@@ -510,50 +512,50 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                             {items.map((item, index) => (
                                                 <div
                                                     key={`${item.menu_id}-${item.menu.name}-${index}`}
-                                                    className="p-4 flex flex-col sm:flex-row justify-between gap-4 items-center"
+                                                    className="p-3 flex flex-row justify-between gap-3 items-center w-full overflow-hidden"
                                                 >
-                                                    <div className="flex-1 w-full text-center sm:text-left">
-                                                        <div className="font-medium">{item.menu.name}</div>
-                                                        <div className="text-sm text-muted-foreground">
+                                                    <div className="flex-1 text-left min-w-0 pr-2">
+                                                        <div className="font-medium truncate">{item.menu.name}</div>
+                                                        <div className="text-sm text-muted-foreground whitespace-nowrap">
                                                             {currency}
                                                             {item.menu.price.toFixed(2)} each
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex items-center gap-3">
+                                                    <div className="flex items-center gap-2 shrink-0">
                                                         <Button
                                                             variant="outline"
                                                             size="icon"
-                                                            className="h-8 w-8"
+                                                            className="h-7 w-7 shrink-0"
                                                             onClick={() =>
                                                                 handleQuantityChange(index, item.quantity - 1)
                                                             }
                                                         >
-                                                            <Minus className="h-4 w-4" />
+                                                            <Minus className="h-3 w-3" />
                                                         </Button>
 
-                                                        <span className="w-8 text-center font-medium">
+                                                        <span className="w-6 text-center font-medium text-sm">
                                                             {item.quantity}
                                                         </span>
 
                                                         <Button
                                                             variant="outline"
                                                             size="icon"
-                                                            className="h-8 w-8"
+                                                            className="h-7 w-7 shrink-0"
                                                             onClick={() =>
                                                                 handleQuantityChange(index, item.quantity + 1)
                                                             }
                                                         >
-                                                            <Plus className="h-4 w-4" />
+                                                            <Plus className="h-3 w-3" />
                                                         </Button>
 
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-8 w-8 text-destructive ml-2"
+                                                            className="h-7 w-7 text-destructive ml-1 shrink-0"
                                                             onClick={() => handleRemoveItem(index)}
                                                         >
-                                                            <X className="h-4 w-4" />
+                                                            <X className="h-3 w-3" />
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -600,10 +602,14 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                                             }}
                                                         >
                                                             <div>
-                                                                <div className="font-medium">{item.name}</div>
-                                                                <div className="text-sm text-muted-foreground">
-                                                                    {currency}
-                                                                    {item.price.toFixed(2)}
+                                                                <div className="font-medium text-sm">{item.name}</div>
+                                                                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                                                                    <span>{currency}{item.price.toFixed(2)}</span>
+                                                                    {item.category?.name && (
+                                                                        <Badge variant="outline" className="text-[10px] h-5 px-1 py-0">
+                                                                            {item.category.name}
+                                                                        </Badge>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                             <Plus className="h-4 w-4 text-primary" />
@@ -670,7 +676,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                         placeholder="Add notes..."
                                         value={orderNote}
                                         onChange={(e) => setOrderNote(e.target.value)}
-                                        className="w-full p-2 text-sm border rounded-md resize-none min-h-[80px]"
+                                        className="w-full p-2 text-sm border rounded-md resize-none min-h-[80px] bg-transparent"
                                     />
                                 </div>
                             </CardContent>
