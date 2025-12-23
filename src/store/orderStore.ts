@@ -219,6 +219,7 @@ interface OrderState {
     orders: Order[],
     setOrders: (orders: Order[]) => void
   ) => Promise<void>;
+  setPartnerOrders: (orders: Order[]) => void;
 }
 
 const useOrderStore = create(
@@ -254,6 +255,7 @@ const useOrderStore = create(
       },
       setDeliveryCost: (cost: number | null) => set({ deliveryCost: cost }),
       setOpenDrawerBottom: (open: boolean) => set({ open_drawer_bottom: open }),
+      setPartnerOrders: (orders: Order[]) => set({ partnerOrders: orders }),
 
       updateOrderStatusHistory: async (
         orderId: string,

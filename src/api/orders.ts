@@ -11,6 +11,7 @@ export const getOrdersOfPartnerQuery = `
       created_at
       table_number
       type
+      qr_id
       delivery_address
       status
       partner_id

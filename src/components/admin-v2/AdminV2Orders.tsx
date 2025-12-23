@@ -134,7 +134,10 @@ export function AdminV2Orders() {
 
     const handleUpdateOrderStatus = async (orderId: string, status: string) => {
         const order = orders.find(o => o.id === orderId);
-        if (order?.status === "completed") {
+
+        if (!order) return;
+
+        if (order.status === "completed") {
             setPendingAction(() => async () => {
                 try {
                     await updateOrderStatus(orders, orderId, status as any, setOrders);
@@ -151,6 +154,59 @@ export function AdminV2Orders() {
         try {
             await updateOrderStatus(orders, orderId, status as any, setOrders);
             toast.success("Order status updated");
+
+            if (status === 'completed' && (order.type === 'table_order' || order.type === 'pos')) {
+                let qrId = order.qrId;
+                if (!qrId && order.tableNumber) {
+                    // Try to fetch QR ID if missing
+                    const qrRes = await fetchFromHasura(`
+                         query GetQrForTable($partner_id: uuid!, $table_number: Int!) {
+                             qr_codes(where: {partner_id: {_eq: $partner_id}, table_number: {_eq: $table_number}}) {
+                                 id
+                             }
+                         }
+                     `, { partner_id: order.partnerId, table_number: typeof order.tableNumber === 'string' ? parseInt(order.tableNumber) : order.tableNumber });
+                    if (qrRes.qr_codes?.[0]) qrId = qrRes.qr_codes[0].id;
+                }
+
+                if (qrId) {
+                    try {
+                        // Check if there are any other active orders for this table
+                        // verifying that we are clearing the table only if no other orders are pending/accepted
+                        const activeOrdersRes = await fetchFromHasura(`
+                            query GetActiveOrdersForQr($qr_id: uuid!) {
+                                orders_aggregate(
+                                    where: { 
+                                        qr_id: { _eq: $qr_id }, 
+                                        status: { _in: ["pending", "accepted"] } 
+                                    }
+                                ) {
+                                    aggregate {
+                                        count
+                                    }
+                                }
+                            }
+                        `, { qr_id: qrId });
+
+                        const activeCount = activeOrdersRes.orders_aggregate?.aggregate?.count || 0;
+
+                        if (activeCount === 0) {
+                            const statusRes = await fetchFromHasura(`
+                                query GetQrStatus($id: uuid!) { 
+                                    qr_codes_by_pk(id: $id) { is_occupied } 
+                                }
+                            `, { id: qrId });
+
+                            if (statusRes.qr_codes_by_pk?.is_occupied) {
+                                await fetchFromHasura(updateQrCodeOccupiedStatusMutation, { id: qrId, is_occupied: false });
+                                toast.success("Table freed");
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Error freeing table:", e);
+                    }
+                }
+            }
         } catch (error) {
             toast.error("Failed to update status");
         }
@@ -169,7 +225,7 @@ export function AdminV2Orders() {
                     // If no qrId but has tableNumber, try to find the QR code
                     if (!qrId && order.tableNumber) {
                         const qrResponse = await fetchFromHasura(`
-                        query GetQrForTable($partner_id: uuid!, $table_number: String!) {
+                        query GetQrForTable($partner_id: uuid!, $table_number: Int!) {
                             qr_codes(where: {partner_id: {_eq: $partner_id}, table_number: {_eq: $table_number}}) {
                                 id
                                 is_occupied
@@ -177,7 +233,7 @@ export function AdminV2Orders() {
                         }
                     `, {
                             partner_id: order.partnerId,
-                            table_number: order.tableNumber.toString()
+                            table_number: typeof order.tableNumber === 'string' ? parseInt(order.tableNumber) : order.tableNumber
                         });
 
                         if (qrResponse.qr_codes?.[0]) {
@@ -186,22 +242,44 @@ export function AdminV2Orders() {
                     }
 
                     if (qrId) {
-                        // Check if occupied
-                        const statusRes = await fetchFromHasura(`
-                        query GetQrStatus($id: uuid!) {
-                            qr_codes_by_pk(id: $id) {
-                                is_occupied
-                            }
-                        }
-                    `, { id: qrId });
+                        try {
+                            // Check if there are any other active orders for this table
+                            const activeOrdersRes = await fetchFromHasura(`
+                                query GetActiveOrdersForQr($qr_id: uuid!) {
+                                    orders_aggregate(
+                                        where: { 
+                                            qr_id: { _eq: $qr_id }, 
+                                            status: { _in: ["pending", "accepted"] } 
+                                        }
+                                    ) {
+                                        aggregate {
+                                            count
+                                        }
+                                    }
+                                }
+                            `, { qr_id: qrId });
 
-                        if (statusRes.qr_codes_by_pk?.is_occupied) {
-                            // Free Table
-                            await fetchFromHasura(updateQrCodeOccupiedStatusMutation, {
-                                id: qrId,
-                                is_occupied: false
-                            });
-                            message += " and table freed";
+                            const activeCount = activeOrdersRes.orders_aggregate?.aggregate?.count || 0;
+
+                            if (activeCount === 0) {
+                                const statusRes = await fetchFromHasura(`
+                                    query GetQrStatus($id: uuid!) {
+                                        qr_codes_by_pk(id: $id) {
+                                            is_occupied
+                                        }
+                                    }
+                                `, { id: qrId });
+
+                                if (statusRes.qr_codes_by_pk?.is_occupied) {
+                                    await fetchFromHasura(updateQrCodeOccupiedStatusMutation, {
+                                        id: qrId,
+                                        is_occupied: false
+                                    });
+                                    message += " and table freed";
+                                }
+                            }
+                        } catch (e) {
+                            console.error("Error checking table status:", e);
                         }
                     }
                 }

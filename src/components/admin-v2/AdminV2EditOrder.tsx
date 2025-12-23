@@ -7,14 +7,22 @@ import {
     getOrderByIdQuery,
     updateOrderMutation,
     updateOrderItemsMutation,
+    updateQrCodeOccupiedStatusMutation
 } from "@/api/orders";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { useMenuStore } from "@/store/menuStore_hasura";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
-import { Order } from "@/store/orderStore";
+import useOrderStore, { Order } from "@/store/orderStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -66,6 +74,7 @@ interface AdminV2EditOrderProps {
 
 export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
     const { fetchMenu, items: menuItems } = useMenuStore();
+    const { updateOrderStatus, setPartnerOrders: setOrders, partnerOrders: orders } = useOrderStore(); // Access store actions
     const { userData } = useAuthStore();
     const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -95,6 +104,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
     });
     const [qrGroup, setQrGroup] = useState<any>(null);
     const [orderNote, setOrderNote] = useState<string>("");
+    const [status, setStatus] = useState<string>(order?.status || "pending");
 
     const currency = (userData as Partner)?.currency || "$";
     const gstPercentage = (userData as Partner)?.gst_percentage || 0;
@@ -141,6 +151,9 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
 
                 if (orderData.notes) {
                     setOrderNote(orderData.notes);
+                }
+                if (orderData.status) {
+                    setStatus(orderData.status);
                 }
             }
         } catch (error) {
@@ -375,6 +388,57 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
         }
     }
 
+
+
+    const handleStatusUpdate = async (newStatus: string) => {
+        try {
+            setStatus(newStatus); // Optimistic update
+            await updateOrderStatus(orders, order.id, newStatus as any, setOrders);
+            toast.success("Order status updated");
+
+            if (newStatus === 'completed' && (order.type === 'table_order' || order.type === 'pos')) {
+                let qrId = order.qrId;
+                if (!qrId && tableNumber) {
+                    // Try to fetch QR ID if missing
+                    try {
+                        const qrRes = await fetchFromHasura(`
+                             query GetQrForTable($partner_id: uuid!, $table_number: Int!) {
+                                 qr_codes(where: {partner_id: {_eq: $partner_id}, table_number: {_eq: $table_number}}) {
+                                     id
+                                 }
+                             }
+                         `, { partner_id: order.partnerId, table_number: tableNumber });
+                        if (qrRes.qr_codes?.[0]) qrId = qrRes.qr_codes[0].id;
+                    } catch (e) {
+                        console.error("Error fetching QR ID:", e);
+                    }
+                }
+
+                if (qrId) {
+                    try {
+                        await fetchFromHasura(updateQrCodeOccupiedStatusMutation, { id: qrId, is_occupied: false });
+                        toast.success("Table freed");
+                    } catch (e) {
+                        console.error("Error freeing table:", e);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Status update error:", error);
+            toast.error("Failed to update status");
+        }
+    };
+
+    const getStatusColor = (s: string) => {
+        switch (s) {
+            case "completed": return "bg-green-100 text-green-800";
+            case "pending": return "bg-yellow-100 text-yellow-800";
+            case "cancelled": return "bg-red-100 text-red-800";
+            case "accepted": return "bg-blue-100 text-blue-800";
+            default: return "bg-gray-100 text-gray-800";
+        }
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="flex items-center justify-between gap-4 border-b pb-4">
@@ -389,22 +453,39 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                         </p>
                     </div>
                 </div>
-                <Button
-                    onClick={handleUpdateOrder}
-                    disabled={updating || loading || !items || items.length === 0}
-                >
-                    {updating ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Updating...
-                        </>
-                    ) : (
-                        <>
-                            <Save className="mr-2 h-4 w-4" />
-                            Save Changes
-                        </>
-                    )}
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Select
+                        value={status}
+                        onValueChange={handleStatusUpdate}
+                    >
+                        <SelectTrigger className={`w-[130px] border-none ${getStatusColor(status)}`}>
+                            <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="accepted">Accepted</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <Button
+                        onClick={handleUpdateOrder}
+                        disabled={updating || loading || !items || items.length === 0}
+                    >
+                        {updating ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Updating...
+                            </>
+                        ) : (
+                            <>
+                                <Save className="mr-2 h-4 w-4" />
+                                Save Changes
+                            </>
+                        )}
+                    </Button>
+                </div>
             </div>
 
             {loading ? (

@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
+import { fetchFromHasura } from "@/lib/hasuraClient";
+import { updateQrCodeOccupiedStatusMutation } from "@/api/orders";
 
 interface OrderDetailsProps {
     order: Order | null;
@@ -49,6 +51,43 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
     const [pendingAction, setPendingAction] = React.useState<(() => void) | null>(null);
 
     if (!order) return null;
+
+    const freeTable = async () => {
+        let qrId = order.qrId;
+        console.log("Attempting to free table. Initial QR ID:", qrId, "Table Number:", order.tableNumber);
+
+        if (!qrId && order.tableNumber) {
+            try {
+                const qrRes = await fetchFromHasura(`
+                    query GetQrForTable($partner_id: uuid!, $table_number: Int!) {
+                        qr_codes(where: {partner_id: {_eq: $partner_id}, table_number: {_eq: $table_number}}) {
+                            id
+                        }
+                    }
+                `, {
+                    partner_id: order.partnerId,
+                    table_number: typeof order.tableNumber === 'string' ? parseInt(order.tableNumber) : order.tableNumber
+                });
+
+                if (qrRes.qr_codes?.[0]) qrId = qrRes.qr_codes[0].id;
+                console.log("Fetched QR ID from table number:", qrId);
+            } catch (e) {
+                console.error("Error fetching QR ID:", e);
+            }
+        }
+
+        if (qrId) {
+            try {
+                await fetchFromHasura(updateQrCodeOccupiedStatusMutation, { id: qrId, is_occupied: false });
+                toast.success("Table marked as unoccupied");
+            } catch (e) {
+                console.error("Error freeing table:", e);
+                toast.error("Failed to update table status");
+            }
+        } else {
+            console.log("No QR ID found to free table");
+        }
+    };
 
     const handleUpdateOrderStatus = async (status: string) => {
         if (order.status === "completed") {
@@ -67,22 +106,49 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
         try {
             await updateOrderStatus(orders, order.id, status as any, setOrders);
             toast.success("Order status updated");
+
+            if (status === 'completed') {
+                await freeTable();
+            }
         } catch (error) {
             toast.error("Failed to update status");
         }
     };
 
-    const handlePrint = (type: 'bill' | 'kot') => {
-        if (type === 'bill' && !order.payment_method) {
-            setPaymentModalOpen(true);
+    const handlePrint = async (type: 'bill' | 'kot') => {
+        if (type === 'bill') {
+            if (order.status === 'accepted') {
+                try {
+                    await updateOrderStatus(orders, order.id, 'completed', setOrders);
+                    toast.success("Order marked as completed");
+                    await freeTable();
+                } catch (error) {
+                    console.error("Error updating order status on print:", error);
+                }
+            }
+
+            if (!order.payment_method) {
+                setPaymentModalOpen(true);
+            } else {
+                window.open(`/bill/${order.id}`, '_blank');
+            }
         } else {
-            window.open(`/${type}/${order.id}`, '_blank');
+            window.open(`/kot/${order.id}`, '_blank');
         }
     };
 
     const handlePaymentMethodConfirm = async (method: string) => {
         await updateOrderPaymentMethod(order.id, method, orders, setOrders);
         setPaymentModalOpen(false);
+
+        // Also perform completion logic if it wasn't already accepted/completed
+        if (order.status === 'accepted') {
+            try {
+                await updateOrderStatus(orders, order.id, 'completed', setOrders);
+                await freeTable();
+            } catch (e) { console.error(e); }
+        }
+
         window.open(`/bill/${order.id}`, '_blank');
     };
 
