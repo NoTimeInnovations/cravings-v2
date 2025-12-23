@@ -7,14 +7,9 @@ import {
   SubscriptionExpiredCard,
   SubscriptionInactiveCard
 } from "@/components/SubscriptionStatusCards";
-import { GET_QR_TABLE, INCREMENT_QR_CODE_SCAN_COUNT, INSERT_QR_SCAN } from "@/api/qrcodes";
-import {
-  getAuthCookie,
-  getQrScanCookie,
-  setQrScanCookie,
-  getScanRateLimitCookie,
-  setScanRateLimitCookie,
-} from "@/app/auth/actions";
+import { GET_QR_TABLE } from "@/api/qrcodes";
+import { ScanTracker } from "@/components/ScanTracker";
+import { getAuthCookie } from "@/app/auth/actions";
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
 import { ThemeConfig } from "@/components/hotelDetail/ThemeChangeButton";
 import { getFeatures } from "@/lib/getFeatures";
@@ -322,34 +317,6 @@ const page = async ({
         }
 
 
-        // INCREMENT SCAN COUNT
-        // Only increment the specific QR code if NOT owner.
-        if (auth?.id !== hoteldata.id) {
-          const isRateLimited = await getScanRateLimitCookie(validQrId);
-          if (!isRateLimited) {
-            try {
-              await fetchFromHasura(INCREMENT_QR_CODE_SCAN_COUNT, { id: validQrId });
-              await fetchFromHasura(INSERT_QR_SCAN, { qr_id: validQrId });
-              await setScanRateLimitCookie(validQrId);
-            } catch (err) {
-              console.error("Failed to update scan counts or log scan", err);
-            }
-          }
-        }
-      }
-    } else {
-      // For non-international or missing sub details, just increment QR count for analytics?
-      // User asked for specific logic for international. 
-      // We will increment QR count regardless as it's useful.
-      if (auth?.id !== hoteldata.id) {
-        const isRateLimited = await getScanRateLimitCookie(validQrId);
-        if (!isRateLimited) {
-          try {
-            await fetchFromHasura(INCREMENT_QR_CODE_SCAN_COUNT, { id: validQrId });
-            await fetchFromHasura(INSERT_QR_SCAN, { qr_id: validQrId });
-            await setScanRateLimitCookie(validQrId);
-          } catch (e) { console.error(e) }
-        }
       }
     }
 
@@ -438,18 +405,21 @@ const page = async ({
 
     // if (isOrderingEnabled || isDeliveryEnabled) {
     return (
-      <HotelMenuPage
-        socialLinks={socialLinks}
-        auth={auth}
-        hoteldata={hotelDataWithOfferPrice as HotelData}
-        offers={filteredOffers}
-        tableNumber={tableNumber}
-        theme={theme}
-        qrData={qr_codes[0]}
-        qrGroup={qr_codes[0].qr_group}
-        qrId={validQrId}
-        selectedCategory={cat}
-      />
+      <>
+        <ScanTracker qrId={validQrId} hotelId={hoteldata.id} />
+        <HotelMenuPage
+          socialLinks={socialLinks}
+          auth={auth}
+          hoteldata={hotelDataWithOfferPrice as HotelData}
+          offers={filteredOffers}
+          tableNumber={tableNumber}
+          theme={theme}
+          qrData={qr_codes[0]}
+          qrGroup={qr_codes[0].qr_group}
+          qrId={validQrId}
+          selectedCategory={cat}
+        />
+      </>
     );
     // }
 

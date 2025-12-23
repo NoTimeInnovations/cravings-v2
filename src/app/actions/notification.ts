@@ -1,3 +1,4 @@
+"use client";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Order } from "@/store/orderStore";
 import { getAuthCookie, getTempUserIdCookie } from "../auth/actions";

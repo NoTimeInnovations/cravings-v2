@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { encryptText, decryptText } from "@/lib/encrtption";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { INCREMENT_QR_CODE_SCAN_COUNT, INSERT_QR_SCAN } from "@/api/qrcodes";
 
 export const getAuthCookie = async () => {
   const cookie = (await cookies()).get("new_auth_token")?.value;
@@ -213,4 +214,23 @@ export const setScanRateLimitCookie = async (qrId: string) => {
 export const getScanRateLimitCookie = async (qrId: string) => {
   const cookie = (await cookies()).get(`rate_limit_scan_${qrId}`)?.value;
   return !!cookie;
+};
+
+export const trackQrScanAction = async (qrId: string, partnerId: string) => {
+  const auth = await getAuthCookie();
+
+  // Don't count owner's scans
+  if (auth?.id === partnerId) return;
+
+  const isRateLimited = await getScanRateLimitCookie(qrId);
+
+  if (!isRateLimited) {
+    try {
+      await fetchFromHasura(INCREMENT_QR_CODE_SCAN_COUNT, { id: qrId });
+      await fetchFromHasura(INSERT_QR_SCAN, { qr_id: qrId });
+      await setScanRateLimitCookie(qrId);
+    } catch (err) {
+      console.error("Failed to update scan counts or log scan", err);
+    }
+  }
 };
