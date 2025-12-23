@@ -434,11 +434,22 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   loadOrderIntoCart: (order) => {
-    const items = (order.order_items || order.items || []).map((item: any) => ({
-      ...(item.menu || item.item || item),
-      id: item.menu?.id || item.item?.id || item.id,
-      quantity: item.quantity,
-    }));
+    const items = (order.order_items || order.items || []).map((entry: any) => {
+      // Prioritize snapshot data (entry.item) over live menu data (entry.menu)
+      // for critical fields like name and price, but keep live data for images etc.
+      const menuData = entry.menu || {};
+      const snapshotData = entry.item || {};
+
+      const isHasuraRow = entry.menu || entry.item;
+      const base = isHasuraRow ? { ...menuData, ...snapshotData } : { ...entry };
+
+      return {
+        ...base,
+        // Ensure we prefer the ID from snapshot/base over the entry ID (which might be row ID)
+        id: base.id || entry.id,
+        quantity: entry.quantity,
+      };
+    });
 
     const extraCharges = (order.extra_charges || order.extraCharges || []).map((charge: any) => ({
       ...charge,
