@@ -34,7 +34,7 @@ import {
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { updateQrCodeOccupiedStatusMutation } from "@/api/orders";
+
 
 interface OrderDetailsProps {
     order: Order | null;
@@ -52,42 +52,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
 
     if (!order) return null;
 
-    const freeTable = async () => {
-        let qrId = order.qrId;
-        console.log("Attempting to free table. Initial QR ID:", qrId, "Table Number:", order.tableNumber);
 
-        if (!qrId && order.tableNumber) {
-            try {
-                const qrRes = await fetchFromHasura(`
-                    query GetQrForTable($partner_id: uuid!, $table_number: Int!) {
-                        qr_codes(where: {partner_id: {_eq: $partner_id}, table_number: {_eq: $table_number}}) {
-                            id
-                        }
-                    }
-                `, {
-                    partner_id: order.partnerId,
-                    table_number: typeof order.tableNumber === 'string' ? parseInt(order.tableNumber) : order.tableNumber
-                });
-
-                if (qrRes.qr_codes?.[0]) qrId = qrRes.qr_codes[0].id;
-                console.log("Fetched QR ID from table number:", qrId);
-            } catch (e) {
-                console.error("Error fetching QR ID:", e);
-            }
-        }
-
-        if (qrId) {
-            try {
-                await fetchFromHasura(updateQrCodeOccupiedStatusMutation, { id: qrId, is_occupied: false });
-                toast.success("Table marked as unoccupied");
-            } catch (e) {
-                console.error("Error freeing table:", e);
-                toast.error("Failed to update table status");
-            }
-        } else {
-            console.log("No QR ID found to free table");
-        }
-    };
 
     const handleUpdateOrderStatus = async (status: string) => {
         if (order.status === "completed") {
@@ -107,9 +72,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
             await updateOrderStatus(orders, order.id, status as any, setOrders);
             toast.success("Order status updated");
 
-            if (status === 'completed') {
-                await freeTable();
-            }
+
         } catch (error) {
             toast.error("Failed to update status");
         }
@@ -121,7 +84,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 try {
                     await updateOrderStatus(orders, order.id, 'completed', setOrders);
                     toast.success("Order marked as completed");
-                    await freeTable();
+
                 } catch (error) {
                     console.error("Error updating order status on print:", error);
                 }
@@ -145,7 +108,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
         if (order.status === 'accepted') {
             try {
                 await updateOrderStatus(orders, order.id, 'completed', setOrders);
-                await freeTable();
+
             } catch (e) { console.error(e); }
         }
 

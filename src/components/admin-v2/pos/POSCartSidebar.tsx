@@ -424,14 +424,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent className="max-h-[200px] overflow-y-auto w-[var(--radix-dropdown-menu-trigger-width)]">
                                     {tables
-                                        .filter(table => {
-                                            // If editing an order and this is the currently selected table, always show it.
-                                            if (editingOrderId && table.number === tableNumber) {
-                                                return true;
-                                            }
-                                            // Otherwise, only show tables that are not occupied.
-                                            return !table.is_occupied;
-                                        })
+
                                         .map((table) => (
                                             <DropdownMenuItem
                                                 key={table.id}

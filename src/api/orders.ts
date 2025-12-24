@@ -475,11 +475,4 @@ export const getCaptainsQuery = `
   }
 `;
 
-export const updateQrCodeOccupiedStatusMutation = `
-  mutation UpdateQrCodeOccupiedStatus($id: uuid!, $is_occupied: Boolean!) {
-    update_qr_codes_by_pk(pk_columns: {id: $id}, _set: {is_occupied: $is_occupied}) {
-      id
-      is_occupied
-    }
-  }
-`;
+

@@ -7,7 +7,7 @@ import {
     getOrderByIdQuery,
     updateOrderMutation,
     updateOrderItemsMutation,
-    updateQrCodeOccupiedStatusMutation
+
 } from "@/api/orders";
 import {
     Select,
@@ -396,33 +396,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
             await updateOrderStatus(orders, order.id, newStatus as any, setOrders);
             toast.success("Order status updated");
 
-            if (newStatus === 'completed' && (order.type === 'table_order' || order.type === 'pos')) {
-                let qrId = order.qrId;
-                if (!qrId && tableNumber) {
-                    // Try to fetch QR ID if missing
-                    try {
-                        const qrRes = await fetchFromHasura(`
-                             query GetQrForTable($partner_id: uuid!, $table_number: Int!) {
-                                 qr_codes(where: {partner_id: {_eq: $partner_id}, table_number: {_eq: $table_number}}) {
-                                     id
-                                 }
-                             }
-                         `, { partner_id: order.partnerId, table_number: tableNumber });
-                        if (qrRes.qr_codes?.[0]) qrId = qrRes.qr_codes[0].id;
-                    } catch (e) {
-                        console.error("Error fetching QR ID:", e);
-                    }
-                }
 
-                if (qrId) {
-                    try {
-                        await fetchFromHasura(updateQrCodeOccupiedStatusMutation, { id: qrId, is_occupied: false });
-                        toast.success("Table freed");
-                    } catch (e) {
-                        console.error("Error freeing table:", e);
-                    }
-                }
-            }
         } catch (error) {
             console.error("Status update error:", error);
             toast.error("Failed to update status");

@@ -48,7 +48,7 @@ export function AdminV2POS() {
                                 partner_id
                                 no_of_scans
                                 table_name
-                                is_occupied
+
                             }
                         }
                     `,
@@ -71,8 +71,7 @@ export function AdminV2POS() {
                                 .map((qr: any) => ({
                                     id: qr.id,
                                     number: Number(qr.table_number),
-                                    name: qr.table_name || undefined,
-                                    is_occupied: qr.is_occupied
+                                    name: qr.table_name || undefined
                                 }))
                                 .sort((a: any, b: any) => a.number - b.number);
 
