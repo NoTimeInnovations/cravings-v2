@@ -23,18 +23,18 @@ export function AssignQrPartnerList({ initialHotels }: { initialHotels: Hotel[] 
   const router = useRouter();
 
   const filteredHotels = hotels.filter(hotel =>
-    hotel.store_name.toLowerCase().includes(searchQuery.toLowerCase())
+    (hotel.store_name || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleUpdateSuccess = (updatedHotel: Hotel) => {
-    setHotels(prevHotels => 
-      prevHotels.map(hotel => 
+    setHotels(prevHotels =>
+      prevHotels.map(hotel =>
         hotel.id === updatedHotel.id ? updatedHotel : hotel
       )
     );
   };
 
-  const handleViewQrCodes = (partnerId: string,store_name:string) => {
+  const handleViewQrCodes = (partnerId: string, store_name: string) => {
     router.push(`/superadmin/${partnerId}/qrcodes?store_name=${store_name}`);
   };
 
@@ -69,17 +69,17 @@ export function AssignQrPartnerList({ initialHotels }: { initialHotels: Hotel[] 
               <TableRow key={hotel.id}>
                 <TableCell>{hotel.store_name}</TableCell>
                 <TableCell className="flex space-x-2">
-                  <Button 
+                  <Button
                     variant="outline"
-                    onClick={() => handleViewQrCodes(hotel.id,hotel.store_name)}
+                    onClick={() => handleViewQrCodes(hotel.id, hotel.store_name)}
                   >
                     View QR Codes
                   </Button>
-                  <QrManagementModal 
+                  <QrManagementModal
                     partnerId={hotel.id}
                     onSuccess={() => {
                       // Refresh data or handle success
-                      handleViewQrCodes(hotel.id,hotel.store_name);
+                      handleViewQrCodes(hotel.id, hotel.store_name);
                     }}
                   />
                 </TableCell>

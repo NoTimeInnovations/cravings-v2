@@ -25,6 +25,15 @@ export default function RemovePartnerPage() {
     // Bulk Selection State
     const [selectedPartners, setSelectedPartners] = useState<Partner[]>([]);
 
+    const AVAILABLE_TABLES = [
+        "qr_scans", "order_items", "orders", "offers",
+        "qr_codes", "qr_groups", "stocks", "menu", "category",
+        "device_tokens", "captain", "payments", "partner_payments",
+        "followers", "partner"
+    ];
+
+    const [selectedTableKeys, setSelectedTableKeys] = useState<string[]>(AVAILABLE_TABLES);
+
     const handleSearch = async (query: string) => {
         setSearchQuery(query);
         if (query.length < 2) {
@@ -56,8 +65,6 @@ export default function RemovePartnerPage() {
                 return [...prev, partner];
             }
         });
-        // Clear search after selection if desired, or keep it for picking more from same query?
-        // Keeping search results seems better for bulk picking.
     };
 
     const removeSelected = (partnerId: string) => {
@@ -71,6 +78,24 @@ export default function RemovePartnerPage() {
         setLogs([]);
     };
 
+    const toggleTableSelection = (tableKey: string) => {
+        setSelectedTableKeys(prev => {
+            if (prev.includes(tableKey)) {
+                return prev.filter(k => k !== tableKey);
+            } else {
+                return [...prev, tableKey];
+            }
+        });
+    };
+
+    const toggleAllTables = () => {
+        if (selectedTableKeys.length === AVAILABLE_TABLES.length) {
+            setSelectedTableKeys([]);
+        } else {
+            setSelectedTableKeys(AVAILABLE_TABLES);
+        }
+    };
+
     const handleDelete = async () => {
         if (selectedPartners.length === 0) {
             toast.error("Please select at least one Partner");
@@ -78,7 +103,7 @@ export default function RemovePartnerPage() {
         }
 
         const confirmDelete = window.confirm(
-            `Are you sure you want to PERMANENTLY DELETE data for ${selectedPartners.length} partner(s)?\n\nThis cannot be undone.`
+            `Are you sure you want to PERMANENTLY DELETE data for ${selectedPartners.length} partner(s)?\n\nTables selected: ${selectedTableKeys.join(", ")}\n\nThis cannot be undone.`
         );
         if (!confirmDelete) return;
 
@@ -95,7 +120,7 @@ export default function RemovePartnerPage() {
             setLogs((prev) => [...prev, `\n${progressPrefix} Starting deletion for: ${partner.store_name} (${partner.id})...`]);
 
             try {
-                const result = await deletePartnerFullData(partner.id);
+                const result = await deletePartnerFullData(partner.id, selectedTableKeys);
 
                 if (result.success) {
                     setLogs((prev) => [...prev, `${progressPrefix} ✅ Success`]);
@@ -109,6 +134,8 @@ export default function RemovePartnerPage() {
                 Object.entries(result.results).forEach(([key, val]: [string, any]) => {
                     if (val.error) {
                         setLogs((prev) => [...prev, `   ❌ ${key}: ${val.error}`]);
+                    } else if (val.skipped) {
+                        // setLogs((prev) => [...prev, `   ⏭️ ${key}: Skipped`]); 
                     }
                 });
 
@@ -220,6 +247,39 @@ export default function RemovePartnerPage() {
                         {loading ? "Processing Batch..." : `DELETE ${selectedPartners.length} PARTNER(S)`}
                     </button>
                 </div>
+            </div>
+
+            {/* Table Selection Scope */}
+            <div className="bg-white p-4 rounded-lg border shadow-sm space-y-3">
+                <div className="flex justify-between items-center border-b pb-2">
+                    <h3 className="font-bold text-gray-700">Data Deletion Scope (Tables)</h3>
+                    <div className="space-x-2">
+                        <span className="text-xs text-gray-500 mr-2">{selectedTableKeys.length}/{AVAILABLE_TABLES.length} Selected</span>
+                        <button
+                            onClick={toggleAllTables}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                            {selectedTableKeys.length === AVAILABLE_TABLES.length ? "Deselect All" : "Select All"}
+                        </button>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+                    {AVAILABLE_TABLES.map(table => (
+                        <label key={table} className="flex items-center space-x-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                            <input
+                                type="checkbox"
+                                checked={selectedTableKeys.includes(table)}
+                                onChange={() => toggleTableSelection(table)}
+                                className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+                            />
+                            <span className="font-mono text-xs">{table}</span>
+                        </label>
+                    ))}
+                </div>
+                <p className="text-xs text-yellow-600 mt-2">
+                    ⚠️ Note: Unselecting tables may cause foreign key constraint errors if dependent child rows are not deleted first.
+                    Default selection preserves the correct deletion order.
+                </p>
             </div>
 
             {/* Logs Section */}

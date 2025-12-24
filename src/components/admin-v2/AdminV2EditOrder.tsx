@@ -7,14 +7,22 @@ import {
     getOrderByIdQuery,
     updateOrderMutation,
     updateOrderItemsMutation,
+
 } from "@/api/orders";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { useMenuStore } from "@/store/menuStore_hasura";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
-import { Order } from "@/store/orderStore";
+import useOrderStore, { Order } from "@/store/orderStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -66,6 +74,7 @@ interface AdminV2EditOrderProps {
 
 export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
     const { fetchMenu, items: menuItems } = useMenuStore();
+    const { updateOrderStatus, setPartnerOrders: setOrders, partnerOrders: orders } = useOrderStore(); // Access store actions
     const { userData } = useAuthStore();
     const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -95,6 +104,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
     });
     const [qrGroup, setQrGroup] = useState<any>(null);
     const [orderNote, setOrderNote] = useState<string>("");
+    const [status, setStatus] = useState<string>(order?.status || "pending");
 
     const currency = (userData as Partner)?.currency || "$";
     const gstPercentage = (userData as Partner)?.gst_percentage || 0;
@@ -141,6 +151,9 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
 
                 if (orderData.notes) {
                     setOrderNote(orderData.notes);
+                }
+                if (orderData.status) {
+                    setStatus(orderData.status);
                 }
             }
         } catch (error) {
@@ -375,36 +388,80 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
         }
     }
 
+
+
+    const handleStatusUpdate = async (newStatus: string) => {
+        try {
+            setStatus(newStatus); // Optimistic update
+            await updateOrderStatus(orders, order.id, newStatus as any, setOrders);
+            toast.success("Order status updated");
+
+
+        } catch (error) {
+            console.error("Status update error:", error);
+            toast.error("Failed to update status");
+        }
+    };
+
+    const getStatusColor = (s: string) => {
+        switch (s) {
+            case "completed": return "bg-green-100 text-green-800";
+            case "pending": return "bg-yellow-100 text-yellow-800";
+            case "cancelled": return "bg-red-100 text-red-800";
+            case "accepted": return "bg-blue-100 text-blue-800";
+            default: return "bg-gray-100 text-gray-800";
+        }
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-            <div className="flex items-center justify-between gap-4 border-b pb-4">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={onBack}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                    <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0">
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div>
-                        <h2 className="text-2xl font-bold">Edit Order #{order?.display_id || order?.id?.split("-")[0]}</h2>
-                        <p className="text-muted-foreground">
+                        <h2 className="text-lg sm:text-2xl font-bold">Edit Order #{order?.display_id || order?.id?.split("-")[0]}</h2>
+                        <p className="text-sm text-muted-foreground">
                             {tableNumber ? `Table ${tableNumber}` : "No Table"}
                         </p>
                     </div>
                 </div>
-                <Button
-                    onClick={handleUpdateOrder}
-                    disabled={updating || loading || !items || items.length === 0}
-                >
-                    {updating ? (
-                        <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Updating...
-                        </>
-                    ) : (
-                        <>
-                            <Save className="mr-2 h-4 w-4" />
-                            Save Changes
-                        </>
-                    )}
-                </Button>
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                    <Select
+                        value={status}
+                        onValueChange={handleStatusUpdate}
+                    >
+                        <SelectTrigger className={`w-[130px] border-none ${getStatusColor(status)}`}>
+                            <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="accepted">Accepted</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <Button
+                        onClick={handleUpdateOrder}
+                        disabled={updating || loading || !items || items.length === 0}
+                        size="sm"
+                        className="flex-1 sm:flex-none"
+                    >
+                        {updating ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Updating...
+                            </>
+                        ) : (
+                            <>
+                                <Save className="mr-2 h-4 w-4" />
+                                Save Changes
+                            </>
+                        )}
+                    </Button>
+                </div>
             </div>
 
             {loading ? (
@@ -429,50 +486,50 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                             {items.map((item, index) => (
                                                 <div
                                                     key={`${item.menu_id}-${item.menu.name}-${index}`}
-                                                    className="p-4 flex flex-col sm:flex-row justify-between gap-4 items-center"
+                                                    className="p-3 flex flex-row justify-between gap-3 items-center w-full overflow-hidden"
                                                 >
-                                                    <div className="flex-1 w-full text-center sm:text-left">
-                                                        <div className="font-medium">{item.menu.name}</div>
-                                                        <div className="text-sm text-muted-foreground">
+                                                    <div className="flex-1 text-left min-w-0 pr-2">
+                                                        <div className="font-medium truncate">{item.menu.name}</div>
+                                                        <div className="text-sm text-muted-foreground whitespace-nowrap">
                                                             {currency}
                                                             {item.menu.price.toFixed(2)} each
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex items-center gap-3">
+                                                    <div className="flex items-center gap-2 shrink-0">
                                                         <Button
                                                             variant="outline"
                                                             size="icon"
-                                                            className="h-8 w-8"
+                                                            className="h-7 w-7 shrink-0"
                                                             onClick={() =>
                                                                 handleQuantityChange(index, item.quantity - 1)
                                                             }
                                                         >
-                                                            <Minus className="h-4 w-4" />
+                                                            <Minus className="h-3 w-3" />
                                                         </Button>
 
-                                                        <span className="w-8 text-center font-medium">
+                                                        <span className="w-6 text-center font-medium text-sm">
                                                             {item.quantity}
                                                         </span>
 
                                                         <Button
                                                             variant="outline"
                                                             size="icon"
-                                                            className="h-8 w-8"
+                                                            className="h-7 w-7 shrink-0"
                                                             onClick={() =>
                                                                 handleQuantityChange(index, item.quantity + 1)
                                                             }
                                                         >
-                                                            <Plus className="h-4 w-4" />
+                                                            <Plus className="h-3 w-3" />
                                                         </Button>
 
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            className="h-8 w-8 text-destructive ml-2"
+                                                            className="h-7 w-7 text-destructive ml-1 shrink-0"
                                                             onClick={() => handleRemoveItem(index)}
                                                         >
-                                                            <X className="h-4 w-4" />
+                                                            <X className="h-3 w-3" />
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -519,10 +576,14 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                                             }}
                                                         >
                                                             <div>
-                                                                <div className="font-medium">{item.name}</div>
-                                                                <div className="text-sm text-muted-foreground">
-                                                                    {currency}
-                                                                    {item.price.toFixed(2)}
+                                                                <div className="font-medium text-sm">{item.name}</div>
+                                                                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                                                                    <span>{currency}{item.price.toFixed(2)}</span>
+                                                                    {item.category?.name && (
+                                                                        <Badge variant="outline" className="text-[10px] h-5 px-1 py-0">
+                                                                            {item.category.name}
+                                                                        </Badge>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                             <Plus className="h-4 w-4 text-primary" />
@@ -589,7 +650,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                         placeholder="Add notes..."
                                         value={orderNote}
                                         onChange={(e) => setOrderNote(e.target.value)}
-                                        className="w-full p-2 text-sm border rounded-md resize-none min-h-[80px]"
+                                        className="w-full p-2 text-sm border rounded-md resize-none min-h-[80px] bg-transparent"
                                     />
                                 </div>
                             </CardContent>

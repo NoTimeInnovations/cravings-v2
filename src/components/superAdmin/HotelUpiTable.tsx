@@ -18,14 +18,13 @@ export function HotelUpiTable({ initialHotels }: { initialHotels: Hotel[] }) {
   const [hotels, setHotels] = useState<Hotel[]>(initialHotels);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filter hotels based on search query
   const filteredHotels = hotels.filter(hotel =>
-    hotel.store_name.toLowerCase().includes(searchQuery.toLowerCase())
+    (hotel.store_name || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleUpdateSuccess = (updatedHotel: Hotel) => {
-    setHotels(prevHotels => 
-      prevHotels.map(hotel => 
+    setHotels(prevHotels =>
+      prevHotels.map(hotel =>
         hotel.id === updatedHotel.id ? updatedHotel : hotel
       )
     );
@@ -64,9 +63,9 @@ export function HotelUpiTable({ initialHotels }: { initialHotels: Hotel[] }) {
                 <TableCell>{hotel.store_name}</TableCell>
                 <TableCell>{hotel.upi_id || 'Not Set'}</TableCell>
                 <TableCell>
-                  <UpdateUpiModal 
-                    hotel={hotel} 
-                    onSuccess={handleUpdateSuccess} 
+                  <UpdateUpiModal
+                    hotel={hotel}
+                    onSuccess={handleUpdateSuccess}
                   />
                 </TableCell>
               </TableRow>

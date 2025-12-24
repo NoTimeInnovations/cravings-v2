@@ -160,11 +160,15 @@ export async function searchPartners(query: string) {
 
 // Removed GET_OFFER_GROUP_IDS and DELETE_OFFER_GROUPS_BY_IDS as schema link is unclear and causing errors.
 
-export async function deletePartnerFullData(partnerId: string) {
+export async function deletePartnerFullData(partnerId: string, selectedTables?: string[]) {
   const results: Record<string, any> = {};
   const errors: string[] = [];
 
   const runDelete = async (name: string, mutation: string, variables: any = { partner_id: partnerId }) => {
+    if (selectedTables && !selectedTables.includes(name)) {
+      results[name] = { skipped: true };
+      return;
+    }
     try {
       const res = await fetchFromHasura(mutation, variables);
       results[name] = res;
@@ -177,13 +181,17 @@ export async function deletePartnerFullData(partnerId: string) {
 
   try {
     // 0. Pre-fetch QR IDs
-    const qrData = await fetchFromHasura(GET_PARTNER_QR_IDS, { partner_id: partnerId });
-    const qrIds = qrData?.qr_codes?.map((q: any) => q.id) || [];
+    if (!selectedTables || selectedTables.includes("qr_scans")) {
+      const qrData = await fetchFromHasura(GET_PARTNER_QR_IDS, { partner_id: partnerId });
+      const qrIds = qrData?.qr_codes?.map((q: any) => q.id) || [];
 
-    if (qrIds.length > 0) {
-      await runDelete("qr_scans", DELETE_QR_SCANS_BY_IDS, { qr_ids: qrIds });
+      if (qrIds.length > 0) {
+        await runDelete("qr_scans", DELETE_QR_SCANS_BY_IDS, { qr_ids: qrIds });
+      } else {
+        results["qr_scans"] = { affected_rows: 0, note: "No QR codes found" };
+      }
     } else {
-      results["qr_scans"] = { affected_rows: 0, note: "No QR codes found" };
+      results["qr_scans"] = { skipped: true };
     }
 
     // 1. Child/Leaf dependencies

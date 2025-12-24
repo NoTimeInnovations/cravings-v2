@@ -67,7 +67,7 @@ const FeatureFlagManagement = () => {
           (partner: Partner) => {
             // Get base feature flags
             const featureFlag = getFeatures(partner.feature_flags || "");
-            
+
             // Ensure all features are present and properly initialized
             const defaultFeatures = {
               ordering: { access: false, enabled: false },
@@ -85,9 +85,9 @@ const FeatureFlagManagement = () => {
               // Ensure captainordering is present
               captainordering: featureFlag.captainordering || { access: false, enabled: false }
             };
-            
+
             console.log("Merged feature flags for", partner.store_name, ":", mergedFeatureFlag);
-            
+
             return {
               ...partner,
               featureFlag: mergedFeatureFlag
@@ -179,7 +179,7 @@ const FeatureFlagManagement = () => {
   };
 
   const filteredPartners = partners.filter(partner =>
-    partner.store_name.toLowerCase().includes(searchQuery.toLowerCase())
+    (partner.store_name || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   useEffect(() => {

@@ -48,7 +48,7 @@ import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { AdminV2EditOrder } from "./AdminV2EditOrder";
 import { Edit } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { updateQrCodeOccupiedStatusMutation } from "@/api/orders";
+
 
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
 
@@ -134,7 +134,10 @@ export function AdminV2Orders() {
 
     const handleUpdateOrderStatus = async (orderId: string, status: string) => {
         const order = orders.find(o => o.id === orderId);
-        if (order?.status === "completed") {
+
+        if (!order) return;
+
+        if (order.status === "completed") {
             setPendingAction(() => async () => {
                 try {
                     await updateOrderStatus(orders, orderId, status as any, setOrders);
@@ -151,6 +154,8 @@ export function AdminV2Orders() {
         try {
             await updateOrderStatus(orders, orderId, status as any, setOrders);
             toast.success("Order status updated");
+
+
         } catch (error) {
             toast.error("Failed to update status");
         }
@@ -163,48 +168,8 @@ export function AdminV2Orders() {
                 await updateOrderStatus(orders, order.id, 'completed', setOrders);
                 let message = "Order marked as completed";
 
-                if (order.type === 'table_order' || order.type === 'pos') {
-                    let qrId = order.qrId;
+                // Removed table unlocking logic
 
-                    // If no qrId but has tableNumber, try to find the QR code
-                    if (!qrId && order.tableNumber) {
-                        const qrResponse = await fetchFromHasura(`
-                        query GetQrForTable($partner_id: uuid!, $table_number: String!) {
-                            qr_codes(where: {partner_id: {_eq: $partner_id}, table_number: {_eq: $table_number}}) {
-                                id
-                                is_occupied
-                            }
-                        }
-                    `, {
-                            partner_id: order.partnerId,
-                            table_number: order.tableNumber.toString()
-                        });
-
-                        if (qrResponse.qr_codes?.[0]) {
-                            qrId = qrResponse.qr_codes[0].id;
-                        }
-                    }
-
-                    if (qrId) {
-                        // Check if occupied
-                        const statusRes = await fetchFromHasura(`
-                        query GetQrStatus($id: uuid!) {
-                            qr_codes_by_pk(id: $id) {
-                                is_occupied
-                            }
-                        }
-                    `, { id: qrId });
-
-                        if (statusRes.qr_codes_by_pk?.is_occupied) {
-                            // Free Table
-                            await fetchFromHasura(updateQrCodeOccupiedStatusMutation, {
-                                id: qrId,
-                                is_occupied: false
-                            });
-                            message += " and table freed";
-                        }
-                    }
-                }
                 toast.success(message);
             } catch (err) {
                 console.error("Auto-complete error:", err);

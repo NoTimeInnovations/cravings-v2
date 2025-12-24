@@ -80,9 +80,9 @@ const PartnerPayments = () => {
       setUpdatingPaymentId(id);
       await fetchFromHasura(UpdatePartnerPaymentMutation, { id, isPaid });
       // Update local state to reflect the change
-      setPartners(prevPartners => 
-        prevPartners.map(partner => 
-          partner.id === id ? {...partner, isPaid} : partner
+      setPartners(prevPartners =>
+        prevPartners.map(partner =>
+          partner.id === id ? { ...partner, isPaid } : partner
         )
       );
     } catch (err) {
@@ -100,9 +100,9 @@ const PartnerPayments = () => {
       setUpdatingStatusId(id);
       await fetchFromHasura(UpdatePartnerStatusMutation, { id, status });
       // Update local state to reflect the change
-      setPartners(prevPartners => 
-        prevPartners.map(partner => 
-          partner.id === id ? {...partner, status} : partner
+      setPartners(prevPartners =>
+        prevPartners.map(partner =>
+          partner.id === id ? { ...partner, status } : partner
         )
       );
     } catch (err) {
@@ -118,13 +118,13 @@ const PartnerPayments = () => {
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value.toLowerCase();
     setSearchTerm(term);
-    
+
     if (term === '') {
       setFilteredPartners(partners);
     } else {
-      const filtered = partners.filter(partner => 
-        partner.store_name.toLowerCase().includes(term) || 
-        partner.phone.toLowerCase().includes(term)
+      const filtered = partners.filter(partner =>
+        (partner.store_name || "").toLowerCase().includes(term) ||
+        (partner.phone || "").toLowerCase().includes(term)
       );
       setFilteredPartners(filtered);
     }
@@ -132,40 +132,40 @@ const PartnerPayments = () => {
 
   const handlePaymentCheckboxChange = async (id: string, currentIsPaid: boolean) => {
     const newIsPaid = !currentIsPaid;
-    
+
     // Optimistic UI update
-    setPartners(prevPartners => 
-      prevPartners.map(partner => 
-        partner.id === id ? {...partner, isPaid: newIsPaid} : partner
+    setPartners(prevPartners =>
+      prevPartners.map(partner =>
+        partner.id === id ? { ...partner, isPaid: newIsPaid } : partner
       )
     );
-    
-    setFilteredPartners(prevPartners => 
-      prevPartners.map(partner => 
-        partner.id === id ? {...partner, isPaid: newIsPaid} : partner
+
+    setFilteredPartners(prevPartners =>
+      prevPartners.map(partner =>
+        partner.id === id ? { ...partner, isPaid: newIsPaid } : partner
       )
     );
-    
+
     // Send update to server
     await updatePartnerPayment(id, newIsPaid);
   };
 
   const handleStatusCheckboxChange = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-    
+
     // Optimistic UI update
-    setPartners(prevPartners => 
-      prevPartners.map(partner => 
-        partner.id === id ? {...partner, status: newStatus} : partner
+    setPartners(prevPartners =>
+      prevPartners.map(partner =>
+        partner.id === id ? { ...partner, status: newStatus } : partner
       )
     );
-    
-    setFilteredPartners(prevPartners => 
-      prevPartners.map(partner => 
-        partner.id === id ? {...partner, status: newStatus} : partner
+
+    setFilteredPartners(prevPartners =>
+      prevPartners.map(partner =>
+        partner.id === id ? { ...partner, status: newStatus } : partner
       )
     );
-    
+
     // Send update to server
     await updatePartnerStatus(id, newStatus);
   };
@@ -187,9 +187,9 @@ const PartnerPayments = () => {
     if (searchTerm === '') {
       setFilteredPartners(partners);
     } else {
-      const filtered = partners.filter(partner => 
-        partner.store_name.toLowerCase().includes(searchTerm) || 
-        partner.phone.toLowerCase().includes(searchTerm)
+      const filtered = partners.filter(partner =>
+        (partner.store_name || "").toLowerCase().includes(searchTerm) ||
+        (partner.phone || "").toLowerCase().includes(searchTerm)
       );
       setFilteredPartners(filtered);
     }
@@ -223,7 +223,7 @@ const PartnerPayments = () => {
           <CardContent className="pt-6">
             <div className="text-center text-destructive">
               <p>{error}</p>
-              <button 
+              <button
                 onClick={fetchPartners}
                 className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
               >
@@ -314,12 +314,12 @@ const PartnerPayments = () => {
             <TableBody>
               {filteredPartners.length > 0 ? (
                 filteredPartners.map(partner => (
-                  <TableRow 
-                    key={partner.id} 
+                  <TableRow
+                    key={partner.id}
                     className={partner.status !== 'active' ? 'bg-red-50 hover:bg-red-100' : ''}
                   >
                     <TableCell className="font-medium">
-                      <Link 
+                      <Link
                         href={`/hotels/${partner.id}`}
                         className="text-blue-600 hover:underline"
                       >
@@ -327,7 +327,7 @@ const PartnerPayments = () => {
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <div 
+                      <div
                         className="flex items-center cursor-pointer hover:text-blue-600"
                         onClick={() => handlePhoneClick(partner.country_code, partner.phone)}
                       >
@@ -336,16 +336,16 @@ const PartnerPayments = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge 
-                        variant={partner.isPaid ? "default" : "secondary"} 
+                      <Badge
+                        variant={partner.isPaid ? "default" : "secondary"}
                         className={partner.isPaid ? "bg-green-100 text-green-800 hover:bg-green-100" : ""}
                       >
                         {partner.isPaid ? "Paid" : "Unpaid"}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">
-                      <Badge 
-                        variant={partner.status === 'active' ? "default" : "secondary"} 
+                      <Badge
+                        variant={partner.status === 'active' ? "default" : "secondary"}
                         className={partner.status === 'active' ? "bg-blue-100 text-blue-800 hover:bg-blue-100" : "bg-red-100 text-red-800 hover:bg-red-100"}
                       >
                         {partner.status === 'active' ? "Active" : "Inactive"}

@@ -7,6 +7,7 @@ import { Loader2, Receipt } from "lucide-react";
 import { POSMenu } from "./pos/POSMenu";
 import { POSCartSidebar } from "@/components/admin-v2/pos/POSCartSidebar";
 import { EditOrderModal } from "@/components/admin/pos/EditOrderModal";
+import { subscribeToHasura } from "@/lib/hasuraSubscription";
 
 export function AdminV2POS() {
     const {
@@ -21,13 +22,75 @@ export function AdminV2POS() {
     } = usePOSStore();
     const { userData } = useAuthStore();
 
+
+
     useEffect(() => {
         setIsPOSOpen(true);
         setIsCaptainOrder(false);
+
+        let unsubscribe: any;
+
         if (userData) {
+            // Initial fetch (optional, but good for immediate data)
             getPartnerTables();
+
+            // Set up real-time subscription
+            const partnerId = userData.role === 'captain' ? (userData as any).partner_id : userData.id;
+
+            if (partnerId) {
+                unsubscribe = subscribeToHasura({
+                    query: `
+                        subscription GetPartnerTablesLive($partner_id: uuid!) {
+                            qr_codes(where: {partner_id: {_eq: $partner_id}}) {
+                                id
+                                qr_number
+                                table_number
+                                partner_id
+                                no_of_scans
+                                table_name
+
+                            }
+                        }
+                    `,
+                    variables: { partner_id: partnerId },
+                    onNext: (data) => {
+                        if (data?.data?.qr_codes) {
+                            const qrCodes = data.data.qr_codes;
+
+                            const validQrs = qrCodes.filter((qr: any) =>
+                                qr.table_number !== null &&
+                                qr.table_number !== undefined &&
+                                qr.table_number !== 0
+                            );
+
+                            const tableNumbers = validQrs
+                                .map((qr: any) => Number(qr.table_number))
+                                .sort((a: number, b: number) => a - b);
+
+                            const tables = validQrs
+                                .map((qr: any) => ({
+                                    id: qr.id,
+                                    number: Number(qr.table_number),
+                                    name: qr.table_name || undefined
+                                }))
+                                .sort((a: any, b: any) => a.number - b.number);
+
+                            usePOSStore.setState({ tableNumbers, tables, qrCodeData: qrCodes });
+                        }
+                    },
+                    onError: (e) => console.error("Table subscription error:", e)
+                });
+            }
         }
-        return () => setIsPOSOpen(false);
+
+        return () => {
+            setIsPOSOpen(false);
+            if (typeof unsubscribe === 'function') {
+                unsubscribe();
+            } else if (unsubscribe && typeof unsubscribe.dispose === 'function') {
+                unsubscribe.dispose();
+            }
+        };
     }, [userData]);
 
     const [activeTab, setActiveTab] = useState<"menu" | "cart">("menu");

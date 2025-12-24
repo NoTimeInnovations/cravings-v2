@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
+import { fetchFromHasura } from "@/lib/hasuraClient";
+
 
 interface OrderDetailsProps {
     order: Order | null;
@@ -49,6 +51,8 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
     const [pendingAction, setPendingAction] = React.useState<(() => void) | null>(null);
 
     if (!order) return null;
+
+
 
     const handleUpdateOrderStatus = async (status: string) => {
         if (order.status === "completed") {
@@ -67,22 +71,47 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
         try {
             await updateOrderStatus(orders, order.id, status as any, setOrders);
             toast.success("Order status updated");
+
+
         } catch (error) {
             toast.error("Failed to update status");
         }
     };
 
-    const handlePrint = (type: 'bill' | 'kot') => {
-        if (type === 'bill' && !order.payment_method) {
-            setPaymentModalOpen(true);
+    const handlePrint = async (type: 'bill' | 'kot') => {
+        if (type === 'bill') {
+            if (order.status === 'accepted') {
+                try {
+                    await updateOrderStatus(orders, order.id, 'completed', setOrders);
+                    toast.success("Order marked as completed");
+
+                } catch (error) {
+                    console.error("Error updating order status on print:", error);
+                }
+            }
+
+            if (!order.payment_method) {
+                setPaymentModalOpen(true);
+            } else {
+                window.open(`/bill/${order.id}`, '_blank');
+            }
         } else {
-            window.open(`/${type}/${order.id}`, '_blank');
+            window.open(`/kot/${order.id}`, '_blank');
         }
     };
 
     const handlePaymentMethodConfirm = async (method: string) => {
         await updateOrderPaymentMethod(order.id, method, orders, setOrders);
         setPaymentModalOpen(false);
+
+        // Also perform completion logic if it wasn't already accepted/completed
+        if (order.status === 'accepted') {
+            try {
+                await updateOrderStatus(orders, order.id, 'completed', setOrders);
+
+            } catch (e) { console.error(e); }
+        }
+
         window.open(`/bill/${order.id}`, '_blank');
     };
 

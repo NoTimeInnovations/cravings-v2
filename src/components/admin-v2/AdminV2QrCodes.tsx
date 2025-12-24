@@ -1,5 +1,6 @@
 "use client";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { subscribeToHasura } from "@/lib/hasuraSubscription";
 import React, { useEffect, useState, useRef } from "react";
 import {
     Table,
@@ -33,8 +34,8 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { updateQrCodeOccupiedStatusMutation } from "@/api/orders";
+
+
 
 type QrCode = {
     id: string;
@@ -47,7 +48,7 @@ type QrCode = {
     };
     created_at: string;
     no_of_scans: number;
-    is_occupied: boolean;
+
 };
 
 // Query to get ONLY the current partner's QRs
@@ -64,7 +65,7 @@ const GET_PARTNER_QRS_QUERY = `
         store_name
       }
       created_at
-      is_occupied
+
     }
     qr_codes_aggregate(where: $where) {
       aggregate {
@@ -141,48 +142,98 @@ export function AdminV2QrCodes() {
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null); // If null, means bulk delete selected
 
-    // Fetch QRs
-    const fetchQrs = async () => {
+
+
+    // ... (imports remain)
+
+    // ... (inside component)
+
+    // FETCH via Subscription
+    useEffect(() => {
         if (!userData?.id) return;
         setLoading(true);
-        setSelectedQrs(new Set());
+        setSelectedQrs(new Set()); // Reset selection on filter change
 
-        try {
-            const offset = (page - 1) * limit;
+        const offset = (page - 1) * limit;
 
-            let whereClause: any = { partner_id: { _eq: userData.id } };
+        const partnerId = userData.role === "captain" ? (userData as any).partner_id : userData.id;
+        let whereClause: any = { partner_id: { _eq: partnerId } };
 
-            if (debouncedTableSearch.trim()) {
-                const searchVal = `%${debouncedTableSearch.trim()}%`;
-                // Search by table name OR table number (if it's a number)
-                const isNum = !isNaN(parseInt(debouncedTableSearch));
-                if (isNum) {
-                    whereClause._or = [
-                        { table_name: { _ilike: searchVal } },
-                        { table_number: { _eq: parseInt(debouncedTableSearch) } }
-                    ];
-                } else {
-                    whereClause.table_name = { _ilike: searchVal };
-                }
+        if (debouncedTableSearch.trim()) {
+            const searchVal = `%${debouncedTableSearch.trim()}%`;
+            // Search by table name OR table number (if it's a number)
+            const isNum = !isNaN(parseInt(debouncedTableSearch));
+            if (isNum) {
+                whereClause._or = [
+                    { table_name: { _ilike: searchVal } },
+                    { table_number: { _eq: parseInt(debouncedTableSearch) } }
+                ];
+            } else {
+                whereClause.table_name = { _ilike: searchVal };
             }
-
-            const { qr_codes, qr_codes_aggregate } = await fetchFromHasura(
-                GET_PARTNER_QRS_QUERY,
-                { limit, offset, where: whereClause }
-            );
-
-            setQrs(qr_codes);
-            setTotalQrs(qr_codes_aggregate.aggregate.count);
-        } catch (error) {
-            console.error("Error fetching QR codes:", error);
-            toast.error("Failed to load QR codes");
-        } finally {
-            setLoading(false);
         }
-    };
 
-    useEffect(() => {
-        fetchQrs();
+        // Subscription 1: Fetch Data
+        const unsubData = subscribeToHasura({
+            query: `
+                subscription GetPartnerQrsData($limit: Int!, $offset: Int!, $where: qr_codes_bool_exp!) {
+                    qr_codes(order_by: {table_number: asc_nulls_last, created_at: desc}, limit: $limit, offset: $offset, where: $where) {
+                        id
+                        qr_number
+                        table_number
+                        table_name
+                        partner_id
+                        no_of_scans
+                        partner {
+                            store_name
+                        }
+                        created_at
+
+                    }
+                }
+            `,
+            variables: { limit, offset, where: whereClause },
+            onNext: (data) => {
+                if (data?.data?.qr_codes) {
+                    setQrs(data.data.qr_codes);
+                    setLoading(false);
+                }
+            },
+            onError: (err) => {
+                console.error("QR Codes data subscription error:", err);
+                setLoading(false);
+            }
+        });
+
+        // Subscription 2: Fetch Count
+        const unsubCount = subscribeToHasura({
+            query: `
+                subscription GetPartnerQrsCount($where: qr_codes_bool_exp!) {
+                    qr_codes_aggregate(where: $where) {
+                        aggregate {
+                            count
+                        }
+                    }
+                }
+            `,
+            variables: { where: whereClause },
+            onNext: (data) => {
+                if (data?.data?.qr_codes_aggregate?.aggregate) {
+                    setTotalQrs(data.data.qr_codes_aggregate.aggregate.count);
+                }
+            },
+            onError: (err) => {
+                console.error("QR Codes count subscription error:", err);
+            }
+        });
+
+        return () => {
+            if (typeof unsubData === 'function') unsubData();
+            else if (unsubData && typeof (unsubData as any).dispose === 'function') (unsubData as any).dispose();
+
+            if (typeof unsubCount === 'function') unsubCount();
+            else if (unsubCount && typeof (unsubCount as any).dispose === 'function') (unsubCount as any).dispose();
+        };
     }, [page, limit, debouncedTableSearch, userData?.id]);
 
     // Debounce Search
@@ -197,23 +248,7 @@ export function AdminV2QrCodes() {
 
 
 
-    const handleOccupancyChange = async (qrId: string, value: string) => {
-        const isOccupied = value === "occupied";
-        try {
-            await fetchFromHasura(updateQrCodeOccupiedStatusMutation, {
-                id: qrId,
-                is_occupied: isOccupied
-            });
 
-            // Optimistic update
-            setQrs(prev => prev.map(q => q.id === qrId ? { ...q, is_occupied: isOccupied } : q));
-            toast.success(`Table marked as ${isOccupied ? "Occupied" : "Vacant"}`);
-            window.location.reload();
-        } catch (error) {
-            console.error("Error updating occupancy:", error);
-            toast.error("Failed to update status");
-        }
-    };
 
     // Handlers
     const handleSelectQr = (id: string, checked: boolean) => {
@@ -256,7 +291,7 @@ export function AdminV2QrCodes() {
             await fetchFromHasura(INSERT_QR_CODES_MUTATION, { objects: newQrObjects });
             toast.success(`${createCount} new QR codes created!`);
             setIsCreateOpen(false);
-            fetchQrs();
+            // Subscription will update the list
         } catch (error) {
             console.error("Error creating QRs:", error);
             toast.error("Failed to create QR codes");
@@ -319,7 +354,7 @@ export function AdminV2QrCodes() {
             setSelectedQrs(new Set());
             setIsDeleteOpen(false);
             setDeletingId(null);
-            fetchQrs();
+            // Subscription will update the list
         } catch (error) {
             console.error(error);
             toast.error("Failed to delete");
@@ -453,7 +488,7 @@ export function AdminV2QrCodes() {
                             </TableHead>
                             <TableHead>Table No</TableHead>
                             <TableHead>Table Name</TableHead>
-                            <TableHead>Status</TableHead>
+
                             <TableHead>Scans</TableHead>
                             <TableHead>Actions</TableHead>
                         </TableRow>
@@ -478,20 +513,7 @@ export function AdminV2QrCodes() {
                                     </TableCell>
                                     <TableCell className="font-medium">{qr.table_number || "-"}</TableCell>
                                     <TableCell>{qr.table_name || "-"}</TableCell>
-                                    <TableCell>
-                                        <Select
-                                            value={qr.is_occupied ? "occupied" : "vacant"}
-                                            onValueChange={(val) => handleOccupancyChange(qr.id, val)}
-                                        >
-                                            <SelectTrigger className={`w-[110px] h-8 border-none ${qr.is_occupied ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="vacant">Vacant</SelectItem>
-                                                <SelectItem value="occupied">Occupied</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </TableCell>
+
                                     <TableCell>{qr.no_of_scans || 0}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
@@ -541,18 +563,6 @@ export function AdminV2QrCodes() {
                                             {qr.table_name}
                                         </span>
                                     )}
-                                    <Select
-                                        value={qr.is_occupied ? "occupied" : "vacant"}
-                                        onValueChange={(val) => handleOccupancyChange(qr.id, val)}
-                                    >
-                                        <SelectTrigger className={`w-[90px] h-7 text-xs border-none ${qr.is_occupied ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="vacant">Vacant</SelectItem>
-                                            <SelectItem value="occupied">Occupied</SelectItem>
-                                        </SelectContent>
-                                    </Select>
                                 </div>
                             </CardHeader>
                             <CardContent className="p-3">
