@@ -159,7 +159,7 @@ const ExploreOfferManage = () => {
       description: offer.description,
       insta_link: offer.insta_link,
       likes: offer.likes,
-      district: offer.district.toLowerCase(),
+      district: (offer.district || "").toLowerCase(),
       image_url: offer.image_url,
       coordinates: offer.coordinates,
     });

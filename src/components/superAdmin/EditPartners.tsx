@@ -92,7 +92,7 @@ const EditPartners = () => {
   const searchPartner = () => {
     if (!searchQuery) return partners;
     return partners.filter((partner) =>
-      partner.store_name.toLowerCase().includes(searchQuery.toLowerCase())
+      (partner.store_name || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
   };
 
@@ -161,7 +161,7 @@ const EditPartners = () => {
 
   return (
     <div className="p-0 md:p-6">
-      
+
 
       {selectedPartner ? (
         <div className="flex items-center justify-center">
@@ -466,48 +466,48 @@ const EditPartners = () => {
         <div>Loading partners...</div>
       ) : (
         <>
-        <div className="mb-6">
-        <Input
-          placeholder="Search partners by name..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="max-w-md"
-        />
-      </div>
-        <Table>
-          <TableCaption>A list of partners and their details.</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Store Name</TableHead>
-              <TableHead className="hidden md:table-cell">Email</TableHead>
-              {/* <TableHead>Location</TableHead>
+          <div className="mb-6">
+            <Input
+              placeholder="Search partners by name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="max-w-md"
+            />
+          </div>
+          <Table>
+            <TableCaption>A list of partners and their details.</TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Store Name</TableHead>
+                <TableHead className="hidden md:table-cell">Email</TableHead>
+                {/* <TableHead>Location</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead>District</TableHead> */}
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredPartners.map((partner) => (
-              <TableRow key={partner.id}>
-                <TableCell>{partner.store_name}</TableCell>
-                <TableCell className="hidden md:table-cell">{partner.email}</TableCell>
-                {/* <TableCell>{partner.location}</TableCell>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredPartners.map((partner) => (
+                <TableRow key={partner.id}>
+                  <TableCell>{partner.store_name}</TableCell>
+                  <TableCell className="hidden md:table-cell">{partner.email}</TableCell>
+                  {/* <TableCell>{partner.location}</TableCell>
                 <TableCell>{partner.status}</TableCell>
                 <TableCell>{partner.phone}</TableCell>
                 <TableCell>{partner.district}</TableCell> */}
-                <TableCell>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleEdit(partner)}
-                  >
-                    Edit
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                  <TableCell>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleEdit(partner)}
+                    >
+                      Edit
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </>
       )}
     </div>
