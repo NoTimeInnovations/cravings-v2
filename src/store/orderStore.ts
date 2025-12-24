@@ -182,7 +182,8 @@ interface OrderState {
       }[]
       | null,
     deliveryCharge?: number,
-    notes?: string
+    notes?: string,
+    tableName?: string,
   ) => Promise<Order | null>;
   getCurrentOrder: () => HotelOrderState;
   fetchOrderOfPartner: (partnerId: string) => Promise<Order[] | null>;
@@ -929,7 +930,8 @@ const useOrderStore = create(
           }[]
           | null,
         deliveryCharge?: number,
-        notes?: string
+        notes?: string,
+        tableName?: string
       ) => {
         try {
           const state = get();
@@ -1038,6 +1040,7 @@ const useOrderStore = create(
               deliveryAddress: type === "delivery" ? state.userAddress : null,
               notes: notes || null,
               display_id: getNextDisplayOrderNumber.toString(),
+              tableName: tableName || null,
             };
 
             const payload = {
@@ -1070,7 +1073,7 @@ const useOrderStore = create(
               captain_id: null,
               payment_details: null,
               display_id: getNextDisplayOrderNumber.toString(),
-              table_name: null,
+              table_name: tableName || null,
               payment_method: "cash",
               petpooja_restaurant_id: hotelData.petpooja_restaurant_id,
               items: currentOrder.items.map((item) => ({

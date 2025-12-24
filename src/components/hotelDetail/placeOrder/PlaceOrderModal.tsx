@@ -1608,12 +1608,14 @@ const PlaceOrderModal = ({
   getWhatsappLink,
   qrId,
   qrGroup,
+  tableName,
 }: {
   hotelData: HotelData;
   tableNumber: number;
   getWhatsappLink: (orderId: string) => string;
   qrId: string | null;
   qrGroup: QrGroup | null;
+  tableName?: string;
 }) => {
   const {
     open_place_order_modal,
@@ -1909,7 +1911,8 @@ const PlaceOrderModal = ({
         gstAmount,
         extraCharges.length > 0 ? extraCharges : null,
         undefined,
-        orderNote || ""
+        orderNote || "",
+        tableName
       );
 
       if (result) {
