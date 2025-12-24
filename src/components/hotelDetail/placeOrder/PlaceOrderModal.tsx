@@ -1875,7 +1875,8 @@ const PlaceOrderModal = ({
         tableNumber === 0 &&
         qrGroup &&
         qrGroup.name &&
-        orderType === "delivery"
+        (orderType === "delivery" ||
+          orderType === "takeaway")
       ) {
         const table0ChargeAmount = getExtraCharge(
           items || [],
