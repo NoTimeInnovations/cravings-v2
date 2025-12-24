@@ -1019,6 +1019,8 @@ const useOrderStore = create(
 
           const orderId = uuidv4();
 
+          const isTakeaway = state.orderType === "takeaway";
+
           // PetPooja Order Push Logic
           if (hotelData.petpooja_restaurant_id) {
             const petpoojaOrder: Order = {
@@ -1037,7 +1039,8 @@ const useOrderStore = create(
               gstIncluded,
               extraCharges: exCharges,
               type,
-              deliveryAddress: type === "delivery" ? state.userAddress : null,
+              deliveryAddress:
+                type === "delivery" && !isTakeaway ? state.userAddress : null,
               notes: notes || null,
               display_id: getNextDisplayOrderNumber.toString(),
               tableName: tableName || null,
@@ -1053,21 +1056,23 @@ const useOrderStore = create(
               partner_id: hotelData.id,
               user_id: userData.id,
               type,
-              delivery_address: type === "delivery" ? state.userAddress : null,
+              delivery_address:
+                type === "delivery" && !isTakeaway ? state.userAddress : null,
               phone: userData.phone || null,
               notes: notes || null,
               payment_status: "pending",
               gst_included: gstIncluded || 0,
               extra_charges: exCharges,
-              delivery_location: type === "delivery"
-                ? {
-                  type: "Point",
-                  coordinates: [
-                    state.coordinates?.lng || 0,
-                    state.coordinates?.lat || 0,
-                  ],
-                }
-                : null,
+              delivery_location:
+                type === "delivery" && !isTakeaway
+                  ? {
+                    type: "Point",
+                    coordinates: [
+                      state.coordinates?.lng || 0,
+                      state.coordinates?.lat || 0,
+                    ],
+                  }
+                  : null,
               orderedby: userData.id,
               status_history: null,
               captain_id: null,
@@ -1151,9 +1156,10 @@ const useOrderStore = create(
               userId: userData.id,
               type,
               status: "pending",
-              delivery_address: type === "delivery" ? state.userAddress : null,
+              delivery_address:
+                type === "delivery" && !isTakeaway ? state.userAddress : null,
               delivery_location:
-                type === "delivery"
+                type === "delivery" && !isTakeaway
                   ? {
                     type: "Point",
                     coordinates: [
