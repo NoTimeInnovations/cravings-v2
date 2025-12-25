@@ -13,6 +13,7 @@ import { Navbar } from "@/components/Navbar";
 import { getAuthCookie } from "./auth/actions";
 import WhatsappGroupJoinAlertDialog from "@/components/WhatsappGroupJoinAlertDialog";
 import { cookies, headers } from "next/headers";
+import { PostHogProvider } from "@/providers/posthog-provider";
 // import CravingsCashInfoModal from "@/components/CravingsCashInfoModal";
 // import SyncUserOfferCoupons from "@/components/SyncUserOfferCoupons";
 // import LocationAccess from "@/components/LocationAccess";
@@ -119,20 +120,22 @@ export default async function RootLayout({
         />
       </head>
       <body className={`antialiased font-sans`}>
-        <AuthInitializer />
-        {(user?.role === "user" || !user) && !isWhatsappDialogHidden && country === "IN" && (
-          <WhatsappGroupJoinAlertDialog isPetraz={isPetraz} />
-        )}
-        <Toaster richColors closeButton position="top-center" />
-        {/* <Snow /> */}
-        {!isNavbarHidden ? <Navbar userData={user} country={country} /> : null}
-        {/* <RateUsModal /> */}
+        <PostHogProvider>
+          <AuthInitializer />
+          {(user?.role === "user" || !user) && !isWhatsappDialogHidden && country === "IN" && (
+            <WhatsappGroupJoinAlertDialog isPetraz={isPetraz} />
+          )}
+          <Toaster richColors closeButton position="top-center" />
+          {/* <Snow /> */}
+          {!isNavbarHidden ? <Navbar userData={user} country={country} /> : null}
+          {/* <RateUsModal /> */}
 
-        {/* pwa install is currently turned off */}
-        {/* <PwaInstallPrompt /> */}
+          {/* pwa install is currently turned off */}
+          {/* <PwaInstallPrompt /> */}
 
-        {children}
-        {!isBottomNavHidden ? <BottomNav userData={user} country={country} /> : null}
+          {children}
+          {!isBottomNavHidden ? <BottomNav userData={user} country={country} /> : null}
+        </PostHogProvider>
       </body>
     </html>
   );
