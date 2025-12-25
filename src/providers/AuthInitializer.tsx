@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import { getAuthCookie, getTempUserIdCookie, setTempUserIdCookie } from "@/app/auth/actions";
 import { Notification } from "@/app/actions/notification";
 import { usePathname, useRouter } from "next/navigation";
+import { usePostHog } from "posthog-js/react";
 
 const AuthInitializer = () => {
   const { fetchUser, userData, loading } = useAuthStore();
@@ -52,6 +53,39 @@ const AuthInitializer = () => {
 
     initializeAuth();
   }, [fetchUser]);
+
+  const posthog = usePostHog();
+
+  useEffect(() => {
+    if (loading || !userData) return;
+
+    // Identify user
+    posthog?.identify(userData.email, {
+      email: userData.email,
+      role: userData.role,
+      name: (userData as any).full_name || (userData as any).name,
+    });
+
+    // Group by restaurant for partners and captains
+    if (userData.role === "partner") {
+      const partner = userData as any;
+      if (partner.store_name) {
+        posthog?.group("restaurant", partner.email, {
+          name: partner.store_name,
+          id: partner.id,
+          status: partner.status,
+        });
+      }
+    } else if (userData.role === "captain") {
+      const captain = userData as any;
+      if (captain.partner && captain.partner.store_name) {
+        posthog?.group("restaurant", captain.partner.email, {
+          name: captain.partner.store_name,
+          id: captain.partner.id,
+        });
+      }
+    }
+  }, [userData, loading, posthog]);
 
   return null;
 };
