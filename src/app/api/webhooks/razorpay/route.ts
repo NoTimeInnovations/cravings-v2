@@ -26,6 +26,11 @@ export async function POST(req: NextRequest) {
 
         const event = JSON.parse(bodyText);
         const subscription = event.payload.subscription.entity;
+
+        if (!["plan_RtsiLYTs1J0XAP", "plan_RtsjPhPF68TVwL"].includes(subscription.plan_id)) {
+            return NextResponse.json({ status: "ok" });
+        }
+
         const userId = subscription.notes.partner_id;
 
         if (!userId) {
