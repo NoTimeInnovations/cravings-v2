@@ -35,6 +35,7 @@ import FullScreenLoader from "@/components/ui/FullScreenLoader";
 import { HexColorPicker } from "react-colorful";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { countryCodes } from "@/utils/countryCodes";
 
 // --- Types ---
 interface MenuItem {
@@ -262,11 +263,11 @@ export default function GetStartedPage() {
         const { name, value } = e.target;
 
         if (name === "country") {
-            const meta = COUNTRY_META_DATA[value];
+            const isIndia = value === "India";
             setHotelDetails((prev) => ({
                 ...prev,
                 [name]: value,
-                currency: meta ? meta.symbol : prev.currency, // Auto-select currency symbol
+                currency: isIndia ? "₹" : "$", // Auto-select currency symbol
                 state: "", // Clear state when country changes
                 district: "" // Clear district when country changes
             }));
@@ -509,13 +510,14 @@ export default function GetStartedPage() {
                 return;
             }
 
-            const countryMeta = COUNTRY_META_DATA[hotelDetails.country] || { code: "+91", currency: "INR", symbol: "₹" };
+            const countryEntry = countryCodes.find(c => c.country === hotelDetails.country);
+            const countryCode = countryEntry ? countryEntry.code : "+91";
             let bannerUrl = "";
 
             // Handle Banner Upload
 
 
-            const finalPhone = sanitizePhone(hotelDetails.phone, countryMeta.code);
+            const finalPhone = sanitizePhone(hotelDetails.phone, countryCode);
 
             const socialLinksData = {
                 instagram: hotelDetails.instagram_link,
@@ -579,7 +581,7 @@ export default function GetStartedPage() {
                 delivery_rate: 0,
                 delivery_rules: { rules: [] },
                 currency: hotelDetails.currency,
-                country_code: countryMeta.code,
+                country_code: countryCode,
                 social_links: JSON.stringify(socialLinksData),
                 store_banner: bannerUrl || "",
                 is_shop_open: true,
@@ -832,8 +834,8 @@ export default function GetStartedPage() {
                         className="w-full h-10 md:h-11 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <option value="" disabled>Select Country</option>
-                        {COUNTRIES.map(c => (
-                            <option key={c} value={c}>{c}</option>
+                        {countryCodes.map(c => (
+                            <option key={c.country} value={c.country}>{c.country}</option>
                         ))}
                     </select>
                 </div>
