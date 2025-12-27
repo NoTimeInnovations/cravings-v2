@@ -105,7 +105,7 @@ const BulkUploadPage = () => {
 
       try {
         const pingResponse = await axios.get(
-          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/ping`,
+          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/gemini/images-v3/ping`,
           {
             params: { partner: userData?.email || "default@partner.com" }
           }
@@ -119,7 +119,7 @@ const BulkUploadPage = () => {
         if (status === "completed") {
           // Get the results
           const resultsResponse = await axios.get(
-            `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/get`,
+            `${process.env.NEXT_PUBLIC_SERVER_URL}/api/gemini/images-v3/get`,
             {
               params: { partner: userData?.email || "default@partner.com" }
             }
@@ -297,7 +297,7 @@ const BulkUploadPage = () => {
 
       // Send all items to backend at once
       await axios.post(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images-v2`,
+        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/gemini/images-v3`,
         {
           lat,
           lng,

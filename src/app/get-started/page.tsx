@@ -283,7 +283,8 @@ export default function GetStartedPage() {
     };
 
     const fetchImagesInBackground = async (items: MenuItem[]) => {
-        const partnerEmail = "default@partner.com"; // Public flow default
+        // Use user's email if available, otherwise default
+        const partnerEmail = authCredentials.email?.trim() || "default@partner.com";
         const sanitizeToEnglish = (text: string): string => {
             return text.replace(/[^a-zA-Z0-9\s.,!?'"-]/g, '').trim();
         };
@@ -297,7 +298,7 @@ export default function GetStartedPage() {
             try {
                 // Start generation for BATCH
                 await axios.post(
-                    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images-v2`,
+                    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/gemini/images-v3`,
                     {
                         lat: "28.6139",
                         lng: "77.2090",
@@ -317,7 +318,7 @@ export default function GetStartedPage() {
                     pollCount++;
 
                     const pingResponse = await axios.get(
-                        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/ping`,
+                        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/gemini/images-v3/ping`,
                         { params: { partner: partnerEmail } }
                     );
 
@@ -331,7 +332,7 @@ export default function GetStartedPage() {
                 if (isComplete) {
                     // Fetch result
                     const resultsResponse = await axios.get(
-                        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/get`,
+                        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/gemini/images-v3/get`,
                         { params: { partner: partnerEmail } }
                     );
 
@@ -426,9 +427,6 @@ export default function GetStartedPage() {
             console.log("Extracted menu", parsedMenu);
             setExtractedItems(parsedMenu);
 
-            // Trigger background image fetch for first 10 items
-            fetchImagesInBackground(parsedMenu);
-
             return parsedMenu;
         } catch (error: any) {
             console.error("Extraction failed:", error);
@@ -444,7 +442,10 @@ export default function GetStartedPage() {
         setExtractionError(null);
         try {
             extractionPromise.current = extractMenu();
-            await extractionPromise.current;
+            const items = await extractionPromise.current;
+            if (items && items.length > 0) {
+                fetchImagesInBackground(items);
+            }
         } catch (e) {
             // Error already handled
         }
@@ -480,10 +481,16 @@ export default function GetStartedPage() {
 
         // Wait for extraction in the background
         try {
+            let items: MenuItem[] = [];
             if (extractionPromise.current) {
-                await extractionPromise.current;
+                items = await extractionPromise.current;
             } else {
-                await extractMenu();
+                items = await extractMenu();
+            }
+
+            // Trigger background image fetch now that we have the email
+            if (items && items.length > 0) {
+                fetchImagesInBackground(items);
             }
         } catch (error) {
             // Error is already handled in extractMenu toast

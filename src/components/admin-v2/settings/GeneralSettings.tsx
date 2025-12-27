@@ -185,6 +185,8 @@ export function GeneralSettings() {
                 updates: { store_banner: imgUrl }
             });
 
+            revalidateTag(userData.id);
+
             setState({ store_banner: imgUrl });
             setBannerImage(imgUrl);
             toast.success("Banner updated successfully");

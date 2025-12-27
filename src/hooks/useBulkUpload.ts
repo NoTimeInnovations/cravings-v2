@@ -384,9 +384,9 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
       // Extract all item names and sanitize them
       const itemNames = items.map((item) => sanitizeForImageGen(item.name));
 
-      // Use the images-v2 endpoint for batch processing
+      // Use the images-v3 endpoint for batch processing
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images-v2`,
+        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/gemini/images-v3`,
         {
           lat,
           lng,
@@ -407,7 +407,7 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
         await new Promise(resolve => setTimeout(resolve, pollInterval));
 
         const pingResponse = await axios.get(
-          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/ping`,
+          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/gemini/images-v3/ping`,
           {
             params: { partner: userData?.email || "default@partner.com" }
           }
@@ -425,7 +425,7 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
         if (status === "completed") {
           // Get the results
           const resultsResponse = await axios.get(
-            `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/get`,
+            `${process.env.NEXT_PUBLIC_SERVER_URL}/api/gemini/images-v3/get`,
             {
               params: { partner: userData?.email || "default@partner.com" }
             }

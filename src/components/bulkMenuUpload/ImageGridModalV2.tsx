@@ -153,6 +153,27 @@ export function ImageGridModalV2({
         }
     };
 
+    const handleGeminiGenerate = async () => {
+        if (!aiPrompt) {
+            toast.error("Please enter a prompt");
+            return;
+        }
+
+        setIsGeneratingAi(true);
+        try {
+            // Generate 4 variations using random seeds
+            const newImages = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/gemini/images?prompt=${encodeURIComponent(aiPrompt)}`);
+            const data = await newImages.json();
+            setGeneratedImages(prev => [...data, ...prev]);
+            toast.success("Images generated!");
+        } catch (error) {
+            console.error("AI Generation error:", error);
+            toast.error("Failed to generate images");
+        } finally {
+            setIsGeneratingAi(false);
+        }
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[85vw] md:max-w-7xl h-[100vh] sm:h-[80vh] flex flex-col p-0 gap-0 overflow-hidden bg-background">
@@ -306,7 +327,7 @@ export function ImageGridModalV2({
                                                 onChange={(e) => setAiPrompt(e.target.value)}
                                                 placeholder="e.g. Delicious Butter Chicken"
                                             />
-                                            <Button onClick={handlePollinationsGenerate} disabled={isGeneratingAi}>
+                                            <Button onClick={handleGeminiGenerate} disabled={isGeneratingAi}>
                                                 {isGeneratingAi ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
                                                 Generate
                                             </Button>
