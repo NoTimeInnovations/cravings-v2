@@ -27,7 +27,9 @@ export async function uploadFileToS3(file, filename) {
 
     let buffer;
     let contentType;
-    let fileName = filename || `menu/${Date.now()}.jpg`;
+    let fileName = filename
+      ? filename.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9.\-_/]/g, "")
+      : `menu/${Date.now()}.jpg`;
 
     if (typeof file === "string" && file.startsWith("data:")) {
       const base64Data = file.split(",")[1];
