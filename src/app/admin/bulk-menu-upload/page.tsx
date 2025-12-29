@@ -54,6 +54,7 @@ const BulkUploadPage = () => {
   const [isDeletingExistingItem, setIsDeletingExistingItem] = useState<string | null>(null);
   const [processingProgress, setProcessingProgress] = useState({ current: 0, total: 0 });
   const [isPolling, setIsPolling] = useState(false);
+  const [allowZeroPrice, setAllowZeroPrice] = useState(false);
 
   const {
     loading,
@@ -92,7 +93,8 @@ const BulkUploadPage = () => {
     onProgress: (current, total) => {
       setProcessingProgress({ current, total });
       setIsPolling(true);
-    }
+    },
+    allowZeroPrice,
   });
 
   const pollForResults = async (itemsToProcess: any[]) => {
@@ -727,6 +729,19 @@ const BulkUploadPage = () => {
             </div>
 
             <div className="space-y-4">
+              {inputMode === 'text' && (
+                <div className="flex items-center space-x-2 px-1">
+                  <Checkbox
+                    id="allowZeroPrice"
+                    checked={allowZeroPrice}
+                    onCheckedChange={(checked) => setAllowZeroPrice(checked as boolean)}
+                  />
+                  <Label htmlFor="allowZeroPrice" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Accept items with price 0
+                  </Label>
+                </div>
+              )}
+
               {inputMode === 'text' && jsonInput && (
                 <Button
                   className="text-[13px] w-full h-12"

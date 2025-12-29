@@ -17,6 +17,7 @@ const RETRY_DELAY_MS = 2000;
 
 interface UseBulkUploadProps {
   onProgress?: (current: number, total: number) => void;
+  allowZeroPrice?: boolean;
 }
 
 export const sanitizeForImageGen = (text: string): string => {
@@ -24,7 +25,7 @@ export const sanitizeForImageGen = (text: string): string => {
 };
 
 export const useBulkUpload = (props?: UseBulkUploadProps) => {
-  const { onProgress } = props || {};
+  const { onProgress, allowZeroPrice = false } = props || {};
   const [loading, setLoading] = useState(false);
   const [jsonInput, setJsonInput] = useState("");
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -55,17 +56,23 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
     if (!item.name || typeof item.name !== "string") {
       throw new Error("Name is required and must be a string");
     }
-    if (
-      !item.price ||
-      typeof Number(item.price) !== "number" ||
-      isNaN(Number(item.price))
-    ) {
+
+    // Check price based on allowZeroPrice flag
+    const price = Number(item.price);
+    if (typeof price !== "number" || isNaN(price)) {
       throw new Error("Price is required and must be a number");
+    }
+
+    if (!allowZeroPrice && price <= 0) {
+      // Check if previous logic allowed negative prices? The original logic was !item.price which fails for 0.
+      // Original: !item.price || typeof Number(item.price) !== "number" || isNaN(Number(item.price))
+      // if item.price is 0, !0 is true. So it was failing for 0.
+      throw new Error("Price must be greater than 0");
     }
 
     return {
       ...item,
-      price: Number(item.price),
+      price: price,
     };
   };
 
