@@ -327,7 +327,7 @@ export function ImageGridModalV2({
                                                 onChange={(e) => setAiPrompt(e.target.value)}
                                                 placeholder="e.g. Delicious Butter Chicken"
                                             />
-                                            <Button onClick={handleGeminiGenerate} disabled={isGeneratingAi}>
+                                            <Button onClick={handlePollinationsGenerate} disabled={isGeneratingAi}>
                                                 {isGeneratingAi ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
                                                 Generate
                                             </Button>

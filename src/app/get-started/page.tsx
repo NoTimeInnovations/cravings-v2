@@ -298,7 +298,7 @@ export default function GetStartedPage() {
             try {
                 // Start generation for BATCH
                 await axios.post(
-                    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/gemini/images-v3`,
+                    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images-v2`,
                     {
                         lat: "28.6139",
                         lng: "77.2090",
@@ -318,7 +318,7 @@ export default function GetStartedPage() {
                     pollCount++;
 
                     const pingResponse = await axios.get(
-                        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/gemini/images-v3/ping`,
+                        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images-v2/ping`,
                         { params: { partner: partnerEmail } }
                     );
 
@@ -332,7 +332,7 @@ export default function GetStartedPage() {
                 if (isComplete) {
                     // Fetch result
                     const resultsResponse = await axios.get(
-                        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/gemini/images-v3/get`,
+                        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images-v2/get`,
                         { params: { partner: partnerEmail } }
                     );
 
