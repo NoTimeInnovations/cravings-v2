@@ -1,0 +1,84 @@
+{
+    "slug": "fnb",
+    "hero": {
+        "eyebrow": "Food & Beverage",
+        "headline": "Streamline Your Entire F&B Operation.",
+        "subheadline": "From front-of-house service to back-of-house efficiency. Optimize every step of your food service with a connected ecosystem.",
+        "primaryCta": "See F&B Solutions",
+        "secondaryCta": "Get Pricing",
+        "image": "/assets/mockups/fnb-hero.png"
+    },
+    "benefits": [
+    {
+        "title": "Redemption of interest",
+        "description": "Redeem your accumulated interest anytime directly to your bank account."
+    },
+    {
+        "title": "Working capital",
+        "description": "Unlock flexible working capital limits based on your revenue."
+    },
+    {
+        "title": "All virtual payments",
+        "description": "Issue unlimited virtual cards for all your vendor payments."
+    }
+],
+"features": [
+        {
+            "title": "Speed of Service",
+            "description": "Reduce wait times with self-ordering kiosks and QR menus. Send orders directly to the Kitchen Display System (KDS).",
+            "list": [
+                "Self-service kiosks",
+                "Table-side ordering",
+                "Instant kitchen routing",
+                "Order status screens"
+            ],
+            "image": "/assets/mockups/speed-service.png",
+            "imagePosition": "right"
+        },
+        {
+            "title": "Inventory Control",
+            "description": "Stop wasting food and money. Track ingredient usage down to the gram and automate supplier orders.",
+            "list": [
+                "Recipe management",
+                "Stock alerts",
+                "Wastage tracking",
+                "Supplier integration"
+            ],
+            "image": "/assets/mockups/inventory-food.png",
+            "imagePosition": "left"
+        },
+        {
+            "title": "Omnichannel Sales",
+            "description": "Sell everywhere your customers are. Dine-in, takeaway, delivery, and social media—all managed from one screen.",
+            "list": [
+                "Unified order aggregation",
+                "Menu sync across channels",
+                "Delivery partner integration",
+                "Online store"
+            ],
+            "image": "/assets/mockups/omnichannel.png",
+            "imagePosition": "right"
+        }
+    ],
+    "reviews": [
+        {
+            "author": "Chef Marco",
+            "role": "Head Chef",
+            "company": "Little Italy",
+            "text": "The KDS integration has silenced the chaos in our kitchen. No more lost tickets or shouting.",
+            "avatar": "/assets/avatars/avatar-12.png"
+        },
+        {
+            "author": "Priya S.",
+            "role": "Manager",
+            "company": "Chai Point Franchise",
+            "text": "Inventory tracking helped us cut food costs by 12% in the first quarter. Highly recommended.",
+            "avatar": "/assets/avatars/avatar-13.png"
+        }
+    ],
+    "cta": {
+        "title": "Built for Restaurants.",
+        "description": "Scalable solutions for cafes, QSRs, fine dining, and cloud kitchens.",
+        "buttonText": "Explore F&B Tools"
+    }
+}

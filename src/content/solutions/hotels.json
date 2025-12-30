@@ -1,0 +1,84 @@
+{
+    "slug": "hotels",
+    "hero": {
+        "eyebrow": "Hotels & Resorts",
+        "headline": "Enhance Guest In-Room Dining.",
+        "subheadline": "Offer a premium, contactless dining experience directly from guest rooms or pool sides. Elevate convenience without increasing staff.",
+        "primaryCta": "Tour Hotel Solutions",
+        "secondaryCta": "Contact Sales",
+        "image": "/assets/mockups/hotels-hero.png"
+    },
+    "benefits": [
+    {
+        "title": "Redemption of interest",
+        "description": "Redeem your accumulated interest anytime directly to your bank account."
+    },
+    {
+        "title": "Working capital",
+        "description": "Unlock flexible working capital limits based on your revenue."
+    },
+    {
+        "title": "All virtual payments",
+        "description": "Issue unlimited virtual cards for all your vendor payments."
+    }
+],
+"features": [
+        {
+            "title": "Room Service Revolution",
+            "description": "Guests scan a QR code in their room to order food. No clunky phone calls, no language barriers.",
+            "list": [
+                "Digital room service menu",
+                "Automated bill to room",
+                "Scheduled delivery",
+                "Special request handling"
+            ],
+            "image": "/assets/mockups/room-service.png",
+            "imagePosition": "right"
+        },
+        {
+            "title": "Poolside & Amenity Ordering",
+            "description": "Turn every lounger into a point of sale. Guests can order drinks and snacks without leaving their spot.",
+            "list": [
+                "Location-specific menus",
+                "Staff notification alerts",
+                "Seamless payment integration",
+                "Upsell prompts"
+            ],
+            "image": "/assets/mockups/poolside.png",
+            "imagePosition": "left"
+        },
+        {
+            "title": "Multi-Language Support",
+            "description": "Welcome guests from all over the world. Your digital menu automatically translates to their preferred language.",
+            "list": [
+                "Auto-translation",
+                "Currency customization",
+                "Visual allergen icons",
+                "International payment support"
+            ],
+            "image": "/assets/mockups/multi-language.png",
+            "imagePosition": "right"
+        }
+    ],
+    "reviews": [
+        {
+            "author": "Robert K.",
+            "role": "General Manager",
+            "company": "Seaview Resort",
+            "text": "In-room dining revenue increased by 25% since we switched to QR codes. Guests order more from the visual menu.",
+            "avatar": "/assets/avatars/avatar-14.png"
+        },
+        {
+            "author": "Elena M.",
+            "role": "F&B Director",
+            "company": "Grand City Hotel",
+            "text": "The pool service automation cut our staff running times in half. Faster service, happier guests.",
+            "avatar": "/assets/avatars/avatar-15.png"
+        }
+    ],
+    "cta": {
+        "title": "5-Star Technology.",
+        "description": "Modernize your guest experience with contactless ordering solutions.",
+        "buttonText": "Get Hotel Demo"
+    }
+}

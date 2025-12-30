@@ -1,0 +1,84 @@
+{
+    "slug": "workers",
+    "hero": {
+        "eyebrow": "For Part-Time Staff",
+        "headline": "Flexible Shifts. Clear Earnings. Faster Payouts.",
+        "subheadline": "Manage your schedule, swap shifts instantly, and track your daily earnings in real-time. Work on your terms.",
+        "primaryCta": "Download Worker App",
+        "secondaryCta": "How it Works",
+        "image": "/assets/mockups/workers-hero.png"
+    },
+    "benefits": [
+    {
+        "title": "Redemption of interest",
+        "description": "Redeem your accumulated interest anytime directly to your bank account."
+    },
+    {
+        "title": "Working capital",
+        "description": "Unlock flexible working capital limits based on your revenue."
+    },
+    {
+        "title": "All virtual payments",
+        "description": "Issue unlimited virtual cards for all your vendor payments."
+    }
+],
+"features": [
+        {
+            "title": "Smart Scheduling",
+            "description": "View your schedule weeks in advance. Request time off or swap shifts with coworkers directly from the app.",
+            "list": [
+                "Real-time schedule view",
+                "One-tap shift swaps",
+                "Availability management",
+                "Shift reminders"
+            ],
+            "image": "/assets/mockups/scheduling-app.png",
+            "imagePosition": "right"
+        },
+        {
+            "title": "Transparent Earnings",
+            "description": "Never wonder how much you made. See your hourly wages and tips updated immediately after every shift.",
+            "list": [
+                "Daily earnings breakdown",
+                "Tip tracking",
+                "Historical pay reports",
+                "Tax estimation"
+            ],
+            "image": "/assets/mockups/earnings.png",
+            "imagePosition": "left"
+        },
+        {
+            "title": "Instant Payouts",
+            "description": "Need cash now? Access a portion of your earned wages before payday with our instant payout feature.",
+            "list": [
+                "On-demand withdrawal",
+                "Direct to bank transfer",
+                "Low transaction fees",
+                "Financial wellness tools"
+            ],
+            "image": "/assets/mockups/payouts.png",
+            "imagePosition": "right"
+        }
+    ],
+    "reviews": [
+        {
+            "author": "Mike T.",
+            "role": "Server",
+            "company": "Downtown Bistro",
+            "text": "I love being able to pick up extra shifts whenever I need money. The app makes it so easy to see what's available.",
+            "avatar": "/assets/avatars/avatar-10.png"
+        },
+        {
+            "author": "Sarah L.",
+            "role": "Delivery Driver",
+            "company": "Pizza Express",
+            "text": "Instant payouts are a lifesaver. I don't have to wait two weeks to get paid for the work I did today.",
+            "avatar": "/assets/avatars/avatar-11.png"
+        }
+    ],
+    "cta": {
+        "title": "Join the flexible workforce.",
+        "description": "Download the Cravings Worker App and take control of your schedule.",
+        "buttonText": "Get the App"
+    }
+}
