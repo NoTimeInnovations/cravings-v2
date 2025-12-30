@@ -6,8 +6,11 @@ import RestaurantMarquee from "@/components/international/RestaurantMarquee";
 import PricingSection from "@/components/international/PricingSection";
 import Hero from "@/components/home/Hero";
 import Features from "@/components/home/Features";
-import HowItWorks from "@/components/home/HowItWorks";
+import WorkingSteps from "@/components/home/WorkingSteps";
 import Background from "@/components/home/Background";
+import PlatformFeatures from "@/components/home/PlatformFeatures";
+import AnimatedFeatures from "@/components/home/AnimatedFeatures";
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Cravings Digital Menu | The #1 QR Menu Creator for Restaurants",
@@ -118,8 +121,9 @@ export default async function Home() {
       <Hero />
 
       {/* MARQUEE SECTION */}
-      <section className="py-10 bg-white/50 backdrop-blur-sm border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6">
+      <section className="py-10 bg-white relative overflow-hidden border-b border-gray-100">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] bg-[size:4rem_4rem]" />
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
           <p className="text-center text-sm font-semibold text-gray-500 uppercase tracking-widest mb-8">
             Trusted by Top Restaurants & Hotels
           </p>
@@ -127,41 +131,27 @@ export default async function Home() {
         </div>
       </section>
 
+
+      {/* PLATFORM FEATURES SECTION */}
+      <PlatformFeatures />
+
+      {/* ANIMATED FEATURES SECTION */}
+      <AnimatedFeatures />
+
       {/* FEATURES SECTION (Client Component for Hover Effects) */}
-      <section className="py-24 relative overflow-hidden" id="features">
+      {/* <section className="py-24 relative overflow-hidden" id="features">
         <div className="absolute inset-0 bg-white/40 -z-10" />
         <Features />
-      </section>
+      </section> */}
 
       {/* HOW IT WORKS SECTION (Client Component for Step Animations) */}
-      <section className="py-24 bg-white/60 backdrop-blur-sm border-y border-white">
-        <HowItWorks />
-      </section>
+      <WorkingSteps />
 
       {/* PRICING SECTION */}
-      <PricingSection country={country} />
+      {/* <PricingSection country={country} /> */}
 
       {/* FOOTER CTA */}
-      <footer className="bg-white py-24 border-t border-gray-100">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-          <h3 className="text-4xl font-bold text-gray-900 mb-6">Ready to upgrade your menu?</h3>
-          <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
-            Join 400+ restaurants using Cravings to deliver a better customer experience.
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link href="/get-started">
-              <Button className="bg-orange-600 hover:bg-orange-700 text-white px-10 py-6 rounded-lg text-xl shadow-lg w-full sm:w-auto hover:shadow-orange-200 transition-all">
-                Get Started Now
-              </Button>
-            </Link>
-            <a href="https://wa.me/918590115462?text=Hi!%20I%27m%20interested%20in%20Cravings%20Digital%20Menu" target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" className="border-2 border-gray-200 text-gray-700 hover:border-orange-600 hover:text-orange-600 px-10 py-6 rounded-lg text-xl w-full sm:w-auto">
-                Contact Sales
-              </Button>
-            </a>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div >
   );
 }

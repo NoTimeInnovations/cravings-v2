@@ -28,8 +28,8 @@ const features = [
 export default function Features() {
     return (
         <div className="max-w-7xl mx-auto px-6">
-            <div className="text-center mb-16 max-w-3xl mx-auto">
-                <motion.h2
+            <div className="text-center max-w-3xl mx-auto">
+                {/* <motion.h2
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
@@ -37,8 +37,8 @@ export default function Features() {
                 >
                     Everything you need for a <br />
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-500">beautiful digital menu</span>
-                </motion.h2>
-                <motion.p
+                </motion.h2> */}
+                {/* <motion.p
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
@@ -46,11 +46,11 @@ export default function Features() {
                     className="text-lg text-gray-600"
                 >
                     Powerful features designed to increase orders and simplify management.
-                </motion.p>
+                </motion.p> */}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10">
-                {features.map((feature, index) => (
+                {/* {features.map((feature, index) => (
                     <motion.div
                         key={index}
                         initial={{ opacity: 0, y: 30 }}
@@ -71,7 +71,7 @@ export default function Features() {
                             {feature.description}
                         </p>
                     </motion.div>
-                ))}
+                ))} */}
             </div>
         </div>
     );

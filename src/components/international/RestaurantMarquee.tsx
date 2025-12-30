@@ -44,9 +44,15 @@ export default function RestaurantMarquee() {
             <div className="flex" style={{ maskImage: 'linear-gradient(to right, transparent, black 10%, black 90%, transparent)' }}>
                 <div ref={scrollRef} className="flex transition-transform will-change-transform">
                     {duplicated.map((r, i) => (
-                        <a href={r.url} key={i} rel="noreferrer" target="_blank" className="mx-3">
-                            <div className="bg-white rounded-lg flex items-center justify-center h-28 w-44">
-                                <Image src={r.logo} alt={r.name} width={140} height={64} className="object-contain" />
+                        <a href={r.url} key={i} rel="noreferrer" target="_blank" className="mx-8">
+                            <div className="flex items-center justify-center h-24 w-40">
+                                <Image
+                                    src={r.logo}
+                                    alt={r.name}
+                                    width={140}
+                                    height={64}
+                                    className="object-contain grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-300"
+                                />
                             </div>
                         </a>
                     ))}

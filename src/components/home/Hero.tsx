@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
-import { UtensilsCrossed, QrCode, Smartphone, Zap } from "lucide-react";
-import HeroButtons from "@/components/international/HeroButtons";
+import { UtensilsCrossed, QrCode, Smartphone, Zap, ArrowRight } from "lucide-react";
 import Image from "next/image";
 
 // Restaurant logos from Marquee
@@ -29,138 +29,63 @@ export default function Hero() {
     }, []);
 
     return (
-        <div className="relative pt-12 pb-12 lg:pt-32 lg:pb-24 overflow-hidden">
-            <div className="max-w-7xl mx-auto px-6 lg:px-8 flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
+        <div className="relative pt-32 pb-12 lg:pt-48 lg:pb-32 overflow-hidden bg-gradient-to-br from-[#C04812] to-[#82290A]">
+            {/* Background Texture/Gradient Overlay */}
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:linear-gradient(to_bottom,black_90%,transparent_100%)]" />
 
+            <div className="max-w-10xl mx-auto p-6 lg:px-20 lg:pr-36 flex flex-col lg:flex-row items-center gap-10 lg:gap-6 relative z-10">
                 {/* Left Content */}
-                <div className="flex-1 text-center lg:text-left z-10">
-                    <div className="flex items-center justify-center lg:justify-start gap-3 mb-6">
-                        <span className="p-2 bg-orange-100 rounded-lg">
-                            <UtensilsCrossed className="h-5 w-5 text-orange-600" />
-                        </span>
-                        <span className="text-sm font-bold text-orange-600 tracking-wide uppercase">
-                            The #1 Digital Menu Platform
-                        </span>
-                    </div>
-
-                    <h1 className="text-4xl lg:text-7xl font-semibold text-gray-900 leading-[1.1] mb-6 tracking-tight">
-                        The Ultimate <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-500">
-                            Digital Menu Creator
-                        </span>
+                <div className="flex-1 text-center lg:text-left">
+                    <h1 className="text-4xl lg:text-5xl font-medium text-white leading-[1.1] tracking-[-0.03em] mb-6 max-w-2xl mx-auto lg:mx-0">
+                        Cravings is built to adapt <br className="hidden lg:block" /> food technology at its best
                     </h1>
 
-                    <p className="text-lg lg:text-xl text-gray-600 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                        Create a stunning digital menu in seconds. No apps to download.
-                        Just a simple QR code that opens a world of flavors.
+                    <p className="text-[1rem] leading-[1.6] tracking-[-0.02px] text-white/90 mb-8 max-w-2xl mx-auto lg:mx-0 font-normal">
+                        Thoughtfully designed tools that adapt to your restaurant—simple <br className="hidden lg:block" /> to use, easy to grow with, and always in your control.
                     </p>
 
-                    <div className="flex flex-col items-center lg:items-start gap-4">
-                        <HeroButtons />
-                        <div className="flex items-center gap-4 text-sm text-gray-500 mt-4">
-                            <div className="flex -space-x-3">
-                                {trustedRestaurants.map((logo, i) => (
-                                    <div key={i} className="w-10 h-10 rounded-full border-2 border-white bg-white flex items-center justify-center overflow-hidden shadow-sm">
-                                        <Image src={logo} width={40} height={40} alt="Restaurant" className="w-full h-full object-contain p-1" />
-                                    </div>
-                                ))}
-                            </div>
-                            <p>Trusted by <span className="font-bold text-gray-900">400+</span> restaurants</p>
-                        </div>
+                    <div className="flex flex-col items-center lg:items-start justify-center lg:justify-start gap-8 max-w-2xl mx-auto lg:mx-0">
+                        <Link
+                            href="/get-started"
+                            className="px-8 py-4 bg-[#0a0b10] text-white text-lg font-medium rounded-lg hover:bg-gray-900 transition-colors shadow-lg min-w-[200px] text-center"
+                        >
+                            Start with digital Menu
+                        </Link>
+
+                        <Link
+                            href="/demo"
+                            className="flex items-center gap-2 text-white font-medium hover:opacity-80 transition-opacity text-lg group"
+                        >
+                            View Interactive demo
+                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        </Link>
                     </div>
                 </div>
 
                 {/* Right Animation */}
-                <div className="flex-1 relative flex justify-center items-center w-full max-w-xl lg:max-w-none h-[500px] lg:min-h-[600px] mt-8 lg:mt-0">
-                    {/* Animated Background Blob */}
-                    <motion.div
-                        animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
-                        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-                        className="absolute inset-0 bg-gradient-to-tr from-orange-200/30 to-rose-200/30 rounded-full blur-3xl -z-10"
-                    />
-
-                    <div className="relative w-[260px] h-[460px] lg:w-[360px] lg:h-[600px]">
-                        {/* Phone Frame */}
-                        <div className="absolute inset-0 border-gray-800 bg-gray-900 border-[8px] lg:border-[12px] rounded-[2rem] lg:rounded-[2.5rem] shadow-2xl z-20 overflow-hidden">
-                            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-5 lg:w-32 lg:h-6 bg-gray-900 rounded-b-xl z-30"></div>
-
-                            <div className="w-full h-full bg-white relative">
-                                {/* Iframe Layer - Always loaded in background */}
-                                <div className="absolute inset-0 bg-white overflow-hidden z-0">
-                                    <iframe
-                                        src="https://www.cravings.live/hotels/LE-GRAND-CAFE/20f7e974-f19e-4c11-b6b7-4385f61f27bf"
-                                        className="scale-[0.6] sm:scale-[0.8] w-[calc(100%+178px)]  sm:w-[calc(100%+98px)] h-[calc(100%+308px)] sm:h-[calc(100%+160px)] border-none  -ml-[85px]  sm:-ml-[43px] -mt-[150px] sm:-mt-[75px]"
-                                        title="Demo Menu"
-                                    />
-                                </div>
-
-                                {/* Overlay Scanning Animation */}
-                                <AnimatePresence>
-                                    {animationStep === 0 && (
-                                        <motion.div
-                                            key="scan"
-                                            initial={{ opacity: 1 }}
-                                            exit={{ opacity: 0, transition: { duration: 0.5 } }}
-                                            className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 text-white p-6 z-10"
-                                        >
-                                            <motion.div
-                                                animate={{ y: [-150, 150, -150] }}
-                                                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                                                className="absolute top-1/2 left-0 right-0 h-1 bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.8)] z-10"
-                                            />
-                                            <QrCode className="w-24 h-24 lg:w-32 lg:h-32 mb-8 text-white/80" />
-                                            <p className="text-lg font-medium">Scanning QR Code...</p>
-                                        </motion.div>
-                                    )}
-
-                                    {animationStep === 1 && (
-                                        <motion.div
-                                            key="loading"
-                                            initial={{ opacity: 0, scale: 0.9 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0 }}
-                                            className="absolute inset-0 flex flex-col items-center justify-center bg-orange-50 z-10"
-                                        >
-                                            <div className="w-16 h-16 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mb-4"></div>
-                                            <p className="text-orange-800 font-medium">Loading Menu...</p>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        </div>
+                <div className="w-full lg:w-1/2 relative flex justify-center items-start lg:items-center mt-0 lg:mt-0">
+                    <div className="relative w-full flex justify-center items-center z-20">
+                        <Image
+                            src="/hero-image.png"
+                            alt="Cravings App Interface"
+                            width={1400}
+                            height={1600}
+                            priority
+                            className="
+                            w-[110%] 
+                            lg:w-[120%] 
+                            max-w-[1200px] 
+                            h-auto 
+                            translate-x-4 
+                            lg:translate-x-12
+                            "
+                        />
                     </div>
 
-                    {/* Floating Elements */}
-                    <motion.div
-                        animate={{ y: [0, -20, 0] }}
-                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                        className="absolute top-20 -right-4 bg-white p-4 rounded-xl shadow-lg z-30 flex items-center gap-3"
-                    >
-                        <div className="p-2 bg-green-100 rounded-full">
-                            <Zap className="w-5 h-5 text-green-600" />
-                        </div>
-                        <div>
-                            <p className="text-xs text-gray-500 font-semibold">Speed</p>
-                            <p className="text-sm font-bold text-gray-900">Instant Load</p>
-                        </div>
-                    </motion.div>
-
-                    <motion.div
-                        animate={{ y: [0, 20, 0] }}
-                        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-                        className="absolute bottom-32 -left-10 bg-white p-4 rounded-xl shadow-lg z-30 flex items-center gap-3"
-                    >
-                        <div className="p-2 bg-blue-100 rounded-full">
-                            <Smartphone className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <div>
-                            <p className="text-xs text-gray-500 font-semibold">Access</p>
-                            <p className="text-sm font-bold text-gray-900">No App Needed</p>
-                        </div>
-                    </motion.div>
-
                 </div>
+
             </div>
+
         </div>
     );
 }
