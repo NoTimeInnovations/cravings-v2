@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { updatePartnerMutation } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
+import { getFeatures } from "@/lib/getFeatures";
 
 // Helper to check darkness for contrast
 const isColorDark = (hex: string) => {
@@ -760,7 +761,9 @@ const Compact = ({
           </div>
         )}
 
-        {auth?.role === "partner" ? (
+        {auth?.role === "partner" &&
+          ((tableNumber !== 0 && getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled) ||
+            (tableNumber === 0 && getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled)) ? (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl bg-black text-white text-center font-semibold shadow-xl">
             Login as user to place order
           </div>

@@ -130,19 +130,19 @@ export default function ImageCropper({ isOpen, onClose, imageUrl, onCropComplete
 
       circleCanvas.width = canvas.width;
       circleCanvas.height = canvas.height;
-      
+
       // Draw the rectangular cropped image first
       circleCtx.drawImage(canvas, 0, 0);
-      
+
       // Use 'destination-in' to apply the circular shape as a mask,
       // keeping only the parts of the image that are inside the circle.
       circleCtx.globalCompositeOperation = 'destination-in';
       circleCtx.beginPath();
       circleCtx.arc(
-        canvas.width / 2, 
-        canvas.height / 2, 
+        canvas.width / 2,
+        canvas.height / 2,
         Math.min(canvas.width, canvas.height) / 2, // Use the smaller dimension for the radius
-        0, 
+        0,
         2 * Math.PI
       );
       circleCtx.fill();
@@ -200,32 +200,32 @@ export default function ImageCropper({ isOpen, onClose, imageUrl, onCropComplete
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-[95vw] h-[90vh] max-h-[95vh] md:max-w-3xl md:h-auto md:max-h-[85vh] flex flex-col overflow-hidden">
+      <DialogContent className="w-full max-w-[95vw] h-[90vh] max-h-[95vh] md:max-w-3xl md:h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0 pb-4">
           <DialogTitle className="text-lg md:text-xl">Crop Image</DialogTitle>
         </DialogHeader>
-        
-        <div className="flex-1 overflow-y-auto min-h-0 space-y-4 p-1">
-         <div className="flex flex-row gap-2 items-center mb-4">
-           <span className="text-sm font-medium text-gray-700">Crop Mode:</span>
-           <Button
-             variant={cropMode === 'free' ? 'default' : 'outline'}
-             onClick={() => setCropMode('free')}
-             size="sm"
-           >
-             Free
-           </Button>
-           <Button
-             variant={cropMode === 'circle' ? 'default' : 'outline'}
-             onClick={() => setCropMode('circle')}
-             size="sm"
-           >
-             Circle
-           </Button>
-         </div>
 
-          <div className="flex justify-center w-full bg-gray-100 rounded-lg p-2">
-            <div className="w-full max-w-lg">
+        <div className="flex-1 overflow-hidden min-h-0 space-y-4 p-1 flex flex-col">
+          <div className="flex flex-row gap-2 items-center mb-4">
+            <span className="text-sm font-medium text-gray-700">Crop Mode:</span>
+            <Button
+              variant={cropMode === 'free' ? 'default' : 'outline'}
+              onClick={() => setCropMode('free')}
+              size="sm"
+            >
+              Free
+            </Button>
+            <Button
+              variant={cropMode === 'circle' ? 'default' : 'outline'}
+              onClick={() => setCropMode('circle')}
+              size="sm"
+            >
+              Circle
+            </Button>
+          </div>
+
+          <div className="flex-1 flex items-center justify-center w-full bg-gray-100 rounded-lg p-2 min-h-0 overflow-hidden">
+            <div className="w-full h-full flex items-center justify-center">
               <ReactCrop
                 crop={crop}
                 onChange={(_, percentCrop) => setCrop(percentCrop)}
@@ -233,16 +233,17 @@ export default function ImageCropper({ isOpen, onClose, imageUrl, onCropComplete
                 aspect={cropMode === 'circle' ? 1 : undefined}
                 minWidth={50}
                 minHeight={50}
-                className="w-full"
+                className="max-h-full w-fit mx-auto flex justify-center"
                 circularCrop={cropMode === 'circle'}
+                style={{ maxHeight: '100%', display: 'flex' }}
               >
                 <img
                   ref={imgRef}
                   alt="Crop preview"
                   src={imageUrl}
                   onLoad={onImageLoad}
-                  className="w-full h-auto max-h-[50vh] object-contain"
-                  style={{ touchAction: 'none' }}
+                  className="max-h-full w-auto object-contain"
+                  style={{ touchAction: 'none', maxWidth: "100%", maxHeight: "100%" }}
                 />
               </ReactCrop>
             </div>
@@ -250,14 +251,14 @@ export default function ImageCropper({ isOpen, onClose, imageUrl, onCropComplete
         </div>
         <div className="shrink-0 pt-4 border-t mt-4 bg-background sticky bottom-0 z-10 px-6 pb-4">
           <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={onClose}
               className="w-full sm:w-auto order-2 sm:order-1"
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleCropComplete}
               disabled={!completedCrop || isProcessing}
               className="w-full sm:w-auto order-1 sm:order-2"

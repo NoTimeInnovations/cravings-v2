@@ -433,6 +433,7 @@ const OrderDrawer = ({
         getWhatsappLink={getWhatsappLink}
         hotelData={hotelData}
         tableNumber={tableNumber || 0}
+        tableName={qrData?.table_name || undefined}
       />
 
       {/* Bottom Drawer */}

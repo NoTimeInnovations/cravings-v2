@@ -54,6 +54,7 @@ const BulkUploadPage = () => {
   const [isDeletingExistingItem, setIsDeletingExistingItem] = useState<string | null>(null);
   const [processingProgress, setProcessingProgress] = useState({ current: 0, total: 0 });
   const [isPolling, setIsPolling] = useState(false);
+  const [allowZeroPrice, setAllowZeroPrice] = useState(false);
 
   const {
     loading,
@@ -92,7 +93,8 @@ const BulkUploadPage = () => {
     onProgress: (current, total) => {
       setProcessingProgress({ current, total });
       setIsPolling(true);
-    }
+    },
+    allowZeroPrice,
   });
 
   const pollForResults = async (itemsToProcess: any[]) => {
@@ -105,7 +107,7 @@ const BulkUploadPage = () => {
 
       try {
         const pingResponse = await axios.get(
-          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/ping`,
+          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images-v2/ping`,
           {
             params: { partner: userData?.email || "default@partner.com" }
           }
@@ -119,7 +121,7 @@ const BulkUploadPage = () => {
         if (status === "completed") {
           // Get the results
           const resultsResponse = await axios.get(
-            `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/get`,
+            `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images-v2/get`,
             {
               params: { partner: userData?.email || "default@partner.com" }
             }
@@ -637,8 +639,8 @@ const BulkUploadPage = () => {
                     type="button"
                     onClick={() => setInputMode('image')}
                     className={`px-4 py-2 text-sm font-medium rounded-l-lg ${inputMode === 'image'
-                        ? 'bg-orange-600 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                      ? 'bg-orange-600 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50'
                       }`}
                   >
                     <div className="flex items-center gap-2">
@@ -650,8 +652,8 @@ const BulkUploadPage = () => {
                     type="button"
                     onClick={() => setInputMode('text')}
                     className={`px-4 py-2 text-sm font-medium rounded-r-lg ${inputMode === 'text'
-                        ? 'bg-orange-600 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                      ? 'bg-orange-600 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-50'
                       }`}
                   >
                     <div className="flex items-center gap-2">
@@ -727,6 +729,19 @@ const BulkUploadPage = () => {
             </div>
 
             <div className="space-y-4">
+              {inputMode === 'text' && (
+                <div className="flex items-center space-x-2 px-1">
+                  <Checkbox
+                    id="allowZeroPrice"
+                    checked={allowZeroPrice}
+                    onCheckedChange={(checked) => setAllowZeroPrice(checked as boolean)}
+                  />
+                  <Label htmlFor="allowZeroPrice" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Accept items with price 0
+                  </Label>
+                </div>
+              )}
+
               {inputMode === 'text' && jsonInput && (
                 <Button
                   className="text-[13px] w-full h-12"
@@ -936,8 +951,8 @@ const BulkUploadPage = () => {
                       <div
                         key={item.id}
                         className={`border rounded-lg overflow-hidden transition-colors flex flex-col h-full ${selectedExistingItems.includes(item.id)
-                            ? 'border-orange-500 bg-orange-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-orange-500 bg-orange-50'
+                          : 'border-gray-200 hover:border-gray-300'
                           }`}
                       >
                         {/* Header with checkbox and basic info */}

@@ -140,6 +140,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     currency
     place_id
     theme
+    petpooja_restaurant_id
     gst_no
     gst_percentage
     geo_location
@@ -309,16 +310,20 @@ export const getPartnerByPpidOrEmailQuery = `
 `;
 
 export const createPpPartnerMutation = `
-  mutation CreatePpPartner($name: String!, $email: String!, $password: String!, $petpooja_restaurant_id: String!) {
+  mutation CreatePpPartner($name: String!, $email: String!, $password: String!, $petpooja_restaurant_id: String!, $subscription_details: jsonb!, $theme: json!) {
     insert_partners_one(object: {
       name: $name,
       email: $email,
       password: $password,
-      petpooja_restaurant_id: $petpooja_restaurant_id
+      petpooja_restaurant_id: $petpooja_restaurant_id,
+      subscription_details: $subscription_details,
+      theme: $theme,
     }) {
       id
       email
+      subscription_details
       petpooja_restaurant_id
+      theme
     }
   }
 `;
@@ -336,6 +341,7 @@ export interface Partner {
   description: string;
   phone?: string;
   district?: string;
+  petpooja_restaurant_id?: string;
 }
 
 export interface UpdatePartnerStatusResponse {

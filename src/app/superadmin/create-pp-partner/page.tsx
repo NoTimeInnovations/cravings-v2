@@ -48,7 +48,7 @@ const CreatePartnerPage = () => {
     e.preventDefault();
     try {
       // 1. Run validation. If it returns false, stop execution.
-      if (!validateInputs()) return; 
+      if (!validateInputs()) return;
 
       // 2. Check if this email/id already exists
       const { partners } = await fetchFromHasura(getPartnerByPpidOrEmailQuery, {
@@ -66,17 +66,19 @@ const CreatePartnerPage = () => {
       const { insert_partners_one } = await fetchFromHasura(
         createPpPartnerMutation,
         {
-          name, // Added name to variables
+          name,
           email,
           petpooja_restaurant_id: restaurantId,
           password,
+          subscription_details: {},
+          theme: { "colors": { "text": "#000000", "bg": "#ffffff", "accent": "#E9701B" }, "menuStyle": "compact" }
         }
       );
 
       console.log("Created partner : ", insert_partners_one);
 
       alert("Petpooja partner created successfully !");
-      
+
       // Optional: Clear form
       setName("");
       setEmail("");
@@ -99,7 +101,7 @@ const CreatePartnerPage = () => {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            
+
             {/* Name Input */}
             <div className="space-y-2">
               <Label htmlFor="name" className="text-orange-900">

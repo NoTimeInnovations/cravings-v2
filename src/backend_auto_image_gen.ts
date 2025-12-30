@@ -49,7 +49,7 @@ export const generateAndUploadImages = async (
                     pollCount++;
 
                     const pingResponse = await axios.get(
-                        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/ping`,
+                        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v3/ping`,
                         { params: { partner: email } }
                     );
 
@@ -63,7 +63,7 @@ export const generateAndUploadImages = async (
                 if (isComplete) {
                     // Fetch result
                     const resultsResponse = await axios.get(
-                        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/image-v2/get`,
+                        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images-v2/get`,
                         { params: { partner: email } }
                     );
 

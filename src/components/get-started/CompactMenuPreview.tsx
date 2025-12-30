@@ -162,12 +162,12 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none p-4">
                             <h1
                                 className={`font-handwriting text-white drop-shadow-md text-center font-bold break-words w-full ${(hotelDetails.name?.length || 0) > 35
-                                        ? "text-2xl"
-                                        : (hotelDetails.name?.length || 0) > 25
-                                            ? "text-3xl"
-                                            : (hotelDetails.name?.length || 0) > 15
-                                                ? "text-4xl"
-                                                : "text-5xl"
+                                    ? "text-2xl"
+                                    : (hotelDetails.name?.length || 0) > 25
+                                        ? "text-3xl"
+                                        : (hotelDetails.name?.length || 0) > 15
+                                            ? "text-4xl"
+                                            : "text-5xl"
                                     }`}
                             >
                                 {hotelDetails.name}
@@ -178,18 +178,20 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 </div>
 
-                {/* Hotel details - absolutely positioned */}
-                <div className="absolute bottom-0 gap-2 left-0 w-full p-5 bg-gradient-to-t from-black to-transparent text-white">
-                    <h1 className="text-xl font-semibold w-[200px]">
-                        {hotelDetails.name}
-                    </h1>
-                    {hotelDetails.country && (
-                        <div className="inline-flex gap-2 text-sm">
-                            <MapPin size={15} />
-                            <span>{hotelDetails.country}</span>
-                        </div>
-                    )}
-                </div>
+
+            </div>
+
+            {/* Hotel details (Below Banner) */}
+            <div className="flex flex-col gap-2 p-5 pb-2 items-start justify-center">
+                <h1 className="text-xl font-semibold">
+                    {hotelDetails.name}
+                </h1>
+                {hotelDetails.country && (
+                    <div className="inline-flex gap-2 text-sm opacity-80">
+                        <MapPin size={15} />
+                        <span>{hotelDetails.country}</span>
+                    </div>
+                )}
             </div>
 
             {/* Links  */}
