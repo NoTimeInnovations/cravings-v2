@@ -42,43 +42,43 @@ const PRODUCTS = [
     title: "Digital Menu",
     description: "Accept orders via QR code scan",
     icon: ScanLine,
-    href: "/products/digital-menu"
+    href: "/product/digital-menu"
   },
   {
     title: "Own Delivery Website",
     description: "Commission-free delivery platform",
     icon: Globe,
-    href: "/products/delivery"
+    href: "/product/delivery-website"
   },
   {
     title: "Point Of Sale (POS)",
     description: "Manage billing and operations",
     icon: Monitor,
-    href: "/products/pos"
+    href: "/product/pos"
   },
   {
     title: "Table Ordering",
     description: "Seamless dining experience for customers",
     icon: Smartphone,
-    href: "/products/table-ordering"
+    href: "/product/table-ordering"
   },
   {
     title: "Captain Ordering",
     description: "Efficient order taking for staff",
     icon: ClipboardList,
-    href: "/products/captain-ordering"
+    href: "/product/captain-ordering"
   },
   {
     title: "Inventory & Purchase",
     description: "Track stock and manage suppliers",
     icon: Boxes,
-    href: "/products/inventory"
+    href: "/product/inventory-management"
   },
   {
     title: "Marketing",
     description: "Grow your business with tools",
     icon: Megaphone,
-    href: "/products/marketing"
+    href: "/product/marketing-tools"
   }
 ];
 
@@ -194,6 +194,9 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
     setExpandedMobileSection(expandedMobileSection === section ? null : section);
   };
 
+  const isProductPage = pathname.startsWith("/product/");
+  const isDarkText = !isScrolled && isProductPage;
+
   useEffect(() => {
     const isApp = window?.localStorage.getItem("isApp");
     if (isApp === "true") {
@@ -286,7 +289,7 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
       onClick={() => (isHomePage ? null : router.back())}
     >
       <UtensilsCrossed className="h-6 w-6 text-orange-500" />
-      <span className="text-2xl font-bold text-white tracking-tight lowercase">
+      <span className={cn("text-2xl font-bold tracking-tight lowercase transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
         cravings
       </span>
     </div>
@@ -298,7 +301,12 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
         <div className="flex items-center gap-3">
           <Link
             href="/login"
-            className="hidden sm:inline-flex items-center justify-center h-fit text-nowrap text-sm px-4 py-2 font-medium text-white border border-white rounded-md hover:bg-white/10 transition-colors"
+            className={cn(
+              "hidden sm:inline-flex items-center justify-center h-fit text-nowrap text-sm px-4 py-2 font-medium border rounded-md transition-colors",
+              isDarkText
+                ? "text-gray-900 border-gray-200 hover:bg-gray-100"
+                : "text-white border-white hover:bg-white/10"
+            )}
           >
             Log In
           </Link>
@@ -360,8 +368,8 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
             className={cn(
               "items-center px-3 py-1 text-sm transition-colors hidden lg:inline-flex",
               currentPath === link.href
-                ? "text-white font-medium"
-                : "text-gray-400 hover:text-gray-200 font-medium"
+                ? (isDarkText ? "text-gray-900 font-medium" : "text-white font-medium")
+                : (isDarkText ? "text-gray-500 hover:text-gray-900 font-medium" : "text-gray-400 hover:text-gray-200 font-medium")
             )}
           >
             {link.label}
@@ -370,20 +378,25 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
 
         {isUserOrGuest && showIndiaLinks && (
           <div
-            className="relative px-3 py-1 text-sm font-medium text-white cursor-pointer hidden lg:inline-flex items-center gap-1"
+            className={cn(
+              "relative px-3 py-1 text-sm font-medium cursor-pointer hidden lg:inline-flex items-center gap-1 transition-colors",
+              isDarkText ? "text-gray-700 hover:text-gray-900" : "text-white"
+            )}
             onMouseEnter={() => setIsProductsOpen(true)}
             onMouseLeave={() => setIsProductsOpen(false)}
             onClick={() => setIsProductsOpen(!isProductsOpen)}
           >
             <span className={cn(
-              "flex items-center gap-1 transition-colors relative text-white"
+              "flex items-center gap-1 transition-colors relative",
+              isDarkText ? "text-gray-900" : "text-white"
             )}>
               Products
               <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", isProductsOpen ? "rotate-180" : "")} />
 
               {/* Custom Underline */}
               <span className={cn(
-                "absolute -bottom-2 left-0 w-full h-[1.5px] bg-white rounded-full transition-all duration-300 ease-out origin-left",
+                "absolute -bottom-2 left-0 w-full h-[1.5px] rounded-full transition-all duration-300 ease-out origin-left",
+                isDarkText ? "bg-gray-900" : "bg-white",
                 isProductsOpen ? "opacity-100 scale-x-100" : "opacity-0 scale-x-0"
               )} />
             </span>
@@ -424,20 +437,25 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
 
         {isUserOrGuest && showIndiaLinks && (
           <div
-            className="relative px-3 py-1 text-sm font-medium text-white cursor-pointer hidden lg:inline-flex items-center gap-1"
+            className={cn(
+              "relative px-3 py-1 text-sm font-medium cursor-pointer hidden lg:inline-flex items-center gap-1 transition-colors",
+              isDarkText ? "text-gray-700 hover:text-gray-900" : "text-white"
+            )}
             onMouseEnter={() => setIsSolutionsOpen(true)}
             onMouseLeave={() => setIsSolutionsOpen(false)}
             onClick={() => setIsSolutionsOpen(!isSolutionsOpen)}
           >
             <span className={cn(
-              "flex items-center gap-1 transition-colors relative text-white"
+              "flex items-center gap-1 transition-colors relative",
+              isDarkText ? "text-gray-900" : "text-white"
             )}>
               Solutions
               <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", isSolutionsOpen ? "rotate-180" : "")} />
 
               {/* Custom Underline */}
               <span className={cn(
-                "absolute -bottom-2 left-0 w-full h-[1.5px] bg-white rounded-full transition-all duration-300 ease-out origin-left",
+                "absolute -bottom-2 left-0 w-full h-[1.5px] rounded-full transition-all duration-300 ease-out origin-left",
+                isDarkText ? "bg-gray-900" : "bg-white",
                 isSolutionsOpen ? "opacity-100 scale-x-100" : "opacity-0 scale-x-0"
               )} />
             </span>
@@ -512,20 +530,25 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
 
         {isUserOrGuest && showIndiaLinks && (
           <div
-            className="relative px-3 py-1 text-sm font-medium text-white cursor-pointer hidden lg:inline-flex items-center gap-1"
+            className={cn(
+              "relative px-3 py-1 text-sm font-medium cursor-pointer hidden lg:inline-flex items-center gap-1 transition-colors",
+              isDarkText ? "text-gray-700 hover:text-gray-900" : "text-white"
+            )}
             onMouseEnter={() => setIsResourcesOpen(true)}
             onMouseLeave={() => setIsResourcesOpen(false)}
             onClick={() => setIsResourcesOpen(!isResourcesOpen)}
           >
             <span className={cn(
-              "flex items-center gap-1 transition-colors relative text-white"
+              "flex items-center gap-1 transition-colors relative",
+              isDarkText ? "text-gray-900" : "text-white"
             )}>
               Resources
               <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", isResourcesOpen ? "rotate-180" : "")} />
 
               {/* Custom Underline */}
               <span className={cn(
-                "absolute -bottom-2 left-0 w-full h-[1.5px] bg-white rounded-full transition-all duration-300 ease-out origin-left",
+                "absolute -bottom-2 left-0 w-full h-[1.5px] rounded-full transition-all duration-300 ease-out origin-left",
+                isDarkText ? "bg-gray-900" : "bg-white",
                 isResourcesOpen ? "opacity-100 scale-x-100" : "opacity-0 scale-x-0"
               )} />
             </span>
@@ -567,7 +590,10 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
         {isUserOrGuest && showIndiaLinks && (
           <Link
             href="/pricing"
-            className="px-3 py-1 text-sm font-medium text-white hover:text-white/80 transition-colors hidden lg:inline-flex"
+            className={cn(
+              "px-3 py-1 text-sm font-medium transition-colors hidden lg:inline-flex",
+              isDarkText ? "text-gray-700 hover:text-gray-900" : "text-white hover:text-white/80"
+            )}
           >
             Pricing
           </Link>
@@ -607,7 +633,7 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
 
             {/* Mobile Menu Toggle */}
             <div className="lg:hidden flex justify-end">
-              <button onClick={() => setIsMobileMenuOpen(true)} className="text-white p-2">
+              <button onClick={() => setIsMobileMenuOpen(true)} className={cn("p-2", isDarkText ? "text-gray-900" : "text-white")}>
                 <Menu className="w-6 h-6" />
               </button>
             </div>
@@ -621,7 +647,7 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
             <div className="hidden lg:flex flex-1 items-center justify-end gap-4">
               {userData?.role === "user" ? (
                 <Link href="/my-orders">
-                  <ShoppingBag className="text-gray-400 w-5 h-5 hover:text-white transition-colors" />
+                  <ShoppingBag className={cn("w-5 h-5 transition-colors", isDarkText ? "text-gray-500 hover:text-gray-900" : "text-gray-400 hover:text-white")} />
                 </Link>
               ) : null}
 
@@ -630,7 +656,12 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
               {userData && !isInstalled ? (
                 <button
                   onClick={handleInstallClick}
-                  className="inline-flex items-center h-fit text-nowrap text-xs gap-2 px-3 md:px-4 py-2 font-medium text-white border border-white/20 rounded-lg hover:bg-white/10 transition-colors"
+                  className={cn(
+                    "inline-flex items-center h-fit text-nowrap text-xs gap-2 px-3 md:px-4 py-2 font-medium border rounded-lg transition-colors",
+                    isDarkText
+                      ? "text-gray-900 border-gray-200 hover:bg-gray-100"
+                      : "text-white border-white/20 hover:bg-white/10"
+                  )}
                 >
                   <Download className="w-4 h-4" />
                 </button>

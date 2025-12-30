@@ -1,0 +1,68 @@
+{
+    "slug": "digital-menu",
+    "hero": {
+        "eyebrow": "Digital Menu",
+        "headline": "Your Menu, Reimagined for the Digital Age",
+        "subheadline": "A responsive, mobile-first menu that delights customers and drives orders directly to your kitchen. No apps to install, just scan and order.",
+        "primaryCta": "Create Your Menu",
+        "secondaryCta": "View Live Demo",
+        "image": "/assets/mockups/digital-menu-hero.png"
+    },
+    "features": [
+        {
+            "title": "Stunning Visual Menu",
+            "description": "Showcase your food with high-quality images and detailed descriptions. Filter by Veg/Non-Veg, categories, and allergens.",
+            "list": [
+                "Rich image support",
+                "Dietary indicators (Veg/Non-Veg)",
+                "Smart search & filtering",
+                "Customizable branding themes"
+            ],
+            "image": "/assets/mockups/menu-visuals.png",
+            "imagePosition": "right"
+        },
+        {
+            "title": "Seamless Ordering Experience",
+            "description": "Turn browsers into buyers. Customers can customize items, add variants, and place orders directly from their phone.",
+            "list": [
+                "Variant & Add-on support",
+                "Real-time cart updates",
+                "Simple phone number login",
+                "Direct WhatsApp integration"
+            ],
+            "image": "/assets/mockups/ordering-flow.png",
+            "imagePosition": "left"
+        },
+        {
+            "title": "Smart Logistics & Feedback",
+            "description": "Handle delivery costs automatically and gather valuable customer feedback instantly.",
+            "list": [
+                "Auto-distance calculation",
+                "Dynamic delivery fees",
+                "Built-in review system",
+                "Social media integration"
+            ],
+            "image": "/assets/mockups/logistics.png",
+            "imagePosition": "right"
+        }
+    ],
+    "reviews": [ { "author": "Sarah Jenkins", "role": "Owner", "company": "The Burger Joint", "text": "Cravings transformed how we handle orders during rush hour. The digital menu is a lifesaver!", "avatar": "/assets/avatars/avatar-1.png" }, { "author": "David Chen", "role": "General Manager", "company": "Golden Dragon", "text": "The best investment we made this year. Customers love scanning the code and ordering directly.", "avatar": "/assets/avatars/avatar-2.png" }, { "author": "Emily Rodriguez", "role": "Marketing Director", "company": "Taco Fiesta", "text": "Insanely easy to update. We change our specials daily and it takes seconds.", "avatar": "/assets/avatars/avatar-3.png" }, { "author": "Michael Chang", "role": "Operations Head", "company": "Sushi Zen", "text": "Inventory management is finally under control. We cut wastage by 20% in the first month.", "avatar": "/assets/avatars/avatar-4.png" }, { "author": "Priya Patel", "role": "Owner", "company": "Curry House", "text": "Marketing tools are powerful. The automated campaigns brought back so many old customers.", "avatar": "/assets/avatars/avatar-5.png" } ], "faq": [
+        {
+            "question": "Does it work on all devices?",
+            "answer": "Yes, our digital menu is a responsive web app that works perfectly on all mobile phones, tablets, and desktops without any downloads."
+        },
+        {
+            "question": "Can I customize the colors?",
+            "answer": "Absolutely. You can choose your brand colors and fonts to ensure the menu matches your restaurant's identity."
+        },
+        {
+            "question": "How do I receive orders?",
+            "answer": "Orders can be sent directly to your WhatsApp, or integrated into our POS/Kitchen display system."
+        }
+    ],
+    "cta": {
+        "title": "Ready to digitize your restaurant?",
+        "description": "Join thousands of restaurants using Cravings to serve customers better.",
+        "buttonText": "Get Started Now"
+    }
+}

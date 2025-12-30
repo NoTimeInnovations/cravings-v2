@@ -1,0 +1,64 @@
+{
+    "slug": "table-ordering",
+    "hero": {
+        "eyebrow": "Scan & Order",
+        "headline": "Contactless Dining Experience",
+        "subheadline": "Let customers order directly from their table. Reduce wait times, free up staff, and increase table turnover.",
+        "primaryCta": "Get QR Codes",
+        "secondaryCta": "View Experience",
+        "image": "/assets/mockups/table-ordering-hero.png"
+    },
+    "features": [
+        {
+            "title": "Scan to Order",
+            "description": "No app download required. Just scan the QR code on the table to open the full menu.",
+            "list": [
+                "Instant menu access",
+                "Table-specific context",
+                "No signup friction",
+                "Works on all smartphones"
+            ],
+            "image": "/assets/mockups/scan-code.png",
+            "imagePosition": "right"
+        },
+        {
+            "title": "Self-Service Convenience",
+            "description": "Guests can explore the menu at their own pace and order when they are ready.",
+            "list": [
+                "Skip the wait for a waiter",
+                "Visual menu exploration",
+                "Easy re-ordering",
+                "Call for service button"
+            ],
+            "image": "/assets/mockups/self-service.png",
+            "imagePosition": "left"
+        },
+        {
+            "title": "Operational Efficiency",
+            "description": "Orders go straight to the kitchen/POS, labeled with the correct table number.",
+            "list": [
+                "Eliminates order entry errors",
+                "Auto-prints KOTs",
+                "Frees up staff for hospitality",
+                "Faster table turnover"
+            ],
+            "image": "/assets/mockups/kitchen-flow.png",
+            "imagePosition": "right"
+        }
+    ],
+    "reviews": [ { "author": "Sarah Jenkins", "role": "Owner", "company": "The Burger Joint", "text": "Cravings transformed how we handle orders during rush hour. The digital menu is a lifesaver!", "avatar": "/assets/avatars/avatar-1.png" }, { "author": "David Chen", "role": "General Manager", "company": "Golden Dragon", "text": "The best investment we made this year. Customers love scanning the code and ordering directly.", "avatar": "/assets/avatars/avatar-2.png" }, { "author": "Emily Rodriguez", "role": "Marketing Director", "company": "Taco Fiesta", "text": "Insanely easy to update. We change our specials daily and it takes seconds.", "avatar": "/assets/avatars/avatar-3.png" }, { "author": "Michael Chang", "role": "Operations Head", "company": "Sushi Zen", "text": "Inventory management is finally under control. We cut wastage by 20% in the first month.", "avatar": "/assets/avatars/avatar-4.png" }, { "author": "Priya Patel", "role": "Owner", "company": "Curry House", "text": "Marketing tools are powerful. The automated campaigns brought back so many old customers.", "avatar": "/assets/avatars/avatar-5.png" } ], "faq": [
+        {
+            "question": "How do we identify the table?",
+            "answer": "Each QR code is unique and linked to a specific table number in your system."
+        },
+        {
+            "question": "Do customers pay on the phone?",
+            "answer": "They can order on the phone and pay at the end, or you can enable upfront payment integration."
+        }
+    ],
+    "cta": {
+        "title": "Modernize your dining room",
+        "description": "Start with QR ordering today.",
+        "buttonText": "Setup QR Codes"
+    }
+}

@@ -1,0 +1,64 @@
+{
+    "slug": "captain-ordering",
+    "hero": {
+        "eyebrow": "Captain App",
+        "headline": "Empower Your Waitstaff",
+        "subheadline": "A dedicated mobile interface for captains to take orders table-side faster and more accurately than ever before.",
+        "primaryCta": "Equip Your Team",
+        "secondaryCta": "See How It Works",
+        "image": "/assets/mockups/captain-hero.png"
+    },
+    "features": [
+        {
+            "title": "Speed & Efficiency",
+            "description": "Designed for rapid entry. Captains can punch in orders with just a few taps.",
+            "list": [
+                "Quick-add menu grid",
+                "Floating cart actions",
+                "Voice-to-text notes (coming soon)",
+                "Instant KOT generation"
+            ],
+            "image": "/assets/mockups/captain-speed.png",
+            "imagePosition": "right"
+        },
+        {
+            "title": "Order Editing",
+            "description": "Mistakes happen. The Captain app allows easy modification of running orders without friction.",
+            "list": [
+                "Edit items after placing order",
+                "Add special instructions",
+                "Update quantities instantly",
+                "Manage table transfers"
+            ],
+            "image": "/assets/mockups/order-editing.png",
+            "imagePosition": "left"
+        },
+        {
+            "title": "Table Management",
+            "description": "Keep an eye on the floor. See which tables are occupied, waiting for food, or ready to pay.",
+            "list": [
+                "Live table status view",
+                "Occupancy tracking",
+                "Quick table assignment",
+                "Multi-table management"
+            ],
+            "image": "/assets/mockups/table-status.png",
+            "imagePosition": "right"
+        }
+    ],
+    "reviews": [ { "author": "Sarah Jenkins", "role": "Owner", "company": "The Burger Joint", "text": "Cravings transformed how we handle orders during rush hour. The digital menu is a lifesaver!", "avatar": "/assets/avatars/avatar-1.png" }, { "author": "David Chen", "role": "General Manager", "company": "Golden Dragon", "text": "The best investment we made this year. Customers love scanning the code and ordering directly.", "avatar": "/assets/avatars/avatar-2.png" }, { "author": "Emily Rodriguez", "role": "Marketing Director", "company": "Taco Fiesta", "text": "Insanely easy to update. We change our specials daily and it takes seconds.", "avatar": "/assets/avatars/avatar-3.png" }, { "author": "Michael Chang", "role": "Operations Head", "company": "Sushi Zen", "text": "Inventory management is finally under control. We cut wastage by 20% in the first month.", "avatar": "/assets/avatars/avatar-4.png" }, { "author": "Priya Patel", "role": "Owner", "company": "Curry House", "text": "Marketing tools are powerful. The automated campaigns brought back so many old customers.", "avatar": "/assets/avatars/avatar-5.png" } ], "faq": [
+        {
+            "question": "Does it work on any phone?",
+            "answer": "Yes, it's a web-based app that works on any smartphone with a browser."
+        },
+        {
+            "question": "Can I restrict what captains can see?",
+            "answer": "Yes, the Captain role has restricted access. They cannot access sensitive financial data or admin settings."
+        }
+    ],
+    "cta": {
+        "title": "Speed up your service",
+        "description": "Give your captains the best tool for the job.",
+        "buttonText": "Enable Captain Mode"
+    }
+}

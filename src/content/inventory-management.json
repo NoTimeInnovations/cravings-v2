@@ -1,0 +1,63 @@
+{
+    "slug": "inventory-management",
+    "hero": {
+        "eyebrow": "Inventory & Operations",
+        "headline": "Take Control of Your Food Costs",
+        "subheadline": "Track every gram of ingredient, manage suppliers, and reduce wastage. Profitability starts with smart inventory.",
+        "primaryCta": "Start Tracking",
+        "secondaryCta": "Learn More",
+        "image": "/assets/mockups/inventory-hero.png"
+    },
+    "features": [
+        {
+            "title": "Real-time Stock Tracking",
+            "description": "Know exactly what's in your pantry. Deduct stock automatically based on usage or manual entry.",
+            "list": [
+                "Live stock balances",
+                "Low stock alerts",
+                "Wastage recording",
+                "Balance value calculation"
+            ],
+            "image": "/assets/mockups/stock-tracking.png",
+            "imagePosition": "right"
+        },
+        {
+            "title": "Purchase Management",
+            "description": "Streamline your procurement. Record purchases, manage supplier details, and track expenses over time.",
+            "list": [
+                "Create purchase orders",
+                "Supplier database",
+                "Cost history analysis",
+                "Digital invoice records"
+            ],
+            "image": "/assets/mockups/purchase-orders.png",
+            "imagePosition": "left"
+        },
+        {
+            "title": "Financial Insights",
+            "description": "Understand your margins. Compare purchase costs vs. usage to optimize your menu pricing.",
+            "list": [
+                "Purchase vs Usage reports",
+                "Daily consumption tracking",
+                "Cost of Goods Sold (COGS) view"
+            ],
+            "image": "/assets/mockups/financial-reports.png",
+            "imagePosition": "right"
+        }
+    ],
+    "reviews": [ { "author": "Sarah Jenkins", "role": "Owner", "company": "The Burger Joint", "text": "Cravings transformed how we handle orders during rush hour. The digital menu is a lifesaver!", "avatar": "/assets/avatars/avatar-1.png" }, { "author": "David Chen", "role": "General Manager", "company": "Golden Dragon", "text": "The best investment we made this year. Customers love scanning the code and ordering directly.", "avatar": "/assets/avatars/avatar-2.png" }, { "author": "Emily Rodriguez", "role": "Marketing Director", "company": "Taco Fiesta", "text": "Insanely easy to update. We change our specials daily and it takes seconds.", "avatar": "/assets/avatars/avatar-3.png" }, { "author": "Michael Chang", "role": "Operations Head", "company": "Sushi Zen", "text": "Inventory management is finally under control. We cut wastage by 20% in the first month.", "avatar": "/assets/avatars/avatar-4.png" }, { "author": "Priya Patel", "role": "Owner", "company": "Curry House", "text": "Marketing tools are powerful. The automated campaigns brought back so many old customers.", "avatar": "/assets/avatars/avatar-5.png" } ], "faq": [
+        {
+            "question": "Can I import my existing items?",
+            "answer": "Yes, we support bulk upload for your ingredient list to get you started quickly."
+        },
+        {
+            "question": "Does it link to sales?",
+            "answer": "Currently, inventory is managed via manual usage entry, but recipe linking is on our roadmap."
+        }
+    ],
+    "cta": {
+        "title": "Stop losing money to wastage",
+        "description": "Get a clear picture of your inventory today.",
+        "buttonText": "Try Inventory Free"
+    }
+}

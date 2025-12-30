@@ -1,0 +1,64 @@
+{
+    "slug": "delivery-website",
+    "hero": {
+        "eyebrow": "Delivery Platform",
+        "headline": "Your Own Ordering Website",
+        "subheadline": "Stop paying high commissions to aggregators. Build your own direct delivery channel with a professional website.",
+        "primaryCta": "Start Delivering",
+        "secondaryCta": "Check Features",
+        "image": "/assets/mockups/delivery-hero.png"
+    },
+    "features": [
+        {
+            "title": "Smart Delivery Logistics",
+            "description": "Handle deliveries like a pro with integrated maps and distance calculation.",
+            "list": [
+                "Auto-detect user location",
+                "Delivery radius enforcement",
+                "Distance-based delivery fees",
+                "Free delivery thresholds"
+            ],
+            "image": "/assets/mockups/delivery-logistics.png",
+            "imagePosition": "right"
+        },
+        {
+            "title": "Customer Accounts",
+            "description": "Build a loyal customer base. Users can save addresses and reorder their favorites.",
+            "list": [
+                "Saved address book",
+                "Order history",
+                "Phone number verification",
+                "Personalized experience"
+            ],
+            "image": "/assets/mockups/user-accounts.png",
+            "imagePosition": "left"
+        },
+        {
+            "title": "Conversion Optimized",
+            "description": "Designed to sell. From tempting hero banners to a smooth checkout flow.",
+            "list": [
+                "High-conversion checkout",
+                "Promo code support",
+                "Mobile-optimized design",
+                "Trust signals & reviews"
+            ],
+            "image": "/assets/mockups/conversion.png",
+            "imagePosition": "right"
+        }
+    ],
+    "reviews": [ { "author": "Sarah Jenkins", "role": "Owner", "company": "The Burger Joint", "text": "Cravings transformed how we handle orders during rush hour. The digital menu is a lifesaver!", "avatar": "/assets/avatars/avatar-1.png" }, { "author": "David Chen", "role": "General Manager", "company": "Golden Dragon", "text": "The best investment we made this year. Customers love scanning the code and ordering directly.", "avatar": "/assets/avatars/avatar-2.png" }, { "author": "Emily Rodriguez", "role": "Marketing Director", "company": "Taco Fiesta", "text": "Insanely easy to update. We change our specials daily and it takes seconds.", "avatar": "/assets/avatars/avatar-3.png" }, { "author": "Michael Chang", "role": "Operations Head", "company": "Sushi Zen", "text": "Inventory management is finally under control. We cut wastage by 20% in the first month.", "avatar": "/assets/avatars/avatar-4.png" }, { "author": "Priya Patel", "role": "Owner", "company": "Curry House", "text": "Marketing tools are powerful. The automated campaigns brought back so many old customers.", "avatar": "/assets/avatars/avatar-5.png" } ], "faq": [
+        {
+            "question": "Can I use my own domain?",
+            "answer": "Yes, we can map your custom domain (e.g., order.myrestaurant.com) to the platform."
+        },
+        {
+            "question": "How do I manage drivers?",
+            "answer": "You can use your own fleet or integrate with third-party delivery partners (integration coming soon)."
+        }
+    ],
+    "cta": {
+        "title": "Own your customers",
+        "description": "Launch your direct ordering channel today.",
+        "buttonText": "Launch Website"
+    }
+}

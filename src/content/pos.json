@@ -1,0 +1,68 @@
+{
+    "slug": "pos",
+    "hero": {
+        "eyebrow": "Point of Sale",
+        "headline": "The All-in-One OS for Your Restaurant",
+        "subheadline": "Manage orders, tables, billing, and staff from a single intuitive dashboard. Built for speed and reliability.",
+        "primaryCta": "Try POS Demo",
+        "secondaryCta": "Watch Video",
+        "image": "/assets/mockups/pos-hero.png"
+    },
+    "features": [
+        {
+            "title": "Unified Order Management",
+            "description": "Never miss an order. View dine-in, delivery, and takeaway orders in one single, real-time dashboard.",
+            "list": [
+                "Real-time order sync",
+                "Visual table grid",
+                "Status tracking (Preparing, Ready, Served)",
+                "Captain & Kitchen modes"
+            ],
+            "image": "/assets/mockups/pos-dashboard.png",
+            "imagePosition": "right"
+        },
+        {
+            "title": "Billing Made Simple",
+            "description": "Generate bills, split payments, and handle taxes with ease. Supports multiple payment methods including UPI and Cards.",
+            "list": [
+                "One-click bill generation",
+                "Split bill support",
+                "Discount & coupon management",
+                "Daily sales reports"
+            ],
+            "image": "/assets/mockups/billing.png",
+            "imagePosition": "left"
+        },
+        {
+            "title": "Menu Control Center",
+            "description": "Update your menu on the fly. Mark items out of stock or update prices instantly across all devices.",
+            "list": [
+                "Instant '86' (Out of Stock) toggle",
+                "Quick price editing",
+                "Category management",
+                "Multi-language support"
+            ],
+            "image": "/assets/mockups/menu-control.png",
+            "imagePosition": "right"
+        }
+    ],
+    "reviews": [ { "author": "Sarah Jenkins", "role": "Owner", "company": "The Burger Joint", "text": "Cravings transformed how we handle orders during rush hour. The digital menu is a lifesaver!", "avatar": "/assets/avatars/avatar-1.png" }, { "author": "David Chen", "role": "General Manager", "company": "Golden Dragon", "text": "The best investment we made this year. Customers love scanning the code and ordering directly.", "avatar": "/assets/avatars/avatar-2.png" }, { "author": "Emily Rodriguez", "role": "Marketing Director", "company": "Taco Fiesta", "text": "Insanely easy to update. We change our specials daily and it takes seconds.", "avatar": "/assets/avatars/avatar-3.png" }, { "author": "Michael Chang", "role": "Operations Head", "company": "Sushi Zen", "text": "Inventory management is finally under control. We cut wastage by 20% in the first month.", "avatar": "/assets/avatars/avatar-4.png" }, { "author": "Priya Patel", "role": "Owner", "company": "Curry House", "text": "Marketing tools are powerful. The automated campaigns brought back so many old customers.", "avatar": "/assets/avatars/avatar-5.png" } ], "faq": [
+        {
+            "question": "Does it work offline?",
+            "answer": "We are working on offline capabilities. Currently, a stable internet connection is recommended for real-time sync."
+        },
+        {
+            "question": "Can I use it on a tablet?",
+            "answer": "Yes! The POS is fully responsive and optimized for iPads, Android tablets, and desktop computers."
+        },
+        {
+            "question": "Is training required?",
+            "answer": "Our interface is designed to be intuitive. Most staff members learn it in under 15 minutes."
+        }
+    ],
+    "cta": {
+        "title": "Upgrade your operations today",
+        "description": "Experience the difference of a modern POS system.",
+        "buttonText": "Get a Quote"
+    }
+}
