@@ -1402,8 +1402,8 @@ const BillCard = ({
       ? deliveryInfo.cost
       : 0;
 
-  const taxableAmount = subtotal + qrExtraCharges;
-  const gstAmount = (taxableAmount * (gstPercentage || 0)) / 100;
+  // const taxableAmount = subtotal + qrExtraCharges;
+  const gstAmount = (subtotal * (gstPercentage || 0)) / 100;
 
   const grandTotal = subtotal + qrExtraCharges + gstAmount + deliveryCharges;
 
