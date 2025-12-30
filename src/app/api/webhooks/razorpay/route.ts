@@ -26,6 +26,11 @@ export async function POST(req: NextRequest) {
 
         const event = JSON.parse(bodyText);
         const subscription = event.payload.subscription.entity;
+
+        if (!["plan_RtsiLYTs1J0XAP", "plan_RtsjPhPF68TVwL"].includes(subscription.plan_id)) {
+            return NextResponse.json({ status: "ok" });
+        }
+
         const userId = subscription.notes.partner_id;
 
         if (!userId) {
@@ -44,6 +49,16 @@ export async function POST(req: NextRequest) {
                     status: "active",
                     expiryDate: new Date(subscription.current_end * 1000).toISOString()
                 });
+
+                if (event.payload.payment && event.payload.payment.entity) {
+                    const payment = event.payload.payment.entity;
+                    await recordPayment(userId, payment.amount, new Date().toISOString().split('T')[0], {
+                        source: "razorpay_webhook",
+                        payment_id: payment.id,
+                        plan_id: subscription.plan_id,
+                        notes: "Auto-charged via Razorpay"
+                    });
+                }
                 break;
 
             // ⚠️ PAYMENT FAILED (RETRYING)
@@ -140,4 +155,31 @@ async function updateUserSubscription(userId: string, data: any) {
         return { success: false, error: "Failed to update subscription details" };
     }
 
+}
+
+// Helper function to record payment
+async function recordPayment(userId: string, amount: number, date: string, paymentDetails: any) {
+    const mutation = `
+            mutation AddPaymentWebhook($object: partner_payments_insert_input!) {
+                insert_partner_payments_one(object: $object) {
+                    id
+                }
+            }
+        `;
+
+    try {
+        await fetchFromHasura(mutation, {
+            object: {
+                partner_id: userId,
+                amount,
+                date,
+                payment_details: paymentDetails
+            }
+        });
+        await revalidateTag("partner_payments");
+        return true;
+    } catch (e) {
+        console.error("Failed to record payment", e);
+        return false;
+    }
 }

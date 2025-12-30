@@ -20,7 +20,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { Search, Edit, Plus, ChevronRight, ArrowUpDown, Power } from "lucide-react";
+import { Search, Edit, Plus, ChevronRight, ArrowUpDown, Power, Check, X } from "lucide-react";
 import Img from "../Img";
 import { formatPrice } from "@/lib/constants";
 import { AdminV2EditMenuItem } from "./AdminV2EditMenuItem";
@@ -28,7 +28,7 @@ import { AdminV2AddMenuItem } from "./AdminV2AddMenuItem";
 import { AdminV2PriorityChanger } from "./AdminV2PriorityChanger";
 import { AdminV2AvailabilityManager } from "./AdminV2AvailabilityManager";
 import { toast } from "sonner";
-import { formatDisplayName } from "@/store/categoryStore_hasura";
+import { formatDisplayName, useCategoryStore } from "@/store/categoryStore_hasura";
 
 export function AdminV2Menu() {
     const {
@@ -45,6 +45,8 @@ export function AdminV2Menu() {
     const [isAvailabilityMode, setIsAvailabilityMode] = useState(false);
     const [isAddingItem, setIsAddingItem] = useState(false);
     const [filteredGroupedItems, setFilteredGroupedItems] = useState<Record<string, MenuItem[]>>({});
+    const { updateCategory } = useCategoryStore();
+    const [editingCategory, setEditingCategory] = useState<{ id: string, name: string } | null>(null);
 
     useEffect(() => {
         if (userData?.id) {
@@ -75,6 +77,36 @@ export function AdminV2Menu() {
         } catch (error) {
             console.error("Failed to update availability:", error);
             toast.error("Failed to update availability");
+        }
+    };
+
+    const handleSaveCategory = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!editingCategory) return;
+
+        try {
+            // Find an item in this category to get the current priority and is_active status
+            const categoryItems = Object.values(groupedItems).find(items =>
+                items[0]?.category.id === editingCategory.id
+            );
+
+            if (!categoryItems || categoryItems.length === 0) return;
+
+            const currentCategory = categoryItems[0].category;
+
+            await updateCategory({
+                id: editingCategory.id,
+                name: editingCategory.name,
+                priority: currentCategory.priority,
+                is_active: currentCategory.is_active
+            });
+
+            toast.success("Category updated");
+            setEditingCategory(null);
+            // Refresh menu to reflect changes if needed, though updateCategory handles local update
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to update category");
         }
     };
 
@@ -149,21 +181,69 @@ export function AdminV2Menu() {
                                 value={category}
                                 className="border rounded-lg bg-card px-4"
                             >
-                                <AccordionTrigger className="hover:no-underline py-4">
-                                    <div className="flex items-center gap-3 overflow-hidden">
-                                        <h2 className="text-base sm:text-xl font-semibold capitalize truncate">
-                                            <span className="sm:hidden">
-                                                {formatDisplayName(category).length > 10
-                                                    ? `${formatDisplayName(category).slice(0, 10)}...`
-                                                    : formatDisplayName(category)}
-                                            </span>
-                                            <span className="hidden sm:inline">
-                                                {formatDisplayName(category)}
-                                            </span>
-                                        </h2>
-                                        <span className="text-sm font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                                            {items.length} items
-                                        </span>
+                                <AccordionTrigger className="hover:no-underline py-4 group">
+                                    <div className="flex items-center gap-3 overflow-hidden flex-1">
+                                        {editingCategory?.id === items[0].category.id ? (
+                                            <div className="flex items-center gap-2 flex-1" onClick={(e) => e.stopPropagation()}>
+                                                <Input
+                                                    value={editingCategory.name}
+                                                    onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                                                    className="h-8 w-full max-w-[200px]"
+                                                    autoFocus
+                                                />
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-100"
+                                                    onClick={handleSaveCategory}
+                                                >
+                                                    <Check className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-100"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setEditingCategory(null);
+                                                    }}
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="flex items-center gap-2">
+                                                    <h2 className="text-base sm:text-xl font-semibold capitalize truncate">
+                                                        <span className="sm:hidden">
+                                                            {formatDisplayName(category).length > 10
+                                                                ? `${formatDisplayName(category).slice(0, 10)}...`
+                                                                : formatDisplayName(category)}
+                                                        </span>
+                                                        <span className="hidden sm:inline">
+                                                            {formatDisplayName(category)}
+                                                        </span>
+                                                    </h2>
+                                                    <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="h-6 w-6 transition-opacity"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setEditingCategory({
+                                                                id: items[0].category.id,
+                                                                name: formatDisplayName(category)
+                                                            });
+                                                        }}
+                                                    >
+                                                        <Edit className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
+                                                <span className="text-sm font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full ml-auto sm:ml-0">
+                                                    {items.length} items
+                                                </span>
+                                            </>
+                                        )}
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-2 pb-4">

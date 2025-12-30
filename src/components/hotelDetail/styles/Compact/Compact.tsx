@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { updatePartnerMutation } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
+import { getFeatures } from "@/lib/getFeatures";
 
 // Helper to check darkness for contrast
 const isColorDark = (hex: string) => {
@@ -302,24 +303,25 @@ const Compact = ({
               </div>
             )}
 
-          {/* hotel details (Original Footer) */}
-          <div className="absolute bottom-0 gap-2 left-0 w-full p-5 bg-gradient-to-t from-black/80 to-transparent text-white flex flex-col items-start justify-end z-20">
-            <h1 className="text-xl font-semibold w-[200px]">
-              {hoteldata?.store_name}
-            </h1>
-            {((hoteldata?.district && hoteldata.district !== "") ||
-              (hoteldata?.country && hoteldata.country !== "") ||
-              (hoteldata?.location_details && hoteldata.location_details !== "")) && (
-                <div className="inline-flex gap-2 text-sm">
-                  <MapPin size={15} />
-                  <span>
-                    {hoteldata.location_details ||
-                      hoteldata.district ||
-                      hoteldata.country}
-                  </span>
-                </div>
-              )}
-          </div>
+        </div>
+
+        {/* hotel details (Below Banner) */}
+        <div className="flex flex-col gap-2 p-5 pb-2 items-start justify-center">
+          <h1 className="text-xl font-semibold">
+            {hoteldata?.store_name}
+          </h1>
+          {((hoteldata?.district && hoteldata.district !== "") ||
+            (hoteldata?.country && hoteldata.country !== "") ||
+            (hoteldata?.location_details && hoteldata.location_details !== "")) && (
+              <div className="inline-flex gap-2 text-sm opacity-80">
+                <MapPin size={15} />
+                <span>
+                  {hoteldata.location_details ||
+                    hoteldata.district ||
+                    hoteldata.country}
+                </span>
+              </div>
+            )}
         </div>
 
         {/* social links */}
@@ -329,7 +331,7 @@ const Compact = ({
             style={{
               borderColor: localStyles?.border?.borderColor || "#0000001D",
             }}
-            className="flex overflow-x-auto scrollbar-hide gap-2 p-4 border-b-[1px] z-20"
+            className="flex overflow-x-auto scrollbar-hide gap-2 p-4 pt-2 border-b-[1px] z-20"
           >
             <SocialLinks socialLinks={socialLinks} />
             {isOwner && (
@@ -759,7 +761,9 @@ const Compact = ({
           </div>
         )}
 
-        {auth?.role === "partner" ? (
+        {auth?.role === "partner" &&
+          ((tableNumber !== 0 && getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled) ||
+            (tableNumber === 0 && getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled)) ? (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl bg-black text-white text-center font-semibold shadow-xl">
             Login as user to place order
           </div>
