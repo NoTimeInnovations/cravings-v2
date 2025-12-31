@@ -67,12 +67,14 @@ const PRODUCTS = [
     icon: ClipboardList,
     href: "/product/captain-ordering"
   },
+  /*
   {
     title: "Inventory & Purchase",
     description: "Track stock and manage suppliers",
     icon: Boxes,
     href: "/product/inventory-management"
   }
+  */
 ];
 
 const SOLUTIONS_ROLES = [

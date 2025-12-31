@@ -53,6 +53,7 @@ const PRODUCTS = [
         href: "/products/captain-ordering",
         image: "/preview-captain-ordering.png"
     },
+    /*
     {
         title: "Inventory & Purchase",
         description: "Track stock and manage suppliers",
@@ -60,6 +61,7 @@ const PRODUCTS = [
         href: "/products/inventory",
         image: "/inventory-preview-5.png"
     }
+    */
 ];
 
 export default function PlatformFeatures() {

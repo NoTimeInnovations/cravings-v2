@@ -12,6 +12,8 @@ interface HeroProps {
         subheadline: string;
         primaryCta: string;
         secondaryCta: string;
+        primaryCtaLink?: string;
+        secondaryCtaLink?: string;
         image: string;
         video?: string;
     };
@@ -19,31 +21,35 @@ interface HeroProps {
 
 export function HeroSection({ data }: HeroProps) {
     const getEmbedUrl = (url: string) => {
+        if (!url) return "";
         let videoId = "";
+        const cleanUrl = url.trim();
 
-        if (url.includes("youtu.be")) {
-            videoId = url.split("youtu.be/")[1]?.split("?")[0];
-        } else if (url.includes("youtube.com/watch")) {
-            try {
-                videoId = new URL(url).searchParams.get("v") || "";
-            } catch (e) {
-                // Fallback if URL parsing fails
+        // Regex patterns for different YouTube URL formats
+        const patterns = [
+            /(?:youtu\.be\/)([^?&]+)/,
+            /[?&]v=([^&]+)/,
+            /(?:embed\/)([^?&]+)/,
+            /(?:shorts\/)([^?&]+)/
+        ];
+
+        try {
+            for (const pattern of patterns) {
+                const match = cleanUrl.match(pattern);
+                if (match && match[1]) {
+                    videoId = match[1];
+                    break;
+                }
             }
-        } else if (url.includes("youtube.com/embed")) {
-            videoId = url.split("embed/")[1]?.split("?")[0];
+        } catch (e) {
+            console.error("Error parsing video URL:", e);
         }
 
         if (videoId) {
-            // rel=0: Limit related videos to same channel
-            // loop=1 + playlist=videoId: Loop video to prevent end screen
-            // modestbranding=1: Minimize YouTube logo
-            // controls=0: Hide player controls (play/pause bar) to remove top overlay
-            // showinfo=0: (Deprecated but good to have) attempt to hide title
-            // iv_load_policy=3: Hide annotations
             return `https://www.youtube.com/embed/${videoId}?rel=0&loop=1&playlist=${videoId}&modestbranding=1&controls=0&showinfo=0&iv_load_policy=3`;
         }
 
-        return url;
+        return cleanUrl;
     };
 
     return (
@@ -71,14 +77,18 @@ export function HeroSection({ data }: HeroProps) {
 
                     {/* CTA Actions */}
                     <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-                        <Button size="lg" className="bg-[#0a0b10] hover:bg-gray-800 text-white rounded-xl h-12 px-8 text-base shadow-lg border-0">
-                            {data.primaryCta}
-                            <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="lg" className="rounded-xl h-12 px-8 text-base border-gray-200 text-gray-900 bg-white hover:bg-gray-50">
-                            <PlayCircle className="mr-2 h-4 w-4" />
-                            {data.secondaryCta}
-                        </Button>
+                        <Link href={data.primaryCtaLink || "/get-started"}>
+                            <Button size="lg" className="bg-[#0a0b10] hover:bg-gray-800 text-white rounded-xl h-12 px-8 text-base shadow-lg border-0 w-full sm:w-auto">
+                                {data.primaryCta}
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        </Link>
+                        <Link href={data.secondaryCtaLink || "#"}>
+                            <Button variant="outline" size="lg" className="rounded-xl h-12 px-8 text-base border-gray-200 text-gray-900 bg-white hover:bg-gray-50 w-full sm:w-auto">
+                                <PlayCircle className="mr-2 h-4 w-4" />
+                                {data.secondaryCta}
+                            </Button>
+                        </Link>
                     </div>
                 </div>
 

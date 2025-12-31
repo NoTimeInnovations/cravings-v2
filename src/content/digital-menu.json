@@ -5,9 +5,11 @@
         "headline": "Your Menu, Reimagined for the Digital Age",
         "subheadline": "A responsive, mobile-first menu that delights customers and drives orders directly to your kitchen. No apps to install, just scan and order.",
         "primaryCta": "Create Your Menu",
+        "primaryCtaLink": "https://www.cravings.live/get-started",
         "secondaryCta": "View Live Demo",
+        "secondaryCtaLink": "https://www.cravings.live/hotels/20f7e974-f19e-4c11-b6b7-4385f61f27bf",
         "image": "/assets/mockups/digital-menu-hero-v2.png",
-        "video": "https://youtu.be/X9h5eT5hs2U?si=1X9qZYBUDPdsisvh"
+        "video": "https://youtu.be/s9q0S9Dhtaw?si=M0mUT9ttpF6kex78"
     },
     "features": [
         {
@@ -29,7 +31,7 @@
                 "Dedicated 'Must Try' Section",
                 "High-Resolution Hero Images",
                 "Chef's Choice Badges",
-                "Visual Storytelling"
+                "One click setup"
             ],
             "image": "/assets/mockups/signature-dishes-v3.png",
             "imagePosition": "left"
@@ -38,10 +40,10 @@
             "title": "Add Instant Offers",
             "description": "Create urgency and boost conversions with time-sensitive pop-up offers that grab attention immediately.",
             "list": [
-                "Flash Deal Pop-ups",
-                "Countdown Timers",
+                "Flash Deals",
+                "Dedicated offer sessions",
                 "Customizable Discount Rules",
-                "One-Click Claiming"
+                "Offer scheduling"
             ],
             "image": "/assets/mockups/instant-offers-v4.png",
             "imagePosition": "right"
@@ -50,10 +52,10 @@
             "title": "Google Review Integration",
             "description": "Build trust and social proof by seamlessly collecting and displaying 5-star Google reviews directly within the menu.",
             "list": [
-                "Direct Review Prompt",
-                "Live Rating Display",
-                "Reputation Management",
-                "Trust Building"
+                "Redirect To Google Reviews",
+                "Redirecting only the best reviews",
+                "Trush building",
+                "Feedback collection"
             ],
             "image": "/assets/mockups/google-reviews-v3.png",
             "imagePosition": "left"
@@ -64,7 +66,6 @@
             "list": [
                 "Daily Scan Volume",
                 "Peak Hour Heatmaps",
-                "Customer Location Data",
                 "Device Usage Stats"
             ],
             "image": "/assets/mockups/scan-analytics-v3.png",

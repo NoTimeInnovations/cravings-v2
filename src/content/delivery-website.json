@@ -6,47 +6,98 @@
         "subheadline": "Stop paying high commissions to aggregators. Build your own direct delivery channel with a professional website.",
         "primaryCta": "Start Delivering",
         "secondaryCta": "Check Features",
-        "image": "/assets/mockups/delivery-hero.png"
+        "secondaryCtaLink": "https://youtu.be/X9h5eT5hs2U?si=1X9qZYBUDPdsisvh",
+        "image": "/assets/mockups/delivery-hero.png",
+        "video": "https://youtu.be/X9h5eT5hs2U?si=1X9qZYBUDPdsisvh"
     },
     "features": [
         {
-            "title": "Smart Delivery Logistics",
-            "description": "Handle deliveries like a pro with integrated maps and distance calculation.",
+            "title": "Zero Commissions, Maximum Profit",
+            "description": "Stop sharing your hard-earned revenue. With your own ordering website, you keep 100% of every order value.",
             "list": [
-                "Auto-detect user location",
-                "Delivery radius enforcement",
-                "Distance-based delivery fees",
-                "Free delivery thresholds"
+                "No hidden fees",
+                "Direct payments to you",
+                "Higher profit margins",
+                "Transparent pricing"
             ],
-            "image": "/assets/mockups/delivery-logistics.png",
+            "image": "/assets/mockups/zero-commission-v2.png",
             "imagePosition": "right"
         },
         {
-            "title": "Customer Accounts",
-            "description": "Build a loyal customer base. Users can save addresses and reorder their favorites.",
+            "title": "Flexible Delivery Logistics",
+            "description": "Take control of your delivery operations. Use your own staff or integrate with third-party delivery partners on your terms.",
             "list": [
-                "Saved address book",
-                "Order history",
-                "Phone number verification",
-                "Personalized experience"
+                "Hybrid delivery support",
+                "Real-time rider tracking",
+                "Auto-assign drivers",
+                "Delivery zone management"
             ],
-            "image": "/assets/mockups/user-accounts.png",
+            "image": "/assets/mockups/delivery-logistics-v2.png",
             "imagePosition": "left"
         },
         {
-            "title": "Conversion Optimized",
-            "description": "Designed to sell. From tempting hero banners to a smooth checkout flow.",
+            "title": "Own Your Customer Data",
+            "description": "Stop being a ghost kitchen for aggregators. Access full customer details including phone numbers and order history to build lasting relationships.",
             "list": [
-                "High-conversion checkout",
-                "Promo code support",
-                "Mobile-optimized design",
-                "Trust signals & reviews"
+                "Full customer profiles",
+                "Exportable data",
+                "Order history insights",
+                "Direct marketing access"
             ],
-            "image": "/assets/mockups/conversion.png",
+            "image": "/assets/mockups/customer-data-v2.png",
             "imagePosition": "right"
+        },
+        {
+            "title": "Maximize Customer Retention",
+            "description": "Turn one-time orderers into regulars. Use built-in tools to engage customers and bring them back for more.",
+            "list": [
+                "Automated loyalty points",
+                "Re-ordering reminders",
+                "Birthday specials",
+                "SMS/WhatsApp campaigns"
+            ],
+            "image": "/assets/mockups/customer-retention-v2.png",
+            "imagePosition": "left"
         }
     ],
-    "reviews": [ { "author": "Sarah Jenkins", "role": "Owner", "company": "The Burger Joint", "text": "Cravings transformed how we handle orders during rush hour. The digital menu is a lifesaver!", "avatar": "/assets/avatars/avatar-1.png" }, { "author": "David Chen", "role": "General Manager", "company": "Golden Dragon", "text": "The best investment we made this year. Customers love scanning the code and ordering directly.", "avatar": "/assets/avatars/avatar-2.png" }, { "author": "Emily Rodriguez", "role": "Marketing Director", "company": "Taco Fiesta", "text": "Insanely easy to update. We change our specials daily and it takes seconds.", "avatar": "/assets/avatars/avatar-3.png" }, { "author": "Michael Chang", "role": "Operations Head", "company": "Sushi Zen", "text": "Inventory management is finally under control. We cut wastage by 20% in the first month.", "avatar": "/assets/avatars/avatar-4.png" }, { "author": "Priya Patel", "role": "Owner", "company": "Curry House", "text": "Marketing tools are powerful. The automated campaigns brought back so many old customers.", "avatar": "/assets/avatars/avatar-5.png" } ], "faq": [
+    "reviews": [
+        {
+            "author": "Sarah Jenkins",
+            "role": "Owner",
+            "company": "The Burger Joint",
+            "text": "Cravings transformed how we handle orders during rush hour. The digital menu is a lifesaver!",
+            "avatar": "/assets/avatars/avatar-1.png"
+        },
+        {
+            "author": "David Chen",
+            "role": "General Manager",
+            "company": "Golden Dragon",
+            "text": "The best investment we made this year. Customers love scanning the code and ordering directly.",
+            "avatar": "/assets/avatars/avatar-2.png"
+        },
+        {
+            "author": "Emily Rodriguez",
+            "role": "Marketing Director",
+            "company": "Taco Fiesta",
+            "text": "Insanely easy to update. We change our specials daily and it takes seconds.",
+            "avatar": "/assets/avatars/avatar-3.png"
+        },
+        {
+            "author": "Michael Chang",
+            "role": "Operations Head",
+            "company": "Sushi Zen",
+            "text": "Inventory management is finally under control. We cut wastage by 20% in the first month.",
+            "avatar": "/assets/avatars/avatar-4.png"
+        },
+        {
+            "author": "Priya Patel",
+            "role": "Owner",
+            "company": "Curry House",
+            "text": "Marketing tools are powerful. The automated campaigns brought back so many old customers.",
+            "avatar": "/assets/avatars/avatar-5.png"
+        }
+    ],
+    "faq": [
         {
             "question": "Can I use my own domain?",
             "answer": "Yes, we can map your custom domain (e.g., order.myrestaurant.com) to the platform."
