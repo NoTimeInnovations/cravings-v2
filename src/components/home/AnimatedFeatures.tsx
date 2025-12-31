@@ -101,11 +101,10 @@ export default function AnimatedFeatures() {
                     className="absolute top-12 z-20 text-center px-6"
                     style={{ opacity: useTransform(smoothProgress, [0, 0.2], [1, 0]) }}
                 >
-                    <h2 className="text-3xl md:text-5xl font-medium text-gray-900 mb-4">
+                    <h2 className="text-3xl md:text-5xl font-medium text-gray-900 mb-5">
                         Everything revolves around <br />
                         <span className="text-[#C04812]">your specialized needs</span>
                     </h2>
-                    <p className="text-gray-500">Scroll to explore the ecosystem</p>
                 </motion.div>
 
                 {/* Central Phone Mockup */}

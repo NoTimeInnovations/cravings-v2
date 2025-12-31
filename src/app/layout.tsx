@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Inter, Dancing_Script, Poppins, Roboto } from "next/font/google";
 import Script from "next/script"; // Import Script for Google Analytics
 import "./globals.css";
 // import { Navbar } from "@/components/Navbar";
@@ -52,6 +53,21 @@ const bottomNavFilter = [
 const navbarFilter = ["get-started", "7eb04e2d-9c20-42ba-a6b6-fce8019cad5f", "admin-v2", "20f7e974-f19e-4c11-b6b7-4385f61f27bf", "admin", "hotels", "qrScan", "pricing"];
 
 const hideWhatsappGroupJoinDialog = ["Krishnakripa-Residency"];
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const dancingScript = Dancing_Script({ subsets: ["latin"], variable: "--font-dancing-script", display: "swap" });
+const poppins = Poppins({
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+  subsets: ["latin"],
+  variable: "--font-poppins",
+  display: "swap",
+});
+const roboto = Roboto({
+  weight: ["100", "300", "400", "500", "700", "900"],
+  subsets: ["latin"],
+  variable: "--font-roboto",
+  display: "swap",
+});
 
 export default async function RootLayout({
   children,
@@ -118,7 +134,7 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className={`antialiased font-sans`}>
+      <body className={`antialiased font-sans ${inter.variable} ${dancingScript.variable} ${poppins.variable} ${roboto.variable}`}>
         <AuthInitializer />
         {(user?.role === "user" || !user) && !isWhatsappDialogHidden && country === "IN" && (
           <WhatsappGroupJoinAlertDialog isPetraz={isPetraz} />

@@ -16,8 +16,8 @@ export default {
 				sm: 'calc(var(--radius) - 4px)'
 			},
 			fontFamily: {
-				handwriting: ['"Dancing Script"', 'cursive'],
-				sans: ['SuisseIntl-Regular', 'sans-serif'],
+				handwriting: ['var(--font-dancing-script)', 'cursive'],
+				sans: ['var(--font-inter)', 'SuisseIntl-Regular', 'sans-serif'],
 			},
 			colors: {
 				background: 'hsl(var(--background))',

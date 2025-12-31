@@ -40,7 +40,7 @@ export default function Hero() {
                         Cravings is built to adapt <br className="hidden lg:block" /> food technology at its best
                     </h1>
 
-                    <p className="text-[1rem] leading-[1.6] tracking-[-0.02px] text-white/90 mb-8 max-w-2xl mx-auto lg:mx-0 font-normal">
+                    <p className="text-[1rem] leading-[1.6] tracking-[-0.02px] text-white/90 mb-8 max-w-2xl mx-auto lg:mx-0 font-medium">
                         Thoughtfully designed tools that adapt to your restaurant—simple <br className="hidden lg:block" /> to use, easy to grow with, and always in your control.
                     </p>
 
@@ -53,7 +53,8 @@ export default function Hero() {
                         </Link>
 
                         <Link
-                            href="/demo"
+                            target="_blank"
+                            href="/hotels/LE-GRAND-CAFE/20f7e974-f19e-4c11-b6b7-4385f61f27bf"
                             className="flex items-center gap-2 text-white font-medium hover:opacity-80 transition-opacity text-lg group"
                         >
                             View Interactive demo

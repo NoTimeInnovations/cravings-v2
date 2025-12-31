@@ -24,42 +24,42 @@ const PRODUCTS = [
         description: "Accept orders via QR code scan",
         icon: ScanLine,
         href: "/products/digital-menu",
-        image: "/hero-image.png" // Placeholder, should be replaced if specific images exist
+        image: "/digital_menu_preview.png"
     },
     {
         title: "Own Delivery Website",
         description: "Commission-free delivery platform",
         icon: Globe,
         href: "/products/delivery",
-        image: "/hero-image.png"
+        image: "/delivery_website.png"
     },
     {
         title: "Point Of Sale (POS)",
         description: "Manage billing and operations",
         icon: Monitor,
         href: "/products/pos",
-        image: "/hero-image.png"
+        image: "/pos.png"
     },
     {
         title: "Table Ordering",
         description: "Seamless dining experience for customers",
         icon: Smartphone,
         href: "/products/table-ordering",
-        image: "/hero-image.png"
+        image: "/table-ordering.png"
     },
     {
         title: "Captain Ordering",
         description: "Efficient order taking for staff",
         icon: ClipboardList,
         href: "/products/captain-ordering",
-        image: "/hero-image.png"
+        image: "/captain-ordering-prview.png"
     },
     {
         title: "Inventory & Purchase",
         description: "Track stock and manage suppliers",
         icon: Boxes,
         href: "/products/inventory",
-        image: "/hero-image.png"
+        image: "/inventory-preview.png"
     },
     {
         title: "Marketing",
@@ -149,18 +149,13 @@ export default function PlatformFeatures() {
                                 {product.description}
                             </p>
 
-                            <div className="relative mt-auto w-full aspect-[16/9] rounded-lg overflow-hidden bg-white shadow-sm border border-gray-100 group-hover:shadow-md transition-shadow">
-                                {/* Using a placeholder colored div if image fails or use the hero image generic */}
-                                <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
-                                    <span className="text-gray-300 text-xs font-medium">Image Preview</span>
-                                </div>
-                                {/* Ideally we would use the actual image here */}
-                                {/* <Image
+                            <div className="relative mt-auto -mx-6 -mb-6 h-64 w-[calc(100%+3rem)] rounded-b-2xl overflow-hidden">
+                                <Image
                                     src={product.image}
                                     alt={product.title}
                                     fill
-                                    className="object-cover"
-                                /> */}
+                                    className="object-contain mix-blend-multiply"
+                                />
                             </div>
                         </div>
                     ))}
