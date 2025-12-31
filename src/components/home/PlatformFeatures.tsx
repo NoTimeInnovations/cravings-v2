@@ -9,7 +9,6 @@ import {
     Smartphone,
     ClipboardList,
     Boxes,
-    Megaphone,
     ArrowRight,
     ChevronLeft,
     ChevronRight,
@@ -52,21 +51,14 @@ const PRODUCTS = [
         description: "Efficient order taking for staff",
         icon: ClipboardList,
         href: "/products/captain-ordering",
-        image: "/captain-ordering-prview.png"
+        image: "/preview-captain-ordering.png"
     },
     {
         title: "Inventory & Purchase",
         description: "Track stock and manage suppliers",
         icon: Boxes,
         href: "/products/inventory",
-        image: "/inventory-preview.png"
-    },
-    {
-        title: "Marketing",
-        description: "Grow your business with tools",
-        icon: Megaphone,
-        href: "/products/marketing",
-        image: "/hero-image.png"
+        image: "/inventory-preview-5.png"
     }
 ];
 

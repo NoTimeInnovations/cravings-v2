@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { Check } from "lucide-react";
 
 interface Feature {
@@ -55,18 +56,13 @@ export function FeatureSection({ features }: FeaturesProps) {
 
                                 {/* Image / Visual */}
                                 <div className="flex-1 w-full">
-                                    <div className={`relative rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 aspect-square md:aspect-[4/3] shadow-lg p-8 ${!isRightAligned ? "bg-orange-50/50" : "bg-blue-50/50"}`}>
-                                        {/* Placeholder for feature visual */}
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="bg-white/80 backdrop-blur-sm rounded-xl border shadow-sm p-6 max-w-[80%]">
-                                                <h3 className="text-lg font-bold text-gray-900 mb-2">{feature.title} Mockup</h3>
-                                                <div className="space-y-2">
-                                                    <div className="h-2 w-32 bg-gray-200 rounded"></div>
-                                                    <div className="h-2 w-24 bg-gray-200 rounded"></div>
-                                                    <div className="h-2 w-full bg-gray-100 rounded"></div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                    <div className={`relative rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 aspect-square md:aspect-[4/3] shadow-lg ${!isRightAligned ? "bg-orange-50/50" : "bg-blue-50/50"}`}>
+                                        <Image
+                                            src={feature.image}
+                                            alt={feature.title}
+                                            fill
+                                            className="object-cover object-center"
+                                        />
                                     </div>
                                 </div>
                             </div>

@@ -11,7 +11,6 @@ import {
   Monitor,
   ClipboardList,
   Boxes,
-  Megaphone,
   ScanLine,
   ChevronDown,
   Briefcase,
@@ -73,12 +72,6 @@ const PRODUCTS = [
     description: "Track stock and manage suppliers",
     icon: Boxes,
     href: "/product/inventory-management"
-  },
-  {
-    title: "Marketing",
-    description: "Grow your business with tools",
-    icon: Megaphone,
-    href: "/product/marketing-tools"
   }
 ];
 

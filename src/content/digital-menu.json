@@ -6,7 +6,8 @@
         "subheadline": "A responsive, mobile-first menu that delights customers and drives orders directly to your kitchen. No apps to install, just scan and order.",
         "primaryCta": "Create Your Menu",
         "secondaryCta": "View Live Demo",
-        "image": "/assets/mockups/digital-menu-hero.png"
+        "image": "/assets/mockups/digital-menu-hero-v2.png",
+        "video": "https://youtu.be/X9h5eT5hs2U?si=1X9qZYBUDPdsisvh"
     },
     "features": [
         {
@@ -18,35 +19,96 @@
                 "Smart search & filtering",
                 "Customizable branding themes"
             ],
-            "image": "/assets/mockups/menu-visuals.png",
+            "image": "/assets/mockups/menu-visuals-v5.png",
             "imagePosition": "right"
         },
         {
-            "title": "Seamless Ordering Experience",
-            "description": "Turn browsers into buyers. Customers can customize items, add variants, and place orders directly from their phone.",
+            "title": "Showcase Your Signature Dishes",
+            "description": "Highlight your chef's specials and best-sellers at the top of the menu to influence customer choices and increase average order value.",
             "list": [
-                "Variant & Add-on support",
-                "Real-time cart updates",
-                "Simple phone number login",
-                "Direct WhatsApp integration"
+                "Dedicated 'Must Try' Section",
+                "High-Resolution Hero Images",
+                "Chef's Choice Badges",
+                "Visual Storytelling"
             ],
-            "image": "/assets/mockups/ordering-flow.png",
+            "image": "/assets/mockups/signature-dishes-v3.png",
             "imagePosition": "left"
         },
         {
-            "title": "Smart Logistics & Feedback",
-            "description": "Handle delivery costs automatically and gather valuable customer feedback instantly.",
+            "title": "Add Instant Offers",
+            "description": "Create urgency and boost conversions with time-sensitive pop-up offers that grab attention immediately.",
             "list": [
-                "Auto-distance calculation",
-                "Dynamic delivery fees",
-                "Built-in review system",
-                "Social media integration"
+                "Flash Deal Pop-ups",
+                "Countdown Timers",
+                "Customizable Discount Rules",
+                "One-Click Claiming"
             ],
-            "image": "/assets/mockups/logistics.png",
+            "image": "/assets/mockups/instant-offers-v4.png",
+            "imagePosition": "right"
+        },
+        {
+            "title": "Google Review Integration",
+            "description": "Build trust and social proof by seamlessly collecting and displaying 5-star Google reviews directly within the menu.",
+            "list": [
+                "Direct Review Prompt",
+                "Live Rating Display",
+                "Reputation Management",
+                "Trust Building"
+            ],
+            "image": "/assets/mockups/google-reviews-v3.png",
+            "imagePosition": "left"
+        },
+        {
+            "title": "Scan Analytics",
+            "description": "Gain actionable insights into customer behavior with detailed tracking of menu scans and engagement metrics.",
+            "list": [
+                "Daily Scan Volume",
+                "Peak Hour Heatmaps",
+                "Customer Location Data",
+                "Device Usage Stats"
+            ],
+            "image": "/assets/mockups/scan-analytics-v3.png",
             "imagePosition": "right"
         }
     ],
-    "reviews": [ { "author": "Sarah Jenkins", "role": "Owner", "company": "The Burger Joint", "text": "Cravings transformed how we handle orders during rush hour. The digital menu is a lifesaver!", "avatar": "/assets/avatars/avatar-1.png" }, { "author": "David Chen", "role": "General Manager", "company": "Golden Dragon", "text": "The best investment we made this year. Customers love scanning the code and ordering directly.", "avatar": "/assets/avatars/avatar-2.png" }, { "author": "Emily Rodriguez", "role": "Marketing Director", "company": "Taco Fiesta", "text": "Insanely easy to update. We change our specials daily and it takes seconds.", "avatar": "/assets/avatars/avatar-3.png" }, { "author": "Michael Chang", "role": "Operations Head", "company": "Sushi Zen", "text": "Inventory management is finally under control. We cut wastage by 20% in the first month.", "avatar": "/assets/avatars/avatar-4.png" }, { "author": "Priya Patel", "role": "Owner", "company": "Curry House", "text": "Marketing tools are powerful. The automated campaigns brought back so many old customers.", "avatar": "/assets/avatars/avatar-5.png" } ], "faq": [
+    "reviews": [
+        {
+            "author": "Sarah Jenkins",
+            "role": "Owner",
+            "company": "The Burger Joint",
+            "text": "Cravings transformed how we handle orders during rush hour. The digital menu is a lifesaver!",
+            "avatar": "/assets/avatars/avatar-1.png"
+        },
+        {
+            "author": "David Chen",
+            "role": "General Manager",
+            "company": "Golden Dragon",
+            "text": "The best investment we made this year. Customers love scanning the code and ordering directly.",
+            "avatar": "/assets/avatars/avatar-2.png"
+        },
+        {
+            "author": "Emily Rodriguez",
+            "role": "Marketing Director",
+            "company": "Taco Fiesta",
+            "text": "Insanely easy to update. We change our specials daily and it takes seconds.",
+            "avatar": "/assets/avatars/avatar-3.png"
+        },
+        {
+            "author": "Michael Chang",
+            "role": "Operations Head",
+            "company": "Sushi Zen",
+            "text": "Inventory management is finally under control. We cut wastage by 20% in the first month.",
+            "avatar": "/assets/avatars/avatar-4.png"
+        },
+        {
+            "author": "Priya Patel",
+            "role": "Owner",
+            "company": "Curry House",
+            "text": "Marketing tools are powerful. The automated campaigns brought back so many old customers.",
+            "avatar": "/assets/avatars/avatar-5.png"
+        }
+    ],
+    "faq": [
         {
             "question": "Does it work on all devices?",
             "answer": "Yes, our digital menu is a responsive web app that works perfectly on all mobile phones, tablets, and desktops without any downloads."

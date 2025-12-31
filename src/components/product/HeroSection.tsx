@@ -13,10 +13,39 @@ interface HeroProps {
         primaryCta: string;
         secondaryCta: string;
         image: string;
+        video?: string;
     };
 }
 
 export function HeroSection({ data }: HeroProps) {
+    const getEmbedUrl = (url: string) => {
+        let videoId = "";
+
+        if (url.includes("youtu.be")) {
+            videoId = url.split("youtu.be/")[1]?.split("?")[0];
+        } else if (url.includes("youtube.com/watch")) {
+            try {
+                videoId = new URL(url).searchParams.get("v") || "";
+            } catch (e) {
+                // Fallback if URL parsing fails
+            }
+        } else if (url.includes("youtube.com/embed")) {
+            videoId = url.split("embed/")[1]?.split("?")[0];
+        }
+
+        if (videoId) {
+            // rel=0: Limit related videos to same channel
+            // loop=1 + playlist=videoId: Loop video to prevent end screen
+            // modestbranding=1: Minimize YouTube logo
+            // controls=0: Hide player controls (play/pause bar) to remove top overlay
+            // showinfo=0: (Deprecated but good to have) attempt to hide title
+            // iv_load_policy=3: Hide annotations
+            return `https://www.youtube.com/embed/${videoId}?rel=0&loop=1&playlist=${videoId}&modestbranding=1&controls=0&showinfo=0&iv_load_policy=3`;
+        }
+
+        return url;
+    };
+
     return (
         <section className="relative pt-32 pb-20 md:pt-40 md:pb-32 overflow-hidden bg-gradient-to-br from-[#fff7ed] to-[#f3f4f6]">
             {/* Background decoration matching home/Hero.tsx - updated opacity for light mode */}
@@ -53,7 +82,7 @@ export function HeroSection({ data }: HeroProps) {
                     </div>
                 </div>
 
-                {/* Hero Image */}
+                {/* Hero Image / Video */}
                 <div className="relative mx-auto max-w-5xl">
                     <div className="relative rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl bg-white border border-gray-200 aspect-[16/10] md:aspect-[2/1]">
                         {/* Fallback pattern if image is missing/placeholder */}
@@ -76,9 +105,23 @@ export function HeroSection({ data }: HeroProps) {
                                     <div className="w-2.5 h-2.5 rounded-full bg-green-400"></div>
                                 </div>
                                 {/* Content area */}
-                                <div className="p-8 flex items-center justify-center h-full">
-                                    <p className="text-gray-400 italic">Dashboard Mockup: {data.headline}</p>
-                                </div>
+                                {data.video ? (
+                                    <div className="w-full h-full bg-black">
+                                        <iframe
+                                            width="100%"
+                                            height="100%"
+                                            src={getEmbedUrl(data.video)}
+                                            title="Product Demo"
+                                            frameBorder="0"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                        ></iframe>
+                                    </div>
+                                ) : (
+                                    <div className="p-8 flex items-center justify-center h-full">
+                                        <p className="text-gray-400 italic">Dashboard Mockup: {data.headline}</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
