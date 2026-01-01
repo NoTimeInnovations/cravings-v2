@@ -353,7 +353,7 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
     ];
 
     const isUserOrGuest = userData?.role === "user" || !userData?.role;
-    const showIndiaLinks = country === "IN";
+
 
     return (
       <>
@@ -372,7 +372,7 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
           </Link>
         ))}
 
-        {isUserOrGuest && showIndiaLinks && (
+        {isUserOrGuest && (
           <div
             className={cn(
               "relative px-3 py-1 text-sm font-medium cursor-pointer hidden lg:inline-flex items-center gap-1 transition-colors",
@@ -431,7 +431,7 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
           </div>
         )}
 
-        {isUserOrGuest && showIndiaLinks && (
+        {isUserOrGuest && (
           <div
             className={cn(
               "relative px-3 py-1 text-sm font-medium cursor-pointer hidden lg:inline-flex items-center gap-1 transition-colors",
@@ -524,7 +524,7 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
         )
         }
 
-        {isUserOrGuest && showIndiaLinks && (
+        {isUserOrGuest && (
           <div
             className={cn(
               "relative px-3 py-1 text-sm font-medium cursor-pointer hidden lg:inline-flex items-center gap-1 transition-colors",
@@ -583,7 +583,7 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
           </div>
         )}
 
-        {isUserOrGuest && showIndiaLinks && (
+        {isUserOrGuest && (
           <Link
             href="/pricing"
             className={cn(

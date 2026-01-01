@@ -27,28 +27,24 @@ const BottomNav = ({ userData, country }: { userData: any; country?: string }) =
     // Default navigation for non-logged-in users
     if (!userData?.role) {
       return [
-        ...(country === "IN"
-          ? [
-            {
-              href: "/explore",
-              name: "Explore",
-              icon: <Telescope size={20} />,
-              exactMatch: false,
-            },
-            {
-              href: "/offers",
-              name: "Offers",
-              icon: <BadgePercent size={20} />,
-              exactMatch: false,
-            },
-            {
-              href: "/hotels",
-              name: "Hotels",
-              icon: <Home size={20} />,
-              exactMatch: false,
-            },
-          ]
-          : []),
+        {
+          href: "/explore",
+          name: "Explore",
+          icon: <Telescope size={20} />,
+          exactMatch: false,
+        },
+        {
+          href: "/offers",
+          name: "Offers",
+          icon: <BadgePercent size={20} />,
+          exactMatch: false,
+        },
+        {
+          href: "/hotels",
+          name: "Hotels",
+          icon: <Home size={20} />,
+          exactMatch: false,
+        },
         {
           href: "/",
           name: "About Us",
@@ -63,28 +59,24 @@ const BottomNav = ({ userData, country }: { userData: any; country?: string }) =
     switch (userData.role) {
       case "user":
         return [
-          ...(country === "IN"
-            ? [
-              {
-                href: "/explore",
-                name: "Explore",
-                icon: <Telescope size={20} />,
-                exactMatch: true,
-              },
-              {
-                href: "/offers",
-                name: "Offers",
-                icon: <BadgePercent size={20} />,
-                exactMatch: false,
-              },
-              {
-                href: "/hotels",
-                name: "Hotels",
-                icon: <Home size={20} />,
-                exactMatch: false,
-              },
-            ]
-            : []),
+          {
+            href: "/explore",
+            name: "Explore",
+            icon: <Telescope size={20} />,
+            exactMatch: true,
+          },
+          {
+            href: "/offers",
+            name: "Offers",
+            icon: <BadgePercent size={20} />,
+            exactMatch: false,
+          },
+          {
+            href: "/hotels",
+            name: "Hotels",
+            icon: <Home size={20} />,
+            exactMatch: false,
+          },
         ];
       case "partner":
         const partnerItems = [
