@@ -2,14 +2,14 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   experimental: {
-    staleTimes : {
+    staleTimes: {
       dynamic: 0,
-      static: 0,
+      static: 30,
     },
     serverActions: {
       bodySizeLimit: '2mb'
     },
-    scrollRestoration : false
+    scrollRestoration: false
   },
   allowedDevOrigins: ['192.168.20.6', 'localhost', '192.168.1.16'],
 

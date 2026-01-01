@@ -12,15 +12,14 @@
     },
     "features": [
         {
-            "title": "Speed & Efficiency",
+            "title": "Captain Ordering Made Easy",
             "description": "Designed for rapid entry. Captains can punch in orders with just a few taps.",
             "list": [
                 "Quick-add menu grid",
                 "Floating cart actions",
-                "Voice-to-text notes (coming soon)",
                 "Instant KOT generation"
             ],
-            "image": "/assets/mockups/captain-speed.png",
+            "image": "/assets/mockups/captain-speed.jpeg",
             "imagePosition": "right"
         },
         {
@@ -29,22 +28,21 @@
             "list": [
                 "Edit items after placing order",
                 "Add special instructions",
-                "Update quantities instantly",
-                "Manage table transfers"
+                "Update quantities instantly"
             ],
-            "image": "/assets/mockups/order-editing.png",
+            "image": "/assets/mockups/menu-editing.png",
             "imagePosition": "left"
         },
         {
-            "title": "Table Management",
+            "title": "Captain Management",
             "description": "Keep an eye on the floor. See which tables are occupied, waiting for food, or ready to pay.",
             "list": [
-                "Live table status view",
-                "Occupancy tracking",
-                "Quick table assignment",
-                "Multi-table management"
+                "Create and manage captains",
+                "View each captain's orders",
+                "Multi-table management",
+                "Captain performance metrics (coming soon)"
             ],
-            "image": "/assets/mockups/table-status.png",
+            "image": "/assets/mockups/captain-management.png",
             "imagePosition": "right"
         }
     ],

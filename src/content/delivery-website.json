@@ -16,23 +16,23 @@
             "description": "Stop sharing your hard-earned revenue. With your own ordering website, you keep 100% of every order value.",
             "list": [
                 "No hidden fees",
-                "Direct payments to you",
+                "Direct payments to you (Cash on delivery)",
                 "Higher profit margins",
                 "Transparent pricing"
             ],
-            "image": "/assets/mockups/zero-commission-v2.png",
+            "image": "/assets/mockups/zero-commission-v3.jpeg",
             "imagePosition": "right"
         },
         {
-            "title": "Flexible Delivery Logistics",
-            "description": "Take control of your delivery operations. Use your own staff or integrate with third-party delivery partners on your terms.",
+            "title": "Your delivery, Your drivers, Your control",
+            "description": "Take control of your delivery operations. Use your own staff.",
             "list": [
                 "Hybrid delivery support",
-                "Real-time rider tracking",
-                "Auto-assign drivers",
-                "Delivery zone management"
+                "Delivery zone management",
+                "Real time order updates",
+                "Delivery charge management"
             ],
-            "image": "/assets/mockups/delivery-logistics-v2.png",
+            "image": "/assets/mockups/your-delivery-your-driiver.jpeg",
             "imagePosition": "left"
         },
         {
@@ -41,23 +41,10 @@
             "list": [
                 "Full customer profiles",
                 "Exportable data",
-                "Order history insights",
-                "Direct marketing access"
+                "Order history insights"
             ],
-            "image": "/assets/mockups/customer-data-v2.png",
+            "image": "/assets/mockups/customer-data-v2.jpeg",
             "imagePosition": "right"
-        },
-        {
-            "title": "Maximize Customer Retention",
-            "description": "Turn one-time orderers into regulars. Use built-in tools to engage customers and bring them back for more.",
-            "list": [
-                "Automated loyalty points",
-                "Re-ordering reminders",
-                "Birthday specials",
-                "SMS/WhatsApp campaigns"
-            ],
-            "image": "/assets/mockups/customer-retention-v2.png",
-            "imagePosition": "left"
         }
     ],
     "reviews": [
@@ -113,3 +100,5 @@
         "buttonText": "Launch Website"
     }
 }
+
+

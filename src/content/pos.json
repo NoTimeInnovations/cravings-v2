@@ -7,7 +7,7 @@
         "primaryCta": "Try POS Demo",
         "secondaryCta": "Watch Video",
         "secondaryCtaLink": "https://youtu.be/uBjH8GHxLAg?si=Sa_TCO0ODhg7Iip0",
-        "image": "/assets/mockups/pos-hero.png",
+        "image": "/assets/mockups/delivery-logistics-v2.png",
         "video": "https://youtu.be/uBjH8GHxLAg?si=Sa_TCO0ODhg7Iip0"
     },
     "features": [
@@ -16,23 +16,22 @@
             "description": "Never miss an order. View dine-in, delivery, and takeaway orders in one single, real-time dashboard.",
             "list": [
                 "Real-time order sync",
-                "Visual table grid",
                 "Status tracking (Preparing, Ready, Served)",
                 "Captain & Kitchen modes"
             ],
-            "image": "/assets/mockups/pos-dashboard.png",
+            "image": "/assets/mockups/scan-analytics-v3.png",
             "imagePosition": "right"
         },
         {
             "title": "Billing Made Simple",
-            "description": "Generate bills, split payments, and handle taxes with ease. Supports multiple payment methods including UPI and Cards.",
+            "description": "We are only recording the payments and generating bill and kot.",
             "list": [
                 "One-click bill generation",
-                "Split bill support",
-                "Discount & coupon management",
-                "Daily sales reports"
+                "Daily sales reports",
+                "Add Extra Charges to bill",
+                "Connect printers using USB ,WIFI ,Bluetooth (android & windows only)"
             ],
-            "image": "/assets/mockups/billing.png",
+            "image": "/assets/mockups/customer-bill-v3.png",
             "imagePosition": "left"
         },
         {
@@ -41,10 +40,9 @@
             "list": [
                 "Instant '86' (Out of Stock) toggle",
                 "Quick price editing",
-                "Category management",
-                "Multi-language support"
+                "Category management"
             ],
-            "image": "/assets/mockups/menu-control.png",
+            "image": "/assets/mockups/menu-editing.png",
             "imagePosition": "right"
         }
     ],

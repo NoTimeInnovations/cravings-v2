@@ -20,7 +20,7 @@
                 "No signup friction",
                 "Works on all smartphones"
             ],
-            "image": "/assets/mockups/scan-code.png",
+            "image": "/assets/mockups/scan-code.jpeg",
             "imagePosition": "right"
         },
         {
@@ -28,11 +28,9 @@
             "description": "Guests can explore the menu at their own pace and order when they are ready.",
             "list": [
                 "Skip the wait for a waiter",
-                "Visual menu exploration",
-                "Easy re-ordering",
-                "Call for service button"
+                "Visual menu exploration"
             ],
-            "image": "/assets/mockups/self-service.png",
+            "image": "/assets/mockups/self-service.jpeg",
             "imagePosition": "left"
         },
         {
@@ -40,11 +38,11 @@
             "description": "Orders go straight to the kitchen/POS, labeled with the correct table number.",
             "list": [
                 "Eliminates order entry errors",
-                "Auto-prints KOTs",
+                "Prints KOTs",
                 "Frees up staff for hospitality",
                 "Faster table turnover"
             ],
-            "image": "/assets/mockups/kitchen-flow.png",
+            "image": "/assets/mockups/kitchen-flow.jpeg",
             "imagePosition": "right"
         }
     ],

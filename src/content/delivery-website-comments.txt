@@ -1,0 +1,12 @@
+ // {
+        //     "title": "Maximize Customer Retention",
+        //     "description": "Turn one-time orderers into regulars. Use built-in tools to engage customers and bring them back for more.",
+        //     "list": [
+        //         "Automated loyalty points",
+        //         "Re-ordering reminders",
+        //         "Birthday specials",
+        //         "SMS/WhatsApp campaigns"
+        //     ],
+        //     "image": "/assets/mockups/customer-retention-v2.jpeg",
+        //     "imagePosition": "left"
+        // }
