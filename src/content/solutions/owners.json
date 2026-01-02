@@ -3,48 +3,50 @@
     "hero": {
         "eyebrow": "For Restaurant Owners",
         "headline": "Take Back Control of Your Restaurant",
-        "subheadline": "Oversee operations, reduce costs, and grow revenue with a single all-in-one platform. Stop juggling multiple tools and start scaling comfortably.",
-        "primaryCta": "Start My Free Trial",
+        "subheadline": "Oversee operations, reduce costs, and grow revenue with a single all-in-one platform. Manage everything from your mobile - anywhere anytime",
+        "primaryCta": "Get Started",
+        "primaryCtaLink" : "/get-started",
         "secondaryCta": "Schedule Demo",
-        "image": "/assets/mockups/owners-hero.png"
+        "secondaryCtaLink" : "https://cal.id/craving",
+        "image": "/assets/mockups/solutions-owners-v4.png"
     },
     "benefits": [
     {
-        "title": "Redemption of interest",
-        "description": "Redeem your accumulated interest anytime directly to your bank account."
+        "title": "Effortless Menu Management",
+        "description": "Effortlessly manage your menu from your mobile device."
     },
     {
-        "title": "Working capital",
-        "description": "Unlock flexible working capital limits based on your revenue."
+        "title": "Seamless Restaurant Operations",
+        "description": "Seamlessly manage your restaurant operations from your mobile device."
     },
     {
-        "title": "All virtual payments",
-        "description": "Issue unlimited virtual cards for all your vendor payments."
+        "title": "Analytics & Reporting",
+        "description": "Get real-time insights into your restaurant's performance."
     }
 ],
 "features": [
         {
             "title": "Unified Dashboard",
-            "description": "Stop logging into five different portals. See your sales, inventory, and staff performance in one real-time view.",
+            "description": "Stop logging into five different portals. Manage your menu ,pos ,captains and inventory from one place.",
             "list": [
-                "Real-time sales tracking",
-                "Consolidated inventory alerts",
-                "Staff shift management",
-                "Profit & Loss at a glance"
+                "Manage Your Menu",
+                "POS And Billing",
+                "Manage Your Captains",
+                "Inventory And Purchase"
             ],
-            "image": "/assets/mockups/dashboard-unified.png",
+            "image": "/assets/mockups/scan-analytics-v3.png",
             "imagePosition": "right"
         },
-        {
-            "title": "Zero Commission Orders",
-            "description": "Keep 100% of your profits on direct orders. Say goodbye to the 30% aggregator tax.",
+         {
+            "title": "Zero Commissions, Maximum Profit",
+            "description": "Stop sharing your hard-earned revenue. With your own ordering website, you keep 100% of every order value.",
             "list": [
-                "Custom web ordering link",
-                "Direct QR code payments",
-                "Own customer data ownership",
-                "Instant payouts"
+                "No hidden fees",
+                "Direct payments to you (Cash on delivery)",
+                "Higher profit margins",
+                "Transparent pricing"
             ],
-            "image": "/assets/mockups/zero-commission.png",
+            "image": "/assets/mockups/zero-commission-v3.jpeg",
             "imagePosition": "left"
         },
         {
@@ -52,11 +54,11 @@
             "description": "Know exactly what's selling and what's not. Optimize your menu based on actual data, not guesswork.",
             "list": [
                 "Best-seller reports",
-                "Wastage analytics",
-                "Customer retention metrics",
+                "Category wise reports",
+                "Sales report at any time",
                 "Peak hour insights"
             ],
-            "image": "/assets/mockups/analytics.png",
+            "image": "/assets/mockups/analytics-dashboard-v2.png",
             "imagePosition": "right"
         }
     ],

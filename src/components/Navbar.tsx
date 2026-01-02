@@ -90,18 +90,18 @@ const SOLUTIONS_ROLES = [
     href: "/solutions/agencies",
     icon: Building2
   },
-  {
-    title: "Digital Marketers",
-    description: "Drive engagement and track conversions",
-    href: "/solutions/marketers",
-    icon: TrendingUp
-  },
-  {
-    title: "Part Time Workers",
-    description: "Flexible shifts and earnings tracking",
-    href: "/solutions/workers",
-    icon: Users
-  }
+  // {
+  //   title: "Digital Marketers",
+  //   description: "Drive engagement and track conversions",
+  //   href: "/solutions/marketers",
+  //   icon: TrendingUp
+  // },
+  // {
+  //   title: "Part Time Workers",
+  //   description: "Flexible shifts and earnings tracking",
+  //   href: "/solutions/workers",
+  //   icon: Users
+  // }
 ];
 
 const SOLUTIONS_INDUSTRIES = [
@@ -111,18 +111,18 @@ const SOLUTIONS_INDUSTRIES = [
     href: "/solutions/fnb",
     icon: Utensils
   },
-  {
-    title: "Hotels & Resorts",
-    description: "Enhance guest in-room dining",
-    href: "/solutions/hotels",
-    icon: Hotel
-  },
-  {
-    title: "Online & Retailers",
-    description: "Expand your digital presence",
-    href: "/solutions/retail",
-    icon: ShoppingCart
-  }
+  // {
+  //   title: "Hotels & Resorts",
+  //   description: "Enhance guest in-room dining",
+  //   href: "/solutions/hotels",
+  //   icon: Hotel
+  // },
+  // {
+  //   title: "Online & Retailers",
+  //   description: "Expand your digital presence",
+  //   href: "/solutions/retail",
+  //   icon: ShoppingCart
+  // }
 ];
 
 const RESOURCES = [

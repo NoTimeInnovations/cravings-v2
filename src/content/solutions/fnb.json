@@ -6,57 +6,54 @@
         "subheadline": "From front-of-house service to back-of-house efficiency. Optimize every step of your food service with a connected ecosystem.",
         "primaryCta": "See F&B Solutions",
         "secondaryCta": "Get Pricing",
-        "image": "/assets/mockups/fnb-hero.png"
+        "image": "/assets/mockups/fandb-v3.jpg"
     },
     "benefits": [
-    {
-        "title": "Redemption of interest",
-        "description": "Redeem your accumulated interest anytime directly to your bank account."
-    },
-    {
-        "title": "Working capital",
-        "description": "Unlock flexible working capital limits based on your revenue."
-    },
-    {
-        "title": "All virtual payments",
-        "description": "Issue unlimited virtual cards for all your vendor payments."
-    }
-],
-"features": [
         {
-            "title": "Speed of Service",
-            "description": "Reduce wait times with self-ordering kiosks and QR menus. Send orders directly to the Kitchen Display System (KDS).",
+            "title": "Digital Menu & QR Ordering",
+            "description": "Enable contactless ordering and payments directly from the table to improve efficiency and table turnover."
+        },
+        {
+            "title": "Point of Sale & Operations",
+            "description": "Manage all sales channels—dine-in, takeaway, and delivery—from a single, integrated platform."
+        },
+        {
+            "title": "Own Delivery Website",
+            "description": "Build your own branded online store to accept orders directly and save on third-party commissions."
+        }
+    ],
+    "features": [
+        {
+            "title": "Digital Menu & QR Ordering",
+            "description": "Enable contactless ordering and payments directly from the table to improve efficiency and table turnover.",
             "list": [
-                "Self-service kiosks",
-                "Table-side ordering",
-                "Instant kitchen routing",
-                "Order status screens"
+                "Contactless ordering",
+                "Faster table turnover",
+                "Real-time menu updates"
             ],
-            "image": "/assets/mockups/speed-service.png",
+            "image": "/digital_menu_preview.png",
             "imagePosition": "right"
         },
         {
-            "title": "Inventory Control",
-            "description": "Stop wasting food and money. Track ingredient usage down to the gram and automate supplier orders.",
+            "title": "Point of Sale & Operations",
+            "description": "Manage all sales channels—dine-in, takeaway, and delivery—from a single, integrated platform.",
             "list": [
-                "Recipe management",
-                "Stock alerts",
-                "Wastage tracking",
-                "Supplier integration"
+                "Unified dashboard",
+                "Manage dine-in & delivery",
+                "Kitchen Order Ticket"
             ],
-            "image": "/assets/mockups/inventory-food.png",
+            "image": "/assets/mockups/customer-bill-v3.png",
             "imagePosition": "left"
         },
         {
-            "title": "Omnichannel Sales",
-            "description": "Sell everywhere your customers are. Dine-in, takeaway, delivery, and social media—all managed from one screen.",
+            "title": "Own Delivery Website",
+            "description": "Build your own branded online store to accept orders directly and save on third-party commissions.",
             "list": [
-                "Unified order aggregation",
-                "Menu sync across channels",
-                "Delivery partner integration",
-                "Online store"
+                "Commission-free orders",
+                "Branded online store",
+                "Customer data ownership"
             ],
-            "image": "/assets/mockups/omnichannel.png",
+            "image": "/delivery_website.png",
             "imagePosition": "right"
         }
     ],

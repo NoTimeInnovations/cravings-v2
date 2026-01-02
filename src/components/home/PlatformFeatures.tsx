@@ -22,35 +22,35 @@ const PRODUCTS = [
         title: "Digital Menu",
         description: "Accept orders via QR code scan",
         icon: ScanLine,
-        href: "/products/digital-menu",
+        href: "/product/digital-menu",
         image: "/digital_menu_preview.png"
     },
     {
         title: "Own Delivery Website",
         description: "Commission-free delivery platform",
         icon: Globe,
-        href: "/products/delivery",
+        href: "/product/delivery-website",
         image: "/delivery_website.png"
     },
     {
         title: "Point Of Sale (POS)",
         description: "Manage billing and operations",
         icon: Monitor,
-        href: "/products/pos",
+        href: "/product/pos",
         image: "/pos.png"
     },
     {
         title: "Table Ordering",
         description: "Seamless dining experience for customers",
         icon: Smartphone,
-        href: "/products/table-ordering",
+        href: "/product/table-ordering",
         image: "/table-ordering.png"
     },
     {
         title: "Captain Ordering",
         description: "Efficient order taking for staff",
         icon: ClipboardList,
-        href: "/products/captain-ordering",
+        href: "/product/captain-ordering",
         image: "/preview-captain-ordering.png"
     },
     /*
@@ -58,7 +58,7 @@ const PRODUCTS = [
         title: "Inventory & Purchase",
         description: "Track stock and manage suppliers",
         icon: Boxes,
-        href: "/products/inventory",
+        href: "/product/inventory-management",
         image: "/inventory-preview-5.png"
     }
     */

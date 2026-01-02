@@ -47,11 +47,11 @@ export default function Footer() {
                     <div>
                         <h4 className="font-semibold text-white mb-6">Products</h4>
                         <ul className="space-y-4">
-                            <li><Link href="/products/digital-menu" className="text-orange-100 hover:text-white transition-colors hover:underline">Digital Menu</Link></li>
-                            <li><Link href="/products/pos" className="text-orange-100 hover:text-white transition-colors hover:underline">POS System</Link></li>
-                            <li><Link href="/products/inventory" className="text-orange-100 hover:text-white transition-colors hover:underline">Inventory</Link></li>
-                            <li><Link href="/products/marketing" className="text-orange-100 hover:text-white transition-colors hover:underline">Marketing Tools</Link></li>
-                            <li><Link href="/products/table-ordering" className="text-orange-100 hover:text-white transition-colors hover:underline">Table Ordering</Link></li>
+                            <li><Link href="/product/digital-menu" className="text-orange-100 hover:text-white transition-colors hover:underline">Digital Menu</Link></li>
+                            <li><Link href="/product/pos" className="text-orange-100 hover:text-white transition-colors hover:underline">POS System</Link></li>
+                            <li><Link href="/product/inventory-management" className="text-orange-100 hover:text-white transition-colors hover:underline">Inventory</Link></li>
+                            <li><Link href="/product/marketing" className="text-orange-100 hover:text-white transition-colors hover:underline">Marketing Tools</Link></li>
+                            <li><Link href="/product/table-ordering" className="text-orange-100 hover:text-white transition-colors hover:underline">Table Ordering</Link></li>
                         </ul>
                     </div>
 
