@@ -607,9 +607,9 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
           isScrolled ? "max-h-0 py-0 opacity-0" : "max-h-12 py-2.5 opacity-100"
         )}
       >
-        Announcement: Now earn 2% interest on all CAD & USD balances across all plans!{" "}
+        🎉 New Year Offer: Get flat 20% OFF on all plans!{" "}
         <span className="text-orange-500 cursor-pointer hover:underline font-medium ml-1">
-          Learn more.
+          Grab Deal
         </span>
       </div>
 
