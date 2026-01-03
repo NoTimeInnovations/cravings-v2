@@ -1096,6 +1096,7 @@ const useOrderStore = create(
                   price: item.price,
                   offers: item.offers,
                   category: item.category,
+                  pp_id: item.pp_id,
                 },
                 created_at: createdAt,
               })),

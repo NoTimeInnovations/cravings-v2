@@ -191,6 +191,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
         stock_type
         show_stock
       }
+      pp_id
     }
     offers(where: {_and: [{ offer_type : { _in : $offer_types } } ,{end_time: {_gt: "now()"}}, {deletion_status: {_eq: 0}}]}) {
       end_time
