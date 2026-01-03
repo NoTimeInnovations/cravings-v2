@@ -188,6 +188,7 @@ const ItemCard = ({
           : offerData.offer_price || 0, // Use original price for upcoming offers, offer price for active offers
         variantSelections: [
           {
+            id: (offerData.variant as any).id,
             name: offerData.variant.name,
             price: offerData.variant.price ?? 0,
             quantity: 1,
@@ -226,6 +227,7 @@ const ItemCard = ({
       price: finalPrice,
       variantSelections: [
         {
+          id: variant.id,
           name: variant.name,
           price: variant.price ?? 0,
           quantity: 1,

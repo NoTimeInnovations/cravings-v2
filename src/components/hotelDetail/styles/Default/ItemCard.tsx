@@ -170,6 +170,7 @@ const ItemCard = ({
           price: isUpcomingOffer ? offer.variant.price : offerPrice, // Use original price for upcoming offers, offer price for active offers
           variantSelections: [
             {
+              id: (offer.variant as any).id,
               name: offer.variant.name,
               price: offer.variant.price,
               quantity: 1,
@@ -205,6 +206,7 @@ const ItemCard = ({
       price: finalPrice,
       variantSelections: [
         {
+          id: variant.id,
           name: variant.name,
           price: variant.price,
           quantity: 1,

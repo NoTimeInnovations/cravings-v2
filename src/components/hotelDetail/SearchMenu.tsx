@@ -127,6 +127,7 @@ const SearchMenu = ({
       price: variant.price,
       variantSelections: [
         {
+          id: variant.id,
           name: variant.name,
           price: variant.price,
           quantity: 1,
@@ -217,7 +218,7 @@ const SearchMenu = ({
                             </div>
                           )}
                         </div>
-                        
+
                         {/* Details */}
                         <div className="flex-1 p-4 flex flex-col">
                           <div className="flex justify-between items-start mb-2">
@@ -234,7 +235,7 @@ const SearchMenu = ({
                                 </p>
                               )}
                             </div>
-                            
+
                             {/* Price and Add Button */}
                             <div className="flex flex-col items-end gap-2">
                               {!orderingEnabled && (
@@ -243,7 +244,7 @@ const SearchMenu = ({
                               {!hasVariants ? (
                                 orderingEnabled ? (
                                   quantity === 0 ? (
-                                    <button 
+                                    <button
                                       onClick={() => handleAddItem(item)}
                                       className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-md transition-colors"
                                     >
@@ -283,7 +284,7 @@ const SearchMenu = ({
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Variant Options - Full Width */}
                       {hasVariants && isExpanded && (
                         <div className="border-t border-gray-100 p-4">

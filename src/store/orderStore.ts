@@ -1086,6 +1086,10 @@ const useOrderStore = create(
                 order_id: orderId,
                 menu_id: item.id.split("|")[0],
                 quantity: item.quantity,
+                variant: item.variantSelections?.[0] ? {
+                  id: item.variantSelections?.[0]?.id,
+                  name: item.variantSelections?.[0]?.name,
+                } : null,
                 item: {
                   id: item.id,
                   name: item.name,
