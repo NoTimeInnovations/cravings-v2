@@ -191,7 +191,8 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
 
   const isProductPage = pathname.startsWith("/product/");
   const isSolutionsPage = pathname.startsWith("/solutions/");
-  const isDarkText = !isScrolled && (isProductPage || isSolutionsPage);
+  const isHelpCenterPage = pathname.startsWith("/help-center");
+  const isDarkText = !isScrolled && (isProductPage || isSolutionsPage || isHelpCenterPage);
 
   useEffect(() => {
     const isApp = window?.localStorage.getItem("isApp");
