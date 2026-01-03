@@ -32,7 +32,7 @@
                 "Bulk menu updates",
                 "Granular access control"
             ],
-            "image": "/assets/mockups/agency-portal.png",
+            "image": "/assets/mockups/captain-management.png",
             "imagePosition": "right"
         },
         {
@@ -43,7 +43,7 @@
                 "Referral incentive program",
                 "Partner marketing assets"
             ],
-            "image": "/assets/mockups/agency-partners.png",
+            "image": "/assets/mockups/payout.png",
             "imagePosition": "left"
         },
         {
@@ -55,7 +55,7 @@
                 "Custom feature requests",
                 "Strategic growth consulting"
             ],
-            "image": "/assets/mockups/white-label-reports.png",
+            "image": "/assets/mockups/support.png",
             "imagePosition": "right"
         }
     ],
