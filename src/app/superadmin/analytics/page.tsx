@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import Analytics from '@/components/superAdmin/Analytics';
-import { 
+import {
   BarChart as BarChartIcon,
   ArrowLeft,
   Users,
@@ -57,6 +57,11 @@ interface QRCodeData {
   partner: {
     name: string;
     phone: string;
+    orders_aggregate?: {
+      aggregate: {
+        count: number;
+      };
+    };
   };
 }
 
@@ -173,13 +178,13 @@ const AnalyticsDashboard = () => {
   });
   const [partnerDateFilter, setPartnerDateFilter] = useState<DateFilter>('month'); // Add separate date filter state for partner dialog
   const [partnerDatePickerOpen, setPartnerDatePickerOpen] = useState(false);
-  
+
   // Add temporary state for the calendar selection
   const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>({
     from: partnerDateRange.startDate,
     to: partnerDateRange.endDate
   });
-  
+
   // Ref to track if we need to fetch partner data
   const shouldFetchPartnerData = useRef(false);
   const currentPartnerId = useRef<string | null>(null);
@@ -211,7 +216,7 @@ const AnalyticsDashboard = () => {
   useEffect(() => {
     setPartnerCurrentPage(1);
   }, [debouncedPartnerSearchTerm]);
-  
+
   // Update total pages when partner data or page size changes
   useEffect(() => {
     if (partnerData && partnerData.length > 0) {
@@ -224,10 +229,10 @@ const AnalyticsDashboard = () => {
   const updateDateRange = (filter: DateFilter) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     let start = new Date();
     const end = new Date();
-    
+
     switch (filter) {
       case 'today':
         start = new Date(today);
@@ -247,22 +252,22 @@ const AnalyticsDashboard = () => {
         // Keep current start and end dates
         return;
     }
-    
+
     setStartDate(start);
     setEndDate(end);
     setDateFilter(filter);
   };
-  
+
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return;
-    
+
     if (datePickerType === 'start') {
       setTempStartDate(date);
       setDatePickerType('end');
     } else {
       setTempEndDate(date);
       setCalendarOpen(false);
-      
+
       // Ensure end date is after start date
       if (tempStartDate && date >= tempStartDate) {
         setStartDate(tempStartDate);
@@ -278,7 +283,7 @@ const AnalyticsDashboard = () => {
       }
     }
   };
-  
+
   const openDatePicker = () => {
     setTempStartDate(startDate);
     setTempEndDate(endDate);
@@ -291,16 +296,16 @@ const AnalyticsDashboard = () => {
       setLoading(true);
       const offset = (page - 1) * itemsPerPage;
       const searchPattern = search ? `%${search}%` : '%';
-      
+
       const result = await fetchFromHasura(getTopQRCodes, {
         limit: itemsPerPage,
         offset: offset,
         search: searchPattern
       });
-      
+
       if (result && result.qr_codes) {
         setQrCodeData(result.qr_codes);
-        
+
         // Get total count from aggregate
         if (result.qr_codes_aggregate?.aggregate?.count) {
           const totalCount = result.qr_codes_aggregate.aggregate.count;
@@ -319,7 +324,7 @@ const AnalyticsDashboard = () => {
     try {
       setPartnerLoading(true);
       const searchPattern = search ? `%${search}%` : '%';
-      
+
       const result = await fetchFromHasura(getPartnerPerformance, {
         limit: 500, // Fetch a large number to handle client-side pagination
         offset: 0,
@@ -327,15 +332,15 @@ const AnalyticsDashboard = () => {
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString()
       });
-      
+
       if (result && result.partners) {
         setPartnerData(result.partners);
-        
+
         // Get total count from aggregate or use the length of the array
         const totalCount = result.partners_aggregate?.aggregate?.count || result.partners.length;
         setTotalPartners(totalCount);
         setTotalPartnerPages(Math.ceil(totalCount / partnerPageSize));
-        
+
         // Reset to first page when data changes
         setPartnerCurrentPage(1);
       }
@@ -349,7 +354,7 @@ const AnalyticsDashboard = () => {
   useEffect(() => {
     fetchQRData(currentPage, pageSize, debouncedSearchTerm);
   }, [currentPage, pageSize, debouncedSearchTerm]);
-  
+
   useEffect(() => {
     fetchPartnerData(debouncedPartnerSearchTerm);
   }, [debouncedPartnerSearchTerm, startDate, endDate]);
@@ -373,7 +378,7 @@ const AnalyticsDashboard = () => {
     setPageSize(newPageSize);
     setCurrentPage(1); // Reset to first page when changing page size
   };
-  
+
   // Handle partner pagination
   const handlePartnerPreviousPage = () => {
     if (partnerCurrentPage > 1) {
@@ -392,9 +397,9 @@ const AnalyticsDashboard = () => {
     const newPageSize = parseInt(e.target.value, 10);
     setPartnerPageSize(newPageSize);
     setPartnerCurrentPage(1); // Reset to first page when changing page size
-    
+
     // Update total pages based on the new page size
-    setTotalPartnerPages(Math.ceil(totalPartners / newPageSize));
+    // Note: This effect will be handled by the memoized values
   };
 
   // Handle search input change
@@ -411,7 +416,7 @@ const AnalyticsDashboard = () => {
   const handleClearSearch = () => {
     setSearchTerm('');
   };
-  
+
   // Clear partner search
   const handleClearPartnerSearch = () => {
     setPartnerSearchTerm('');
@@ -421,17 +426,17 @@ const AnalyticsDashboard = () => {
   const handleRefresh = () => {
     fetchQRData(currentPage, pageSize, debouncedSearchTerm);
   };
-  
+
   // Handle partner refresh button click
   const handlePartnerRefresh = () => {
     fetchPartnerData(debouncedPartnerSearchTerm);
   };
-  
+
   // Handle column sorting - only sets the sort field
   const handleSort = (field: SortField) => {
     setSortField(field);
   };
-  
+
   // Get sort icon for column headers
   const getSortIcon = (field: SortField) => {
     if (sortField === field) {
@@ -448,24 +453,38 @@ const AnalyticsDashboard = () => {
     </div>
   );
 
+  // Filter partner data to ignore hotels with scan 0 && orders 0
+  const filteredPartnerData = React.useMemo(() => {
+    if (!partnerData) return [];
+    return partnerData.filter(partner => {
+      const scans = partner.qr_codes_aggregate?.aggregate?.sum?.no_of_scans || 0;
+      const orders = partner.orders_aggregate?.aggregate?.count || 0;
+      return scans > 0 || orders > 0;
+    });
+  }, [partnerData]);
+
+  // Derive total counts from filtered data
+  const filteredTotalPartners = filteredPartnerData.length;
+  const filteredTotalPages = Math.ceil(filteredTotalPartners / partnerPageSize) || 1;
+
   // Sort and paginate the data based on current sort field (always descending)
   const sortedAndPaginatedPartnerData = React.useMemo(() => {
-    if (!partnerData || partnerData.length === 0) return [];
-    
+    if (filteredTotalPartners === 0) return [];
+
     // First sort all data (always descending order)
-    const sorted = [...partnerData].sort((a, b) => {
+    const sorted = [...filteredPartnerData].sort((a, b) => {
       // Calculate metrics for partner A
       const aOrders = a.orders_aggregate?.aggregate?.count || 0;
       const aRevenue = a.orders_aggregate?.aggregate?.sum?.total_price || 0;
       const aScans = a.qr_codes_aggregate?.aggregate?.sum?.no_of_scans || 0;
       const aAvgOrder = aOrders > 0 ? aRevenue / aOrders : 0;
-      
+
       // Calculate metrics for partner B
       const bOrders = b.orders_aggregate?.aggregate?.count || 0;
       const bRevenue = b.orders_aggregate?.aggregate?.sum?.total_price || 0;
       const bScans = b.qr_codes_aggregate?.aggregate?.sum?.no_of_scans || 0;
       const bAvgOrder = bOrders > 0 ? bRevenue / bOrders : 0;
-      
+
       // Always sort in descending order for all fields
       switch (sortField) {
         case 'name':
@@ -480,41 +499,41 @@ const AnalyticsDashboard = () => {
           return b.name.localeCompare(a.name); // Default to name descending
       }
     });
-    
+
     // Then apply pagination
     const startIndex = (partnerCurrentPage - 1) * partnerPageSize;
     const endIndex = startIndex + partnerPageSize;
     return sorted.slice(startIndex, endIndex);
-  }, [partnerData, sortField, partnerCurrentPage, partnerPageSize]);
+  }, [filteredPartnerData, filteredTotalPartners, sortField, partnerCurrentPage, partnerPageSize]);
 
   // Memoize the fetchPartnerOrderData function to avoid recreation on each render
   const fetchPartnerOrderData = useCallback(async (partnerId: string) => {
     if (!partnerId) return [];
-    
-    console.log("Fetching partner order data:", { 
+
+    console.log("Fetching partner order data:", {
       partnerId,
       startDate: partnerDateRange.startDate.toISOString(),
       endDate: partnerDateRange.endDate.toISOString()
     });
-    
+
     setPartnerOrdersLoading(true);
     try {
       // Create fresh date objects to prevent caching issues
       const queryStartDate = new Date(partnerDateRange.startDate.getTime());
       const queryEndDate = new Date(partnerDateRange.endDate.getTime());
-      
+
       const result = await fetchFromHasura(getOrdersByDay, {
         startDate: queryStartDate.toISOString(),
         endDate: queryEndDate.toISOString(),
         partnerId: partnerId
       });
-      
+
       console.log(`Fetched ${result?.orders?.length || 0} orders for date range:`, {
         filter: partnerDateFilter,
         start: queryStartDate.toISOString(),
         end: queryEndDate.toISOString()
       });
-      
+
       let orders: OrderData[] = [];
       if (result && result.orders) {
         // Force a fresh array to ensure state update
@@ -551,7 +570,7 @@ const AnalyticsDashboard = () => {
       shouldFetchPartnerData.current = true;
     }
   }, []);
-  
+
   // Effect to fetch partner data when necessary
   useEffect(() => {
     // Only fetch data when modal is actually visible
@@ -563,20 +582,20 @@ const AnalyticsDashboard = () => {
             shouldFetchPartnerData.current = false;
           });
       }, 50);
-      
+
       return () => clearTimeout(timer);
     }
   }, [fetchPartnerOrderData, isPartnerModalOpen]);
-  
+
   // Function to fetch partner metrics with time filter
   const fetchPartnerMetrics = useCallback(async (partnerId: string, forceRefresh = false) => {
     try {
-      console.log("Fetching partner metrics with time filter:", { 
-        startDate: partnerDateRange.startDate.toISOString(), 
+      console.log("Fetching partner metrics with time filter:", {
+        startDate: partnerDateRange.startDate.toISOString(),
         endDate: partnerDateRange.endDate.toISOString(),
         filter: partnerDateFilter
       });
-      
+
       // Force a refetch of orders with the current date range
       if (partnerId && (forceRefresh || selectedPartner?.id === partnerId)) {
         // Always fetch fresh data when requested
@@ -596,22 +615,22 @@ const AnalyticsDashboard = () => {
       startDate: new Date(startDate.getTime()),
       endDate: new Date(endDate.getTime())
     });
-    
+
     // Also set the partner date filter to match the main date filter
     setPartnerDateFilter(dateFilter);
-    
+
     // Pre-load the partner data before opening the dialog
     currentPartnerId.current = partner.id;
     shouldFetchPartnerData.current = true;
     setPartnerOrdersLoading(true);
-    
+
     // Start data loading process before opening modal
     // Wait a small amount of time to ensure state updates have propagated
     setTimeout(() => {
       fetchPartnerOrderData(partner.id).then(() => {
         // Once data is fetched, set the selected partner
         setSelectedPartner(partner);
-        
+
         // Then open the modal with a stable content size
         setIsPartnerModalOpen(true);
       }).finally(() => {
@@ -631,39 +650,39 @@ const AnalyticsDashboard = () => {
   // Prepare chart data for partner orders by day
   const preparePartnerOrderChartData = () => {
     if (!partnerOrderData || partnerOrderData.length === 0) return [];
-    
+
     const dailyData: { [date: string]: { date: string, orders: number, revenue: number } } = {};
-    
+
     partnerOrderData.forEach(order => {
       const orderDate = format(new Date(order.created_at), 'MMM dd');
-      
+
       if (!dailyData[orderDate]) {
         dailyData[orderDate] = { date: orderDate, orders: 0, revenue: 0 };
       }
-      
+
       dailyData[orderDate].orders++;
       dailyData[orderDate].revenue += order.total_price;
     });
-    
+
     return Object.values(dailyData);
   };
 
   // Prepare chart data for order statuses
   const prepareOrderStatusChartData = () => {
     if (!partnerOrderData || partnerOrderData.length === 0) return [];
-    
+
     const statusCounts: { [status: string]: number } = {
       completed: 0,
       pending: 0,
       cancelled: 0
     };
-    
+
     partnerOrderData.forEach(order => {
       if (order.status in statusCounts) {
         statusCounts[order.status]++;
       }
     });
-    
+
     return [
       { name: 'Completed', value: statusCounts.completed },
       { name: 'Pending', value: statusCounts.pending },
@@ -674,18 +693,18 @@ const AnalyticsDashboard = () => {
   // Calculate hourly distribution of orders
   const prepareHourlyOrdersData = () => {
     if (!partnerOrderData || partnerOrderData.length === 0) return [];
-    
-    const hourlyData = Array(24).fill(0).map((_, i) => ({ 
-      hour: i, 
+
+    const hourlyData = Array(24).fill(0).map((_, i) => ({
+      hour: i,
       label: `${i}:00`,
-      orders: 0 
+      orders: 0
     }));
-    
+
     partnerOrderData.forEach(order => {
       const orderHour = new Date(order.created_at).getHours();
       hourlyData[orderHour].orders++;
     });
-    
+
     return hourlyData;
   };
 
@@ -694,29 +713,29 @@ const AnalyticsDashboard = () => {
     <div className="flex flex-col md:flex-row items-center gap-2 mb-4">
       <div className="text-sm text-gray-500">Filter by:</div>
       <div className="flex flex-wrap gap-2">
-        <Button 
-          variant={dateFilter === 'today' ? 'default' : 'outline'} 
+        <Button
+          variant={dateFilter === 'today' ? 'default' : 'outline'}
           size="sm"
           onClick={() => updateDateRange('today')}
         >
           Today
         </Button>
-        <Button 
-          variant={dateFilter === 'week' ? 'default' : 'outline'} 
+        <Button
+          variant={dateFilter === 'week' ? 'default' : 'outline'}
           size="sm"
           onClick={() => updateDateRange('week')}
         >
           Last 7 Days
         </Button>
-        <Button 
-          variant={dateFilter === 'month' ? 'default' : 'outline'} 
+        <Button
+          variant={dateFilter === 'month' ? 'default' : 'outline'}
           size="sm"
           onClick={() => updateDateRange('month')}
         >
           Last 30 Days
         </Button>
-        <Button 
-          variant={dateFilter === 'all' ? 'default' : 'outline'} 
+        <Button
+          variant={dateFilter === 'all' ? 'default' : 'outline'}
           size="sm"
           onClick={() => updateDateRange('all')}
         >
@@ -724,14 +743,14 @@ const AnalyticsDashboard = () => {
         </Button>
         <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
           <PopoverTrigger asChild>
-            <Button 
-              variant={dateFilter === 'custom' ? 'default' : 'outline'} 
-              size="sm" 
+            <Button
+              variant={dateFilter === 'custom' ? 'default' : 'outline'}
+              size="sm"
               onClick={openDatePicker}
               className="flex items-center gap-2"
             >
               <Calendar className="h-4 w-4" />
-              {dateFilter === 'custom' 
+              {dateFilter === 'custom'
                 ? `${format(startDate, 'MMM d, yyyy')} - ${format(endDate, 'MMM d, yyyy')}`
                 : 'Custom Range'}
             </Button>
@@ -766,38 +785,38 @@ const AnalyticsDashboard = () => {
     if (range?.from) {
       // Set loading state immediately to show feedback
       setPartnerOrdersLoading(true);
-      
+
       try {
         console.log('Custom date range selected:', range);
-        
+
         // Update the partner date filter state to custom first
         setPartnerDateFilter('custom');
-        
+
         // Set from date to beginning of day
         const startDate = new Date(range.from);
         startDate.setHours(0, 0, 0, 0);
-        
+
         // Set to date to end of day - if no 'to' date is selected, use the from date
         const endDate = range.to ? new Date(range.to) : new Date(range.from);
         endDate.setHours(23, 59, 59, 999);
-        
+
         // Force a completely new date range object to ensure React detects the change
         const newDateRange = {
           startDate: new Date(startDate.getTime()),
           endDate: new Date(endDate.getTime())
         };
-        
+
         console.log("Setting custom date range:", {
           startDate: newDateRange.startDate.toISOString(),
           endDate: newDateRange.endDate.toISOString()
         });
-        
+
         // Update the date range state with the new object
         setPartnerDateRange(newDateRange);
-        
+
         // Close the date picker dialog
         setPartnerDatePickerOpen(false);
-        
+
         // Always refetch data regardless of current filter
         if (currentPartnerId.current) {
           // Wait a small amount of time to ensure state updates have propagated
@@ -815,20 +834,20 @@ const AnalyticsDashboard = () => {
   // Handle partner date range selection for specific preset ranges
   const handlePartnerPresetRange = useCallback(async (range: 'today' | 'week' | 'month' | 'all') => {
     console.log(`Changing partner filter to: ${range} (previous: ${partnerDateFilter})`);
-    
+
     // Always set loading state immediately to show feedback
     setPartnerOrdersLoading(true);
-    
+
     try {
       // Update the partner date filter state first
       setPartnerDateFilter(range);
-      
+
       const today = new Date();
       let startDate;
       const endDate = new Date();
       // Set time to end of day
       endDate.setHours(23, 59, 59, 999);
-      
+
       switch (range) {
         case 'today':
           startDate = new Date(today);
@@ -851,22 +870,22 @@ const AnalyticsDashboard = () => {
           startDate = new Date(2020, 0, 1); // Far past date
           break;
       }
-      
+
       // Force a completely new date range object to ensure React detects the change
       const newDateRange = {
         startDate: new Date(startDate.getTime()),
         endDate: new Date(endDate.getTime())
       };
-      
+
       console.log("Setting new date range:", {
         filter: range,
         startDate: newDateRange.startDate.toISOString(),
         endDate: newDateRange.endDate.toISOString()
       });
-      
+
       // Update date range state with the new object
       setPartnerDateRange(newDateRange);
-      
+
       // Always refetch data regardless of current filter
       if (currentPartnerId.current) {
         // Force a direct refresh of partner data with the new range
@@ -894,15 +913,15 @@ const AnalyticsDashboard = () => {
     const completedOrders = partnerOrderData.filter(order => order.status === 'completed').length;
     const pendingOrders = partnerOrderData.filter(order => order.status === 'pending').length;
     const cancelledOrders = partnerOrderData.filter(order => order.status === 'cancelled').length;
-    
+
     // Calculate the number of unique dates with orders to estimate number of scans
     const uniqueDatesWithOrders = new Set(
       partnerOrderData.map(order => new Date(order.created_at).toDateString())
     ).size;
-    
+
     // Use the unique dates as an estimate for scans (at least 1 scan per day with orders)
     const totalScans = Math.max(uniqueDatesWithOrders, totalOrders > 0 ? 1 : 0);
-    
+
     const completionRate = totalOrders > 0 ? (completedOrders / totalOrders * 100).toFixed(1) : '0';
 
     const orderStatusData = prepareOrderStatusChartData();
@@ -921,8 +940,8 @@ const AnalyticsDashboard = () => {
     const dialogKey = `${partnerDateFilter}-${partnerDateRange.startDate.getTime()}-${partnerDateRange.endDate.getTime()}`;
 
     return (
-      <Dialog 
-        open={isPartnerModalOpen} 
+      <Dialog
+        open={isPartnerModalOpen}
         onOpenChange={handleOpenChange}
         key={dialogKey}
       >
@@ -935,7 +954,7 @@ const AnalyticsDashboard = () => {
                   Partner Performance Details
                 </DialogDescription>
               </div>
-              
+
               <div className="text-right">
                 <div className="flex items-center justify-end mb-1 text-gray-600">
                   <Phone className="h-4 w-4 mr-1" />
@@ -947,13 +966,13 @@ const AnalyticsDashboard = () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Date Range Filters */}
             <div className="mb-6">
               <div className="text-sm text-gray-600 mb-2">Filter by:</div>
               <div className="flex flex-wrap gap-2">
-                <Button 
-                  variant={partnerDateFilter === 'today' ? 'default' : 'outline'} 
+                <Button
+                  variant={partnerDateFilter === 'today' ? 'default' : 'outline'}
                   size="default"
                   onClick={() => handlePartnerPresetRange('today')}
                   className="min-w-[100px]"
@@ -968,8 +987,8 @@ const AnalyticsDashboard = () => {
                     'Today'
                   )}
                 </Button>
-                <Button 
-                  variant={partnerDateFilter === 'week' ? 'default' : 'outline'} 
+                <Button
+                  variant={partnerDateFilter === 'week' ? 'default' : 'outline'}
                   size="default"
                   onClick={() => handlePartnerPresetRange('week')}
                   className="min-w-[100px]"
@@ -984,8 +1003,8 @@ const AnalyticsDashboard = () => {
                     'Last 7 Days'
                   )}
                 </Button>
-                <Button 
-                  variant={partnerDateFilter === 'month' ? 'default' : 'outline'} 
+                <Button
+                  variant={partnerDateFilter === 'month' ? 'default' : 'outline'}
                   size="default"
                   onClick={() => handlePartnerPresetRange('month')}
                   className="min-w-[100px]"
@@ -1000,8 +1019,8 @@ const AnalyticsDashboard = () => {
                     'Last 30 Days'
                   )}
                 </Button>
-                <Button 
-                  variant={partnerDateFilter === 'all' ? 'default' : 'outline'} 
+                <Button
+                  variant={partnerDateFilter === 'all' ? 'default' : 'outline'}
                   size="default"
                   onClick={() => handlePartnerPresetRange('all')}
                   className="min-w-[100px]"
@@ -1016,8 +1035,8 @@ const AnalyticsDashboard = () => {
                     'All Time'
                   )}
                 </Button>
-                <Button 
-                  variant={partnerDateFilter === 'custom' ? 'default' : 'outline'} 
+                <Button
+                  variant={partnerDateFilter === 'custom' ? 'default' : 'outline'}
                   size="default"
                   onClick={() => setPartnerDatePickerOpen(true)}
                   className="flex items-center min-w-[140px]"
@@ -1031,7 +1050,7 @@ const AnalyticsDashboard = () => {
                   ) : (
                     <>
                       <Calendar className="mr-2 h-4 w-4" />
-                      {partnerDateFilter === 'custom' 
+                      {partnerDateFilter === 'custom'
                         ? `${format(partnerDateRange.startDate, 'MMM d')} - ${format(partnerDateRange.endDate, 'MMM d')}`
                         : 'Custom Range'}
                     </>
@@ -1039,7 +1058,7 @@ const AnalyticsDashboard = () => {
                 </Button>
               </div>
             </div>
-            
+
             {/* Add a separate Dialog for the date picker */}
             <Dialog open={partnerDatePickerOpen} onOpenChange={(open) => {
               if (open) {
@@ -1066,14 +1085,14 @@ const AnalyticsDashboard = () => {
                     initialFocus
                   />
                   <div className="mt-4 flex justify-end">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => setPartnerDatePickerOpen(false)}
                       className="mr-2"
                     >
                       Cancel
                     </Button>
-                    <Button 
+                    <Button
                       onClick={() => {
                         if (currentPartnerId.current && tempDateRange?.from) {
                           handlePartnerDateRangeSelect(tempDateRange);
@@ -1088,7 +1107,7 @@ const AnalyticsDashboard = () => {
                 </div>
               </DialogContent>
             </Dialog>
-            
+
             {/* Key Metrics */}
             <div className="relative grid grid-cols-6 gap-4 mb-6">
               {/* Loading overlay */}
@@ -1100,7 +1119,7 @@ const AnalyticsDashboard = () => {
                   </div>
                 </div>
               )}
-              
+
               <div className="text-center">
                 <div className="text-sm text-gray-600 mb-1">Scans</div>
                 <div className="text-3xl font-semibold">{totalScans}</div>
@@ -1126,11 +1145,11 @@ const AnalyticsDashboard = () => {
                 <div className="text-3xl font-semibold">{cancelledOrders}</div>
               </div>
             </div>
-            
+
             {/* Completed Orders List */}
             <div className="mt-6">
               <h3 className="font-medium text-gray-700 mb-4 text-lg">Orders</h3>
-              
+
               {partnerOrdersLoading ? (
                 <div className="h-64 flex items-center justify-center">
                   <Loader2 className="h-8 w-8 text-gray-400 animate-spin mr-2" />
@@ -1159,11 +1178,10 @@ const AnalyticsDashboard = () => {
                             </td>
                             <td className="py-3 px-4">₹{order.total_price.toFixed(2)}</td>
                             <td className="py-3 px-4">
-                              <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${order.status === 'completed' ? 'bg-green-100 text-green-800' :
                                 order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                                'bg-yellow-100 text-yellow-800'
-                              }`}>
+                                  'bg-yellow-100 text-yellow-800'
+                                }`}>
                                 {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                               </span>
                             </td>
@@ -1193,18 +1211,18 @@ const AnalyticsDashboard = () => {
         <Link href="/superadmin" className="flex items-center text-orange-600 mb-4 hover:underline">
           <ArrowLeft size={16} className="mr-1" /> Back to Dashboard
         </Link>
-        
+
         <div className="flex justify-between items-center">
           <h1 className="text-2xl lg:text-4xl font-bold">App Analytics</h1>
         </div>
       </div>
-      
+
       {/* Include the Analytics component */}
       <Analytics />
-      
+
       {/* Include the partner modal with key that changes when date filter changes */}
       <PartnerModal key={`partner-modal-${partnerDateFilter}-${partnerDateRange.startDate.getTime()}-${partnerDateRange.endDate.getTime()}`} />
-      
+
       {/* Additional Data Tables Section */}
       <div className="grid grid-cols-1 gap-6 mt-6">
         <Card className="p-4 border-2 border-[#ffba79]/20 bg-[#fffefd]">
@@ -1217,8 +1235,8 @@ const AnalyticsDashboard = () => {
                   <span className="text-xs text-gray-500">Refreshing...</span>
                 </div>
               )}
-              <button 
-                onClick={handlePartnerRefresh} 
+              <button
+                onClick={handlePartnerRefresh}
                 className="text-sm text-orange-600 mr-4 hover:underline flex items-center"
                 disabled={partnerLoading}
               >
@@ -1228,9 +1246,9 @@ const AnalyticsDashboard = () => {
               <button className="text-sm text-orange-600 hover:underline">Export CSV</button>
             </div>
           </div>
-          
+
           <DateRangeFilter />
-          
+
           {/* Search Bar */}
           <div className="mb-4">
             <div className="relative">
@@ -1254,12 +1272,12 @@ const AnalyticsDashboard = () => {
               )}
             </div>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th 
+                  <th
                     className="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('name')}
                     title="Click to sort by partner name (Z-A)"
@@ -1269,7 +1287,7 @@ const AnalyticsDashboard = () => {
                       {getSortIcon('name')}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="py-2 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('scans')}
                     title="Click to sort by highest scan count first"
@@ -1279,7 +1297,7 @@ const AnalyticsDashboard = () => {
                       {getSortIcon('scans')}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="py-2 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('orders')}
                     title="Click to sort by highest order count first"
@@ -1289,7 +1307,7 @@ const AnalyticsDashboard = () => {
                       {getSortIcon('orders')}
                     </div>
                   </th>
-                  <th 
+                  <th
                     className="py-2 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('avgOrderValue')}
                     title="Click to sort by highest average order value first"
@@ -1318,8 +1336,8 @@ const AnalyticsDashboard = () => {
                         <div className="flex flex-col items-center py-6">
                           <Search className="h-8 w-8 text-gray-400 mb-2" />
                           <p>No partners found for "<span className="font-medium">{debouncedPartnerSearchTerm}</span>"</p>
-                          <button 
-                            onClick={handleClearPartnerSearch} 
+                          <button
+                            onClick={handleClearPartnerSearch}
                             className="mt-2 text-sm text-orange-600 hover:underline"
                           >
                             Clear search
@@ -1335,59 +1353,58 @@ const AnalyticsDashboard = () => {
                     // Calculate average order value
                     const totalOrders = partner.orders_aggregate?.aggregate?.count || 0;
                     const totalRevenue = partner.orders_aggregate?.aggregate?.sum?.total_price || 0;
-                    const avgOrderValue = totalOrders > 0 
-                      ? (totalRevenue / totalOrders).toFixed(2) 
+                    const avgOrderValue = totalOrders > 0
+                      ? (totalRevenue / totalOrders).toFixed(2)
                       : '0.00';
-                    
+
                     // Get total scans
                     const totalScans = partner.qr_codes_aggregate?.aggregate?.sum?.no_of_scans || 0;
-                  
-                  return (
-                    <tr key={partner.id} className="hover:bg-gray-50">
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-3">
-                            <Building size={16} />
+
+                    return (
+                      <tr key={partner.id} className="hover:bg-gray-50">
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-3">
+                              <Building size={16} />
+                            </div>
+                            <button
+                              onClick={() => handlePartnerClick(partner)}
+                              className="text-blue-600 hover:underline text-left"
+                            >
+                              {partner.name}
+                            </button>
                           </div>
-                          <button
-                            onClick={() => handlePartnerClick(partner)}
-                            className="text-blue-600 hover:underline text-left"
-                          >
-                            {partner.name}
-                          </button>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 whitespace-nowrap">{totalScans}</td>
-                      <td className="py-3 px-4 whitespace-nowrap">{totalOrders}</td>
-                      <td className="py-3 px-4 whitespace-nowrap">₹{avgOrderValue}</td>
-                                                <td className="py-3 px-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        totalOrders > 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {totalOrders > 0 ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    </tr>
-                  );
-                })
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">{totalScans}</td>
+                        <td className="py-3 px-4 whitespace-nowrap">{totalOrders}</td>
+                        <td className="py-3 px-4 whitespace-nowrap">₹{avgOrderValue}</td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${totalOrders > 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                            {totalOrders > 0 ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
-            
+
             {/* Pagination Controls */}
-            {!partnerLoading && partnerData.length > 0 && (
+            {!partnerLoading && filteredTotalPartners > 0 && (
               <div className="flex flex-col sm:flex-row items-center justify-between mt-4 px-4 gap-4">
                 <div className="text-sm text-gray-700">
                   Showing <span className="font-medium">{(partnerCurrentPage - 1) * partnerPageSize + 1}</span> to{' '}
                   <span className="font-medium">
-                    {Math.min(partnerCurrentPage * partnerPageSize, totalPartners)}
+                    {Math.min(partnerCurrentPage * partnerPageSize, filteredTotalPartners)}
                   </span>{' '}
-                  of <span className="font-medium">{totalPartners}</span> results
+                  of <span className="font-medium">{filteredTotalPartners}</span> results
                   {debouncedPartnerSearchTerm && (
                     <span className="ml-1">
                       for "<span className="font-medium">{debouncedPartnerSearchTerm}</span>"
-                      <button 
-                        onClick={handleClearPartnerSearch} 
+                      <button
+                        onClick={handleClearPartnerSearch}
                         className="ml-2 text-orange-600 hover:underline"
                       >
                         Clear
@@ -1395,7 +1412,7 @@ const AnalyticsDashboard = () => {
                     </span>
                   )}
                 </div>
-                
+
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center">
                     <label htmlFor="partnerPageSize" className="mr-2 text-sm text-gray-600">
@@ -1414,28 +1431,26 @@ const AnalyticsDashboard = () => {
                       ))}
                     </select>
                   </div>
-                  
+
                   <div className="flex space-x-2">
                     <button
                       onClick={handlePartnerPreviousPage}
                       disabled={partnerCurrentPage === 1 || partnerLoading}
-                      className={`inline-flex items-center px-3 py-2 border border-gray-300 text-sm rounded-md ${
-                        partnerCurrentPage === 1 || partnerLoading
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
+                      className={`inline-flex items-center px-3 py-2 border border-gray-300 text-sm rounded-md ${partnerCurrentPage === 1 || partnerLoading
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
                     >
                       <ChevronLeft size={16} className="mr-1" />
                       Previous
                     </button>
                     <button
                       onClick={handlePartnerNextPage}
-                      disabled={partnerCurrentPage === totalPartnerPages || partnerLoading}
-                      className={`inline-flex items-center px-3 py-2 border border-gray-300 text-sm rounded-md ${
-                        partnerCurrentPage === totalPartnerPages || partnerLoading
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
+                      disabled={partnerCurrentPage === filteredTotalPages || partnerLoading}
+                      className={`inline-flex items-center px-3 py-2 border border-gray-300 text-sm rounded-md ${partnerCurrentPage === filteredTotalPages || partnerLoading
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
                     >
                       Next
                       <ChevronRight size={16} className="ml-1" />
@@ -1446,13 +1461,13 @@ const AnalyticsDashboard = () => {
             )}
           </div>
         </Card>
-        
+
         <Card className="p-4 border-2 border-[#ffba79]/20 bg-[#fffefd]">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Recent User Activity</h3>
             <button className="text-sm text-orange-600">Export CSV</button>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead className="bg-gray-50">
@@ -1493,7 +1508,7 @@ const AnalyticsDashboard = () => {
             </table>
           </div>
         </Card>
-        
+
         <Card className="p-4 border-2 border-[#ffba79]/20 bg-[#fffefd]">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">QR Code Scan Statistics</h3>
@@ -1504,8 +1519,8 @@ const AnalyticsDashboard = () => {
                   <span className="text-xs text-gray-500">Refreshing...</span>
                 </div>
               )}
-              <button 
-                onClick={handleRefresh} 
+              <button
+                onClick={handleRefresh}
                 className="text-sm text-orange-600 mr-4 hover:underline flex items-center"
                 disabled={loading}
               >
@@ -1515,7 +1530,7 @@ const AnalyticsDashboard = () => {
               <button className="text-sm text-orange-600 hover:underline">Export CSV</button>
             </div>
           </div>
-          
+
           {/* Search Bar */}
           <div className="mb-4">
             <div className="relative">
@@ -1539,14 +1554,14 @@ const AnalyticsDashboard = () => {
               )}
             </div>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Partner</th>
                   <th className="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">QR ID</th>
-                  <th className="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Table Number</th>
+                  <th className="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Scans</th>
                 </tr>
               </thead>
@@ -1564,8 +1579,8 @@ const AnalyticsDashboard = () => {
                         <div className="flex flex-col items-center py-6">
                           <Search className="h-8 w-8 text-gray-400 mb-2" />
                           <p>No QR codes found for "<span className="font-medium">{debouncedSearchTerm}</span>"</p>
-                          <button 
-                            onClick={handleClearSearch} 
+                          <button
+                            onClick={handleClearSearch}
                             className="mt-2 text-sm text-orange-600 hover:underline"
                           >
                             Clear search
@@ -1588,14 +1603,19 @@ const AnalyticsDashboard = () => {
                         </div>
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">{qr.id.substring(0, 7)}</td>
-                      <td className="py-3 px-4 whitespace-nowrap">{qr.table_number || 'N/A'}</td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${(qr.partner.orders_aggregate?.aggregate?.count || 0) > 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                          {(qr.partner.orders_aggregate?.aggregate?.count || 0) > 0 ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
                       <td className="py-3 px-4 whitespace-nowrap">{qr.no_of_scans}</td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
-            
+
             {/* Pagination Controls */}
             {!loading && qrCodeData.length > 0 && (
               <div className="flex flex-col sm:flex-row items-center justify-between mt-4 px-4 gap-4">
@@ -1608,8 +1628,8 @@ const AnalyticsDashboard = () => {
                   {debouncedSearchTerm && (
                     <span className="ml-1">
                       for "<span className="font-medium">{debouncedSearchTerm}</span>"
-                      <button 
-                        onClick={handleClearSearch} 
+                      <button
+                        onClick={handleClearSearch}
                         className="ml-2 text-orange-600 hover:underline"
                       >
                         Clear
@@ -1617,7 +1637,7 @@ const AnalyticsDashboard = () => {
                     </span>
                   )}
                 </div>
-                
+
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center">
                     <label htmlFor="pageSize" className="mr-2 text-sm text-gray-600">
@@ -1636,16 +1656,15 @@ const AnalyticsDashboard = () => {
                       ))}
                     </select>
                   </div>
-                  
+
                   <div className="flex space-x-2">
                     <button
                       onClick={handlePreviousPage}
                       disabled={currentPage === 1 || loading}
-                      className={`inline-flex items-center px-3 py-2 border border-gray-300 text-sm rounded-md ${
-                        currentPage === 1 || loading
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
+                      className={`inline-flex items-center px-3 py-2 border border-gray-300 text-sm rounded-md ${currentPage === 1 || loading
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
                     >
                       <ChevronLeft size={16} className="mr-1" />
                       Previous
@@ -1653,11 +1672,10 @@ const AnalyticsDashboard = () => {
                     <button
                       onClick={handleNextPage}
                       disabled={currentPage === totalPages || loading}
-                      className={`inline-flex items-center px-3 py-2 border border-gray-300 text-sm rounded-md ${
-                        currentPage === totalPages || loading
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
+                      className={`inline-flex items-center px-3 py-2 border border-gray-300 text-sm rounded-md ${currentPage === totalPages || loading
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
                     >
                       Next
                       <ChevronRight size={16} className="ml-1" />
