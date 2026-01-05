@@ -48,10 +48,12 @@ export default function Footer() {
                         <h4 className="font-semibold text-white mb-6">Products</h4>
                         <ul className="space-y-4">
                             <li><Link href="/product/digital-menu" className="text-orange-100 hover:text-white transition-colors hover:underline">Digital Menu</Link></li>
+                            <li><Link href="/product/delivery-website" className="text-orange-100 hover:text-white transition-colors hover:underline">Own Delivery Website</Link></li>
                             <li><Link href="/product/pos" className="text-orange-100 hover:text-white transition-colors hover:underline">POS System</Link></li>
-                            <li><Link href="/product/inventory-management" className="text-orange-100 hover:text-white transition-colors hover:underline">Inventory</Link></li>
-                            <li><Link href="/product/marketing" className="text-orange-100 hover:text-white transition-colors hover:underline">Marketing Tools</Link></li>
                             <li><Link href="/product/table-ordering" className="text-orange-100 hover:text-white transition-colors hover:underline">Table Ordering</Link></li>
+                            <li><Link href="/product/captain-ordering" className="text-orange-100 hover:text-white transition-colors hover:underline">Captain Ordering</Link></li>
+                            {/* <li><Link href="/product/inventory-management" className="text-orange-100 hover:text-white transition-colors hover:underline">Inventory</Link></li> */}
+                            {/* <li><Link href="/product/marketing" className="text-orange-100 hover:text-white transition-colors hover:underline">Marketing Tools</Link></li> */}
                         </ul>
                     </div>
 
@@ -59,31 +61,30 @@ export default function Footer() {
                     <div>
                         <h4 className="font-semibold text-white mb-6">Resources</h4>
                         <ul className="space-y-4">
-                            <li><Link href="/blogs" className="text-orange-100 hover:text-white transition-colors hover:underline">Blog</Link></li>
+                            {/* <li><Link href="/blogs" className="text-orange-100 hover:text-white transition-colors hover:underline">Blog</Link></li> */}
                             <li><Link href="/help-center" className="text-orange-100 hover:text-white transition-colors hover:underline">Help Center</Link></li>
-                            <li><Link href="/case-studies" className="text-orange-100 hover:text-white transition-colors hover:underline">Case Studies</Link></li>
-                            <li><Link href="/guides" className="text-orange-100 hover:text-white transition-colors hover:underline">Guides</Link></li>
+                            {/* <li><Link href="/case-studies" className="text-orange-100 hover:text-white transition-colors hover:underline">Case Studies</Link></li> */}
+                            {/* <li><Link href="/guides" className="text-orange-100 hover:text-white transition-colors hover:underline">Guides</Link></li> */}
                         </ul>
                     </div>
 
                     {/* Column 4: Company */}
-                    <div>
+                    {/* <div>
                         <h4 className="font-semibold text-white mb-6">Company</h4>
                         <ul className="space-y-4">
-                            <li><Link href="/about-us" className="text-orange-100 hover:text-white transition-colors hover:underline">About Us</Link></li>
-                            <li><Link href="/careers" className="text-orange-100 hover:text-white transition-colors hover:underline">Careers</Link></li>
-                            <li><Link href="/contact" className="text-orange-100 hover:text-white transition-colors hover:underline">Contact</Link></li>
-                            <li><Link href="/partners" className="text-orange-100 hover:text-white transition-colors hover:underline">Partners</Link></li>
-                        </ul>
-                    </div>
+                            {/* <li><Link href="/about-us" className="text-orange-100 hover:text-white transition-colors hover:underline">About Us</Link></li> */}
+                            {/* <li><Link href="/careers" className="text-orange-100 hover:text-white transition-colors hover:underline">Careers</Link></li> */}
+                            {/* <li><Link href="/contact" className="text-orange-100 hover:text-white transition-colors hover:underline">Contact</Link></li> */}
+                            {/* <li><Link href="/partners" className="text-orange-100 hover:text-white transition-colors hover:underline">Partners</Link></li> */}
+                        {/* </ul> */}
+                    {/* </div>  */}
 
                     {/* Column 5: Legal */}
                     <div>
                         <h4 className="font-semibold text-white mb-6">Legal</h4>
                         <ul className="space-y-4">
-                            <li><Link href="/privacy" className="text-orange-100 hover:text-white transition-colors hover:underline">Privacy Policy</Link></li>
-                            <li><Link href="/terms" className="text-orange-100 hover:text-white transition-colors hover:underline">Terms of Service</Link></li>
-                            <li><Link href="/cookie-policy" className="text-orange-100 hover:text-white transition-colors hover:underline">Cookie Policy</Link></li>
+                            <li><Link href="/privacy-policy" className="text-orange-100 hover:text-white transition-colors hover:underline">Privacy Policy</Link></li>
+                            <li><Link href="/terms-and-conditions" className="text-orange-100 hover:text-white transition-colors hover:underline">Terms of Service</Link></li>
                         </ul>
                     </div>
                 </div>
@@ -92,12 +93,12 @@ export default function Footer() {
                 <div className="pt-8 border-t border-white/40 flex flex-col md:flex-row justify-between items-center gap-6">
                     {/* Copyright & Language */}
                     <div className="flex flex-col md:flex-row items-center gap-6">
-                        <select className="bg-transparent border border-white/30 rounded-md px-3 py-1.5 text-sm text-white/90 focus:outline-none focus:border-white cursor-pointer [&>option]:text-gray-900">
+                        {/* <select className="bg-transparent border border-white/30 rounded-md px-3 py-1.5 text-sm text-white/90 focus:outline-none focus:border-white cursor-pointer [&>option]:text-gray-900">
                             <option>English</option>
                             <option>Español</option>
                             <option>Français</option>
-                        </select>
-                        <span className="text-sm text-orange-100/80">© 2025 Cravings. All rights reserved.</span>
+                        </select> */}
+                        <span className="text-sm text-orange-100/80">© 2026 Cravings. All rights reserved.</span>
                     </div>
 
                     {/* Branding / Tagline */}
@@ -107,10 +108,10 @@ export default function Footer() {
 
                     {/* Social Icons */}
                     <div className="flex items-center gap-5">
-                        <Link href="#" className="text-orange-200 hover:text-white transition-colors"><Instagram className="w-5 h-5" /></Link>
+                        <Link href="https://www.instagram.com/cravings.live/" className="text-orange-200 hover:text-white transition-colors"><Instagram className="w-5 h-5" /></Link>
                         <Link href="#" className="text-orange-200 hover:text-white transition-colors"><Twitter className="w-5 h-5" /></Link>
-                        <Link href="#" className="text-orange-200 hover:text-white transition-colors"><Linkedin className="w-5 h-5" /></Link>
-                        <Link href="#" className="text-orange-200 hover:text-white transition-colors"><Facebook className="w-5 h-5" /></Link>
+                        <Link href="https://www.linkedin.com/company/notime-edu/" className="text-orange-200 hover:text-white transition-colors"><Linkedin className="w-5 h-5" /></Link>
+                        <Link href="https://www.facebook.com/share/1GwAyvArT8/" className="text-orange-200 hover:text-white transition-colors"><Facebook className="w-5 h-5" /></Link>
                     </div>
                 </div>
             </div>

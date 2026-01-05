@@ -1,6 +1,8 @@
 User-agent: *
 Allow: /
 Disallow: /admin/
+Disallow: /admin-v2/
+Disallow: /captain/
 Disallow: /api/
 Disallow: /superadmin/
 Disallow: /test/
