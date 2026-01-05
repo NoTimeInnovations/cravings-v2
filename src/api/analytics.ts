@@ -72,6 +72,11 @@ export const getTopQRCodes = `
       partner {
         name
         phone
+        orders_aggregate {
+          aggregate {
+            count
+          }
+        }
       }
     }
     
@@ -159,7 +164,7 @@ export const getPartnerMetrics = `
     }
     active_partners: partners_aggregate(
       where: { 
-        _exists: { menu: true }
+        menu: { deletion_status: { _eq: 0 } }
       }
     ) {
       aggregate {
@@ -181,13 +186,14 @@ export const getUserMetrics = `
     }
     active_users: users_aggregate(
       where: { 
-        _exists: { orders: true },
-        created_at: { _gte: $startDate, _lte: $endDate }
+        orders: { created_at: { _gte: $startDate, _lte: $endDate } }
       }
     ) {
       aggregate {
         count
       }
+    }
+  }
 `;
 
 // Query to get scan analytics by QR IDs (avoids relationship dependency)

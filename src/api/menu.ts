@@ -25,6 +25,7 @@ export const getMenu = `
             is_available
             is_veg
             tags
+            pp_id
         }
     }
 `;

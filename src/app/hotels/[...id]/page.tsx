@@ -251,12 +251,12 @@ const HotelPage = async ({
   // Fetch QR codes with groups to find table 0 extra charges
   let table0QrGroup = null;
   try {
-    const qrCodesResponse = await fetchFromHasura(
+    const qrCodesResponse = hoteldata?.id ? await fetchFromHasura(
       GET_QR_CODES_WITH_GROUPS_BY_PARTNER,
       {
-        partner_id: hoteldata?.id || "",
+        partner_id: hoteldata.id,
       }
-    );
+    ) : null;
 
     if (qrCodesResponse?.qr_codes) {
       // Find QR code with table_number = 0
@@ -300,12 +300,12 @@ const HotelPage = async ({
   };
 
   // Fetch fresh subscription details for scan limit checks (uncached)
-  const freshSubscriptionRes = await fetchFromHasura(
+  const freshSubscriptionRes = hoteldata?.id ? await fetchFromHasura(
     getPartnerSubscriptionQuery,
     {
-      partnerId: hoteldata?.id || "",
+      partnerId: hoteldata.id,
     }
-  );
+  ) : null;
   const freshSubscription = freshSubscriptionRes?.partner_subscriptions?.[0];
 
   // --- Subscription & Scan Limit Logic ---
