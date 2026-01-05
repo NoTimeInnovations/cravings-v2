@@ -209,6 +209,7 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
       pathname.startsWith("/admin"));
 
   const shouldShowBanner = pathname === "/" || pathname.startsWith("/product") || pathname.startsWith("/solutions");
+  const isUserOrGuest = userData?.role === "user" || !userData?.role;
 
   useEffect(() => {
     const isApp = window?.localStorage.getItem("isApp");
@@ -369,7 +370,7 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
         : []),
     ];
 
-    const isUserOrGuest = userData?.role === "user" || !userData?.role;
+
 
 
     return (
@@ -707,98 +708,101 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
 
           {/* Mobile Content */}
           <div className="flex-1 overflow-y-auto px-6 py-8 space-y-2">
-            {/* Products Accordion */}
-            <div className="border-b border-white/10 pb-2">
-              <button
-                onClick={() => toggleMobileSection('products')}
-                className="flex items-center justify-between w-full text-white font-medium text-lg py-3"
-              >
-                Products
-                <ChevronDown className={cn("w-5 h-5 transition-transform duration-200", expandedMobileSection === 'products' ? "rotate-180" : "")} />
-              </button>
-              <div className={cn("space-y-4 pl-2 overflow-hidden transition-all duration-300", expandedMobileSection === 'products' ? "max-h-[1000px] opacity-100 pb-4" : "max-h-0 opacity-0")}>
-                {PRODUCTS.map(item => (
-                  <Link key={item.title} href={item.href} className="flex items-start gap-4 text-white/90 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
-                    <item.icon className="w-5 h-5 mt-0.5 shrink-0" />
-                    <div>
-                      <div className="font-medium">{item.title}</div>
-                      <div className="text-sm text-white/60 leading-snug">{item.description}</div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* Solutions Accordion */}
-            <div className="border-b border-white/10 pb-2">
-              <button
-                onClick={() => toggleMobileSection('solutions')}
-                className="flex items-center justify-between w-full text-white font-medium text-lg py-3"
-              >
-                Solutions
-                <ChevronDown className={cn("w-5 h-5 transition-transform duration-200", expandedMobileSection === 'solutions' ? "rotate-180" : "")} />
-              </button>
-              <div className={cn("space-y-6 pl-2 overflow-hidden transition-all duration-300", expandedMobileSection === 'solutions' ? "max-h-[1000px] opacity-100 pb-4" : "max-h-0 opacity-0")}>
-                {/* Roles */}
-                <div>
-                  <h4 className="text-white/50 text-xs font-bold mb-3 uppercase tracking-wider">Roles</h4>
-                  <div className="space-y-3">
-                    {SOLUTIONS_ROLES.map(item => (
-                      <Link key={item.title} href={item.href} className="flex items-center gap-3 text-white/90 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
-                        <item.icon className="w-4 h-4" />
-                        <span className="font-medium">{item.title}</span>
+            {isUserOrGuest && (
+              <>
+                {/* Products Accordion */}
+                <div className="border-b border-white/10 pb-2">
+                  <button
+                    onClick={() => toggleMobileSection('products')}
+                    className="flex items-center justify-between w-full text-white font-medium text-lg py-3"
+                  >
+                    Products
+                    <ChevronDown className={cn("w-5 h-5 transition-transform duration-200", expandedMobileSection === 'products' ? "rotate-180" : "")} />
+                  </button>
+                  <div className={cn("space-y-4 pl-2 overflow-hidden transition-all duration-300", expandedMobileSection === 'products' ? "max-h-[1000px] opacity-100 pb-4" : "max-h-0 opacity-0")}>
+                    {PRODUCTS.map(item => (
+                      <Link key={item.title} href={item.href} className="flex items-start gap-4 text-white/90 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
+                        <item.icon className="w-5 h-5 mt-0.5 shrink-0" />
+                        <div>
+                          <div className="font-medium">{item.title}</div>
+                          <div className="text-sm text-white/60 leading-snug">{item.description}</div>
+                        </div>
                       </Link>
                     ))}
                   </div>
                 </div>
-                {/* Industries */}
-                <div>
-                  <h4 className="text-white/50 text-xs font-bold mb-3 uppercase tracking-wider">Industries</h4>
-                  <div className="space-y-3">
-                    {SOLUTIONS_INDUSTRIES.map(item => (
-                      <Link key={item.title} href={item.href} className="flex items-center gap-3 text-white/90 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
-                        <item.icon className="w-4 h-4" />
-                        <span className="font-medium">{item.title}</span>
+
+                {/* Solutions Accordion */}
+                <div className="border-b border-white/10 pb-2">
+                  <button
+                    onClick={() => toggleMobileSection('solutions')}
+                    className="flex items-center justify-between w-full text-white font-medium text-lg py-3"
+                  >
+                    Solutions
+                    <ChevronDown className={cn("w-5 h-5 transition-transform duration-200", expandedMobileSection === 'solutions' ? "rotate-180" : "")} />
+                  </button>
+                  <div className={cn("space-y-6 pl-2 overflow-hidden transition-all duration-300", expandedMobileSection === 'solutions' ? "max-h-[1000px] opacity-100 pb-4" : "max-h-0 opacity-0")}>
+                    {/* Roles */}
+                    <div>
+                      <h4 className="text-white/50 text-xs font-bold mb-3 uppercase tracking-wider">Roles</h4>
+                      <div className="space-y-3">
+                        {SOLUTIONS_ROLES.map(item => (
+                          <Link key={item.title} href={item.href} className="flex items-center gap-3 text-white/90 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
+                            <item.icon className="w-4 h-4" />
+                            <span className="font-medium">{item.title}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Industries */}
+                    <div>
+                      <h4 className="text-white/50 text-xs font-bold mb-3 uppercase tracking-wider">Industries</h4>
+                      <div className="space-y-3">
+                        {SOLUTIONS_INDUSTRIES.map(item => (
+                          <Link key={item.title} href={item.href} className="flex items-center gap-3 text-white/90 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
+                            <item.icon className="w-4 h-4" />
+                            <span className="font-medium">{item.title}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Resources Accordion */}
+                <div className="border-b border-white/10 pb-2">
+                  <button
+                    onClick={() => toggleMobileSection('resources')}
+                    className="flex items-center justify-between w-full text-white font-medium text-lg py-3"
+                  >
+                    Resources
+                    <ChevronDown className={cn("w-5 h-5 transition-transform duration-200", expandedMobileSection === 'resources' ? "rotate-180" : "")} />
+                  </button>
+                  <div className={cn("space-y-4 pl-2 overflow-hidden transition-all duration-300", expandedMobileSection === 'resources' ? "max-h-[1000px] opacity-100 pb-4" : "max-h-0 opacity-0")}>
+                    {RESOURCES.map(item => (
+                      <Link key={item.title} href={item.href} className="flex items-start gap-4 text-white/90 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
+                        <item.icon className="w-5 h-5 mt-0.5 shrink-0" />
+                        <div>
+                          <div className="font-medium">{item.title}</div>
+                          <div className="text-sm text-white/60 leading-snug">{item.description}</div>
+                        </div>
                       </Link>
                     ))}
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Resources Accordion */}
-            <div className="border-b border-white/10 pb-2">
-              <button
-                onClick={() => toggleMobileSection('resources')}
-                className="flex items-center justify-between w-full text-white font-medium text-lg py-3"
-              >
-                Resources
-                <ChevronDown className={cn("w-5 h-5 transition-transform duration-200", expandedMobileSection === 'resources' ? "rotate-180" : "")} />
-              </button>
-              <div className={cn("space-y-4 pl-2 overflow-hidden transition-all duration-300", expandedMobileSection === 'resources' ? "max-h-[1000px] opacity-100 pb-4" : "max-h-0 opacity-0")}>
-                {RESOURCES.map(item => (
-                  <Link key={item.title} href={item.href} className="flex items-start gap-4 text-white/90 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
-                    <item.icon className="w-5 h-5 mt-0.5 shrink-0" />
-                    <div>
-                      <div className="font-medium">{item.title}</div>
-                      <div className="text-sm text-white/60 leading-snug">{item.description}</div>
-                    </div>
+                {/* Pricing Mobile Link */}
+                <div className="border-b border-white/10 pb-2">
+                  <Link
+                    href="/pricing"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center justify-between w-full text-white font-medium text-lg py-3"
+                  >
+                    Pricing
                   </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* Pricing Mobile Link */}
-            <div className="border-b border-white/10 pb-2">
-              <Link
-                href="/pricing"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center justify-between w-full text-white font-medium text-lg py-3"
-              >
-                Pricing
-              </Link>
-            </div>
-
+                </div>
+              </>
+            )}
             {/* Mobile Auth Buttons */}
             <div className="pt-6 space-y-4">
               {!userData && (
@@ -808,16 +812,18 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
                 </>
               )}
               {userData && (
-                <div className="flex items-center gap-4">
-                  <UserAvatar userData={userData} />
-                  <span className="text-white font-medium">My Account</span>
-                </div>
+                <UserAvatar
+                  userData={userData}
+                  align="left"
+                  label="My Account"
+                  className="text-white font-medium gap-4 hover:text-white/80 py-2"
+                />
               )}
             </div>
 
           </div>
         </div>
       </nav>
-    </header>
+    </header >
   );
 }

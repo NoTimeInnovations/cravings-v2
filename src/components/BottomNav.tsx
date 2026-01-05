@@ -10,7 +10,6 @@ import {
   Package,
   Shield,
   Home,
-  Info,
   CreditCard,
 } from "lucide-react";
 import Link from "next/link";
@@ -26,32 +25,7 @@ const BottomNav = ({ userData, country }: { userData: any; country?: string }) =
   const getNavItems = () => {
     // Default navigation for non-logged-in users
     if (!userData?.role) {
-      return [
-        {
-          href: "/explore",
-          name: "Explore",
-          icon: <Telescope size={20} />,
-          exactMatch: false,
-        },
-        {
-          href: "/offers",
-          name: "Offers",
-          icon: <BadgePercent size={20} />,
-          exactMatch: false,
-        },
-        {
-          href: "/hotels",
-          name: "Hotels",
-          icon: <Home size={20} />,
-          exactMatch: false,
-        },
-        {
-          href: "/",
-          name: "About Us",
-          icon: <Info size={20} />,
-          exactMatch: false,
-        },
-      ];
+      return [];
     }
 
     const features = getFeatures((userData as Partner)?.feature_flags || "");
