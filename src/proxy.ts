@@ -15,6 +15,10 @@ declare module 'next/server' {
       latitude?: string;
       longitude?: string;
     };
+
+    readonly cf?: {
+      country?: string;
+    };
   }
 }
 
@@ -24,9 +28,14 @@ export async function proxy(request: NextRequest) {
   const cookieStore = await cookies();
   const requestHeaders = new Headers(request.headers);
 
-  let country = request.geo?.country || request.headers.get('x-vercel-ip-country');
+  let country = request.headers.get('cf-ipcountry') || request.headers.get('x-vercel-ip-country');
 
-  console.log("Country ", country)
+  console.log("Country Found", JSON.stringify({
+    country,
+    fromVercel: request.headers.get('x-vercel-ip-country'),
+    fromCloudflare: request.headers.get('cf-ipcountry')
+  }))
+
   if (country) requestHeaders.set("x-user-country", country);
 
   if (
