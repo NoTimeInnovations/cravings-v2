@@ -127,7 +127,7 @@ const UserAvatar = ({ userData }: { userData: any }) => {
       </button>
 
       {isOpen && (
-        <div 
+        <div
           ref={dialogRef}
           className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200"
         >

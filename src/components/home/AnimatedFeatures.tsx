@@ -86,7 +86,7 @@ export default function AnimatedFeatures() {
     });
 
     // Phone scale animation
-    const phoneScale = useTransform(smoothProgress, [0, 0.5], [0.8, 1]);
+    const phoneScale = useTransform(smoothProgress, [0, 0.5], [0.7, 1]);
     const phoneOpacity = useTransform(smoothProgress, [0, 0.2], [0.5, 1]);
 
     return (

@@ -27,7 +27,7 @@ export default function CaptainLoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
       await signInCaptainWithEmail(email, password);
       toast.success("Login successful!");
@@ -40,9 +40,9 @@ export default function CaptainLoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-orange-50 flex items-center justify-center p-4">
+    <div className="min-h-screen w-full bg-orange-50 flex items-center justify-center p-4 pt-16">
       <div className="w-full max-w-md">
-        <Link 
+        <Link
           href="/explore"
           className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4"
         >

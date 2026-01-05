@@ -126,18 +126,18 @@ const SOLUTIONS_INDUSTRIES = [
 ];
 
 const RESOURCES = [
-  {
-    title: "About Us",
-    description: "Learn more about our company",
-    href: "/about-us",
-    icon: Users
-  },
-  {
-    title: "Blogs",
-    description: "Read our latest articles and updates",
-    href: "/blogs",
-    icon: BookOpen
-  },
+  // {
+  //   title: "About Us",
+  //   description: "Learn more about our company",
+  //   href: "/about-us",
+  //   icon: Users
+  // },
+  // {
+  //   title: "Blogs",
+  //   description: "Read our latest articles and updates",
+  //   href: "/blogs",
+  //   icon: BookOpen
+  // },
   {
     title: "Help Center",
     description: "Get support and find answers",
@@ -153,6 +153,8 @@ const RESOURCES = [
 ];
 
 const HIDDEN_PATHS = [
+  "/hotels",
+  "/hotels/.*",
   "/hotels/[id]/reviews/new",
   "/hotels/[id]/reviews",
   "/hotels/[id]/menu/[mId]/reviews/new",
@@ -192,7 +194,21 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
   const isProductPage = pathname.startsWith("/product/");
   const isSolutionsPage = pathname.startsWith("/solutions/");
   const isHelpCenterPage = pathname.startsWith("/help-center");
-  const isDarkText = !isScrolled && (isProductPage || isSolutionsPage || isHelpCenterPage);
+  const isDarkText =
+    !isScrolled &&
+    (isProductPage ||
+      isSolutionsPage ||
+      isHelpCenterPage ||
+      pathname === "/login" ||
+      pathname === "/explore" ||
+      pathname === "/profile" ||
+      pathname === "/captainlogin" ||
+      pathname === "/my-orders" ||
+      pathname === "/my-earnings" ||
+      pathname === "/offers" ||
+      pathname.startsWith("/admin"));
+
+  const shouldShowBanner = pathname === "/" || pathname.startsWith("/product") || pathname.startsWith("/solutions");
 
   useEffect(() => {
     const isApp = window?.localStorage.getItem("isApp");
@@ -308,7 +324,7 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
             Log In
           </Link>
           <Link
-            href="/demo"
+            href="/get-started"
             className="inline-flex items-center justify-center h-fit text-nowrap text-sm px-4 py-2 font-medium text-white bg-[#0a0b10] rounded-md hover:bg-gray-900 transition-colors"
           >
             Book Demo
@@ -602,17 +618,19 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
   return (
     <header className="fixed w-full z-[60] top-0 left-0 right-0 font-sans">
       {/* Announcement Bar */}
-      <div
-        className={cn(
-          "w-full bg-[#0a0b10] text-[#e0e0e0] text-xs sm:text-sm text-center px-4 leading-tight transition-all duration-300 ease-in-out overflow-hidden origin-top",
-          isScrolled ? "max-h-0 py-0 opacity-0" : "max-h-12 py-2.5 opacity-100"
-        )}
-      >
-        🎉 New Year Offer: Get flat 20% OFF on all plans!{" "}
-        <span className="text-orange-500 cursor-pointer hover:underline font-medium ml-1">
-          Grab Deal
-        </span>
-      </div>
+      {shouldShowBanner && (
+        <div
+          className={cn(
+            "w-full bg-[#0a0b10] text-[#e0e0e0] text-xs sm:text-sm text-center px-4 leading-tight transition-all duration-300 ease-in-out overflow-hidden origin-top",
+            isScrolled ? "max-h-0 py-0 opacity-0" : "max-h-12 py-2.5 opacity-100"
+          )}
+        >
+          🎉 New Year Offer: Get flat 20% OFF on all plans!{" "}
+          <span className="text-orange-500 cursor-pointer hover:underline font-medium ml-1">
+            Grab Deal
+          </span>
+        </div>
+      )}
 
       {/* Main Navbar */}
       <nav
@@ -629,20 +647,25 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
             </div>
 
             {/* Mobile Menu Toggle */}
+            {/* Mobile Menu Toggle */}
             <div className="lg:hidden flex justify-end">
-              <button onClick={() => setIsMobileMenuOpen(true)} className={cn("p-2", isDarkText ? "text-gray-900" : "text-white")}>
-                <Menu className="w-6 h-6" />
-              </button>
+              {userData?.role !== "user" ? (
+                <button onClick={() => setIsMobileMenuOpen(true)} className={cn("p-2", isDarkText ? "text-gray-900" : "text-white")}>
+                  <Menu className="w-6 h-6" />
+                </button>
+              ) : (
+                renderUserProfile()
+              )}
             </div>
 
             {/* Center: Navigation Links */}
             <div className="hidden lg:flex flex-1 justify-center items-center space-x-6 lg:space-x-8">
-              {renderNavigationLinks()}
+              {userData?.role !== "user" && renderNavigationLinks()}
             </div>
 
             {/* Right: Actions */}
             <div className="hidden lg:flex flex-1 items-center justify-end gap-4">
-              {userData?.role === "user" ? (
+              {userData?.role !== "user" && userData?.role === "user" ? (
                 <Link href="/my-orders">
                   <ShoppingBag className={cn("w-5 h-5 transition-colors", isDarkText ? "text-gray-500 hover:text-gray-900" : "text-gray-400 hover:text-white")} />
                 </Link>
@@ -650,7 +673,7 @@ export function Navbar({ userData, country }: { userData: any; country?: string 
 
               {renderUserProfile()}
 
-              {userData && !isInstalled ? (
+              {userData && userData.role !== "user" && !isInstalled ? (
                 <button
                   onClick={handleInstallClick}
                   className={cn(

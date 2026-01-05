@@ -6,7 +6,7 @@ import React from "react";
 import { filterOffersByType } from "@/lib/offerFilters";
 
 const OfferMainPage = async () => {
-  
+
   const getCachedOffers = await unstable_cache(
     async () => {
       return fetchFromHasura(getOffers);
@@ -23,7 +23,11 @@ const OfferMainPage = async () => {
   // Filter offers based on offer_type for offers page
   const filteredOffers = filterOffersByType(offers, 'offers');
 
-  return <Offers offers={filteredOffers} />;
+  return (
+    <div className="pt-16">
+      <Offers offers={filteredOffers} />
+    </div>
+  );
 };
 
 export default OfferMainPage;

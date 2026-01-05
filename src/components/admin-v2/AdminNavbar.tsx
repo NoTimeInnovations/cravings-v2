@@ -67,7 +67,7 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                 })()}
                 <OrderNotification />
                 <ModeToggle />
-                {userData?.role === 'partner' && (
+                {/* {userData?.role === 'partner' && (
                     <div
                         className="cursor-pointer hover:opacity-80 transition-opacity"
                         onClick={() => setActiveView("Settings")}
@@ -78,7 +78,7 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                             <AvatarFallback>{(userData as Partner).store_name?.slice(0, 2).toUpperCase()}</AvatarFallback>
                         </Avatar>
                     </div>
-                )}
+                )} */}
             </div>
         </nav>
     );

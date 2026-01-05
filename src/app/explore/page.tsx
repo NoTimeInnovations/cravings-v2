@@ -54,17 +54,17 @@ const page = async ({
     if (searchQuery) variables.search_query = `%${searchQuery}%`;
 
 
-      variables.user_lat = location?.lat || 0;
-      variables.user_lng = location?.lng || 0; 
+    variables.user_lat = location?.lat || 0;
+    variables.user_lng = location?.lng || 0;
 
-      const loc = {
-        lat: location?.lat || 0,
-        lng: location?.lng || 0,
-      }
-    
+    const loc = {
+      lat: location?.lat || 0,
+      lng: location?.lng || 0,
+    }
+
 
     const response = await fetchFromHasura(
-      getAllCommonOffers( location || undefined ),
+      getAllCommonOffers(location || undefined),
       variables
     );
 
@@ -81,28 +81,30 @@ const page = async ({
 
 
   const filteredOffers = get_offers_near_location.filter(
-  (offer: CommonOffer, index: number, self: CommonOffer[]) => {
-    // Condition 1: If the offer has no partner_id, always keep it.
-    if (!offer.partner_id) {
-      return true;
+    (offer: CommonOffer, index: number, self: CommonOffer[]) => {
+      // Condition 1: If the offer has no partner_id, always keep it.
+      if (!offer.partner_id) {
+        return true;
+      }
+
+      // Condition 2: If it has a partner_id, only keep it if it's the first
+      // occurrence of that partner_id in the entire array.
+      return index === self.findIndex((o) => o.partner_id === offer.partner_id);
     }
-    
-    // Condition 2: If it has a partner_id, only keep it if it's the first
-    // occurrence of that partner_id in the entire array.
-    return index === self.findIndex((o) => o.partner_id === offer.partner_id);
-  }
-);
+  );
 
 
   return (
-    <Explore
-      hasUserLocation={!!location}
-      commonOffers={filteredOffers}
-      limit={limit}
-      totalOffers={get_offers_near_location_aggregate.aggregate.count}
-      initialDistrict={district}
-      initialSearchQuery={searchQuery}
-    />
+    <div className="pt-16">
+      <Explore
+        hasUserLocation={!!location}
+        commonOffers={filteredOffers}
+        limit={limit}
+        totalOffers={get_offers_near_location_aggregate.aggregate.count}
+        initialDistrict={district}
+        initialSearchQuery={searchQuery}
+      />
+    </div>
   );
 };
 

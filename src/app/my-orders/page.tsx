@@ -84,7 +84,7 @@ const Page = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 pb-8 pt-16">
       <h1 className="text-2xl font-bold mb-6">My Orders</h1>
 
       {loading ? (
@@ -109,11 +109,11 @@ const Page = () => {
               (order.extraCharges || []).reduce(
                 (sum: number, charge: any) =>
                   sum +
-                    getExtraCharge(
-                      order?.items || [],
-                      charge.amount,
-                      charge.charge_type
-                    ) || 0,
+                  getExtraCharge(
+                    order?.items || [],
+                    charge.amount,
+                    charge.charge_type
+                  ) || 0,
                 0
               ) || 0;
 

@@ -33,11 +33,11 @@ const StatusCard = ({ title, description, icon: Icon, iconColor, action }: Statu
                     Contact Support
                 </p>
                 <a
-                    href="tel:+916238969297"
+                    href="tel:+919447156765"
                     className="inline-flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
                 >
                     <Phone className="w-4 h-4" />
-                    +91 6238969297
+                    +91 9447156765
                 </a>
             </div>
         </div>

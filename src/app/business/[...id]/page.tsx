@@ -31,7 +31,7 @@ export async function generateMetadata({
       try {
         const partnerData = await fetchFromHasura(getPartnerAndOffersQuery, {
           id,
-          offer_types: ["delivery" , "all"]
+          offer_types: ["delivery", "all"]
         });
 
         return {
@@ -66,8 +66,8 @@ export async function generateMetadata({
       description:
         hotel.description ||
         "Welcome to " +
-          hotel.store_name +
-          "! Enjoy a comfortable stay with us.",
+        hotel.store_name +
+        "! Enjoy a comfortable stay with us.",
     },
   };
 }
@@ -119,7 +119,7 @@ const HotelPage = async ({
       try {
         return fetchFromHasura(getPartnerAndOffersQuery, {
           id,
-          offer_types: ["delivery" , "all"]
+          offer_types: ["delivery", "all"]
         });
       } catch (error) {
         console.error("Error fetching hotel data:", error);
@@ -140,17 +140,17 @@ const HotelPage = async ({
     const today = new Date().setHours(0, 0, 0, 0);
     filteredOffers = search
       ? offers
-          .filter(
-            (offer) => new Date(offer.end_time).setHours(0, 0, 0, 0) < today
+        .filter(
+          (offer) => new Date(offer.end_time).setHours(0, 0, 0, 0) < today
+        )
+        .filter((offer) =>
+          Object.values(offer).some((value) =>
+            String(value).toLowerCase().includes(search.trim().toLowerCase())
           )
-          .filter((offer) =>
-            Object.values(offer).some((value) =>
-              String(value).toLowerCase().includes(search.trim().toLowerCase())
-            )
-          )
+        )
       : offers.filter(
-          (offer) => new Date(offer.end_time).setHours(0, 0, 0, 0) >= today
-        );
+        (offer) => new Date(offer.end_time).setHours(0, 0, 0, 0) >= today
+      );
   }
 
   // Use the store to fetch UPI data
@@ -189,10 +189,10 @@ const HotelPage = async ({
         const transformedExtraCharge = Array.isArray(extraCharge)
           ? extraCharge
           : typeof extraCharge === "number"
-          ? [{ min_amount: 0, max_amount: null, charge: extraCharge }]
-          : typeof extraCharge === "object" && extraCharge?.rules
-          ? extraCharge.rules
-          : [{ min_amount: 0, max_amount: null, charge: 0 }];
+            ? [{ min_amount: 0, max_amount: null, charge: extraCharge }]
+            : typeof extraCharge === "object" && extraCharge?.rules
+              ? extraCharge.rules
+              : [{ min_amount: 0, max_amount: null, charge: 0 }];
 
         table0QrGroup = {
           id: table0QrCode.qr_group.id,
@@ -243,10 +243,10 @@ const HotelPage = async ({
           <div className="text-gray-700 bg-gray-100 p-4 rounded-md">
             <p className="font-medium text-sm sm:text-base">Contact Support:</p>
             <a
-              href="tel:+916238969297"
+              href="tel:+919447156765"
               className="text-blue-600 hover:text-blue-800 block mt-2 text-sm sm:text-base"
             >
-              +91 6238969297
+              +91 9447156765
             </a>
           </div>
         </div>
@@ -309,7 +309,7 @@ const HotelPage = async ({
       fillteredMenus: filteredMenus,
     }
   }
-  
+
 
   return (
     <>
@@ -322,7 +322,7 @@ const HotelPage = async ({
         tableNumber={0}
         qrId={null}
         qrGroup={table0QrGroup}
-        selectedCategory={ cat }
+        selectedCategory={cat}
       />
     </>
   );

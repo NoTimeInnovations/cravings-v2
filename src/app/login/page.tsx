@@ -3,7 +3,9 @@ import React from 'react'
 
 const page = () => {
   return (
-    <Login />
+    <div className="pt-16">
+      <Login />
+    </div>
   )
 }
 

@@ -65,7 +65,7 @@ const page = async () => {
               ? "Your subscription has expired. Please renew your subscription to continue using the services."
               : "This hotel is currently inactive / under verification. Please contact support for more information."}
             please call{" "}
-            <span className="font-bold text-orange-600">+91 6238969297</span>.
+            <span className="font-bold text-orange-600">+91 9447156765</span>.
           </p>
         </div>
       </div>

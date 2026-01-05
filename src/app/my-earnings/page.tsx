@@ -459,7 +459,7 @@ const OrderReport = () => {
           }
         }
       `;
-      
+
       await fetchFromHasura(mutation, {
         orderId,
         paymentMethod,
@@ -515,7 +515,7 @@ const OrderReport = () => {
 
   const prepareTopItemsData = useCallback(() => {
     if (!reportData?.top_items) return [];
-    const itemMap = new Map<string, { quantity: number; category: string , revenue: number }>();
+    const itemMap = new Map<string, { quantity: number; category: string, revenue: number }>();
     reportData.top_items.forEach((item: any) => {
       const itemName = item.menu.name;
       const categoryName = item.menu.category.name;
@@ -594,7 +594,7 @@ const OrderReport = () => {
     }
   };
 
-const handleDownloadXLSX = async () => {
+  const handleDownloadXLSX = async () => {
     if (!reportData) return;
     setIsDownloading(true);
 
@@ -652,8 +652,8 @@ const handleDownloadXLSX = async () => {
             activeTab === "today"
               ? startOfDay(new Date())
               : activeTab === "month"
-              ? startOfMonth(new Date())
-              : dateRange.startDate,
+                ? startOfMonth(new Date())
+                : dateRange.startDate,
             "MMM dd, yyyy"
           )} - ${format(
             activeTab === "today" ? endOfDay(new Date()) : dateRange.endDate,
@@ -698,7 +698,7 @@ const handleDownloadXLSX = async () => {
         createCell(
           reportData.orders_aggregate?.aggregate?.count
             ? reportData.orders_aggregate.aggregate.sum.total_price /
-                reportData.orders_aggregate.aggregate.count
+            reportData.orders_aggregate.aggregate.count
             : 0,
           tableCellStyle,
           "n",
@@ -820,7 +820,7 @@ const handleDownloadXLSX = async () => {
           return `${charge.name} (${charge.amount})`;
         }).join(", ");
 
-        const paymentMethod = order?.payment_method 
+        const paymentMethod = order?.payment_method
           ? order.payment_method.charAt(0).toUpperCase() + order.payment_method.slice(1)
           : "N/A";
 
@@ -912,7 +912,7 @@ const handleDownloadXLSX = async () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 pb-8 pt-16">
       <h1 className="text-3xl font-bold mb-6">Order Analytics Dashboard</h1>
 
       <Tabs
@@ -1012,9 +1012,9 @@ const handleDownloadXLSX = async () => {
                 <div className="text-2xl font-bold">
                   {reportData?.orders_aggregate?.aggregate?.count
                     ? `${(userData as Partner)?.currency || "₹"}${Math.round(
-                        reportData.orders_aggregate.aggregate.sum.total_price /
-                          reportData.orders_aggregate.aggregate.count
-                      ).toFixed(2)}`
+                      reportData.orders_aggregate.aggregate.sum.total_price /
+                      reportData.orders_aggregate.aggregate.count
+                    ).toFixed(2)}`
                     : `${(userData as Partner)?.currency || "₹"}0.00`}
                 </div>
               )}
@@ -1116,9 +1116,8 @@ const handleDownloadXLSX = async () => {
                         }
                       >
                         <div
-                          className={`border rounded-lg ${
-                            method === "null" ? "border-orange-300" : ""
-                          }`}
+                          className={`border rounded-lg ${method === "null" ? "border-orange-300" : ""
+                            }`}
                         >
                           <CollapsibleTrigger asChild>
                             <Button
@@ -1127,11 +1126,10 @@ const handleDownloadXLSX = async () => {
                             >
                               <div className="flex items-center gap-4">
                                 <span
-                                  className={`font-semibold ${
-                                    method === "null"
+                                  className={`font-semibold ${method === "null"
                                       ? "text-orange-600"
                                       : ""
-                                  }`}
+                                    }`}
                                 >
                                   {displayMethod}
                                 </span>
@@ -1159,18 +1157,17 @@ const handleDownloadXLSX = async () => {
                                       order.type === "delivery"
                                         ? "Delivery"
                                         : order.table_name || order.table_number
-                                        ? "Dine-in"
-                                        : "Takeaway";
+                                          ? "Dine-in"
+                                          : "Takeaway";
                                     const location =
                                       order.type === "delivery"
                                         ? order.delivery_address
                                         : order.table_name ||
                                           order.table_number
-                                        ? `Table: ${
-                                            order.table_name ||
-                                            order.table_number
+                                          ? `Table: ${order.table_name ||
+                                          order.table_number
                                           }`
-                                        : "N/A";
+                                          : "N/A";
 
                                     return (
                                       <div
@@ -1262,9 +1259,8 @@ const handleDownloadXLSX = async () => {
                       <Legend />
                       <Bar
                         dataKey="sales"
-                        name={`Sales (${
-                          (userData as Partner)?.currency || "₹"
-                        })`}
+                        name={`Sales (${(userData as Partner)?.currency || "₹"
+                          })`}
                         fill="#8884d8"
                       />
                     </BarChart>
@@ -1393,9 +1389,8 @@ const handleDownloadXLSX = async () => {
                       <Legend />
                       <Bar
                         dataKey="revenue"
-                        name={`Revenue (${
-                          (userData as Partner)?.currency || "₹"
-                        })`}
+                        name={`Revenue (${(userData as Partner)?.currency || "₹"
+                          })`}
                         fill="#82ca9d"
                       />
                       <Bar
