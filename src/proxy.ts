@@ -28,6 +28,18 @@ export async function proxy(request: NextRequest) {
   const cookieStore = await cookies();
   const requestHeaders = new Headers(request.headers);
 
+  try {
+    requestHeaders.forEach((value, key) => {
+      // Check if value contains non-ASCII characters
+      if (/[^\x00-\x7F]/.test(value)) {
+        console.warn(`Removing header ${key} due to non-ASCII characters: ${value}`);
+        requestHeaders.delete(key);
+      }
+    });
+  } catch (e) {
+    console.error("Error sanitizing headers:", e);
+  }
+
   let country = request.headers.get('cf-ipcountry') || request.headers.get('x-vercel-ip-country') || "IN";
 
   console.log("Country Found", JSON.stringify({
