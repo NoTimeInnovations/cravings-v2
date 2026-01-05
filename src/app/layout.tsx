@@ -1,3 +1,4 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import { Inter, Dancing_Script, Poppins, Roboto } from "next/font/google";
 import Script from "next/script"; // Import Script for Google Analytics

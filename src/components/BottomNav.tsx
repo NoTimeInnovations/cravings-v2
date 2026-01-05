@@ -16,7 +16,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
-const BottomNav = ({ userData, country }: { userData: any; country?: string }) => {
+const BottomNav = ({ userData: propUserData, country }: { userData: any; country?: string }) => {
+  const { userData: storeUserData } = useAuthStore();
+  const userData = storeUserData || propUserData;
   const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);

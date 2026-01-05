@@ -171,7 +171,11 @@ const HIDDEN_PATHS = [
   "/pricing"
 ];
 
-export function Navbar({ userData, country }: { userData: any; country?: string }) {
+import { Partner, useAuthStore } from "@/store/authStore";
+
+export function Navbar({ userData: propUserData, country }: { userData: any; country?: string }) {
+  const { userData: storeUserData } = useAuthStore();
+  const userData = storeUserData || propUserData;
   const features = getFeatures(userData?.feature_flags as string);
   const router = useRouter();
   const pathname = usePathname();
