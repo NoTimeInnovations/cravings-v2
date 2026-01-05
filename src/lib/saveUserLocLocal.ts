@@ -1,12 +1,14 @@
 import { getLocationCookie, setLocationCookie } from "@/app/auth/actions";
 
-export const saveUserLocation = async(shouldReload = true) => {
+export const saveUserLocation = async (shouldReload = true) => {
   const sessionKey = "location_session";
   const currentSession = sessionStorage.getItem(sessionKey);
   const location = await getLocationCookie();
   const hasUserLocation = !!location;
 
-  if (navigator.geolocation && (!currentSession || !hasUserLocation)) {
+  const isHotelsPage = window.location.pathname.startsWith("/hotels");
+
+  if (navigator.geolocation && (!currentSession || !hasUserLocation) && isHotelsPage) {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;

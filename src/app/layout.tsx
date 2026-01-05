@@ -21,12 +21,23 @@ import { cookies, headers } from "next/headers";
 
 export const metadata: Metadata = {
   title: "Cravings",
-  description: "Find the best food deals in your area",
+  description: "Cravings is the ultimate platform for restaurants to manage digital menus, orders, and delivery. Create your QR menu in minutes.",
   icons: ["/icon-64x64.png", "/icon-192x192.png", "/icon-512x512.png"],
   metadataBase: new URL("https://cravings.live"),
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   openGraph: {
     title: "Cravings",
-    description: "Find the best food deals in your area",
+    description: "Cravings is the ultimate platform for restaurants to manage digital menus, orders, and delivery. Create your QR menu in minutes.",
     type: "website",
     images: ["/ogImage_default.jpeg"],
   },
