@@ -27,6 +27,7 @@ const sidebarItems: SidebarItem[] = [
     { title: "Orders", icon: ShoppingBag, id: "orders" },
     { title: "Menu", icon: UtensilsCrossed, id: "menu" },
     { title: "Offers", icon: Percent, id: "offers" },
+    { title: "Purchase & Inventory", icon: ShoppingBag, id: "inventory" },
     { title: "QrCodes", icon: QrCode, id: "qrcodes" },
     { title: "Captains", icon: UserCog, id: "captains" },
     { title: "POS", icon: CreditCard, id: "pos" },
@@ -51,6 +52,9 @@ export function AdminSidebar({ activeView, onNavigate, className }: AdminSidebar
         }
         if (item.id === "pos") {
             return features?.pos?.enabled;
+        }
+        if (item.id === "inventory") {
+            return features?.purchasemanagement?.enabled;
         }
         return true;
     });
