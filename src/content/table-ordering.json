@@ -5,6 +5,7 @@
         "headline": "Contactless Dining Experience",
         "subheadline": "Let customers order directly from their table. Reduce wait times, free up staff, and increase table turnover.",
         "primaryCta": "Get QR Codes",
+        "primaryCtaLink": "/get-started",
         "secondaryCta": "View Experience",
         "secondaryCtaLink": "https://youtu.be/lwySuBaZcIQ",
         "image": "/assets/mockups/table-ordering-hero.png",
@@ -96,6 +97,9 @@
     "cta": {
         "title": "Modernize your dining room",
         "description": "Start with QR ordering today.",
-        "buttonText": "Setup QR Codes"
+        "buttonText": "Setup QR Codes",
+        "buttonLink": "/get-started",
+        "secondaryButtonText": "Book Demo",
+        "secondaryButtonLink": "https://www.cravings.live/hotels/20f7e974-f19e-4c11-b6b7-4385f61f27bf"
     }
 }

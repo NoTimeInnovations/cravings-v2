@@ -5,24 +5,25 @@
         "headline": "Expand Your Digital Presence.",
         "subheadline": "Launch a branded online store in minutes and start shipping directly to customers. Own your brand, own your profits.",
         "primaryCta": "Create Online Store",
+        "primaryCtaLink": "/get-started",
         "secondaryCta": "View Features",
         "image": "/assets/mockups/retail-hero.png"
     },
     "benefits": [
-    {
-        "title": "Redemption of interest",
-        "description": "Redeem your accumulated interest anytime directly to your bank account."
-    },
-    {
-        "title": "Working capital",
-        "description": "Unlock flexible working capital limits based on your revenue."
-    },
-    {
-        "title": "All virtual payments",
-        "description": "Issue unlimited virtual cards for all your vendor payments."
-    }
-],
-"features": [
+        {
+            "title": "Redemption of interest",
+            "description": "Redeem your accumulated interest anytime directly to your bank account."
+        },
+        {
+            "title": "Working capital",
+            "description": "Unlock flexible working capital limits based on your revenue."
+        },
+        {
+            "title": "All virtual payments",
+            "description": "Issue unlimited virtual cards for all your vendor payments."
+        }
+    ],
+    "features": [
         {
             "title": "Branded Storefront",
             "description": "Get a professional e-commerce website that matches your brand colors and logo. No coding required.",
@@ -79,6 +80,9 @@
     "cta": {
         "title": "Sell Online Instantly.",
         "description": "The easiest way to take your retail business digital.",
-        "buttonText": "Start Selling"
+        "buttonText": "Start Selling",
+        "buttonLink": "/get-started",
+        "secondaryButtonText": "Book Demo",
+        "secondaryButtonLink": "https://www.cravings.live/hotels/20f7e974-f19e-4c11-b6b7-4385f61f27bf"
     }
 }

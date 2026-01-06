@@ -5,6 +5,7 @@
         "headline": "Streamline Your Entire F&B Operation.",
         "subheadline": "From front-of-house service to back-of-house efficiency. Optimize every step of your food service with a connected ecosystem.",
         "primaryCta": "See F&B Solutions",
+        "primaryCtaLink": "/get-started",
         "secondaryCta": "Get Pricing",
         "image": "/assets/mockups/fandb-v3.jpg"
     },
@@ -76,6 +77,9 @@
     "cta": {
         "title": "Built for Restaurants.",
         "description": "Scalable solutions for cafes, QSRs, fine dining, and cloud kitchens.",
-        "buttonText": "Explore F&B Tools"
+        "buttonText": "Explore F&B Tools",
+        "buttonLink": "/get-started",
+        "secondaryButtonText": "Book Demo",
+        "secondaryButtonLink": "https://www.cravings.live/hotels/20f7e974-f19e-4c11-b6b7-4385f61f27bf"
     }
 }

@@ -167,8 +167,7 @@ const HIDDEN_PATHS = [
   "/whatsappQr/[id]",
   "/get-started",
   "/admin-v2/.*",
-  "/admin-v2",
-  "/pricing"
+  "/admin-v2"
 ];
 
 import { Partner, useAuthStore } from "@/store/authStore";
@@ -210,9 +209,11 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
       pathname === "/my-orders" ||
       pathname === "/my-earnings" ||
       pathname === "/offers" ||
+      pathname === "/pricing" ||
       pathname.startsWith("/admin"));
 
-  const shouldShowBanner = pathname === "/" || pathname.startsWith("/product") || pathname.startsWith("/solutions");
+  // const shouldShowBanner = pathname === "/" || pathname.startsWith("/product") || pathname.startsWith("/solutions");
+  const shouldShowBanner = false;
   const isUserOrGuest = userData?.role === "user" || !userData?.role;
 
   useEffect(() => {

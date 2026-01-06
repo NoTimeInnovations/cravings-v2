@@ -5,26 +5,26 @@
         "headline": "Take Back Control of Your Restaurant",
         "subheadline": "Oversee operations, reduce costs, and grow revenue with a single all-in-one platform. Manage everything from your mobile - anywhere anytime",
         "primaryCta": "Get Started",
-        "primaryCtaLink" : "/get-started",
+        "primaryCtaLink": "/get-started",
         "secondaryCta": "Schedule Demo",
-        "secondaryCtaLink" : "https://cal.id/craving",
+        "secondaryCtaLink": "https://cal.id/craving",
         "image": "/assets/mockups/solutions-owners-v4.png"
     },
     "benefits": [
-    {
-        "title": "Effortless Menu Management",
-        "description": "Effortlessly manage your menu from your mobile device."
-    },
-    {
-        "title": "Seamless Restaurant Operations",
-        "description": "Seamlessly manage your restaurant operations from your mobile device."
-    },
-    {
-        "title": "Analytics & Reporting",
-        "description": "Get real-time insights into your restaurant's performance."
-    }
-],
-"features": [
+        {
+            "title": "Effortless Menu Management",
+            "description": "Effortlessly manage your menu from your mobile device."
+        },
+        {
+            "title": "Seamless Restaurant Operations",
+            "description": "Seamlessly manage your restaurant operations from your mobile device."
+        },
+        {
+            "title": "Analytics & Reporting",
+            "description": "Get real-time insights into your restaurant's performance."
+        }
+    ],
+    "features": [
         {
             "title": "Unified Dashboard",
             "description": "Stop logging into five different portals. Manage your menu ,pos ,captains and inventory from one place.",
@@ -37,7 +37,7 @@
             "image": "/assets/mockups/scan-analytics-v3.png",
             "imagePosition": "right"
         },
-         {
+        {
             "title": "Zero Commissions, Maximum Profit",
             "description": "Stop sharing your hard-earned revenue. With your own ordering website, you keep 100% of every order value.",
             "list": [
@@ -88,6 +88,9 @@
     "cta": {
         "title": "Ready to scale your business?",
         "description": "Join 5,000+ owners who have switched to Cravings for peace of mind.",
-        "buttonText": "Get Started Now"
+        "buttonText": "Get Started Now",
+        "buttonLink": "/get-started",
+        "secondaryButtonText": "Book Demo",
+        "secondaryButtonLink": "https://www.cravings.live/hotels/20f7e974-f19e-4c11-b6b7-4385f61f27bf"
     }
 }

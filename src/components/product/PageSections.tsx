@@ -3,6 +3,7 @@
 import React from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 interface FAQItem {
     question: string;
@@ -44,6 +45,9 @@ interface CTAProps {
         title: string;
         description: string;
         buttonText: string;
+        buttonLink?: string;
+        secondaryButtonText?: string;
+        secondaryButtonLink?: string;
     };
 }
 
@@ -80,11 +84,15 @@ export function CTASection({ data }: CTAProps) {
                         </p>
 
                         <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
-                            <Button size="lg" className="bg-[#0a0b10] hover:bg-gray-900 text-white h-12 px-8 rounded-lg text-base font-medium shadow-lg w-full sm:w-auto">
-                                {data.buttonText}
+                            <Button size="lg" asChild className="bg-[#0a0b10] hover:bg-gray-900 text-white h-12 px-8 rounded-lg text-base font-medium shadow-lg w-full sm:w-auto">
+                                <Link href={data.buttonLink || "/get-started"}>
+                                    {data.buttonText}
+                                </Link>
                             </Button>
-                            <Button size="lg" variant="outline" className="h-12 px-8 rounded-lg text-base font-medium border-gray-200 text-gray-900 hover:bg-gray-50 w-full sm:w-auto">
-                                Book Demo
+                            <Button size="lg" variant="outline" asChild className="h-12 px-8 rounded-lg text-base font-medium border-gray-200 text-gray-900 hover:bg-gray-50 w-full sm:w-auto">
+                                <Link href={data.secondaryButtonLink || "https://www.cravings.live/hotels/20f7e974-f19e-4c11-b6b7-4385f61f27bf"}>
+                                    {data.secondaryButtonText || "Book Demo"}
+                                </Link>
                             </Button>
                         </div>
 

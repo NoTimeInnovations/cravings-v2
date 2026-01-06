@@ -27,6 +27,8 @@ const FEATURES = [
         icon: Flame,
         x: -320,
         y: -220,
+        mobileX: -90,
+        mobileY: -130,
         delay: 0.1
     },
     {
@@ -35,6 +37,8 @@ const FEATURES = [
         icon: Percent,
         x: 320,
         y: -220,
+        mobileX: 90,
+        mobileY: -130,
         delay: 0.2
     },
     {
@@ -43,6 +47,8 @@ const FEATURES = [
         icon: Power,
         x: -400,
         y: 0,
+        mobileX: -110,
+        mobileY: 0,
         delay: 0.3
     },
     {
@@ -51,6 +57,8 @@ const FEATURES = [
         icon: Star,
         x: 400,
         y: 0,
+        mobileX: 110,
+        mobileY: 0,
         delay: 0.4
     },
     {
@@ -59,6 +67,8 @@ const FEATURES = [
         icon: QrCode,
         x: -320,
         y: 220,
+        mobileX: -90,
+        mobileY: 130,
         delay: 0.5
     },
     {
@@ -67,6 +77,8 @@ const FEATURES = [
         icon: Store,
         x: 320,
         y: 220,
+        mobileX: 90,
+        mobileY: 130,
         delay: 0.6
     }
 ];
@@ -91,17 +103,14 @@ export default function AnimatedFeatures() {
 
     return (
         <section ref={containerRef} className="h-[150vh] relative">
-            {/* Background Grid Pattern */}
-
-
-            <div className="sticky top-0 h-screen flex flex-col items-center justify-center overflow-hidden">
+            <div className="sticky top-0 h-screen flex flex-col items-center justify-start md:justify-center pt-16 md:pt-0 overflow-hidden">
 
                 {/* Section Header */}
                 <motion.div
-                    className="absolute top-12 z-20 text-center px-6"
+                    className="relative z-20 text-center px-6 mb-8 md:mb-8"
                     style={{ opacity: useTransform(smoothProgress, [0, 0.2], [1, 0]) }}
                 >
-                    <h2 className="text-3xl md:text-5xl font-medium text-gray-900 mb-5">
+                    <h2 className="text-2xl md:text-5xl font-medium text-gray-900 mb-2 md:mb-5 leading-tight">
                         Everything revolves around <br />
                         <span className="text-[#C04812]">your specialized needs</span>
                     </h2>
@@ -109,10 +118,9 @@ export default function AnimatedFeatures() {
 
                 {/* Central Phone Mockup */}
                 <motion.div
-                    className="relative z-10 w-[280px] h-[580px] bg-black rounded-[3rem] border-8 border-gray-900 shadow-2xl overflow-hidden"
+                    className="relative z-10 hidden md:block w-[280px] h-[580px] bg-black rounded-[3rem] border-8 border-gray-900 shadow-2xl overflow-hidden shrink-0"
                     style={{ scale: phoneScale, opacity: phoneOpacity }}
                 >
-                    {/* Phone Screen Gradient/Content */}
                     {/* Phone Screen Gradient/Content */}
                     <div className="absolute inset-0 bg-gray-50 flex flex-col">
                         {/* Mock App Header */}
@@ -128,7 +136,7 @@ export default function AnimatedFeatures() {
                                 </div>
                             </div>
 
-                            {/* Stories / Highlights (Showcase Brand + Must Try) */}
+                            {/* Stories / Highlights */}
                             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
                                 <div className="flex flex-col items-center gap-1 shrink-0">
                                     <div className="w-14 h-14 rounded-full p-[2px] bg-gradient-to-tr from-[#C04812] to-orange-400">
@@ -159,7 +167,6 @@ export default function AnimatedFeatures() {
 
                         {/* Content Scroll */}
                         <div className="flex-1 overflow-y-auto p-4 space-y-5 pb-20">
-
                             {/* Feature: Dynamic Offers */}
                             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#C04812] to-orange-600 p-4 text-white shadow-lg">
                                 <div className="relative z-10">
@@ -239,25 +246,22 @@ export default function AnimatedFeatures() {
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-b-2xl" />
                 </motion.div>
 
-                {/* Flying Feature Cards */}
+                {/* Flying Feature Cards - Desktop */}
                 {FEATURES.map((feature, index) => {
-                    // Staggered animation: each card comes out one by one
-                    // We divide the scroll progress (approx 0.15 to 0.85) among the 6 cards.
                     const stepSize = 0.12;
                     const start = 0.15 + (index * stepSize);
-                    const end = start + 0.25; // Slower duration
+                    const end = start + 0.25;
 
-                    // Use smoothProgress for transforms
                     const x = useTransform(smoothProgress, [start, end], [0, feature.x]);
                     const y = useTransform(smoothProgress, [start, end], [0, feature.y]);
-                    const opacity = useTransform(smoothProgress, [start, start + 0.1], [0, 1]); // Fade in slowly
-                    const scale = useTransform(smoothProgress, [start, end], [0, 1]); // Start from 0 scale
+                    const opacity = useTransform(smoothProgress, [start, start + 0.1], [0, 1]);
+                    const scale = useTransform(smoothProgress, [start, end], [0, 1]);
 
                     return (
                         <motion.div
-                            key={index}
+                            key={`desktop-${index}`}
                             style={{ x, y, opacity, scale }}
-                            className="absolute z-20 flex items-center gap-4 bg-white p-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 max-w-[240px] hidden md:flex"
+                            className="absolute z-20 hidden md:flex items-center gap-4 bg-white p-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 max-w-[240px]"
                         >
                             <div className="w-12 h-12 rounded-full bg-[#C04812]/10 flex items-center justify-center shrink-0">
                                 <feature.icon className="w-6 h-6 text-[#C04812]" />
@@ -270,28 +274,28 @@ export default function AnimatedFeatures() {
                     );
                 })}
 
-                {/* Mobile Fallback (Static List below phone if needed, but for now we hide cards on mobile as they are 'hidden md:flex' above. 
-                    Let's add a mobile-only view or just let the phone be focus. 
-                    Actually, let's make a mobile version of cards that simply fade in vertically)
-                */}
-                <div className="absolute inset-0 pointer-events-none md:hidden flex flex-col items-center justify-center pt-[600px] pb-20 space-y-4">
+                {/* Mobile Feature List - Simple Vertical List */}
+                <div className="md:hidden w-full px-4 space-y-2.5 pb-10 mt-4">
                     {FEATURES.map((feature, index) => {
-                        const opacity = useTransform(scrollYProgress, [0.2 + (index * 0.1), 0.3 + (index * 0.1)], [0, 1]);
-                        const y = useTransform(scrollYProgress, [0.2 + (index * 0.1), 0.3 + (index * 0.1)], [50, 0]);
+                        // Sequential fade in based on scroll progress
+                        const opacity = useTransform(scrollYProgress, [0 + (index * 0.05), 0.15 + (index * 0.05)], [0, 1]);
+                        const y = useTransform(scrollYProgress, [0 + (index * 0.05), 0.15 + (index * 0.05)], [20, 0]);
+
                         return (
                             <motion.div
-                                key={`mobile-${index}`}
+                                key={`mobile-list-${index}`}
                                 style={{ opacity, y }}
-                                className="bg-white p-4 rounded-xl shadow-lg border border-gray-100 w-[90%] max-w-[320px] flex items-center gap-4"
+                                className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4"
                             >
                                 <div className="w-10 h-10 rounded-full bg-[#C04812]/10 flex items-center justify-center shrink-0">
                                     <feature.icon className="w-5 h-5 text-[#C04812]" />
                                 </div>
                                 <div className="text-left">
-                                    <h3 className="text-sm font-bold text-gray-900">{feature.title}</h3>
+                                    <h3 className="text-lg font-bold text-gray-900 leading-tight">{feature.title}</h3>
+                                    <p className="text-sm text-gray-500 leading-tight">{feature.description}</p>
                                 </div>
                             </motion.div>
-                        )
+                        );
                     })}
                 </div>
 

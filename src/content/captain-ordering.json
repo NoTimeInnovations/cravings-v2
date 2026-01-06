@@ -5,6 +5,7 @@
         "headline": "Empower Your Waitstaff",
         "subheadline": "A dedicated mobile interface for captains to take orders table-side faster and more accurately than ever before.",
         "primaryCta": "Equip Your Team",
+        "primaryCtaLink": "/get-started",
         "secondaryCta": "See How It Works",
         "secondaryCtaLink": "https://youtu.be/uBjH8GHxLAg?si=Sa_TCO0ODhg7Iip0",
         "image": "/assets/mockups/captain-hero.png",
@@ -96,6 +97,9 @@
     "cta": {
         "title": "Speed up your service",
         "description": "Give your captains the best tool for the job.",
-        "buttonText": "Enable Captain Mode"
+        "buttonText": "Enable Captain Mode",
+        "buttonLink": "/get-started",
+        "secondaryButtonText": "Book Demo",
+        "secondaryButtonLink": "https://www.cravings.live/hotels/20f7e974-f19e-4c11-b6b7-4385f61f27bf"
     }
 }

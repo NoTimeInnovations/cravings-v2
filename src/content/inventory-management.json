@@ -5,6 +5,7 @@
         "headline": "Take Control of Your Food Costs",
         "subheadline": "Track every gram of ingredient, manage suppliers, and reduce wastage. Profitability starts with smart inventory.",
         "primaryCta": "Start Tracking",
+        "primaryCtaLink": "/get-started",
         "secondaryCta": "Learn More",
         "image": "/assets/mockups/inventory-hero.png"
     },
@@ -45,7 +46,44 @@
             "imagePosition": "right"
         }
     ],
-    "reviews": [ { "author": "Sarah Jenkins", "role": "Owner", "company": "The Burger Joint", "text": "Cravings transformed how we handle orders during rush hour. The digital menu is a lifesaver!", "avatar": "/assets/avatars/avatar-1.png" }, { "author": "David Chen", "role": "General Manager", "company": "Golden Dragon", "text": "The best investment we made this year. Customers love scanning the code and ordering directly.", "avatar": "/assets/avatars/avatar-2.png" }, { "author": "Emily Rodriguez", "role": "Marketing Director", "company": "Taco Fiesta", "text": "Insanely easy to update. We change our specials daily and it takes seconds.", "avatar": "/assets/avatars/avatar-3.png" }, { "author": "Michael Chang", "role": "Operations Head", "company": "Sushi Zen", "text": "Inventory management is finally under control. We cut wastage by 20% in the first month.", "avatar": "/assets/avatars/avatar-4.png" }, { "author": "Priya Patel", "role": "Owner", "company": "Curry House", "text": "Marketing tools are powerful. The automated campaigns brought back so many old customers.", "avatar": "/assets/avatars/avatar-5.png" } ], "faq": [
+    "reviews": [
+        {
+            "author": "Sarah Jenkins",
+            "role": "Owner",
+            "company": "The Burger Joint",
+            "text": "Cravings transformed how we handle orders during rush hour. The digital menu is a lifesaver!",
+            "avatar": "/assets/avatars/avatar-1.png"
+        },
+        {
+            "author": "David Chen",
+            "role": "General Manager",
+            "company": "Golden Dragon",
+            "text": "The best investment we made this year. Customers love scanning the code and ordering directly.",
+            "avatar": "/assets/avatars/avatar-2.png"
+        },
+        {
+            "author": "Emily Rodriguez",
+            "role": "Marketing Director",
+            "company": "Taco Fiesta",
+            "text": "Insanely easy to update. We change our specials daily and it takes seconds.",
+            "avatar": "/assets/avatars/avatar-3.png"
+        },
+        {
+            "author": "Michael Chang",
+            "role": "Operations Head",
+            "company": "Sushi Zen",
+            "text": "Inventory management is finally under control. We cut wastage by 20% in the first month.",
+            "avatar": "/assets/avatars/avatar-4.png"
+        },
+        {
+            "author": "Priya Patel",
+            "role": "Owner",
+            "company": "Curry House",
+            "text": "Marketing tools are powerful. The automated campaigns brought back so many old customers.",
+            "avatar": "/assets/avatars/avatar-5.png"
+        }
+    ],
+    "faq": [
         {
             "question": "Can I import my existing items?",
             "answer": "Yes, we support bulk upload for your ingredient list to get you started quickly."
@@ -58,6 +96,9 @@
     "cta": {
         "title": "Stop losing money to wastage",
         "description": "Get a clear picture of your inventory today.",
-        "buttonText": "Try Inventory Free"
+        "buttonText": "Try Inventory Free",
+        "buttonLink": "/get-started",
+        "secondaryButtonText": "Book Demo",
+        "secondaryButtonLink": "https://www.cravings.live/hotels/20f7e974-f19e-4c11-b6b7-4385f61f27bf"
     }
 }
