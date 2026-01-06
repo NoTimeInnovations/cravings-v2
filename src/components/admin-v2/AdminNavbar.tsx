@@ -49,13 +49,14 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                 {userData?.role === 'partner' && (() => {
                     const features = getFeatures((userData as Partner).feature_flags || "");
                     const hasPrintingFeatures = features.ordering.access || features.delivery.access || features.pos.access;
+                    const isApp = window?.localStorage?.getItem("isApp") === "true";
 
-                    if (hasPrintingFeatures) {
+                    if (hasPrintingFeatures && isApp) {
                         return (
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="lg:hidden"
+                                className=""
                                 onClick={() => console.log("PRINTER SETTINGS OPEN")}
                                 title="Printer Settings"
                             >
