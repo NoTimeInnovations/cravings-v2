@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { searchPartners, getMenuItems, updateMenuItemImage, updateMenuItemName, removeVariants } from "./actions";
+import { searchPartners, getMenuItems, updateMenuItemImage, updateMenuItemName, removeVariants, updateMenuItemDescription, revalidatePartnerTag } from "./actions";
 import { uploadFileToS3 } from "@/app/actions/aws-s3";
 
 interface Partner {
@@ -21,6 +21,7 @@ interface MenuItem {
     };
     price: number;
     variants: any;
+    description: string;
 }
 
 interface CategoryAccordionProps {
@@ -30,9 +31,10 @@ interface CategoryAccordionProps {
     handlePaste: (e: React.ClipboardEvent<HTMLDivElement>, item: MenuItem) => void;
     handleRemoveVariants: (itemId: string) => void;
     handleNameChange: (itemId: string, newName: string) => void;
+    handleDescriptionChange: (itemId: string, newDescription: string) => void;
 }
 
-function CategoryAccordion({ categoryName, items, processingImageId, handlePaste, handleRemoveVariants, handleNameChange }: CategoryAccordionProps) {
+function CategoryAccordion({ categoryName, items, processingImageId, handlePaste, handleRemoveVariants, handleNameChange, handleDescriptionChange }: CategoryAccordionProps) {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
@@ -60,6 +62,7 @@ function CategoryAccordion({ categoryName, items, processingImageId, handlePaste
                             <tr className="bg-gray-100 border-b">
                                 <th className="p-3 text-left w-32">Image (Paste Here)</th>
                                 <th className="p-3 text-left">Name</th>
+                                <th className="p-3 text-left">Description</th>
                                 <th className="p-3 text-left">Price</th>
                                 <th className="p-3 text-left">Variants</th>
                                 <th className="p-3 text-left">Actions</th>
@@ -106,6 +109,17 @@ function CategoryAccordion({ categoryName, items, processingImageId, handlePaste
                                                 }
                                             }}
                                             className="border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none bg-transparent w-full p-1"
+                                        />
+                                    </td>
+                                    <td className="p-3 font-medium">
+                                        <textarea
+                                            defaultValue={item.description}
+                                            onBlur={(e) => {
+                                                if (e.target.value !== item.description) {
+                                                    handleDescriptionChange(item.id, e.target.value);
+                                                }
+                                            }}
+                                            className="border-b border-transparent hover:border-gray-300 focus:border-blue-500 outline-none bg-transparent w-full p-1 min-h-[40px] resize-y"
                                         />
                                     </td>
                                     <td className="p-3">{item.price}</td>
@@ -250,6 +264,18 @@ export default function ItemImageChangePage() {
         }
     };
 
+    const handleDescriptionChange = async (itemId: string, newDescription: string) => {
+        // Optimistic update
+        setMenuItems(prev => prev.map(m => m.id === itemId ? { ...m, description: newDescription } : m));
+
+        const res = await updateMenuItemDescription(itemId, newDescription);
+        if (res.success) {
+            toast.success("Description updated");
+        } else {
+            toast.error("Failed to update description");
+        }
+    };
+
     const handleRemoveVariants = async (itemId: string) => {
         if (!confirm("Are you sure you want to remove variants for this item?")) return;
 
@@ -307,7 +333,22 @@ export default function ItemImageChangePage() {
                             Change Partner
                         </button>
                     </div>
-
+                    <div className="flex justify-end">
+                        <button
+                            onClick={async () => {
+                                if (!selectedPartner) return;
+                                const res = await revalidatePartnerTag(selectedPartner.id);
+                                if (res.success) {
+                                    toast.success("Partner tag revalidated");
+                                } else {
+                                    toast.error("Failed to revalidate");
+                                }
+                            }}
+                            className="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 transition-colors"
+                        >
+                            Revalidate Tag
+                        </button>
+                    </div>
                     {loading ? (
                         <div>Loading menu items...</div>
                     ) : (
@@ -328,12 +369,15 @@ export default function ItemImageChangePage() {
                                     handlePaste={handlePaste}
                                     handleRemoveVariants={handleRemoveVariants}
                                     handleNameChange={handleNameChange}
+                                    handleDescriptionChange={handleDescriptionChange}
                                 />
                             ))}
                         </div>
                     )}
                 </div>
-            )}
+            )
+            }
         </div>
     );
 }
+

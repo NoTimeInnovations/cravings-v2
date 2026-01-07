@@ -1,6 +1,7 @@
 "use server";
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { revalidateTag } from "next/cache";
 
 const SEARCH_PARTNERS = `
   query SearchPartners($search: String!) {
@@ -15,13 +16,13 @@ const SEARCH_PARTNERS = `
 `;
 
 export async function searchPartners(query: string) {
-    try {
-        const res = await fetchFromHasura(SEARCH_PARTNERS, { search: `%${query}%` });
-        return { success: true, partners: res.partners || [] };
-    } catch (error: any) {
-        console.error("Error searching partners:", error);
-        return { success: false, error: error.message };
-    }
+  try {
+    const res = await fetchFromHasura(SEARCH_PARTNERS, { search: `%${query}%` });
+    return { success: true, partners: res.partners || [] };
+  } catch (error: any) {
+    console.error("Error searching partners:", error);
+    return { success: false, error: error.message };
+  }
 }
 
 const GET_MENU_ITEMS = `
@@ -35,18 +36,19 @@ const GET_MENU_ITEMS = `
       }
       price
       variants
+      description
     }
   }
 `;
 
 export async function getMenuItems(partnerId: string) {
-    try {
-        const res = await fetchFromHasura(GET_MENU_ITEMS, { partner_id: partnerId });
-        return { success: true, menu: res.menu || [] };
-    } catch (error: any) {
-        console.error("Error fetching menu items:", error);
-        return { success: false, error: error.message };
-    }
+  try {
+    const res = await fetchFromHasura(GET_MENU_ITEMS, { partner_id: partnerId });
+    return { success: true, menu: res.menu || [] };
+  } catch (error: any) {
+    console.error("Error fetching menu items:", error);
+    return { success: false, error: error.message };
+  }
 }
 
 const UPDATE_ITEM_IMAGE = `
@@ -59,13 +61,13 @@ const UPDATE_ITEM_IMAGE = `
 `;
 
 export async function updateMenuItemImage(itemId: string, imageUrl: string) {
-    try {
-        const res = await fetchFromHasura(UPDATE_ITEM_IMAGE, { id: itemId, image_url: imageUrl });
-        return { success: true, item: res.update_menu_by_pk };
-    } catch (error: any) {
-        console.error("Error updating item image:", error);
-        return { success: false, error: error.message };
-    }
+  try {
+    const res = await fetchFromHasura(UPDATE_ITEM_IMAGE, { id: itemId, image_url: imageUrl });
+    return { success: true, item: res.update_menu_by_pk };
+  } catch (error: any) {
+    console.error("Error updating item image:", error);
+    return { success: false, error: error.message };
+  }
 }
 
 const UPDATE_ITEM_NAME = `
@@ -78,13 +80,13 @@ const UPDATE_ITEM_NAME = `
 `;
 
 export async function updateMenuItemName(itemId: string, name: string) {
-    try {
-        const res = await fetchFromHasura(UPDATE_ITEM_NAME, { id: itemId, name });
-        return { success: true, item: res.update_menu_by_pk };
-    } catch (error: any) {
-        console.error("Error updating item name:", error);
-        return { success: false, error: error.message };
-    }
+  try {
+    const res = await fetchFromHasura(UPDATE_ITEM_NAME, { id: itemId, name });
+    return { success: true, item: res.update_menu_by_pk };
+  } catch (error: any) {
+    console.error("Error updating item name:", error);
+    return { success: false, error: error.message };
+  }
 }
 
 const REMOVE_VARIANTS = `
@@ -97,11 +99,35 @@ const REMOVE_VARIANTS = `
 `;
 
 export async function removeVariants(itemId: string) {
-    try {
-        const res = await fetchFromHasura(REMOVE_VARIANTS, { id: itemId });
-        return { success: true, item: res.update_menu_by_pk };
-    } catch (error: any) {
-        console.error("Error removing variants:", error);
-        return { success: false, error: error.message };
+  try {
+    const res = await fetchFromHasura(REMOVE_VARIANTS, { id: itemId });
+    return { success: true, item: res.update_menu_by_pk };
+  } catch (error: any) {
+    console.error("Error removing variants:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+const UPDATE_ITEM_DESCRIPTION = `
+  mutation UpdateMenuItemDescription($id: uuid!, $description: String!) {
+    update_menu_by_pk(pk_columns: {id: $id}, _set: {description: $description}) {
+      id
+      description
     }
+  }
+`;
+
+export async function updateMenuItemDescription(itemId: string, description: string) {
+  try {
+    const res = await fetchFromHasura(UPDATE_ITEM_DESCRIPTION, { id: itemId, description });
+    return { success: true, item: res.update_menu_by_pk };
+  } catch (error: any) {
+    console.error("Error updating item description:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function revalidatePartnerTag(partnerId: string) {
+  revalidateTag(partnerId , {});
+  return { success: true };
 }
