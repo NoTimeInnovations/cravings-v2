@@ -7,6 +7,7 @@ import {
   getCategoryImages,
   getMenu,
   updateMenu,
+  hardDeleteCategoryAndItems,
 } from "@/api/menu";
 import { AuthUser, Partner, useAuthStore } from "./authStore";
 import { Category, formatDisplayName, useCategoryStore } from "./categoryStore_hasura";
@@ -613,11 +614,20 @@ export const useMenuStore = create<MenuState>((set, get) => ({
 
       if (!userData) throw new Error("User data not found");
 
-      // Execute the deletion
-      await fetchFromHasura(delCategoryAndItems, {
-        categoryId,
-        partnerId: userData.id,
-      });
+      try {
+        // Try hard delete first
+        await fetchFromHasura(hardDeleteCategoryAndItems, {
+          categoryId,
+          partnerId: userData.id,
+        });
+      } catch (hardDeleteError) {
+        console.warn("Hard delete failed, attempting soft delete:", hardDeleteError);
+        // Fallback to soft delete
+        await fetchFromHasura(delCategoryAndItems, {
+          categoryId,
+          partnerId: userData.id,
+        });
+      }
 
       // Update local state
       const items = get().items.filter(

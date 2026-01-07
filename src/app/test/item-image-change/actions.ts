@@ -128,6 +128,6 @@ export async function updateMenuItemDescription(itemId: string, description: str
 }
 
 export async function revalidatePartnerTag(partnerId: string) {
-  revalidateTag(partnerId , {});
+  revalidateTag(partnerId, {});
   return { success: true };
 }

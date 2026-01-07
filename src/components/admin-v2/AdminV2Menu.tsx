@@ -20,7 +20,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { Search, Edit, Plus, ChevronRight, ArrowUpDown, Power, Check, X } from "lucide-react";
+import { Search, Edit, Plus, ChevronRight, ArrowUpDown, Power, Check, X, Trash2 } from "lucide-react";
 import Img from "../Img";
 import { formatPrice } from "@/lib/constants";
 import { AdminV2EditMenuItem } from "./AdminV2EditMenuItem";
@@ -37,6 +37,7 @@ export function AdminV2Menu() {
         updateItem,
         groupedItems,
         groupItems,
+        deleteCategoryAndItems,
     } = useMenuStore();
     const { userData } = useAuthStore();
     const [searchQuery, setSearchQuery] = useState("");
@@ -237,6 +238,19 @@ export function AdminV2Menu() {
                                                         }}
                                                     >
                                                         <Edit className="h-3 w-3" />
+                                                    </Button>
+                                                    <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="h-6 w-6 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (confirm("Are you sure you want to delete this category and all its items?")) {
+                                                                deleteCategoryAndItems(items[0].category.id);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Trash2 className="h-3 w-3" />
                                                     </Button>
                                                 </div>
                                                 <span className="text-sm font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full ml-auto sm:ml-0">

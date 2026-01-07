@@ -149,3 +149,14 @@ export const delCategoryAndItems = `
     }
   }
 `;
+
+export const hardDeleteCategoryAndItems = `
+  mutation HardDeleteCategoryAndItems($categoryId: uuid!, $partnerId: uuid!) {
+    delete_menu(where: {category_id: {_eq: $categoryId}, partner_id: {_eq: $partnerId}}) {
+      affected_rows
+    }
+    delete_category_by_pk(id: $categoryId) {
+      id
+    }
+  }
+`;

@@ -115,49 +115,14 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
         setHasChanges(true);
     };
 
-    const handleManualReorder = (id: string) => {
+    const handleManualReorder = () => {
         if (selectedCategory) {
-            const currentItemIndex = localItems.findIndex(item => item.id === id);
-            if (currentItemIndex === -1) return;
-
-            const currentItem = localItems[currentItemIndex];
-            const targetPriority = Math.max(1, Math.min(currentItem.priority || 1, localItems.length));
-            const targetIndex = targetPriority - 1;
-
-            if (currentItemIndex === targetIndex) return;
-
-            const newItems = [...localItems];
-            newItems.splice(currentItemIndex, 1);
-            newItems.splice(targetIndex, 0, currentItem);
-
-            const updatedItems = newItems.map((item, index) => ({
-                ...item,
-                priority: index + 1
-            }));
-
-            setLocalItems(updatedItems);
+            const sortedItems = [...localItems].sort((a, b) => (a.priority || 0) - (b.priority || 0));
+            setLocalItems(sortedItems);
         } else {
-            const currentCatIndex = localCategories.findIndex(cat => cat.id === id);
-            if (currentCatIndex === -1) return;
-
-            const currentCat = localCategories[currentCatIndex];
-            const targetPriority = Math.max(1, Math.min(currentCat.priority || 1, localCategories.length));
-            const targetIndex = targetPriority - 1;
-
-            if (currentCatIndex === targetIndex) return;
-
-            const newCategories = [...localCategories];
-            newCategories.splice(currentCatIndex, 1);
-            newCategories.splice(targetIndex, 0, currentCat);
-
-            const updatedCategories = newCategories.map((cat, index) => ({
-                ...cat,
-                priority: index + 1
-            }));
-
-            setLocalCategories(updatedCategories);
+            const sortedCategories = [...localCategories].sort((a, b) => (a.priority || 0) - (b.priority || 0));
+            setLocalCategories(sortedCategories);
         }
-        setHasChanges(true);
     };
 
     const handleSave = async () => {
@@ -245,10 +210,10 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
                                             onChange={(e) => handlePriorityChange(item.id!, e.target.value)}
                                             onKeyDown={(e) => {
                                                 if (e.key === "Enter") {
-                                                    handleManualReorder(item.id!);
+                                                    handleManualReorder();
                                                 }
                                             }}
-                                            onBlur={() => handleManualReorder(item.id!)}
+                                            onBlur={() => handleManualReorder()}
                                             className="w-16 sm:w-24 h-8 sm:h-10 text-xs sm:text-sm"
                                         />
                                     </div>
@@ -275,10 +240,10 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
                                                 onChange={(e) => handlePriorityChange(category.id, e.target.value)}
                                                 onKeyDown={(e) => {
                                                     if (e.key === "Enter") {
-                                                        handleManualReorder(category.id);
+                                                        handleManualReorder();
                                                     }
                                                 }}
-                                                onBlur={() => handleManualReorder(category.id)}
+                                                onBlur={() => handleManualReorder()}
                                                 className="w-16 sm:w-24 h-8 sm:h-10 text-xs sm:text-sm"
                                             />
                                         </div>
