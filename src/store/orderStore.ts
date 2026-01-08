@@ -1143,7 +1143,7 @@ const useOrderStore = create(
 
             // await Notification.partner.sendOrderNotification(petpoojaOrder); // Skip this too as per instructions? "dont send whatsapp messaage" usually refers to user -> host WA. Notification.partner might be internal. I'll keep it commented out or skipped based on "dont send whatsapp message". Instructions said "dont send whatsapp messaage". 
 
-            return petpoojaOrder;
+            // return petpoojaOrder;
           }
 
           // Create order in database
@@ -1232,7 +1232,7 @@ const useOrderStore = create(
             totalPrice: 0,
           }));
 
-          await Notification.partner.sendOrderNotification(newOrder);
+          if(!hotelData.petpooja_restaurant_id) await Notification.partner.sendOrderNotification(newOrder);
           return newOrder;
         } catch (error) {
           console.error("Order placement error:", error);

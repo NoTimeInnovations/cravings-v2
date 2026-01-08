@@ -219,7 +219,7 @@ const HotelMenuPage = ({
   // ✅ Memoize top-selling items
   const topItems = useMemo(() => {
     return (
-      hoteldata?.menus.filter(
+      hoteldata?.menus?.filter(
         (item) =>
           item.is_top === true &&
           (item.category.is_active === undefined || item.category.is_active)

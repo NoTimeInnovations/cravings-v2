@@ -1,9 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Book, X } from "lucide-react";
+import { Book, ShoppingBag, X } from "lucide-react";
 import useOrderStore from "@/store/orderStore";
 import { Category, formatDisplayName } from "@/store/categoryStore_hasura";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/authStore";
+import { MyOrdersButton } from "./MyOrdersButton";
 
 
 const CategoryListBtn: React.FC<{ categories: Category[] }> = ({
@@ -15,6 +18,8 @@ const CategoryListBtn: React.FC<{ categories: Category[] }> = ({
   const { items } = useOrderStore();
   const [hasItems, setHasItems] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const { userData } = useAuthStore();
 
   useEffect(() => {
     setHasItems((items?.length ?? 0) > 0);
@@ -63,8 +68,8 @@ const CategoryListBtn: React.FC<{ categories: Category[] }> = ({
       ? "bottom-28" // Scrolled up with items
       : "bottom-4" // Scrolled up without items
     : hasItems
-    ? "bottom-28" // Scrolled down with items
-    : "bottom-4"; // Scrolled down without items
+      ? "bottom-28" // Scrolled down with items
+      : "bottom-4"; // Scrolled down without items
 
   return (
     <div
@@ -109,6 +114,10 @@ const CategoryListBtn: React.FC<{ categories: Category[] }> = ({
       >
         {isMenuOpen ? <X size={24} /> : <Book size={24} />}
       </button>
+
+
+      {/* floating button to view orders if user is logged in  */}
+      <MyOrdersButton />
     </div>
   );
 };

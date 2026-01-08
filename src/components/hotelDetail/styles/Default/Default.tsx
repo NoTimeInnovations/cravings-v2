@@ -74,7 +74,7 @@ const Default = ({
   const getCategoryItems = (selectedCategory: string) => {
     if (selectedCategory === "all") {
       return (
-        hoteldata?.menus.filter(
+        hoteldata?.menus?.filter(
           (item) =>
             (item.category.is_active === undefined ||
               item.category.is_active === true) &&
