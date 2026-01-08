@@ -9,6 +9,7 @@ import React from "react";
 import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FaMotorcycle } from "react-icons/fa";
+import { Order } from "@/store/orderStore";
 
 const statusConfig = {
   accepted: {
@@ -41,8 +42,10 @@ const statusConfig = {
 
 const StatusHistoryTimeline = ({
   status_history,
+  order,
 }: {
   status_history: OrderStatusStorage;
+  order?: Order;
 }) => {
   const statusHistory = toStatusDisplayFormat(status_history || {});
 
@@ -57,7 +60,17 @@ const StatusHistoryTimeline = ({
       (a, b) =>
         Number(ReverseStatusMapping[a.status]) -
         Number(ReverseStatusMapping[b.status])
-    );
+    )
+    .filter((entry) => {
+      if (entry.status === "dispatched") {
+        return (
+          order?.type === "delivery" &&
+          order?.delivery_location &&
+          order?.deliveryAddress
+        );
+      }
+      return true;
+    });
 
   // Find the current active status (last completed)
   const activeIndex = statusEntries.reduce((acc, entry, index) => {

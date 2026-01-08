@@ -5,6 +5,7 @@ import { useAuthStore } from "@/store/authStore";
 import { ShoppingBag } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { useEffect, useState } from "react";
+import { subscribeToHasura } from "@/lib/hasuraSubscription";
 
 export const MyOrdersButton = () => {
 
@@ -12,32 +13,40 @@ export const MyOrdersButton = () => {
     const { userData } = useAuthStore();
     const [hasAPendingOrder, setHasAPendingOrder] = useState(false);
 
-    const fetchTheLastOrder = async () => {
-
-        const query = `query MyOrders($userId: uuid!) {
-            orders(where: {user_id: {_eq: $userId}}, order_by: {created_at: desc}, limit: 1) {
-              id
-              status_history
-              status
-            }
-          }`;
-
-        const { orders } = await fetchFromHasura(query, { userId: userData?.id });
-
-        if (orders?.length > 0) {
-            const lastOrder = orders[0];
-            if (lastOrder.status === "pending") {
-                setHasAPendingOrder(true);
-                console.log("Has a pending order")
-            }
-        }
-
-    }
+    const SUBSCRIPTION_QUERY = `subscription MyOrders($userId: uuid!) {
+              orders(where: {user_id: {_eq: $userId}}, order_by: {created_at: desc}, limit: 1) {
+                id
+                status_history
+                status
+              }
+            }`;
 
     useEffect(() => {
-        if (userData) {
-            setTimeout(fetchTheLastOrder, 5000)
-        }
+        if (!userData?.id) return;
+
+        const unsubscribe = subscribeToHasura({
+            query: SUBSCRIPTION_QUERY,
+            variables: { userId: userData.id },
+            onNext: (data) => {
+                if (data?.data?.orders?.length > 0) {
+                    const lastOrder = data.data.orders[0];
+                    if (lastOrder.status === "pending") {
+                        setHasAPendingOrder(true);
+                    } else {
+                        setHasAPendingOrder(false);
+                    }
+                } else {
+                    setHasAPendingOrder(false);
+                }
+            },
+            onError: (error) => {
+                console.error("Subscription error:", error);
+            }
+        });
+
+        return () => {
+            unsubscribe();
+        };
     }, [userData]);
 
     return (

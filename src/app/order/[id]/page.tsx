@@ -181,7 +181,7 @@ const OrderPage = () => {
                     <div>
                       <p className="text-sm text-gray-500">Order Type</p>
                       <p className="capitalize">
-                        {order?.type?.replace("_", " ")}
+                        {order?.type === "delivery" ? (order?.deliveryAddress != null || order?.delivery_location != null ? "Delivery" : "Take Away") : order?.type?.replace("_", " ")}
                       </p>
                     </div>
                     {order?.type === "table_order" && order?.tableNumber && (
@@ -198,7 +198,7 @@ const OrderPage = () => {
                         <p>{order?.deliveryAddress || "N/A"}</p>
                         {order.delivery_location &&
                           (order.delivery_location?.coordinates?.length ?? 0) >
-                            0 && (
+                          0 && (
                             <div className="mt-2">
                               <a
                                 href={`https://www.google.com/maps?q=${order.delivery_location.coordinates[1]},${order.delivery_location.coordinates[0]}`}
@@ -235,6 +235,7 @@ const OrderPage = () => {
 
                 <div className="sm:hidden">
                   <StatusHistoryTimeline
+                    order={order ?? undefined}
                     status_history={order?.status_history || {}}
                   />
                 </div>

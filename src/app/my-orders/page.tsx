@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   Loader2,
   Edit,
-  Trash2,
+
   SquareArrowUpRight,
   SquareArrowOutDownRight,
   ExternalLink,
@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import useOrderStore from "@/store/orderStore";
 import { EditOrderModal } from "@/components/admin/pos/EditOrderModal";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { cancelOrderMutation } from "@/api/orders";
+
 import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
 import { toStatusDisplayFormat } from "@/lib/statusHistory";
 import Link from "next/link";
@@ -62,22 +62,7 @@ const Page = () => {
     setEditOrderModalOpen(true);
   };
 
-  const handleCancelOrder = async (orderId: string) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to cancel this order?"
-    );
-    if (!confirmed) return;
 
-    try {
-      await fetchFromHasura(cancelOrderMutation, {
-        orderId,
-      });
-      toast.success("Order cancelled successfully");
-    } catch (error) {
-      console.error("Error cancelling order:", error);
-      toast.error("Failed to cancel order");
-    }
-  };
 
   const calculateGst = (amount: number, gstPercentage: number) => {
     return (amount * gstPercentage) / 100;
@@ -273,14 +258,7 @@ const Page = () => {
                         <Edit className="h-4 w-4 mr-2" />
                         Edit
                       </Button> */}
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleCancelOrder(order.id)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Cancel
-                      </Button>
+
                     </>
                   )}
                 </div>

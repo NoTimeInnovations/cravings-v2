@@ -9,6 +9,7 @@ export const getStatusDisplay = (
   const isDispatched = displayStatus.dispatched?.isCompleted;
   const isCompleted = displayStatus.completed?.isCompleted;
   const isCancelled = order?.status === "cancelled";
+  const orderType = order?.type;
 
   if (isCancelled) {
     return {
@@ -25,16 +26,29 @@ export const getStatusDisplay = (
   }
 
   if (isDispatched) {
+    if (orderType === "delivery") {
+      if (order.deliveryAddress && order.delivery_location) {
+        return {
+          text: "Dispatched",
+          className: "bg-purple-100 text-purple-800",
+        };
+      }
+      return {
+        text: "Ready for pickup",
+        className: "bg-purple-100 text-purple-800",
+      };
+    }
+
     return {
-      text: "Dispatched",
-      className: "bg-blue-100 text-blue-800",
+      text: "Ready to serve",
+      className: "bg-purple-100 text-purple-800",
     };
   }
 
   if (isAccepted) {
     return {
       text: "Accepted",
-      className: "bg-yellow-100 text-yellow-800",
+      className: "bg-blue-100 text-blue-800",
     };
   }
 
