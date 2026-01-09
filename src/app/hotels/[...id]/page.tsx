@@ -148,6 +148,14 @@ const HotelPage = async ({
   let hoteldata = hotelId
     ? ((await getHotelData(hotelId))?.partners[0] as HotelData)
     : null;
+
+  if (hoteldata?.offers) {
+    const today = new Date().setHours(0, 0, 0, 0);
+    hoteldata.offers = hoteldata.offers.filter(
+      (offer) => new Date(offer.end_time).setHours(0, 0, 0, 0) >= today
+    );
+  }
+
   const offers = hoteldata?.offers;
 
   // Cleanup expired custom menu items

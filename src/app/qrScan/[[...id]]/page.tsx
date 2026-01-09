@@ -206,6 +206,14 @@ const page = async ({
   );
 
   const hoteldata = hotelId ? await getHotelData(hotelId) : null;
+
+  if (hoteldata?.offers) {
+    const today = new Date().setHours(0, 0, 0, 0);
+    hoteldata.offers = hoteldata.offers.filter(
+      (offer) => new Date(offer.end_time).setHours(0, 0, 0, 0) >= today
+    );
+  }
+
   const offers = hoteldata?.offers;
 
   let filteredOffers: Offer[] = [];
