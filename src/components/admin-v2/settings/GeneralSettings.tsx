@@ -339,6 +339,15 @@ export function GeneralSettings() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
+                        <Label>Email Address</Label>
+                        <Input
+                            value={userData?.email || ""}
+                            readOnly
+                            disabled
+                            className="bg-muted"
+                        />
+                    </div>
+                    <div className="space-y-2">
                         <Label>New Password</Label>
                         <Input
                             type="password"
@@ -357,7 +366,7 @@ export function GeneralSettings() {
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="••••••••"
                         />
-                    </div>  
+                    </div>
                 </CardContent>
                 <div className="flex justify-end p-6 pt-0">
                     <Button

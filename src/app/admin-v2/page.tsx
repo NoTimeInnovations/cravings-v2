@@ -40,7 +40,7 @@ const AdminV2PurchaseInventory = dynamic(() => import("@/components/admin-v2/Adm
     loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
 });
 import { useAdminStore } from "@/store/adminStore";
-import { PasswordProtectionModal } from "@/components/admin-v2/PasswordProtectionModal";
+
 
 export default function AdminPage() {
     const { activeView, setActiveView } = useAdminStore();
@@ -54,18 +54,10 @@ export default function AdminPage() {
     }
 
 
-    const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-    const [pendingView, setPendingView] = useState<string | null>(null);
-
     const handleNavigate = (view: string) => {
-        if (view === "Settings") {
-            setPendingView(view);
-            setPasswordModalOpen(true);
-        } else {
-            setActiveView(view);
-            if (view === "POS") {
-                setIsSidebarOpen(false);
-            }
+        setActiveView(view);
+        if (view === "POS") {
+            setIsSidebarOpen(false);
         }
     };
 
@@ -99,9 +91,7 @@ export default function AdminPage() {
                                 activeView={activeView}
                                 onNavigate={(view) => {
                                     handleNavigate(view);
-                                    if (view !== "Settings") {
-                                        setIsMobileOpen(false);
-                                    }
+                                    setIsMobileOpen(false);
                                 }}
                             />
                         </div>
@@ -166,19 +156,6 @@ export default function AdminPage() {
                     </main>
                 </div>
             </div>
-
-            <PasswordProtectionModal
-                isOpen={passwordModalOpen}
-                onClose={() => setPasswordModalOpen(false)}
-                onSuccess={() => {
-                    if (pendingView) {
-                        setActiveView(pendingView);
-                        setIsMobileOpen(false);
-                        setPendingView(null);
-                    }
-                }}
-                actionDescription="access settings"
-            />
         </Sheet>
     );
 }

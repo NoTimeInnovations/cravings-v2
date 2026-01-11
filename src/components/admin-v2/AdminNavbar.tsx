@@ -32,7 +32,9 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                 </Button>
                 <div className="flex items-center gap-2 hidden lg:flex">
                     <UtensilsCrossed className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-                    <span className="text-xl font-bold text-orange-600 dark:text-orange-400">Cravings</span>
+                    <span className="text-xl font-bold text-orange-600 dark:text-orange-400">
+                        {userData?.role === 'partner' ? (userData as Partner).store_name : "Cravings"}
+                    </span>
                 </div>
             </div>
 
@@ -68,7 +70,7 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                 })()}
                 <OrderNotification />
                 <ModeToggle />
-                {/* {userData?.role === 'partner' && (
+                {userData?.role === 'partner' && (
                     <div
                         className="cursor-pointer hover:opacity-80 transition-opacity"
                         onClick={() => setActiveView("Settings")}
@@ -79,7 +81,7 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                             <AvatarFallback>{(userData as Partner).store_name?.slice(0, 2).toUpperCase()}</AvatarFallback>
                         </Avatar>
                     </div>
-                )} */}
+                )}
             </div>
         </nav>
     );
