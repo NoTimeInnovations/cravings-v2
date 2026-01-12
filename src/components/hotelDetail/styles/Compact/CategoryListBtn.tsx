@@ -1,16 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Book, ShoppingBag, X } from "lucide-react";
+import { Book, X } from "lucide-react";
 import useOrderStore from "@/store/orderStore";
 import { Category, formatDisplayName } from "@/store/categoryStore_hasura";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
-import { MyOrdersButton } from "./MyOrdersButton";
+// import { MyOrdersButton } from "./MyOrdersButton";
 
 
-const CategoryListBtn: React.FC<{ categories: Category[] }> = ({
+const CategoryListBtn: React.FC<{ categories: Category[]; hasBottomNav?: boolean }> = ({
   categories,
+  hasBottomNav = false,
 }) => {
   const [isMenuOpen, setMenuOpen] = useState(false);
   const [isMoveUp, setMoveUp] = useState(false);
@@ -63,13 +64,16 @@ const CategoryListBtn: React.FC<{ categories: Category[] }> = ({
   };
 
   // Determines the button's vertical position based on scroll and cart status
+  const baseBottom = hasBottomNav ? "bottom-20" : "bottom-4";
+  const raisedBottom = hasBottomNav ? "bottom-44" : "bottom-28";
+
   const bottomPositionClass = isMoveUp
     ? hasItems
-      ? "bottom-28" // Scrolled up with items
-      : "bottom-4" // Scrolled up without items
+      ? raisedBottom // Scrolled up with items
+      : baseBottom // Scrolled up without items
     : hasItems
-      ? "bottom-28" // Scrolled down with items
-      : "bottom-4"; // Scrolled down without items
+      ? raisedBottom // Scrolled down with items
+      : baseBottom; // Scrolled down without items
 
   return (
     <div
@@ -116,8 +120,8 @@ const CategoryListBtn: React.FC<{ categories: Category[] }> = ({
       </button>
 
 
-      {/* floating button to view orders if user is logged in  */}
-      <MyOrdersButton />
+      {/* floating button to view orders if user is logged in 
+      <MyOrdersButton /> */}
     </div>
   );
 };

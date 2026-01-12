@@ -167,7 +167,10 @@ const HIDDEN_PATHS = [
   "/whatsappQr/[id]",
   "/get-started",
   "/admin-v2/.*",
-  "/admin-v2"
+  "/admin-v2",
+  "/order/.*",
+  "/order/[id]",
+  "/my-orders"
 ];
 
 import { Partner, useAuthStore } from "@/store/authStore";

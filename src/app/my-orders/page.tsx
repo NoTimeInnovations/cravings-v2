@@ -1,13 +1,14 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 import {
   Loader2,
   Edit,
-
   SquareArrowUpRight,
   SquareArrowOutDownRight,
   ExternalLink,
+  ArrowLeft,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Partner, useAuthStore } from "@/store/authStore";
@@ -28,6 +29,7 @@ const Page = () => {
   const { userOrders, subscribeUserOrders } = useOrderStore();
   const { setOrder, setEditOrderModalOpen } = usePOSStore();
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     if (userData?.id) {
@@ -68,207 +70,151 @@ const Page = () => {
     return (amount * gstPercentage) / 100;
   };
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentOrders = userOrders.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(userOrders.length / itemsPerPage);
+
+  const handlePageChange = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
-    <div className="container mx-auto px-4 pb-8 pt-16">
-      <h1 className="text-2xl font-bold mb-6">My Orders</h1>
+    <div className="bg-gray-50 min-h-screen">
+      {/* Top Navbar */}
+      <div className="bg-white border-b sticky top-0 z-50 px-4 py-3 flex items-center gap-3 shadow-sm">
+        <button
+          onClick={() => router.back()}
+          className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <h1 className="font-semibold text-lg">My Orders</h1>
+      </div>
 
-      {loading ? (
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      ) : userOrders.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          You haven&apos;t placed any orders yet.
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {userOrders.map((order, index) => {
-            const gstPercentage =
-              (order.partner as Partner)?.gst_percentage || 0;
-            const foodTotal = (order.items || []).reduce(
-              (sum: number, item: any) => sum + item.price * item.quantity,
-              0
-            );
-            const gstAmount = getGstAmount(foodTotal, gstPercentage);
-            const extraChargesTotal =
-              (order.extraCharges || []).reduce(
-                (sum: number, charge: any) =>
-                  sum +
-                  getExtraCharge(
-                    order?.items || [],
-                    charge.amount,
-                    charge.charge_type
-                  ) || 0,
+      <div className="container mx-auto px-4 pb-8 pt-4 max-w-3xl">
+
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : userOrders.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            You haven&apos;t placed any orders yet.
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {currentOrders.map((order, index) => {
+              const gstPercentage =
+                (order.partner as Partner)?.gst_percentage || 0;
+              const foodTotal = (order.items || []).reduce(
+                (sum: number, item: any) => sum + item.price * item.quantity,
                 0
-              ) || 0;
+              );
+              const gstAmount = getGstAmount(foodTotal, gstPercentage);
+              const extraChargesTotal =
+                (order.extraCharges || []).reduce(
+                  (sum: number, charge: any) =>
+                    sum +
+                    getExtraCharge(
+                      order?.items || [],
+                      charge.amount,
+                      charge.charge_type
+                    ) || 0,
+                  0
+                ) || 0;
 
-            const grandTotal = foodTotal + extraChargesTotal + gstAmount;
-            const statusDisplay = getStatusDisplay(order);
+              const grandTotal = foodTotal + extraChargesTotal + gstAmount;
+              const statusDisplay = getStatusDisplay(order);
 
-            if (index == 0) {
-              console.log("Order Data:", order);
-            }
-
-            return (
-              <div
-                id={`order-${order.id}`}
-                key={order.id}
-                className="border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3 className="font-medium text-xs text-gray-500">
-                      Order Id : #{order.id.split("-")[0]}
-                    </h3>
-                    <h3 className="font-medium">
-                      Store : {order.partner?.store_name}
-                    </h3>
-                    <h3 className="text-sm text-gray-500">
-                      Ordered from : {order.partner?.store_name}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      {format(new Date(order.createdAt), "PPPp")}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Link
-                      href={`/order/${order.id}`}
-                      className={`px-2 py-1 rounded-full font-medium text-xs bg-blue-500 text-white flex items-center gap-1`}
+              return (
+                <Link
+                  href={`/order/${order.id}`}
+                  id={`order-${order.id}`}
+                  key={order.id}
+                  className="block border border-gray-200 rounded-xl p-5 shadow-sm bg-white hover:shadow-md transition-shadow relative"
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-lg">
+                          {order.partner?.store_name}
+                        </h3>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${statusDisplay.className}`}
+                        >
+                          {statusDisplay.text}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        #{order.id.split("-")[0]} • {format(new Date(order.createdAt), "MMM d, h:mm a")}
+                      </p>
+                    </div>
+                    <div
+                      className="text-orange-600 bg-orange-50 p-2 rounded-full transition-colors"
                     >
-                      <ExternalLink className="inline mr-1 w-5 h-5" />
-                      <span>Track</span>
-                    </Link>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${statusDisplay.className}`}
-                    >
-                      {statusDisplay.text}
-                    </span>
+                      <ExternalLink className="w-5 h-5" />
+                    </div>
                   </div>
-                </div>
 
-                <div className="mb-3">
-                  {order.tableNumber && (
-                    <p className="text-sm">
-                      <span className="font-medium">Table:</span>{" "}
-                      {order.tableName || order.tableNumber}
-                    </p>
-                  )}
-                  {order.phone && (
-                    <p className="text-sm">
-                      <span className="font-medium">Phone:</span> {order.phone}
-                    </p>
-                  )}
-                  {order.deliveryAddress && (
-                    <p className="text-sm">
-                      <span className="font-medium">Delivery Address:</span>{" "}
-                      {order.deliveryAddress}
-                    </p>
-                  )}
-
-                  {order.delivery_location && order.deliveryAddress && (
-                    <p className="text-sm">
-                      {/* <span className="font-medium">Delivery Location:</span>{" "} */}
-                      <a
-                        className="text-blue-500 hover:underline"
-                        href={`https://www.google.com/maps?q=${order.delivery_location.coordinates[1]},${order.delivery_location.coordinates[0]}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        View Location
-                      </a>
-                    </p>
-                  )}
-
-                  {order.notes && (
-                    <p className="text-sm text-orange-500 mt-2">
-                      Notes : {order.notes}
-                    </p>
-                  )}
-                </div>
-
-                <div className="border-t pt-3">
-                  <h4 className="font-medium mb-2">Items</h4>
-                  <ul className="space-y-2">
+                  <div className="space-y-1 mb-4">
                     {order.items.map((item: any) => (
-                      <li key={item.id} className="flex justify-between">
-                        <span>
+                      <div key={item.id} className="flex justify-between text-sm">
+                        <span className="text-gray-700">
                           {item.quantity} × {item.name}
                         </span>
-                        <span>
-                          {(order.partner as Partner)?.currency || "$"}
+                        <span className="font-medium">
+                          {(order.partner as Partner)?.currency || "₹"}
                           {(item.price * item.quantity).toFixed(2)}
                         </span>
-                      </li>
+                      </div>
                     ))}
-                  </ul>
-                </div>
-
-                {(order?.extraCharges || []).length > 0 && (
-                  <div className="border-t pt-3">
-                    <h4 className="font-medium mb-2">Extra Charges</h4>
-                    <ul className="space-y-2">
-                      {(order?.extraCharges || []).map(
-                        (charge: any, index: number) => (
-                          <li key={index} className="flex justify-between">
-                            <span>{charge.name}</span>
-                            <span>
-                              {(order.partner as Partner)?.currency || "$"}
-                              {getExtraCharge(
-                                order?.items || [],
-                                charge.amount,
-                                charge.charge_type
-                              ).toFixed(2)}
-                            </span>
-                          </li>
-                        )
-                      )}
-                    </ul>
                   </div>
-                )}
 
-                <div className="border-t pt-3 space-y-2">
-                  {gstPercentage > 0 && (
-                    <div className="flex justify-between">
-                      <span>{(order.partner as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%):</span>
-                      <span>
-                        {(order.partner as Partner)?.currency || "$"}
-                        {gstAmount.toFixed(2)}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between font-bold">
-                    <span>Grand Total:</span>
+                  <div className="border-t pt-3 flex justify-between items-center font-bold text-gray-900">
+                    <span>Total</span>
                     <span>
-                      {(order.partner as Partner)?.currency || "$"}
+                      {(order.partner as Partner)?.currency || "₹"}
                       {grandTotal.toFixed(2)}
                     </span>
                   </div>
-                </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
 
-                {/* Action Buttons */}
-                <div className="flex justify-end gap-2 mt-4">
-                  {order.status === "pending" && (
-                    <>
-                      {/* <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditOrder(order)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit
-                      </Button> */}
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-4 mt-8">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="text-sm font-medium">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        )}
 
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <EditOrderModal />
+        <EditOrderModal />
+      </div>
     </div>
   );
 };

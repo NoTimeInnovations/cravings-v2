@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { formatDate } from "@/lib/formatDate";
 import { ExtraCharge } from "@/store/posStore";
 import StatusHistoryTimeline from "@/components/StatusHistoryTimeline";
@@ -10,6 +10,7 @@ import { subscribeToHasura } from "@/lib/hasuraSubscription";
 import { Order, OrderItem } from "@/store/orderStore";
 import OfferLoadinPage from "@/components/OfferLoadinPage";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
+import { ArrowLeft } from "lucide-react";
 
 const GET_ORDER_QUERY = `
   subscription GetOrder($id: uuid!) {
@@ -140,8 +141,21 @@ const OrderClient = () => {
 
     const statusDisplay = getStatusDisplay(order as Order);
 
+    const router = useRouter();
+
     return (
-        <>
+        <div className="bg-gray-50 min-h-screen">
+            {/* Top Navbar */}
+            <div className="bg-white border-b sticky top-0 z-50 px-4 py-3 flex items-center gap-3 shadow-sm">
+                <button
+                    onClick={() => router.back()}
+                    className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                >
+                    <ArrowLeft size={20} />
+                </button>
+                <h1 className="font-semibold text-lg">Order Status</h1>
+            </div>
+
             {loading ? (
                 <>
                     <OfferLoadinPage message="Loading Order.." />
@@ -312,7 +326,7 @@ const OrderClient = () => {
                     </div>
                 </div>
             )}
-        </>
+        </div>
     );
 };
 

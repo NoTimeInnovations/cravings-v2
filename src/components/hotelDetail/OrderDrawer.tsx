@@ -145,12 +145,14 @@ const OrderDrawer = ({
   tableNumber,
   qrId,
   qrGroup,
+  hasBottomNav = false, // Added prop
 }: {
   styles: Styles;
   hotelData: HotelData;
   tableNumber?: number;
   qrId?: string;
   qrGroup?: QrGroup | null;
+  hasBottomNav?: boolean; // Added type
 }) => {
   const {
     userAddress,
@@ -444,8 +446,8 @@ const OrderDrawer = ({
           backgroundColor: styles.accent || "#ea580c",
           color: "#ffffff",
         }}
-        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl flex items-center justify-between transition-transform duration-300 cursor-pointer ${open_drawer_bottom ? "translate-y-0" : "translate-y-[200%]"
-          }`}
+        className={`fixed left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl flex items-center justify-between transition-all duration-300 cursor-pointer ${open_drawer_bottom ? "translate-y-0" : "translate-y-[200%]"
+          } ${hasBottomNav ? "bottom-20" : "bottom-6"}`}
       >
         <div className="font-semibold text-lg">
           {items?.length || 0} item{(items?.length || 0) !== 1 ? "s" : ""} added

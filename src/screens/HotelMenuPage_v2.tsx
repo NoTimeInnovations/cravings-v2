@@ -298,11 +298,12 @@ const HotelMenuPage = ({
   };
 
   const showOrderDrawer =
-    (pathname.includes("qrScan") && features?.ordering.enabled) ||
-    (!pathname.includes("qrScan") &&
-      features?.delivery.enabled &&
-      (hoteldata?.delivery_rules?.isDeliveryActive ?? true) &&
-      isWithinDeliveryTime());
+    theme?.menuStyle !== "compact" &&
+    ((pathname.includes("qrScan") && features?.ordering.enabled) ||
+      (!pathname.includes("qrScan") &&
+        features?.delivery.enabled &&
+        (hoteldata?.delivery_rules?.isDeliveryActive ?? true) &&
+        isWithinDeliveryTime()));
 
   return (
     <>

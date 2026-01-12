@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Star } from "lucide-react";
 import useOrderStore from "@/store/orderStore";
 
-const RateUs: React.FC<{ hoteldata: HotelData; socialLinks: SocialLinks }> = ({
+const RateUs: React.FC<{ hoteldata: HotelData; socialLinks: SocialLinks; hasBottomNav?: boolean }> = ({
   hoteldata,
   socialLinks,
+  hasBottomNav = false,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [rating, setRating] = useState(0);
@@ -17,7 +18,7 @@ const RateUs: React.FC<{ hoteldata: HotelData; socialLinks: SocialLinks }> = ({
   const [hasRated, setHasRated] = useState(false);
   const [isMoveUp, setMoveUp] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const { order , items } = useOrderStore();
+  const { order, items } = useOrderStore();
   const [hasItems, setHasItems] = useState(false);
 
   const ratingKey = hoteldata?.id ? `rating_${hoteldata.id}` : "";
@@ -34,7 +35,7 @@ const RateUs: React.FC<{ hoteldata: HotelData; socialLinks: SocialLinks }> = ({
   useEffect(() => {
     if ((items?.length ?? 0) > 0) {
       setHasItems(true);
-    }else{
+    } else {
       setHasItems(false);
     }
   }, [items]);
@@ -103,12 +104,15 @@ const RateUs: React.FC<{ hoteldata: HotelData; socialLinks: SocialLinks }> = ({
 
   const canRate = socialLinks?.googleReview || hoteldata?.place_id || !hasRated;
 
+  const baseBottom = hasBottomNav ? "bottom-20" : "bottom-4";
+  const raisedBottom = hasBottomNav ? "bottom-44" : "bottom-28";
+
   return (
     <>
       {(canRate && !hasRated) && (
         <Button
           onClick={() => handleModalOpenChange(true)}
-          className={`fixed left-4 z-50 shadow-lg rounded-full transition-all duration-500 ${isMoveUp ? hasItems ? "bottom-28" : "bottom-4" : hasItems ? "bottom-28" : "bottom-4"}`}
+          className={`fixed left-4 z-50 shadow-lg rounded-full transition-all duration-500 ${isMoveUp ? hasItems ? raisedBottom : baseBottom : hasItems ? raisedBottom : baseBottom}`}
         >
           <Star className="mr-2 h-4 w-4" /> Rate Us
         </Button>
@@ -147,11 +151,10 @@ const RateUs: React.FC<{ hoteldata: HotelData; socialLinks: SocialLinks }> = ({
                     return (
                       <Star
                         key={index}
-                        className={`h-10 w-10 transition-transform duration-200 ${
-                          hasRated
-                            ? "cursor-default"
-                            : "cursor-pointer hover:scale-125"
-                        }`}
+                        className={`h-10 w-10 transition-transform duration-200 ${hasRated
+                          ? "cursor-default"
+                          : "cursor-pointer hover:scale-125"
+                          }`}
                         fill={
                           starValue <= (hoverRating || rating)
                             ? "#FFD700"
