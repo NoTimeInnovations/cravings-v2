@@ -176,7 +176,7 @@ export function ImageGridModalV2({
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[85vw] md:max-w-7xl h-[100vh] sm:h-[80vh] flex flex-col p-0 gap-0 overflow-hidden bg-background">
+            <DialogContent className="sm:max-w-[85vw] md:max-w-7xl h-[100dvh] sm:h-[80vh] flex flex-col p-0 gap-0 overflow-hidden bg-background">
                 <DialogHeader className="px-6 py-4 border-b flex-shrink-0 flex flex-row items-center justify-between">
                     <DialogTitle className="text-xl font-semibold">Media Library</DialogTitle>
                     <Button variant="ghost" size="icon" className="sm:hidden" onClick={() => onOpenChange(false)}>
@@ -284,7 +284,7 @@ export function ImageGridModalV2({
                             )}
 
                             {activeTab === "upload" && (
-                                <div className="h-full flex flex-col items-center justify-center p-8 gap-6">
+                                <div className="w-full h-full flex flex-col items-center justify-center p-8 gap-6">
                                     <div className="text-center space-y-2">
                                         <div className="bg-muted/50 p-4 rounded-full inline-flex">
                                             <Upload className="w-8 h-8 text-muted-foreground" />
@@ -295,15 +295,17 @@ export function ImageGridModalV2({
                                         </p>
                                     </div>
                                     <div className="flex flex-col gap-3 w-full max-w-xs">
-                                        <Button className="w-full relative">
+                                        <div className="relative w-full">
                                             <input
                                                 type="file"
-                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                className="absolute inset-0 z-10 w-full h-full opacity-0 cursor-pointer"
                                                 accept="image/*"
                                                 onChange={handleFileUpload}
                                             />
-                                            Choose File
-                                        </Button>
+                                            <Button className="w-full">
+                                                Choose File
+                                            </Button>
+                                        </div>
                                         <Button variant="outline" className="w-full" onClick={handlePaste}>
                                             <ClipboardPaste className="w-4 h-4 mr-2" />
                                             Paste from Clipboard
