@@ -226,7 +226,28 @@ const Compact = ({
 
 
   // Memoize the category list to prevent re-creation on every render
-  // UPDATED: Remove "Offer" category from compact design
+  const allCategories = useMemo(() => {
+    const cats = [...categories];
+
+    if (hasOffers) {
+      cats.push({
+        id: "offers",
+        name: "Offers",
+        priority: -2,
+      } as any);
+    }
+
+    if (topItems && topItems.length > 0) {
+      cats.push({
+        id: "must-try",
+        name: "Must Try",
+        priority: -1,
+      } as any);
+    }
+
+    return cats;
+  }, [categories, hasOffers, topItems]);
+
   // Calculate if bottom nav should be shown
   const showBottomNav =
     auth?.role === "user" &&
@@ -311,12 +332,12 @@ const Compact = ({
                   <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none p-4">
                     <h1
                       className={`font-handwriting text-white drop-shadow-md text-center font-bold break-words w-full ${(hoteldata?.store_name?.length || 0) > 35
-                          ? "text-2xl"
-                          : (hoteldata?.store_name?.length || 0) > 25
-                            ? "text-3xl"
-                            : (hoteldata?.store_name?.length || 0) > 15
-                              ? "text-4xl"
-                              : "text-5xl"
+                        ? "text-2xl"
+                        : (hoteldata?.store_name?.length || 0) > 25
+                          ? "text-3xl"
+                          : (hoteldata?.store_name?.length || 0) > 15
+                            ? "text-4xl"
+                            : "text-5xl"
                         }`}
                     >
                       {hoteldata?.store_name}
@@ -429,8 +450,8 @@ const Compact = ({
                 >
                   <div
                     className={`w-2.5 h-2.5 border-[1.5px] ${vegFilter === "veg"
-                        ? "border-white"
-                        : "border-green-600"
+                      ? "border-white"
+                      : "border-green-600"
                       } flex items-center justify-center`}
                   >
                     <div
@@ -460,14 +481,14 @@ const Compact = ({
                 >
                   <div
                     className={`w-2.5 h-2.5 border-[1.5px] ${vegFilter === "non-veg"
-                        ? "border-white"
-                        : "border-red-600"
+                      ? "border-white"
+                      : "border-red-600"
                       } flex items-center justify-center`}
                   >
                     <div
                       className={`w-1.5 h-1.5 rounded-full ${vegFilter === "non-veg"
-                          ? "bg-white"
-                          : "bg-red-600"
+                        ? "bg-white"
+                        : "bg-red-600"
                         }`}
                     ></div>
                   </div>
@@ -512,8 +533,8 @@ const Compact = ({
                   onClick={() => handleCategoryClick(index, category)}
                   key={category.id}
                   className={`p-3 text-nowrap cursor-pointer ${activeCatIndex === index
-                      ? "font-semibold"
-                      : "font-medium"
+                    ? "font-semibold"
+                    : "font-medium"
                     } flex-shrink-0`}
                 >
                   {formatDisplayName(category.name)}
@@ -802,10 +823,10 @@ const Compact = ({
                             }));
                           }}
                           className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${localStyles.backgroundColor ===
-                              palette.background &&
-                              localStyles.accent === palette.accent
-                              ? "border-orange-600 scale-110 ring-2 ring-orange-100"
-                              : "border-white/50"
+                            palette.background &&
+                            localStyles.accent === palette.accent
+                            ? "border-orange-600 scale-110 ring-2 ring-orange-100"
+                            : "border-white/50"
                             }`}
                           style={{
                             backgroundColor: palette.background,
@@ -823,8 +844,8 @@ const Compact = ({
                       <button
                         onClick={() => setIsCustomMode(true)}
                         className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${isCustomMode
-                            ? "border-orange-600 scale-110 ring-2 ring-orange-100"
-                            : "border-gray-200"
+                          ? "border-orange-600 scale-110 ring-2 ring-orange-100"
+                          : "border-gray-200"
                           } bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100`}
                       >
                         <Palette
@@ -862,8 +883,8 @@ const Compact = ({
                               key={tab}
                               onClick={() => setMobileTab(tab)}
                               className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all ${mobileTab === tab
-                                  ? "bg-white shadow text-gray-900"
-                                  : "text-gray-500 hover:text-gray-700"
+                                ? "bg-white shadow text-gray-900"
+                                : "text-gray-500 hover:text-gray-700"
                                 }`}
                             >
                               {label}
