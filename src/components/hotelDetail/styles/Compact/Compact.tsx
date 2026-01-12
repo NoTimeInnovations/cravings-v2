@@ -23,6 +23,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { updatePartnerMutation } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { getFeatures } from "@/lib/getFeatures";
+import { get } from "http";
 
 // Helper to check darkness for contrast
 const isColorDark = (hex: string) => {
@@ -226,16 +227,11 @@ const Compact = ({
 
   // Memoize the category list to prevent re-creation on every render
   // UPDATED: Remove "Offer" category from compact design
-  const allCategories = React.useMemo(
-    () => [
-      ...(hasOffers ? [{ id: "offers", name: "Offers" }] : []),
-      ...(topItems && topItems.length > 0
-        ? [{ id: "must-try", name: "must_try" }]
-        : []),
-      ...categories.filter((category) => category.name !== "Offer"),
-    ],
-    [categories, topItems, hasOffers]
-  );
+  // Calculate if bottom nav should be shown
+  const showBottomNav =
+    auth?.role === "user" &&
+    (getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled == true ||
+      getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled == true);
 
   return (
     <>
@@ -252,13 +248,20 @@ const Compact = ({
         />
 
         {/* Floating buttons - Only visible in Food tab */}
-        {activeTab === 'food' && (
+        {activeTab === "food" && (
           <>
             {/* category list btn  */}
-            <CategoryListBtn categories={allCategories} hasBottomNav={auth?.role === 'user'} />
+            <CategoryListBtn
+              categories={allCategories}
+              hasBottomNav={showBottomNav}
+            />
 
             {/* rateusbtn  */}
-            <RateUs hoteldata={hoteldata} socialLinks={socialLinks} hasBottomNav={auth?.role === 'user'} />
+            <RateUs
+              hoteldata={hoteldata}
+              socialLinks={socialLinks}
+              hasBottomNav={showBottomNav}
+            />
 
             {/* MyOrdersButton - Top Right */}
             {/* <div className="absolute top-4 right-4 z-40">
@@ -267,9 +270,8 @@ const Compact = ({
           </>
         )}
 
-        {activeTab === 'food' ? (
+        {activeTab === "food" ? (
           <>
-
             {/* hotel banner */}
             <div className="relative">
               {/* image */}
@@ -286,7 +288,9 @@ const Compact = ({
                 ) : (
                   <div
                     className="w-full h-full flex items-center justify-center relative overflow-hidden"
-                    style={{ backgroundColor: localStyles?.accent || "#ea580c" }}
+                    style={{
+                      backgroundColor: localStyles?.accent || "#ea580c",
+                    }}
                   >
                     <div
                       className="absolute inset-0 opacity-10"
@@ -307,19 +311,18 @@ const Compact = ({
                   <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none p-4">
                     <h1
                       className={`font-handwriting text-white drop-shadow-md text-center font-bold break-words w-full ${(hoteldata?.store_name?.length || 0) > 35
-                        ? "text-2xl"
-                        : (hoteldata?.store_name?.length || 0) > 25
-                          ? "text-3xl"
-                          : (hoteldata?.store_name?.length || 0) > 15
-                            ? "text-4xl"
-                            : "text-5xl"
+                          ? "text-2xl"
+                          : (hoteldata?.store_name?.length || 0) > 25
+                            ? "text-3xl"
+                            : (hoteldata?.store_name?.length || 0) > 15
+                              ? "text-4xl"
+                              : "text-5xl"
                         }`}
                     >
                       {hoteldata?.store_name}
                     </h1>
                   </div>
                 )}
-
             </div>
 
             {/* hotel details (Below Banner) */}
@@ -329,7 +332,8 @@ const Compact = ({
               </h1>
               {((hoteldata?.district && hoteldata.district !== "") ||
                 (hoteldata?.country && hoteldata.country !== "") ||
-                (hoteldata?.location_details && hoteldata.location_details !== "")) && (
+                (hoteldata?.location_details &&
+                  hoteldata.location_details !== "")) && (
                   <div className="inline-flex gap-2 text-sm opacity-80">
                     <MapPin size={15} />
                     <span>
@@ -346,24 +350,26 @@ const Compact = ({
             {(socialLinks || isOwner) && (
               <div
                 style={{
-                  borderColor: localStyles?.border?.borderColor || "#0000001D",
+                  borderColor:
+                    localStyles?.border?.borderColor || "#0000001D",
                 }}
                 className="flex overflow-x-auto scrollbar-hide gap-2 p-4 pt-2 border-b-[1px] z-20"
               >
                 <SocialLinks socialLinks={socialLinks} />
                 {isOwner && (
                   <div
-                    onClick={() => setShowThemeCustomizer(!showThemeCustomizer)}
+                    onClick={() =>
+                      setShowThemeCustomizer(!showThemeCustomizer)
+                    }
                     className="flex items-center gap-2 border-[1px] border-gray-300 p-2 rounded-md bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
                     role="button"
                     aria-label="Customize Theme"
                   >
-                    <Palette
-                      size={15}
-                      style={{ color: "#000" }}
-                    />
+                    <Palette size={15} style={{ color: "#000" }} />
                     <span className="text-xs text-nowrap text-gray-500 font-medium">
-                      {showThemeCustomizer ? "Close Editor" : "Change Theme"}
+                      {showThemeCustomizer
+                        ? "Close Editor"
+                        : "Change Theme"}
                     </span>
                   </div>
                 )}
@@ -388,7 +394,8 @@ const Compact = ({
                 <button
                   onClick={() => setVegFilter("all")}
                   style={{
-                    borderColor: localStyles?.border?.borderColor || "#0000001D",
+                    borderColor:
+                      localStyles?.border?.borderColor || "#0000001D",
                     color:
                       vegFilter === "all"
                         ? localStyles?.backgroundColor || "#fff"
@@ -410,7 +417,9 @@ const Compact = ({
                         ? "#22c55e"
                         : localStyles?.border?.borderColor || "#0000001D",
                     color:
-                      vegFilter === "veg" ? "white" : localStyles?.color || "#000",
+                      vegFilter === "veg"
+                        ? "white"
+                        : localStyles?.color || "#000",
                     backgroundColor:
                       vegFilter === "veg"
                         ? "#22c55e"
@@ -419,7 +428,9 @@ const Compact = ({
                   className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 flex items-center gap-1 transition-colors"
                 >
                   <div
-                    className={`w-2.5 h-2.5 border-[1.5px] ${vegFilter === "veg" ? "border-white" : "border-green-600"
+                    className={`w-2.5 h-2.5 border-[1.5px] ${vegFilter === "veg"
+                        ? "border-white"
+                        : "border-green-600"
                       } flex items-center justify-center`}
                   >
                     <div
@@ -437,7 +448,9 @@ const Compact = ({
                         ? "#ef4444"
                         : localStyles?.border?.borderColor || "#0000001D",
                     color:
-                      vegFilter === "non-veg" ? "white" : localStyles?.color || "#000",
+                      vegFilter === "non-veg"
+                        ? "white"
+                        : localStyles?.color || "#000",
                     backgroundColor:
                       vegFilter === "non-veg"
                         ? "#ef4444"
@@ -446,11 +459,15 @@ const Compact = ({
                   className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 flex items-center gap-1 transition-colors"
                 >
                   <div
-                    className={`w-2.5 h-2.5 border-[1.5px] ${vegFilter === "non-veg" ? "border-white" : "border-red-600"
+                    className={`w-2.5 h-2.5 border-[1.5px] ${vegFilter === "non-veg"
+                        ? "border-white"
+                        : "border-red-600"
                       } flex items-center justify-center`}
                   >
                     <div
-                      className={`w-1.5 h-1.5 rounded-full ${vegFilter === "non-veg" ? "bg-white" : "bg-red-600"
+                      className={`w-1.5 h-1.5 rounded-full ${vegFilter === "non-veg"
+                          ? "bg-white"
+                          : "bg-red-600"
                         }`}
                     ></div>
                   </div>
@@ -464,7 +481,8 @@ const Compact = ({
               style={{
                 backgroundColor: localStyles?.backgroundColor || "#fff",
                 color: localStyles?.color || "#000",
-                borderColor: localStyles?.border?.borderColor || "#0000001D",
+                borderColor:
+                  localStyles?.border?.borderColor || "#0000001D",
               }}
               ref={categoriesContainerRef}
               className="overflow-x-auto w-full flex gap-2 p-2 sticky top-0 z-10 shadow-md scrollbar-hide border-[1px] "
@@ -493,7 +511,9 @@ const Compact = ({
                   }}
                   onClick={() => handleCategoryClick(index, category)}
                   key={category.id}
-                  className={`p-3 text-nowrap cursor-pointer ${activeCatIndex === index ? "font-semibold" : "font-medium"
+                  className={`p-3 text-nowrap cursor-pointer ${activeCatIndex === index
+                      ? "font-semibold"
+                      : "font-medium"
                     } flex-shrink-0`}
                 >
                   {formatDisplayName(category.name)}
@@ -516,34 +536,68 @@ const Compact = ({
                         offers.map((offer) => offer.menu.id)
                       );
                       // Filter 'hoteldata.menus' by checking for the item's ID in the Set.
-                      itemsToDisplay = hoteldata?.menus.filter((item) => {
-                        const matchesOffer = offerMenuIdSet.has(item.id as string);
-                        if (hoteldata.hide_unavailable && !item.is_available) return false;
-                        if (vegFilter === "all" || !hasVegFilter) return matchesOffer;
-                        if (vegFilter === "veg") return matchesOffer && item.is_veg === true;
-                        if (vegFilter === "non-veg") return matchesOffer && item.is_veg === false;
-                        return matchesOffer;
-                      });
+                      itemsToDisplay = hoteldata?.menus.filter(
+                        (item) => {
+                          const matchesOffer = offerMenuIdSet.has(
+                            item.id as string
+                          );
+                          if (
+                            hoteldata.hide_unavailable &&
+                            !item.is_available
+                          )
+                            return false;
+                          if (vegFilter === "all" || !hasVegFilter)
+                            return matchesOffer;
+                          if (vegFilter === "veg")
+                            return matchesOffer && item.is_veg === true;
+                          if (vegFilter === "non-veg")
+                            return (
+                              matchesOffer && item.is_veg === false
+                            );
+                          return matchesOffer;
+                        }
+                      );
                       break;
                     case "must-try":
                       // If the category is "must_try", display the top items.
                       itemsToDisplay = topItems.filter((item) => {
-                        if (hoteldata.hide_unavailable && !item.is_available) return false;
-                        if (vegFilter === "all" || !hasVegFilter) return true;
-                        if (vegFilter === "veg") return item.is_veg === true;
-                        if (vegFilter === "non-veg") return item.is_veg === false;
+                        if (
+                          hoteldata.hide_unavailable &&
+                          !item.is_available
+                        )
+                          return false;
+                        if (vegFilter === "all" || !hasVegFilter)
+                          return true;
+                        if (vegFilter === "veg")
+                          return item.is_veg === true;
+                        if (vegFilter === "non-veg")
+                          return item.is_veg === false;
                         return true;
                       });
                       break;
                     default:
-                      itemsToDisplay = hoteldata?.menus.filter((item) => {
-                        const matchesCategory = item.category.id === category.id;
-                        if (hoteldata.hide_unavailable && !item.is_available) return false;
-                        if (vegFilter === "all" || !hasVegFilter) return matchesCategory;
-                        if (vegFilter === "veg") return matchesCategory && item.is_veg === true;
-                        if (vegFilter === "non-veg") return matchesCategory && item.is_veg === false;
-                        return matchesCategory;
-                      });
+                      itemsToDisplay = hoteldata?.menus.filter(
+                        (item) => {
+                          const matchesCategory =
+                            item.category.id === category.id;
+                          if (
+                            hoteldata.hide_unavailable &&
+                            !item.is_available
+                          )
+                            return false;
+                          if (vegFilter === "all" || !hasVegFilter)
+                            return matchesCategory;
+                          if (vegFilter === "veg")
+                            return (
+                              matchesCategory && item.is_veg === true
+                            );
+                          if (vegFilter === "non-veg")
+                            return (
+                              matchesCategory && item.is_veg === false
+                            );
+                          return matchesCategory;
+                        }
+                      );
                   }
 
                   // Do not render the category section if there are no items to display.
@@ -556,14 +610,19 @@ const Compact = ({
                   });
 
                   return (
-                    <section key={category.id} id={category.name} className="py-4">
+                    <section
+                      key={category.id}
+                      id={category.name}
+                      className="py-4"
+                    >
                       <h2
                         ref={(el) => {
                           categoryHeadersRef.current[index] = el;
                         }}
                         style={{
                           color: localStyles?.accent || "#000",
-                          backgroundColor: localStyles?.backgroundColor || "#fff",
+                          backgroundColor:
+                            localStyles?.backgroundColor || "#fff",
                         }}
                         className="text-xl font-bold sticky top-[64px] z-[9] py-4"
                       >
@@ -573,8 +632,9 @@ const Compact = ({
                         {itemsToDisplay.map((item) => {
                           // Find all offers for this item
                           const itemOffers =
-                            offers?.filter((offer) => offer.menu.id === item.id) ||
-                            [];
+                            offers?.filter(
+                              (offer) => offer.menu.id === item.id
+                            ) || [];
 
                           let offerData = undefined;
                           let hasMultipleVariantsOnOffer = false;
@@ -586,10 +646,12 @@ const Compact = ({
                             // Check for upcoming offers (start_time > current time)
                             const now = new Date();
                             upcomingOffers = itemOffers.filter(
-                              (offer) => new Date(offer.start_time) > now
+                              (offer) =>
+                                new Date(offer.start_time) > now
                             );
                             activeOffers = itemOffers.filter(
-                              (offer) => new Date(offer.start_time) <= now
+                              (offer) =>
+                                new Date(offer.start_time) <= now
                             );
 
                             // If there are upcoming offers, mark as upcoming
@@ -603,11 +665,15 @@ const Compact = ({
                                 // Multiple variants on upcoming offer
                                 hasMultipleVariantsOnOffer = true;
                                 const lowestOfferPrice = Math.min(
-                                  ...upcomingOffers.map((o) => o.offer_price || 0)
+                                  ...upcomingOffers.map(
+                                    (o) => o.offer_price || 0
+                                  )
                                 );
                                 const lowestOriginalPrice = Math.min(
                                   ...upcomingOffers.map((o) =>
-                                    o.variant ? o.variant.price : o.menu?.price || 0
+                                    o.variant
+                                      ? o.variant.price
+                                      : o.menu?.price || 0
                                   )
                                 );
 
@@ -625,9 +691,11 @@ const Compact = ({
                                 const offer = upcomingOffers[0];
                                 const originalPrice = offer?.variant
                                   ? offer.variant.price
-                                  : offer?.menu?.price || item.price;
+                                  : offer?.menu?.price ||
+                                  item.price;
                                 const futureOfferPrice =
-                                  typeof offer?.offer_price === "number"
+                                  typeof offer?.offer_price ===
+                                    "number"
                                     ? offer.offer_price
                                     : item.price;
 
@@ -635,7 +703,10 @@ const Compact = ({
                                 offerData = {
                                   ...offer,
                                   offer_price: originalPrice, // Main displayed price (original)
-                                  menu: { ...offer.menu, price: futureOfferPrice }, // Future offer price for strikethrough
+                                  menu: {
+                                    ...offer.menu,
+                                    price: futureOfferPrice,
+                                  }, // Future offer price for strikethrough
                                 };
                               }
                             } else {
@@ -646,14 +717,18 @@ const Compact = ({
                                 // Multiple variants on offer - calculate lowest offer price
                                 hasMultipleVariantsOnOffer = true;
                                 const lowestOfferPrice = Math.min(
-                                  ...offersToUse.map((o) => o.offer_price || 0)
+                                  ...offersToUse.map(
+                                    (o) => o.offer_price || 0
+                                  )
                                 );
                                 // Create a mock offer data with the lowest price for display
                                 offerData = {
                                   ...offersToUse[0],
                                   offer_price: lowestOfferPrice,
                                 };
-                              } else if (offersToUse.length === 1) {
+                              } else if (
+                                offersToUse.length === 1
+                              ) {
                                 // Single variant on offer
                                 offerData = offersToUse[0];
                               }
@@ -663,7 +738,9 @@ const Compact = ({
                           return (
                             <ItemCard
                               tableNumber={tableNumber}
-                              feature_flags={hoteldata?.feature_flags}
+                              feature_flags={
+                                hoteldata?.feature_flags
+                              }
                               hoteldata={hoteldata}
                               item={item}
                               offerData={offerData}
@@ -673,13 +750,19 @@ const Compact = ({
                                 hasMultipleVariantsOnOffer
                               }
                               allItemOffers={
-                                hasMultipleVariantsOnOffer ? itemOffers : undefined
+                                hasMultipleVariantsOnOffer
+                                  ? itemOffers
+                                  : undefined
                               }
                               currentCategory={category.id}
-                              isOfferCategory={category.id === "offers"}
+                              isOfferCategory={
+                                category.id === "offers"
+                              }
                               isUpcomingOffer={isUpcomingOffer}
                               activeOffers={
-                                isUpcomingOffer ? upcomingOffers : activeOffers
+                                isUpcomingOffer
+                                  ? upcomingOffers
+                                  : activeOffers
                               }
                               auth={auth}
                             />
@@ -711,22 +794,43 @@ const Compact = ({
                         <button
                           key={idx}
                           onClick={() => {
-                            setLocalStyles(prev => ({ ...prev, color: palette.text, backgroundColor: palette.background, accent: palette.accent }));
+                            setLocalStyles((prev) => ({
+                              ...prev,
+                              color: palette.text,
+                              backgroundColor: palette.background,
+                              accent: palette.accent,
+                            }));
                           }}
-                          className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${localStyles.backgroundColor === palette.background && localStyles.accent === palette.accent ? "border-orange-600 scale-110 ring-2 ring-orange-100" : "border-white/50"
+                          className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${localStyles.backgroundColor ===
+                              palette.background &&
+                              localStyles.accent === palette.accent
+                              ? "border-orange-600 scale-110 ring-2 ring-orange-100"
+                              : "border-white/50"
                             }`}
-                          style={{ backgroundColor: palette.background }}
+                          style={{
+                            backgroundColor: palette.background,
+                          }}
                         >
-                          <div className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: palette.accent }} />
+                          <div
+                            className="w-4 h-4 rounded-full shadow-sm"
+                            style={{
+                              backgroundColor: palette.accent,
+                            }}
+                          />
                         </button>
                       ))}
 
                       <button
                         onClick={() => setIsCustomMode(true)}
-                        className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${isCustomMode ? "border-orange-600 scale-110 ring-2 ring-orange-100" : "border-gray-200"
+                        className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${isCustomMode
+                            ? "border-orange-600 scale-110 ring-2 ring-orange-100"
+                            : "border-gray-200"
                           } bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100`}
                       >
-                        <Palette size={18} className="text-gray-700" />
+                        <Palette
+                          size={18}
+                          className="text-gray-700"
+                        />
                       </button>
                     </div>
                   </div>
@@ -740,13 +844,27 @@ const Compact = ({
                         <ArrowLeft size={20} />
                       </button>
                       <div className="flex bg-gray-100 rounded-lg p-1">
-                        {(['backgroundColor', 'color', 'accent'] as const).map((tab) => {
-                          const label = tab === 'backgroundColor' ? 'Background' : tab === 'color' ? 'Text' : 'Accent';
+                        {(
+                          [
+                            "backgroundColor",
+                            "color",
+                            "accent",
+                          ] as const
+                        ).map((tab) => {
+                          const label =
+                            tab === "backgroundColor"
+                              ? "Background"
+                              : tab === "color"
+                                ? "Text"
+                                : "Accent";
                           return (
                             <button
                               key={tab}
                               onClick={() => setMobileTab(tab)}
-                              className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all ${mobileTab === tab ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+                              className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all ${mobileTab === tab
+                                  ? "bg-white shadow text-gray-900"
+                                  : "text-gray-500 hover:text-gray-700"
+                                }`}
                             >
                               {label}
                             </button>
@@ -760,8 +878,13 @@ const Compact = ({
                       {/* Map mobileTab to style property */}
                       <HexColorPicker
                         color={localStyles[mobileTab] as string}
-                        onChange={(c) => setLocalStyles(prev => ({ ...prev, [mobileTab]: c }))}
-                        style={{ width: '100%', height: '160px' }}
+                        onChange={(c) =>
+                          setLocalStyles((prev) => ({
+                            ...prev,
+                            [mobileTab]: c,
+                          }))
+                        }
+                        style={{ width: "100%", height: "160px" }}
                       />
                     </div>
                   </div>
@@ -772,15 +895,23 @@ const Compact = ({
                   disabled={isSavingTheme}
                   className="w-full h-12 text-base rounded-full bg-green-600 hover:bg-green-700 shadow-xl"
                 >
-                  {isSavingTheme ? <Loader2 className="animate-spin mr-2" /> : <Check className="mr-2 w-5 h-5" />}
+                  {isSavingTheme ? (
+                    <Loader2 className="animate-spin mr-2" />
+                  ) : (
+                    <Check className="mr-2 w-5 h-5" />
+                  )}
                   Save Theme
                 </Button>
               </div>
             )}
 
             {auth?.role === "partner" &&
-              ((tableNumber !== 0 && getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled) ||
-                (tableNumber === 0 && getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled)) ? (
+              ((tableNumber !== 0 &&
+                getFeatures(hoteldata?.feature_flags || "")
+                  ?.ordering.enabled) ||
+                (tableNumber === 0 &&
+                  getFeatures(hoteldata?.feature_flags || "")
+                    ?.delivery.enabled)) ? (
               <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl bg-black text-white text-center font-semibold shadow-xl">
                 Login as user to place order
               </div>
@@ -791,7 +922,7 @@ const Compact = ({
                 tableNumber={tableNumber}
                 qrId={qrId || undefined}
                 qrGroup={qrGroup}
-                hasBottomNav={auth?.role === 'user'}
+                hasBottomNav={showBottomNav}
               />
             )}
           </>
@@ -800,25 +931,39 @@ const Compact = ({
         )}
 
         {/* Bottom Navigation for Mobile Logged-in Users */}
-        {auth?.role === 'user' && (
-          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[999] px-4 py-2 flex justify-around items-center max-w-xl mx-auto"
+        {showBottomNav && (
+          <div
+            className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[999] px-4 py-2 flex justify-around items-center max-w-xl mx-auto"
             style={{
               backgroundColor: localStyles?.backgroundColor || "#fff",
-              borderColor: localStyles?.border?.borderColor || "#e5e7eb"
+              borderColor:
+                localStyles?.border?.borderColor || "#e5e7eb",
             }}
           >
             <button
-              onClick={() => setActiveTab('food')}
-              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'food' ? 'opacity-100' : 'opacity-50'}`}
-              style={{ color: activeTab === 'food' ? localStyles?.accent : localStyles?.color }}
+              onClick={() => setActiveTab("food")}
+              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === "food" ? "opacity-100" : "opacity-50"
+                }`}
+              style={{
+                color:
+                  activeTab === "food"
+                    ? localStyles?.accent
+                    : localStyles?.color,
+              }}
             >
               <Utensils size={20} />
               <span className="text-xs font-medium">Food</span>
             </button>
             <button
-              onClick={() => setActiveTab('orders')}
-              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'orders' ? 'opacity-100' : 'opacity-50'}`}
-              style={{ color: activeTab === 'orders' ? localStyles?.accent : localStyles?.color }}
+              onClick={() => setActiveTab("orders")}
+              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === "orders" ? "opacity-100" : "opacity-50"
+                }`}
+              style={{
+                color:
+                  activeTab === "orders"
+                    ? localStyles?.accent
+                    : localStyles?.color,
+              }}
             >
               <ShoppingBag size={20} />
               <span className="text-xs font-medium">Orders</span>
