@@ -199,7 +199,21 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                                     <label className="text-sm font-medium">Category</label>
                                     <CategoryDropdown
                                         value={editingItem.category.name}
-                                        onChange={(value) => {
+                                        onChange={(value, category) => {
+                                            // 1. If the dropdown gives us the full category object (e.g. newly created), use it directly
+                                            if (category) {
+                                                setEditingItem({
+                                                    ...editingItem,
+                                                    category: {
+                                                        ...category,
+                                                        is_active: category.is_active ?? true,
+                                                        priority: category.priority ?? 0,
+                                                    },
+                                                });
+                                                return;
+                                            }
+
+                                            // 2. Fallback: Find in the categories array if only name is returned
                                             const selectedCategory = categories.find(
                                                 (c) => formatDisplayName(c.name) === formatDisplayName(value)
                                             );

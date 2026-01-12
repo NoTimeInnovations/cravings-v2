@@ -20,11 +20,11 @@ import { useMenuStore } from "@/store/menuStore_hasura";
 const extractCategoriesFromMenuItems = (menuItems: any[]): Category[] => {
   // Use a Map with category NAME as the key to avoid duplicates
   const categoriesMap = new Map();
-  
+
   menuItems.forEach(item => {
     if (item.category && item.category.name) {
       const categoryName = item.category.name.toLowerCase(); // Use lowercase for case-insensitive matching
-      
+
       // Only add if this category name isn't already in the map
       if (!categoriesMap.has(categoryName)) {
         categoriesMap.set(categoryName, {
@@ -36,16 +36,16 @@ const extractCategoriesFromMenuItems = (menuItems: any[]): Category[] => {
       }
     }
   });
-  
+
   const categories = Array.from(categoriesMap.values());
-  
+
   // Sort by priority
   return categories.sort((a, b) => (a.priority || 0) - (b.priority || 0));
 };
 
 interface CategoryDropdownProps {
   value: string;
-  onChange: (value: string) => void;
+  onChange: (value: string, category?: Category) => void;
 }
 
 export const CategoryDropdown = ({
@@ -57,7 +57,7 @@ export const CategoryDropdown = ({
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [uniqueCategories, setUniqueCategories] = useState<Category[]>([]);
-  
+
   const { userData } = useAuthStore();
   const { fetchMenu } = useMenuStore();
   const { addCategory } = useCategoryStore();
@@ -65,47 +65,48 @@ export const CategoryDropdown = ({
   // Fetch categories from menu items when component mounts
   useEffect(() => {
     if (!userData || hasLoaded) return;
-    
+
     const loadCategories = async () => {
       try {
         const menuItems = await fetchMenu(userData.id);
-        
+
         // Extract unique categories from menu items using the helper function
         const extractedCategories = extractCategoriesFromMenuItems(menuItems);
-        
+
         setUniqueCategories(extractedCategories);
         setHasLoaded(true);
       } catch (error) {
         console.error("Error loading categories:", error);
       }
     };
-    
+
     loadCategories();
   }, [userData, fetchMenu, hasLoaded]);
 
-  const handleSelectChange = (value: string) => {
-    if (value === "new-cat") {
+  const handleSelectChange = (val: string) => {
+    if (val === "new-cat") {
       setIsAddingNew(true);
     } else {
-      onChange(value);
+      const selectedCategory = uniqueCategories.find((c) => c.name === val);
+      onChange(val, selectedCategory);
     }
   };
 
   const handleCreateCategory = async () => {
     if (!newCategory.trim()) return;
-    
+
     setIsLoading(true);
     try {
       const createdCategory = await addCategory(newCategory.trim());
-      
+
       if (createdCategory) {
-        onChange(formatDisplayName(createdCategory.name));
+        onChange(formatDisplayName(createdCategory.name), createdCategory);
         toast.success("Category created successfully!");
-        
+
         // Add the new category to our local state immediately for better UX
-        setUniqueCategories(prev => [...prev, createdCategory]);
+        setUniqueCategories((prev) => [...prev, createdCategory]);
       }
-      
+
       setIsAddingNew(false);
       setNewCategory("");
     } catch (error) {
@@ -139,9 +140,9 @@ export const CategoryDropdown = ({
           </div>
         </div>
         <div className="flex justify-end gap-2">
-          <Button 
-            variant="outline" 
-            type="button" 
+          <Button
+            variant="outline"
+            type="button"
             onClick={handleCancel}
             className="flex items-center gap-1 h-12 px-4"
           >
@@ -169,7 +170,7 @@ export const CategoryDropdown = ({
         <ScrollArea className="h-64 md:h-48">
           <SelectItem
             value="new-cat"
-            className="bg-green-100 font-semibold cursor-pointer py-3 px-3"
+            className="bg-green-100 dark:bg-stone-800 font-semibold cursor-pointer py-3 px-3 mb-1"
           >
             Create New Category
           </SelectItem>
