@@ -476,7 +476,7 @@ const ItemCard = ({
         </div>
       </div>
       {showVariants && hasVariants && (
-        <div className="w-full mt-2 space-y-3">
+        <div className="w-full mt-2 divide-y divide-gray-200/30 border-t border-gray-200/30">
           {(() => {
             if (isOfferCategory && hasMultipleVariantsOnOffer) {
               return (
