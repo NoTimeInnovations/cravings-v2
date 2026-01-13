@@ -65,6 +65,7 @@ interface HotelDetails {
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
 const genAI = new GoogleGenerativeAI(API_KEY);
 const STORAGE_KEY = "cravings_onboarding_state";
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 const COUNTRY_META_DATA: Record<string, { code: string; currency: string; symbol: string }> = {
     "India": { code: "+91", currency: "INR", symbol: "₹" },
@@ -246,6 +247,8 @@ export default function GetStartedPage() {
     }, [step]);
 
     // --- Handlers ---
+
+
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
@@ -734,7 +737,12 @@ export default function GetStartedPage() {
             {menuFiles.length > 0 && (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {menuFiles.map((file, idx) => (
-                        <div key={idx} className="relative group/file aspect-square rounded-xl overflow-hidden border border-gray-200">
+                        <div key={idx} className={`relative group/file aspect-square rounded-xl overflow-hidden border ${file.size > MAX_FILE_SIZE ? 'border-red-500' : 'border-gray-200'}`}>
+                            {file.size > MAX_FILE_SIZE && (
+                                <div className="absolute top-0 left-0 right-0 z-20 bg-red-500/90 text-white text-[10px] py-1 px-2 text-center font-medium">
+                                    Too large ({Math.round(file.size / (1024 * 1024))}MB)
+                                </div>
+                            )}
                             {file.type.startsWith('image/') ? (
                                 <img
                                     src={URL.createObjectURL(file)}
@@ -751,7 +759,7 @@ export default function GetStartedPage() {
                             )}
                             <button
                                 onClick={() => removeFile(idx)}
-                                className="absolute top-2 right-2 bg-white/90 hover:bg-red-50 text-red-600 rounded-lg p-1.5 shadow-sm opacity-100 md:opacity-0 md:group-hover/file:opacity-100 transition-all scale-100 active:scale-95"
+                                className="absolute top-2 right-2 bg-white/90 hover:bg-red-50 text-red-600 rounded-lg p-1.5 shadow-sm opacity-100 md:opacity-0 md:group-hover/file:opacity-100 transition-all scale-100 active:scale-95 z-30"
                             >
                                 <X size={14} />
                             </button>
@@ -763,10 +771,10 @@ export default function GetStartedPage() {
 
             <Button
                 onClick={handleStep1Next}
-                disabled={menuFiles.length === 0}
-                className="w-full h-10 md:h-11 text-base md:text-lg rounded-lg bg-orange-600 hover:bg-orange-700"
+                disabled={menuFiles.length === 0 || menuFiles.some(f => f.size > MAX_FILE_SIZE)}
+                className="w-full h-10 md:h-11 text-base md:text-lg rounded-lg bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                Next Step <ChevronRight className="ml-2 w-4 h-4 md:w-5 md:h-5" />
+                {menuFiles.some(f => f.size > MAX_FILE_SIZE) ? "Remove invalid files to continue" : "Next Step"} <ChevronRight className="ml-2 w-4 h-4 md:w-5 md:h-5" />
             </Button>
         </div>
     );
