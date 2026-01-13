@@ -24,6 +24,7 @@ const ItemCard = ({
   isUpcomingOffer = false,
   activeOffers = [],
   auth,
+  defaultShowOptions,
 }: {
   item: HotelDataMenus;
   styles: DefaultHotelPageProps["styles"];
@@ -38,8 +39,9 @@ const ItemCard = ({
   isOfferCategory?: boolean;
   activeOffers?: any[];
   auth?: any;
+  defaultShowOptions?: boolean;
 }) => {
-  const [showVariants, setShowVariants] = useState(false);
+  const [showVariants, setShowVariants] = useState(defaultShowOptions);
   const [showAllTags, setShowAllTags] = useState(false);
 
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
@@ -170,8 +172,8 @@ const ItemCard = ({
     const hasVariantsInCart = Object.values(variantQuantities).some(
       (quantity) => quantity > 0
     );
-    setShowVariants(hasVariantsInCart);
-  }, [variantQuantities]);
+    setShowVariants(hasVariantsInCart || !!defaultShowOptions);
+  }, [variantQuantities, defaultShowOptions]);
 
   const handleAddItem = () => {
     if (hasMultipleVariantsOnOffer) {
@@ -413,17 +415,19 @@ const ItemCard = ({
                   </div>
                 ) : (hasVariants && !offerData) ||
                   hasMultipleVariantsOnOffer ? (
-                  <div
-                    onClick={() => setShowVariants(!showVariants)}
-                    style={{ backgroundColor: styles.accent, color: "white" }}
-                    className="rounded-full px-4 py-1 font-medium text-sm whitespace-nowrap h-fit cursor-pointer"
-                  >
-                    {itemQuantity > 0
-                      ? `Added (${itemQuantity})`
-                      : showVariants
-                        ? "Hide Options"
-                        : "Show Options"}
-                  </div>
+                  !defaultShowOptions ? (
+                    <div
+                      onClick={() => setShowVariants(!showVariants)}
+                      style={{ backgroundColor: styles.accent, color: "white" }}
+                      className="rounded-full px-4 py-1 font-medium text-sm whitespace-nowrap h-fit cursor-pointer"
+                    >
+                      {itemQuantity > 0
+                        ? `Added (${itemQuantity})`
+                        : showVariants
+                          ? "Hide Options"
+                          : "Show Options"}
+                    </div>
+                  ) : null
                 ) : showAddButton && itemQuantity > 0 ? (
                   <div
                     style={{ backgroundColor: styles.accent, color: "white" }}

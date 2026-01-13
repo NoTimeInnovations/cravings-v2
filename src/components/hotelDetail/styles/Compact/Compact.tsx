@@ -36,6 +36,8 @@ const isColorDark = (hex: string) => {
   return luma < 128;
 };
 
+const SfcSuperFriedChicken = "eeb5a578-faf8-43ac-ab9a-aea343422d11";
+
 const PRESETS = [
   { background: "#ffffff", text: "#000000", accent: "#ea580c" }, // Classic Orange
   { background: "#0f172a", text: "#ffffff", accent: "#fbbf24" }, // Midnight Gold
@@ -786,6 +788,7 @@ const Compact = ({
                                   : activeOffers
                               }
                               auth={auth}
+                              defaultShowOptions={hoteldata?.id === SfcSuperFriedChicken}
                             />
                           );
                         })}
