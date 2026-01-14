@@ -154,7 +154,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="flex items-center justify-between border-b pb-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={onBack}>
+                    <Button variant="ghost" size="icon" onClick={() => onBack()}>
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div>
@@ -435,7 +435,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                     </Card>
 
                     <div className="flex gap-3 pt-4">
-                        <Button type="button" variant="outline" className="w-full" onClick={onBack}>
+                        <Button type="button" variant="outline" className="w-full" onClick={() => onBack()}>
                             Cancel
                         </Button>
                         <Button type="submit" className="w-full" disabled={isSubmitting}>
