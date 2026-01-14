@@ -1,13 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Loader2, Check, Upload, ClipboardPaste, Image as ImageIcon, Search, X, Sparkles } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import AIImageGenerateModal from "@/components/AIImageGenerateModal";
 import { useMenuStore } from "@/store/menuStore_hasura";
 import Img from "../Img";
 import axios from "axios";
@@ -38,7 +35,13 @@ export function ImageGridModalV2({
     const [isLoading, setIsLoading] = useState(false);
     const [isGeneratingAi, setIsGeneratingAi] = useState(false);
     const [activeTab, setActiveTab] = useState("gallery");
+    const [canPaste, setCanPaste] = useState(false);
     const { fetchCategorieImages } = useMenuStore();
+
+    useEffect(() => {
+        // Check if the browser actually supports the read API before rendering the button
+        setCanPaste(!!(navigator.clipboard && navigator.clipboard.read));
+    }, []);
 
     // Initialize search terms
     useEffect(() => {
@@ -153,30 +156,9 @@ export function ImageGridModalV2({
         }
     };
 
-    const handleGeminiGenerate = async () => {
-        if (!aiPrompt) {
-            toast.error("Please enter a prompt");
-            return;
-        }
-
-        setIsGeneratingAi(true);
-        try {
-            // Generate 4 variations using random seeds
-            const newImages = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/gemini/images?prompt=${encodeURIComponent(aiPrompt)}`);
-            const data = await newImages.json();
-            setGeneratedImages(prev => [...data, ...prev]);
-            toast.success("Images generated!");
-        } catch (error) {
-            console.error("AI Generation error:", error);
-            toast.error("Failed to generate images");
-        } finally {
-            setIsGeneratingAi(false);
-        }
-    };
-
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[85vw] md:max-w-7xl h-[100dvh] sm:h-[80vh] flex flex-col p-0 gap-0 overflow-hidden bg-background">
+            <DialogContent className="sm:max-w-[85vw] md:max-w-7xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden bg-background transform-gpu">
                 <DialogHeader className="px-6 py-4 border-b flex-shrink-0 flex flex-row items-center justify-between">
                     <DialogTitle className="text-xl font-semibold">Media Library</DialogTitle>
                     <Button variant="ghost" size="icon" className="sm:hidden" onClick={() => onOpenChange(false)}>
@@ -283,11 +265,11 @@ export function ImageGridModalV2({
                                 </div>
                             )}
 
-                            {activeTab === "upload" && (
+                            <div className={cn("flex-1 overflow-hidden w-full h-full", activeTab !== "upload" && "hidden")}>
                                 <div className="w-full h-full flex flex-col items-center justify-center p-8 gap-6">
                                     <div className="text-center space-y-2">
                                         <div className="bg-muted/50 p-4 rounded-full inline-flex">
-                                            <Upload className="w-8 h-8 text-muted-foreground" />
+                                            {/* <Upload className="w-8 h-8 text-muted-foreground" /> */}
                                         </div>
                                         <h3 className="text-lg font-semibold">Upload Image</h3>
                                         <p className="text-sm text-muted-foreground max-w-xs mx-auto">
@@ -306,13 +288,15 @@ export function ImageGridModalV2({
                                                 Choose File
                                             </Button>
                                         </div>
-                                        <Button variant="outline" className="w-full" onClick={handlePaste}>
-                                            <ClipboardPaste className="w-4 h-4 mr-2" />
-                                            Paste from Clipboard
-                                        </Button>
+                                        {canPaste && (
+                                            <Button variant="outline" className="w-full" onClick={handlePaste}>
+                                                {/* <ClipboardPaste className="w-4 h-4 mr-2" /> */}
+                                                Paste from Clipboard
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
-                            )}
+                            </div>
 
                             {activeTab === "ai" && (
                                 <div className="h-full flex flex-col p-6 gap-6">
