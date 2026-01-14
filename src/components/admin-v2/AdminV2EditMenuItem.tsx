@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch";
 
 interface AdminV2EditMenuItemProps {
     item: MenuItem;
-    onBack: () => void;
+    onBack: (itemId?: string) => void;
 }
 
 export interface Variant {
@@ -83,7 +83,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                 is_top: editingItem.is_top,
             });
             toast.success("Item updated successfully");
-            onBack();
+            onBack(item.id!);
         } catch (error) {
             console.error("Failed to update item:", error);
             toast.error("Failed to update item");

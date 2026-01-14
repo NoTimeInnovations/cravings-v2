@@ -42,12 +42,14 @@ export function AdminV2Menu() {
     const { userData } = useAuthStore();
     const [searchQuery, setSearchQuery] = useState("");
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
+    const [lastEditedItemId, setLastEditedItemId] = useState<string | null>(null);
     const [isPriorityMode, setIsPriorityMode] = useState(false);
     const [isAvailabilityMode, setIsAvailabilityMode] = useState(false);
     const [isAddingItem, setIsAddingItem] = useState(false);
     const [filteredGroupedItems, setFilteredGroupedItems] = useState<Record<string, MenuItem[]>>({});
     const { updateCategory } = useCategoryStore();
     const [editingCategory, setEditingCategory] = useState<{ id: string, name: string } | null>(null);
+    const [activeAccordionItems, setActiveAccordionItems] = useState<string[]>([]);
 
     useEffect(() => {
         if (userData?.id) {
@@ -70,6 +72,32 @@ export function AdminV2Menu() {
         });
         setFilteredGroupedItems(filtered);
     }, [groupedItems, searchQuery]);
+
+    useEffect(() => {
+        if (lastEditedItemId) {
+            // Find the category of the edited item
+            const categoryToOpen = Object.entries(filteredGroupedItems).find(([_, items]) =>
+                items.some(item => item.id === lastEditedItemId)
+            )?.[0];
+
+            if (categoryToOpen && !activeAccordionItems.includes(categoryToOpen)) {
+                setActiveAccordionItems(prev => [...prev, categoryToOpen]);
+            }
+
+            // Give a small timeout to ensure the DOM is updated and the accordion is expanded
+            const timer = setTimeout(() => {
+                const element = document.getElementById(`menu-item-${lastEditedItemId}`);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Highlight the item briefly for better visibility
+                    element.classList.add('bg-muted');
+                    setTimeout(() => element.classList.remove('bg-muted'), 2000);
+                    setLastEditedItemId(null);
+                }
+            }, 300); // 300ms delay to allow for re-rendering and expansion
+            return () => clearTimeout(timer);
+        }
+    }, [lastEditedItemId, filteredGroupedItems, activeAccordionItems]);
 
     const handleAvailabilityToggle = async (item: MenuItem) => {
         try {
@@ -129,7 +157,12 @@ export function AdminV2Menu() {
             return (
                 <AdminV2EditMenuItem
                     item={itemToEdit}
-                    onBack={() => setEditingItemId(null)}
+                    onBack={(savedItemId) => {
+                        setEditingItemId(null);
+                        if (savedItemId) {
+                            setLastEditedItemId(savedItemId);
+                        }
+                    }}
                 />
             );
         }
@@ -175,7 +208,12 @@ export function AdminV2Menu() {
                         No menu items found.
                     </div>
                 ) : (
-                    <Accordion type="multiple" className="space-y-4">
+                    <Accordion
+                        type="multiple"
+                        className="space-y-4"
+                        value={activeAccordionItems}
+                        onValueChange={setActiveAccordionItems}
+                    >
                         {Object.entries(filteredGroupedItems).map(([category, items]) => (
                             <AccordionItem
                                 key={category}
@@ -274,7 +312,7 @@ export function AdminV2Menu() {
                                             </TableHeader>
                                             <TableBody>
                                                 {items.map((item) => (
-                                                    <TableRow key={item.id}>
+                                                    <TableRow key={item.id} id={`menu-item-${item.id}`}>
                                                         <TableCell>
                                                             <div className="h-12 w-12 rounded-md overflow-hidden bg-muted">
                                                                 {item.image_url ? (
