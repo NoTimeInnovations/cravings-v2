@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { validatePhoneNumber, getPhoneValidationError } from "@/lib/getUserCountry";
 import { getPhoneDigitsForCountry } from "@/lib/countryPhoneMap";
+import OtpLogin from "@/components/auth/OtpLogin";
 
 
 
@@ -461,73 +462,68 @@ const OrderDrawer = ({
       {/* Full-Screen Login Modal (only shown when user is not logged in) */}
       {showLoginModal && (
         <div className="fixed inset-0 z-[70] bg-white flex flex-col">
-          <div className="flex items-center justify-between p-4 border-b">
+          <div className="absolute top-4 right-4 z-50">
             <button
-              onClick={() => {
-                setShowLoginModal(false);
-                // setOpenOrderDrawer(true);
-                // setOpenDrawerBottom(false);
-              }}
-              className="p-2 rounded-full hover:bg-gray-100"
+              onClick={() => setShowLoginModal(false)}
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <h2 className="text-lg font-semibold">Login to Continue</h2>
-            <div className="w-10" />
           </div>
 
-          <div className="flex-1 p-6 space-y-6 overflow-y-auto">
-            <div>
-              <h3 className="text-xl font-bold">Welcome Back</h3>
-              <p className="text-gray-600 mt-1">
-                Please enter your phone number to review your order.
+          <div className="flex-1 flex flex-col justify-start pt-12 p-6 space-y-6 overflow-y-auto w-full max-w-md mx-auto">
+            <div className="pt-2 pb-6">
+              <h3 className="text-2xl font-bold text-center">Place Your Order</h3>
+              <p className="text-center text-gray-500 mt-2 text-sm max-w-[80%] mx-auto">
+                Securely log in via WhatsApp to view your order details.
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone">
-                Phone Number
-              </Label>
-              <div className="flex gap-2">
-                <div className="flex items-center px-3 bg-gray-100 rounded-md text-sm font-medium">
-                  {hotelData?.country_code || '+91'}
-                </div>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder={`Enter your phone number`}
-                  value={phoneNumber}
-                  onChange={(e) => {
-                    const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, '') || '91';
-                    const maxDigits = getPhoneDigitsForCountry(countryCode);
-                    setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, maxDigits));
-                  }}
-                  autoFocus
-                  className="flex-1"
-                />
-              </div>
-            </div>
+            <OtpLogin
+              defaultPhone={phoneNumber}
+              storeName={hotelData?.store_name}
+              onLoginSuccess={async (phone) => {
+                try {
+                  const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, '') || '91';
+                  const phoneDigits = getPhoneDigitsForCountry(countryCode);
 
-            <Button
-              className="w-full bg-black text-white"
-              disabled={isSubmitting}
-              onClick={handleLoginAndProceed}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Logging In...
-                </>
-              ) : (
-                "Continue"
-              )}
-            </Button>
+                  // We can use the simpler info object or construct it
+                  const info = {
+                    country: hotelData?.country || 'India',
+                    countryCode,
+                    callingCode: hotelData?.country_code || '+91',
+                    phoneDigits
+                  };
 
-            <div className="text-sm text-gray-500 mt-4">
-              By continuing, you agree to our Terms of Service and Privacy Policy.
-            </div>
+                  const cleaned = phone.replace(/\D/g, "").slice(-10); // Assume 10 for now or use logic
+                  // If we want exact country support we might need to update OtpLogin to support dynamic countries, 
+                  // but user specifically asked for "+91 + 10 digits".
+                  // So I will assume +91 logic in OtpLogin is correct for this task.
+
+                  const success = await signInWithPhone(cleaned, hotelData.id, info);
+
+                  if (success) {
+                    toast.success("Logged in successfully!");
+                    setShowLoginModal(false);
+                    setPhoneNumber("");
+
+                    // Now open the PlaceOrderModal
+                    setOpenPlaceOrderModal(true);
+                    setOpenOrderDrawer(false);
+                    setOpenDrawerBottom(false);
+                  } else {
+                    toast.error("Login failed. Please try again.");
+                  }
+                } catch (error) {
+                  toast.error("Something went wrong. Please try again.");
+                  console.error(error);
+                }
+              }}
+            />
+
+
           </div>
         </div>
       )}

@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { Notification } from "@/app/actions/notification";
 import { getUserCountry, validatePhoneNumber, getPhoneValidationError, UserCountryInfo } from "@/lib/getUserCountry";
+import OtpLogin from "@/components/auth/OtpLogin";
 type LoginMode = "user" | "partner";
 export default function Login() {
   const { signInWithPhone, signInPartnerWithEmail } = useAuthStore();
@@ -88,124 +89,149 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-lg p-6">
-        <div className="flex flex-col items-center mb-8">
-          <UtensilsCrossed className="h-12 w-12 text-orange-600 mb-4" />
-          <h1 className="text-3xl font-bold text-gray-900 text-center">
-            Welcome to Cravings
-          </h1>
+    <div className="min-h-[calc(100vh-80px)] flex flex-col items-center justify-center bg-white sm:bg-gray-50 p-4">
+      <div className="w-full max-w-md bg-white sm:rounded-3xl sm:shadow-xl sm:shadow-gray-200/50 p-2 sm:p-10 space-y-6 transition-all duration-300">
+
+        {/* Header Section - More compact */}
+        <div className="flex flex-col items-center space-y-2">
+          <div className="h-12 w-12 bg-orange-50 rounded-xl flex items-center justify-center">
+            <UtensilsCrossed className="h-6 w-6 text-orange-600" />
+          </div>
+          <div className="text-center space-y-0.5">
+            <h1 className="text-xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+              Welcome Back
+            </h1>
+            <p className="text-sm text-gray-500 font-medium max-w-xs mx-auto">
+              Sign in to manage your orders
+            </p>
+          </div>
         </div>
 
-        <div className="flex gap-2 mb-6">
-          <Button
+        {/* Custom Segmented Control */}
+        <div className="bg-gray-100 p-1 rounded-xl flex relative">
+          <button
             type="button"
             onClick={() => setMode("partner")}
-            className={`flex-1 ${mode === "partner" ? "bg-orange-600" : "bg-gray-200"
+            className={`flex-1 relative z-10 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ease-out ${mode === "partner"
+              ? "bg-white text-gray-900 shadow-sm"
+              : "text-gray-500 hover:text-gray-900"
               }`}
           >
-            Sign in as Partner
-          </Button>
-          <Button
+            Partner
+          </button>
+          <button
             type="button"
             onClick={() => setMode("user")}
-            className={`flex-1 ${mode === "user" ? "bg-orange-600" : "bg-gray-200"
+            className={`flex-1 relative z-10 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ease-out ${mode === "user"
+              ? "bg-white text-gray-900 shadow-sm"
+              : "text-gray-500 hover:text-gray-900"
               }`}
           >
-            Sign in as User
-          </Button>
+            User
+          </button>
         </div>
 
-        {mode === "user" ? (
-          <form onSubmit={handleUserSignIn} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="phone">
-                Phone Number
-              </Label>
-              <div className="flex gap-2">
-                {userCountryInfo && (
-                  <div className="flex items-center px-3 bg-gray-100 rounded-md text-sm font-medium">
-                    {userCountryInfo.callingCode}
-                  </div>
-                )}
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder={
-                    userCountryInfo
-                      ? `Enter your ${userCountryInfo.phoneDigits}-digit phone number`
-                      : "Enter your phone number"
+        {/* Form Section */}
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {mode === "user" ? (
+            <OtpLogin
+              storeName={null}
+              onLoginSuccess={async (phone) => {
+                if (!userCountryInfo) {
+                  toast.error("Unable to detect your country. Please try again.");
+                  return;
+                }
+                const cleanedPhone = phone.replace(/^\+\d+/, "");
+                try {
+                  await signInWithPhone(cleanedPhone, undefined, userCountryInfo);
+                  await Notification.token.save();
+                  const redirectPath = localStorage?.getItem("redirectPath");
+                  if (redirectPath) {
+                    localStorage?.removeItem("redirectPath");
+                    navigate.push(redirectPath);
+                  } else {
+                    navigate.push("/explore");
                   }
-                  value={userPhone}
-                  onChange={(e) => {
-                    const maxDigits = userCountryInfo?.phoneDigits || 10;
-                    setUserPhone(e.target.value.replace(/\D/g, "").slice(0, maxDigits));
-                  }}
-                  required
-                  className="flex-1"
-                />
-              </div>
-            </div>
-            <Button
-              type="submit"
-              className="w-full bg-orange-600 hover:bg-orange-700"
-              disabled={isLoading}
-            >
-              {isLoading ? "Please wait..." : "Continue"}
-            </Button>
-          </form>
-        ) : (
-          <div className="space-y-4">
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Failed to sign in");
+                  console.error("Sign in error:", error);
+                }
+              }}
+            />
+          ) : (
             <form onSubmit={handlePartnerSignIn} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={partnerData.email}
-                  onChange={(e) =>
-                    setPartnerData({ ...partnerData, email: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label htmlFor="email" className="text-xs font-semibold text-gray-700 ml-1">
+                    Email Address
+                  </Label>
+                  <div className="relative group">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors duration-200">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
+                    </div>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="name@restaurant.com"
+                      className="h-10 pl-10 text-sm bg-gray-50 border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-orange-500/10 focus:border-orange-500 transition-all duration-200"
+                      value={partnerData.email}
+                      onChange={(e) =>
+                        setPartnerData({ ...partnerData, email: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                </div>
 
-                  placeholder="Enter your password"
-                  value={partnerData.password}
-                  onChange={(e) =>
-                    setPartnerData({ ...partnerData, password: e.target.value })
-                  }
-                  required
-                />
-                {/* <Link
-                  href="/login/forgot-password"
-                  className="text-right flex flex-1 justify-end w-full  text-sm text-gray-500 hover:text-orange-600"
-                >
-                  Forgot Password?
-                </Link> */}
+                <div className="space-y-1">
+                  <Label htmlFor="password" className="text-xs font-semibold text-gray-700 ml-1">
+                    Password
+                  </Label>
+                  <div className="relative group">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors duration-200">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                    </div>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      className="h-10 pl-10 text-sm bg-gray-50 border-gray-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-orange-500/10 focus:border-orange-500 transition-all duration-200"
+                      value={partnerData.password}
+                      onChange={(e) =>
+                        setPartnerData({ ...partnerData, password: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                </div>
               </div>
-              <Button
-                type="submit"
-                className="w-full bg-orange-600 hover:bg-orange-700"
-                disabled={isLoading}
-              >
-                {isLoading ? "Please wait..." : "Sign In"}
-              </Button>
+
+              <div className="pt-2">
+                <Button
+                  type="submit"
+                  className="w-full h-10 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-lg shadow-sm active:scale-[0.98] transition-all duration-200"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Signing in...</span>
+                    </div>
+                  ) : "Sign In"}
+                </Button>
+              </div>
             </form>
-          </div>
-        )}
-        {/* Owner login link */}
-        <div className="mt-4 text-center">
-          <Link href="/pricing" className="text-sm text-orange-600 hover:underline">
-            Are you an owner?
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="text-center pt-2">
+          <Link href="/pricing" className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-orange-600 transition-colors p-2 rounded-lg hover:bg-orange-50">
+            <span>Are you a restaurant owner?</span>
+            <span className="text-orange-600">Join us &rarr;</span>
           </Link>
         </div>
+
       </div>
     </div>
   );

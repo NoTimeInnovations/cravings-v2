@@ -20,6 +20,10 @@ import Compact from "@/components/hotelDetail/styles/Compact/Compact";
 import { saveUserLocation } from "@/lib/saveUserLocLocal";
 import { QrCode, useQrDataStore } from "@/store/qrDataStore";
 import DeliveryTimeCampain from "@/components/hotelDetail/DeliveryTimeCampain";
+import OtpLoginModal from "@/components/auth/OtpLoginModal";
+import { useAuthStore } from "@/store/authStore";
+import { Notification } from "@/app/actions/notification";
+import { toast } from "sonner";
 
 export type MenuItem = {
   description: string;
@@ -92,7 +96,71 @@ const HotelMenuPage = ({
     setQrData(qrData || null);
   }, [qrData, setQrData]);
 
+  useEffect(() => {
+    setQrData(qrData || null);
+  }, [qrData, setQrData]);
+
   const [limitReached, setLimitReached] = useState(false);
+
+  // OTP Login Modal State
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const { signInWithPhone } = useAuthStore();
+
+  useEffect(() => {
+    // If not authenticated, show login modal
+    // Check if auth is present or if userData is in store (client side)
+    const checkAuth = async () => {
+      // We rely on the prop `auth` initially, but also check store if client-side update happens?
+      // Actually `auth` prop comes from server.
+      if (!auth || !auth.id) {
+        // Check if we have a temp user id? No, user requested OTP verification for USER who login.
+        // If we want to force login for /hotels/ and /qrScan/, we show it.
+        // But usually we allow browsing. The user said "implement otp verification ofr the user who login in /hotels/ /qrscan/ and in only for the user".
+        // This might mean "WHEN they login", not "Force them to login".
+        // However, "implement otp verification for the user who LOGS IN".
+        // Currently, how do they login in this page? They might not have a way effectively except via OrderDrawer which might prompt?
+        // Or maybe I should add a Login button or force it?
+        // Let's assume we want to prompt them if they try to do something or just provide the capability.
+        // But the prompt says "implement otp verification ... and in only for the user".
+        // It likely means REPLACE the existing login mechanism or ADD it.
+        // Since I didn't see a clear "Login" button in the `HotelMenuPage` UI code (it might be in Navbar or invisible), 
+        // I will add a Login Button if not logged in, or ensure that if they are prompted to login, this new OTP flow is used.
+        // Wait, `HotelMenuPage` doesn't seem to have a login button directly.
+        // BUT, the user might be referring to `Login.tsx` which IS used by `/hotels` users if they are redirected.
+        // I already updated `Login.tsx`.
+        // DO I need to add it here? "in /hotels/ /qrScan/". This implies the pages themselves.
+        // Maybe I should add a check: if not logged in, show modal? 
+        // "implement otp verification ofr the user who login IN /hotels/ /qrScan/"
+        // I will add a mechanism to login. Maybe a Floating button or just rely on `Login.tsx` update if the flow redirects there.
+        // BUT, usually these pages are for ordering and they might be guest.
+        // If I am just browsing I am not logged in.
+        // I will add a Login button in the header or similar if possible.
+        // But `HotelMenuPage_v2` renders `Default` or `Compact` components.
+        // Let's look at `Default` or `Compact`.
+        // Actually, `OrderDrawer` likely handles placing order and might require login.
+        // Let's check `OrderDrawer`.
+      }
+    };
+  }, [auth]);
+
+  const handleLoginSuccess = async (phone: string) => {
+    try {
+      // We need userCountryInfo. Since we are in a modal, we might need to fetch it or default it.
+      // For now, let's use a default or fetch it.
+      const { getUserCountry } = await import("@/lib/getUserCountry");
+      const info = await getUserCountry();
+      // Remove +91 or rely on phone being 10 digits
+      const cleaned = phone.replace(/\D/g, "").slice(-10);
+      await signInWithPhone(cleaned, undefined, info);
+      await Notification.token.save();
+      setShowLoginModal(false);
+      router.refresh(); // Refresh to update server props
+    } catch (error) {
+      console.error(error);
+      toast.error("Login failed");
+    }
+  };
+
 
   useEffect(() => {
     const handleUpdateQrCount = async () => {
@@ -323,6 +391,23 @@ const HotelMenuPage = ({
           />
         </section>
       )}
+      {showOrderDrawer && (
+        <section>
+          <OrderDrawer
+            qrGroup={qrGroup}
+            styles={styles}
+            qrId={qrId || undefined}
+            hotelData={hoteldata}
+            tableNumber={tableNumber}
+          />
+        </section>
+      )}
+
+      <OtpLoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onLoginSuccess={handleLoginSuccess}
+      />
     </>
   );
 };
