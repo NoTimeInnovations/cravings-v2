@@ -7,6 +7,7 @@ import { SolutionsBenefits } from "@/components/solutions/SolutionsBenefits";
 import { SolutionsFeatures } from "@/components/solutions/SolutionsFeatures";
 import { FAQSection, CTASection } from "@/components/product/PageSections";
 import Footer from "@/components/Footer";
+import Chatwoot from "@/components/Chatwoot";
 
 // Helper to get data for a specific solution slug
 async function getSolutionData(slug: string) {
@@ -77,6 +78,10 @@ export default async function SolutionPage({ params }: { params: { slug: string 
             </main>
 
             <Footer />
+
+            {/* Chatwoot Chat Bubble */}
+            <Chatwoot />
         </div>
     );
 }
+

@@ -36,6 +36,7 @@ import { HexColorPicker } from "react-colorful";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { countryCodes } from "@/utils/countryCodes";
+import Chatwoot from "@/components/Chatwoot";
 
 // --- Types ---
 interface MenuItem {
@@ -1316,7 +1317,8 @@ export default function GetStartedPage() {
 
             {/* Final Success View - NOW INTEGRATED IN renderStep3 */}
 
-
+            {/* Chatwoot Chat Bubble */}
+            <Chatwoot />
         </div>
     );
 }

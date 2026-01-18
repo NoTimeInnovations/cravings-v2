@@ -8,6 +8,7 @@ import { FAQSection, CTASection } from "@/components/product/PageSections";
 import { ClientReviewsSection } from "@/components/product/ClientReviewsSection";
 import Footer from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
+import Chatwoot from "@/components/Chatwoot";
 
 // Helper to get data for a specific slug
 async function getProductData(slug: string) {
@@ -77,6 +78,10 @@ export default async function ProductPage({ params }: { params: { slug: string }
             </main>
 
             <Footer />
+
+            {/* Chatwoot Chat Bubble */}
+            <Chatwoot />
         </div>
     );
 }
+

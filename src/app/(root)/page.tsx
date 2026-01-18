@@ -11,6 +11,7 @@ import Background from "@/components/home/Background";
 import PlatformFeatures from "@/components/home/PlatformFeatures";
 import AnimatedFeatures from "@/components/home/AnimatedFeatures";
 import Footer from "@/components/Footer";
+import Chatwoot from "@/components/Chatwoot";
 
 export const metadata: Metadata = {
   title: "Cravings Digital Menu | The #1 QR Menu Creator for Restaurants",
@@ -152,6 +153,9 @@ export default async function Home() {
 
       {/* FOOTER CTA */}
       <Footer />
+
+      {/* Chatwoot Chat Bubble */}
+      <Chatwoot />
     </div >
   );
 }

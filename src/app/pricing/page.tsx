@@ -1,6 +1,7 @@
 import React from "react";
 import type { Metadata } from "next";
 import PricingSection from "@/components/international/PricingSection";
+import Chatwoot from "@/components/Chatwoot";
 
 export const metadata: Metadata = {
     title: "Pricing | Cravings Digital Menu",
@@ -25,6 +26,9 @@ export default async function PricingPage() {
             </div>
 
             <PricingSection hideHeader={true} country={country} />
+
+            {/* Chatwoot Chat Bubble */}
+            <Chatwoot />
         </div>
     );
 }
