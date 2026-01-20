@@ -49,7 +49,7 @@ export default function Hero() {
                             href="/get-started"
                             className="px-8 py-4 bg-[#0a0b10] text-white text-lg font-medium rounded-lg hover:bg-gray-900 transition-colors shadow-lg min-w-[200px] text-center"
                         >
-                            Start with digital Menu
+                            Create Digital Menu For Free
                         </Link>
 
                         <Link
