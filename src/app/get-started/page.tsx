@@ -287,78 +287,39 @@ export default function GetStartedPage() {
     };
 
     const fetchImagesInBackground = async (items: MenuItem[]) => {
-        // Use user's email if available, otherwise default
-        const partnerEmail = authCredentials.email?.trim() || "default@partner.com";
-        const sanitizeToEnglish = (text: string): string => {
-            return text.replace(/[^a-zA-Z0-9\s.,!?'"-]/g, '').trim();
-        };
+        const MAX_ITEMS = 10;
+        // Limit to first 10 items
+        const itemsToProcess = items.slice(0, MAX_ITEMS);
 
-        const BATCH_SIZE = 3;
-
-        for (let i = 0; i < items.length; i += BATCH_SIZE) {
-            const batch = items.slice(i, i + BATCH_SIZE);
-            const itemNames = batch.map(item => item.name);
+        for (const item of itemsToProcess) {
+            // slightly redundant if we trust extraction, but good practice
+            if (item.image) continue;
 
             try {
-                // Start generation for BATCH
-                await axios.post(
-                    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images-v2`,
+                const response = await axios.post(
+                    "https://images.cravings.live/api/images/search-google",
                     {
-                        lat: "28.6139",
-                        lng: "77.2090",
-                        itemNames,
-                        partnerEmail
+                        itemName: item.name?.includes(item.category) ? item.name : item.name + " " + item.category
                     },
                     { headers: { "Content-Type": "application/json" } }
                 );
 
-                // Poll for completion
-                let isComplete = false;
-                let pollCount = 0;
-                const maxPolls = 60; // Increased timeout for batch
+                // Correctly parse the response structure
+                // Response example: { success: true, data: { itemId: "...", itemName: "...", imageUrl: "...", ... } }
+                const imageUrl = response.data?.data?.imageUrl;
 
-                while (!isComplete && pollCount < maxPolls) {
-                    await new Promise(resolve => setTimeout(resolve, 2000)); // 2s interval
-                    pollCount++;
-
-                    const pingResponse = await axios.get(
-                        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images-v2/ping`,
-                        { params: { partner: partnerEmail } }
-                    );
-
-                    if (pingResponse.data.status === "completed") {
-                        isComplete = true;
-                    } else if (pingResponse.data.status === "failed") {
-                        throw new Error("Generation failed");
-                    }
-                }
-
-                if (isComplete) {
-                    // Fetch result
-                    const resultsResponse = await axios.get(
-                        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/swiggy/images-v2/get`,
-                        { params: { partner: partnerEmail } }
-                    );
-
-                    // Update State for all items in batch
+                if (imageUrl) {
                     setExtractedItems(currentItems => {
                         return currentItems.map(currentItem => {
-                            // Check if this currentItem was in the batch
-                            const batchItem = batch.find(b => b.name === currentItem.name);
-                            if (batchItem) {
-                                const itemName = sanitizeToEnglish(batchItem.name);
-                                const imageUrls = resultsResponse.data[itemName] || [];
-                                if (imageUrls.length > 0) {
-                                    return { ...currentItem, image: imageUrls[0] };
-                                }
+                            if (currentItem.name === item.name) {
+                                return { ...currentItem, image: imageUrl };
                             }
                             return currentItem;
                         });
                     });
                 }
             } catch (error) {
-                console.error(`Background image fetch failed for batch starting at ${i}:`, error);
-                // Continue to next batch
+                console.error(`Failed to fetch image for ${item.name}:`, error);
             }
         }
     };
@@ -655,6 +616,9 @@ export default function GetStartedPage() {
             localStorage.removeItem("onboarding_data");
 
             // 5. Trigger Background Image Generation if needed
+            // 5. Trigger Background Image Generation if needed
+            // Commented out to enforce 10-image limit for now
+            /*
             const itemsMissingImages = extractedItems.filter(item => !item.image);
             if (itemsMissingImages.length > 0) {
                 // Fire and forget
@@ -672,6 +636,7 @@ export default function GetStartedPage() {
                     })
                 }).catch(err => console.error("Failed to trigger background image gen", err));
             }
+            */
 
             // 6. Show Success UI
             setRegistrationSuccess(true);
