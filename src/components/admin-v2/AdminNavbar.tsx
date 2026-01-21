@@ -1,12 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Settings, Menu, UtensilsCrossed, Printer } from "lucide-react";
+import { Menu, UtensilsCrossed, Printer } from "lucide-react";
 import { SheetTrigger } from "@/components/ui/sheet";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Partner, useAuthStore } from "@/store/authStore";
-import { useAdminStore } from "@/store/adminStore";
 import { OrderNotification } from "./OrderNotification";
 import { getFeatures } from "@/lib/getFeatures";
+import { AdminAccountSwitcher } from "./AdminAccountSwitcher";
 
 interface AdminNavbarProps {
     onToggleSidebar?: () => void;
@@ -15,7 +14,6 @@ interface AdminNavbarProps {
 
 export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps) {
     const { userData } = useAuthStore();
-    const { setActiveView } = useAdminStore();
 
     return (
         <nav className="flex items-center justify-between px-4 py-3 bg-background border-b border-border">
@@ -38,7 +36,7 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                 </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
                 {userData?.role === 'partner' && !(userData as Partner).is_shop_open && (
                     <div className="hidden sm:flex items-center px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-semibold rounded-full border border-red-200 dark:border-red-800 animate-pulse">
                         <span className="relative flex h-2 w-2 mr-2">
@@ -71,16 +69,7 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                 <OrderNotification />
                 <ModeToggle />
                 {userData?.role === 'partner' && (
-                    <div
-                        className="cursor-pointer hover:opacity-80 transition-opacity"
-                        onClick={() => setActiveView("Settings")}
-                        title="Settings"
-                    >
-                        <Avatar>
-                            <AvatarImage src={(userData as Partner).store_banner} className="object-cover" />
-                            <AvatarFallback>{(userData as Partner).store_name?.slice(0, 2).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                    </div>
+                    <AdminAccountSwitcher />
                 )}
             </div>
         </nav>
