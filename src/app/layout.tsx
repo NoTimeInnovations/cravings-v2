@@ -147,7 +147,7 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className={`antialiased font-sans`}>
+      <body className={`antialiased font-sans ${inter.variable} ${dancingScript.variable} ${poppins.variable} ${roboto.variable}`}>
         <PostHogProvider>
           <AuthInitializer />
           {(user?.role === "user" || !user) && !isWhatsappDialogHidden && country === "IN" && (
