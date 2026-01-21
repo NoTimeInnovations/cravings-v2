@@ -20,7 +20,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { Search, Edit, Plus, ChevronRight, ArrowUpDown, Power, Check, X, Trash2 } from "lucide-react";
+import { Search, Edit, Plus, ChevronRight, ArrowUpDown, Power, Check, X, Trash2, ImagePlus, Loader2 } from "lucide-react";
 import Img from "../Img";
 import { formatPrice } from "@/lib/constants";
 import { AdminV2EditMenuItem } from "./AdminV2EditMenuItem";
@@ -29,6 +29,13 @@ import { AdminV2PriorityChanger } from "./AdminV2PriorityChanger";
 import { AdminV2AvailabilityManager } from "./AdminV2AvailabilityManager";
 import { toast } from "sonner";
 import { formatDisplayName, useCategoryStore } from "@/store/categoryStore_hasura";
+import axios from "axios";
+
+// Free plan IDs that should not see the "Get all images" button
+const FREE_PLAN_IDS = ["int_free", "in_trial"];
+
+// LocalStorage key to track if user has used the "Get all images" feature
+const AUTO_IMAGES_USED_KEY = "auto_images_used";
 
 export function AdminV2Menu() {
     const {
@@ -36,7 +43,6 @@ export function AdminV2Menu() {
         fetchMenu,
         updateItem,
         groupedItems,
-        groupItems,
         deleteCategoryAndItems,
     } = useMenuStore();
     const { userData } = useAuthStore();
@@ -50,6 +56,27 @@ export function AdminV2Menu() {
     const { updateCategory } = useCategoryStore();
     const [editingCategory, setEditingCategory] = useState<{ id: string, name: string } | null>(null);
     const [activeAccordionItems, setActiveAccordionItems] = useState<string[]>([]);
+
+    // State for "Get all images" feature
+    const [isFetchingImages, setIsFetchingImages] = useState(false);
+    const [imagesFetchedCount, setImagesFetchedCount] = useState(0);
+    const [totalItemsToFetch, setTotalItemsToFetch] = useState(0);
+    const [hasUsedAutoImages, setHasUsedAutoImages] = useState(false);
+
+    // Check if user has a non-free plan
+    const partner = userData as Partner;
+    const planId = partner?.subscription_details?.plan?.id;
+    const isFreePlan = !planId || FREE_PLAN_IDS.includes(planId);
+    const canUseAutoImages = !isFreePlan && !hasUsedAutoImages;
+
+    // Check localStorage on mount for whether auto images feature was used
+    useEffect(() => {
+        if (userData?.id) {
+            const usedKey = `${AUTO_IMAGES_USED_KEY}_${userData.id}`;
+            const hasUsed = localStorage.getItem(usedKey) === "true";
+            setHasUsedAutoImages(hasUsed);
+        }
+    }, [userData?.id]);
 
     useEffect(() => {
         if (userData?.id) {
@@ -107,6 +134,58 @@ export function AdminV2Menu() {
             console.error("Failed to update availability:", error);
             toast.error("Failed to update availability");
         }
+    };
+
+    // Handler for "Get all images" button
+    const handleGetAllImages = async () => {
+        // Find all items without images
+        const itemsWithoutImages = menu.filter(item => !item.image_url);
+
+        if (itemsWithoutImages.length === 0) {
+            toast.info("All items already have images!");
+            return;
+        }
+
+        setIsFetchingImages(true);
+        setTotalItemsToFetch(itemsWithoutImages.length);
+        setImagesFetchedCount(0);
+
+        let successCount = 0;
+
+        for (const item of itemsWithoutImages) {
+            try {
+                const searchTerm = item.name?.includes(item.category.name)
+                    ? item.name
+                    : item.name + " " + item.category.name;
+
+                const response = await axios.post(
+                    "https://images.cravings.live/api/images/search-google",
+                    { itemName: searchTerm },
+                    { headers: { "Content-Type": "application/json" } }
+                );
+
+                const imageUrl = response.data?.data?.imageUrl;
+
+                if (imageUrl) {
+                    await updateItem(item.id!, { image_url: imageUrl });
+                    successCount++;
+                }
+            } catch (error) {
+                console.error(`Failed to fetch image for ${item.name}:`, error);
+            }
+
+            setImagesFetchedCount(prev => prev + 1);
+        }
+
+        // Mark feature as used in localStorage
+        if (userData?.id) {
+            const usedKey = `${AUTO_IMAGES_USED_KEY}_${userData.id}`;
+            localStorage.setItem(usedKey, "true");
+            setHasUsedAutoImages(true);
+        }
+
+        setIsFetchingImages(false);
+        toast.success(`Successfully added images to ${successCount} items!`);
     };
 
     const handleSaveCategory = async (e: React.MouseEvent) => {
@@ -198,6 +277,26 @@ export function AdminV2Menu() {
                             <Plus className="h-4 w-4 mr-2" />
                             Add Item
                         </Button>
+                        {canUseAutoImages && (
+                            <Button
+                                variant="outline"
+                                onClick={handleGetAllImages}
+                                disabled={isFetchingImages}
+                                className="col-span-2 sm:col-span-1 w-full sm:w-auto"
+                            >
+                                {isFetchingImages ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        {imagesFetchedCount}/{totalItemsToFetch}
+                                    </>
+                                ) : (
+                                    <>
+                                        <ImagePlus className="h-4 w-4 mr-2" />
+                                        Get all images
+                                    </>
+                                )}
+                            </Button>
+                        )}
                     </div>
                 </div>
             </div>
