@@ -11,6 +11,11 @@ function PostHogPageview() {
 
     useEffect(() => {
         if (pathname) {
+            // Exclude specific paths from pageview tracking
+            if (pathname.startsWith('/superadmin') || pathname.startsWith('/qrScan') || pathname.startsWith('/admin')) {
+                return;
+            }
+
             let url = window.origin + pathname;
             if (searchParams && searchParams.toString()) {
                 url = url + `?${searchParams.toString()}`;
