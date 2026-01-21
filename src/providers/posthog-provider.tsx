@@ -12,7 +12,7 @@ function PostHogPageview() {
     useEffect(() => {
         if (pathname) {
             // Exclude specific paths from pageview tracking
-            if (pathname.startsWith('/superadmin') || pathname.startsWith('/qrScan') || pathname.startsWith('/admin')) {
+            if (pathname.startsWith('/superadmin') || pathname.startsWith('/qrScan') || pathname.startsWith('/admin') || pathname.startsWith('/bill') || pathname.startsWith('/kot')) {
                 return;
             }
 
