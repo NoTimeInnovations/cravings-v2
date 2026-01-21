@@ -10,10 +10,14 @@ function PostHogPageview() {
     const searchParams = useSearchParams();
 
     useEffect(() => {
-        if (pathname) {
-            // Exclude specific paths from pageview tracking
+        if (pathname && typeof window !== 'undefined') {
+            // Exclude specific paths from pageview tracking  
             const excludedPaths = ['/superadmin', '/qrScan', '/admin', '/bill', '/kot'];
-            if (excludedPaths.some(path => pathname.startsWith(path))) {
+
+            // Check if pathname starts with any excluded path  
+            const isExcluded = excludedPaths.some(path => pathname.startsWith(path));
+
+            if (isExcluded) {
                 return;
             }
 
@@ -21,6 +25,7 @@ function PostHogPageview() {
             if (searchParams && searchParams.toString()) {
                 url = url + `?${searchParams.toString()}`;
             }
+
             posthog.capture('$pageview', {
                 '$current_url': url,
             });
