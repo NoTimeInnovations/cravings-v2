@@ -12,7 +12,8 @@ function PostHogPageview() {
     useEffect(() => {
         if (pathname) {
             // Exclude specific paths from pageview tracking
-            if (pathname.startsWith('/superadmin/*  ') || pathname.startsWith('/qrScan/*') || pathname.startsWith('/admin/*') || pathname.startsWith('/bill/*') || pathname.startsWith('/kot/*')) {
+            const excludedPaths = ['/superadmin', '/qrScan', '/admin', '/bill', '/kot'];
+            if (excludedPaths.some(path => pathname.startsWith(path))) {
                 return;
             }
 
