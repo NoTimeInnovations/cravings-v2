@@ -73,10 +73,10 @@ export default function Footer() {
                         <h4 className="font-semibold text-white mb-6">Company</h4>
                         <ul className="space-y-4">
                             {/* <li><Link href="/about-us" className="text-orange-100 hover:text-white transition-colors hover:underline">About Us</Link></li> */}
-                            {/* <li><Link href="/careers" className="text-orange-100 hover:text-white transition-colors hover:underline">Careers</Link></li> */}
-                            {/* <li><Link href="/contact" className="text-orange-100 hover:text-white transition-colors hover:underline">Contact</Link></li> */}
-                            {/* <li><Link href="/partners" className="text-orange-100 hover:text-white transition-colors hover:underline">Partners</Link></li> */}
-                        {/* </ul> */}
+                    {/* <li><Link href="/careers" className="text-orange-100 hover:text-white transition-colors hover:underline">Careers</Link></li> */}
+                    {/* <li><Link href="/contact" className="text-orange-100 hover:text-white transition-colors hover:underline">Contact</Link></li> */}
+                    {/* <li><Link href="/partners" className="text-orange-100 hover:text-white transition-colors hover:underline">Partners</Link></li> */}
+                    {/* </ul> */}
                     {/* </div>  */}
 
                     {/* Column 5: Legal */}
@@ -85,6 +85,7 @@ export default function Footer() {
                         <ul className="space-y-4">
                             <li><Link href="/privacy-policy" className="text-orange-100 hover:text-white transition-colors hover:underline">Privacy Policy</Link></li>
                             <li><Link href="/terms-and-conditions" className="text-orange-100 hover:text-white transition-colors hover:underline">Terms of Service</Link></li>
+                            <li><Link href="/refund-policy" className="text-orange-100 hover:text-white transition-colors hover:underline">Refund Policy</Link></li>
                         </ul>
                     </div>
                 </div>
