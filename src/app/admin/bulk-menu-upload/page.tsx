@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -51,6 +51,8 @@ const BulkUploadPage = () => {
   const [isUploadingImagesForExisting, setIsUploadingImagesForExisting] = useState(false);
   const [isEditingExistingItem, setIsEditingExistingItem] = useState(false);
   const [editingExistingItem, setEditingExistingItem] = useState<any>(null);
+  const editingBulkItemIndexRef = useRef<number | null>(null);
+  const editingExistingItemIdRef = useRef<string | null>(null);
   const [isDeletingExistingItem, setIsDeletingExistingItem] = useState<string | null>(null);
   const [processingProgress, setProcessingProgress] = useState({ current: 0, total: 0 });
   const [isPolling, setIsPolling] = useState(false);
@@ -425,6 +427,21 @@ const BulkUploadPage = () => {
     }
   }, [activeTab, userData?.id]);
 
+  // Warn before closing tab/window if there are unsaved items or processing is in progress
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (bulkMenuItems.length > 0 || isPolling || isUploadingImagesForExisting || isExtractingMenu) {
+        e.preventDefault();
+        // Modern browsers require returnValue to be set
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [bulkMenuItems.length, isPolling, isUploadingImagesForExisting, isExtractingMenu]);
+
   const handleDeleteAllMenu = async () => {
     if (!userData?.id) {
       toast.error("User data not found");
@@ -470,6 +487,7 @@ const BulkUploadPage = () => {
 
   // Handle edit existing item
   const handleEditExistingItem = (item: any) => {
+    editingExistingItemIdRef.current = item.id;
     setEditingExistingItem({
       id: item.id,
       name: item.name,
@@ -544,6 +562,17 @@ const BulkUploadPage = () => {
       await loadExistingMenuItems();
       setIsEditingExistingItem(false);
       setEditingExistingItem(null);
+
+      // Scroll back to the edited item
+      if (editingExistingItemIdRef.current) {
+        setTimeout(() => {
+          const element = document.querySelector(`[data-item-id="${editingExistingItemIdRef.current}"]`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          editingExistingItemIdRef.current = null;
+        }, 100);
+      }
 
     } catch (error) {
       toast.dismiss();
@@ -843,26 +872,30 @@ const BulkUploadPage = () => {
             {bulkMenuItems.length > 0 && !isEditModalOpen && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
                 {bulkMenuItems.map((item, index) => (
-                  <MenuItemCard
-                    key={index}
-                    item={item}
-                    index={index}
-                    isUploading={isUploading[index]}
-                    onSelect={() => handleSelectItem(index)}
-                    onAddToMenu={() =>
-                      handleAddToMenu(item, index, userData?.id as string)
-                    }
-                    onEdit={() => handleEdit(index, item)}
-                    onDelete={() => handleDelete(index)}
-                    onImageClick={(index, url) => handleImageClick(index, url)}
-                    onCategoryChange={(category) =>
-                      handleCategoryChange(index, {
-                        name: category,
-                        priority: 0,
-                        id: item.category.id,
-                      })
-                    }
-                  />
+                  <div key={index} data-item-index={index}>
+                    <MenuItemCard
+                      item={item}
+                      index={index}
+                      isUploading={isUploading[index]}
+                      onSelect={() => handleSelectItem(index)}
+                      onAddToMenu={() =>
+                        handleAddToMenu(item, index, userData?.id as string)
+                      }
+                      onEdit={() => {
+                        editingBulkItemIndexRef.current = index;
+                        handleEdit(index, item);
+                      }}
+                      onDelete={() => handleDelete(index)}
+                      onImageClick={(index, url) => handleImageClick(index, url)}
+                      onCategoryChange={(category) =>
+                        handleCategoryChange(index, {
+                          name: category,
+                          priority: 0,
+                          id: item.category.id,
+                        })
+                      }
+                    />
+                  </div>
                 ))}
               </div>
             )}
@@ -950,6 +983,7 @@ const BulkUploadPage = () => {
                     {existingMenuItems.map((item) => (
                       <div
                         key={item.id}
+                        data-item-id={item.id}
                         className={`border rounded-lg overflow-hidden transition-colors flex flex-col h-full ${selectedExistingItems.includes(item.id)
                           ? 'border-orange-500 bg-orange-50'
                           : 'border-gray-200 hover:border-gray-300'
@@ -1053,9 +1087,33 @@ const BulkUploadPage = () => {
         {isEditModalOpen && editingItem && (
           <EditItemModal
             isOpen={isEditModalOpen}
-            onOpenChange={setIsEditModalOpen}
+            onOpenChange={(open) => {
+              setIsEditModalOpen(open);
+              // Scroll back to the edited item when modal closes
+              if (!open && editingBulkItemIndexRef.current !== null) {
+                setTimeout(() => {
+                  const element = document.querySelector(`[data-item-index="${editingBulkItemIndexRef.current}"]`);
+                  if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                  editingBulkItemIndexRef.current = null;
+                }, 100);
+              }
+            }}
             editingItem={editingItem}
-            onSave={handleSaveEdit}
+            onSave={() => {
+              handleSaveEdit();
+              // Scroll back to the edited item after save
+              if (editingBulkItemIndexRef.current !== null) {
+                setTimeout(() => {
+                  const element = document.querySelector(`[data-item-index="${editingBulkItemIndexRef.current}"]`);
+                  if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                  editingBulkItemIndexRef.current = null;
+                }, 100);
+              }
+            }}
             onEdit={(field, value) =>
               setEditingItem(
                 editingItem
@@ -1073,7 +1131,19 @@ const BulkUploadPage = () => {
         {isEditingExistingItem && editingExistingItem && (
           <EditItemModal
             isOpen={isEditingExistingItem}
-            onOpenChange={setIsEditingExistingItem}
+            onOpenChange={(open) => {
+              setIsEditingExistingItem(open);
+              // Scroll back to the edited item when modal closes (cancel)
+              if (!open && editingExistingItemIdRef.current) {
+                setTimeout(() => {
+                  const element = document.querySelector(`[data-item-id="${editingExistingItemIdRef.current}"]`);
+                  if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                  editingExistingItemIdRef.current = null;
+                }, 100);
+              }
+            }}
             editingItem={{
               item: editingExistingItem,
               index: 0,
