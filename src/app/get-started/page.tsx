@@ -21,7 +21,8 @@ import {
     LayoutDashboard,
     Share2,
     Palette,
-    Plus
+    Plus,
+    Sparkles
 } from "lucide-react";
 import { GoogleGenerativeAI, Schema } from "@google/generative-ai";
 import { toast } from "sonner";
@@ -93,6 +94,179 @@ const KERALA_DISTRICTS = [
 
 // --- Currencies for Selector ---
 const CURRENCIES = Array.from(new Set(Object.values(COUNTRY_META_DATA).map(m => m.symbol)));
+
+const SAMPLE_MENU_ITEMS: MenuItem[] = [
+    {
+        "name": "Soda",
+        "price": 2.25,
+        "description": "Chilled carbonated beverages in various popular flavors.",
+        "category": "beverages"
+    },
+    {
+        "name": "Bottled Mineral Water",
+        "price": 2.25,
+        "description": "Crisp and refreshing natural mineral water.",
+        "category": "beverages"
+    },
+    {
+        "name": "Milk",
+        "price": 2.25,
+        "description": "Cold and nutritious milk, a classic beverage choice.",
+        "category": "beverages"
+    },
+    {
+        "name": "Fresh Juice",
+        "price": 3.25,
+        "description": "Refreshing, freshly squeezed fruit juices for a vibrant start.",
+        "category": "beverages"
+    },
+    {
+        "name": "Tea",
+        "price": 1.75,
+        "description": "Warm and soothing classic tea selection.",
+        "category": "beverages"
+    },
+    {
+        "name": "Organic Sirloin Burger",
+        "price": 9.5,
+        "description": "Premium organic sirloin beef for the ultimate burger experience.",
+        "category": "burgers"
+    },
+    {
+        "name": "Mushroom Swiss Burger",
+        "price": 10.25,
+        "description": "Sautéed mushrooms and melted Swiss cheese on a burger.",
+        "category": "burgers"
+    },
+    {
+        "name": "Bison Burger",
+        "price": 10.25,
+        "description": "Juicy bison patty served with fresh toppings and bun.",
+        "category": "burgers"
+    },
+    {
+        "name": "Vegetarian Burger",
+        "price": 9.0,
+        "description": "Hearty plant-based patty served with all the fixings.",
+        "category": "burgers"
+    },
+    {
+        "name": "Chicken Burger",
+        "price": 8.75,
+        "description": "Grilled chicken breast with crisp lettuce and savory sauce.",
+        "category": "burgers"
+    },
+    {
+        "name": "Cheesecake with Berries",
+        "price": 5.25,
+        "description": "Creamy cheesecake topped with a seasonal berry compote.",
+        "category": "dessert"
+    },
+    {
+        "name": "Creme Brulee",
+        "price": 5.5,
+        "description": "Rich custard base topped with a layer of hardened caramel.",
+        "category": "dessert"
+    },
+    {
+        "name": "Blackberry Cobbler",
+        "price": 4.75,
+        "description": "Warm blackberries topped with a buttery, crumbly crust.",
+        "category": "dessert"
+    },
+    {
+        "name": "Red Velvet Cake",
+        "price": 4.25,
+        "description": "Moist cocoa-flavored cake with smooth cream cheese frosting.",
+        "category": "dessert"
+    },
+    {
+        "name": "Tiramisu",
+        "price": 5.75,
+        "description": "Classic Italian dessert with coffee-soaked ladyfingers and mascarpone.",
+        "category": "dessert"
+    },
+    {
+        "name": "Roasted Tofu Pocket",
+        "price": 7.25,
+        "description": "Savory roasted tofu stuffed with a flavorful vegetable medley.",
+        "category": "entrées"
+    },
+    {
+        "name": "Roasted Turkey Club",
+        "price": 9.75,
+        "description": "Triple-decker sandwich with turkey, bacon, and fresh greens.",
+        "category": "entrées"
+    },
+    {
+        "name": "Brew Battered Halibut",
+        "price": 13.75,
+        "description": "Crispy golden halibut served with tartar sauce and lemon.",
+        "category": "entrées"
+    },
+    {
+        "name": "Braised Short Ribs",
+        "price": 16.75,
+        "description": "Slow-cooked short ribs in a rich, savory reduction.",
+        "category": "entrées"
+    },
+    {
+        "name": "Pork Tenderloin",
+        "price": 15.75,
+        "description": "Roasted pork tenderloin seasoned with a blend of herbs.",
+        "category": "entrées"
+    },
+    {
+        "name": "Chicken Florentine Pizza",
+        "price": 10.75,
+        "description": "Tender chicken and fresh spinach on a cheesy base.",
+        "category": "pizza",
+        "variants": [
+            { "name": "Personal", "price": 10.75 },
+            { "name": "Share", "price": 16.75 }
+        ]
+    },
+    {
+        "name": "The Greek Pizza",
+        "price": 10.75,
+        "description": "Mediterranean flavors with olives, feta, and fresh herbs.",
+        "category": "pizza",
+        "variants": [
+            { "name": "Personal", "price": 10.75 },
+            { "name": "Share", "price": 14.75 }
+        ]
+    },
+    {
+        "name": "Margherita Pizza",
+        "price": 9.5,
+        "description": "Classic combination of fresh mozzarella, basil, and tomato.",
+        "category": "pizza",
+        "variants": [
+            { "name": "Personal", "price": 9.5 },
+            { "name": "Share", "price": 14.75 }
+        ]
+    },
+    {
+        "name": "Tomato Pesto Pizza",
+        "price": 10.25,
+        "description": "Fresh tomato slices and aromatic pesto on a thin crust.",
+        "category": "pizza",
+        "variants": [
+            { "name": "Personal", "price": 10.25 },
+            { "name": "Share", "price": 14.75 }
+        ]
+    },
+    {
+        "name": "Pesto Eggplant Pizza",
+        "price": 9.5,
+        "description": "Savory roasted eggplant paired with zesty pesto sauce.",
+        "category": "pizza",
+        "variants": [
+            { "name": "Personal", "price": 9.5 },
+            { "name": "Share", "price": 14.75 }
+        ]
+    }
+];
 
 // --- Helper Functions ---
 const sanitizePhone = (phone: string, countryCode: string): string => {
@@ -414,6 +588,28 @@ export default function GetStartedPage() {
         } catch (e) {
             // Error already handled
         }
+    };
+
+    const handleStartWithSampleData = () => {
+        setExtractedItems(SAMPLE_MENU_ITEMS);
+        extractionPromise.current = Promise.resolve(SAMPLE_MENU_ITEMS);
+
+        const randomId = Math.floor(Math.random() * 9000) + 1000;
+        setHotelDetails({
+            name: `Sample Restaurant ${randomId}`,
+            phone: "+919876543210",
+            country: "India",
+            state: "Kerala",
+            district: "Ernakulam",
+            currency: "₹",
+            facebook_link: "",
+            instagram_link: "",
+            location_link: ""
+        });
+        setAuthCredentials(prev => ({ ...prev, email: `guest${randomId}@cravings.live` }));
+
+        setStep(2);
+        toast.success("Loaded sample menu data and details!");
     };
 
     const handleCancelExtraction = () => {
@@ -741,6 +937,25 @@ export default function GetStartedPage() {
                 className="w-full h-10 md:h-11 text-base md:text-lg rounded-lg bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {menuFiles.some(f => f.size > MAX_FILE_SIZE) ? "Remove invalid files to continue" : "Next Step"} <ChevronRight className="ml-2 w-4 h-4 md:w-5 md:h-5" />
+            </Button>
+
+            <div className="relative py-4">
+                <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-gray-200" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-gray-500">Or</span>
+                </div>
+            </div>
+
+            <Button
+                variant="outline"
+                onClick={handleStartWithSampleData}
+                className="w-full h-12 md:h-14 text-base md:text-lg rounded-xl border-2 border-dashed border-orange-300 text-orange-700 hover:bg-orange-50 hover:border-orange-400 bg-white/50 transition-all group relative overflow-hidden"
+            >
+                <div className="absolute inset-0 bg-gradient-to-r from-orange-100/0 via-orange-100/30 to-orange-100/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                <Sparkles className="w-5 h-5 mr-2 text-orange-500 group-hover:text-orange-600 transition-colors" />
+                <span>Try with Sample Menu</span>
             </Button>
         </div>
     );
@@ -1237,7 +1452,7 @@ export default function GetStartedPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="min-h-screen bg-white flex flex-col">
             <FullScreenLoader
                 isLoading={isPublishing}
                 loadingTexts={[
