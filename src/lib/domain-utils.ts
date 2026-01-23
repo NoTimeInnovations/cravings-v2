@@ -5,6 +5,7 @@ export interface DomainConfig {
     title: string;
     description: string;
     logo?: string;
+    logowhite?: string;
     icon?: string;
 }
 

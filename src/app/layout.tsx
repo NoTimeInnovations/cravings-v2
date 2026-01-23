@@ -176,7 +176,7 @@ document.head.appendChild(o)}initApollo();`,
           )}
           <Toaster richColors closeButton position="top-center" />
           {/* <Snow /> */}
-          {!isNavbarHidden ? <Navbar userData={user} country={country} appName={config.name} logo={config.logo} /> : null}
+          {!isNavbarHidden ? <Navbar userData={user} country={country} appName={config.name} logo={config.logo} logowhite={config.logowhite} /> : null}
           {/* <RateUsModal /> */}
 
           {/* pwa install is currently turned off */}

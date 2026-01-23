@@ -177,7 +177,7 @@ const HIDDEN_PATHS = [
 
 import { Partner, useAuthStore } from "@/store/authStore";
 
-export function Navbar({ userData: propUserData, country, appName = "cravings", logo }: { userData: any; country?: string; appName?: string; logo?: string }) {
+export function Navbar({ userData: propUserData, country, appName = "Cravings", logo, logowhite }: { userData: any; country?: string; appName?: string; logo?: string; logowhite?: string }) {
   const { userData: storeUserData } = useAuthStore();
   const userData = storeUserData || propUserData;
   const features = getFeatures(userData?.feature_flags as string);
@@ -307,26 +307,28 @@ export function Navbar({ userData: propUserData, country, appName = "cravings", 
 
   const isHomePage = ["/offers", "/explore", "/"].includes(pathname);
 
+  const activeLogo = (isDarkText && logowhite) ? logowhite : logo;
+
   const renderBranding = () => (
     <div
       className="flex items-center space-x-2 cursor-pointer"
       onClick={() => (isHomePage ? null : router.back())}
     >
-      {logo ? (
+      {activeLogo ? (
         <div className="flex items-center space-x-2">
           <Image
-            src={logo}
+            src={activeLogo}
             alt={appName}
             width={160}
             height={40}
             className={cn(
               "h-12 w-auto object-contain",
-              (logo.endsWith('.jpg') || logo.endsWith('.jpeg')) && "rounded-md"
+              (activeLogo.endsWith('.png')) && "rounded-md"
             )}
             priority
           />
           <span className={cn("text-2xl font-bold tracking-tight lowercase transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
-            {appName}
+            MenuThere
           </span>
         </div>
       ) : (
