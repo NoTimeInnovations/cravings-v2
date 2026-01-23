@@ -1,10 +1,16 @@
 import type { MetadataRoute } from 'next'
- 
-export default function manifest(): MetadataRoute.Manifest {
+import { headers } from 'next/headers'
+import { getDomainConfig } from '@/lib/domain-utils'
+
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const headersList = await headers()
+  const host = headersList.get('host')
+  const config = getDomainConfig(host)
+
   return {
-    name: 'Cravings',
-    short_name: 'Cravings',
-    description: 'Find the best food deals in your area',
+    name: config.title,
+    short_name: config.name,
+    description: config.description,
     start_url: '/',
     display: 'fullscreen',
     background_color: '#ffffff',

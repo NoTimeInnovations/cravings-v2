@@ -21,29 +21,37 @@ import { PostHogProvider } from "@/providers/posthog-provider";
 // import LocationAccess from "@/components/LocationAccess";
 // import { Suspense } from "react";
 
-export const metadata: Metadata = {
-  title: "Cravings",
-  description: "Cravings is the ultimate platform for restaurants to manage digital menus, orders, and delivery. Create your QR menu in minutes.",
-  icons: ["/icon-64x64.png", "/icon-192x192.png", "/icon-512x512.png"],
-  metadataBase: new URL("https://cravings.live"),
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+import { getDomainConfig } from "@/lib/domain-utils";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const headerList = await headers();
+  const host = headerList.get("host");
+  const config = getDomainConfig(host);
+
+  return {
+    title: config.title,
+    description: config.description,
+    icons: ["/icon-64x64.png", "/icon-192x192.png", "/icon-512x512.png"],
+    metadataBase: new URL(`https://${host || "cravings.live"}`),
+    robots: {
       index: true,
       follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
-  },
-  openGraph: {
-    title: "Cravings",
-    description: "Cravings is the ultimate platform for restaurants to manage digital menus, orders, and delivery. Create your QR menu in minutes.",
-    type: "website",
-    images: ["/ogImage_default.jpeg"],
-  },
-};
+    openGraph: {
+      title: config.title,
+      description: config.description,
+      type: "website",
+      images: ["/ogImage_default.jpeg"],
+    },
+  };
+}
 
 const petrazFilter = "PETRAZ";
 // const bottomNavFilter = [
@@ -89,6 +97,8 @@ export default async function RootLayout({
 }>) {
   const user = await getAuthCookie();
   const headerList = await headers();
+  const host = headerList.get("host");
+  const config = getDomainConfig(host);
 
   const country = headerList.get("x-user-country") || "IN";
 
@@ -166,7 +176,7 @@ document.head.appendChild(o)}initApollo();`,
           )}
           <Toaster richColors closeButton position="top-center" />
           {/* <Snow /> */}
-          {!isNavbarHidden ? <Navbar userData={user} country={country} /> : null}
+          {!isNavbarHidden ? <Navbar userData={user} country={country} appName={config.name} logo={config.logo} /> : null}
           {/* <RateUsModal /> */}
 
           {/* pwa install is currently turned off */}

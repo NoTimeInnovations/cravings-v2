@@ -1,0 +1,18 @@
+{
+    "cravings.live": {
+        "name": "Cravings",
+        "title": "Cravings",
+        "description": "Cravings is the ultimate platform for restaurants to manage digital menus, orders, and delivery. Create your QR menu in minutes."
+    },
+    "menuthere.com": {
+        "name": "MenuThere",
+        "title": "MenuThere",
+        "description": "MenuThere is your go-to solution for digital menus and restaurant management.",
+        "logo": "/menuthere-orange.jpg"
+    },
+    "default": {
+        "name": "Cravings",
+        "title": "Cravings",
+        "description": "Cravings is the ultimate platform for restaurants to manage digital menus, orders, and delivery. Create your QR menu in minutes."
+    }
+}

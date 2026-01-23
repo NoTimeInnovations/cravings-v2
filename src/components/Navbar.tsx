@@ -26,6 +26,8 @@ import {
   X
 } from "lucide-react";
 
+import Image from "next/image"; // Added import
+
 import { getFeatures } from "@/lib/getFeatures";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -175,7 +177,7 @@ const HIDDEN_PATHS = [
 
 import { Partner, useAuthStore } from "@/store/authStore";
 
-export function Navbar({ userData: propUserData, country }: { userData: any; country?: string }) {
+export function Navbar({ userData: propUserData, country, appName = "cravings", logo }: { userData: any; country?: string; appName?: string; logo?: string }) {
   const { userData: storeUserData } = useAuthStore();
   const userData = storeUserData || propUserData;
   const features = getFeatures(userData?.feature_flags as string);
@@ -310,10 +312,26 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
       className="flex items-center space-x-2 cursor-pointer"
       onClick={() => (isHomePage ? null : router.back())}
     >
-      <UtensilsCrossed className="h-6 w-6 text-orange-500" />
-      <span className={cn("text-2xl font-bold tracking-tight lowercase transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
-        cravings
-      </span>
+      {logo ? (
+        <Image
+          src={logo}
+          alt={appName}
+          width={160}
+          height={40}
+          className={cn(
+            "h-12 w-auto object-contain",
+            (logo.endsWith('.jpg') || logo.endsWith('.jpeg')) && "mix-blend-multiply rounded-md"
+          )}
+          priority
+        />
+      ) : (
+        <>
+          <UtensilsCrossed className="h-6 w-6 text-orange-500" />
+          <span className={cn("text-2xl font-bold tracking-tight lowercase transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
+            {appName}
+          </span>
+        </>
+      )}
     </div>
   );
 

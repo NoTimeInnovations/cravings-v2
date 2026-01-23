@@ -606,7 +606,7 @@ export default function GetStartedPage() {
             instagram_link: "",
             location_link: ""
         });
-        setAuthCredentials(prev => ({ ...prev, email: `guest${randomId}@cravings.live` }));
+        setAuthCredentials(prev => ({ ...prev, email: `guest${randomId}@${window.location.hostname}` }));
 
         setStep(2);
         toast.success("Loaded sample menu data and details!");

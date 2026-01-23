@@ -39,7 +39,7 @@ const STEPS = [
     }
 ];
 
-export default function WorkingSteps() {
+export default function WorkingSteps({ appName = "Cravings" }: { appName?: string }) {
     return (
         <section className="py-24 relative overflow-hidden">
             {/* Background Grid Pattern (Matching other sections) */}
@@ -67,7 +67,7 @@ export default function WorkingSteps() {
                         </h2>
 
                         <p className="text-lg text-gray-500 leading-relaxed mb-10 max-w-lg">
-                            Stop losing customers to complex apps. Cravings gives you everything you need to manage orders, payments, and delivery—fast.
+                            Stop losing customers to complex apps. {appName} gives you everything you need to manage orders, payments, and delivery—fast.
                         </p>
 
                         <Link
