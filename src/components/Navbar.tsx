@@ -327,14 +327,14 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
             )}
             priority
           />
-          <span className={cn("text-2xl font-bold tracking-tight lowercase transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
+          <span className={cn("text-2xl font-bold tracking-tight transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
             MenuThere
           </span>
         </div>
       ) : (
         <>
           <UtensilsCrossed className="h-6 w-6 text-orange-500" />
-          <span className={cn("text-2xl font-bold tracking-tight lowercase transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
+          <span className={cn("text-2xl font-bold tracking-tight transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
             {appName}
           </span>
         </>
