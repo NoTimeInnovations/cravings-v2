@@ -1,6 +1,11 @@
 import domainConfig from '@/data/domains.json';
 
-export type DomainConfig = typeof domainConfig['default'];
+export interface DomainConfig {
+    name: string;
+    title: string;
+    description: string;
+    logo?: string;
+}
 
 export function getDomainConfig(host?: string | null): DomainConfig {
     if (!host) return domainConfig['default'];
