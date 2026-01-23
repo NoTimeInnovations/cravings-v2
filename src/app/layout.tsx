@@ -146,6 +146,17 @@ export default async function RootLayout({
             `,
           }}
         />
+        {/* Apollo Tracking Script */}
+        <Script
+          id="apollo-tracker"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `function initApollo(){var n=Math.random().toString(36).substring(7),o=document.createElement("script");
+o.src="https://assets.apollo.io/micro/website-tracker/tracker.iife.js?nocache="+n,o.async=!0,o.defer=!0,
+o.onload=function(){window.trackingFunctions.onLoad({appId:"68f911e851e2250021bfaa60"})},
+document.head.appendChild(o)}initApollo();`,
+          }}
+        />
       </head>
       <body className={`antialiased font-sans ${inter.variable} ${dancingScript.variable} ${poppins.variable} ${roboto.variable}`}>
         <PostHogProvider>
