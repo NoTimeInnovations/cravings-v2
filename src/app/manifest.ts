@@ -15,7 +15,13 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     display: 'fullscreen',
     background_color: '#ffffff',
     theme_color: '#000000',
-    icons: [
+    icons: config.icon ? [
+      {
+        src: config.icon,
+        sizes: 'any',
+        type: 'image/jpeg',
+      }
+    ] : [
       {
         src: '/icon-192x192.png',
         sizes: '192x192',

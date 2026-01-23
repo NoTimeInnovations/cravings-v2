@@ -313,17 +313,22 @@ export function Navbar({ userData: propUserData, country, appName = "cravings", 
       onClick={() => (isHomePage ? null : router.back())}
     >
       {logo ? (
-        <Image
-          src={logo}
-          alt={appName}
-          width={160}
-          height={40}
-          className={cn(
-            "h-12 w-auto object-contain",
-            (logo.endsWith('.jpg') || logo.endsWith('.jpeg')) && "mix-blend-multiply rounded-md"
-          )}
-          priority
-        />
+        <div className="flex items-center space-x-2">
+          <Image
+            src={logo}
+            alt={appName}
+            width={160}
+            height={40}
+            className={cn(
+              "h-12 w-auto object-contain",
+              (logo.endsWith('.jpg') || logo.endsWith('.jpeg')) && "rounded-md"
+            )}
+            priority
+          />
+          <span className={cn("text-2xl font-bold tracking-tight lowercase transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
+            {appName}
+          </span>
+        </div>
       ) : (
         <>
           <UtensilsCrossed className="h-6 w-6 text-orange-500" />

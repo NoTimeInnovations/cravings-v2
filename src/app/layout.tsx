@@ -31,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: config.title,
     description: config.description,
-    icons: ["/icon-64x64.png", "/icon-192x192.png", "/icon-512x512.png"],
+    icons: config.icon ? [config.icon] : ["/icon-64x64.png", "/icon-192x192.png", "/icon-512x512.png"],
     metadataBase: new URL(`https://${host || "cravings.live"}`),
     robots: {
       index: true,
