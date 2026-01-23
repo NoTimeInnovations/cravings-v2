@@ -81,12 +81,12 @@
             "scan_limit": -1
         },
         {
-            "id": "in_digital",
-            "rz_plan_id" : "plan_RtsiLYTs1J0XAP",
-            "rz_plan_id_test" : "plan_Rtr7NqpbsPBTq5",
-            "name": "Digital Menu",
-            "price": "₹1500",
-            "description": "Essential digital menu",
+            "id": "in_digital_monthly",
+            "rz_plan_id": "plan_S7E5JO7kPtwGnA",
+            "rz_plan_id_test": "plan_digital_mon_test",
+            "name": "Digital Menu Monthly",
+            "price": "₹299",
+            "description": "Essential, contactless digital menu",
             "features": [
                 "Digital menu",
                 "Unlimited items",
@@ -94,37 +94,103 @@
                 "Unlimited edits",
                 "Chat support"
             ],
-            "buttonText": "Start Free",
+            "buttonText": "Get Started",
             "popular": false,
-            "period": "/year",
-            "period_days": 365,
+            "period": "/month",
+            "period_days": 30,
             "disabled": false,
             "scan_limit": -1
         },
         {
-            "id": "in_ordering",
-            "rz_plan_id" : "plan_RtsjPhPF68TVwL",
-            "rz_plan_id_test" : "plan_Rtr8hnnJoYJalf",
-            "name": "Menu + Ordering",
-            "price": "₹3000",
-            "description": "Complete ordering solution",
+            "id": "in_digital",
+            "rz_plan_id": "plan_S7EEdzZoy456iP",
+            "rz_plan_id_test": "plan_Rtr7NqpbsPBTq5",
+            "name": "Digital Menu Yearly",
+            "price": "₹2999",
+            "description": "Essential, contactless digital menu",
+            "features": [
+                "Digital menu",
+                "Unlimited items",
+                "QR code generation",
+                "Unlimited edits",
+                "Chat support"
+            ],
+            "buttonText": "Get Started",
+            "popular": false,
+            "period": "/year",
+            "period_days": 365,
+            "disabled": false,
+            "scan_limit": -1,
+            "savings": "Save ₹589"
+        },
+        {
+            "id": "in_ordering_monthly",
+            "rz_plan_id": "plan_S7EBl1jqt0cf2x",
+            "rz_plan_id_test": "plan_ordering_mon_test",
+            "name": "Ordering Monthly",
+            "price": "₹499",
+            "description": "Accept orders directly from customers",
             "features": [
                 "Everything in Digital Menu",
                 "Table ordering",
                 "KOT & Bill printing",
                 "WhatsApp integration",
-                "Unlimited offers",
-                "Unlimited edits",
-                "Priority chat support"
+                "Unlimited offers"
+            ],
+            "buttonText": "Get Started",
+            "popular": false,
+            "period": "/month + 2%",
+            "period_days": 30,
+            "disabled": false,
+            "features_enabled": {
+                "ordering": true
+            },
+            "scan_limit": -1
+        },
+        {
+            "id": "in_ordering",
+            "rz_plan_id": "plan_S7EHKPEHb4ZNAX",
+            "rz_plan_id_test": "plan_Rtr8hnnJoYJalf",
+            "name": "Ordering Yearly",
+            "price": "₹4999",
+            "description": "Accept orders directly from customers",
+            "features": [
+                "Everything in Digital Menu",
+                "Table ordering",
+                "KOT & Bill printing",
+                "WhatsApp integration",
+                "Unlimited offers"
             ],
             "buttonText": "Get Started",
             "popular": true,
-            "period": "/year",
+            "period": "/year + 2%",
             "period_days": 365,
             "disabled": false,
             "features_enabled": {
                 "ordering": true
             },
+            "scan_limit": -1,
+            "savings": "Save ₹989"
+        },
+        {
+            "id": "in_billing_yearly",
+            "rz_plan_id": "plan_S7EIQi5QLj73Wm",
+            "rz_plan_id_test": "plan_billing_year_test",
+            "name": "Billing Yearly",
+            "price": "₹4999",
+            "description": "Advanced billing for efficient restaurant management",
+            "features": [
+                "Fully online and offline billing",
+                "Remote reports tracking",
+                "Multi-terminal billing",
+                "KOT and Bill printing with Bluetooth/USB",
+                "Real-time inventory sync"
+            ],
+            "buttonText": "Get Started",
+            "popular": false,
+            "period": "/year",
+            "period_days": 365,
+            "disabled": false,
             "scan_limit": -1
         }
     ]

@@ -61,8 +61,8 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
                 "Chat support"
             ],
             variants: [
-                { id: "in_digital_monthly", name: "Digital Menu Monthly", price: "299", period: "/month", billed: "Billed monthly", type: "monthly", rz_plan_id: "plan_digital_mon" },
-                { id: "in_digital", name: "Digital Menu Yearly", price: "2999", period: "/year", billed: "Billed annually", type: "yearly", savings: "Save ₹589", rz_plan_id: "plan_RtsiLYTs1J0XAP" } // using existing ID/PlanID from JSON
+                { id: "in_digital_monthly", name: "Digital Menu Monthly", price: "299", period: "/month", billed: "Billed monthly", type: "monthly", rz_plan_id: "plan_S7E5JO7kPtwGnA" },
+                { id: "in_digital", name: "Digital Menu Yearly", price: "2999", period: "/year", billed: "Billed annually", type: "yearly", savings: "Save ₹589", rz_plan_id: "plan_S7EEdzZoy456iP" }
             ]
         },
         ordering: {
@@ -81,8 +81,8 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
                 "Unlimited offers"
             ],
             variants: [
-                { id: "in_ordering_monthly", name: "Ordering Monthly", price: "499", period: "/month + 2%", billed: "Billed monthly", type: "monthly", rz_plan_id: "plan_ordering_mon" },
-                { id: "in_ordering", name: "Ordering Yearly", price: "4999", period: "/year + 2%", billed: "Billed annually", type: "yearly", savings: "Save ₹989", rz_plan_id: "plan_RtsjPhPF68TVwL" }
+                { id: "in_ordering_monthly", name: "Ordering Monthly", price: "499", period: "/month + 2%", billed: "Billed monthly", type: "monthly", rz_plan_id: "plan_S7EBl1jqt0cf2x" },
+                { id: "in_ordering", name: "Ordering Yearly", price: "4999", period: "/year + 2%", billed: "Billed annually", type: "yearly", savings: "Save ₹989", rz_plan_id: "plan_S7EHKPEHb4ZNAX" }
             ]
         },
         billing: {
@@ -101,7 +101,7 @@ const PricingSection = ({ hideHeader = false, country: propCountry }: { hideHead
                 "Real-time inventory sync"
             ],
             variants: [
-                { id: "in_billing_yearly", name: "Billing Yearly", price: "4999", period: "/year", billed: "Billed annually", type: "yearly", rz_plan_id: "plan_billing_year" }
+                { id: "in_billing_yearly", name: "Billing Yearly", price: "4999", period: "/year", billed: "Billed annually", type: "yearly", rz_plan_id: "plan_S7EIQi5QLj73Wm" }
             ]
         }
     };
