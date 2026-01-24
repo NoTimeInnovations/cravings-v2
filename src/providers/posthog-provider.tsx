@@ -49,6 +49,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
                 person_profiles: 'identified_only',
                 capture_pageview: false,
                 defaults: '2025-11-30',
+                autocapture: false
             })
         }
     }, [])
