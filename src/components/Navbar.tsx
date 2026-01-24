@@ -26,6 +26,8 @@ import {
   X
 } from "lucide-react";
 
+import Image from "next/image"; // Added import
+
 import { getFeatures } from "@/lib/getFeatures";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -175,7 +177,7 @@ const HIDDEN_PATHS = [
 
 import { Partner, useAuthStore } from "@/store/authStore";
 
-export function Navbar({ userData: propUserData, country }: { userData: any; country?: string }) {
+export function Navbar({ userData: propUserData, country, appName = "Cravings", logo, logowhite }: { userData: any; country?: string; appName?: string; logo?: string; logowhite?: string }) {
   const { userData: storeUserData } = useAuthStore();
   const userData = storeUserData || propUserData;
   const features = getFeatures(userData?.feature_flags as string);
@@ -305,15 +307,38 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
 
   const isHomePage = ["/offers", "/explore", "/"].includes(pathname);
 
+  const activeLogo = (isDarkText && logowhite) ? logowhite : logo;
+
   const renderBranding = () => (
     <div
       className="flex items-center space-x-2 cursor-pointer"
       onClick={() => (isHomePage ? null : router.back())}
     >
-      <UtensilsCrossed className="h-6 w-6 text-orange-500" />
-      <span className={cn("text-2xl font-bold tracking-tight lowercase transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
-        cravings
-      </span>
+      {activeLogo ? (
+        <div className="flex items-center">
+          <Image
+            src={activeLogo}
+            alt={appName}
+            width={160}
+            height={40}
+            className={cn(
+              "h-12 w-auto object-contain",
+              (activeLogo.endsWith('.png')) && "rounded-md"
+            )}
+            priority
+          />
+          <span className={cn("text-3xl font-bold tracking-tight transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
+            MenuThere
+          </span>
+        </div>
+      ) : (
+        <>
+          <UtensilsCrossed className="h-6 w-6 text-orange-500" />
+          <span className={cn("text-2xl font-bold tracking-tight transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
+            {appName}
+          </span>
+        </>
+      )}
     </div>
   );
 
@@ -333,7 +358,7 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
             Log In
           </Link>
           <Link
-            href="/get-started"
+            href="https://cal.id/cravings"
             className="inline-flex items-center justify-center h-fit text-nowrap text-sm px-4 py-2 font-medium text-white bg-[#0a0b10] rounded-md hover:bg-gray-900 transition-colors"
           >
             Book Demo
@@ -398,7 +423,7 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
           </Link>
         ))}
 
-        {isUserOrGuest && (
+        {/* {isUserOrGuest && (
           <div
             className={cn(
               "relative px-3 py-1 text-sm font-medium cursor-pointer hidden lg:inline-flex items-center gap-1 transition-colors",
@@ -416,7 +441,7 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
               <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", isProductsOpen ? "rotate-180" : "")} />
 
               {/* Custom Underline */}
-              <span className={cn(
+        {/* <span className={cn(
                 "absolute -bottom-2 left-0 w-full h-[1.5px] rounded-full transition-all duration-300 ease-out origin-left",
                 isDarkText ? "bg-gray-900" : "bg-white",
                 isProductsOpen ? "opacity-100 scale-x-100" : "opacity-0 scale-x-0"
@@ -424,7 +449,7 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
             </span>
 
             {/* Mega Menu Dropdown */}
-            <div
+        {/* <div
               className={cn(
                 "absolute top-full left-1/2 -translate-x-1/2 mt-4 w-[600px] bg-white rounded-xl shadow-xl p-6 transition-all duration-200 z-[70] border border-gray-100 before:absolute before:-top-2 before:left-0 before:right-0 before:h-4 before:bg-transparent cursor-default",
                 isProductsOpen ? "opacity-100 visible" : "opacity-0 invisible"
@@ -455,9 +480,9 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
               </div>
             </div>
           </div>
-        )}
+        )} */}
 
-        {isUserOrGuest && (
+        {/* {isUserOrGuest && (
           <div
             className={cn(
               "relative px-3 py-1 text-sm font-medium cursor-pointer hidden lg:inline-flex items-center gap-1 transition-colors",
@@ -475,7 +500,7 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
               <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", isSolutionsOpen ? "rotate-180" : "")} />
 
               {/* Custom Underline */}
-              <span className={cn(
+        {/* <span className={cn(
                 "absolute -bottom-2 left-0 w-full h-[1.5px] rounded-full transition-all duration-300 ease-out origin-left",
                 isDarkText ? "bg-gray-900" : "bg-white",
                 isSolutionsOpen ? "opacity-100 scale-x-100" : "opacity-0 scale-x-0"
@@ -483,7 +508,7 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
             </span>
 
             {/* Mega Menu Dropdown */}
-            <div
+        {/* <div
               className={cn(
                 "absolute top-full left-1/2 -translate-x-1/2 mt-4 w-[600px] bg-white rounded-xl shadow-xl p-6 transition-all duration-200 z-[70] border border-gray-100 before:absolute before:-top-2 before:left-0 before:right-0 before:h-4 before:bg-transparent cursor-default",
                 isSolutionsOpen ? "opacity-100 visible" : "opacity-0 invisible"
@@ -492,7 +517,7 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
             >
               <div className="grid grid-cols-2 gap-x-12">
                 {/* Roles Column */}
-                <div className="space-y-4">
+        {/* <div className="space-y-4">
                   <h4 className="text-gray-900 font-medium text-base px-2">Roles</h4>
                   <div className="space-y-2">
                     {SOLUTIONS_ROLES.map((item) => (
@@ -519,7 +544,7 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
                 </div>
 
                 {/* Industries Column */}
-                <div className="space-y-4">
+        {/* <div className="space-y-4">
                   <h4 className="text-gray-900 font-medium text-base px-2">Industries</h4>
                   <div className="space-y-2">
                     {SOLUTIONS_INDUSTRIES.map((item) => (
@@ -547,8 +572,7 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
               </div>
             </div>
           </div >
-        )
-        }
+        )} */}
 
         {isUserOrGuest && (
           <div
@@ -719,7 +743,7 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
             {isUserOrGuest && (
               <>
                 {/* Products Accordion */}
-                <div className="border-b border-white/10 pb-2">
+                {/* <div className="border-b border-white/10 pb-2">
                   <button
                     onClick={() => toggleMobileSection('products')}
                     className="flex items-center justify-between w-full text-white font-medium text-lg py-3"
@@ -738,10 +762,10 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
                       </Link>
                     ))}
                   </div>
-                </div>
+                </div> */}
 
                 {/* Solutions Accordion */}
-                <div className="border-b border-white/10 pb-2">
+                {/* <div className="border-b border-white/10 pb-2">
                   <button
                     onClick={() => toggleMobileSection('solutions')}
                     className="flex items-center justify-between w-full text-white font-medium text-lg py-3"
@@ -751,7 +775,7 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
                   </button>
                   <div className={cn("space-y-6 pl-2 overflow-hidden transition-all duration-300", expandedMobileSection === 'solutions' ? "max-h-[1000px] opacity-100 pb-4" : "max-h-0 opacity-0")}>
                     {/* Roles */}
-                    <div>
+                {/* <div>
                       <h4 className="text-white/50 text-xs font-bold mb-3 uppercase tracking-wider">Roles</h4>
                       <div className="space-y-3">
                         {SOLUTIONS_ROLES.map(item => (
@@ -763,7 +787,7 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
                       </div>
                     </div>
                     {/* Industries */}
-                    <div>
+                {/* <div>
                       <h4 className="text-white/50 text-xs font-bold mb-3 uppercase tracking-wider">Industries</h4>
                       <div className="space-y-3">
                         {SOLUTIONS_INDUSTRIES.map(item => (
@@ -775,7 +799,7 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
                       </div>
                     </div>
                   </div>
-                </div>
+                </div> */}
 
                 {/* Resources Accordion */}
                 <div className="border-b border-white/10 pb-2">
@@ -816,7 +840,7 @@ export function Navbar({ userData: propUserData, country }: { userData: any; cou
               {!userData && (
                 <>
                   <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="block w-full text-center py-3 text-white font-medium text-lg border border-white rounded-lg hover:bg-white/10 transition-colors">Log In</Link>
-                  <Link href="/demo" onClick={() => setIsMobileMenuOpen(false)} className="block w-full text-center py-3 text-white font-medium text-lg bg-black rounded-lg hover:bg-gray-900 transition-colors">Book Demo</Link>
+                  <Link href="https://cal.id/cravings" onClick={() => setIsMobileMenuOpen(false)} className="block w-full text-center py-3 text-white font-medium text-lg bg-black rounded-lg hover:bg-gray-900 transition-colors">Book Demo</Link>
                 </>
               )}
               {userData && (

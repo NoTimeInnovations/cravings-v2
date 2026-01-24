@@ -2,17 +2,25 @@ import React from "react";
 import type { Metadata } from "next";
 import PricingSection from "@/components/international/PricingSection";
 import Chatwoot from "@/components/Chatwoot";
-
-export const metadata: Metadata = {
-    title: "Pricing | Cravings Digital Menu",
-    description: "Choose the perfect plan for your restaurant. Simple, transparent pricing with no hidden fees.",
-};
-
+import { getDomainConfig } from "@/lib/domain-utils";
 import { headers } from "next/headers";
+
+export async function generateMetadata(): Promise<Metadata> {
+    const headersList = await headers();
+    const host = headersList.get("host");
+    const config = getDomainConfig(host);
+
+    return {
+        title: `Pricing | ${config.title} Digital Menu`,
+        description: "Choose the perfect plan for your restaurant. Simple, transparent pricing with no hidden fees.",
+    };
+}
 
 export default async function PricingPage() {
     const headersList = await headers();
     const country = headersList.get("x-user-country") || "IN";
+    const host = headersList.get("host");
+    const config = getDomainConfig(host);
 
     return (
         <div className="min-h-screen w-full font-sans text-gray-900 bg-orange-50 pt-20">
@@ -25,7 +33,7 @@ export default async function PricingPage() {
                 </p>
             </div>
 
-            <PricingSection hideHeader={true} country={country} />
+            <PricingSection hideHeader={true} country={country} appName={config.name} />
 
             {/* Chatwoot Chat Bubble */}
             <Chatwoot />

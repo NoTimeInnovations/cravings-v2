@@ -21,29 +21,37 @@ import { PostHogProvider } from "@/providers/posthog-provider";
 // import LocationAccess from "@/components/LocationAccess";
 // import { Suspense } from "react";
 
-export const metadata: Metadata = {
-  title: "Cravings",
-  description: "Cravings is the ultimate platform for restaurants to manage digital menus, orders, and delivery. Create your QR menu in minutes.",
-  icons: ["/icon-64x64.png", "/icon-192x192.png", "/icon-512x512.png"],
-  metadataBase: new URL("https://cravings.live"),
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+import { getDomainConfig } from "@/lib/domain-utils";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const headerList = await headers();
+  const host = headerList.get("host");
+  const config = getDomainConfig(host);
+
+  return {
+    title: config.title,
+    description: config.description,
+    icons: config.icon ? [config.icon] : ["/icon-64x64.png", "/icon-192x192.png", "/icon-512x512.png"],
+    metadataBase: new URL(`https://${host || "cravings.live"}`),
+    robots: {
       index: true,
       follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
-  },
-  openGraph: {
-    title: "Cravings",
-    description: "Cravings is the ultimate platform for restaurants to manage digital menus, orders, and delivery. Create your QR menu in minutes.",
-    type: "website",
-    images: ["/ogImage_default.jpeg"],
-  },
-};
+    openGraph: {
+      title: config.title,
+      description: config.description,
+      type: "website",
+      images: ["/ogImage_default.jpeg"],
+    },
+  };
+}
 
 const petrazFilter = "PETRAZ";
 // const bottomNavFilter = [
@@ -89,6 +97,8 @@ export default async function RootLayout({
 }>) {
   const user = await getAuthCookie();
   const headerList = await headers();
+  const host = headerList.get("host");
+  const config = getDomainConfig(host);
 
   const country = headerList.get("x-user-country") || "IN";
 
@@ -146,6 +156,17 @@ export default async function RootLayout({
             `,
           }}
         />
+        {/* Apollo Tracking Script */}
+        <Script
+          id="apollo-tracker"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `function initApollo(){var n=Math.random().toString(36).substring(7),o=document.createElement("script");
+o.src="https://assets.apollo.io/micro/website-tracker/tracker.iife.js?nocache="+n,o.async=!0,o.defer=!0,
+o.onload=function(){window.trackingFunctions.onLoad({appId:"68f911e851e2250021bfaa60"})},
+document.head.appendChild(o)}initApollo();`,
+          }}
+        />
       </head>
       <body className={`antialiased font-sans ${inter.variable} ${dancingScript.variable} ${poppins.variable} ${roboto.variable}`}>
         <PostHogProvider>
@@ -155,7 +176,7 @@ export default async function RootLayout({
           )}
           <Toaster richColors closeButton position="top-center" />
           {/* <Snow /> */}
-          {!isNavbarHidden ? <Navbar userData={user} country={country} /> : null}
+          {!isNavbarHidden ? <Navbar userData={user} country={country} appName={config.name} logo={config.logo} logowhite={config.logowhite} /> : null}
           {/* <RateUsModal /> */}
 
           {/* pwa install is currently turned off */}

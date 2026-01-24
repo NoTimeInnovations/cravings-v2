@@ -12,24 +12,33 @@ import PlatformFeatures from "@/components/home/PlatformFeatures";
 import AnimatedFeatures from "@/components/home/AnimatedFeatures";
 import Footer from "@/components/Footer";
 import Chatwoot from "@/components/Chatwoot";
-
-export const metadata: Metadata = {
-  title: "Cravings Digital Menu | The #1 QR Menu Creator for Restaurants",
-  description: "Create a stunning digital menu instantly. No apps required. The smartest restaurant menu creator with QR codes, real-time editing, and marketing tools. Try for free.",
-  keywords: ["Digital Menu", "QR Code Menu", "Restaurant Menu App", "Contactless Menu", "Menu Creator"],
-  openGraph: {
-    title: "Cravings Digital Menu | The #1 QR Menu Creator",
-    description: "Create a stunning digital menu instantly with Cravings. Join 400+ restaurants growing their business.",
-    images: ["/placeholder-menu-qr.jpg"],
-    type: "website",
-  },
-};
-
+import { getDomainConfig } from "@/lib/domain-utils";
 import { headers } from "next/headers";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const headersList = await headers();
+  const host = headersList.get("host");
+  const config = getDomainConfig(host);
+
+  return {
+    title: `${config.title} Digital Menu | The #1 QR Menu Creator for Restaurants`,
+    description: `Create a stunning digital menu instantly. No apps required. The smartest restaurant menu creator with QR codes, real-time editing, and marketing tools. Try for free.`,
+    keywords: ["Digital Menu", "QR Code Menu", "Restaurant Menu App", "Contactless Menu", "Menu Creator"],
+    openGraph: {
+      title: `${config.title} Digital Menu | The #1 QR Menu Creator`,
+      description: `Create a stunning digital menu instantly with ${config.name}. Join 400+ restaurants growing their business.`,
+      images: ["/placeholder-menu-qr.jpg"],
+      type: "website",
+    },
+  };
+}
 
 export default async function Home() {
   const headersList = await headers();
   const country = headersList.get("x-user-country") || "US";
+  const host = headersList.get("host");
+  const config = getDomainConfig(host);
+
   return (
     <div className="min-h-screen w-full font-sans text-gray-900 relative">
       {/* SEO Fallback Content (Hidden visually but visible to crawlers) */}
@@ -86,7 +95,7 @@ export default async function Home() {
         <ul>
           <li>
             <h3>Free Plan ($0/month)</h3>
-            <p>Perfect for trying out Cravings.</p>
+            <p>Perfect for trying out {config.name}.</p>
             <ul>
               <li>100 scans per month</li>
               <li>Unlimited offers</li>
@@ -119,7 +128,7 @@ export default async function Home() {
       <Background />
 
       {/* HERO SECTION (Client Component for Animations) */}
-      <Hero />
+      <Hero appName={config.name} />
 
       {/* MARQUEE SECTION */}
       <section className="py-10 bg-white relative overflow-hidden border-b border-gray-100">
@@ -146,13 +155,13 @@ export default async function Home() {
       </section> */}
 
       {/* HOW IT WORKS SECTION (Client Component for Step Animations) */}
-      <WorkingSteps />
+      <WorkingSteps appName={config.name} />
 
       {/* PRICING SECTION */}
       {/* <PricingSection country={country} /> */}
 
       {/* FOOTER CTA */}
-      <Footer />
+      <Footer appName={config.name} />
 
       {/* Chatwoot Chat Bubble */}
       <Chatwoot />

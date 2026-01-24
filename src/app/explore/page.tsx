@@ -4,13 +4,20 @@ import Explore from "@/screens/Explore";
 import React from "react";
 import { getLocationCookie } from "../auth/actions";
 import type { Metadata } from "next";
+import { getDomainConfig } from "@/lib/domain-utils";
+import { headers } from "next/headers";
 
-export const metadata: Metadata = {
-  title: "Explore Offers | Cravings",
-  description:
-    "Discover amazing offers and deals from restaurants near you. Browse through exclusive discounts and promotions.",
-  icons: ["/icon-192x192.png"],
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const headersList = await headers();
+  const host = headersList.get("host");
+  const config = getDomainConfig(host);
+
+  return {
+    title: `Explore Offers | ${config.title}`,
+    description: `Discover amazing offers and deals from restaurants near you. Browse through exclusive discounts and promotions on ${config.name}.`,
+    icons: ["/icon-192x192.png"],
+  };
+}
 
 interface CommonOffer {
   id: string;

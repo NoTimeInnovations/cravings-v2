@@ -14,7 +14,7 @@ const trustedRestaurants = [
     "/logos/chillies.webp"
 ];
 
-export default function Hero() {
+export default function Hero({ appName = "Cravings" }: { appName?: string }) {
     const [animationStep, setAnimationStep] = useState(0);
 
     useEffect(() => {
@@ -37,7 +37,7 @@ export default function Hero() {
                 {/* Left Content */}
                 <div className="flex-1 text-center lg:text-left">
                     <h1 className="text-4xl lg:text-5xl font-medium text-white leading-[1.1] tracking-[-0.03em] mb-6 max-w-2xl mx-auto lg:mx-0">
-                        Cravings is built to adapt <br className="hidden lg:block" /> food technology at its best
+                        {appName} is built to adapt <br className="hidden lg:block" /> food technology at its best
                     </h1>
 
                     <p className="text-[1rem] leading-[1.6] tracking-[-0.02px] text-white/90 mb-8 max-w-2xl mx-auto lg:mx-0 font-medium">
@@ -68,7 +68,7 @@ export default function Hero() {
                     <div className="relative w-full flex justify-center items-center z-20">
                         <Image
                             src="/hero-image.png"
-                            alt="Cravings App Interface"
+                            alt={`${appName} App Interface`}
                             width={1400}
                             height={1600}
                             priority

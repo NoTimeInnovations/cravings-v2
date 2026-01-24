@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { Facebook, Twitter, Instagram, Linkedin, Github, Globe } from "lucide-react";
 
-export default function Footer() {
+export default function Footer({ appName = "Cravings" }: { appName?: string }) {
     return (
         <footer className="bg-[#C04812] pt-20 pb-12 font-sans text-white relative overflow-hidden">
             {/* Grid Pattern (White for dark background) */}
@@ -14,7 +14,7 @@ export default function Footer() {
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8 mb-16">
                     {/* Column 1: Products */}
                     <div className="col-span-2 md:col-span-2 lg:col-span-2">
-                        <h3 className="font-bold text-white mb-6 text-lg">Cravings</h3>
+                        <h3 className="font-bold text-white mb-6 text-lg">{appName}</h3>
                         <p className="text-orange-100 mb-6 max-w-sm leading-relaxed">
                             The all-in-one platform for restaurants to manage digital menus, orders, and growing their business online.
                         </p>
@@ -44,7 +44,7 @@ export default function Footer() {
                     </div>
 
                     {/* Column 2: Products */}
-                    <div>
+                    {/* <div>
                         <h4 className="font-semibold text-white mb-6">Products</h4>
                         <ul className="space-y-4">
                             <li><Link href="/product/digital-menu" className="text-orange-100 hover:text-white transition-colors hover:underline">Digital Menu</Link></li>
@@ -53,9 +53,9 @@ export default function Footer() {
                             <li><Link href="/product/table-ordering" className="text-orange-100 hover:text-white transition-colors hover:underline">Table Ordering</Link></li>
                             <li><Link href="/product/captain-ordering" className="text-orange-100 hover:text-white transition-colors hover:underline">Captain Ordering</Link></li>
                             {/* <li><Link href="/product/inventory-management" className="text-orange-100 hover:text-white transition-colors hover:underline">Inventory</Link></li> */}
-                            {/* <li><Link href="/product/marketing" className="text-orange-100 hover:text-white transition-colors hover:underline">Marketing Tools</Link></li> */}
-                        </ul>
-                    </div>
+                    {/* <li><Link href="/product/marketing" className="text-orange-100 hover:text-white transition-colors hover:underline">Marketing Tools</Link></li> */}
+                    {/* </ul>
+                    </div> */}
 
                     {/* Column 3: Resources */}
                     <div>
@@ -99,7 +99,7 @@ export default function Footer() {
                             <option>Español</option>
                             <option>Français</option>
                         </select> */}
-                        <span className="text-sm text-orange-100/80">© 2026 Cravings. All rights reserved.</span>
+                        <span className="text-sm text-orange-100/80">© 2026 {appName}. All rights reserved.</span>
                     </div>
 
                     {/* Branding / Tagline */}

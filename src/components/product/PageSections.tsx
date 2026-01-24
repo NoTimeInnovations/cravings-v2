@@ -90,7 +90,7 @@ export function CTASection({ data }: CTAProps) {
                                 </Link>
                             </Button>
                             <Button size="lg" variant="outline" asChild className="h-12 px-8 rounded-lg text-base font-medium border-gray-200 text-gray-900 hover:bg-gray-50 w-full sm:w-auto">
-                                <Link href={data.secondaryButtonLink || "https://www.cravings.live/hotels/20f7e974-f19e-4c11-b6b7-4385f61f27bf"}>
+                                <Link href={data.secondaryButtonLink || "https://cal.id/cravings"}>
                                     {data.secondaryButtonText || "Book Demo"}
                                 </Link>
                             </Button>
