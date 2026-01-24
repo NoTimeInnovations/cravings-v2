@@ -12,56 +12,59 @@ import {
     ArrowRight,
     ChevronLeft,
     ChevronRight,
-    Store
+    Store,
+    Flame,
+    Percent,
+    Utensils,
+    Power,
+    Star
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 const PRODUCTS = [
     {
-        title: "Digital Menu",
-        description: "Accept orders via QR code scan",
+        title: "Smart QR Menu",
+        description: "Customers scan and instantly view your menu on their phone — no app needed.",
         icon: ScanLine,
-        href: "/product/digital-menu",
+        href: "#",
         image: "/digital_menu_preview.png"
     },
     {
-        title: "Own Delivery Website",
-        description: "Commission-free delivery platform",
-        icon: Globe,
-        href: "/product/delivery-website",
+        title: "Live Menu Updates",
+        description: "Change prices, items, or availability in real time. Updates reflect instantly.",
+        icon: Power,
+        href: "#",
+        image: "/live-update.png"
+    },
+    {
+        title: "Dynamic Offers",
+        description: "Show special deals, happy-hour menus, or time-based discounts automatically.",
+        icon: Percent,
+        href: "#",
         image: "/delivery_website.png"
     },
     {
-        title: "Point Of Sale (POS)",
-        description: "Manage billing and operations",
-        icon: Monitor,
-        href: "/product/pos",
-        image: "/pos.png"
-    },
-    {
-        title: "Table Ordering",
-        description: "Seamless dining experience for customers",
-        icon: Smartphone,
-        href: "/product/table-ordering",
-        image: "/table-ordering.png"
-    },
-    {
-        title: "Captain Ordering",
-        description: "Efficient order taking for staff",
-        icon: ClipboardList,
-        href: "/product/captain-ordering",
+        title: "Highlight Famous Dishes",
+        description: "Auto-tag bestsellers and chef’s specials to guide customer choices.",
+        icon: Flame,
+        href: "#",
         image: "/preview-captain-ordering.png"
     },
-    /*
     {
-        title: "Inventory & Purchase",
-        description: "Track stock and manage suppliers",
-        icon: Boxes,
-        href: "/product/inventory-management",
+        title: "Easy Menu Management",
+        description: "Add, edit, or remove items in seconds from a simple dashboard.",
+        icon: ClipboardList,
+        href: "#",
         image: "/inventory-preview-5.png"
+    },
+    {
+        title: "Google Reviews Booster",
+        description: "One-tap review request after menu scan to grow your 5⭐ ratings.",
+        icon: Star,
+        href: "#",
+        image: "/table-ordering.png"
     }
-    */
 ];
 
 export default function PlatformFeatures() {

@@ -10,7 +10,7 @@ function PostHogPageview() {
     const searchParams = useSearchParams();
 
     useEffect(() => {
-        if (pathname && typeof window !== 'undefined') {
+        if (pathname && typeof window !== 'undefined' && window.location.hostname.includes('menuthere.com')) {
             // Exclude specific paths from pageview tracking  
             const excludedPaths = ['/superadmin', '/qrScan', '/admin', '/bill', '/kot', '/admin-v2'];
 
@@ -18,6 +18,11 @@ function PostHogPageview() {
             const isExcluded = excludedPaths.some(path => pathname.startsWith(path));
 
             if (isExcluded) {
+                return;
+            }
+
+            // Only capture on menuthere.com
+            if (!window.location.hostname.includes('menuthere.com')) {
                 return;
             }
 
@@ -37,12 +42,24 @@ function PostHogPageview() {
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
-        posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY as string, {
-            api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
-            person_profiles: 'identified_only',
-            capture_pageview: false,
-            defaults: '2025-11-30',
-        })
+        // Only initialize PostHog on menuthere.com
+        if (typeof window !== 'undefined') {
+            if (window.location.hostname.includes('menuthere.com')) {
+                posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY as string, {
+                    api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
+                    person_profiles: 'identified_only',
+                    capture_pageview: false,
+                    defaults: '2025-11-30',
+                    autocapture: false
+                })
+            } else {
+                // Explicitly disable capturing for other domains (e.g. cravings.live)
+                // This prevents any accidental autocapture or events
+                if (posthog.has_opted_out_capturing && !posthog.has_opted_out_capturing()) {
+                    posthog.opt_out_capturing();
+                }
+            }
+        }
     }, [])
 
     return (

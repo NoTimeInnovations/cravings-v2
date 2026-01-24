@@ -62,8 +62,8 @@ const FEATURES = [
         delay: 0.4
     },
     {
-        title: "QR Ordering",
-        description: "Contactless & fast",
+        title: "Easy Menu Arrangement",
+        description: "Arrange your menu items and categories easily",
         icon: QrCode,
         x: -320,
         y: 220,
@@ -102,12 +102,12 @@ export default function AnimatedFeatures() {
     const phoneOpacity = useTransform(smoothProgress, [0, 0.2], [0.5, 1]);
 
     return (
-        <section ref={containerRef} className="h-[150vh] relative">
-            <div className="sticky top-0 h-screen flex flex-col items-center justify-start md:justify-center pt-16 md:pt-0 overflow-hidden">
+        <section ref={containerRef} className="h-auto md:h-[150vh] relative">
+            <div className="relative md:sticky md:top-0 h-auto md:h-screen flex flex-col items-center justify-start md:justify-center pt-16 md:pt-0 overflow-hidden">
 
                 {/* Section Header */}
                 <motion.div
-                    className="relative z-20 text-center px-6 mb-8 md:mb-8"
+                    className="relative z-20 text-center px-6 mb-8 md:mb-8 max-[767px]:!opacity-100"
                     style={{ opacity: useTransform(smoothProgress, [0, 0.2], [1, 0]) }}
                 >
                     <h2 className="text-2xl md:text-5xl font-medium text-gray-900 mb-2 md:mb-5 leading-tight">
@@ -277,14 +277,9 @@ export default function AnimatedFeatures() {
                 {/* Mobile Feature List - Simple Vertical List */}
                 <div className="md:hidden w-full px-4 space-y-2.5 pb-10 mt-4">
                     {FEATURES.map((feature, index) => {
-                        // Sequential fade in based on scroll progress
-                        const opacity = useTransform(scrollYProgress, [0 + (index * 0.05), 0.15 + (index * 0.05)], [0, 1]);
-                        const y = useTransform(scrollYProgress, [0 + (index * 0.05), 0.15 + (index * 0.05)], [20, 0]);
-
                         return (
-                            <motion.div
+                            <div
                                 key={`mobile-list-${index}`}
-                                style={{ opacity, y }}
                                 className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4"
                             >
                                 <div className="w-10 h-10 rounded-full bg-[#C04812]/10 flex items-center justify-center shrink-0">
@@ -294,7 +289,7 @@ export default function AnimatedFeatures() {
                                     <h3 className="text-lg font-bold text-gray-900 leading-tight">{feature.title}</h3>
                                     <p className="text-sm text-gray-500 leading-tight">{feature.description}</p>
                                 </div>
-                            </motion.div>
+                            </div>
                         );
                     })}
                 </div>
