@@ -36,6 +36,8 @@ import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 
 
+import { getExtraCharge } from "@/lib/getExtraCharge";
+
 interface OrderDetailsProps {
     order: Order | null;
     onBack: () => void;
@@ -51,8 +53,6 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
     const [pendingAction, setPendingAction] = React.useState<(() => void) | null>(null);
 
     if (!order) return null;
-
-
 
     const handleUpdateOrderStatus = async (status: string) => {
         if (order.status === "completed") {
@@ -124,6 +124,35 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
             default: return "bg-gray-100 text-gray-800";
         }
     };
+
+    // Calculate totals
+    const currency = (userData as Partner)?.currency || "₹";
+    const gstPercentage = (userData as Partner)?.gst_percentage || 0;
+
+    const foodSubtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    const chargesSubtotal = (order.extraCharges || []).reduce((sum, charge) => {
+        return sum + getExtraCharge(
+            order.items,
+            charge.amount,
+            charge.charge_type as any
+        );
+    }, 0);
+
+    const subtotal = foodSubtotal + chargesSubtotal;
+
+    const discounts = order.discounts || [];
+    const discountAmount = discounts.reduce((total, discount) => {
+        if (discount.type === "flat") {
+            return total + discount.value;
+        } else {
+            return total + (subtotal * discount.value) / 100;
+        }
+    }, 0);
+
+    const discountedTaxableAmount = Math.max(0, subtotal - discountAmount);
+    const gstAmount = (discountedTaxableAmount * gstPercentage) / 100;
+    const grandTotal = discountedTaxableAmount + gstAmount;
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
@@ -250,59 +279,68 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                             <TableRow key={index}>
                                 <TableCell className="font-medium">{item.name}</TableCell>
                                 <TableCell className="text-right">{item.quantity}</TableCell>
-                                <TableCell className="text-right">{(userData as Partner)?.currency || "₹"}{item.price}</TableCell>
-                                <TableCell className="text-right">{(userData as Partner)?.currency || "₹"}{item.price * item.quantity}</TableCell>
+                                <TableCell className="text-right">{currency}{item.price}</TableCell>
+                                <TableCell className="text-right">{currency}{item.price * item.quantity}</TableCell>
                             </TableRow>
                         ))}
-                        {(order.gstIncluded || 0) > 0 && (
-                            <TableRow className="bg-muted/50 font-medium">
-                                <TableCell colSpan={3} className="text-right">
-                                    {(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} ({(userData as Partner)?.gst_percentage}%)
+
+                        {/* Subtotal */}
+                        <TableRow className="bg-muted/50 font-medium border-t-2">
+                            <TableCell colSpan={3} className="text-right">
+                                Subtotal
+                            </TableCell>
+                            <TableCell className="text-right">
+                                {currency}{subtotal.toFixed(2)}
+                            </TableCell>
+                        </TableRow>
+
+                        {/* Extra Charges */}
+                        {(order.extraCharges || []).map((charge, index) => (
+                            <TableRow key={`charge-${index}`} className="bg-muted/50 font-medium text-muted-foreground">
+                                <TableCell colSpan={3} className="text-right text-sm">
+                                    {charge.name}
                                 </TableCell>
-                                <TableCell className="text-right">
-                                    {(userData as Partner)?.currency || "₹"}{order.gstIncluded}
+                                <TableCell className="text-right text-sm">
+                                    {currency}
+                                    {getExtraCharge(
+                                        order.items,
+                                        charge.amount,
+                                        charge.charge_type as any
+                                    ).toFixed(2)}
                                 </TableCell>
                             </TableRow>
-                        )}
-                        {(order.discounts || []).length > 0 && (
+                        ))}
+
+                        {/* Discounts */}
+                        {discountAmount > 0 && (
                             <TableRow className="bg-muted/50 font-medium">
                                 <TableCell colSpan={3} className="text-right">
                                     Discount
                                 </TableCell>
                                 <TableCell className="text-right text-red-600">
-                                    - {(userData as Partner)?.currency || "₹"}
-                                    {order.discounts!.reduce((total, discount) => {
-                                        const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-                                        // Note: Extra charges logic might need to be replicated if discounts apply to them, 
-                                        // but usually discounts apply to subtotal. 
-                                        // Based on BillTemplate, percentage applies to (food + extra charges).
-                                        // However, we don't have easy access to extraCharges amount here unless we calculate it.
-                                        // Let's assume for now simple subtotal or try to match BillTemplate logic if possible.
-
-                                        // Actually, let's look at how we did it in BillTemplate.
-                                        // usage of extraCharges from props or order? 
-                                        // In OrderDetails, `order.extraCharges` (snake_case from DB mapped to camelCase?) 
-                                        // The order interface in `orderStore` has `extraCharges` and `extra_charges`.
-
-                                        const extraChargesTotal = (order.extraCharges || []).reduce((sum, charge) => sum + charge.amount, 0);
-                                        // Or check order.extra_charges depending on how it's populated.
-                                        // `order` prop comes from `useOrderSubscriptionStore` or parent.
-
-                                        const taxableAmount = subtotal + extraChargesTotal;
-
-                                        if (discount.type === "flat") {
-                                            return total + discount.value;
-                                        } else {
-                                            return total + (taxableAmount * discount.value) / 100;
-                                        }
-                                    }, 0).toFixed(2)}
+                                    - {currency}{discountAmount.toFixed(2)}
                                 </TableCell>
                             </TableRow>
                         )}
-                        <TableRow className="bg-muted/50 font-medium">
+
+
+                        {/* GST/VAT */}
+                        {gstAmount > 0 && (
+                            <TableRow className="bg-muted/50 font-medium">
+                                <TableCell colSpan={3} className="text-right">
+                                    {(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%)
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    {currency}{gstAmount.toFixed(2)}
+                                </TableCell>
+                            </TableRow>
+                        )}
+
+                        {/* Total Amount */}
+                        <TableRow className="bg-muted/50 font-bold text-lg border-t-2">
                             <TableCell colSpan={3} className="text-right">Total Amount</TableCell>
-                            <TableCell className="text-right text-lg">
-                                {(userData as Partner)?.currency || "₹"}{order.totalPrice}
+                            <TableCell className="text-right">
+                                {currency}{grandTotal.toFixed(2)}
                             </TableCell>
                         </TableRow>
                     </TableBody>
