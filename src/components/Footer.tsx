@@ -44,7 +44,7 @@ export default function Footer({ appName = "Cravings" }: { appName?: string }) {
                     </div>
 
                     {/* Column 2: Products */}
-                    <div>
+                    {/* <div>
                         <h4 className="font-semibold text-white mb-6">Products</h4>
                         <ul className="space-y-4">
                             <li><Link href="/product/digital-menu" className="text-orange-100 hover:text-white transition-colors hover:underline">Digital Menu</Link></li>
@@ -53,9 +53,9 @@ export default function Footer({ appName = "Cravings" }: { appName?: string }) {
                             <li><Link href="/product/table-ordering" className="text-orange-100 hover:text-white transition-colors hover:underline">Table Ordering</Link></li>
                             <li><Link href="/product/captain-ordering" className="text-orange-100 hover:text-white transition-colors hover:underline">Captain Ordering</Link></li>
                             {/* <li><Link href="/product/inventory-management" className="text-orange-100 hover:text-white transition-colors hover:underline">Inventory</Link></li> */}
-                            {/* <li><Link href="/product/marketing" className="text-orange-100 hover:text-white transition-colors hover:underline">Marketing Tools</Link></li> */}
-                        </ul>
-                    </div>
+                    {/* <li><Link href="/product/marketing" className="text-orange-100 hover:text-white transition-colors hover:underline">Marketing Tools</Link></li> */}
+                    {/* </ul>
+                    </div> */}
 
                     {/* Column 3: Resources */}
                     <div>
