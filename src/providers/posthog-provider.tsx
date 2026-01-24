@@ -21,6 +21,11 @@ function PostHogPageview() {
                 return;
             }
 
+            // Only capture on menuthere.com
+            if (!window.location.hostname.includes('menuthere.com')) {
+                return;
+            }
+
             let url = window.origin + pathname;
             if (searchParams && searchParams.toString()) {
                 url = url + `?${searchParams.toString()}`;
@@ -37,12 +42,15 @@ function PostHogPageview() {
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
-        posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY as string, {
-            api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
-            person_profiles: 'identified_only',
-            capture_pageview: false,
-            defaults: '2025-11-30',
-        })
+        // Only initialize PostHog on menuthere.com
+        if (typeof window !== 'undefined' && window.location.hostname.includes('menuthere.com')) {
+            posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY as string, {
+                api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
+                person_profiles: 'identified_only',
+                capture_pageview: false,
+                defaults: '2025-11-30',
+            })
+        }
     }, [])
 
     return (
