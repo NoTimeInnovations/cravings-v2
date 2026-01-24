@@ -115,7 +115,7 @@ const Page = () => {
                 (sum: number, item: any) => sum + item.price * item.quantity,
                 0
               );
-              const gstAmount = getGstAmount(foodTotal, gstPercentage);
+
               const extraChargesTotal =
                 (order.extraCharges || []).reduce(
                   (sum: number, charge: any) =>
@@ -128,7 +128,20 @@ const Page = () => {
                   0
                 ) || 0;
 
-              const grandTotal = foodTotal + extraChargesTotal + gstAmount;
+              const taxableAmount = foodTotal + extraChargesTotal;
+
+              const discounts = order.discounts || [];
+              const discountAmount = discounts.reduce((total: number, discount: any) => {
+                if (discount.type === "flat") {
+                  return total + discount.value;
+                } else {
+                  return total + (taxableAmount * discount.value) / 100;
+                }
+              }, 0);
+
+              const discountedTaxableAmount = Math.max(0, taxableAmount - discountAmount);
+              const gstAmount = getGstAmount(discountedTaxableAmount, gstPercentage);
+              const grandTotal = discountedTaxableAmount + gstAmount;
               const statusDisplay = getStatusDisplay(order);
 
               return (
@@ -173,6 +186,15 @@ const Page = () => {
                         </span>
                       </div>
                     ))}
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between text-sm text-green-600">
+                        <span>Discount</span>
+                        <span className="font-medium">
+                          - {(order.partner as Partner)?.currency || "₹"}
+                          {discountAmount.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="border-t pt-3 flex justify-between items-center font-bold text-gray-900">

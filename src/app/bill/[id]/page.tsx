@@ -64,6 +64,7 @@ query GetOrder($id: uuid!) {
     }
     gst_included
     extra_charges
+    discounts
     phone
     user_id
     user {
@@ -222,8 +223,19 @@ const PrintOrderPage = () => {
 
         const gstPercentage = formattedOrder.partner?.gst_percentage || 0;
         const subtotal = foodSubtotal + chargesSubtotal;
-        const gstAmount = (foodSubtotal * gstPercentage) / 100;
-        const grandTotal = subtotal + gstAmount;
+
+        const discounts = formattedOrder.discounts || [];
+        const discountAmount = discounts.reduce((total: number, discount: any) => {
+          if (discount.type === "flat") {
+            return total + discount.value;
+          } else {
+            return total + (subtotal * discount.value) / 100;
+          }
+        }, 0);
+
+        const discountedTaxableAmount = Math.max(0, subtotal - discountAmount);
+        const gstAmount = (discountedTaxableAmount * gstPercentage) / 100;
+        const grandTotal = discountedTaxableAmount + gstAmount;
 
         // Generate UPI payment QR code if enabled
         let upiString = null;
@@ -299,12 +311,14 @@ const PrintOrderPage = () => {
                     ),
                   }))
                   : [],
+              discounts: formattedOrder.discounts || [],
               customer_phone:
                 formattedOrder.phone || formattedOrder.user?.phone,
               customer_name: formattedOrder.user?.full_name,
               calculations: {
                 food_subtotal: foodSubtotal,
                 charges_subtotal: chargesSubtotal,
+                discount_amount: discountAmount,
                 subtotal: subtotal,
                 gst_percentage: gstPercentage,
                 gst_amount: gstAmount,
@@ -388,8 +402,19 @@ const PrintOrderPage = () => {
   );
 
   const subtotal = foodSubtotal + chargesSubtotal;
-  const gstAmount = (foodSubtotal * gstPercentage) / 100;
-  const grandTotal = subtotal + gstAmount;
+
+  const discounts = order.discounts || [];
+  const discountAmount = discounts.reduce((total: number, discount: any) => {
+    if (discount.type === "flat") {
+      return total + discount.value;
+    } else {
+      return total + (subtotal * discount.value) / 100;
+    }
+  }, 0);
+
+  const discountedTaxableAmount = Math.max(0, subtotal - discountAmount);
+  const gstAmount = (discountedTaxableAmount * gstPercentage) / 100;
+  const grandTotal = discountedTaxableAmount + gstAmount;
 
   return (
     <div className="">
@@ -590,6 +615,15 @@ const PrintOrderPage = () => {
               {subtotal.toFixed(2)}
             </span>
           </div>
+          {discountAmount > 0 && (
+            <div className="flex justify-between">
+              <span>Discount:</span>
+              <span>
+                - {currency}
+                {discountAmount.toFixed(2)}
+              </span>
+            </div>
+          )}
           {gstPercentage > 0 && (
             <div className="flex justify-between">
               <span>

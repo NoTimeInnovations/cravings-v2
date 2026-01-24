@@ -102,6 +102,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
         name: "",
         amount: 0,
     });
+    const [discounts, setDiscounts] = useState<any[]>([]);
     const [qrGroup, setQrGroup] = useState<any>(null);
     const [orderNote, setOrderNote] = useState<string>("");
     const [status, setStatus] = useState<string>(order?.status || "pending");
@@ -149,6 +150,10 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                     setExtraCharges(orderData.extra_charges);
                 }
 
+                if (orderData.discounts) {
+                    setDiscounts(orderData.discounts);
+                }
+
                 if (orderData.notes) {
                     setOrderNote(orderData.notes);
                 }
@@ -173,7 +178,7 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
         }>,
         currentExtraCharges: ExtraCharge[]
     ) => {
-        const subtotal = currentItems.reduce(
+        const foodSubtotal = currentItems.reduce(
             (sum, item) => sum + item.menu.price * item.quantity,
             0
         );
@@ -190,14 +195,27 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
             )
             : 0;
 
-        const gstAmount = gstPercentage > 0 ? (subtotal * gstPercentage) / 100 : 0;
-        return subtotal + extraChargesTotal + qrGroupCharges + gstAmount;
+        const taxableAmount = foodSubtotal + extraChargesTotal + qrGroupCharges;
+
+        const discountAmount = discounts.reduce((total, discount) => {
+            if (discount.type === "flat") {
+                return total + discount.value;
+            } else {
+                return total + (taxableAmount * discount.value) / 100;
+            }
+        }, 0);
+
+        const discountedTaxableAmount = Math.max(0, taxableAmount - discountAmount);
+
+        const gstAmount = gstPercentage > 0 ? (discountedTaxableAmount * gstPercentage) / 100 : 0;
+
+        return discountedTaxableAmount + gstAmount;
     };
 
     useEffect(() => {
         const newTotal = calculateTotal(items, extraCharges);
         setTotalPrice(newTotal);
-    }, [items, extraCharges, qrGroup, gstPercentage]);
+    }, [items, extraCharges, qrGroup, gstPercentage, discounts]);
 
     const fetchQrGroupForTable = async (tableNum: number | null) => {
         if (tableNum === null) {
@@ -739,6 +757,27 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                         </div>
                                     )}
 
+                                    {discounts.length > 0 && (
+                                        <div className="flex justify-between text-muted-foreground">
+                                            <span>Discount</span>
+                                            <span>
+                                                - {currency}
+                                                {discounts.reduce((total, discount) => {
+                                                    const foodSubtotal = items.reduce((sum, item) => sum + item.menu.price * item.quantity, 0);
+                                                    const extraChargesTotal = extraCharges.reduce((sum, charge) => sum + charge.amount, 0);
+                                                    const qrGroupCharges = qrGroup?.extra_charge ? getExtraCharge(items as any[], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE") : 0;
+                                                    const taxableAmount = foodSubtotal + extraChargesTotal + qrGroupCharges;
+
+                                                    if (discount.type === "flat") {
+                                                        return total + discount.value;
+                                                    } else {
+                                                        return total + (taxableAmount * discount.value) / 100;
+                                                    }
+                                                }, 0).toFixed(2)}
+                                            </span>
+                                        </div>
+                                    )}
+
                                     {gstPercentage > 0 && (
                                         <div className="flex justify-between text-muted-foreground">
                                             <span>
@@ -746,7 +785,23 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                             </span>
                                             <span>
                                                 {currency}
-                                                {((items.reduce((sum, item) => sum + item.menu.price * item.quantity, 0) * gstPercentage) / 100).toFixed(2)}
+                                                {(() => {
+                                                    const foodSubtotal = items.reduce((sum, item) => sum + item.menu.price * item.quantity, 0);
+                                                    const extraChargesTotal = extraCharges.reduce((sum, charge) => sum + charge.amount, 0);
+                                                    const qrGroupCharges = qrGroup?.extra_charge ? getExtraCharge(items as any[], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE") : 0;
+                                                    const taxableAmount = foodSubtotal + extraChargesTotal + qrGroupCharges;
+
+                                                    const discountAmount = discounts.reduce((total, discount) => {
+                                                        if (discount.type === "flat") {
+                                                            return total + discount.value;
+                                                        } else {
+                                                            return total + (taxableAmount * discount.value) / 100;
+                                                        }
+                                                    }, 0);
+
+                                                    const discountedTaxableAmount = Math.max(0, taxableAmount - discountAmount);
+                                                    return ((discountedTaxableAmount * gstPercentage) / 100).toFixed(2);
+                                                })()}
                                             </span>
                                         </div>
                                     )}

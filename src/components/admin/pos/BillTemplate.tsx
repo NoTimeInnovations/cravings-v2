@@ -46,8 +46,21 @@ const BillTemplate = React.forwardRef<HTMLDivElement, BillTemplateProps>(
     );
 
     const subtotal = foodSubtotal + chargesSubtotal;
-    const gstAmount = getGstAmount(foodSubtotal, gstPercentage);
-    const grandTotal = subtotal + gstAmount;
+
+    // Calculate discount
+    const discounts = order.discounts || [];
+    const discountAmount = discounts.reduce((total, discount) => {
+      if (discount.type === "flat") {
+        return total + discount.value;
+      } else {
+        return total + (subtotal * discount.value) / 100;
+      }
+    }, 0);
+
+    const discountedTaxableAmount = Math.max(0, subtotal - discountAmount);
+    const gstAmount = getGstAmount(discountedTaxableAmount, gstPercentage);
+    const grandTotal = discountedTaxableAmount + gstAmount;
+
 
     // Determine order type and display text
     const getOrderTypeText = () => {
@@ -110,47 +123,47 @@ const BillTemplate = React.forwardRef<HTMLDivElement, BillTemplateProps>(
         {(order.tableNumber === 0 ||
           order.deliveryAddress !== "" ||
           order.type == "delivery") && (
-          <>
-            <div className="border-t border-black my-2"></div>
-            <div className="text-sm">
-              <div className="font-bold text-sm uppercase mb-1">
-                Order Details:
-              </div>
-              {/* Takeaway Phone */}
-              {(order.user?.phone || order.phone) && (
-                <>
-                  <div className="text-sm flex gap-2 mb-1">
-                    <div className="font-medium">Customer Phone:</div>
-                    <div className="text-xs">{order.user?.phone || order.phone}</div>
-                  </div>
-                </>
-              )}
-              {order.deliveryAddress !== "" && (
-                <div className="mb-1 flex gap-2">
-                  <div className="font-medium">Address:</div>
-                  <div className="text-xs">{order.deliveryAddress}</div>
+            <>
+              <div className="border-t border-black my-2"></div>
+              <div className="text-sm">
+                <div className="font-bold text-sm uppercase mb-1">
+                  Order Details:
                 </div>
-              )}
-              {!order.tableNumber && order.delivery_location && (
-                <>
-                  <div className="text-sm flex gap-2">
-                    <div className="font-medium">Delivery Location:</div>
-                    <br />
-                    <div className="text-xs">
-                      <img
-                        alt="QR Code for Delivery Location"
-                        className="w-16 h-16"
-                        src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(
-                          `https://www.google.com/maps/place/${order.delivery_location?.coordinates[1]},${order.delivery_location?.coordinates[0]}`
-                        )}`}
-                      />
+                {/* Takeaway Phone */}
+                {(order.user?.phone || order.phone) && (
+                  <>
+                    <div className="text-sm flex gap-2 mb-1">
+                      <div className="font-medium">Customer Phone:</div>
+                      <div className="text-xs">{order.user?.phone || order.phone}</div>
                     </div>
+                  </>
+                )}
+                {order.deliveryAddress !== "" && (
+                  <div className="mb-1 flex gap-2">
+                    <div className="font-medium">Address:</div>
+                    <div className="text-xs">{order.deliveryAddress}</div>
                   </div>
-                </>
-              )}
-            </div>
-          </>
-        )}
+                )}
+                {!order.tableNumber && order.delivery_location && (
+                  <>
+                    <div className="text-sm flex gap-2">
+                      <div className="font-medium">Delivery Location:</div>
+                      <br />
+                      <div className="text-xs">
+                        <img
+                          alt="QR Code for Delivery Location"
+                          className="w-16 h-16"
+                          src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(
+                            `https://www.google.com/maps/place/${order.delivery_location?.coordinates[1]},${order.delivery_location?.coordinates[0]}`
+                          )}`}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
 
         <div className="border-b border-black my-2"></div>
 
@@ -203,6 +216,15 @@ const BillTemplate = React.forwardRef<HTMLDivElement, BillTemplateProps>(
               {subtotal.toFixed(2)}
             </span>
           </div>
+          {discountAmount > 0 && (
+            <div className="flex justify-between">
+              <span>Discount:</span>
+              <span>
+                - {currency}
+                {discountAmount.toFixed(2)}
+              </span>
+            </div>
+          )}
           {gstPercentage > 0 && (
             <div className="flex justify-between">
               <span>{(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%):</span>

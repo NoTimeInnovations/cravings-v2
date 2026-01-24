@@ -45,11 +45,19 @@ export interface ExtraCharge {
   id: string;
 }
 
+export interface Discount {
+  id: string;
+  type: "percentage" | "flat";
+  value: number;
+  reason?: string;
+}
+
 interface POSState {
   loading: boolean;
   setLoading: (loading: boolean) => void;
   cartItems: CartItem[];
   extraCharges: ExtraCharge[];
+  discounts: Discount[];
   totalAmount: number;
   userPhone: string | null;
   deliveryAddress?: string;
@@ -88,6 +96,8 @@ interface POSState {
   closeAllModalsAndPOS: () => void;
   addExtraCharge: (charge: Omit<ExtraCharge, "id">) => void;
   removeExtraCharge: (chargeId: string) => void;
+  addDiscount: (discount: Omit<Discount, "id">) => void;
+  removeDiscount: (discountId: string) => void;
   calculateTotalWithCharges: () => number;
   isCaptainOrder: boolean;
   setIsCaptainOrder: (isCaptain: boolean) => void;
@@ -118,6 +128,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   setLoading: (loading: boolean) => set({ loading }),
   cartItems: [],
   extraCharges: [],
+  discounts: [],
   totalAmount: 0,
   order: null,
   userPhone: null,
@@ -421,7 +432,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
   },
 
   clearCart: () => {
-    set({ cartItems: [], totalAmount: 0, extraCharges: [], removedQrGroupCharges: [], orderNote: "", paymentMethod: undefined, posOrderType: "dine-in", editingOrderId: null, userPhone: null, tableNumber: null, tableName: null, savedPrices: {} });
+    set({ cartItems: [], totalAmount: 0, extraCharges: [], discounts: [], removedQrGroupCharges: [], orderNote: "", paymentMethod: undefined, posOrderType: "dine-in", editingOrderId: null, userPhone: null, tableNumber: null, tableName: null, savedPrices: {} });
   },
 
   loadOrderIntoCart: (order) => {
@@ -450,6 +461,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
     set({
       cartItems: items,
       extraCharges: extraCharges,
+      discounts: order.discounts || [],
       totalAmount: items.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0),
       userPhone: order.phone || null,
       tableNumber: order.table_number || order.tableNumber || null,
@@ -465,6 +477,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
       editingOrderId,
       cartItems,
       extraCharges,
+      discounts,
       userPhone,
       tableNumber,
       orderNote,
@@ -481,8 +494,20 @@ export const usePOSStore = create<POSState>((set, get) => ({
 
       const extraChargesTotal = extraCharges.reduce((acc, curr) => acc + curr.amount, 0);
       const taxableAmount = totalAmount + extraChargesTotal;
-      const gstAmount = getGstAmount(taxableAmount, gstPercentage);
-      const grandTotal = taxableAmount + gstAmount;
+
+      // Calculate Discount
+      const discountAmount = discounts.reduce((total, discount) => {
+        if (discount.type === "flat") {
+          return total + discount.value;
+        } else {
+          // Percentage discount applies to the taxable amount (food + extra charges)
+          return total + (taxableAmount * discount.value) / 100;
+        }
+      }, 0);
+
+      const discountedTaxableAmount = Math.max(0, taxableAmount - discountAmount);
+      const gstAmount = getGstAmount(discountedTaxableAmount, gstPercentage);
+      const grandTotal = discountedTaxableAmount + gstAmount;
 
       // Update order basic info
       await fetchFromHasura(updateOrderMutation, {
@@ -491,6 +516,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         phone: userPhone || "",
         tableNumber: tableNumber || null,
         extraCharges: extraCharges.length > 0 ? extraCharges : null,
+        discounts: discounts.length > 0 ? discounts : null,
         notes: orderNote || null,
       });
 
@@ -539,8 +565,26 @@ export const usePOSStore = create<POSState>((set, get) => ({
     }));
   },
 
+  addDiscount: (discount: Omit<Discount, "id">) => {
+    const newDiscount = {
+      ...discount,
+      id: uuidv4(),
+    };
+    set((state) => ({
+      discounts: [...state.discounts, newDiscount],
+    }));
+  },
+
+  removeDiscount: (discountId: string) => {
+    set((state) => ({
+      discounts: state.discounts.filter(
+        (discount) => discount.id !== discountId
+      ),
+    }));
+  },
+
   calculateTotalWithCharges: () => {
-    const { cartItems, extraCharges } = get();
+    const { cartItems, extraCharges, discounts } = get();
     const hotelData = useAuthStore.getState().userData as Partner;
     const gstPercentage = hotelData?.gst_percentage || 0;
 
@@ -557,19 +601,35 @@ export const usePOSStore = create<POSState>((set, get) => ({
     );
 
     // Calculate GST on food and extra charges
+
+
+    // Return grand total
+    // Calculate Discount
+    const taxableAmount = foodSubtotal + extraChargesSubtotal;
+    const discountAmount = discounts.reduce((total, discount) => {
+      if (discount.type === "flat") {
+        return total + discount.value;
+      } else {
+        return total + (taxableAmount * discount.value) / 100;
+      }
+    }, 0);
+
+    const discountedTaxableAmount = Math.max(0, taxableAmount - discountAmount);
+
+    // Calculate GST on discounted amount
     const gstAmount = getGstAmount(
-      foodSubtotal + extraChargesSubtotal,
+      discountedTaxableAmount,
       gstPercentage
     );
 
     // Return grand total
-    return foodSubtotal + extraChargesSubtotal + gstAmount;
+    return discountedTaxableAmount + gstAmount;
   },
 
   checkout: async () => {
     try {
       set({ loading: true });
-      const { cartItems, extraCharges, isCaptainOrder, qrGroup, orderNote, paymentMethod, posOrderType } = get();
+      const { cartItems, extraCharges, discounts, isCaptainOrder, qrGroup, orderNote, paymentMethod, posOrderType } = get();
       const userData = useAuthStore.getState().userData;
       console.log("User Data:", {
         id: userData?.id,
@@ -621,10 +681,21 @@ export const usePOSStore = create<POSState>((set, get) => ({
 
       // QR group charges are now included in extraCharges, so no need to add them separately
 
+      const taxableAmount = foodSubtotal + allExtraCharges.reduce((sum, charge) => sum + charge.amount, 0);
+
+      const discountAmount = discounts.reduce((total, discount) => {
+        if (discount.type === "flat") {
+          return total + discount.value;
+        } else {
+          return total + (taxableAmount * discount.value) / 100;
+        }
+      }, 0);
+
+      const discountedTaxableAmount = Math.max(0, taxableAmount - discountAmount);
+
       const grandTotal =
-        foodSubtotal +
-        allExtraCharges.reduce((sum, charge) => sum + charge.amount, 0) +
-        getGstAmount(foodSubtotal, gstPercentage);
+        discountedTaxableAmount +
+        getGstAmount(discountedTaxableAmount, gstPercentage);
 
       // Determine order type and type string
       // If posOrderType is takeaway, use "delivery" with no address.
@@ -648,6 +719,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         status: "accepted" as "accepted",
         tableNumber: get().tableNumber,
         extraCharges: allExtraCharges,
+        discounts: discounts,
         gstIncluded: gstPercentage,
         captainId: isCaptainOrder ? userId : null,
         orderNote: orderNote,
@@ -656,6 +728,84 @@ export const usePOSStore = create<POSState>((set, get) => ({
 
       const getNextDisplayOrderNumber = await getNextOrderNumber(partnerId);
 
+      // Fetch partner details to check for Petpooja ID
+      const partnerData = (isCaptainOrder
+        ? (userData as Captain).partner
+        : (userData as Partner))!;
+
+      // PetPooja Order Push Logic
+      if (partnerData?.petpooja_restaurant_id) {
+        const petpoojaOrder = {
+          id: orderId,
+          total_price: grandTotal,
+          created_at: createdAt,
+          table_number: get().tableNumber || null,
+          qr_id: null,
+          status: "accepted",
+          partner_id: partnerId,
+          user_id: null,
+          type: orderTypeString,
+          delivery_address: isTakeaway ? null : (get().deliveryAddress || null),
+          phone: get().userPhone || null,
+          notes: orderNote || null,
+          payment_status: "pending",
+          gst_included: gstPercentage || 0,
+          extra_charges: allExtraCharges,
+          discounts: discounts,
+          delivery_location: null,
+          orderedby: isCaptainOrder ? "captain" : null,
+          status_history: null,
+          captain_id: isCaptainOrder ? userId : null,
+          payment_details: null,
+          display_id: getNextDisplayOrderNumber.toString(),
+          table_name: get().tableName || null,
+          payment_method: paymentMethod || "cash",
+          petpooja_restaurant_id: partnerData.petpooja_restaurant_id,
+          items: cartItems.map((item) => {
+            const variantName = item.id?.includes("|") ? item.id.split("|")[1] : null;
+
+            return {
+              id: uuidv4(),
+              order_id: orderId,
+              menu_id: item.id?.split("|")[0].split("_custom_")[0],
+              quantity: item.quantity,
+              variant: variantName ? {
+                id: variantName, // We don't have explicit variant IDs, using name
+                name: variantName,
+              } : null,
+              item: {
+                id: item.id,
+                name: item.name,
+                price: item.price,
+                offers: item.offers,
+                category: item.category,
+                pp_id: item.pp_id,
+              },
+              created_at: createdAt,
+            };
+          }),
+        };
+
+        try {
+          const response = await fetch("https://pp.cravings.live/api/webhook/push-order", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(petpoojaOrder),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.text();
+            console.error("Failed to push order to PetPooja webhook:", errorData);
+            // We don't throw here to ensure the order is still created in our DB
+            // But you might want to consider how to handle this failure (retry, alert, etc.)
+          }
+        } catch (error) {
+          console.error("Failed to push order to PetPooja webhook", error);
+        }
+      }
+
       // Create order in database
       const orderResponse = await fetchFromHasura(createOrderMutation, {
         id: orderId,
@@ -663,6 +813,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         gst_included: gstPercentage,
         payment_method: paymentMethod || null,
         extra_charges: allExtraCharges.length > 0 ? allExtraCharges : null,
+        discounts: discounts.length > 0 ? discounts : null,
         createdAt,
         tableNumber: get().tableNumber || null,
         qrId: null,
@@ -691,6 +842,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
             status: "accepted" as "accepted",
             tableNumber: get().tableNumber,
             extraCharges: allExtraCharges,
+            discounts: discounts,
             gstIncluded: gstPercentage,
             captainId: isCaptainOrder ? userId : null
           }
@@ -758,6 +910,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         },
         gstIncluded: gstPercentage,
         extraCharges: allExtraCharges,
+        discounts: discounts,
         type: orderTypeString,
         deliveryAddress: get().deliveryAddress || undefined,
         phone: get().userPhone || "N/A",

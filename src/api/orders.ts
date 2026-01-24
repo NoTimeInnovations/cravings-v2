@@ -21,6 +21,7 @@ export const getOrdersOfPartnerQuery = `
       notes
       gst_included
       extra_charges
+      discounts
       phone
       captain_id
       order_items {
@@ -54,7 +55,8 @@ export const createOrderMutation = `
     $notes: String,
     $display_id: String,
     $table_name: String,
-    $payment_method: String
+    $payment_method: String,
+    $discounts: jsonb
   ) {
     insert_orders_one(object: {
       id: $id
@@ -77,6 +79,7 @@ export const createOrderMutation = `
       display_id: $display_id
       table_name: $table_name
       payment_method: $payment_method
+      discounts: $discounts
     }) {
       id
       total_price
@@ -114,7 +117,8 @@ export const createOrderWithItemsMutation = `
     $notes: String,
     $display_id: String,
     $table_name: String,
-    $orderItems: [order_items_insert_input!]!
+    $orderItems: [order_items_insert_input!]!,
+    $discounts: jsonb
   ) {
     insert_orders_one(object: {
       id: $id
@@ -136,6 +140,7 @@ export const createOrderWithItemsMutation = `
       notes: $notes
       display_id: $display_id
       table_name: $table_name
+      discounts: $discounts
 
       order_items: {
         data: $orderItems
@@ -159,6 +164,7 @@ export const updateOrderMutation = `
     $phone: String,
     $tableNumber: Int,
     $extraCharges: jsonb,
+    $discounts: jsonb,
     $notes: String
   ) {
     update_orders_by_pk(
@@ -168,6 +174,7 @@ export const updateOrderMutation = `
         phone: $phone,
         table_number: $tableNumber,
         extra_charges: $extraCharges,
+        discounts: $discounts,
         notes: $notes
       }
     ) {
@@ -175,6 +182,7 @@ export const updateOrderMutation = `
       total_price
       table_number
       extra_charges
+      discounts
       notes
     }
   }
@@ -223,6 +231,7 @@ export const getOrderByIdQuery = `
       notes
       gst_included
       extra_charges
+      discounts
       captainid {
         id
         name
@@ -348,6 +357,7 @@ subscription GetPaginatedPartnerOrders(
     partner_id
     gst_included
     extra_charges
+    discounts
     payment_method
     phone
     display_id
@@ -440,6 +450,7 @@ subscription GetUserOrders($user_id: uuid!) {
     }
     gst_included
     extra_charges
+    discounts
     phone
     user_id
     user {

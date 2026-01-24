@@ -116,6 +116,14 @@ export interface Order {
     id?: string;
   }[]
   | null;
+  discounts?:
+  | {
+    id: string;
+    type: "percentage" | "flat";
+    value: number;
+    reason?: string;
+  }[]
+  | null;
 }
 
 export interface DeliveryInfo {
@@ -471,6 +479,7 @@ const useOrderStore = create(
               gstIncluded: order.gst_included,
               tableName: order.qr_code?.table_name || order.table_name || null,
               extraCharges: order.extra_charges || [], // Handle null case
+              discounts: order.discounts || [], // Handle null case
               delivery_charge: order.delivery_charge, // Include delivery_charge
               user: order.user,
               items: order.order_items.map((i: any) => ({
@@ -1081,6 +1090,7 @@ const useOrderStore = create(
               table_name: tableName || null,
               payment_method: "cash",
               petpooja_restaurant_id: hotelData.petpooja_restaurant_id,
+              discounts: [], // User app orders don't support discounts yet, sending empty array
               items: currentOrder.items.map((item) => ({
                 id: uuidv4(),
                 order_id: orderId,
@@ -1232,7 +1242,7 @@ const useOrderStore = create(
             totalPrice: 0,
           }));
 
-          if(!hotelData.petpooja_restaurant_id) await Notification.partner.sendOrderNotification(newOrder);
+          if (!hotelData.petpooja_restaurant_id) await Notification.partner.sendOrderNotification(newOrder);
           return newOrder;
         } catch (error) {
           console.error("Order placement error:", error);
@@ -1267,6 +1277,7 @@ const useOrderStore = create(
                 gst_included
                 display_id
                 extra_charges
+                discounts
                 phone
                 user_id
                 orderedby
@@ -1345,6 +1356,7 @@ const useOrderStore = create(
               delivery_location: order.delivery_location,
               gstIncluded: order.gst_included,
               extraCharges: order.extra_charges || [],
+              discounts: order.discounts || [],
               delivery_charge: order.delivery_charge,
               status_history: order.status_history,
               userId: order.user_id,
@@ -1437,6 +1449,7 @@ function transformOrderFromHasura(order: any): Order {
     delivery_charge: order.delivery_charge || null,
     delivery_location: order.delivery_location,
     order_number: order.order_number,
+    discounts: order.discounts || [],
     captain_id: order.captain_id,
     captain: order.captainid,
     extraCharges: order.extra_charges,

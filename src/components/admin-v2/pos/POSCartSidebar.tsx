@@ -3,7 +3,7 @@ import { usePOSStore } from "@/store/posStore";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Minus, Plus, Trash2, ShoppingCart, CreditCard, ChevronDown, Utensils, ShoppingBag, Loader2, CheckCircle, Clock, Receipt, XCircle, FileText, Check, X, Save, MessageSquare } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, CreditCard, ChevronDown, ChevronUp, Utensils, ShoppingBag, Loader2, CheckCircle, Clock, Receipt, XCircle, FileText, Check, X, Save, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
@@ -79,6 +79,11 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     const [selectedOrder, setSelectedOrder] = useState<any>(null);
     const [newChargeName, setNewChargeName] = useState("");
     const [newChargeAmount, setNewChargeAmount] = useState("");
+    const [isAddingDiscount, setIsAddingDiscount] = useState(false);
+    const [discountType, setDiscountType] = useState<"percentage" | "flat">("percentage");
+    const [discountValue, setDiscountValue] = useState("");
+    const [discountReason, setDiscountReason] = useState("");
+    const [showBillDetails, setShowBillDetails] = useState(false);
 
     // Fresh version of the selected order from the store's list
     const activeOrderData = selectedOrder ? (pastBills.find(o => o.id === selectedOrder.id) || selectedOrder) : null;
@@ -229,6 +234,33 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
         setIsAddingExtraCharge(false);
     };
 
+    const {
+        discounts,
+        addDiscount,
+        removeDiscount
+    } = usePOSStore();
+
+    const handleAddDiscount = () => {
+        if (!discountValue) return;
+        const val = parseFloat(discountValue);
+        if (isNaN(val) || val < 0) return;
+
+        if (discountType === "percentage" && val > 100) {
+            toast.error("Percentage discount cannot exceed 100%");
+            return;
+        }
+
+        addDiscount({
+            type: discountType,
+            value: val,
+            reason: discountReason
+        });
+
+        setDiscountValue("");
+        setDiscountReason("");
+        setIsAddingDiscount(false);
+    };
+
     const todaysOrders = pastBills.filter(order =>
         order.createdAt && isSameDay(parseISO(order.createdAt), new Date())
     ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -247,8 +279,19 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
 
     const extraChargesTotal = extraCharges.reduce((acc, curr) => acc + curr.amount, 0);
     const taxableAmount = totalAmount + extraChargesTotal;
-    const gstAmount = getGstAmount(taxableAmount, partnerData?.gst_percentage || 0);
-    const grandTotal = taxableAmount + gstAmount;
+
+    // Calculate current order discounts
+    const discountAmount = usePOSStore.getState().discounts.reduce((total, discount) => {
+        if (discount.type === "flat") {
+            return total + discount.value;
+        } else {
+            return total + (taxableAmount * discount.value) / 100;
+        }
+    }, 0);
+
+    const discountedTaxableAmount = Math.max(0, taxableAmount - discountAmount);
+    const gstAmount = getGstAmount(discountedTaxableAmount, partnerData?.gst_percentage || 0);
+    const grandTotal = discountedTaxableAmount + gstAmount;
 
     const activeOrderDataSubtotal = activeOrderData
         ? (activeOrderData.items || activeOrderData.order_items)?.reduce((acc: number, item: any) => {
@@ -264,8 +307,19 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
 
     const activeOrderDataTaxableAmount = activeOrderDataSubtotal + activeOrderDataExtraChargesTotal;
 
+    const activeOrderDataDiscounts = activeOrderData?.discounts || [];
+    const activeOrderDataDiscountAmount = activeOrderDataDiscounts.reduce((total: number, discount: any) => {
+        if (discount.type === "flat") {
+            return total + (discount.value || 0);
+        } else {
+            return total + (activeOrderDataTaxableAmount * (discount.value || 0)) / 100;
+        }
+    }, 0);
+
+    const activeOrderDataDiscountedTaxableAmount = Math.max(0, activeOrderDataTaxableAmount - activeOrderDataDiscountAmount);
+
     const activeOrderDataGstAmount = activeOrderData
-        ? getGstAmount(activeOrderDataTaxableAmount, activeOrderData.gstIncluded || 0)
+        ? getGstAmount(activeOrderDataDiscountedTaxableAmount, activeOrderData.gstIncluded || 0)
         : 0;
 
 
@@ -579,29 +633,111 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                 </div>
                             )}
                         </div>
+
+                        {/* Discount Section */}
+                        <div className="space-y-2 mt-2">
+                            {isAddingDiscount ? (
+                                <div className="flex flex-col gap-2 animate-in slide-in-from-top-2 duration-200 bg-muted/40 p-2 rounded border">
+                                    <div className="flex gap-2">
+                                        <select
+                                            className="h-8 text-xs border rounded bg-background px-2"
+                                            value={discountType}
+                                            onChange={(e) => setDiscountType(e.target.value as "percentage" | "flat")}
+                                        >
+                                            <option value="percentage">%</option>
+                                            <option value="flat">Flat</option>
+                                        </select>
+                                        <Input
+                                            type="number"
+                                            placeholder={discountType === "percentage" ? "Percentage" : "Amount"}
+                                            value={discountValue}
+                                            onChange={(e) => setDiscountValue(e.target.value)}
+                                            className="h-8 text-xs flex-1"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <Input
+                                        placeholder="Reason (optional)"
+                                        value={discountReason}
+                                        onChange={(e) => setDiscountReason(e.target.value)}
+                                        className="h-8 text-xs"
+                                    />
+                                    <div className="flex justify-end gap-2">
+                                        <Button size="sm" variant="ghost" onClick={() => setIsAddingDiscount(false)} className="h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50">
+                                            Cancel
+                                        </Button>
+                                        <Button size="sm" variant="ghost" onClick={handleAddDiscount} className="h-7 px-2 text-green-600 hover:text-green-700 hover:bg-green-50">
+                                            Apply Discount
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full text-[10px] h-8 border-dashed text-muted-foreground hover:text-foreground px-2"
+                                    onClick={() => setIsAddingDiscount(true)}
+                                >
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Add Discount
+                                </Button>
+                            )}
+
+                            {discounts.length > 0 && (
+                                <div className="space-y-1">
+                                    {discounts.map((discount) => (
+                                        <div key={discount.id} className="flex justify-between items-center text-xs bg-red-50 p-1.5 rounded text-red-700 border border-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900/50">
+                                            <div className="flex flex-col">
+                                                <span>{discount.type === "percentage" ? `${discount.value}% Off` : `Flat ${formatCurrency(discount.value)} Off`}</span>
+                                                {discount.reason && <span className="text-[10px] opacity-75">{discount.reason}</span>}
+                                            </div>
+                                            <button onClick={() => removeDiscount(discount.id)} className="text-red-500 hover:text-red-700">
+                                                <Trash2 className="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                         <Separator />
 
 
                         <div className="space-y-1.5 text-sm">
-                            <div className="flex justify-between text-muted-foreground">
-                                <span>Subtotal</span>
-                                <span>{formatCurrency(totalAmount)}</span>
-                            </div>
-                            <div className="flex justify-between text-muted-foreground">
-                                <span>Extra Charges</span>
-                                <span>{formatCurrency(extraChargesTotal)}</span>
-                            </div>
-                            {(partnerData?.gst_percentage || 0) > 0 && (
-                                <div className="flex justify-between text-muted-foreground">
-                                    <span>GST ({partnerData?.gst_percentage}%)</span>
-                                    <span>{formatCurrency(gstAmount)}</span>
-                                </div>
-                            )}
-                            <Separator className="my-2" />
-                            <div className="flex justify-between font-bold text-lg">
-                                <span>Total</span>
+                            <div
+                                className="flex justify-between font-bold text-lg cursor-pointer items-center py-2"
+                                onClick={() => setShowBillDetails(!showBillDetails)}
+                            >
+                                <span className="flex items-center gap-2">
+                                    Total
+                                    {showBillDetails ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                                </span>
                                 <span>{formatCurrency(grandTotal)}</span>
                             </div>
+
+                            {showBillDetails && (
+                                <div className="space-y-1.5 animate-in slide-in-from-bottom-2 duration-200 border-t pt-2 border-dashed">
+                                    <div className="flex justify-between text-muted-foreground">
+                                        <span>Subtotal</span>
+                                        <span>{formatCurrency(totalAmount)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-muted-foreground">
+                                        <span>Extra Charges</span>
+                                        <span>{formatCurrency(extraChargesTotal)}</span>
+                                    </div>
+                                    {discountAmount > 0 && (
+                                        <div className="flex justify-between text-green-600 font-medium">
+                                            <span>Discount</span>
+                                            <span>- {formatCurrency(discountAmount)}</span>
+                                        </div>
+                                    )}
+                                    {(partnerData?.gst_percentage || 0) > 0 && (
+                                        <div className="flex justify-between text-muted-foreground">
+                                            <span>GST ({partnerData?.gst_percentage}%)</span>
+                                            <span>{formatCurrency(gstAmount)}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         <div className="pt-2">
@@ -700,6 +836,12 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                                 <span>{formatCurrency(activeOrderDataExtraChargesTotal)}</span>
                                             </div>
                                         </>
+                                    )}
+                                    {activeOrderDataDiscountAmount > 0 && (
+                                        <div className="flex justify-between text-green-600 text-sm">
+                                            <span>Discount</span>
+                                            <span>- {formatCurrency(activeOrderDataDiscountAmount)}</span>
+                                        </div>
                                     )}
                                     {(activeOrderData.gstIncluded || 0) > 0 && (
                                         <div className="flex justify-between text-muted-foreground">

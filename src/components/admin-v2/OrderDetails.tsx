@@ -264,6 +264,41 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                 </TableCell>
                             </TableRow>
                         )}
+                        {(order.discounts || []).length > 0 && (
+                            <TableRow className="bg-muted/50 font-medium">
+                                <TableCell colSpan={3} className="text-right">
+                                    Discount
+                                </TableCell>
+                                <TableCell className="text-right text-red-600">
+                                    - {(userData as Partner)?.currency || "₹"}
+                                    {order.discounts!.reduce((total, discount) => {
+                                        const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                                        // Note: Extra charges logic might need to be replicated if discounts apply to them, 
+                                        // but usually discounts apply to subtotal. 
+                                        // Based on BillTemplate, percentage applies to (food + extra charges).
+                                        // However, we don't have easy access to extraCharges amount here unless we calculate it.
+                                        // Let's assume for now simple subtotal or try to match BillTemplate logic if possible.
+
+                                        // Actually, let's look at how we did it in BillTemplate.
+                                        // usage of extraCharges from props or order? 
+                                        // In OrderDetails, `order.extraCharges` (snake_case from DB mapped to camelCase?) 
+                                        // The order interface in `orderStore` has `extraCharges` and `extra_charges`.
+
+                                        const extraChargesTotal = (order.extraCharges || []).reduce((sum, charge) => sum + charge.amount, 0);
+                                        // Or check order.extra_charges depending on how it's populated.
+                                        // `order` prop comes from `useOrderSubscriptionStore` or parent.
+
+                                        const taxableAmount = subtotal + extraChargesTotal;
+
+                                        if (discount.type === "flat") {
+                                            return total + discount.value;
+                                        } else {
+                                            return total + (taxableAmount * discount.value) / 100;
+                                        }
+                                    }, 0).toFixed(2)}
+                                </TableCell>
+                            </TableRow>
+                        )}
                         <TableRow className="bg-muted/50 font-medium">
                             <TableCell colSpan={3} className="text-right">Total Amount</TableCell>
                             <TableCell className="text-right text-lg">
