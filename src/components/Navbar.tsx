@@ -315,7 +315,7 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
       onClick={() => (isHomePage ? null : router.back())}
     >
       {activeLogo ? (
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center">
           <Image
             src={activeLogo}
             alt={appName}
@@ -327,7 +327,7 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
             )}
             priority
           />
-          <span className={cn("text-2xl font-bold tracking-tight transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
+          <span className={cn("text-3xl font-bold tracking-tight transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
             MenuThere
           </span>
         </div>
