@@ -62,8 +62,8 @@ const FEATURES = [
         delay: 0.4
     },
     {
-        title: "QR Ordering",
-        description: "Contactless & fast",
+        title: "Easy Menu Arrangement",
+        description: "Arrange your menu items and categories easily",
         icon: QrCode,
         x: -320,
         y: 220,
