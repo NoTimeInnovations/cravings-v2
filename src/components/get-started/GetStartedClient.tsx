@@ -704,7 +704,7 @@ export default function GetStartedClient({ appName = "Cravings", logo }: { appNa
 
             // --- SUBSCRIPTION DETAILS ---
             const now = new Date();
-            const periodDays = selectedPlan.id === "in_trial" ? 20 : (selectedPlan.period_days || 30);
+            const periodDays = selectedPlan.period_days || 30;
             const expiryDate = new Date(now.getTime() + periodDays * 24 * 60 * 60 * 1000);
 
             const subscriptionDetails = {

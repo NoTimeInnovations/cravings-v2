@@ -275,7 +275,7 @@ const PricingSection = ({ hideHeader = false, country: propCountry, appName = "C
 
                 // --- INJECT PLAN DETAILS ---
                 const now = new Date();
-                const periodDays = plan.id === "in_trial" ? 20 : (plan.period_days || 365);
+                const periodDays = plan.period_days || 365;
                 const expiryDate = new Date(now.getTime() + periodDays * 24 * 60 * 60 * 1000);
 
                 // For new users, previous usage is false unless current selection is free
