@@ -10,7 +10,7 @@ function PostHogPageview() {
     const searchParams = useSearchParams();
 
     useEffect(() => {
-        if (pathname && typeof window !== 'undefined') {
+        if (pathname && typeof window !== 'undefined' && window.location.hostname.includes('menuthere.com')) {
             // Exclude specific paths from pageview tracking  
             const excludedPaths = ['/superadmin', '/qrScan', '/admin', '/bill', '/kot', '/admin-v2'];
 
