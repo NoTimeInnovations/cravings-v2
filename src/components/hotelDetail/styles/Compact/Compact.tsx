@@ -257,13 +257,18 @@ const Compact = ({
       getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled == true);
 
   return (
-    <>
+    <div
+      style={{
+        backgroundColor: localStyles?.backgroundColor || "#fff",
+      }}
+      className="min-h-screen"
+    >
       <main
         style={{
           color: localStyles?.color || "#000",
           backgroundColor: localStyles?.backgroundColor || "#fff",
         }}
-        className="max-w-xl mx-auto relative pb-40 "
+        className="max-w-3xl mx-auto relative pb-40 "
       >
         <ShopClosedModalWarning
           hotelId={hoteldata?.id}
@@ -651,7 +656,7 @@ const Compact = ({
                       >
                         {formatDisplayName(category.name)}
                       </h2>
-                      <div className="grid grid-cols-1 gap-4 divide-y-2 divide-gray-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 md:divide-y-0 divide-y-2 divide-gray-200">
                         {itemsToDisplay.map((item) => {
                           // Find all offers for this item
                           const itemOffers =
@@ -996,7 +1001,7 @@ const Compact = ({
         )}
 
       </main>
-    </>
+    </div>
   );
 };
 
