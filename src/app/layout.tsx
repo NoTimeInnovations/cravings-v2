@@ -139,19 +139,21 @@ export default async function RootLayout({
         <link href="https://db.onlinewebfonts.com/c/03d5b20d124cd26dc873bd4a8e42313e?family=SuisseIntl-Light" rel="stylesheet" />
         <link href="https://db.onlinewebfonts.com/c/653d9381828e9577fb1e417dc047f89d?family=SuisseIntl-SemiBold" rel="stylesheet" />
         <link href="https://db.onlinewebfonts.com/c/d1a580023d40c546276decde1c711e60?family=SuisseIntl-Bold" rel="stylesheet" />
-        {/* Google Analytics Script */}
+        {/* Google Tag (gtag.js) */}
         <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX`}
+          src="https://www.googletagmanager.com/gtag/js?id=AW-17905683217"
           strategy="afterInteractive"
         />
         <Script
-          id="google-analytics"
+          id="google-tag-manager"
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
+
+              gtag('config', 'AW-17905683217');
               gtag('config', 'G-7SV68LS8J6');
             `,
           }}
