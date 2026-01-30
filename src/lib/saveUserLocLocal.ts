@@ -6,9 +6,13 @@ export const saveUserLocation = async (shouldReload = true) => {
   const location = await getLocationCookie();
   const hasUserLocation = !!location;
 
-  const isHotelsPage = window.location.pathname.startsWith("/hotels");
+  const pathname = window.location.pathname;
+  const shouldAskLocation =
+    pathname.startsWith("/hotels") ||
+    pathname === "/explore" ||
+    pathname.startsWith("/qrScan");
 
-  if (navigator.geolocation && (!currentSession || !hasUserLocation) && isHotelsPage) {
+  if (navigator.geolocation && (!currentSession || !hasUserLocation) && shouldAskLocation) {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;

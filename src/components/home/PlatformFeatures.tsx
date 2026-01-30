@@ -125,7 +125,7 @@ export default function PlatformFeatures() {
                     {PRODUCTS.map((product, index) => (
                         <div
                             key={index}
-                            className="min-w-[calc(100vw-3rem)] md:min-w-[340px] bg-[#F6F6F6] rounded-2xl p-6 flex flex-col snap-center group hover:shadow-[0px_0px_30px_rgba(0,0,0,0.12)] transition-all duration-300 border border-transparent cursor-pointer"
+                            className="min-w-[calc(80vw-3rem)] md:min-w-[340px] bg-[#F6F6F6] rounded-2xl p-6 flex flex-col snap-center group hover:shadow-[0px_0px_30px_rgba(0,0,0,0.12)] transition-all duration-300 border border-transparent cursor-pointer"
                         >
                             <div className="flex items-start justify-between mb-4">
                                 <div className="flex items-center gap-3">
@@ -146,7 +146,7 @@ export default function PlatformFeatures() {
                                 {product.description}
                             </p>
 
-                            <div className="relative mt-auto -mx-6 -mb-6 h-64 w-[calc(100%+3rem)] rounded-b-2xl overflow-hidden">
+                            <div className="relative mt-auto -mx-6 -mb-6 h-52 w-[calc(100%+3rem)] rounded-b-2xl overflow-hidden">
                                 <Image
                                     src={product.image}
                                     alt={product.title}
