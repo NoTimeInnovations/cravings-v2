@@ -59,7 +59,7 @@ export default function Hero({ appName = "Cravings" }: { appName?: string }) {
     }, []);
 
     return (
-        <div className="relative pt-24 pb-12 lg:pt-36 lg:pb-32 overflow-hidden bg-gradient-to-br from-[#C04812] to-[#82290A]">
+        <div className="relative pt-24 pb-12 lg:pt-32 lg:pb-32 overflow-hidden bg-gradient-to-br from-[#C04812] to-[#82290A]">
             {/* Background Texture/Gradient Overlay */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:linear-gradient(to_bottom,black_90%,transparent_100%)]" />
 
@@ -162,11 +162,7 @@ export default function Hero({ appName = "Cravings" }: { appName?: string }) {
                         className="relative w-[140px] h-[280px] lg:w-[320px] lg:h-[640px] bg-black rounded-[1.2rem] lg:rounded-[3rem] border-[4px] lg:border-[8px] border-slate-900 shadow-2xl overflow-hidden ring-2 lg:ring-4 ring-slate-900/40 z-20"
                     >
                         {/* Status Bar / Notch */}
-                        <div className="absolute top-0 left-0 right-0 h-4 lg:h-7 bg-black z-20 flex justify-center items-end pb-0.5 lg:pb-1">
-                            <div className="w-1/3 h-2.5 lg:h-4 bg-black rounded-b-lg lg:rounded-b-xl relative">
-                                <div className="absolute bottom-0.5 lg:bottom-1 left-1/2 -translate-x-1/2 w-8 lg:w-16 h-1 lg:h-1.5 bg-gray-800 rounded-full"></div>
-                            </div>
-                        </div>
+
 
                         {/* Carousel Container */}
                         <div className="relative w-full h-full bg-slate-100">
