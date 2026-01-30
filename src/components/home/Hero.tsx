@@ -16,6 +16,15 @@ const trustedRestaurants = [
 
 export default function Hero({ appName = "Cravings" }: { appName?: string }) {
     const [animationStep, setAnimationStep] = useState(0);
+    const [currentWord, setCurrentWord] = useState(0);
+    const words = ["restaurant", "cafe", "QSR", "bistro"];
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentWord((prev) => (prev + 1) % words.length);
+        }, 2000);
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         // Run animation sequence once
@@ -29,25 +38,38 @@ export default function Hero({ appName = "Cravings" }: { appName?: string }) {
     }, []);
 
     return (
-        <div className="relative pt-32 pb-12 lg:pt-48 lg:pb-32 overflow-hidden bg-gradient-to-br from-[#C04812] to-[#82290A]">
+        <div className="relative pt-24 pb-12 lg:pt-48 lg:pb-32 overflow-hidden bg-gradient-to-br from-[#C04812] to-[#82290A]">
             {/* Background Texture/Gradient Overlay */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:linear-gradient(to_bottom,black_90%,transparent_100%)]" />
 
             <div className="max-w-10xl mx-auto p-6 lg:px-20 lg:pr-36 flex flex-col lg:flex-row items-center gap-10 lg:gap-6 relative z-10">
                 {/* Left Content */}
                 <div className="flex-1 text-center lg:text-left">
-                    <h1 className="text-4xl lg:text-5xl font-medium text-white leading-[1.1] tracking-[-0.03em] mb-6 max-w-2xl mx-auto lg:mx-0">
-                        {appName} is built to adapt <br className="hidden lg:block" /> food technology at its best
+                    <h1 className="text-3xl lg:text-5xl font-medium text-white leading-[1.1] tracking-[-0.03em] mb-6 max-w-2xl mx-auto lg:mx-0">
+                        Update your <br className="sm:hidden" /> <span className="inline-block align-top">
+                            <AnimatePresence mode="popLayout">
+                                <motion.span
+                                    key={words[currentWord]}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    transition={{ duration: 0.4, ease: "easeInOut" }}
+                                    className="block text-orange-300 font-bold capitalize"
+                                >
+                                    {words[currentWord]}
+                                </motion.span>
+                            </AnimatePresence>
+                        </span> <br className="hidden lg:block" /> menu in seconds
                     </h1>
 
-                    <p className="text-[1rem] leading-[1.6] tracking-[-0.02px] text-white/90 mb-8 max-w-2xl mx-auto lg:mx-0 font-medium">
-                        Thoughtfully designed tools that adapt to your restaurant—simple <br className="hidden lg:block" /> to use, easy to grow with, and always in your control.
+                    <p className="text-[.8rem] sm:text-[1.2rem] leading-[1.6] tracking-[-0.02px] text-white/90 mb-8 max-w-xl mx-auto lg:mx-0 font-medium">
+                        Change prices, run offers, and manage availability without reprinting menus.
                     </p>
 
-                    <div className="flex flex-col items-center lg:items-start justify-center lg:justify-start gap-8 max-w-2xl mx-auto lg:mx-0">
+                    <div className="flex flex-col items-center lg:items-start justify-center lg:justify-start gap-6 sm:gap-8 max-w-2xl mx-auto lg:mx-0 w-full sm:w-auto">
                         <Link
                             href="/get-started"
-                            className="px-8 py-4 bg-[#0a0b10] text-white text-lg font-medium rounded-lg hover:bg-gray-900 transition-colors shadow-lg min-w-[200px] text-center"
+                            className="px-6 py-3 sm:px-8 sm:py-4 bg-[#0a0b10] text-white text-base sm:text-lg font-medium rounded-lg hover:bg-gray-900 transition-colors shadow-lg min-w-[200px] w-full sm:w-auto text-center"
                         >
                             Create Digital Menu For Free
                         </Link>
