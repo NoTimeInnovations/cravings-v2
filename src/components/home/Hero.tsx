@@ -59,7 +59,7 @@ export default function Hero({ appName = "Cravings" }: { appName?: string }) {
                                     {words[currentWord]}
                                 </motion.span>
                             </AnimatePresence>
-                        </span> <br className="hidden lg:block" /> menu in seconds
+                        </span> <br className="hidden lg:block" /> menu in <br className="sm:hidden" />seconds
                     </h1>
 
                     <p className="text-[.8rem] sm:text-[1.2rem] leading-[1.6] tracking-[-0.02px] text-white/90 mb-8 max-w-xl mx-auto lg:mx-0 font-medium">
