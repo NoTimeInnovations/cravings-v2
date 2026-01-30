@@ -19,6 +19,27 @@ export default function Hero({ appName = "Cravings" }: { appName?: string }) {
     const [currentWord, setCurrentWord] = useState(0);
     const words = ["restaurant", "cafe", "QSR", "bistro"];
 
+    // Layout Logic
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+        checkMobile();
+        window.addEventListener("resize", checkMobile);
+        return () => window.removeEventListener("resize", checkMobile);
+    }, []);
+
+    // Carousel Logic
+    const carouselImages = ["/1.jpg", "/2.jpg", "/3.jpg", "/4.jpg", "/5.jpg"];
+    const [carouselIndex, setCarouselIndex] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCarouselIndex((prev) => (prev + 1) % carouselImages.length);
+        }, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
     useEffect(() => {
         const interval = setInterval(() => {
             setCurrentWord((prev) => (prev + 1) % words.length);
@@ -38,7 +59,7 @@ export default function Hero({ appName = "Cravings" }: { appName?: string }) {
     }, []);
 
     return (
-        <div className="relative pt-24 pb-12 lg:pt-48 lg:pb-32 overflow-hidden bg-gradient-to-br from-[#C04812] to-[#82290A]">
+        <div className="relative pt-24 pb-12 lg:pt-36 lg:pb-32 overflow-hidden bg-gradient-to-br from-[#C04812] to-[#82290A]">
             {/* Background Texture/Gradient Overlay */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:linear-gradient(to_bottom,black_90%,transparent_100%)]" />
 
@@ -86,25 +107,93 @@ export default function Hero({ appName = "Cravings" }: { appName?: string }) {
                 </div>
 
                 {/* Right Animation */}
-                <div className="w-full lg:w-1/2 relative flex justify-center items-start lg:items-center mt-0 lg:mt-0">
-                    <div className="relative w-full flex justify-center items-center z-20">
-                        <Image
-                            src="/hero-image.png"
-                            alt={`${appName} App Interface`}
-                            width={1400}
-                            height={1600}
-                            priority
-                            className="
-                            w-[110%] 
-                            lg:w-[120%] 
-                            max-w-[1200px] 
-                            h-auto 
-                            translate-x-4 
-                            lg:translate-x-12
-                            "
-                        />
-                    </div>
+                {/* Right Animation - 5 Card Layout */}
+                {/* Right Animation - 5 Card Layout */}
+                <div className="w-full lg:w-1/2 relative flex justify-center items-center mt-12 lg:mt-0 h-[350px] lg:h-[700px] perspective-1000">
 
+                    {/* Far Left Card */}
+                    <motion.div
+                        initial={{ opacity: 0, x: isMobile ? -50 : -100, y: 10, rotate: -12 }}
+                        animate={{ opacity: 0.6, x: isMobile ? -120 : -280, y: isMobile ? 20 : 40, rotate: -12 }}
+                        className="absolute w-[100px] h-[200px] lg:w-[240px] lg:h-[480px] bg-black rounded-[0.8rem] lg:rounded-[2rem] border-[2px] lg:border-[4px] border-slate-900 shadow-xl overflow-hidden z-0"
+                    >
+                        <div className="relative w-full h-full">
+                            <Image src="/2.jpg" alt="Screen 2" fill className="object-cover opacity-80" sizes="(max-width: 768px) 100px, 240px" />
+                        </div>
+                    </motion.div>
+
+                    {/* Near Left Card */}
+                    <motion.div
+                        initial={{ opacity: 0, x: isMobile ? -30 : -50, y: 5, rotate: -6 }}
+                        animate={{ opacity: 0.8, x: isMobile ? -70 : -150, y: isMobile ? 10 : 20, rotate: -6 }}
+                        className="absolute w-[120px] h-[240px] lg:w-[260px] lg:h-[520px] bg-black rounded-[1rem] lg:rounded-[2.2rem] border-[3px] lg:border-[6px] border-slate-900 shadow-xl overflow-hidden z-10"
+                    >
+                        <div className="relative w-full h-full">
+                            <Image src="/3.jpg" alt="Screen 3" fill className="object-cover opacity-90" sizes="(max-width: 768px) 120px, 260px" />
+                        </div>
+                    </motion.div>
+
+                    {/* Far Right Card */}
+                    <motion.div
+                        initial={{ opacity: 0, x: isMobile ? 50 : 100, y: 10, rotate: 12 }}
+                        animate={{ opacity: 0.6, x: isMobile ? 120 : 280, y: isMobile ? 20 : 40, rotate: 12 }}
+                        className="absolute w-[100px] h-[200px] lg:w-[240px] lg:h-[480px] bg-black rounded-[0.8rem] lg:rounded-[2rem] border-[2px] lg:border-[4px] border-slate-900 shadow-xl overflow-hidden z-0"
+                    >
+                        <div className="relative w-full h-full">
+                            <Image src="/4.jpg" alt="Screen 4" fill className="object-cover opacity-80" sizes="(max-width: 768px) 100px, 240px" />
+                        </div>
+                    </motion.div>
+
+                    {/* Near Right Card */}
+                    <motion.div
+                        initial={{ opacity: 0, x: isMobile ? 30 : 50, y: 5, rotate: 6 }}
+                        animate={{ opacity: 0.8, x: isMobile ? 70 : 150, y: isMobile ? 10 : 20, rotate: 6 }}
+                        className="absolute w-[120px] h-[240px] lg:w-[260px] lg:h-[520px] bg-black rounded-[1rem] lg:rounded-[2.2rem] border-[3px] lg:border-[6px] border-slate-900 shadow-xl overflow-hidden z-10"
+                    >
+                        <div className="relative w-full h-full">
+                            <Image src="/5.jpg" alt="Screen 5" fill className="object-cover opacity-90" sizes="(max-width: 768px) 120px, 260px" />
+                        </div>
+                    </motion.div>
+
+                    {/* Center Card (Main) */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="relative w-[140px] h-[280px] lg:w-[320px] lg:h-[640px] bg-black rounded-[1.2rem] lg:rounded-[3rem] border-[4px] lg:border-[8px] border-slate-900 shadow-2xl overflow-hidden ring-2 lg:ring-4 ring-slate-900/40 z-20"
+                    >
+                        {/* Status Bar / Notch */}
+                        <div className="absolute top-0 left-0 right-0 h-4 lg:h-7 bg-black z-20 flex justify-center items-end pb-0.5 lg:pb-1">
+                            <div className="w-1/3 h-2.5 lg:h-4 bg-black rounded-b-lg lg:rounded-b-xl relative">
+                                <div className="absolute bottom-0.5 lg:bottom-1 left-1/2 -translate-x-1/2 w-8 lg:w-16 h-1 lg:h-1.5 bg-gray-800 rounded-full"></div>
+                            </div>
+                        </div>
+
+                        {/* Carousel Container */}
+                        <div className="relative w-full h-full bg-slate-100">
+                            <AnimatePresence mode="popLayout">
+                                <motion.div
+                                    key={carouselIndex}
+                                    initial={{ opacity: 0, x: 100 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -100 }}
+                                    transition={{ duration: 0.5, ease: "easeInOut" }}
+                                    className="absolute inset-0"
+                                >
+                                    <Image
+                                        src={carouselImages[carouselIndex]}
+                                        alt="App Screenshot"
+                                        fill
+                                        className="object-cover"
+                                        priority
+                                        sizes="(max-width: 768px) 140px, 320px"
+                                    />
+                                </motion.div>
+                            </AnimatePresence>
+
+                            {/* Overlay Gradient */}
+                            <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_20px_rgba(0,0,0,0.1)]"></div>
+                        </div>
+                    </motion.div>
                 </div>
 
             </div>

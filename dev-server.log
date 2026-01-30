@@ -1,0 +1,121 @@
+
+> cravings@2.0.0 dev
+> cross-env NODE_OPTIONS='--max-old-space-size=8192' next dev
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /home/abhin/package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * /home/abhin/Documents/cravings-v2/package-lock.json
+
+   ▲ Next.js 16.0.10 (Turbopack)
+   - Local:         http://localhost:3000
+   - Network:       http://192.168.1.3:3000
+   - Environments: .env
+   - Experiments (use with caution):
+     · serverActions
+     · staleTimes
+
+ ✓ Starting...
+ ✓ Ready in 3.7s
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+ ○ Compiling / ...
+
+warn - The class `data-[state=closed]:slide-out-to-bottom-[100%]` is ambiguous and matches multiple utilities.
+warn - If this is content and not a class, replace it with `data-&lsqb;state=closed&rsqb;:slide-out-to-bottom-[100%]` to silence this warning.
+
+warn - The class `data-[state=closed]:slide-out-to-top-[48%]` is ambiguous and matches multiple utilities.
+warn - If this is content and not a class, replace it with `data-&lsqb;state=closed&rsqb;:slide-out-to-top-[48%]` to silence this warning.
+
+warn - The class `data-[state=open]:slide-in-from-bottom-[100%]` is ambiguous and matches multiple utilities.
+warn - If this is content and not a class, replace it with `data-&lsqb;state=open&rsqb;:slide-in-from-bottom-[100%]` to silence this warning.
+
+warn - The class `data-[state=open]:slide-in-from-top-[48%]` is ambiguous and matches multiple utilities.
+warn - If this is content and not a class, replace it with `data-&lsqb;state=open&rsqb;:slide-in-from-top-[48%]` to silence this warning.
+
+warn - The class `sm:data-[state=closed]:slide-out-to-top-[48%]` is ambiguous and matches multiple utilities.
+warn - If this is content and not a class, replace it with `sm:data-&lsqb;state=closed&rsqb;:slide-out-to-top-[48%]` to silence this warning.
+
+warn - The class `sm:data-[state=open]:slide-in-from-top-[48%]` is ambiguous and matches multiple utilities.
+warn - If this is content and not a class, replace it with `sm:data-&lsqb;state=open&rsqb;:slide-in-from-top-[48%]` to silence this warning.
+Country check; IN
+ GET / 200 in 21.1s (compile: 19.1s, proxy.ts: 293ms, render: 1736ms)
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country check; IN
+ GET / 200 in 355ms (compile: 13ms, proxy.ts: 196ms, render: 145ms)
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+ POST / 200 in 180ms (compile: 59ms, proxy.ts: 27ms, render: 94ms)
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+ POST / 200 in 92ms (compile: 33ms, proxy.ts: 28ms, render: 32ms)
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+ POST / 200 in 42ms (compile: 18ms, proxy.ts: 17ms, render: 8ms)
+ GET /manifest.webmanifest 200 in 1061ms (compile: 1015ms, proxy.ts: 29ms, render: 17ms)
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country check; IN
+ GET / 200 in 183ms (compile: 8ms, proxy.ts: 11ms, render: 163ms)
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country check; IN
+ GET / 200 in 126ms (compile: 6ms, proxy.ts: 5ms, render: 115ms)
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+ ⚠ Blocked cross-origin request from 2e42ea9f495c.ngrok-free.app to /_next/* resource. To allow this, configure "allowedDevOrigins" in next.config
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+ POST / 200 in 18ms (compile: 6ms, proxy.ts: 6ms, render: 6ms)
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+ POST / 200 in 23ms (compile: 6ms, proxy.ts: 5ms, render: 11ms)
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+ POST / 200 in 19ms (compile: 6ms, proxy.ts: 6ms, render: 6ms)
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country check; IN
+ POST / 200 in 43ms (compile: 7ms, proxy.ts: 6ms, render: 30ms)
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+ POST / 200 in 21ms (compile: 7ms, proxy.ts: 5ms, render: 9ms)
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+ POST / 200 in 19ms (compile: 5ms, proxy.ts: 7ms, render: 7ms)
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+Country Found {"country":"IN","fromVercel":null,"fromCloudflare":null}
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[?25h
