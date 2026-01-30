@@ -45,13 +45,12 @@ export default function RestaurantMarquee() {
                 <div ref={scrollRef} className="flex transition-transform will-change-transform">
                     {duplicated.map((r, i) => (
                         <a href={r.url} key={i} rel="noreferrer" target="_blank" className="mx-8">
-                            <div className="flex items-center justify-center h-24 w-40">
+                            <div className="flex items-center justify-center h-24 w-24 bg-white rounded-full p-2 shadow-sm overflow-hidden relative border border-gray-100">
                                 <Image
                                     src={r.logo}
                                     alt={r.name}
-                                    width={140}
-                                    height={64}
-                                    className="object-contain grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-300"
+                                    fill
+                                    className="object-cover hover:scale-110 transition-transform duration-300"
                                 />
                             </div>
                         </a>

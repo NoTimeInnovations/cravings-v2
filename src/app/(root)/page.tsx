@@ -131,7 +131,7 @@ export default async function Home() {
       <Hero appName={config.name} />
 
       {/* MARQUEE SECTION */}
-      <section className="py-10 bg-white relative overflow-hidden border-b border-gray-100">
+      <section className="py-10 bg-[#f4e5d5] relative overflow-hidden border-b border-gray-100">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] bg-[size:4rem_4rem]" />
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <p className="text-center text-sm font-semibold text-gray-500 uppercase tracking-widest mb-8">

@@ -6,7 +6,7 @@ import React from "react";
 export default function Background() {
     return (
         <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
-            <div className="absolute inset-0 bg-orange-50/30" />
+            <div className="absolute inset-0 bg-[#f4e5d5]" />
 
             {/* Dynamic gradients */}
             <motion.div

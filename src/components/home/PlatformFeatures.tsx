@@ -93,7 +93,7 @@ export default function PlatformFeatures() {
                         </div>
                         <h2 className="text-3xl md:text-5xl font-medium text-gray-900 leading-[1.1] tracking-tight">
                             Streamline your restaurant with <br />
-                            <span className="text-[#C04812]">one platform</span>
+                            <span className="text-[#e55a23]">one platform</span>
                         </h2>
                     </div>
 
@@ -129,7 +129,7 @@ export default function PlatformFeatures() {
                         >
                             <div className="flex items-start justify-between mb-4">
                                 <div className="flex items-center gap-3">
-                                    <product.icon className="w-6 h-6 text-[#C04812]" />
+                                    <product.icon className="w-6 h-6 text-[#e55a23]" />
                                     <h3 className="text-lg font-medium text-gray-900">
                                         {product.title}
                                     </h3>

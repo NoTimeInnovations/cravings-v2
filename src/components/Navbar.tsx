@@ -208,6 +208,7 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
       isSolutionsPage ||
       isHelpCenterPage ||
       pathname === "/login" ||
+      pathname === "/" ||
       pathname === "/explore" ||
       pathname === "/profile" ||
       pathname === "/captainlogin" ||
@@ -669,7 +670,7 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
       <nav
         className={cn(
           "w-full border-b transition-all duration-300",
-          isScrolled ? "bg-[#C04812] shadow-sm border-transparent" : "bg-transparent border-transparent"
+          isScrolled ? "bg-[#e55a23] shadow-sm border-transparent" : "bg-transparent border-transparent"
         )}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -727,7 +728,7 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
 
         {/* Mobile Menu Overlay */}
         <div className={cn(
-          "fixed inset-0 z-[100] bg-[#C04812] transition-transform duration-300 ease-in-out lg:hidden flex flex-col",
+          "fixed inset-0 z-[100] bg-[#e55a23] transition-transform duration-300 ease-in-out lg:hidden flex flex-col",
           isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
         )}>
           {/* Mobile Header */}

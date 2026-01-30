@@ -17,7 +17,7 @@ const trustedRestaurants = [
 export default function Hero({ appName = "Cravings" }: { appName?: string }) {
     const [animationStep, setAnimationStep] = useState(0);
     const [currentWord, setCurrentWord] = useState(0);
-    const words = ["restaurant", "cafe", "QSR", "bistro"];
+    const words = ["restaurant", "cafeterias", "foodcourts", "quickservice"];
 
     // Layout Logic
     const [isMobile, setIsMobile] = useState(false);
@@ -59,38 +59,63 @@ export default function Hero({ appName = "Cravings" }: { appName?: string }) {
     }, []);
 
     return (
-        <div className="relative pt-24 pb-12 lg:pt-32 lg:pb-32 overflow-hidden bg-gradient-to-br from-[#C04812] to-[#82290A]">
+        <div className="relative pt-24 pb-12 lg:pt-32 lg:pb-32 overflow-hidden bg-[#f4e5d5]">
             {/* Background Texture/Gradient Overlay */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:linear-gradient(to_bottom,black_90%,transparent_100%)]" />
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:linear-gradient(to_bottom,black_90%,transparent_100%)]" />
 
-            <div className="max-w-10xl mx-auto p-6 lg:px-20 lg:pr-36 flex flex-col lg:flex-row items-center gap-10 lg:gap-6 relative z-10">
-                {/* Left Content */}
-                <div className="flex-1 text-center lg:text-left">
-                    <h1 className="text-3xl lg:text-5xl font-medium text-white leading-[1.1] tracking-[-0.03em] mb-6 max-w-2xl mx-auto lg:mx-0">
-                        Update your <br className="sm:hidden" /> <span className="inline-block align-top">
-                            <AnimatePresence mode="popLayout">
-                                <motion.span
-                                    key={words[currentWord]}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    transition={{ duration: 0.4, ease: "easeInOut" }}
-                                    className="block text-orange-300 font-bold capitalize"
-                                >
-                                    {words[currentWord]}
-                                </motion.span>
-                            </AnimatePresence>
-                        </span> <br className="hidden lg:block" /> menu in <br className="sm:hidden" />seconds
+            <div className="max-w-7xl mx-auto p-6 lg:px-8 flex flex-col items-center gap-0 relative z-10">
+                {/* Content */}
+                <div className="w-full max-w-4xl text-center flex flex-col items-center">
+                    <h1 className="text-4xl lg:text-7xl font-black text-gray-900 mb-6">
+                        {/* Desktop Layout */}
+                        <div className="hidden lg:flex flex-col items-center justify-center">
+                            <span>Update your</span>
+                            <div className="min-w-[300px] flex justify-center">
+                                <AnimatePresence mode="wait">
+                                    <motion.span
+                                        key={words[currentWord]}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                                        className="block text-[#e55a23] font-black capitalize whitespace-nowrap"
+                                    >
+                                        {words[currentWord]}
+                                    </motion.span>
+                                </AnimatePresence>
+                            </div>
+                            <span>menu in seconds</span>
+                        </div>
+
+                        {/* Mobile Layout */}
+                        <div className="lg:hidden flex flex-col items-center">
+                            <span>Update your</span>
+                            <div className="h-[1.2em] w-[240px] flex items-center justify-center my-1">
+                                <AnimatePresence mode="wait">
+                                    <motion.span
+                                        key={words[currentWord]}
+                                        initial={{ opacity: 0, y: 5 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -5 }}
+                                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                                        className="block text-[#e55a23] font-black capitalize whitespace-nowrap"
+                                    >
+                                        {words[currentWord]}
+                                    </motion.span>
+                                </AnimatePresence>
+                            </div>
+                            <span>menu in seconds</span>
+                        </div>
                     </h1>
 
-                    <p className="text-[.8rem] sm:text-[1.2rem] leading-[1.6] tracking-[-0.02px] text-white/90 mb-8 max-w-xl mx-auto lg:mx-0 font-medium">
+                    <p className="text-[1rem] sm:text-[1.25rem] leading-[1.6] tracking-[-0.02px] text-gray-600 mb-10 max-w-lg font-medium text-pretty">
                         Change prices, run offers, and manage availability without reprinting menus.
                     </p>
 
-                    <div className="flex flex-col items-center lg:items-start justify-center lg:justify-start gap-6 sm:gap-8 max-w-2xl mx-auto lg:mx-0 w-full sm:w-auto">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 w-full sm:w-auto">
                         <Link
                             href="/get-started"
-                            className="px-6 py-3 sm:px-8 sm:py-4 bg-[#0a0b10] text-white text-base sm:text-lg font-medium rounded-lg hover:bg-gray-900 transition-colors shadow-lg min-w-[200px] w-full sm:w-auto text-center"
+                            className="px-8 py-4 bg-[#0a0b10] text-white text-base sm:text-lg font-semibold rounded-full hover:bg-gray-900 transition-all shadow-xl hover:shadow-2xl hover:-translate-y-0.5 min-w-[220px] text-center"
                         >
                             Create Digital Menu For Free
                         </Link>
@@ -98,7 +123,7 @@ export default function Hero({ appName = "Cravings" }: { appName?: string }) {
                         <Link
                             target="_blank"
                             href="/hotels/LE-GRAND-CAFE/20f7e974-f19e-4c11-b6b7-4385f61f27bf"
-                            className="flex items-center gap-2 text-white font-medium hover:opacity-80 transition-opacity text-lg group"
+                            className="flex items-center gap-2 text-gray-900 font-semibold hover:text-[#e55a23] transition-colors text-lg group px-4 py-2"
                         >
                             View Interactive demo
                             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -109,7 +134,7 @@ export default function Hero({ appName = "Cravings" }: { appName?: string }) {
                 {/* Right Animation */}
                 {/* Right Animation - 5 Card Layout */}
                 {/* Right Animation - 5 Card Layout */}
-                <div className="w-full lg:w-1/2 relative flex justify-center items-center mt-12 lg:mt-0 h-[350px] lg:h-[700px] perspective-1000">
+                <div className="w-full max-w-7xl relative flex justify-center items-center mt-8 lg:mt-16 h-[350px] lg:h-[700px] perspective-1000">
 
                     {/* Far Left Card */}
                     <motion.div
