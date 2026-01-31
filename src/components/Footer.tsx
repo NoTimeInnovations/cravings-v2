@@ -6,7 +6,7 @@ import { Facebook, Twitter, Instagram, Linkedin, Github, Globe } from "lucide-re
 
 export default function Footer({ appName = "Cravings" }: { appName?: string }) {
     return (
-        <footer className="bg-[#C04812] pt-20 pb-12 font-sans text-white relative overflow-hidden">
+        <footer className="bg-[#e55a23] pt-20 pb-12 font-sans text-white relative overflow-hidden">
             {/* Grid Pattern (White for dark background) */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:4rem_4rem]" />
 
