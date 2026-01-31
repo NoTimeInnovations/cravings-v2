@@ -8,9 +8,9 @@
         "name": "MenuThere",
         "title": "MenuThere",
         "description": "MenuThere is your go-to solution for digital menus and restaurant management.",
-        "logo": "/menuthere-logo.jpg",
-        "icon": "/menuthere-logo.jpg",
-        "logowhite": "/menuthere-logo.jpg"
+        "logo": "/menuthere-logo.png",
+        "icon": "/menuthere-logo.png",
+        "logowhite": "/menuthere-logo.png"
     },
     "default": {
         "name": "Cravings",
