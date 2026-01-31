@@ -19,12 +19,21 @@ const getEmailConfig = async () => {
     const isMenuThere = host.includes('menuthere');
     const apiKey = isMenuThere ? process.env.RESEND_API_KEY_MENUTHERE : process.env.RESEND_API_KEY_CRAVINGS;
     const domainConfig = getDomainConfig(host);
+
+    console.log("📧 Email Debug:", {
+        host,
+        isMenuThere,
+        apiKeyPresent: !!apiKey,
+        apiKeyPrefix: apiKey ? apiKey.substring(0, 5) + '...' : 'N/A',
+        appName: domainConfig.name,
+        fromEmail: isMenuThere ? 'MenuThere <info@support.menuthere.com>' : 'Cravings <info@support.cravings.live>'
+    });
     
     return {
         apiKey,
         appName: domainConfig.name,
-        fromEmail: isMenuThere ? 'MenuThere <info@support.menuthere.com>' : 'Cravings <info@support.cravings.live>',
-        logoUrl: isMenuThere ? 'https://menuthere.com/menuthere-logo.jpg' : 'https://cravings.live/logo.png', // Update with actual absolute URLs
+        fromEmail: isMenuThere ? 'MenuThere <info@menuthere.com>' : 'Cravings <info@support.cravings.live>',
+        logoUrl: isMenuThere ? 'https://menuthere.com/menuthere-logo.png' : 'https://cravings.live/logo.png', // Update with actual absolute URLs
         baseUrl: isMenuThere ? 'https://menuthere.com' : 'https://cravings.live',
     };
 };
