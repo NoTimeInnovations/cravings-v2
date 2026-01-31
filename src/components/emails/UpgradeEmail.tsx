@@ -17,6 +17,8 @@ interface UpgradeEmailProps {
     newPlanName: string;
     features: string[];
     loginLink?: string;
+    appName?: string;
+    logoUrl?: string;
 }
 
 export const UpgradeEmail = ({
@@ -24,20 +26,26 @@ export const UpgradeEmail = ({
     newPlanName = "Premium Plan",
     features = [],
     loginLink = "https://cravings.live/login",
+    appName = "Cravings",
+    logoUrl,
 }: UpgradeEmailProps) => (
     <Html>
         <Head />
-        <Preview>Your plan has been upgraded! Enjoy your new features.</Preview>
+        <Preview>Your plan has been upgraded! Enjoy your new features on {appName}.</Preview>
         <Body style={main}>
             <Container style={container}>
                 <Section style={header}>
-                    <Text style={logo}>Cravings</Text>
+                    {logoUrl ? (
+                        <img src={logoUrl} alt={appName} style={logoImage} />
+                    ) : (
+                        <Text style={logo}>{appName}</Text>
+                    )}
                 </Section>
                 <Section style={content}>
                     <Heading style={h1}>Plan Upgraded Successfully 🚀</Heading>
                     <Text style={text}>Hi {partnerName},</Text>
                     <Text style={text}>
-                        Great news! Your account has been successfully upgraded to the <span style={highlight}>{newPlanName}</span>.
+                        Great news! Your account on <strong>{appName}</strong> has been successfully upgraded to the <span style={highlight}>{newPlanName}</span>.
                     </Text>
 
                     <Section style={featureBox}>
@@ -59,7 +67,7 @@ export const UpgradeEmail = ({
 
                     <Hr style={hr} />
                     <Text style={footer}>
-                        © 2024 Cravings. All rights reserved.
+                        © {new Date().getFullYear()} {appName}. All rights reserved.
                     </Text>
                 </Section>
             </Container>
@@ -93,6 +101,13 @@ const logo = {
     fontWeight: "800",
     color: "#ea580c",
     letterSpacing: "-1px",
+};
+
+const logoImage = {
+    height: "50px",
+    width: "auto",
+    display: "block",
+    margin: "0 auto",
 };
 
 const content = {

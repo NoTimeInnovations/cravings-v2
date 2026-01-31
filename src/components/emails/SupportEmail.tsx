@@ -16,6 +16,8 @@ interface SupportEmailProps {
     email: string;
     subject: string;
     message: string;
+    appName?: string;
+    logoUrl?: string;
 }
 
 export const SupportEmail = ({
@@ -23,6 +25,8 @@ export const SupportEmail = ({
     email,
     subject,
     message,
+    appName = "Cravings",
+    logoUrl,
 }: SupportEmailProps) => (
     <Html>
         <Head />
@@ -30,7 +34,11 @@ export const SupportEmail = ({
         <Body style={main}>
             <Container style={container}>
                 <Section style={header}>
-                    <Text style={logo}>Cravings Support</Text>
+                    {logoUrl ? (
+                        <img src={logoUrl} alt={appName} style={logoImage} />
+                    ) : (
+                        <Text style={logo}>{appName} Support</Text>
+                    )}
                 </Section>
                 <Section style={content}>
                     <Heading style={h1}>New Support Request</Heading>
@@ -48,7 +56,7 @@ export const SupportEmail = ({
                 </Section>
                 <Hr style={hr} />
                 <Text style={footer}>
-                    This email was sent via the Cravings support form.
+                    This email was sent via the {appName} support form.
                 </Text>
             </Container>
         </Body>
@@ -82,6 +90,13 @@ const logo = {
     fontWeight: "800",
     color: "#ea580c",
     letterSpacing: "-0.5px",
+};
+
+const logoImage = {
+    height: "50px",
+    width: "auto",
+    display: "block",
+    margin: "0 auto",
 };
 
 const content = {

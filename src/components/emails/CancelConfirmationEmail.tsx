@@ -13,24 +13,32 @@ import * as React from "react";
 
 interface CancelConfirmationEmailProps {
     partnerName: string;
+    appName?: string;
+    logoUrl?: string;
 }
 
 export const CancelConfirmationEmail = ({
     partnerName = "Partner",
+    appName = "Cravings",
+    logoUrl,
 }: CancelConfirmationEmailProps) => (
     <Html>
         <Head />
-        <Preview>We received your cancellation request. We're sorry to see you go.</Preview>
+        <Preview>We received your cancellation request from {appName}. We're sorry to see you go.</Preview>
         <Body style={main}>
             <Container style={container}>
                 <Section style={header}>
-                    <Text style={logo}>Cravings</Text>
+                    {logoUrl ? (
+                        <img src={logoUrl} alt={appName} style={logoImage} />
+                    ) : (
+                        <Text style={logo}>{appName}</Text>
+                    )}
                 </Section>
                 <Section style={content}>
                     <Heading style={h1}>Cancellation Request Received</Heading>
                     <Text style={text}>Hi {partnerName},</Text>
                     <Text style={text}>
-                        We have received your request to cancel your subscription. We are truly sorry to hear that you're thinking of leaving.
+                        We have received your request to cancel your subscription on <strong>{appName}</strong>. We are truly sorry to hear that you're thinking of leaving.
                     </Text>
 
                     <Section style={infoBox}>
@@ -45,7 +53,7 @@ export const CancelConfirmationEmail = ({
 
                     <Hr style={hr} />
                     <Text style={footer}>
-                        © 2024 Cravings. All rights reserved.
+                        © {new Date().getFullYear()} {appName}. All rights reserved.
                     </Text>
                 </Section>
             </Container>
@@ -79,6 +87,13 @@ const logo = {
     fontWeight: "800",
     color: "#ea580c",
     letterSpacing: "-1px",
+};
+
+const logoImage = {
+    height: "50px",
+    width: "auto",
+    display: "block",
+    margin: "0 auto",
 };
 
 const content = {

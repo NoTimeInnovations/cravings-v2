@@ -19,6 +19,8 @@ interface WelcomeEmailProps {
     email: string;
     loginLink?: string;
     menuLink?: string;
+    appName?: string;
+    logoUrl?: string;
 }
 
 export const WelcomeEmail = ({
@@ -27,20 +29,26 @@ export const WelcomeEmail = ({
     email,
     loginLink = "https://cravings.live/login",
     menuLink,
+    appName = "Cravings",
+    logoUrl,
 }: WelcomeEmailProps) => (
     <Html>
         <Head />
-        <Preview>Welcome to Cravings! Your digital menu is ready.</Preview>
+        <Preview>Welcome to {appName}! Your digital menu is ready.</Preview>
         <Body style={main}>
             <Container style={container}>
                 <Section style={header}>
-                    <Text style={logo}>Cravings</Text>
+                    {logoUrl ? (
+                        <img src={logoUrl} alt={appName} style={logoImage} />
+                    ) : (
+                        <Text style={logo}>{appName}</Text>
+                    )}
                 </Section>
                 <Section style={content}>
                     <Heading style={h1}>Your Menu is Live! 🎉</Heading>
                     <Text style={text}>Hi {partnerName},</Text>
                     <Text style={text}>
-                        Congratulations! Your digital menu has been created and is ready to share with your customers.
+                        Congratulations! Your digital menu has been created and is ready to share with your customers on <strong>{appName}</strong>.
                     </Text>
 
                     {menuLink && (
@@ -86,7 +94,7 @@ export const WelcomeEmail = ({
 
                     <Hr style={hr} />
                     <Text style={footer}>
-                        © 2024 Cravings. All rights reserved.
+                        © {new Date().getFullYear()} {appName}. All rights reserved.
                     </Text>
                 </Section>
             </Container>
@@ -120,6 +128,13 @@ const logo = {
     fontWeight: "800",
     color: "#ea580c",
     letterSpacing: "-1px",
+};
+
+const logoImage = {
+    height: "50px",
+    width: "auto",
+    display: "block",
+    margin: "0 auto",
 };
 
 const content = {

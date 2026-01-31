@@ -2,7 +2,7 @@
 
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY_CRAVINGS);
 const FROM_EMAIL = 'help@support.cravings.live';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'help@support.cravings.live';
 
@@ -24,7 +24,7 @@ export async function notifyPlanInterest({
     planId,
     partnerId // Added partnerId
 }: NotifyPlanInterestProps & { partnerId: string }) { // Update type definition inline or above
-    if (!process.env.RESEND_API_KEY) {
+    if (!process.env.RESEND_API_KEY_CRAVINGS) {
         return { success: false, message: "Email service not configured" };
     }
 
