@@ -1118,66 +1118,67 @@ export default function GetStartedClient({ appName = "Cravings", logo, defaultCo
         }
     };
 
-    const renderSuccessView = () => {
-        // Email change fullscreen form
-        if (showEmailChangeForm) {
-            return (
-                <div className="fixed inset-0 bg-white z-50 flex items-center justify-center p-6">
-                    <div className="w-full max-w-md space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                        <button 
-                            onClick={() => setShowEmailChangeForm(false)}
-                            className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full transition-colors"
+    const renderEmailChangeForm = () => {
+        if (!showEmailChangeForm) return null;
+
+        return (
+            <div className="fixed inset-0 bg-white z-[100] flex items-center justify-center p-6">
+                <div className="w-full max-w-md space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                    <button
+                        onClick={() => setShowEmailChangeForm(false)}
+                        className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                        <X size={24} />
+                    </button>
+
+                    <div className="text-center space-y-2">
+                        <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Mail className="w-8 h-8 text-orange-600" />
+                        </div>
+                        <h1 className="text-2xl font-bold text-gray-900">Change Email</h1>
+                        <p className="text-gray-500">
+                            Enter your correct email address. We'll send your menu link and dashboard credentials there.
+                        </p>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="newEmail">New Email Address</Label>
+                            <Input
+                                id="newEmail"
+                                type="email"
+                                placeholder="you@example.com"
+                                value={newEmail}
+                                onChange={(e) => setNewEmail(e.target.value)}
+                                className="h-12 rounded-xl text-base"
+                                autoFocus
+                            />
+                        </div>
+
+                        <Button
+                            onClick={handleEmailChange}
+                            disabled={isUpdatingEmail || !newEmail}
+                            className="w-full h-12 text-lg rounded-xl bg-orange-600 hover:bg-orange-700"
                         >
-                            <X size={24} />
-                        </button>
-                        
-                        <div className="text-center space-y-2">
-                            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Mail className="w-8 h-8 text-orange-600" />
-                            </div>
-                            <h1 className="text-2xl font-bold text-gray-900">Change Email</h1>
-                            <p className="text-gray-500">
-                                Enter your correct email address. We'll send your menu link and dashboard credentials there.
-                            </p>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="newEmail">New Email Address</Label>
-                                <Input
-                                    id="newEmail"
-                                    type="email"
-                                    placeholder="you@example.com"
-                                    value={newEmail}
-                                    onChange={(e) => setNewEmail(e.target.value)}
-                                    className="h-12 rounded-xl text-base"
-                                    autoFocus
-                                />
-                            </div>
-
-                            <Button
-                                onClick={handleEmailChange}
-                                disabled={isUpdatingEmail || !newEmail}
-                                className="w-full h-12 text-lg rounded-xl bg-orange-600 hover:bg-orange-700"
-                            >
-                                {isUpdatingEmail ? (
-                                    <>
-                                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                                        Updating...
-                                    </>
-                                ) : (
-                                    <>
-                                        <RefreshCw className="w-5 h-5 mr-2" />
-                                        Update & Resend
-                                    </>
-                                )}
-                            </Button>
-                        </div>
+                            {isUpdatingEmail ? (
+                                <>
+                                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                    Updating...
+                                </>
+                            ) : (
+                                <>
+                                    <RefreshCw className="w-5 h-5 mr-2" />
+                                    Update & Resend
+                                </>
+                            )}
+                        </Button>
                     </div>
                 </div>
-            );
-        }
+            </div>
+        );
+    };
 
+    const renderSuccessView = () => {
         // Main success view
         return (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full max-w-md mx-auto md:mx-0">
@@ -1272,7 +1273,7 @@ export default function GetStartedClient({ appName = "Cravings", logo, defaultCo
 
         return (
             <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-start gap-8 animate-in fade-in duration-700 md:pt-12 pb-24 md:pb-0">
-                <div className={`flex-1 space-y-6 ${registrationSuccess ? "hidden md:block" : "hidden md:block"}`}>
+                <div className={`flex-1 space-y-6 ${registrationSuccess ? "hidden md:block" : ""}`}>
                     {registrationSuccess ? renderSuccessView() : (
                         <>
                             <div className="space-y-2">
@@ -1527,6 +1528,9 @@ export default function GetStartedClient({ appName = "Cravings", logo, defaultCo
             </main>
 
             {/* Final Success View - NOW INTEGRATED IN renderStep3 */}
+
+            {/* Email Change Fullscreen Form */}
+            {renderEmailChangeForm()}
 
             {/* Chatwoot Chat Bubble */}
             <Chatwoot />
