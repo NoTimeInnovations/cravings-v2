@@ -315,21 +315,28 @@ const CustomColorPicker = ({ label, color, onChange }: { label: string, color: s
 );
 
 import Image from "next/image";
-export default function GetStartedClient({ appName = "Cravings", logo }: { appName?: string; logo?: string }) {
+export default function GetStartedClient({ appName = "Cravings", logo, defaultCountry = "" }: { appName?: string; logo?: string; defaultCountry?: string }) {
     const router = useRouter();
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [menuFiles, setMenuFiles] = useState<File[]>([]);
 
+    // Determine default currency based on country
+    const getDefaultCurrency = (country: string) => {
+        if (!country) return "";
+        const meta = COUNTRY_META_DATA[country];
+        return meta?.symbol || "";
+    };
+
     const [hotelDetails, setHotelDetails] = useState<HotelDetails>({
         name: "",
         phone: "",
-        country: "India",
+        country: defaultCountry,
         state: "",
         district: "",
         facebook_link: "",
         instagram_link: "",
         location_link: "",
-        currency: "₹",
+        currency: getDefaultCurrency(defaultCountry),
     });
     const [isExtractingMenu, setIsExtractingMenu] = useState(false);
     const [extractedItems, setExtractedItems] = useState<MenuItem[]>([]);
@@ -595,22 +602,8 @@ export default function GetStartedClient({ appName = "Cravings", logo }: { appNa
         setExtractedItems(SAMPLE_MENU_ITEMS);
         extractionPromise.current = Promise.resolve(SAMPLE_MENU_ITEMS);
 
-        const randomId = Math.floor(Math.random() * 9000) + 1000;
-        setHotelDetails({
-            name: `Sample Restaurant ${randomId}`,
-            phone: "+919876543210",
-            country: "India",
-            state: "Kerala",
-            district: "Ernakulam",
-            currency: "₹",
-            facebook_link: "",
-            instagram_link: "",
-            location_link: ""
-        });
-        setAuthCredentials(prev => ({ ...prev, email: `guest${randomId}@${window.location.hostname}` }));
-
         setStep(2);
-        toast.success("Loaded sample menu data and details!");
+        toast.success("Loaded sample menu data!");
     };
 
     const handleCancelExtraction = () => {
@@ -1085,7 +1078,7 @@ export default function GetStartedClient({ appName = "Cravings", logo }: { appNa
 
             <Button
                 onClick={handleNextToExtraction}
-                disabled={!hotelDetails.name || !hotelDetails.phone}
+                disabled={!hotelDetails.name || !hotelDetails.phone || !hotelDetails.country}
                 className="w-full h-10 md:h-11 text-base md:text-lg rounded-full bg-orange-600 hover:bg-orange-700"
             >
                 Create Menu <ChevronRight className="ml-2 w-4 h-4 md:w-5 md:h-5" />
