@@ -11,19 +11,19 @@ const STEPS = [
         label: "START",
         title: "Get started.",
         items: [
-            "Sign up for an account in < 2 minutes",
-            "Verify your restaurant details",
-            "Access your dashboard immediately"
+            "First PDF or images upload",
+            "Enter basic details",
+            "Choose brand color"
         ],
         active: false
     },
     {
-        label: "05 MINS",
-        title: "Create menu in 5 mins.",
+        label: "02 MINS",
+        title: "Menu is ready.",
         items: [
-            "Upload food photos or PDF menu",
-            "Set pricing and categories",
-            "Configure table QR codes"
+            "Menu fully uploaded",
+            "Make corrections if needed",
+            "Menu is ready"
         ],
         active: false
     },
@@ -63,11 +63,11 @@ export default function WorkingSteps({ appName = "Cravings" }: { appName?: strin
 
                         <h2 className="text-3xl md:text-5xl font-medium text-gray-900 leading-[1.1] tracking-tight mb-8">
                             Get your restaurant online in just <br />
-                            <span className="text-[#C04812]">5 minutes</span>
+                            <span className="text-[#C04812]">2 minutes</span>
                         </h2>
 
                         <p className="text-lg text-gray-500 leading-relaxed mb-10 max-w-lg">
-                            Stop losing customers to complex apps. {appName} gives you everything you need to manage orders, payments, and delivery—fast.
+                            Stop losing customers to outdated menus. {appName} lets you instantly update products, add offers and specials, and toggle availability—fast.
                         </p>
 
                         <Link

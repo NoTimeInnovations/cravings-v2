@@ -7,6 +7,7 @@ import PricingSection from "@/components/international/PricingSection";
 import Hero from "@/components/home/Hero";
 import Features from "@/components/home/Features";
 import WorkingSteps from "@/components/home/WorkingSteps";
+import FAQ from "@/components/home/FAQ";
 import Background from "@/components/home/Background";
 import PlatformFeatures from "@/components/home/PlatformFeatures";
 import AnimatedFeatures from "@/components/home/AnimatedFeatures";
@@ -156,6 +157,9 @@ export default async function Home() {
 
       {/* HOW IT WORKS SECTION (Client Component for Step Animations) */}
       <WorkingSteps appName={config.name} />
+
+      {/* FAQ SECTION */}
+      <FAQ />
 
       {/* PRICING SECTION */}
       {/* <PricingSection country={country} /> */}

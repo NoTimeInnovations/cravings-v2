@@ -1,12 +1,14 @@
-import HelpCenterFacebook from "./FacebookSupport";
-import HelpCenterContactForm from "./ContactForm";
-import HelpCenterWhatsApp from "./WhatsAppSupport";
+"use client";
+
+import React from "react";
+import { motion } from "motion/react";
 import {
     Accordion,
     AccordionContent,
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion";
+import { HelpCircle } from "lucide-react";
 
 const FAQS = [
     {
@@ -55,53 +57,54 @@ const FAQS = [
     }
 ];
 
-export default function HelpCenterPage() {
+export default function FAQ() {
     return (
-        <div className="py-36 px-5 sm:px-0">
-            <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
-                <div className="space-y-2 text-center pb-6">
-                    <h1 className="text-3xl font-bold tracking-tight">Help & Support</h1>
-                    <p className="text-muted-foreground">
-                        Need assistance? Reach out to us via email or chat directly on WhatsApp.
-                    </p>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-8">
-                    {/* Contact Form */}
-                    <HelpCenterContactForm />
-
-                    {/* Chat Support Options */}
-                    <div className="flex flex-col gap-4">
-                        <div className="flex-1">
-                            <HelpCenterWhatsApp />
-                        </div>
-                        <div className="flex-1">
-                            <HelpCenterFacebook />
-                        </div>
+        <section className="py-24 bg-white relative overflow-hidden">
+            <div className="max-w-4xl mx-auto px-6 lg:px-8 relative z-10">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6 }}
+                    className="text-center mb-16"
+                >
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 bg-white text-xs font-bold tracking-wider text-gray-500 mb-6 uppercase">
+                        <HelpCircle className="w-4 h-4" />
+                        Support
                     </div>
-                </div>
+                    <h2 className="text-3xl md:text-5xl font-medium text-gray-900 tracking-tight mb-6">
+                        Frequently Asked Questions
+                    </h2>
+                    <p className="text-lg text-gray-500 max-w-2xl mx-auto">
+                        Everything you need to know about managing your digital menu.
+                    </p>
+                </motion.div>
 
-                {/* FAQ Section */}
-                <div className="bg-card text-card-foreground p-6 rounded-3xl border border-border space-y-4">
-                    <h3 className="font-semibold text-foreground">Common Questions</h3>
-                    <Accordion type="single" collapsible className="w-full">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: 0.2 }}
+                    className="bg-[#F6F6F6] rounded-3xl p-8 md:p-12"
+                >
+                    <Accordion type="single" collapsible className="w-full space-y-4">
                         {FAQS.map((faq, index) => (
                             <AccordionItem
                                 key={index}
                                 value={`item-${index}`}
-                                className="border-b border-border last:border-0"
+                                className="border-b border-gray-200 last:border-0 px-2"
                             >
-                                <AccordionTrigger className="text-left text-sm font-medium hover:no-underline py-3">
+                                <AccordionTrigger className="text-left text-lg font-medium text-gray-900 hover:text-[#C04812] transition-colors hover:no-underline py-4">
                                     {faq.question}
                                 </AccordionTrigger>
-                                <AccordionContent className="text-sm text-muted-foreground pb-4">
+                                <AccordionContent className="text-gray-600 text-base leading-relaxed pb-6 pr-4">
                                     {faq.answer}
                                 </AccordionContent>
                             </AccordionItem>
                         ))}
                     </Accordion>
-                </div>
+                </motion.div>
             </div>
-        </div>
+        </section>
     );
 }

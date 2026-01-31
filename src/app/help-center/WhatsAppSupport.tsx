@@ -13,7 +13,7 @@ export default function HelpCenterWhatsApp() {
     };
 
     return (
-        <div className="bg-green-50 dark:bg-green-900/10 p-8 rounded-3xl border border-green-100 dark:border-green-900/20 flex flex-col items-center text-center space-y-6">
+        <div className="h-full justify-center bg-green-50 dark:bg-green-900/10 p-8 rounded-3xl border border-green-100 dark:border-green-900/20 flex flex-col items-center text-center space-y-6">
             <div className="p-4 bg-green-100 dark:bg-green-900/20 rounded-full text-green-600 dark:text-green-400">
                 <MessageSquare size={40} />
             </div>
