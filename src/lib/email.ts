@@ -9,7 +9,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 const FROM_EMAIL = 'Cravings <info@support.cravings.live>'; // Update with verified domain if available, else use resend default for testing often 'onboarding@resend.dev' but presumably user has domain
 
-export async function sendWelcomeEmail(to: string, props: { partnerName: string; planName: string; loginLink?: string }) {
+export async function sendWelcomeEmail(to: string, props: { partnerName: string; planName: string; loginLink?: string; menuLink?: string }) {
     if (!process.env.RESEND_API_KEY) {
         console.warn("RESEND_API_KEY is missing. Email not sent.");
         return;
@@ -18,7 +18,7 @@ export async function sendWelcomeEmail(to: string, props: { partnerName: string;
         await resend.emails.send({
             from: FROM_EMAIL,
             to,
-            subject: 'Welcome to Cravings! 🚀',
+            subject: 'Your Menu is Live! 🚀',
             react: WelcomeEmail({ ...props, email: to }),
         });
     } catch (error) {

@@ -141,10 +141,18 @@ export const onBoardUserSignup = async (data: OnboardingData) => {
         try {
             const planName = partnerPayload.subscription_details?.plan?.name || "Free Trial";
             const { sendWelcomeEmail } = await import("@/lib/email"); // Dynamic import to avoid issues if lib not present? No, standard import is fine usually.
+            
+            // Build menu link
+            const storeName = partnerPayload.store_name || partnerPayload.name;
+            const menuLink = firstQrCodeId 
+                ? `https://cravings.live/qrScan/${storeName.replace(/ /g, "-")}/${firstQrCodeId}`
+                : undefined;
+            
             await sendWelcomeEmail(partnerPayload.email, {
                 partnerName: partnerPayload.name,
                 planName: planName,
-                loginLink: "https://cravings.live/login"
+                loginLink: "https://cravings.live/login",
+                menuLink: menuLink
             });
         } catch (emailError) {
             console.error("Failed to send welcome email:", emailError);

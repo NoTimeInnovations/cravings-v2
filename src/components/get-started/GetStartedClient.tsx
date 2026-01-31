@@ -22,7 +22,9 @@ import {
     Share2,
     Palette,
     Plus,
-    Sparkles
+    Sparkles,
+    Mail,
+    RefreshCw
 } from "lucide-react";
 import { GoogleGenerativeAI, Schema } from "@google/generative-ai";
 import { toast } from "sonner";
@@ -361,6 +363,9 @@ export default function GetStartedClient({ appName = "Cravings", logo, defaultCo
     const [signupResult, setSignupResult] = useState<any>(null);
     const [isPublishing, setIsPublishing] = useState(false);
     const [extractionError, setExtractionError] = useState<string | null>(null);
+    const [showEmailChangeForm, setShowEmailChangeForm] = useState(false);
+    const [newEmail, setNewEmail] = useState("");
+    const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
 
 
 
@@ -1088,69 +1093,127 @@ export default function GetStartedClient({ appName = "Cravings", logo, defaultCo
 
 
 
-    const renderSuccessView = () => (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full max-w-md mx-auto md:mx-0">
-            <div className="space-y-2 text-center md:text-left">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto md:mx-0 mb-4">
-                    <Check className="w-8 h-8 text-green-600" />
-                </div>
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-                    Your Menu is Live!
-                </h1>
-                <p className="text-gray-500">
-                    Congratulations! Your digital menu has been created and is ready to share.
-                </p>
-            </div>
+    const handleEmailChange = async () => {
+        if (!newEmail || !newEmail.includes("@")) {
+            toast.error("Please enter a valid email address");
+            return;
+        }
 
-            <div className="space-y-4">
+        setIsUpdatingEmail(true);
+        try {
+            const { updateEmailAndResend } = await import("@/app/actions/updateEmailAndResend");
+            await updateEmailAndResend({
+                partnerId: signupResult?.partnerId,
+                newEmail: newEmail
+            });
+            
+            setAuthCredentials(prev => ({ ...prev, email: newEmail }));
+            setShowEmailChangeForm(false);
+            toast.success("Email updated! Check your new inbox.");
+        } catch (error) {
+            console.error("Failed to update email:", error);
+            toast.error("Failed to update email. Please try again.");
+        } finally {
+            setIsUpdatingEmail(false);
+        }
+    };
+
+    const renderSuccessView = () => {
+        // Email change fullscreen form
+        if (showEmailChangeForm) {
+            return (
+                <div className="fixed inset-0 bg-white z-50 flex items-center justify-center p-6">
+                    <div className="w-full max-w-md space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        <button 
+                            onClick={() => setShowEmailChangeForm(false)}
+                            className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full transition-colors"
+                        >
+                            <X size={24} />
+                        </button>
+                        
+                        <div className="text-center space-y-2">
+                            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Mail className="w-8 h-8 text-orange-600" />
+                            </div>
+                            <h1 className="text-2xl font-bold text-gray-900">Change Email</h1>
+                            <p className="text-gray-500">
+                                Enter your correct email address. We'll send your menu link and dashboard credentials there.
+                            </p>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="newEmail">New Email Address</Label>
+                                <Input
+                                    id="newEmail"
+                                    type="email"
+                                    placeholder="you@example.com"
+                                    value={newEmail}
+                                    onChange={(e) => setNewEmail(e.target.value)}
+                                    className="h-12 rounded-xl text-base"
+                                    autoFocus
+                                />
+                            </div>
+
+                            <Button
+                                onClick={handleEmailChange}
+                                disabled={isUpdatingEmail || !newEmail}
+                                className="w-full h-12 text-lg rounded-xl bg-orange-600 hover:bg-orange-700"
+                            >
+                                {isUpdatingEmail ? (
+                                    <>
+                                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                        Updating...
+                                    </>
+                                ) : (
+                                    <>
+                                        <RefreshCw className="w-5 h-5 mr-2" />
+                                        Update & Resend
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Main success view
+        return (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full max-w-md mx-auto md:mx-0">
+                <div className="space-y-4 text-center md:text-left">
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto md:mx-0 mb-4">
+                        <Mail className="w-10 h-10 text-green-600" />
+                    </div>
+                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+                        Check Your Email!
+                    </h1>
+                    <p className="text-gray-600 text-lg">
+                        We've sent your menu link and dashboard login credentials to:
+                    </p>
+                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                        <p className="text-xl font-semibold text-gray-900 break-all">
+                            {authCredentials.email}
+                        </p>
+                    </div>
+                    <p className="text-gray-500 text-sm">
+                        Can't find it? Check your spam folder or update your email below.
+                    </p>
+                </div>
+
                 <Button
-                    className="w-full flex items-center justify-center gap-2 h-12 text-lg rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-md hover:shadow-lg transition-all"
+                    variant="outline"
                     onClick={() => {
-                        const url = `${window.location.origin}/qrScan/${hotelDetails.name.replace(/ /g, "-")}/${signupResult?.firstQrCodeId}`;
-                        window.open(url, "_blank");
+                        setNewEmail("");
+                        setShowEmailChangeForm(true);
                     }}
+                    className="w-full h-12 text-base rounded-xl border-2 border-dashed border-orange-300 text-orange-700 hover:bg-orange-50"
                 >
-                    <ExternalLink size={20} />
-                    View Menu
+                    Wrong email? Change it
                 </Button>
-
-                <div className="grid grid-cols-2 gap-4">
-                    <Button
-                        variant="outline"
-                        className="w-full flex items-center justify-center gap-2 h-12 rounded-xl"
-                        onClick={() => {
-                            const url = `${window.location.origin}/qrScan/${hotelDetails.name.replace(/ /g, "-")}/${signupResult?.firstQrCodeId}`;
-                            navigator.clipboard.writeText(url);
-                            toast.success("Menu link copied to clipboard!");
-                        }}
-                    >
-                        <Copy size={18} />
-                        Share
-                    </Button>
-
-                    <Button
-                        variant="outline"
-                        className="w-full flex items-center justify-center gap-2 h-12 rounded-xl border-orange-200 text-orange-700 bg-orange-50 hover:bg-orange-100"
-                        onClick={async () => {
-                            try {
-                                // Auto-login logic
-                                const { signInPartnerWithEmail } = useAuthStore.getState();
-                                await signInPartnerWithEmail(authCredentials.email, "123456");
-                                router.push("/admin-v2");
-                            } catch (e) {
-                                console.error("Auto-login failed", e);
-                                toast.error("Redirecting to login...");
-                                router.push("/login");
-                            }
-                        }}
-                    >
-                        <LayoutDashboard size={18} />
-                        Dashboard
-                    </Button>
-                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     const renderStep3 = () => {
         // Error State
@@ -1220,11 +1283,6 @@ export default function GetStartedClient({ appName = "Cravings", logo, defaultCo
                                     We've extracted {extractedItems.length} items.
                                     Customize your theme below.
                                 </p>
-                                <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mt-2">
-                                    <p className="text-xs text-blue-700">
-                                        <strong>Note:</strong> Images will be generated in background approx {Math.ceil((extractedItems.length * 2) / 60)} minutes.
-                                    </p>
-                                </div>
                             </div>
 
                             <div className="hidden md:block space-y-6">
@@ -1379,65 +1437,28 @@ export default function GetStartedClient({ appName = "Cravings", logo, defaultCo
                         <div className="bg-white/90 backdrop-blur-xl p-5 rounded-[2rem] shadow-2xl border border-white/50 space-y-4">
                             <div className="flex items-center gap-3">
                                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                    <Check className="w-6 h-6 text-green-600" />
+                                    <Mail className="w-6 h-6 text-green-600" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-900 leading-tight">Menu is Live!</h3>
-                                    <p className="text-xs text-gray-500">Ready to share with customers</p>
+                                    <h3 className="text-lg font-bold text-gray-900 leading-tight">Check Your Email!</h3>
+                                    <p className="text-xs text-gray-500 break-all">{authCredentials.email}</p>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                                <Button
-                                    className="w-full h-11 text-sm rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-lg"
-                                    onClick={() => {
-                                        const url = `${window.location.origin}/qrScan/${hotelDetails.name.replace(/ /g, "-")}/${signupResult?.firstQrCodeId}`;
-                                        window.open(url, "_blank");
-                                    }}
-                                >
-                                    <ExternalLink size={16} className="mr-2" />
-                                    View
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    className="w-full h-11 text-sm rounded-xl bg-white"
-                                    onClick={() => {
-                                        const url = `${window.location.origin}/qrScan/${hotelDetails.name.replace(/ /g, "-")}/${signupResult?.firstQrCodeId}`;
-                                        navigator.clipboard.writeText(url);
-                                        toast.success("Link copied!");
-                                    }}
-                                >
-                                    <Share2 size={16} className="mr-2" />
-                                    Share
-                                </Button>
-                            </div>
+                            <p className="text-sm text-gray-600 text-center">
+                                We've sent your menu link and dashboard credentials to your email.
+                            </p>
 
                             <Button
-                                variant="ghost"
-                                className="w-full h-10 text-sm rounded-xl text-gray-600 hover:bg-gray-100"
-                                onClick={async () => {
-                                    try {
-                                        const { signInPartnerWithEmail } = useAuthStore.getState();
-                                        const partner = await signInPartnerWithEmail(authCredentials.email, "123456");
-                                        if (partner && partner.subscription_details) {
-                                            router.push("/admin-v2");
-                                        } else {
-                                            router.push("/admin");
-                                        }
-                                    } catch (e) {
-                                        console.error("Auto-login failed", e);
-                                        router.push("/login");
-                                    }
+                                variant="outline"
+                                className="w-full h-11 text-sm rounded-xl border-2 border-dashed border-orange-300 text-orange-700 hover:bg-orange-50"
+                                onClick={() => {
+                                    setNewEmail("");
+                                    setShowEmailChangeForm(true);
                                 }}
                             >
-                                <LayoutDashboard size={16} className="mr-2" />
-                                Go to Dashboard
+                                Wrong email? Change it
                             </Button>
-                            <div className="bg-blue-50/90 backdrop-blur-md border border-blue-100 p-3 rounded-xl shadow-lg">
-                                <p className="text-xs text-blue-700 text-center">
-                                    Note: Images will be generated and updated to your menu in approx {Math.ceil((extractedItems.length * 2) / 60)} minutes.
-                                </p>
-                            </div>
                         </div>
                     </div>
                 )}

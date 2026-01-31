@@ -9,6 +9,7 @@ import {
     Text,
     Button,
     Hr,
+    Link,
 } from "@react-email/components";
 import * as React from "react";
 
@@ -17,6 +18,7 @@ interface WelcomeEmailProps {
     planName: string;
     email: string;
     loginLink?: string;
+    menuLink?: string;
 }
 
 export const WelcomeEmail = ({
@@ -24,28 +26,42 @@ export const WelcomeEmail = ({
     planName = "Free Trial",
     email,
     loginLink = "https://cravings.live/login",
+    menuLink,
 }: WelcomeEmailProps) => (
     <Html>
         <Head />
-        <Preview>Welcome to Cravings! Your digital journey starts here.</Preview>
+        <Preview>Welcome to Cravings! Your digital menu is ready.</Preview>
         <Body style={main}>
             <Container style={container}>
                 <Section style={header}>
                     <Text style={logo}>Cravings</Text>
                 </Section>
                 <Section style={content}>
-                    <Heading style={h1}>Welcome to Cravings! 🎉</Heading>
+                    <Heading style={h1}>Your Menu is Live! 🎉</Heading>
                     <Text style={text}>Hi {partnerName},</Text>
                     <Text style={text}>
-                        Thank you for joining <strong>Cravings</strong>. We are thrilled to help you digitize your restaurant and grow your business with our powerful tools.
+                        Congratulations! Your digital menu has been created and is ready to share with your customers.
                     </Text>
+
+                    {menuLink && (
+                        <Section style={menuLinkBox}>
+                            <Text style={menuLinkLabel}>Your Menu Link</Text>
+                            <Link href={menuLink} style={menuLinkText}>{menuLink}</Link>
+                            <Section style={btnContainer}>
+                                <Button style={buttonPrimary} href={menuLink}>
+                                    View Your Menu
+                                </Button>
+                            </Section>
+                        </Section>
+                    )}
+
                     <Section style={infoBox}>
                         <Text style={infoText}>
                             You have successfully subscribed to the <span style={highlight}>{planName}</span> plan.
                         </Text>
                     </Section>
 
-                    <Text style={sectionLabel}>Your Login Credentials</Text>
+                    <Text style={sectionLabel}>Your Dashboard Credentials</Text>
                     <Section style={credentialsContainer}>
                         <div style={credentialRow}>
                             <Text style={credentialLabel}>Email</Text>
@@ -202,6 +218,44 @@ const button = {
     display: "inline-block",
     padding: "16px 32px",
     boxShadow: "0 4px 6px -1px rgba(234, 88, 12, 0.2)",
+};
+
+const buttonPrimary = {
+    backgroundColor: "#16a34a",
+    borderRadius: "12px",
+    color: "#fff",
+    fontSize: "16px",
+    fontWeight: "600",
+    textDecoration: "none",
+    textAlign: "center" as const,
+    display: "inline-block",
+    padding: "16px 32px",
+    boxShadow: "0 4px 6px -1px rgba(22, 163, 74, 0.2)",
+};
+
+const menuLinkBox = {
+    backgroundColor: "#f0fdf4",
+    borderRadius: "12px",
+    padding: "20px",
+    margin: "24px 0",
+    border: "1px solid #bbf7d0",
+    textAlign: "center" as const,
+};
+
+const menuLinkLabel = {
+    color: "#166534",
+    fontSize: "14px",
+    fontWeight: "600",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.5px",
+    margin: "0 0 8px",
+};
+
+const menuLinkText = {
+    color: "#16a34a",
+    fontSize: "14px",
+    fontWeight: "500",
+    wordBreak: "break-all" as const,
 };
 
 const hr = {
