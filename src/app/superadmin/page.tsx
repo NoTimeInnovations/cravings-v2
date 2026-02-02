@@ -122,6 +122,12 @@ const page = async (props: { searchParams: SearchParams }) => {
       name: "Subscription Management V2",
       component: <SubscriptionManagementV2 />,
       id: "subscription-management-v2",
+    },
+    {
+      name: "Google Business Integration",
+      component: null,
+      id: "google-business",
+      href: "/superadmin/google-business",
     }
   ];
 
