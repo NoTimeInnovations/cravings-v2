@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface Partner {
   id: string;
@@ -20,6 +20,7 @@ export default function GoogleBusinessPage() {
 
   const [locations, setLocations] = useState<any[]>([]);
   const [fetchingLocations, setFetchingLocations] = useState(false);
+  const [syncingMenu, setSyncingMenu] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('selected_google_partner');
@@ -61,12 +62,35 @@ export default function GoogleBusinessPage() {
       const data = await res.json();
       if (data.success) {
         alert('Location linked successfully!');
-        // Ideally, refresh state or show connected status
       } else {
         alert('Failed to link: ' + data.error);
       }
     } catch (e) {
       alert('Error linking location');
+    }
+  };
+
+  const pushMenu = async (locationName: string) => {
+    if (!partnerId) return;
+    if (!confirm('Are you sure you want to push the menu to Google for this location?')) return;
+    
+    setSyncingMenu(locationName);
+    try {
+        const res = await fetch('/api/google-business/menu/push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ partnerId, locationId: locationName })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert('Menu Synced Successfully! (Check Console for details)');
+        } else {
+            alert('Menu Sync Failed: ' + data.error);
+        }
+    } catch (e) {
+        alert('Network Error during sync');
+    } finally {
+        setSyncingMenu(null);
     }
   };
 
@@ -202,12 +226,26 @@ export default function GoogleBusinessPage() {
               {locations.length > 0 && (
                 <div className="space-y-2">
                   {locations.map((loc: any) => (
-                    <div key={loc.name} className="border p-3 rounded text-sm flex justify-between items-center">
-                      <div>
-                        <div className="font-bold">{loc.title}</div>
-                        <div className="text-gray-500">{loc.formattedAddress}</div>
+                    <div key={loc.name} className="border p-3 rounded text-sm flex flex-col gap-2">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="font-bold">{loc.title}</div>
+                          <div className="text-gray-500">{loc.formattedAddress}</div>
+                        </div>
+                        <Button size="sm" onClick={() => linkLocation(loc.name)}>Link</Button>
                       </div>
-                      <Button size="sm" onClick={() => linkLocation(loc.name)}>Link</Button>
+                      
+                      {/* Sync Menu Button */}
+                      <Button 
+                        size="sm" 
+                        variant="secondary" 
+                        className="w-full"
+                        onClick={() => pushMenu(loc.name)}
+                        disabled={syncingMenu === loc.name}
+                      >
+                        {syncingMenu === loc.name && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {syncingMenu === loc.name ? 'Syncing...' : 'Sync Menu to Google'}
+                      </Button>
                     </div>
                   ))}
                 </div>
