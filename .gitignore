@@ -47,3 +47,4 @@ hasura/metadata/databases/databases.yaml
 
 # Sentry Config File
 .env.sentry-build-plugin
+google_tokens.json
