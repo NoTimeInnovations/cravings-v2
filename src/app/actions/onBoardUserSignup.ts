@@ -38,12 +38,13 @@ export const onBoardUserSignup = async (data: OnboardingData) => {
         const newPartnerId = partnerResponse.insert_partners_one.id;
 
         // Set Auth Cookie to log them in immediately
-        await setAuthCookie({
+        // COMMENTED OUT: We don't want to auto-login. They should check email.
+        /* await setAuthCookie({
             id: newPartnerId,
             role: "partner",
             feature_flags: "",
             status: "active",
-        });
+        }); */
 
         // 1.5 Create Default QR Code (Table 1)
         let firstQrCodeId = null;
@@ -141,13 +142,13 @@ export const onBoardUserSignup = async (data: OnboardingData) => {
         try {
             const planName = partnerPayload.subscription_details?.plan?.name || "Free Trial";
             const { sendWelcomeEmail } = await import("@/lib/email"); // Dynamic import to avoid issues if lib not present? No, standard import is fine usually.
-            
+
             // Build menu link
             const storeName = partnerPayload.store_name || partnerPayload.name;
-            const menuLink = firstQrCodeId 
+            const menuLink = firstQrCodeId
                 ? `https://cravings.live/qrScan/${storeName.replace(/ /g, "-")}/${firstQrCodeId}`
                 : undefined;
-            
+
             await sendWelcomeEmail(partnerPayload.email, {
                 partnerName: partnerPayload.name,
                 planName: planName,
