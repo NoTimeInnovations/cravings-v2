@@ -1106,7 +1106,7 @@ export default function GetStartedClient({ appName = "Cravings", logo, defaultCo
                 partnerId: signupResult?.partnerId,
                 newEmail: newEmail
             });
-            
+
             setAuthCredentials(prev => ({ ...prev, email: newEmail }));
             setShowEmailChangeForm(false);
             toast.success("Email updated! Check your new inbox.");
@@ -1211,6 +1211,13 @@ export default function GetStartedClient({ appName = "Cravings", logo, defaultCo
                     className="w-full h-12 text-base rounded-xl border-2 border-dashed border-orange-300 text-orange-700 hover:bg-orange-50"
                 >
                     Wrong email? Change it
+                </Button>
+
+                <Button
+                    onClick={() => router.push('/login')}
+                    className="w-full h-12 text-base rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-200"
+                >
+                    Login to Dashboard
                 </Button>
             </div>
         );
@@ -1459,6 +1466,13 @@ export default function GetStartedClient({ appName = "Cravings", logo, defaultCo
                                 }}
                             >
                                 Wrong email? Change it
+                            </Button>
+
+                            <Button
+                                onClick={() => router.push('/login')}
+                                className="w-full h-11 text-sm rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-200"
+                            >
+                                Login to Dashboard
                             </Button>
                         </div>
                     </div>
