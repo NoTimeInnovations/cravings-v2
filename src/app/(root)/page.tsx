@@ -28,7 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title: `${config.title} Digital Menu | The #1 QR Menu Creator`,
       description: `Create a stunning digital menu instantly with ${config.name}. Join 400+ restaurants growing their business.`,
-      images: ["/placeholder-menu-qr.jpg"],
+      images: ["/og_image.png"],
       type: "website",
     },
   };

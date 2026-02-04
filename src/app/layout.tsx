@@ -48,7 +48,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title: config.title,
       description: config.description,
       type: "website",
-      images: ["/ogImage_default.jpeg"],
+      images: ["/og_image.png"],
     },
   };
 }
