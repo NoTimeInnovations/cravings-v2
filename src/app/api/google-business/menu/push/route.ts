@@ -35,23 +35,29 @@ async function uploadImageToGoogle(imageUrl: string, parentPath: string, auth: a
 
 export async function POST(request: NextRequest) {
   try {
-    const { partnerId, locationId } = await request.json();
+    let { partnerId, locationId } = await request.json(); // Changed const to let
 
     if (!partnerId || !locationId) {
       return NextResponse.json({ error: 'Missing partnerId or locationId' }, { status: 400 });
     }
 
+    // Resolve 'auto' locationId
+    if (locationId === 'auto') {
+        const integrationDetails = await getTokensFromHasura(partnerId);
+        if (!integrationDetails?.location_id) {
+             return NextResponse.json({ error: 'No Google Location linked for this partner. Please link a location first.' }, { status: 400 });
+        }
+        locationId = integrationDetails.location_id;
+        console.log(`Resolved auto locationId to: ${locationId}`);
+    }
+
     // 1. Fetch Google Tokens (Using Master Account Logic)
-    // IMPORTANT: We use a hardcoded MASTER ACCOUNT token strategy if individual partner doesn't have one.
-    // Or, we assume the user logged in as Admin (thrisha@cravings.live) is performing this action.
-    
-    // For now, let's fetch the token associated with the specific partner ID passed.
-    // IF that partner has not connected Google, we should fallback to the Master Account's token
-    // (which is thrisha@cravings.live, Partner ID: 20f7e974-f19e-4c11-b6b7-4385f61f27bf).
-    
     const MASTER_PARTNER_ID = '20f7e974-f19e-4c11-b6b7-4385f61f27bf'; // Thrisha/MenuThere
     
     let tokens = await getTokensFromHasura(partnerId);
+    
+    // ... rest of logic uses finalLocationId instead of locationId
+
     
     if (!tokens) {
         console.log(`No tokens for partner ${partnerId}, falling back to Master Account tokens.`);
@@ -286,6 +292,7 @@ async function getTokensFromHasura(partnerId: string) {
       google_business_integrations(where: {partner_id: {_eq: $partner_id}}) {
         access_token
         refresh_token
+        location_id
       }
     }
   `;

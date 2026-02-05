@@ -20,6 +20,7 @@ export default function GoogleBusinessPage() {
 
   const [locations, setLocations] = useState<any[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [currentLinkedId, setCurrentLinkedId] = useState<string | null>(null);
   const [fetchingLocations, setFetchingLocations] = useState(false);
   
   // Sync State
@@ -27,17 +28,6 @@ export default function GoogleBusinessPage() {
   const [syncLogs, setSyncLogs] = useState<string[]>([]);
   const [showLogs, setShowLogs] = useState(false);
   const logsEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('selected_google_partner');
-    if (saved) {
-      try {
-        const p = JSON.parse(saved);
-        setSelectedPartner(p);
-        setPartnerId(p.id);
-      } catch (e) {}
-    }
-  }, []);
 
   // Auto-fetch locations when partner is selected
   useEffect(() => {
@@ -63,14 +53,18 @@ export default function GoogleBusinessPage() {
   const fetchLocations = async () => {
     if (!partnerId) return;
     setFetchingLocations(true);
-    setLocations([]); // Reset
+    setLocations([]); 
+    setCurrentLinkedId(null);
     try {
       const res = await fetch(`/api/google-business/locations?partnerId=${partnerId}`);
       const data = await res.json();
       if (data.success) {
         setLocations(data.locations);
+        if (data.linkedLocationId) {
+            setCurrentLinkedId(data.linkedLocationId);
+            setSelectedLocation(data.linkedLocationId);
+        }
       } else {
-        // alert('Error: ' + data.error);
         console.error("Fetch Locations Error:", data.error);
       }
     } catch (e) {
@@ -79,6 +73,28 @@ export default function GoogleBusinessPage() {
       setFetchingLocations(false);
     }
   };
+
+  const handleLink = async () => {
+      if (!selectedLocation || !partnerId) return;
+      try {
+        const res = await fetch('/api/google-business/locations/link', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ partnerId, locationId: selectedLocation })
+        });
+        const data = await res.json();
+        if (data.success) {
+            setCurrentLinkedId(selectedLocation); // Update state
+            alert('Location linked successfully!');
+        } else {
+            alert('Failed to link: ' + data.error);
+        }
+      } catch (e) {
+        alert('Error linking location');
+      }
+  };
+
+  // ... (handleSync)
 
   const handleSync = async () => {
     if (!partnerId || !selectedLocation) return;
@@ -177,10 +193,16 @@ export default function GoogleBusinessPage() {
 
   return (
     <div className="container mx-auto py-10 pt-24 px-4 sm:px-6 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-8 flex items-center gap-2">
-        <img src="https://www.gstatic.com/images/branding/product/1x/google_my_business_48dp.png" alt="GMB" className="w-8 h-8 flex-1" />
-        Google Business Integration
-      </h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold flex items-center gap-2">
+            <img src="https://www.gstatic.com/images/branding/product/1x/google_my_business_48dp.png" alt="GMB" className="w-8 h-8" />
+            Google Integration
+        </h1>
+        {/* Master Connect Button (Hidden unless needed for setup) */}
+        <Button variant="outline" size="sm" onClick={() => window.location.href = `/api/google-business/auth/login?partnerId=20f7e974-f19e-4c11-b6b7-4385f61f27bf`}>
+            Reconnect Master
+        </Button>
+      </div>
       
       <div className="grid gap-6">
         <Card>
@@ -254,19 +276,32 @@ export default function GoogleBusinessPage() {
                                 <Loader2 className="h-4 w-4 animate-spin" /> Fetching locations from Master Account...
                             </div>
                         ) : (
-                            <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-                                <SelectTrigger className="w-full bg-white">
-                                    <SelectValue placeholder="Select a location..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {locations.map((loc) => (
-                                        <SelectItem key={loc.name} value={loc.name}>
-                                            <span className="font-medium">{loc.title}</span> 
-                                            <span className="text-gray-400 text-xs ml-2">({loc.storeCode || 'No Code'})</span>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <div className="flex gap-2">
+                                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                                    <SelectTrigger className="w-full bg-white">
+                                        <SelectValue placeholder="Select a location..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {locations.map((loc) => (
+                                            <SelectItem key={loc.name} value={loc.name}>
+                                                <span className="font-medium">{loc.title}</span> 
+                                                <span className="text-gray-400 text-xs ml-2">({loc.storeCode || 'No Code'})</span>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                
+                                {selectedLocation && selectedLocation !== currentLinkedId && (
+                                    <Button onClick={handleLink} variant="outline" className="shrink-0 border-orange-500 text-orange-600 hover:bg-orange-50">
+                                        Link
+                                    </Button>
+                                )}
+                                {selectedLocation && selectedLocation === currentLinkedId && (
+                                    <div className="flex items-center px-3 text-green-600 border border-green-200 bg-green-50 rounded-md shrink-0">
+                                        <CheckCircle className="w-4 h-4 mr-1" /> Linked
+                                    </div>
+                                )}
+                            </div>
                         )}
                         {locations.length === 0 && !fetchingLocations && (
                             <p className="text-xs text-red-500 mt-1">No locations found. Make sure Master Account is connected.</p>

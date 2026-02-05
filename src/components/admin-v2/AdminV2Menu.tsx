@@ -62,12 +62,27 @@ export function AdminV2Menu() {
     const [imagesFetchedCount, setImagesFetchedCount] = useState(0);
     const [totalItemsToFetch, setTotalItemsToFetch] = useState(0);
     const [hasUsedAutoImages, setHasUsedAutoImages] = useState(false);
+    const [isGoogleLinked, setIsGoogleLinked] = useState(false);
 
     // Check if user has a non-free plan
     const partner = userData as Partner;
     const planId = partner?.subscription_details?.plan?.id;
     const isFreePlan = !planId || FREE_PLAN_IDS.includes(planId);
     const canUseAutoImages = !isFreePlan && !hasUsedAutoImages;
+
+    // Check Google Link Status
+    useEffect(() => {
+        if (userData?.id) {
+            fetch(`/api/google-business/locations?partnerId=${userData.id}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.linkedLocationId) {
+                        setIsGoogleLinked(true);
+                    }
+                })
+                .catch(err => console.error("Failed to check Google status", err));
+        }
+    }, [userData?.id]);
 
     // Check localStorage on mount for whether auto images feature was used
     useEffect(() => {
@@ -277,6 +292,45 @@ export function AdminV2Menu() {
                             <Plus className="h-4 w-4 mr-2" />
                             Add Item
                         </Button>
+                        {isGoogleLinked && (
+                        <Button 
+                            onClick={async () => {
+                                const lastSync = localStorage.getItem(`google_sync_${userData?.id}`);
+                                const today = new Date().toDateString();
+                                if (lastSync === today) {
+                                    toast.info("You can only sync to Google once per day.");
+                                    return;
+                                }
+                                
+                                if (!confirm("Sync menu to Google? This can be done once per day.")) return;
+
+                                const toastId = toast.loading("Syncing to Google...");
+                                try {
+                                    const res = await fetch('/api/google-business/menu/push', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ partnerId: userData?.id, locationId: 'auto' })
+                                    });
+                                    const data = await res.json();
+                                    
+                                    if (data.success) {
+                                        localStorage.setItem(`google_sync_${userData?.id}`, today);
+                                        toast.success("Menu synced to Google successfully!");
+                                    } else {
+                                        toast.error("Sync failed: " + data.error);
+                                    }
+                                } catch (e) {
+                                    toast.error("Sync failed");
+                                } finally {
+                                    toast.dismiss(toastId);
+                                }
+                            }} 
+                            className="col-span-2 sm:col-span-1 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                            <img src="https://www.gstatic.com/images/branding/product/1x/google_my_business_48dp.png" alt="GMB" className="w-4 h-4 mr-2" />
+                            Sync to Google
+                        </Button>
+                        )}
                         {canUseAutoImages && (
                             <Button
                                 variant="outline"

@@ -78,10 +78,18 @@ export async function GET(request: NextRequest) {
             : 'No address'
     }));
 
+    // Check currently linked location
+    let linkedLocationId = null;
+    const integrationDetails = await getTokensFromHasura(partnerId);
+    if (integrationDetails?.location_id) {
+        linkedLocationId = integrationDetails.location_id;
+    }
+
     return NextResponse.json({
       success: true,
       locations: formattedLocations,
-      accountId: accountName
+      accountId: accountName,
+      linkedLocationId // Return this!
     });
 
   } catch (error: any) {
@@ -100,6 +108,7 @@ async function getTokensFromHasura(partnerId: string) {
       google_business_integrations(where: {partner_id: {_eq: $partner_id}}) {
         access_token
         refresh_token
+        location_id
       }
     }
   `;
