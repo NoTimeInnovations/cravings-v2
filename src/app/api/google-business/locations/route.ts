@@ -31,7 +31,16 @@ export async function GET(request: NextRequest) {
     // The "My Business Account Management API" must be enabled.
     const accountManagement = google.mybusinessaccountmanagement({ version: 'v1', auth });
     const accountsRes = await accountManagement.accounts.list();
-    const account = accountsRes.data.accounts?.find(a => a.type === 'ORGANIZATION' || a.type === 'PERSONAL'); // Prefer Organization, fallback to Personal
+    
+    // Log all accounts to debug which one is being picked up
+    console.log("Accounts Found:", JSON.stringify(accountsRes.data.accounts, null, 2));
+
+    // We prioritize LOCATION_GROUP as that's where multiple locations are usually managed
+    // Then ORGANIZATION, then PERSONAL
+    const account = accountsRes.data.accounts?.sort((a, b) => {
+        const priority = { 'LOCATION_GROUP': 0, 'ORGANIZATION': 1, 'PERSONAL': 2 };
+        return (priority[a.type as keyof typeof priority] ?? 3) - (priority[b.type as keyof typeof priority] ?? 3);
+    })[0];
     
     // If no account found, maybe use the first one
     const targetAccount = account || accountsRes.data.accounts?.[0];
@@ -41,23 +50,39 @@ export async function GET(request: NextRequest) {
        return NextResponse.json({ error: 'No Google Business accounts found' }, { status: 404 });
     }
 
-    const accountName = targetAccount.name; // e.g., "accounts/111617069787035102385"
+    const accountName = targetAccount.name;
+    console.log("Fetching locations for account:", accountName);
 
     // 3. List Locations
+    // readMask is required. 'formattedAddress' is not a valid field in v1, use 'storefrontAddress'.
     const myBusinessInfo = google.mybusinessbusinessinformation({ version: 'v1', auth });
     const locationsRes = await myBusinessInfo.accounts.locations.list({
       parent: accountName, 
-      readMask: 'name,title,storeCode,metadata,formattedAddress',
+      readMask: 'name,title,storeCode,metadata,storefrontAddress',
     });
+
+    const locations = locationsRes.data.locations || [];
+    
+    // Map to friendly format (flatten address)
+    const formattedLocations = locations.map((loc: any) => ({
+        ...loc,
+        formattedAddress: loc.storefrontAddress 
+            ? `${loc.storefrontAddress.addressLines?.join(', ') || ''}, ${loc.storefrontAddress.locality || ''}, ${loc.storefrontAddress.administrativeArea || ''} ${loc.storefrontAddress.postalCode || ''}`
+            : 'No address'
+    }));
 
     return NextResponse.json({
       success: true,
-      locations: locationsRes.data.locations || [],
+      locations: formattedLocations,
       accountId: accountName
     });
 
   } catch (error: any) {
     console.error('Google API Error:', error);
+    // Log full details for debugging
+    if (error.response) {
+        console.error('Error Details:', JSON.stringify(error.response.data, null, 2));
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
