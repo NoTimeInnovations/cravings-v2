@@ -134,7 +134,7 @@ const page = async (props: { searchParams: SearchParams }) => {
   if (page) {
     const selectedPage = pages.find((p) => p.id === page);
     return (
-      <main className="px-3 py-5 sm:px-[7.5%] bg-[#FFF7EC] min-h-screen">
+      <main className="px-3 py-5 pt-24 sm:px-[7.5%] bg-[#FFF7EC] min-h-screen">
         <h1 className="text-2xl lg:text-4xl font-bold mb-5">
           {selectedPage?.name}
         </h1>
@@ -143,7 +143,7 @@ const page = async (props: { searchParams: SearchParams }) => {
     );
   } else {
     return (
-      <main className="px-3 py-5 sm:px-[7.5%] bg-[#FFF7EC] min-h-screen">
+      <main className="px-3 py-5 pt-24 sm:px-[7.5%] bg-[#FFF7EC] min-h-screen">
         <h1 className="text-2xl lg:text-4xl font-bold">Dashboard</h1>
 
         <div className="mt-5">
