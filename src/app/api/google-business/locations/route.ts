@@ -10,10 +10,17 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // 1. Fetch tokens from Hasura (Just to verify connection exists)
-    const tokens = await getTokensFromHasura(partnerId);
+    // 1. Fetch tokens (Fallback to Master Account if partner not connected)
+    const MASTER_PARTNER_ID = '20f7e974-f19e-4c11-b6b7-4385f61f27bf'; // Thrisha/MenuThere
+    
+    let tokens = await getTokensFromHasura(partnerId);
     if (!tokens) {
-      return NextResponse.json({ error: 'Partner not connected to Google' }, { status: 404 });
+        console.log(`No tokens for partner ${partnerId}, falling back to Master Account tokens for listing locations.`);
+        tokens = await getTokensFromHasura(MASTER_PARTNER_ID);
+    }
+
+    if (!tokens) {
+      return NextResponse.json({ error: 'No Google connection found (neither Partner nor Master)' }, { status: 404 });
     }
 
     // REAL API (Quota Unlocked!)
