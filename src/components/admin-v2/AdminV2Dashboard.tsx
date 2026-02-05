@@ -555,7 +555,7 @@ export function AdminV2Dashboard() {
               variant="outline"
               onClick={() => {
                 const hotelNameSlug = storeName?.replace(/ /g, "-");
-                window.open(`https://www.cravings.live/qrScan/${hotelNameSlug}/${qrId}`, '_blank');
+                window.open(`/qrScan/${hotelNameSlug}/${qrId}`, '_blank');
               }}
               className="w-full sm:w-auto"
             >
