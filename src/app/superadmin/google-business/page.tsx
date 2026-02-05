@@ -176,9 +176,9 @@ export default function GoogleBusinessPage() {
   };
 
   return (
-    <div className="container mx-auto py-10 pt-24 max-w-4xl">
+    <div className="container mx-auto py-10 pt-24 px-4 sm:px-6 max-w-4xl">
       <h1 className="text-3xl font-bold mb-8 flex items-center gap-2">
-        <img src="https://www.gstatic.com/images/branding/product/1x/google_my_business_48dp.png" alt="GMB" className="w-8 h-8" />
+        <img src="https://www.gstatic.com/images/branding/product/1x/google_my_business_48dp.png" alt="GMB" className="w-8 h-8 flex-1" />
         Google Business Integration
       </h1>
       

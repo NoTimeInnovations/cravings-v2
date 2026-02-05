@@ -216,7 +216,8 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
       pathname === "/my-earnings" ||
       pathname === "/offers" ||
       pathname === "/pricing" ||
-      pathname.startsWith("/admin"));
+      pathname.startsWith("/admin") ||
+      pathname.startsWith("/superadmin")); // Added superadmin support for dark text
 
   // const shouldShowBanner = pathname === "/" || pathname.startsWith("/product") || pathname.startsWith("/solutions");
   const shouldShowBanner = false;
