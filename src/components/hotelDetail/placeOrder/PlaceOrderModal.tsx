@@ -1970,7 +1970,7 @@ const PlaceOrderModal = ({
   return (
     <>
       <div
-        className={`fixed inset-0 z-[600] bg-gray-50 text-black ${open_place_order_modal ? "block" : "hidden"
+        className={`fixed inset-0 z-[1000] bg-gray-50 text-black ${open_place_order_modal ? "block" : "hidden"
           }`}
       >
         <div className="sticky top-0 bg-white border-b">

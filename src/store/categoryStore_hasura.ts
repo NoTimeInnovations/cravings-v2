@@ -129,7 +129,7 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
       const updatedCat = {
         id: cat.id,
         name: formatStorageName(cat.name),
-        priority: cat.priority,
+        priority: cat.priority ?? 0, // Ensure priority is never null
         is_active: cat.is_active !== false, // Ensure boolean value
       };
 

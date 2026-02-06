@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -26,6 +27,7 @@ import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 export function GeneralSettings() {
     const { userData, setState } = useAuthStore();
     const [isSaving, setIsSaving] = useState(false);
+    const [storeName, setStoreName] = useState("");
     const [description, setDescription] = useState("");
     const [phone, setPhone] = useState("");
     const [whatsappNumber, setWhatsappNumber] = useState("");
@@ -48,10 +50,10 @@ export function GeneralSettings() {
 
     useEffect(() => {
         if (userData?.role === "partner") {
+            setStoreName(userData.store_name || "");
             setDescription(userData.description || "");
             setPhone(userData.phone || "");
             setWhatsappNumber(userData.whatsapp_numbers?.[0]?.number || userData.phone || "");
-            setFootNote(userData.footnote || "");
             setFootNote(userData.footnote || "");
             setIsShopOpen(userData.is_shop_open);
             setBannerImage((userData as any).store_banner || null);
@@ -67,6 +69,7 @@ export function GeneralSettings() {
         setIsSaving(true);
         try {
             const updates: any = {
+                store_name: storeName,
                 description,
                 phone,
                 footnote: footNote,
@@ -90,7 +93,7 @@ export function GeneralSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, description, phone, footNote, isShopOpen, whatsappNumber, instaLink, setState]);
+    }, [userData, storeName, description, phone, footNote, isShopOpen, whatsappNumber, instaLink, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -112,6 +115,7 @@ export function GeneralSettings() {
         if (!userData) return;
 
         const data = userData as any;
+        const initialStoreName = data.store_name || "";
         const initialDescription = data.description || "";
         const initialPhone = data.phone || "";
         const initialWhatsapp = data.whatsapp_numbers?.[0]?.number || data.phone || "";
@@ -120,6 +124,7 @@ export function GeneralSettings() {
         const initialInsta = getSocialLinks(userData as HotelData).instagram || "";
 
         const hasChanges =
+            storeName !== initialStoreName ||
             description !== initialDescription ||
             phone !== initialPhone ||
             whatsappNumber !== initialWhatsapp ||
@@ -130,6 +135,7 @@ export function GeneralSettings() {
         setHasChanges(hasChanges);
 
     }, [
+        storeName,
         description,
         phone,
         whatsappNumber,
@@ -291,6 +297,14 @@ export function GeneralSettings() {
                     <CardContent className="space-y-4">
 
                         <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label>Store Name</Label>
+                                <Input
+                                    value={storeName}
+                                    onChange={(e) => setStoreName(e.target.value)}
+                                    placeholder="Store Name"
+                                />
+                            </div>
                             <div className="space-y-2">
                                 <Label>Phone Number</Label>
                                 <Input

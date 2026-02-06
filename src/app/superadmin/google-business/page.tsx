@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, RefreshCw, Terminal, CheckCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { revalidateTag } from '@/app/actions/revalidate';
 
 interface Partner {
   id: string;
@@ -134,6 +135,8 @@ export default function GoogleBusinessPage() {
             }
             
             addLog("Menu is LIVE on Google.");
+            await revalidateTag(partnerId);
+            
         } else {
             addLog("❌ Sync Failed: " + (data.error || "Unknown error"));
         }

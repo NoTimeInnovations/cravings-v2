@@ -112,24 +112,25 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
                     <Accordion type="multiple" className="space-y-4">
                         {filteredData.map(({ category, items }) => (
                             <AccordionItem key={category.id} value={category.id} className="border rounded-lg bg-card px-4">
-                                <AccordionTrigger className="hover:no-underline py-4">
+                                <AccordionTrigger
+                                    className="hover:no-underline py-4"
+                                    extraAction={
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm text-muted-foreground hidden sm:inline font-normal">
+                                                {category.is_active ? "Active" : "Inactive"}
+                                            </span>
+                                            <Switch
+                                                checked={category.is_active}
+                                                onCheckedChange={() => handleCategoryToggle(category)}
+                                            />
+                                        </div>
+                                    }
+                                >
                                     <div className="flex items-center gap-3 text-left flex-1 min-w-0">
                                         <h3 className="text-base sm:text-lg font-semibold capitalize truncate max-w-[120px] sm:max-w-none">{formatDisplayName(category.name)}</h3>
                                         <span className="text-xs sm:text-sm font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full flex-shrink-0">
                                             {items.length} items
                                         </span>
-                                    </div>
-                                    <div
-                                        className="flex items-center gap-2 mr-4"
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        <span className="text-sm text-muted-foreground hidden sm:inline font-normal">
-                                            {category.is_active ? "Active" : "Inactive"}
-                                        </span>
-                                        <Switch
-                                            checked={category.is_active}
-                                            onCheckedChange={() => handleCategoryToggle(category)}
-                                        />
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent>
