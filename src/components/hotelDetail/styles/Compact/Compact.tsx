@@ -922,7 +922,7 @@ const Compact = ({
                 <Button
                   onClick={handleSaveTheme}
                   disabled={isSavingTheme}
-                  className="w-full h-12 text-base rounded-full bg-green-600 hover:bg-green-700 shadow-xl"
+                  className="w-full h-12 text-base rounded-full bg-green-600 z-[202] hover:bg-green-700 shadow-xl"
                 >
                   {isSavingTheme ? (
                     <Loader2 className="animate-spin mr-2" />
@@ -934,7 +934,9 @@ const Compact = ({
               </div>
             )}
 
+            {/* Only show 'Login as user' if theme customizer is NOT open */}
             {auth?.role === "partner" &&
+              !showThemeCustomizer &&
               ((tableNumber !== 0 &&
                 getFeatures(hoteldata?.feature_flags || "")
                   ?.ordering.enabled) ||

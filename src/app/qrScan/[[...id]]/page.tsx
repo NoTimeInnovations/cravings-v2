@@ -83,15 +83,13 @@ export async function generateMetadata({
     icons: [storeBanner],
     description:
       hotel.description ||
-      "Welcome to " + hotel.store_name + "! Enjoy a comfortable stay with us.",
+      `View the digital menu of ${hotel.store_name}, browse items, and place orders.`,
     openGraph: {
       images: [storeBanner],
       title: hotel.store_name,
       description:
         hotel.description ||
-        "Welcome to " +
-        hotel.store_name +
-        "! Enjoy a comfortable stay with us.",
+        `View the digital menu of ${hotel.store_name}, browse items, and place orders.`,
     },
   };
 }
