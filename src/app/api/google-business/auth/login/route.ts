@@ -4,6 +4,7 @@ import { google } from 'googleapis';
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const partnerId = searchParams.get('partnerId');
+  const redirect = searchParams.get('redirect');
 
   if (!partnerId) {
     return NextResponse.json({ error: 'Partner ID required' }, { status: 400 });
@@ -25,11 +26,14 @@ export async function GET(request: NextRequest) {
     'https://www.googleapis.com/auth/userinfo.email'
   ];
 
+  // Encode state
+  const state = JSON.stringify({ partnerId, redirect });
+
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes,
     prompt: 'consent',
-    state: partnerId // Pass partnerId here
+    state: state
   });
 
   return NextResponse.redirect(url);

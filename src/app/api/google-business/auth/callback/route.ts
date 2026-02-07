@@ -31,7 +31,21 @@ export async function GET(request: NextRequest) {
     console.log('Refresh Token:', tokens.refresh_token ? 'Received ✅' : 'Missing ❌');
     console.log('Expiry:', tokens.expiry_date);
 
-    const partnerId = searchParams.get('state'); // OAuth2 state param = partnerId
+    // Parse state
+    const state = searchParams.get('state'); 
+    let partnerId = state;
+    let redirectUrl = null;
+
+    try {
+        if (state && (state.startsWith('{') || state.includes('partnerId'))) {
+            const parsed = JSON.parse(state);
+            partnerId = parsed.partnerId;
+            redirectUrl = parsed.redirect;
+        }
+    } catch (e) {
+        // Fallback to raw state if parsing fails (legacy support)
+        partnerId = state;
+    }
 
     if (partnerId) {
       await saveTokensToHasura({
@@ -43,15 +57,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Save locally for dev testing
-    if (process.env.NODE_ENV === 'development') {
-      try {
-        const tokensPath = path.join(process.cwd(), 'google_tokens.json');
-        await fs.writeFile(tokensPath, JSON.stringify(tokens, null, 2));
-        console.log('Tokens saved to google_tokens.json');
-      } catch (err) {
-        console.error('Failed to save local tokens', err);
-      }
+    // Redirect back to app if redirect URL is present
+    if (redirectUrl) {
+        const protocol = request.headers.get('x-forwarded-proto') || 'https';
+        const host = request.headers.get('host');
+        // Decode if needed, but it should be a path
+        const decodedRedirect = decodeURIComponent(redirectUrl);
+        return NextResponse.redirect(`${protocol}://${host}${decodedRedirect}`);
     }
 
     return NextResponse.json({

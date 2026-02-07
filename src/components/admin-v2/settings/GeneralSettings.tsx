@@ -48,6 +48,12 @@ export function GeneralSettings() {
     const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
     const [selectedImageUrl, setSelectedImageUrl] = useState<string>("");
 
+    // Google Business State
+    const [googleConnected, setGoogleConnected] = useState(false);
+    const [googleLocations, setGoogleLocations] = useState<any[]>([]);
+    const [selectedGoogleLocation, setSelectedGoogleLocation] = useState("");
+    const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
     useEffect(() => {
         if (userData?.role === "partner") {
             setStoreName(userData.store_name || "");
@@ -58,11 +64,63 @@ export function GeneralSettings() {
             setIsShopOpen(userData.is_shop_open);
             setBannerImage((userData as any).store_banner || null);
 
+            // Check Google Connection
+            checkGoogleConnection(userData.id);
 
             const socialLinks = getSocialLinks(userData as HotelData);
             setInstaLink(socialLinks.instagram || "");
         }
     }, [userData]);
+
+    const checkGoogleConnection = async (partnerId: string) => {
+        setIsGoogleLoading(true);
+        try {
+            // Try to fetch locations. If it fails with "Partner not connected" (404), then not connected.
+            // Note: locations route might return empty array if connected but no locations.
+            const res = await fetch(`/api/google-business/locations?partnerId=${partnerId}`);
+            const data = await res.json();
+            
+            if (res.ok && data.success) {
+                setGoogleConnected(true);
+                setGoogleLocations(data.locations || []);
+            } else {
+                setGoogleConnected(false);
+            }
+        } catch (e) {
+            setGoogleConnected(false);
+        } finally {
+            setIsGoogleLoading(false);
+        }
+    };
+
+    const handleGoogleLogin = () => {
+        if (!userData) return;
+        // Redirect to auth with return url back to settings
+        const redirect = encodeURIComponent(window.location.pathname);
+        window.location.href = `/api/google-business/auth/login?partnerId=${userData.id}&redirect=${redirect}`;
+    };
+
+    const handleSendInvite = async () => {
+        if (!selectedGoogleLocation || !userData) return;
+        setIsGoogleLoading(true);
+        try {
+            const res = await fetch('/api/google-business/invite-manager', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ partnerId: userData.id, locationId: selectedGoogleLocation })
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success("Request sent successfully! Our team will accept it shortly.");
+            } else {
+                toast.error("Failed to send request: " + data.error);
+            }
+        } catch (e) {
+            toast.error("Request failed");
+        } finally {
+            setIsGoogleLoading(false);
+        }
+    };
 
     const handleSaveGeneral = useCallback(async () => {
         if (!userData) return;
@@ -331,6 +389,53 @@ export function GeneralSettings() {
                             />
                         </div>
 
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Google Business Profile</CardTitle>
+                        <CardDescription>Connect your Google Business Profile to sync your menu and orders.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {!googleConnected ? (
+                            <div className="flex flex-col gap-4">
+                                <p className="text-sm text-muted-foreground">Link your Google account to allow Cravings to manage your menu automatically.</p>
+                                <Button onClick={handleGoogleLogin} className="w-full sm:w-auto">
+                                    {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Link Business Profile
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Select Your Restaurant Location</Label>
+                                    <Select value={selectedGoogleLocation} onValueChange={setSelectedGoogleLocation}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select location..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {googleLocations.map((loc: any) => (
+                                                <SelectItem key={loc.name} value={loc.name}>
+                                                    {loc.title} ({loc.storeCode || 'No Code'})
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <Button 
+                                    onClick={handleSendInvite} 
+                                    disabled={!selectedGoogleLocation || isGoogleLoading}
+                                    className="w-full sm:w-auto"
+                                >
+                                    {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Request Management Access
+                                </Button>
+                                <p className="text-xs text-muted-foreground">
+                                    This will send an invitation to your Google Business Profile. Once you approve it, we can sync your menu.
+                                </p>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
