@@ -229,9 +229,16 @@ const Compact = ({
 
   // Memoize the category list to prevent re-creation on every render
   const allCategories = useMemo(() => {
-    const cats = [...categories];
+    let cats = [...categories];
 
     if (hasOffers) {
+      // If we have dynamic offers, remove any manual "Offer/Offers" category to avoid duplicates
+      // We prioritize the dynamic one because it contains the actual discounted items logic.
+      cats = cats.filter(c => {
+          const name = c.name.toLowerCase().trim();
+          return name !== 'offer' && name !== 'offers';
+      });
+
       cats.push({
         id: "offers",
         name: "Offers",
