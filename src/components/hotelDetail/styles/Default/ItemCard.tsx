@@ -347,7 +347,7 @@ const ItemCard = ({
               <div className="w-[100px] h-[100px] relative rounded-3xl overflow-hidden flex-shrink-0">
                 <Img
                   src={item.image_url.replace("+", "%2B")}
-                  alt={item.name}
+                  alt={`Best ${item.name} in ${hotelData?.location_details || hotelData?.district || hotelData?.country || 'town'}`}
                   className={`object-cover w-full h-full ${!isOrderable ? "grayscale" : ""
                     }`}
                 />

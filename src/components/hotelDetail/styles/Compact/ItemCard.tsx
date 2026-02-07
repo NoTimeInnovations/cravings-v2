@@ -392,7 +392,7 @@ const ItemCard = ({
             <div className="overflow-hidden aspect-square h-28 rounded-3xl">
               <img
                 src={item.image_url || "/image_placeholder.png"}
-                alt={item.name}
+                alt={`Best ${item.name} in ${hoteldata.location_details || hoteldata.district || hoteldata.country || 'town'}`}
                 className={`w-full h-full object-cover ${!item.image_url ? "invert opacity-50" : ""
                   } ${!item.is_available || isOutOfStock ? "grayscale" : ""}`}
               />

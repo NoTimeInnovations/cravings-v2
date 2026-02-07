@@ -52,6 +52,13 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
   const [menuImageFiles, setMenuImageFiles] = useState<File[]>([]);
   const [menuImagePreviews, setMenuImagePreviews] = useState<string[]>([]);
 
+  // Sync previews with files
+  useEffect(() => {
+      const newPreviews = menuImageFiles.map(file => URL.createObjectURL(file));
+      setMenuImagePreviews(newPreviews);
+      return () => newPreviews.forEach(url => URL.revokeObjectURL(url));
+  }, [menuImageFiles]);
+
   const validateMenuItem = (item: MenuItem) => {
     if (!item.name || typeof item.name !== "string") {
       throw new Error("Name is required and must be a string");
@@ -516,7 +523,7 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
     }
   };
 
-  const handleExtractMenuItemsFromImage = async (retryCount = 0) => {
+  const handleExtractMenuItemsFromImage = async (retryCount = 0, extraPrompt = "") => {
     try {
       toast.loading(
         retryCount > 0
@@ -557,6 +564,7 @@ export const useBulkUpload = (props?: UseBulkUploadProps) => {
       });
 
       const prompt = `Extract each distinct dish as a separate item from the provided images. 
+${extraPrompt ? `Extra Context: ${extraPrompt}\n` : ''}
 A 'variant' applies *only* to different sizes (e.g., Quarter, Half, Full, Small, Large, Regular) or quantities of the *same specific menu item*. 
 If a menu item does not have these explicit size/quantity options, it should *not* have a 'variants' field. 
 For example, 'Fresh Lime' and 'Mint Lime' are separate items, not variants of a general 'Lime Juice'.
@@ -621,7 +629,7 @@ Variants:
         await new Promise((resolve) =>
           setTimeout(resolve, RETRY_DELAY_MS * (retryCount + 1))
         );
-        return handleExtractMenuItemsFromImage(retryCount + 1);
+        return handleExtractMenuItemsFromImage(retryCount + 1, extraPrompt);
       }
 
       const errorMsg =

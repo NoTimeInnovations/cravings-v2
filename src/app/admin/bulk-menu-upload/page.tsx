@@ -57,6 +57,7 @@ const BulkUploadPage = () => {
   const [processingProgress, setProcessingProgress] = useState({ current: 0, total: 0 });
   const [isPolling, setIsPolling] = useState(false);
   const [allowZeroPrice, setAllowZeroPrice] = useState(false);
+  const [extraPrompt, setExtraPrompt] = useState("");
 
   const {
     loading,
@@ -89,6 +90,7 @@ const BulkUploadPage = () => {
     isExtractingMenu,
     setIsExtractingMenu,
     menuImageFiles,
+    setMenuImageFiles, // Destructure this
     extractedMenuItems,
     handleExtractMenuItemsFromImage,
   } = useBulkUpload({
@@ -98,6 +100,31 @@ const BulkUploadPage = () => {
     },
     allowZeroPrice,
   });
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (inputMode !== 'image') return;
+      
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const newFiles: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1 || items[i].type === 'application/pdf') {
+          const file = items[i].getAsFile();
+          if (file) newFiles.push(file);
+        }
+      }
+
+      if (newFiles.length > 0) {
+        setMenuImageFiles([...menuImageFiles, ...newFiles]);
+        toast.success(`Pasted ${newFiles.length} file(s)`);
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [inputMode, menuImageFiles, setMenuImageFiles]);
 
   const pollForResults = async (itemsToProcess: any[]) => {
     const pollInterval = 2000; // 2 seconds
@@ -626,7 +653,12 @@ const BulkUploadPage = () => {
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-2xl font-bold text-gray-900">Bulk Menu Upload</h1>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Bulk Menu Upload</h1>
+              {(userData as any)?.store_name && (
+                <p className="text-lg text-gray-600 mt-1">for <span className="font-bold text-orange-700 text-xl">{(userData as any).store_name}</span></p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -704,7 +736,7 @@ const BulkUploadPage = () => {
                       <div className="flex items-center gap-3 p-2 text-green-700">
                         <ImageIcon className="h-10 w-10" />
                         <span className="font-semibold">
-                          {menuImagePreviews.length} image
+                          {menuImagePreviews.length} file
                           {menuImagePreviews.length > 1 ? "s" : ""} selected
                         </span>
                       </div>
@@ -714,20 +746,32 @@ const BulkUploadPage = () => {
                         <span className="font-semibold mt-2 block">
                           Click to upload menu pages
                         </span>
-                        <span className="text-xs">PNG, JPG, or WEBP</span>
+                        <span className="text-xs">PNG, JPG, WEBP, or PDF</span>
                       </div>
                     )}
                     <input
                       type="file"
                       id="menuImagesInput"
-                      accept="image/*"
+                      accept="image/*,application/pdf"
                       multiple
                       onChange={handleMenuImagesChange}
                       className="hidden"
                     />
                   </label>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="extraPrompt" className="text-sm font-medium text-gray-700">Extra AI Prompt (Optional)</Label>
+                    <Textarea
+                      id="extraPrompt"
+                      placeholder="E.g., Treat 'Loaded Fries' as a category, not an item. Ignore drinks."
+                      value={extraPrompt}
+                      onChange={(e) => setExtraPrompt(e.target.value)}
+                      className="min-h-[80px] text-sm bg-white"
+                    />
+                  </div>
+
                   <Button
-                    onClick={() => handleExtractMenuItemsFromImage(0)}
+                    onClick={() => handleExtractMenuItemsFromImage(0, extraPrompt)}
                     disabled={isExtractingMenu || menuImageFiles.length === 0}
                     className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-base"
                   >
