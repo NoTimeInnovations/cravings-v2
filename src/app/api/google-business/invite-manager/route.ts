@@ -26,17 +26,17 @@ export async function POST(request: NextRequest) {
 
     // 2. Resolve Account ID (Partner's Account)
     const accountManagement = google.mybusinessaccountmanagement({ version: 'v1', auth });
-    
+
     // We need the Account Name that owns the location.
     // Usually it's the parent in the locationId? 
     // Location ID format: accounts/{accountId}/locations/{id}
     // If the frontend sends the full resource name "accounts/123/locations/456", we can parse it.
-    
+
     let parentPath = locationId;
     if (!locationId.includes('accounts/')) {
-        // If we only got the ID, we need to find the account.
-        // Let's assume the frontend sends the full resource name from the locations list.
-        return NextResponse.json({ error: 'Invalid Location ID format. Expected full resource name.' }, { status: 400 });
+      // If we only got the ID, we need to find the account.
+      // Let's assume the frontend sends the full resource name from the locations list.
+      return NextResponse.json({ error: 'Invalid Location ID format. Expected full resource name.' }, { status: 400 });
     }
 
     // 3. Send Invite
@@ -46,12 +46,12 @@ export async function POST(request: NextRequest) {
 
     console.log(`Inviting ${CRAVINGS_ACCOUNT} to manage ${locationId}`);
 
-    const res = await accountManagement.accounts.locations.admins.create({
-        parent: locationId,
-        requestBody: {
-            admin: CRAVINGS_ACCOUNT,
-            role: 'MANAGER' // or ADMIN
-        }
+    const res = await accountManagement.locations.admins.create({
+      parent: locationId,
+      requestBody: {
+        admin: CRAVINGS_ACCOUNT,
+        role: 'MANAGER' // or ADMIN
+      }
     });
 
     return NextResponse.json({
