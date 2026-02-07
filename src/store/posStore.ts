@@ -787,7 +787,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         };
 
         try {
-          const response = await fetch("https://pp.cravings.live/api/webhook/push-order", {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_PETPOOJA_BACKEND_URL}/api/webhook/push-order`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
