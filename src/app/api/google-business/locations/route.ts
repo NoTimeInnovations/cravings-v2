@@ -4,23 +4,26 @@ import { google } from 'googleapis';
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const partnerId = searchParams.get('partnerId');
+  const mode = searchParams.get('mode'); // 'partner' or default
 
   if (!partnerId) {
     return NextResponse.json({ error: 'Partner ID required' }, { status: 400 });
   }
 
   try {
-    // 1. Fetch tokens (Fallback to Master Account if partner not connected)
+    // 1. Fetch tokens (Fallback to Master Account if partner not connected AND mode is not 'partner')
     const MASTER_PARTNER_ID = '20f7e974-f19e-4c11-b6b7-4385f61f27bf'; // Thrisha/MenuThere
     
     let tokens = await getTokensFromHasura(partnerId);
-    if (!tokens) {
+    
+    // Fallback Logic
+    if (!tokens && mode !== 'partner') {
         console.log(`No tokens for partner ${partnerId}, falling back to Master Account tokens for listing locations.`);
         tokens = await getTokensFromHasura(MASTER_PARTNER_ID);
     }
 
     if (!tokens) {
-      return NextResponse.json({ error: 'No Google connection found (neither Partner nor Master)' }, { status: 404 });
+      return NextResponse.json({ error: 'Partner not connected to Google' }, { status: 404 });
     }
 
     // REAL API (Quota Unlocked!)

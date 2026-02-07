@@ -52,7 +52,9 @@ export function GeneralSettings() {
     const [googleConnected, setGoogleConnected] = useState(false);
     const [googleLocations, setGoogleLocations] = useState<any[]>([]);
     const [selectedGoogleLocation, setSelectedGoogleLocation] = useState("");
+    const [linkedLocationId, setLinkedLocationId] = useState<string | null>(null);
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+    const [isSyncingMenu, setIsSyncingMenu] = useState(false);
 
     useEffect(() => {
         if (userData?.role === "partner") {
@@ -75,14 +77,16 @@ export function GeneralSettings() {
     const checkGoogleConnection = async (partnerId: string) => {
         setIsGoogleLoading(true);
         try {
-            // Try to fetch locations. If it fails with "Partner not connected" (404), then not connected.
-            // Note: locations route might return empty array if connected but no locations.
-            const res = await fetch(`/api/google-business/locations?partnerId=${partnerId}`);
+            // Try to fetch locations using partner's own tokens (mode=partner)
+            const res = await fetch(`/api/google-business/locations?partnerId=${partnerId}&mode=partner`);
             const data = await res.json();
             
             if (res.ok && data.success) {
                 setGoogleConnected(true);
                 setGoogleLocations(data.locations || []);
+                if (data.linkedLocationId) {
+                    setLinkedLocationId(data.linkedLocationId);
+                }
             } else {
                 setGoogleConnected(false);
             }
@@ -119,6 +123,44 @@ export function GeneralSettings() {
             toast.error("Request failed");
         } finally {
             setIsGoogleLoading(false);
+        }
+    };
+    
+    const handleSyncMenu = async () => {
+        if (!userData || !linkedLocationId) return;
+        
+        // Rate limit check
+        const lastSync = localStorage.getItem(`google_sync_${userData.id}`);
+        const today = new Date().toDateString();
+        if (lastSync === today) {
+            toast.info("You can only sync to Google once per day.");
+            return;
+        }
+
+        if (!confirm("Sync menu to Google? This will overwrite your Google Menu.")) return;
+        
+        setIsSyncingMenu(true);
+        const toastId = toast.loading("Syncing menu...");
+        
+        try {
+            const res = await fetch('/api/google-business/menu/push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ partnerId: userData.id, locationId: 'auto' })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                localStorage.setItem(`google_sync_${userData.id}`, today);
+                toast.success("Menu synced successfully!");
+            } else {
+                toast.error("Sync failed: " + data.error);
+            }
+        } catch (e) {
+            toast.error("Sync failed");
+        } finally {
+            setIsSyncingMenu(false);
+            toast.dismiss(toastId);
         }
     };
 
@@ -406,6 +448,26 @@ export function GeneralSettings() {
                                     Link Business Profile
                                 </Button>
                             </div>
+                        ) : linkedLocationId ? (
+                            <div className="space-y-4">
+                                <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+                                    <div className="bg-green-100 p-2 rounded-full">
+                                        <Img src="https://www.gstatic.com/images/branding/product/1x/google_my_business_48dp.png" alt="GMB" className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-green-800">Connected & Linked</p>
+                                        <p className="text-sm text-green-700">Your restaurant is linked. Menu sync is active.</p>
+                                    </div>
+                                </div>
+                                <Button 
+                                    onClick={handleSyncMenu} 
+                                    disabled={isSyncingMenu}
+                                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+                                >
+                                    {isSyncingMenu ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                                    Sync Menu Now
+                                </Button>
+                            </div>
                         ) : (
                             <div className="space-y-4">
                                 <div className="space-y-2">
@@ -432,7 +494,7 @@ export function GeneralSettings() {
                                     Request Management Access
                                 </Button>
                                 <p className="text-xs text-muted-foreground">
-                                    This will send an invitation to your Google Business Profile. Once you approve it, we can sync your menu.
+                                    This will send an invitation to your Google Business Profile. Once you (Admin) accept it, we will link your menu.
                                 </p>
                             </div>
                         )}
