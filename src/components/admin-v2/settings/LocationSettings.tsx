@@ -14,9 +14,11 @@ import { revalidateTag } from "@/app/actions/revalidate";
 import { Loader2, MapPin, Save } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+// import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLocationStore } from "@/store/geolocationStore";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
+import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
+import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
@@ -34,7 +36,8 @@ export function LocationSettings() {
     const [mapDialogOpen, setMapDialogOpen] = useState(false);
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
-    const [marker, setMarker] = useState<mapboxgl.Marker | null>(null);
+    // Use ref for marker to avoid stale closures in event listeners
+    const markerRef = useRef<mapboxgl.Marker | null>(null);
     const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
 
     useEffect(() => {
@@ -49,9 +52,32 @@ export function LocationSettings() {
         }
     }, [userData]);
 
-    // Initialize Map
+    // Initialize Map - use ResizeObserver to wait for container to have dimensions
     useEffect(() => {
-        if (mapDialogOpen && mapContainer.current && !map.current) {
+        // If not open, just return (but don't destroy map if it exists)
+        if (!mapDialogOpen) return;
+
+        // If map already exists, just resize it to be safe
+        if (map.current) {
+            map.current.resize();
+            return;
+        }
+
+        let resizeObserver: ResizeObserver | null = null;
+        let initialized = false;
+
+        const initMap = () => {
+            if (initialized || !mapContainer.current) return;
+
+            const rect = mapContainer.current.getBoundingClientRect();
+            // If hidden or 0 size, we can't init yet
+            if (rect.width === 0 || rect.height === 0) return;
+
+            initialized = true;
+
+            // Double check existing map
+            if (map.current) return;
+
             map.current = new mapboxgl.Map({
                 container: mapContainer.current,
                 style: "mapbox://styles/mapbox/streets-v12",
@@ -62,30 +88,82 @@ export function LocationSettings() {
                 zoom: 14,
             });
 
+            // Add Geocoder
+            const geocoder = new MapboxGeocoder({
+                accessToken: mapboxgl.accessToken,
+                mapboxgl: mapboxgl,
+                marker: false, // We handle the marker ourselves
+                collapsed: false,
+                types: 'country,region,postcode,district,place,locality,neighborhood,address,poi',
+                limit: 10,
+            });
+            map.current.addControl(geocoder);
+
+            geocoder.on('result', (e: any) => {
+                const coords = e.result.geometry.coordinates;
+                const lng = coords[0];
+                const lat = coords[1];
+
+                if (markerRef.current) markerRef.current.remove();
+
+                const newMarker = new mapboxgl.Marker()
+                    .setLngLat([lng, lat])
+                    .addTo(map.current!);
+                markerRef.current = newMarker;
+
+                setSelectedLocation({ lat, lng });
+            });
+
+
             if (geoLocation.latitude && geoLocation.longitude) {
                 const newMarker = new mapboxgl.Marker()
                     .setLngLat([geoLocation.longitude, geoLocation.latitude])
                     .addTo(map.current);
-                setMarker(newMarker);
+                markerRef.current = newMarker;
             }
 
             map.current.on("click", (e) => {
-                if (marker) marker.remove();
+                if (markerRef.current) markerRef.current.remove();
                 const newMarker = new mapboxgl.Marker()
                     .setLngLat(e.lngLat)
                     .addTo(map.current!);
-                setMarker(newMarker);
+                markerRef.current = newMarker;
                 setSelectedLocation({ lat: e.lngLat.lat, lng: e.lngLat.lng });
             });
+
+            // Once initialized, we can trigger a resize just in case
+            map.current.resize();
+
+            // Stop observing once initialized
+            if (resizeObserver) {
+                resizeObserver.disconnect();
+            }
+        };
+
+        if (mapContainer.current) {
+            // Try to init immediately
+            initMap();
+
+            // If not initialized, observe for size changes
+            if (!initialized) {
+                resizeObserver = new ResizeObserver(() => {
+                    initMap();
+                });
+                resizeObserver.observe(mapContainer.current);
+            }
         }
 
         return () => {
-            if (!mapDialogOpen && map.current) {
-                map.current.remove();
-                map.current = null;
+            if (resizeObserver) {
+                resizeObserver.disconnect();
             }
+            // We do NOT destroy the map on unmount of the effect here, 
+            // because we want to keep it alive while the component is mounted.
+            // Only destroy if the component really unmounts (handled by a separate cleanup effect if needed, 
+            // or we just let it be GC'd with the ref)
         };
-    }, [mapDialogOpen, geoLocation]); // Removed marker from dependency to avoid loop
+    }, [mapDialogOpen, geoLocation.latitude, geoLocation.longitude]); // Re-run when dialog opens to trigger resize loop check
+    // Added geoLocation deps so initial center is correct if opened after loc fetch
 
     const handleSaveLocation = useCallback(async () => {
         if (!userData) return;
@@ -179,11 +257,11 @@ export function LocationSettings() {
                 // Update map if open
                 if (map.current) {
                     map.current.flyTo({ center: [coords.lng, coords.lat], zoom: 14 });
-                    if (marker) marker.remove();
+                    if (markerRef.current) markerRef.current.remove();
                     const newMarker = new mapboxgl.Marker()
                         .setLngLat([coords.lng, coords.lat])
                         .addTo(map.current);
-                    setMarker(newMarker);
+                    markerRef.current = newMarker;
                 }
                 toast.success("Location fetched");
             }
@@ -271,20 +349,40 @@ export function LocationSettings() {
 
 
 
-            <Dialog open={mapDialogOpen} onOpenChange={setMapDialogOpen}>
+            {/* <Dialog open={mapDialogOpen} onOpenChange={setMapDialogOpen}>
                 <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
                     <DialogHeader>
                         <DialogTitle>Select Location</DialogTitle>
                     </DialogHeader>
-                    <div className="flex-1 relative rounded-md overflow-hidden border">
-                        <div ref={mapContainer} className="absolute inset-0" />
+                    <div className="flex-1 min-h-0 relative rounded-md overflow-hidden border" style={{ minHeight: '400px' }}>
+                        <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
                     </div>
                     <div className="flex justify-end gap-2 pt-4">
                         <Button variant="outline" onClick={() => setMapDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleMapSave} disabled={!selectedLocation}>Set Location</Button>
                     </div>
                 </DialogContent>
-            </Dialog>
+            </Dialog> */}
+
+            {/* Custom Modal using CSS display */}
+            <div className={`fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 transition-all duration-200 ${mapDialogOpen ? "flex" : "hidden"}`}>
+                <div className="bg-background w-full max-w-4xl h-[80vh] flex flex-col rounded-lg border shadow-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                    <div className="p-6 pb-4 border-b">
+                        <h2 className="text-lg font-semibold leading-none tracking-tight">Select Location</h2>
+                    </div>
+
+                    <div className="flex-1 min-h-0 relative bg-muted/20">
+                        {/* Map Container */}
+                        <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
+                    </div>
+
+                    <div className="p-4 border-t flex justify-end gap-2 bg-background">
+                        <Button variant="outline" onClick={() => setMapDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleMapSave} disabled={!selectedLocation}>Set Location</Button>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }
+
