@@ -59,13 +59,14 @@ export async function proxy(request: NextRequest) {
   }
 
   // Try to decrypt token early for captain guard
-  let decrypted: { id: string; role: string; status?: string } | undefined;
+  let decrypted: { id: string; role: string; status?: string; hasSubscription?: boolean } | undefined;
   if (authToken) {
     try {
       decrypted = decryptText(authToken) as {
         id: string;
         role: string;
         status?: string;
+        hasSubscription?: boolean;
       };
     } catch (e) { }
   }
@@ -128,13 +129,14 @@ export async function proxy(request: NextRequest) {
 
 
     try {
-      let decrypted: { id: string; role: string; status?: string } | undefined;
+      let decrypted: { id: string; role: string; status?: string; hasSubscription?: boolean } | undefined;
 
       if (authToken) {
         decrypted = decryptText(authToken) as {
           id: string;
           role: string;
           status?: string;
+          hasSubscription?: boolean;
         };
       }
 
@@ -143,9 +145,10 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL("/superadmin", request.url));
       }
 
-      // Partner redirects to /admin
+      // Partner redirects to /admin or /admin-v2 based on subscription
       if (decrypted?.role === "partner") {
-        return NextResponse.redirect(new URL("/admin", request.url));
+        const redirectPath = decrypted?.hasSubscription ? "/admin-v2" : "/admin";
+        return NextResponse.redirect(new URL(redirectPath, request.url));
       }
 
       // User redirects to /explore
@@ -235,6 +238,7 @@ export async function proxy(request: NextRequest) {
   // Allowed routes for inactive partners (exact matches only)
   const inactivePartnerAllowedRoutes = [
     "/admin", // Only exact match, not /admin/*
+    "/admin-v2", // Allow admin-v2 for partners with subscription_details
     "/profile",
     "/offers",
     "/explore",
@@ -274,6 +278,7 @@ export async function proxy(request: NextRequest) {
       id: string;
       role: string;
       status?: string;
+      hasSubscription?: boolean;
     };
 
     if (!decrypted?.id || !decrypted?.role) {

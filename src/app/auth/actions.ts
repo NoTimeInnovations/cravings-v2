@@ -13,6 +13,7 @@ export const getAuthCookie = async () => {
       role: string;
       feature_flags: string;
       status: string;
+      hasSubscription?: boolean;
     })
     : null;
 };
@@ -22,6 +23,7 @@ export const setAuthCookie = async (data: {
   role: string;
   feature_flags: string;
   status: string;
+  hasSubscription?: boolean;
 }) => {
   const encrypted = encryptText(data);
   (await cookies()).set("new_auth_token", encrypted, {
@@ -47,6 +49,7 @@ export const updateAuthCookie = async (
     role: string;
     feature_flags: string;
     status: string;
+    hasSubscription?: boolean;
   }>
 ) => {
   const currentCookie = await getAuthCookie();

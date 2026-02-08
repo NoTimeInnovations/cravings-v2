@@ -390,6 +390,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         role: "partner",
         feature_flags: newPartner.feature_flags || "",
         status: "inactive",
+        hasSubscription: !!newPartner.subscription_details,
       });
       set({
         userData: { ...newPartner, role: "partner" },
@@ -418,6 +419,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         role: "partner",
         feature_flags: partner.feature_flags || "",
         status: partner.status || "inactive",
+        hasSubscription: !!partner.subscription_details,
       });
       localStorage?.setItem("userId", partner.id);
       set({
