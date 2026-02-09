@@ -20,6 +20,14 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+interface Feature {
+    title: string;
+    description: string;
+    list: string[];
+    image: string;
+    imagePosition?: "left" | "right";
+}
+
 export default async function AgenciesPage() {
   const headersList = await headers();
   const host = headersList.get("host");
@@ -32,8 +40,9 @@ export default async function AgenciesPage() {
     subheadline: agenciesData.hero.subheadline.replace(/MenuThere/g, appName),
   };
 
-  const dynamicFeatures = agenciesData.features.map(f => ({
+  const dynamicFeatures: Feature[] = agenciesData.features.map(f => ({
     ...f,
+    imagePosition: f.imagePosition as "left" | "right",
     description: f.description.replace(/MenuThere/g, appName)
   }));
 

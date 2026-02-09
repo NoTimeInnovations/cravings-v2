@@ -991,4 +991,309 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     ],
 
     relatedSolutions: ["restaurants", "hotels", "bakeries"]
-  },
+  }
+};
+
+interface SolutionData {
+  slug: string;
+  title: string;
+  metaTitle: string;
+  metaDescription: string;
+  keywords: string;
+  icon: any;
+  color: string;
+  heroImage: string;
+  headline: string;
+  subheadline: string;
+  introduction: string;
+  benefits: Array<{ icon: any; title: string; description: string }>;
+  features: string[];
+  useCases: Array<{ title: string; description: string }>;
+  stats: Array<{ value: string; label: string }>;
+  testimonial: { quote: string; author: string; role: string; location: string };
+  faq: Array<{ question: string; answer: string }>;
+  relatedSolutions: string[];
+}
+
+// Generate static params for all solutions
+export function generateStaticParams() {
+  return Object.keys(SOLUTIONS_DATA).map((slug) => ({ slug }));
+}
+
+// Generate metadata for each solution
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const solution = SOLUTIONS_DATA[slug];
+  if (!solution) return { title: "Solution Not Found" };
+
+  return {
+    title: solution.metaTitle,
+    description: solution.metaDescription,
+    keywords: solution.keywords,
+    openGraph: {
+      title: solution.metaTitle,
+      description: solution.metaDescription,
+      type: "website",
+      url: `https://www.cravings.live/solutions/${solution.slug}`,
+    },
+  };
+}
+
+export default async function SolutionPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const solution = SOLUTIONS_DATA[slug];
+  
+  if (!solution) {
+    notFound();
+  }
+
+  const headersList = await headers();
+  const host = headersList.get("host");
+  const config = getDomainConfig(host);
+  const appName = config.name;
+
+  const IconComponent = solution.icon;
+
+  return (
+    <main className="min-h-screen bg-[#f4e5d5] relative">
+      {/* Grid Background */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] bg-[size:4rem_4rem]" />
+      
+      {/* Hero Section */}
+      <section className="relative pt-32 pb-20 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 relative">
+          <div className="max-w-4xl">
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${solution.color} text-white text-sm font-medium mb-6`}>
+              <IconComponent className="w-4 h-4" />
+              {solution.title}
+            </div>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-6">
+              {solution.headline}
+            </h1>
+            <p className="text-xl text-gray-600 leading-relaxed mb-8 max-w-3xl">
+              {solution.subheadline}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link
+                href="/get-started"
+                className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-[#e65a22] rounded-xl hover:bg-[#d14d1a] hover:shadow-lg transition-all duration-300"
+              >
+                Get Started Free
+                <ArrowRight className="ml-2 w-5 h-5" />
+              </Link>
+              <Link
+                href="https://cal.id/cravings"
+                className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-gray-900 bg-white border-2 border-gray-200 rounded-xl hover:border-[#e65a22] hover:text-[#e65a22] transition-all duration-300"
+              >
+                Book a Demo
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Bar */}
+      <section className={`py-8 ${solution.color}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-white text-center">
+            {solution.stats.map((stat, idx) => (
+              <div key={idx}>
+                <div className="text-3xl md:text-4xl font-bold">{stat.value}</div>
+                <div className="text-sm md:text-base opacity-90">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Introduction */}
+      <section className="py-20 bg-white/60 relative">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <div className="prose prose-lg prose-gray max-w-none">
+            {solution.introduction.replace(/\{appName\}/g, appName).split('\n\n').map((paragraph, idx) => (
+              <p key={idx} className="text-gray-600 leading-relaxed text-lg">
+                {paragraph.trim()}
+              </p>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Benefits Grid */}
+      <section className="py-20 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Why Choose {appName} for Your {solution.title.split(' for ')[1] || 'Business'}
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Purpose-built features designed specifically for your industry
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {solution.benefits.map((benefit, idx) => (
+              <div key={idx} className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow border border-gray-100">
+                <div className={`w-12 h-12 rounded-lg ${solution.color} flex items-center justify-center mb-4`}>
+                  <benefit.icon className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-3">{benefit.title}</h3>
+                <p className="text-gray-600 leading-relaxed">{benefit.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features List */}
+      <section className="py-20 bg-white/60 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
+                Everything You Need to Succeed
+              </h2>
+              <p className="text-xl text-gray-600 mb-8">
+                A comprehensive toolkit designed to modernize your menu and delight your customers.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {solution.features.map((feature, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <CheckCircle2 className={`w-5 h-5 flex-shrink-0 text-green-500`} />
+                    <span className="text-gray-700">{feature}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className={`${solution.color} rounded-2xl p-8 text-white shadow-xl`}>
+              <IconComponent className="w-16 h-16 mb-6 opacity-80" />
+              <h3 className="text-2xl font-bold mb-4">Ready to get started?</h3>
+              <p className="text-lg opacity-90 mb-6">
+                Join thousands of businesses already using {appName} to transform their menu experience.
+              </p>
+              <Link
+                href="/get-started"
+                className="inline-flex items-center justify-center px-6 py-3 text-lg font-semibold bg-white text-gray-900 rounded-xl hover:bg-gray-100 transition-colors"
+              >
+                Start Free Trial
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Use Cases */}
+      <section className="py-20 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Perfect For Every Type of {solution.title.split(' for ')[1]?.split(' ')[0] || 'Business'}
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {solution.useCases.map((useCase, idx) => (
+              <div key={idx} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <h3 className="text-xl font-bold text-gray-900 mb-3">{useCase.title}</h3>
+                <p className="text-gray-600 leading-relaxed">{useCase.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonial */}
+      <section className="py-20 bg-white/60 relative">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <div className={`${solution.color} rounded-2xl p-8 md:p-12 text-white shadow-xl`}>
+            <div className="flex gap-1 mb-6">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star key={star} className="w-6 h-6 fill-current" />
+              ))}
+            </div>
+            <blockquote className="text-xl md:text-2xl font-medium leading-relaxed mb-8">
+              "{solution.testimonial.quote.replace(/\{appName\}/g, appName)}"
+            </blockquote>
+            <div>
+              <div className="font-bold text-lg">{solution.testimonial.author}</div>
+              <div className="opacity-80">{solution.testimonial.role}</div>
+              <div className="opacity-60 text-sm">{solution.testimonial.location}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="py-20 relative">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Frequently Asked Questions
+            </h2>
+          </div>
+
+          <div className="space-y-6">
+            {solution.faq.map((item, idx) => (
+              <div key={idx} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <h3 className="text-lg font-bold text-gray-900 mb-3">{item.question}</h3>
+                <p className="text-gray-600 leading-relaxed">{item.answer}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Related Solutions */}
+      <section className="py-20 bg-white/60 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl font-bold text-gray-900">Explore Other Solutions</h2>
+          </div>
+          <div className="flex flex-wrap justify-center gap-4">
+            {solution.relatedSolutions.map((slug) => {
+              const related = SOLUTIONS_DATA[slug];
+              if (!related) return null;
+              const RelatedIcon = related.icon;
+              return (
+                <Link
+                  key={slug}
+                  href={`/solutions/${slug}`}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-white rounded-full hover:bg-gray-50 transition-colors border border-gray-200"
+                >
+                  <RelatedIcon className="w-5 h-5 text-gray-600" />
+                  <span className="font-medium text-gray-900">{related.title.split(' for ')[1]}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-20 bg-[#e65a22] relative">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
+            Ready to Transform Your Menu?
+          </h2>
+          <p className="text-xl text-white/90 mb-8">
+            Join thousands of {solution.title.split(' for ')[1]?.toLowerCase() || 'businesses'} already using {appName}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/get-started"
+              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-[#e65a22] bg-white rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              Start Free Trial
+            </Link>
+            <Link
+              href="/pricing"
+              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white border-2 border-white rounded-xl hover:bg-white/10 transition-colors"
+            >
+              View Pricing
+            </Link>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}

@@ -13,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const headersList = await headers();
   const host = headersList.get("host");
   const config = getDomainConfig(host);
-  
+
   return {
     title: `Restaurant Owner Solutions | ${config.name}`,
     description: `Take back control of your restaurant with ${config.name}. Manage menu, POS, captains, and inventory from a single dashboard. Zero commissions, maximum profit.`,
@@ -39,7 +39,8 @@ export default async function OwnersPage() {
 
   const dynamicFeatures = ownersData.features.map(f => ({
     ...f,
-    description: f.description.replace(/Cravings/g, appName)
+    description: f.description.replace(/Cravings/g, appName),
+    imagePosition: f.imagePosition as "left" | "right" | undefined
   }));
 
   const dynamicReviews = ownersData.reviews.map(r => ({
@@ -85,8 +86,8 @@ export default async function OwnersPage() {
                 </p>
                 <div className="flex items-center gap-4 mt-auto">
                   <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gray-200">
-                    <Image 
-                      src={review.avatar} 
+                    <Image
+                      src={review.avatar}
                       alt={review.author}
                       fill
                       className="object-cover"
@@ -113,14 +114,14 @@ export default async function OwnersPage() {
             {dynamicCta.description}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link 
+            <Link
               href={dynamicCta.buttonLink}
               className="inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-black bg-white rounded-lg hover:bg-gray-100 transition-all"
             >
               {dynamicCta.buttonText}
               <ArrowRight className="ml-2 w-5 h-5" />
             </Link>
-            <Link 
+            <Link
               href={dynamicCta.secondaryButtonLink}
               className="inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-white border border-gray-700 rounded-lg hover:bg-gray-900 transition-all"
             >
