@@ -23,7 +23,13 @@ import {
   BookOpen,
   HelpCircle,
   Menu,
-  X
+  X,
+  Coffee,
+  Cake,
+  ChefHat,
+  Truck,
+  Wine,
+  PartyPopper
 } from "lucide-react";
 
 import Image from "next/image"; // Added import
@@ -108,23 +114,53 @@ const SOLUTIONS_ROLES = [
 
 const SOLUTIONS_INDUSTRIES = [
   {
-    title: "Food & Beverage",
-    description: "Streamline orders and inventory",
-    href: "/solutions/fnb",
+    title: "Restaurants",
+    description: "Smart digital menus for dine-in",
+    href: "/solutions/restaurants",
     icon: Utensils
   },
-  // {
-  //   title: "Hotels & Resorts",
-  //   description: "Enhance guest in-room dining",
-  //   href: "/solutions/hotels",
-  //   icon: Hotel
-  // },
-  // {
-  //   title: "Online & Retailers",
-  //   description: "Expand your digital presence",
-  //   href: "/solutions/retail",
-  //   icon: ShoppingCart
-  // }
+  {
+    title: "Cafés & Coffee Shops",
+    description: "Modern menus for the perfect brew",
+    href: "/solutions/cafes",
+    icon: Coffee
+  },
+  {
+    title: "Bakeries",
+    description: "Showcase fresh bakes beautifully",
+    href: "/solutions/bakeries",
+    icon: Cake
+  },
+  {
+    title: "Cloud Kitchens",
+    description: "Multi-brand menu management",
+    href: "/solutions/cloud-kitchens",
+    icon: ChefHat
+  },
+  {
+    title: "Hotels & Resorts",
+    description: "Elegant guest dining experience",
+    href: "/solutions/hotels",
+    icon: Hotel
+  },
+  {
+    title: "Food Trucks",
+    description: "Mobile menus on the go",
+    href: "/solutions/food-trucks",
+    icon: Truck
+  },
+  {
+    title: "Bars & Pubs",
+    description: "Dynamic drink menus with style",
+    href: "/solutions/bars",
+    icon: Wine
+  },
+  {
+    title: "Catering",
+    description: "Professional event menus",
+    href: "/solutions/catering",
+    icon: PartyPopper
+  },
 ];
 
 const RESOURCES = [
@@ -484,7 +520,7 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
           </div>
         )} */}
 
-        {/* {isUserOrGuest && (
+        {isUserOrGuest && (
           <div
             className={cn(
               "relative px-3 py-1 text-sm font-medium cursor-pointer hidden lg:inline-flex items-center gap-1 transition-colors",
@@ -502,7 +538,7 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
               <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", isSolutionsOpen ? "rotate-180" : "")} />
 
               {/* Custom Underline */}
-        {/* <span className={cn(
+              <span className={cn(
                 "absolute -bottom-2 left-0 w-full h-[1.5px] rounded-full transition-all duration-300 ease-out origin-left",
                 isDarkText ? "bg-gray-900" : "bg-white",
                 isSolutionsOpen ? "opacity-100 scale-x-100" : "opacity-0 scale-x-0"
@@ -510,16 +546,16 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
             </span>
 
             {/* Mega Menu Dropdown */}
-        {/* <div
+            <div
               className={cn(
-                "absolute top-full left-1/2 -translate-x-1/2 mt-4 w-[600px] bg-white rounded-xl shadow-xl p-6 transition-all duration-200 z-[70] border border-gray-100 before:absolute before:-top-2 before:left-0 before:right-0 before:h-4 before:bg-transparent cursor-default",
+                "absolute top-full left-1/2 -translate-x-1/2 mt-4 w-[900px] bg-white rounded-xl shadow-xl p-6 transition-all duration-200 z-[70] border border-gray-100 before:absolute before:-top-2 before:left-0 before:right-0 before:h-4 before:bg-transparent cursor-default",
                 isSolutionsOpen ? "opacity-100 visible" : "opacity-0 invisible"
               )}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="grid grid-cols-2 gap-x-12">
+              <div className="grid grid-cols-2 gap-x-4">
                 {/* Roles Column */}
-        {/* <div className="space-y-4">
+                <div className="space-y-4 flex-1">
                   <h4 className="text-gray-900 font-medium text-base px-2">Roles</h4>
                   <div className="space-y-2">
                     {SOLUTIONS_ROLES.map((item) => (
@@ -543,12 +579,12 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
                       </Link>
                     ))}
                   </div>
-                </div>
+                </div>  
 
                 {/* Industries Column */}
-        {/* <div className="space-y-4">
+                <div className="space-y-4">
                   <h4 className="text-gray-900 font-medium text-base px-2">Industries</h4>
-                  <div className="space-y-2">
+                  <div className="space-y-2 grid grid-cols-2">
                     {SOLUTIONS_INDUSTRIES.map((item) => (
                       <Link
                         key={item.title}
@@ -573,8 +609,8 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
                 </div>
               </div>
             </div>
-          </div >
-        )} */}
+          </div>
+        )}
 
         {isUserOrGuest && (
           <div
@@ -767,7 +803,7 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
                 </div> */}
 
                 {/* Solutions Accordion */}
-                {/* <div className="border-b border-white/10 pb-2">
+                <div className="border-b border-white/10 pb-2">
                   <button
                     onClick={() => toggleMobileSection('solutions')}
                     className="flex items-center justify-between w-full text-white font-medium text-lg py-3"
@@ -777,7 +813,7 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
                   </button>
                   <div className={cn("space-y-6 pl-2 overflow-hidden transition-all duration-300", expandedMobileSection === 'solutions' ? "max-h-[1000px] opacity-100 pb-4" : "max-h-0 opacity-0")}>
                     {/* Roles */}
-                {/* <div>
+                    <div>
                       <h4 className="text-white/50 text-xs font-bold mb-3 uppercase tracking-wider">Roles</h4>
                       <div className="space-y-3">
                         {SOLUTIONS_ROLES.map(item => (
@@ -789,7 +825,7 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
                       </div>
                     </div>
                     {/* Industries */}
-                {/* <div>
+                    <div>
                       <h4 className="text-white/50 text-xs font-bold mb-3 uppercase tracking-wider">Industries</h4>
                       <div className="space-y-3">
                         {SOLUTIONS_INDUSTRIES.map(item => (
@@ -801,7 +837,7 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
                       </div>
                     </div>
                   </div>
-                </div> */}
+                </div>
 
                 {/* Resources Accordion */}
                 <div className="border-b border-white/10 pb-2">

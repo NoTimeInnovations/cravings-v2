@@ -1,5 +1,14 @@
 User-agent: *
 Allow: /
+Allow: /solutions/
+Allow: /solutions/restaurants
+Allow: /solutions/cafes
+Allow: /solutions/bakeries
+Allow: /solutions/cloud-kitchens
+Allow: /solutions/hotels
+Allow: /solutions/food-trucks
+Allow: /solutions/bars
+Allow: /solutions/catering
 Disallow: /admin/
 Disallow: /admin-v2/
 Disallow: /captain/
@@ -7,4 +16,4 @@ Disallow: /api/
 Disallow: /superadmin/
 Disallow: /test/
 
-Sitemap: https://www.cravings.live/sitemap/0.xml
+Sitemap: https://www.cravings.live/sitemap.xml

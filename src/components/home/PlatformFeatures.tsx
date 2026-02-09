@@ -24,6 +24,22 @@ import { cn } from "@/lib/utils";
 
 const PRODUCTS = [
     {
+        title: "Google Business Sync",
+        description: "Automatically sync your menu with Google Business Profile. Get found on Google Maps.",
+        icon: Globe,
+        href: "/solutions/google-business",
+        image: "/digital_menu_preview.png",
+        featured: true
+    },
+    {
+        title: "PetPooja Integration",
+        description: "Seamlessly connect with PetPooja POS. Real-time sync for orders and menu.",
+        icon: Store,
+        href: "/solutions/petpooja",
+        image: "/live-update.png",
+        featured: true
+    },
+    {
         title: "Smart QR Menu",
         description: "Customers scan and instantly view your menu on their phone — no app needed.",
         icon: ScanLine,
@@ -46,7 +62,7 @@ const PRODUCTS = [
     },
     {
         title: "Highlight Famous Dishes",
-        description: "Auto-tag bestsellers and chef’s specials to guide customer choices.",
+        description: "Auto-tag bestsellers and chef's specials to guide customer choices.",
         icon: Flame,
         href: "#",
         image: "/preview-captain-ordering.png"
