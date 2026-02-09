@@ -83,6 +83,25 @@
             "scan_limit": -1
         },
         {
+            "id": "in_digital_legacy",
+            "name": "Digital Menu (Legacy)",
+            "price": "₹1500",
+            "description": "Legacy digital menu plan",
+            "features": [
+                "Digital menu",
+                "Unlimited items",
+                "QR code generation",
+                "Unlimited edits",
+                "Chat support"
+            ],
+            "buttonText": "Get Started",
+            "popular": false,
+            "period": "/year",
+            "period_days": 365,
+            "disabled": true,
+            "scan_limit": -1
+        },
+        {
             "id": "in_digital_monthly",
             "rz_plan_id": "plan_S7E5JO7kPtwGnA",
             "rz_plan_id_test": "plan_digital_mon_test",
