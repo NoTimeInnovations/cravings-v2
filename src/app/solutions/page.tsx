@@ -19,7 +19,8 @@ import {
   Clock,
   CheckCircle2,
   Zap,
-  Star
+  Star,
+  Briefcase
 } from "lucide-react";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -123,6 +124,22 @@ const SOLUTIONS = [
     icon: PartyPopper,
     color: "bg-[#e65a22]",
     image: "/images/solutions/catering.jpg"
+  },
+  {
+    slug: "owners",
+    title: "Restaurant Owners",
+    shortDesc: "Take back control of your restaurant operations",
+    icon: Briefcase,
+    color: "bg-[#e65a22]",
+    image: "/assets/mockups/solutions-owners-v4.png"
+  },
+  {
+    slug: "agencies",
+    title: "Agencies & Consultants",
+    shortDesc: "Manage multiple client accounts with ease",
+    icon: Briefcase,
+    color: "bg-[#e65a22]",
+    image: "/assets/mockups/agencis-v1.jpeg"
   },
 ];
 
