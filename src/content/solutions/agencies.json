@@ -1,87 +1,85 @@
 {
     "slug": "agencies",
     "hero": {
-        "eyebrow": "For Agencies & Consultants",
-        "headline": "Manage Multiple Client Accounts with Ease",
-        "subheadline": "A centralized agency portal to onboard, manage, and report for all your restaurant clients. Your brand, their success.",
-        "primaryCta": "Apply for Agency Partner",
-        "primaryCtaLink": "/get-started",
-        "secondaryCta": "View Partner Benefits",
-        "image": "/assets/mockups/agencis-v1.jpeg"
+        "eyebrow": "Agency Partner Program",
+        "headline": "Earn Up to 30% Month Per Sale – Lifetime Recurring Commissions",
+        "subheadline": "Become an Authorized MenuThere Reseller. Deliver premium digital menu solutions to restaurants with seamless in-person demos. Scale commissions to 30% on verified recurring revenue.",
+        "primaryCta": "Apply Now",
+        "primaryCtaLink": "mailto:menuthere@gmail.com",
+        "image": "/assets/mockups/payout.png"
     },
     "benefits": [
         {
-            "title": "Easy to manage multiple clients",
-            "description": "Manage multiple clients from a single dashboard."
+            "title": "Recurring Revenue",
+            "description": "Build a passive income stream. Earn lifetime recurring commissions as long as your clients stay subscribed."
         },
         {
-            "title": "Commission based revenue",
-            "description": "Earn commission on every new client you bring to the Cravings platform. One week settlement."
+            "title": "Zero Investment",
+            "description": "No upfront fees or hidden costs. Start earning from your first sale with our fully commission-driven model."
         },
         {
-            "title": "Priority Support",
-            "description": "Get priority support for all your clients."
+            "title": "Instant Payouts",
+            "description": "We pay you the same day we receive the subscription funds. No waiting for monthly cycles."
         }
     ],
     "features": [
         {
-            "title": "Unified Client Management",
-            "description": "Scale your agency operations with a centralized hub designed for high-volume client management and seamless account switching.",
+            "title": "Unlock Revenue for Restaurants",
+            "description": "Independent restaurants lose sales to static PDFs. Solve this with our proven platform – instant QR updates trusted by 600+ locations.",
             "list": [
-                "Single-pane-of-glass view",
-                "One-click client switching",
-                "Bulk menu updates",
-                "Granular access control"
+                "Static menus miss peak opportunities",
+                "Delayed updates erode profits",
+                "Live availability drives sales",
+                "Tangible ROI from day one"
             ],
-            "image": "/assets/mockups/captain-management.png",
+            "image": "/assets/mockups/analytics-dashboard-v2.png",
             "imagePosition": "right"
         },
         {
-            "title": "Partner Profit Sharing",
-            "description": "Transform your service-based business into a recurring revenue engine with our industry-leading partner program and fast payouts.",
+            "title": "Award-Winning SaaS Solution",
+            "description": "Provide restaurants with QR menus updated in seconds. Conduct quick on-site demos to drive immediate subscriptions.",
             "list": [
-                "7-day payout cycles",
-                "Referral incentive program",
-                "Partner marketing assets"
+                "Instant QR editing for prices",
+                "Mobile-first design",
+                "Custom themes for brand identity",
+                "Google Map menu integration"
             ],
-            "image": "/assets/mockups/payout.png",
+            "image": "/assets/mockups/menu-editing.png",
             "imagePosition": "left"
         },
         {
-            "title": "Priority Partner Success",
-            "description": "Never wait in line again. Get direct access to our senior engineering and support teams to ensure your clients' success.",
+            "title": "Performance-Based Earnings",
+            "description": "Payouts align directly with revenue. Tiers advance automatically based on total referred lifetime revenue.",
             "list": [
-                "Dedicated Slack channel",
-                "Priority bug resolution",
-                "Custom feature requests",
-                "Strategic growth consulting"
+                "Starter: 20% ($6/mo per sale)",
+                "Growth: 25% ($7.50/mo per sale)",
+                "Elite: 30% ($9/mo per sale)",
+                "Monthly Stripe disbursements"
             ],
-            "image": "/assets/mockups/support.png",
+            "image": "/assets/mockups/growth-tools-v2.png",
             "imagePosition": "right"
         }
     ],
     "reviews": [
         {
-            "author": "James Wilson",
-            "role": "Director",
-            "company": "GrowthChefs Agency",
-            "text": "Managing 15 restaurants used to be a nightmare. Cravings made it scalable. The white-label reports are fantastic.",
-            "avatar": "/assets/avatars/avatar-6.png"
+            "author": "Michael Ross",
+            "role": "SaaS Reseller",
+            "company": "TechSales Pro",
+            "text": "The recurring commission model is fantastic. Once I sign up a restaurant, I keep earning every month.",
+            "avatar": "/assets/avatars/avatar-4.png"
         },
         {
-            "author": "Anita Roy",
-            "role": "Consultant",
-            "company": "FoodTech Solutions",
-            "text": "My clients love the dashboard, and I love the ease of setup. Setup time went from 3 days to 30 minutes.",
-            "avatar": "/assets/avatars/avatar-7.png"
+            "author": "Sarah Lee",
+            "role": "Business Consultant",
+            "company": "Growth Partners",
+            "text": "My clients love the product, and I love the same-day payouts. It's the easiest sell I've ever had.",
+            "avatar": "/assets/avatars/avatar-5.png"
         }
     ],
     "cta": {
-        "title": "Grow your agency with Cravings.",
-        "description": "Partner with us and unlock exclusive tools and revenue streams.",
-        "buttonText": "Become a Partner",
-        "buttonLink": "/get-started",
-        "secondaryButtonText": "Book Demo",
-        "secondaryButtonLink": "https://www.cravings.live/hotels/20f7e974-f19e-4c11-b6b7-4385f61f27bf"
+        "title": "Partner with Confidence",
+        "description": "600+ live deployments. Field-tested model. Risk-free revenue share. Join our elite partner network today.",
+        "buttonText": "Apply Now",
+        "buttonLink": "mailto:menuthere@gmail.com"
     }
 }
