@@ -73,7 +73,7 @@ const bottomNavFilter = [
 
 const navbarFilter = ["get-started", "7eb04e2d-9c20-42ba-a6b6-fce8019cad5f", "admin-v2", "20f7e974-f19e-4c11-b6b7-4385f61f27bf", "admin", "hotels", "qrScan", "order", "my-orders"];
 
-const hideWhatsappGroupJoinDialog = ["Krishnakripa-Residency", "get-started", "admin-v2", "pricing", "admin"];
+const hideWhatsappGroupJoinDialog = ["Krishnakripa-Residency", "get-started", "admin-v2", "pricing", "admin", "20493cdc-dfca-4bde-8ca5-9caa998c9862"];
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 const dancingScript = Dancing_Script({ subsets: ["latin"], variable: "--font-dancing-script", display: "swap" });
