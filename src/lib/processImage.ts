@@ -1,6 +1,3 @@
-// import { getImageSource } from "./getImageSource";
-import { convertImageToBase64, convertImageNoEdit } from "@/app/actions/imageConvert";
-
 // Helper function to detect Safari browser
 const isSafari = (): boolean => {
   if (typeof window === 'undefined') return false;
@@ -9,74 +6,31 @@ const isSafari = (): boolean => {
   return isSafariBrowser;
 };
 
-// Helper function to convert blob URL or remote URL to base64 on client side
-async function urlToBase64(url: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Could not get canvas context'));
-        return;
-      }
-      
-      ctx.drawImage(img, 0, 0);
-      
-      // Convert to PNG to preserve quality for server processing
-      const base64 = canvas.toDataURL('image/png');
-      resolve(base64);
-    };
-    
-    img.onerror = (err) => {
-      reject(new Error('Failed to load image'));
-    };
-    
-    img.src = url;
-  });
-}
-
 export const processImage = async (localBlobUrl: string, imageSource: string): Promise<string> => {
   const usePNG = isSafari();
   const imageFormat = usePNG ? 'png' : 'webp';
   const imageQuality = usePNG ? 92 : 80;
-  
-  // Check if the URL should be skipped
-  if (imageSource === 'cravingsbucket' || localBlobUrl.includes('cravingsbucket')) {
+
+  /* Check if the URL should be skipped (already S3) */
+  const bucketName = process.env.NEXT_PUBLIC_S3_BUCKET || 'cravingsbucket';
+  if (
+    imageSource === bucketName ||
+    localBlobUrl.includes(bucketName) ||
+    localBlobUrl.includes('amazonaws.com') ||
+    localBlobUrl.includes('r2.dev')
+  ) {
     return localBlobUrl;
   }
 
   try {
-    // Convert blob URL or remote URL to base64 first (client-side)
-    const base64Image = await urlToBase64(localBlobUrl);
-    
-    // Use server-side conversion for better performance and quality
-    if (imageSource === "no-edit" && !localBlobUrl.includes('cravingsbucket')) {
-      // No cropping, just format conversion
-      return await convertImageNoEdit(base64Image, imageFormat, imageQuality);
-    }
-    
-    // With cropping and processing
-    return await convertImageToBase64(base64Image, {
-      targetSize: 500,
-      quality: imageQuality,
-      format: imageFormat,
-      shouldCrop: true,
-    });
-  } catch (error) {
-    console.error('Server-side conversion failed, falling back to client-side:', error);
-    
-    // Fallback to client-side processing if server-side fails
     return await processImageClientSide(localBlobUrl, imageSource, imageFormat, imageQuality);
+  } catch (error) {
+    console.error('Client-side processing failed:', error);
+    throw error;
   }
 };
 
-// Fallback client-side processing function
+// Client-side processing function
 async function processImageClientSide(
   localBlobUrl: string,
   imageSource: string,
@@ -85,34 +39,7 @@ async function processImageClientSide(
 ): Promise<string> {
   const mimeType = imageFormat === 'png' ? 'image/png' : 'image/webp';
   const quality = imageQuality / 100; // Convert to 0-1 range for canvas
-  
-  if(imageSource === "no-edit" && !localBlobUrl.includes('cravingsbucket')) {
-    // return base64 version of the image without any processing
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.src = localBlobUrl;
-
-    await new Promise((resolve, reject) => {
-      img.onload = resolve;
-      img.onerror = (err) => {
-        console.error('Failed to load image from URL:', localBlobUrl, err);
-        reject(new Error('Failed to load image'));
-      };
-    });
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      throw new Error('Could not get canvas context');
-    }
-
-    canvas.width = img.width;
-    canvas.height = img.height;
-    ctx.drawImage(img, 0, 0, img.width, img.height);
-
-    const base64Image = canvas.toDataURL(mimeType, quality);
-    return base64Image;
-  }
+  const TARGET_SIZE = 800; // Increased from 500 for better quality on modern screens
 
   // Create an image element to load the image
   const img = new Image();
@@ -137,30 +64,73 @@ async function processImageClientSide(
 
   const originalWidth = img.width;
   const originalHeight = img.height;
-  const targetSize = 500;
 
-  // If the image is larger than 500x500 in either dimension, perform a center crop
-  if (originalWidth > targetSize || originalHeight > targetSize) {
-    canvas.width = targetSize;
-    canvas.height = targetSize;
+  if (imageSource === "no-edit") {
+    // Resize maintaining aspect ratio (fit inside TARGET_SIZE)
+    let width = originalWidth;
+    let height = originalHeight;
 
-    // Calculate the top-left corner for a center crop
-    const sourceX = (originalWidth - targetSize) / 2;
-    const sourceY = (originalHeight - targetSize) / 2;
+    if (width > TARGET_SIZE || height > TARGET_SIZE) {
+      const ratio = Math.min(TARGET_SIZE / width, TARGET_SIZE / height);
+      width = Math.round(width * ratio);
+      height = Math.round(height * ratio);
+    }
 
-    // Draw the cropped section of the image onto the canvas
-    ctx.drawImage(
-      img,
-      sourceX, sourceY,
-      targetSize, targetSize,
-      0, 0,
-      targetSize, targetSize
-    );
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(img, 0, 0, width, height);
+
   } else {
-    // If the image is already 500x500 or smaller, just draw it as-is
-    canvas.width = originalWidth;
-    canvas.height = originalHeight;
-    ctx.drawImage(img, 0, 0, originalWidth, originalHeight);
+    // Default: Center Crop to Square (TARGET_SIZE x TARGET_SIZE)
+    // If the image is larger than TARGET_SIZE in either dimension, perform a center crop
+    // If smaller, we essentially upscale or keep it? Original logic was:
+    // if (originalWidth > targetSize || originalHeight > targetSize) crop...
+    // else draw original.
+
+    // Let's stick to the crop logic but use TARGET_SIZE
+    let drawWidth = originalWidth;
+    let drawHeight = originalHeight;
+    let startX = 0;
+    let startY = 0;
+
+    // We want a square result? 
+    // The original code tried to output 500x500 square if cropping.
+    const isLandscape = originalWidth > originalHeight;
+    const minDim = Math.min(originalWidth, originalHeight);
+
+    // We want to crop a square from the center
+    // And then resize that square to TARGET_SIZE? 
+    // Or just crop the square?
+    // Original code:
+    // if (originalWidth > targetSize || originalHeight > targetSize) {
+    //   canvas.width = targetSize; canvas.height = targetSize;
+    //   // ... calculate sourceX ...
+    //   ctx.drawImage(img, sourceX, sourceY, targetSize, targetSize, 0, 0, targetSize, targetSize);
+    // }
+    // This logic actually crops a 500x500 chunk from the center. It DOES NOT resize the whole image to 500x500.
+    // That means if I have a 4000x3000 image, I get a tiny 500x500 pixel center cutout. 
+    // That seems wrong for a "menu item" if the subject isn't perfectly centered and small.
+    // usually "crop" implies "resize to cover 500x500".
+
+    // Let's improve the crop logic: "Cover" crop.
+
+    canvas.width = TARGET_SIZE;
+    canvas.height = TARGET_SIZE;
+
+    // Calculate scaling to cover the target size
+    // We want the smallest dimension to fit the target size
+    const scale = Math.max(TARGET_SIZE / originalWidth, TARGET_SIZE / originalHeight);
+
+    // If image is smaller than target, we might upscale (scale > 1)
+    // If image is larger, we downscale (scale < 1)
+
+    const scaledWidth = originalWidth * scale;
+    const scaledHeight = originalHeight * scale;
+
+    const offsetX = (TARGET_SIZE - scaledWidth) / 2;
+    const offsetY = (TARGET_SIZE - scaledHeight) / 2;
+
+    ctx.drawImage(img, offsetX, offsetY, scaledWidth, scaledHeight);
   }
 
   // Convert the canvas content to PNG (for Safari) or WebP (for other browsers)
