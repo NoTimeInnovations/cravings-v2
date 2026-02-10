@@ -77,16 +77,28 @@ export function GeneralSettings() {
     const checkGoogleConnection = async (partnerId: string) => {
         setIsGoogleLoading(true);
         try {
-            // Try to fetch locations using partner's own tokens (mode=partner)
-            const res = await fetch(`/api/google-business/locations?partnerId=${partnerId}&mode=partner`);
-            const data = await res.json();
-            
-            if (res.ok && data.success) {
+            // First try partner's own tokens
+            const partnerRes = await fetch(`/api/google-business/locations?partnerId=${partnerId}&mode=partner`);
+            const partnerData = await partnerRes.json();
+
+            if (partnerRes.ok && partnerData.success) {
                 setGoogleConnected(true);
-                setGoogleLocations(data.locations || []);
-                if (data.linkedLocationId) {
-                    setLinkedLocationId(data.linkedLocationId);
+                setGoogleLocations(partnerData.locations || []);
+                if (partnerData.linkedLocationId) {
+                    setLinkedLocationId(partnerData.linkedLocationId);
                 }
+                return;
+            }
+
+            // Fallback: Check via Master Account (superadmin-linked partners)
+            const masterRes = await fetch(`/api/google-business/locations?partnerId=${partnerId}`);
+            const masterData = await masterRes.json();
+
+            if (masterRes.ok && masterData.success && masterData.linkedLocationId) {
+                // Partner is linked via Master Account
+                setGoogleConnected(true);
+                setGoogleLocations(masterData.locations || []);
+                setLinkedLocationId(masterData.linkedLocationId);
             } else {
                 setGoogleConnected(false);
             }
@@ -125,10 +137,10 @@ export function GeneralSettings() {
             setIsGoogleLoading(false);
         }
     };
-    
+
     const handleSyncMenu = async () => {
         if (!userData || !linkedLocationId) return;
-        
+
         // Rate limit check
         const lastSync = localStorage.getItem(`google_sync_${userData.id}`);
         const today = new Date().toDateString();
@@ -138,10 +150,10 @@ export function GeneralSettings() {
         }
 
         if (!confirm("Sync menu to Google? This will overwrite your Google Menu.")) return;
-        
+
         setIsSyncingMenu(true);
         const toastId = toast.loading("Syncing menu...");
-        
+
         try {
             const res = await fetch('/api/google-business/menu/push', {
                 method: 'POST',
@@ -149,7 +161,7 @@ export function GeneralSettings() {
                 body: JSON.stringify({ partnerId: userData.id, locationId: 'auto' })
             });
             const data = await res.json();
-            
+
             if (data.success) {
                 localStorage.setItem(`google_sync_${userData.id}`, today);
                 toast.success("Menu synced successfully!");
@@ -443,7 +455,7 @@ export function GeneralSettings() {
                         {!googleConnected ? (
                             <div className="flex flex-col gap-4">
                                 <p className="text-sm text-muted-foreground">Link your Google account to allow Cravings to manage your menu automatically.</p>
-                                <Button onClick={handleGoogleLogin} className="w-full sm:w-auto">
+                                <Button disabled={isGoogleLoading} onClick={handleGoogleLogin} className="w-full sm:w-auto">
                                     {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                     Link Business Profile
                                 </Button>
@@ -459,8 +471,8 @@ export function GeneralSettings() {
                                         <p className="text-sm text-green-700">Your restaurant is linked. Menu sync is active.</p>
                                     </div>
                                 </div>
-                                <Button 
-                                    onClick={handleSyncMenu} 
+                                <Button
+                                    onClick={handleSyncMenu}
                                     disabled={isSyncingMenu}
                                     className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
                                 >
@@ -485,8 +497,8 @@ export function GeneralSettings() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <Button 
-                                    onClick={handleSendInvite} 
+                                <Button
+                                    onClick={handleSendInvite}
                                     disabled={!selectedGoogleLocation || isGoogleLoading}
                                     className="w-full sm:w-auto"
                                 >
