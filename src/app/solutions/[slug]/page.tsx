@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { getDomainConfig } from "@/lib/domain-utils";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { FAQAccordion } from "@/components/FAQAccordion";
 import {
   Utensils, Coffee, Cake, ChefHat, Truck, Building2, Wine, PartyPopper,
   ArrowRight, QrCode, Globe, TrendingUp, Clock, CheckCircle2, Star,
@@ -1265,24 +1266,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
       </section>
 
       {/* FAQ */}
-      <section className="py-20 relative">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Frequently Asked Questions
-            </h2>
-          </div>
-
-          <div className="space-y-6">
-            {solution.faq.map((item, idx) => (
-              <div key={idx} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-900 mb-3">{item.question}</h3>
-                <p className="text-gray-600 leading-relaxed">{item.answer}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <FAQAccordion items={solution.faq} />
 
       {/* Related Solutions */}
       <section className="py-20 bg-white/60 relative">

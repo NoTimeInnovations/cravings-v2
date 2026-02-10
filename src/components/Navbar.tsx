@@ -553,9 +553,27 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
               )}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="grid grid-cols-2 gap-x-4">
+              {/* Featured: Google Business */}
+              <Link
+                href="/solutions/google-business"
+                className="flex items-center gap-3 p-3 mb-4 rounded-lg bg-gradient-to-r from-blue-50 to-green-50 border border-blue-100 hover:shadow-md transition-all group/gbp"
+                onClick={() => setIsSolutionsOpen(false)}
+              >
+                <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center shadow-sm">
+                  <Globe className="w-5 h-5 text-[#4285F4]" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-gray-900 font-semibold text-sm group-hover/gbp:text-[#4285F4] transition-colors">Google Business Profile Sync</h3>
+                    <span className="px-1.5 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded uppercase leading-none">New</span>
+                  </div>
+                  <p className="text-gray-500 text-xs mt-0.5 leading-snug">Sync your menu to Google Maps automatically</p>
+                </div>
+              </Link>
+
+              <div className="grid grid-cols-[1fr_2fr] gap-x-4">
                 {/* Roles Column */}
-                <div className="space-y-4 flex-1">
+                <div className="space-y-4">
                   <h4 className="text-gray-900 font-medium text-base px-2">Roles</h4>
                   <div className="space-y-2">
                     {SOLUTIONS_ROLES.map((item) => (
@@ -812,6 +830,21 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
                     <ChevronDown className={cn("w-5 h-5 transition-transform duration-200", expandedMobileSection === 'solutions' ? "rotate-180" : "")} />
                   </button>
                   <div className={cn("space-y-6 pl-2 overflow-hidden transition-all duration-300", expandedMobileSection === 'solutions' ? "max-h-[1000px] opacity-100 pb-4" : "max-h-0 opacity-0")}>
+                    {/* Featured: Google Business */}
+                    <Link
+                      href="/solutions/google-business"
+                      className="flex items-center gap-3 p-3 rounded-lg bg-white/10 border border-white/20"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <Globe className="w-5 h-5 text-white" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-white">Google Business Sync</span>
+                          <span className="px-1.5 py-0.5 bg-green-400 text-white text-[10px] font-bold rounded uppercase leading-none">New</span>
+                        </div>
+                        <span className="text-white/60 text-xs">Sync menu to Google Maps</span>
+                      </div>
+                    </Link>
                     {/* Roles */}
                     <div>
                       <h4 className="text-white/50 text-xs font-bold mb-3 uppercase tracking-wider">Roles</h4>

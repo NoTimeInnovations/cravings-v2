@@ -6,6 +6,7 @@ import { getDomainConfig } from "@/lib/domain-utils";
 import { SolutionsHero } from "@/components/solutions/SolutionsHero";
 import { SolutionsBenefits } from "@/components/solutions/SolutionsBenefits";
 import { SolutionsFeatures } from "@/components/solutions/SolutionsFeatures";
+import { FAQAccordion } from "@/components/FAQAccordion";
 import agenciesData from "@/content/solutions/agencies.json";
 import { ArrowRight, Star, Check } from "lucide-react";
 
@@ -13,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const headersList = await headers();
   const host = headersList.get("host");
   const config = getDomainConfig(host);
-  
+
   return {
     title: `Agency Partner Program | Earn Recurring Commissions | ${config.name}`,
     description: `Become an authorized partner for ${config.name}. Earn up to 30% lifetime recurring commissions selling premium digital menu solutions to restaurants.`,
@@ -21,11 +22,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 interface Feature {
-    title: string;
-    description: string;
-    list: string[];
-    image: string;
-    imagePosition?: "left" | "right";
+  title: string;
+  description: string;
+  list: string[];
+  image: string;
+  imagePosition?: "left" | "right";
 }
 
 export default async function AgenciesPage() {
@@ -65,8 +66,8 @@ export default async function AgenciesPage() {
               Unlock Revenue for Restaurants, Secure Yours
             </h2>
             <p className="text-lg text-gray-600 leading-relaxed">
-              Independent restaurants lose sales to static PDFs unable to reflect real-time changes. 
-              As a {appName} partner, you solve this with our proven $30/month platform – 
+              Independent restaurants lose sales to static PDFs unable to reflect real-time changes.
+              As a {appName} partner, you solve this with our proven $30/month platform –
               instant QR updates trusted by 600+ locations – earning you position as their go-to advisor.
             </p>
           </div>
@@ -102,7 +103,7 @@ export default async function AgenciesPage() {
                 <div>Lifetime Referred Revenue</div>
                 <div>Commission (Per $30 Sub)</div>
               </div>
-              
+
               <div className="divide-y divide-gray-700">
                 <div className="grid grid-cols-3 p-6 items-center hover:bg-white/5 transition-colors">
                   <div className="font-bold text-emerald-400 text-lg">Starter</div>
@@ -201,7 +202,7 @@ export default async function AgenciesPage() {
           <div className="text-center mb-16">
             <h2 className="text-3xl font-medium text-gray-900 mb-4">Partner Onboarding Process</h2>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 max-w-5xl mx-auto relative">
             {/* Connecting Line (Desktop) */}
             <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-0.5 bg-gray-200 -z-10" />
@@ -244,7 +245,7 @@ export default async function AgenciesPage() {
           </p>
           <div className="flex flex-wrap justify-center gap-3 max-w-3xl mx-auto">
             {[
-              "Restaurant Advisors", "B2B Channel Partners", "Sales Executives", 
+              "Restaurant Advisors", "B2B Channel Partners", "Sales Executives",
               "Franchise Specialists", "SaaS Resellers", "Business Development Pros"
             ].map((tag, idx) => (
               <span key={idx} className="px-4 py-2 bg-white text-gray-700 rounded-full text-sm font-medium border border-orange-200 shadow-sm">
@@ -256,28 +257,18 @@ export default async function AgenciesPage() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-24 bg-white">
-        <div className="container mx-auto px-4 md:px-6 max-w-3xl">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-medium text-gray-900">Partner FAQs</h2>
-          </div>
-          <div className="space-y-6">
-            {[
-              { q: "Product Overview", a: `Premium $30/month QR digital menu platform for global restaurants.` },
-              { q: "Experience Required", a: "Field sales expertise; comprehensive assets provided." },
-              { q: "Payout Mechanics", a: "Monthly Stripe disbursements on collection day, lifetime per active sub." },
-              { q: "Costs Involved", a: "Zero – fully commission-driven." },
-              { q: "Territory", a: "Worldwide independents, US prioritized." },
-              { q: "Resources", a: "Portal with videos, scripts, presentations; warm leads available." }
-            ].map((faq, idx) => (
-              <div key={idx} className="p-6 bg-gray-50 rounded-xl">
-                <h4 className="font-bold text-gray-900 mb-2">{faq.q}</h4>
-                <p className="text-gray-600 text-sm">{faq.a}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <FAQAccordion
+        title="Partner FAQs"
+        items={[
+          { question: "Product Overview", answer: `Premium $30/month QR digital menu platform for global restaurants.` },
+          { question: "Experience Required", answer: "Field sales expertise; comprehensive assets provided." },
+          { question: "Payout Mechanics", answer: "Monthly Stripe disbursements on collection day, lifetime per active sub." },
+          { question: "Costs Involved", answer: "Zero – fully commission-driven." },
+          { question: "Territory", answer: "Worldwide independents, US prioritized." },
+          { question: "Resources", answer: "Portal with videos, scripts, presentations; warm leads available." }
+        ]}
+        className="bg-white"
+      />
 
       {/* Trust & CTA Section */}
       <section className="py-24 bg-[#e65a22] text-white relative overflow-hidden">
@@ -285,7 +276,7 @@ export default async function AgenciesPage() {
           <h2 className="text-3xl md:text-5xl font-medium mb-8 tracking-tight">
             {dynamicCta.title}
           </h2>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-12 text-left md:text-center">
             {["600+ Live Deployments", "Field-Tested Model", "Revenue-Share Only", "Exclusive Access"].map((item, idx) => (
               <div key={idx} className="flex items-center md:justify-center gap-2 text-white/90">
@@ -296,7 +287,7 @@ export default async function AgenciesPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a 
+            <a
               href={agenciesData.cta.buttonLink}
               className="inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-[#e65a22] bg-white rounded-lg hover:bg-gray-50 transition-all shadow-lg"
             >
