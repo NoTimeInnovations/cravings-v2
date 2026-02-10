@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { FileClock, UtensilsCrossed } from "lucide-react";
 import { useAuthStore, User } from "@/store/authStore";
 import { getUserCountry, validatePhoneNumber, getPhoneValidationError, UserCountryInfo } from "@/lib/getUserCountry";
+import { useDomain } from "@/providers/DomainProvider";
 // import PartnerLoginModal from "@/components/PartnerLoginModal";
 import {
   Dialog,
@@ -78,6 +79,7 @@ const upiApps: UPIApp[] = [
 ];
 
 const QrPayment = () => {
+  const { name: appName } = useDomain();
   const [billAmount, setBillAmount] = useState<string>("");
   const [hotelDetails, setHotelDetails] = useState<HotelDetails>();
   const params = useParams();
@@ -207,7 +209,7 @@ const QrPayment = () => {
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+
     if (!userCountryInfo) {
       toast.error("Unable to detect your country. Please try again.");
       return;
@@ -217,7 +219,7 @@ const QrPayment = () => {
       toast.error(getPhoneValidationError(userCountryInfo.countryCode));
       return;
     }
-    
+
     try {
       setIsLoading(true);
       const user = await signInWithPhone(phoneNumber, hotelDetails?.hotelId, userCountryInfo);
@@ -251,7 +253,7 @@ const QrPayment = () => {
           const finalAmount =
             Number(billAmount.replace("₹", "")) -
             (Number(billAmount.replace("₹", "")) * discount) / 100;
-            window.location.href = `upi://pay?pa=${upiId}&am=${finalAmount}`;
+          window.location.href = `upi://pay?pa=${upiId}&am=${finalAmount}`;
         }
         setIsPaymentSuccess(true);
       } else {
@@ -312,7 +314,7 @@ const QrPayment = () => {
           {/* logo  */}
           <div className="flex items-center gap-2">
             <UtensilsCrossed className="w-10 h-10 text-white" />
-            <h1 className="text-white text-xl font-bold">Cravings</h1>
+            <h1 className="text-white text-xl font-bold">{appName}</h1>
           </div>
 
           {/* short descritpion  */}
@@ -375,10 +377,10 @@ const QrPayment = () => {
                     onClick={
                       isPaymentSuccess
                         ? () => {
-                            router.push(
-                              `${window.location.origin}/hotels/${hotelDetails?.hotelId}`
-                            );
-                          }
+                          router.push(
+                            `${window.location.origin}/hotels/${hotelDetails?.hotelId}`
+                          );
+                        }
                         : handlePayNow
                     }
                     className="bg-white text-black px-4 w-full py-2 rounded-md disabled:opacity-50 flex-1"
@@ -386,8 +388,8 @@ const QrPayment = () => {
                     {isPaymentSuccess
                       ? "Go To Hotel Page"
                       : isLoading
-                      ? "Processing..."
-                      : "Pay Now"}
+                        ? "Processing..."
+                        : "Pay Now"}
                   </button>
 
                   {showHotelPage && (
@@ -439,11 +441,10 @@ const QrPayment = () => {
                             ? `${window.location.origin}/hotels/${hotelDetails?.hotelId}`
                             : ""
                         }
-                        className={`text-black bg-white rounded-full px-3 py-2 text-[12px] capitalize flex items-center gap-1 font-medium ${
-                          hotelDetails
-                            ? "w-fit cursor-pointer select-none"
-                            : "h-8 w-[40%] animate-pulse cursor-default"
-                        }`}
+                        className={`text-black bg-white rounded-full px-3 py-2 text-[12px] capitalize flex items-center gap-1 font-medium ${hotelDetails
+                          ? "w-fit cursor-pointer select-none"
+                          : "h-8 w-[40%] animate-pulse cursor-default"
+                          }`}
                       >
                         {hotelDetails ? (
                           <>
@@ -484,7 +485,7 @@ const QrPayment = () => {
             {/* Headings  */}
             <div className="flex flex-col gap-1">
               <h1 className="text-white text-4xl font-bold">
-                New To Cravings?
+                New To {appName}?
               </h1>
               <div className="text-white/80 text-sm">
                 Sign in to get discounts and offers

@@ -14,6 +14,8 @@ interface BusinessPreviewProps {
   isSubmitting: boolean;
 }
 
+import { useDomain } from "@/providers/DomainProvider";
+
 export default function BusinessPreview({
   businessData,
   menuItems,
@@ -21,20 +23,21 @@ export default function BusinessPreview({
   onSubmit,
   isSubmitting,
 }: BusinessPreviewProps) {
+  const { name: appName } = useDomain();
   // Get must-try items
   const mustTryItems = menuItems.filter(item => item.mustTry);
-  
+
   const handleUpgradeClick = () => {
     // Submit the business data first
     onSubmit();
-    
+
     // Only open WhatsApp if not in a submitting state
     if (!isSubmitting) {
       // Open WhatsApp link
-      window.open("https://wa.me/918590115462?text=Hi!%20I'm%20interested%20in%20partnering%20with%20Cravings.%20Can%20you%20share%20the%20details", "_blank");
+      window.open(`https://wa.me/918590115462?text=Hi!%20I'm%20interested%20in%20partnering%20with%20${appName}.%20Can%20you%20share%20the%20details`, "_blank");
     }
   };
-  
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-semibold">Preview Your Business Page</h2>
@@ -48,12 +51,12 @@ export default function BusinessPreview({
         <div className="bg-white p-3 border-b border-gray-200">
           <div className="flex items-center">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-xl text-orange-500">Cravings</span>
+              <span className="font-bold text-xl text-orange-500">{appName}</span>
               <span className="text-sm bg-orange-100 text-orange-800 px-2 py-0.5 rounded">Business</span>
             </div>
           </div>
         </div>
-        
+
         {/* Restaurant Header */}
         <div className="bg-white p-4 flex items-center space-x-3">
           <div className="relative w-16 h-16 overflow-hidden rounded-full border border-gray-100">
@@ -76,7 +79,7 @@ export default function BusinessPreview({
             <p className="text-sm text-gray-500">{businessData.area}</p>
           </div>
         </div>
-        
+
         {/* Search Bar (Non-functional) */}
         <div className="bg-white p-4 border-t border-b border-gray-100">
           <div className="bg-gray-100 rounded-full py-2 px-4 flex items-center">
@@ -86,13 +89,13 @@ export default function BusinessPreview({
             <span className="text-gray-400 text-sm">Search</span>
           </div>
         </div>
-        
+
         {/* Must Try Section */}
         <div className="bg-white p-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-bold text-xl">Must<span className="text-orange-500">Try</span></h2>
           </div>
-          
+
           <div className="overflow-x-auto pb-2">
             <div className="flex space-x-4">
               {mustTryItems.length > 0 ? (
@@ -100,9 +103,9 @@ export default function BusinessPreview({
                   <div key={item.id} className="min-w-[200px] rounded-lg overflow-hidden shadow-sm border">
                     <div className="h-32 relative">
                       {item.image ? (
-                        <Image 
-                          src={item.image} 
-                          alt={item.name} 
+                        <Image
+                          src={item.image}
+                          alt={item.name}
                           fill
                           className="object-cover"
                         />
@@ -131,7 +134,7 @@ export default function BusinessPreview({
             </div>
           </div>
         </div>
-        
+
         {/* Category Pills */}
         <div className="bg-white p-4 border-t border-gray-100">
           <div className="flex overflow-x-auto pb-2 gap-2">
@@ -149,7 +152,7 @@ export default function BusinessPreview({
             </div>
           </div>
         </div>
-        
+
         {/* Menu Items */}
         <div className="bg-white p-4 border-t border-gray-100">
           <div className="space-y-4">
@@ -162,12 +165,12 @@ export default function BusinessPreview({
                 </div>
                 <div className="w-20 h-20 rounded overflow-hidden">
                   {item.image ? (
-                    <Image 
-                      src={item.image} 
-                      alt={item.name} 
+                    <Image
+                      src={item.image}
+                      alt={item.name}
                       width={80}
                       height={80}
-                      className="object-cover w-full h-full" 
+                      className="object-cover w-full h-full"
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-100 flex items-center justify-center">
@@ -179,10 +182,10 @@ export default function BusinessPreview({
             ))}
           </div>
         </div>
-        
+
         {/* Upgrade Button */}
         <div className="bg-gray-50 p-4 border-t">
-          <Button 
+          <Button
             className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white"
             onClick={handleUpgradeClick}
             disabled={isSubmitting}

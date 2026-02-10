@@ -22,6 +22,7 @@ import { PostHogProvider } from "@/providers/posthog-provider";
 // import { Suspense } from "react";
 
 import { getDomainConfig } from "@/lib/domain-utils";
+import { DomainProvider } from "@/providers/DomainProvider";
 
 export async function generateMetadata(): Promise<Metadata> {
   const headerList = await headers();
@@ -48,7 +49,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title: config.title,
       description: config.description,
       type: "website",
-      images: ["/og_image.png"],
+      images: [config.ogImage || "/og_image.png"],
     },
   };
 }
@@ -172,20 +173,22 @@ document.head.appendChild(o)}initApollo();`,
       </head>
       <body className={`antialiased font-sans ${inter.variable} ${dancingScript.variable} ${poppins.variable} ${roboto.variable}`}>
         <PostHogProvider>
-          <AuthInitializer />
-          {(user?.role === "user" || !user) && !isWhatsappDialogHidden && country === "IN" && (
-            <WhatsappGroupJoinAlertDialog isPetraz={isPetraz} />
-          )}
-          <Toaster richColors closeButton position="top-center" />
-          {/* <Snow /> */}
-          {!isNavbarHidden ? <Navbar userData={user} country={country} appName={config.name} logo={config.logo} logowhite={config.logowhite} /> : null}
-          {/* <RateUsModal /> */}
+          <DomainProvider config={config}>
+            <AuthInitializer />
+            {(user?.role === "user" || !user) && !isWhatsappDialogHidden && country === "IN" && (
+              <WhatsappGroupJoinAlertDialog isPetraz={isPetraz} />
+            )}
+            <Toaster richColors closeButton position="top-center" />
+            {/* <Snow /> */}
+            {!isNavbarHidden ? <Navbar userData={user} country={country} appName={config.name} logo={config.logo} logowhite={config.logowhite} /> : null}
+            {/* <RateUsModal /> */}
 
-          {/* pwa install is currently turned off */}
-          {/* <PwaInstallPrompt /> */}
+            {/* pwa install is currently turned off */}
+            {/* <PwaInstallPrompt /> */}
 
-          {children}
-          {!isBottomNavHidden ? <BottomNav userData={user} country={country} /> : null}
+            {children}
+            {!isBottomNavHidden ? <BottomNav userData={user} country={country} /> : null}
+          </DomainProvider>
         </PostHogProvider>
       </body>
     </html>

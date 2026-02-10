@@ -19,6 +19,7 @@ import { FaWhatsapp } from "react-icons/fa";
 import { InstagramLogoIcon } from "@radix-ui/react-icons";
 import { CommonOffer } from "../superAdmin/OfferUploadSuperAdmin";
 import ReelSection from "./ReelSection";
+import { useDomain } from "@/providers/DomainProvider";
 
 const ExploreDetail = ({
   commonOffer,
@@ -27,6 +28,7 @@ const ExploreDetail = ({
   commonOffer: CommonOffer;
   decrypted: { id: string; role: string } | null;
 }) => {
+  const { name: appName } = useDomain();
   const allOfferReels = useMemo(
     () => [commonOffer, ...(commonOffer.partner?.common_offers || [])],
     [commonOffer]
@@ -42,7 +44,7 @@ const ExploreDetail = ({
 
   const currentOffer = allOfferReels[currentIndex];
 
-   useEffect(() => {
+  useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
@@ -185,7 +187,7 @@ const ExploreDetail = ({
               {commonOffer?.partner && (
                 <div className="flex gap-2">
                   <Link
-                    href={`https://cravings.live/hotels/${commonOffer.partner.store_name}/${commonOffer.partner_id}`}
+                    href={`/hotels/${commonOffer.partner.store_name}/${commonOffer.partner_id}`}
                     className="bg-white border-2 border-gray-300 text-sm hover:border-orange-300 hover:bg-orange-50 text-gray-700 px-6 py-4 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm flex-1 sm:flex-none"
                   >
                     <ShoppingBag width={20} height={20} />
@@ -193,7 +195,7 @@ const ExploreDetail = ({
                   </Link>
 
                   <Link
-                    href={`https://cravings.live/hotels/${commonOffer.partner.store_name}/${commonOffer.partner_id}`}
+                    href={`/hotels/${commonOffer.partner.store_name}/${commonOffer.partner_id}`}
                     className="bg-orange-500 text-sm text-nowrap hover:bg-orange-600 text-white px-6 py-4 rounded-xl font-semibold transition-colors flex items-center gap-2 shadow-sm flex-1 justify-center sm:flex-none"
                   >
                     <Book className="w-5 h-5" />
@@ -291,7 +293,7 @@ const ExploreDetail = ({
             Craving for More? Explore Now!
           </h3>
           <p className="text-orange-100 mb-8 text-sm">
-            Don't miss out on this amazing deal from Cravings!
+            Don't miss out on this amazing deal from {appName}!
           </p>
           {/* <button className="bg-white text-orange-600 px-12 py-4 rounded-xl font-bold text-xl hover:bg-orange-50 transition-colors shadow-lg">
             Order Now

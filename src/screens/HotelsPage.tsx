@@ -33,9 +33,9 @@ const HotelsPage = ({
 }) => {
   const [isRefreshingLocation, setIsRefreshingLocation] = useState(false);
 
-  useEffect(() => {
-    saveUserLocation();
-  }, [hasUserLocation]);
+  // useEffect(() => {
+  //   saveUserLocation();
+  // }, [hasUserLocation]);
 
   const refreshLocation = () => {
     setIsRefreshingLocation(true);

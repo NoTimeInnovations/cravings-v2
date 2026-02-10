@@ -3,14 +3,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { headers } from "next/headers";
 import { getDomainConfig } from "@/lib/domain-utils";
-import { 
-  Utensils, 
-  Coffee, 
-  Cake, 
-  ChefHat, 
-  Truck, 
-  Building2, 
-  Wine, 
+import {
+  Utensils,
+  Coffee,
+  Cake,
+  ChefHat,
+  Truck,
+  Building2,
+  Wine,
   PartyPopper,
   ArrowRight,
   QrCode,
@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const headersList = await headers();
   const host = headersList.get("host");
   const config = getDomainConfig(host);
-  
+
   return {
     title: `Digital Menu Solutions for Every Food Business | ${config.name}`,
     description: `Transform your food business with smart digital menus. Perfect for restaurants, cafés, bakeries, cloud kitchens, hotels, food trucks, bars, and catering services. QR code menus, real-time updates, Google Business Profile sync.`,
@@ -176,7 +176,7 @@ export default async function SolutionsPage() {
     <main className="min-h-screen bg-[#f4e5d5] relative">
       {/* Grid Background */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] bg-[size:4rem_4rem]" />
-      
+
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 relative">
@@ -190,7 +190,7 @@ export default async function SolutionsPage() {
               Your Business
             </h1>
             <p className="text-xl text-gray-600 leading-relaxed mb-8 max-w-3xl mx-auto">
-              Whether you run a cozy café, a bustling restaurant, or a cloud kitchen empire — 
+              Whether you run a cozy café, a bustling restaurant, or a cloud kitchen empire —
               our digital menu platform adapts to your unique needs. Beautiful, fast, and built for growth.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -249,7 +249,7 @@ export default async function SolutionsPage() {
                   <p className="text-gray-600 leading-relaxed mb-6">
                     {solution.shortDesc}
                   </p>
-                  <Link 
+                  <Link
                     href={`/solutions/${solution.slug}`}
                     className="inline-flex items-center text-sm font-medium text-[#e65a22] group-hover:text-[#d14d1a]"
                   >
@@ -276,28 +276,42 @@ export default async function SolutionsPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {SOLUTIONS.map((solution) => (
-              <Link
-                key={solution.slug}
-                href={`/solutions/${solution.slug}`}
-                className="group relative bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300 hover:-translate-y-1"
-              >
-                <div className="p-6">
-                  <div className={`w-14 h-14 rounded-xl ${solution.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                    <solution.icon className="w-7 h-7 text-white" />
+            {SOLUTIONS.map((solution, idx) => (
+              <div key={solution.slug} className="flex flex-col">
+                <Link
+                  href={`/solutions/${solution.slug}`}
+                  className="group relative bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300 hover:-translate-y-1 flex-1"
+                >
+                  <div className="p-6">
+                    <div className={`w-14 h-14 rounded-xl ${solution.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                      <solution.icon className="w-7 h-7 text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-[#e65a22] transition-colors">
+                      {solution.title}
+                    </h3>
+                    <p className="text-gray-600 text-sm leading-relaxed mb-4">
+                      {solution.shortDesc}
+                    </p>
+                    <span className="inline-flex items-center text-sm font-medium text-[#e65a22] group-hover:text-[#d14d1a]">
+                      Learn more
+                      <ArrowRight className="ml-1 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </span>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-[#e65a22] transition-colors">
-                    {solution.title}
-                  </h3>
-                  <p className="text-gray-600 text-sm leading-relaxed mb-4">
-                    {solution.shortDesc}
-                  </p>
-                  <span className="inline-flex items-center text-sm font-medium text-[#e65a22] group-hover:text-[#d14d1a]">
-                    Learn more
-                    <ArrowRight className="ml-1 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </span>
+                </Link>
+                {/* Related solutions cross-links for SEO */}
+                <div className="flex gap-2 mt-2 px-1 flex-wrap">
+                  <span className="text-xs text-gray-400">Related:</span>
+                  {SOLUTIONS.filter((_, i) => {
+                    const next1 = (idx + 1) % SOLUTIONS.length;
+                    const next2 = (idx + 2) % SOLUTIONS.length;
+                    return i === next1 || i === next2;
+                  }).map(related => (
+                    <Link key={related.slug} href={`/solutions/${related.slug}`} className="text-xs text-gray-400 hover:text-[#e65a22] transition-colors">
+                      {related.title}
+                    </Link>
+                  ))}
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         </div>
@@ -341,8 +355,8 @@ export default async function SolutionsPage() {
                 Sync Your Menu with Google Business Profile
               </h2>
               <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-                Automatically update your Google Business Profile menu whenever you make changes. 
-                Customers searching for you on Google Maps will always see your latest offerings, 
+                Automatically update your Google Business Profile menu whenever you make changes.
+                Customers searching for you on Google Maps will always see your latest offerings,
                 prices, and availability.
               </p>
               <ul className="space-y-4 mb-8">
@@ -371,10 +385,10 @@ export default async function SolutionsPage() {
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
                     <svg className="w-8 h-8" viewBox="0 0 24 24">
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                     </svg>
                   </div>
                   <div>

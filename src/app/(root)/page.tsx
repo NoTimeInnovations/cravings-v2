@@ -16,6 +16,7 @@ import Footer from "@/components/Footer";
 import Chatwoot from "@/components/Chatwoot";
 import { getDomainConfig } from "@/lib/domain-utils";
 import { headers } from "next/headers";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export async function generateMetadata(): Promise<Metadata> {
   const headersList = await headers();
@@ -41,92 +42,29 @@ export default async function Home() {
   const host = headersList.get("host");
   const config = getDomainConfig(host);
 
+  const softwareAppSchema = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": config.name,
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "description": `Create a stunning digital menu instantly. The smartest restaurant menu creator with QR codes, real-time editing, and marketing tools.`,
+    "url": `https://${host || 'www.cravings.live'}`,
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "ratingCount": "500"
+    }
+  };
+
   return (
     <div className="min-h-screen w-full font-sans text-gray-900 relative">
-      {/* SEO Fallback Content (Hidden visually but visible to crawlers) */}
-      <div style={{
-        position: 'absolute',
-        width: '1px',
-        height: '1px',
-        padding: '0',
-        margin: '-1px',
-        overflow: 'hidden',
-        clip: 'rect(0, 0, 0, 0)',
-        whiteSpace: 'nowrap',
-        border: '0'
-      }}>
-        <h1>The Ultimate Digital Menu Creator</h1>
-        <p>Create a stunning digital menu in seconds. No apps to download. Just a simple QR code that opens a world of flavors.</p>
-
-        <h2>Everything you need for a beautiful digital menu</h2>
-        <p>Powerful features designed to increase orders and simplify management.</p>
-        <ul>
-          <li>
-            <h3>Instant Menu Editing</h3>
-            <p>Update prices, descriptions, and images instantly. No more waiting for designers or re-printing PDFs.</p>
-          </li>
-          <li>
-            <h3>Offers & Specials</h3>
-            <p>Run happy hour specials or create limited-time offers to boost sales during slow hours.</p>
-          </li>
-          <li>
-            <h3>Availability Control</h3>
-            <p>Mark items as &quot;Sold Out&quot; instantly to avoid awkward customer service moments.</p>
-          </li>
-        </ul>
-
-        <h2>How it works</h2>
-        <p>Get your digital menu running in minutes.</p>
-        <ol>
-          <li>
-            <h3>Create your menu</h3>
-            <p>Upload your menu (PDF or images) or add items manually. No credit card needed. No technical setup.</p>
-          </li>
-          <li>
-            <h3>Customize & update</h3>
-            <p>Edit prices, items, availability, offers, and photos anytime. Match your menu to your brand with colors and layout.</p>
-          </li>
-          <li>
-            <h3>Share with customers</h3>
-            <p>Scan the QR code or share the link. Customers always see your latest menu — no reprints needed.</p>
-          </li>
-        </ol>
-
-        <h2>Simple, Transparent Pricing</h2>
-        <p>Choose the plan that fits your growth.</p>
-        <ul>
-          <li>
-            <h3>Free Plan ($0/month)</h3>
-            <p>Perfect for trying out {config.name}.</p>
-            <ul>
-              <li>100 scans per month</li>
-              <li>Unlimited offers</li>
-              <li>Unlimited edits</li>
-              <li>Chat support</li>
-            </ul>
-          </li>
-          <li>
-            <h3>Standard Plan ($9/month)</h3>
-            <p>For growing restaurants.</p>
-            <ul>
-              <li>500 scans per month</li>
-              <li>Unlimited offers</li>
-              <li>Unlimited edits</li>
-              <li>Priority support</li>
-            </ul>
-          </li>
-          <li>
-            <h3>Plus Plan ($29/month)</h3>
-            <p>For high-volume venues.</p>
-            <ul>
-              <li>Unlimited scans</li>
-              <li>Unlimited offers</li>
-              <li>Unlimited edits</li>
-              <li>Priority chat support</li>
-            </ul>
-          </li>
-        </ul>
-      </div>
+      <JsonLd data={softwareAppSchema} />
       <Background />
 
       {/* HERO SECTION (Client Component for Animations) */}

@@ -4,10 +4,14 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { MessageSquare } from "lucide-react";
 
+import { useDomain } from "@/providers/DomainProvider";
+
 export default function HelpCenterWhatsApp() {
+    const { name: appName } = useDomain();
+
     const handleWhatsAppChat = () => {
         const supportNumber = "918590115462";
-        const message = "Hi! I need help with Cravings.";
+        const message = `Hi! I need help with ${appName}.`;
         const whatsappUrl = `https://wa.me/${supportNumber}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, "_blank");
     };

@@ -10,6 +10,9 @@ import Footer from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
 import Chatwoot from "@/components/Chatwoot";
 
+import { headers } from "next/headers";
+import { getDomainConfig } from "@/lib/domain-utils";
+
 // Helper to get data for a specific slug
 async function getProductData(slug: string) {
     const contentDir = path.join(process.cwd(), "src/content");
@@ -43,14 +46,18 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     const { slug } = await params;
     const data = await getProductData(slug);
 
+    const headersList = await headers();
+    const host = headersList.get("host");
+    const config = getDomainConfig(host);
+
     if (!data) {
         return {
-            title: "Product Not Found | Cravings"
+            title: `Product Not Found | ${config.name}`
         }
     }
 
     return {
-        title: `${data.hero.eyebrow} - Cravings`,
+        title: `${data.hero.eyebrow} - ${config.name}`,
         description: data.hero.subheadline
     }
 }
@@ -58,6 +65,10 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 export default async function ProductPage({ params }: { params: { slug: string } }) {
     const { slug } = await params;
     const data = await getProductData(slug);
+
+    const headersList = await headers();
+    const host = headersList.get("host");
+    const config = getDomainConfig(host);
 
     if (!data) {
         notFound();
@@ -77,7 +88,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
                 {data.cta && <CTASection data={data.cta} />}
             </main>
 
-            <Footer />
+            <Footer appName={config.name} />
 
             {/* Chatwoot Chat Bubble */}
             <Chatwoot />

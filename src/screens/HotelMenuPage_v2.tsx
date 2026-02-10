@@ -84,9 +84,9 @@ const HotelMenuPage = ({
     },
   };
 
-  useEffect(() => {
-    saveUserLocation(false);
-  }, []);
+  // useEffect(() => {
+  //   saveUserLocation(false);
+  // }, []);
 
   useEffect(() => {
     setQrData(qrData || null);

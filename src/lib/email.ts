@@ -7,13 +7,15 @@ import SupportEmail from '@/components/emails/SupportEmail';
 import { headers } from 'next/headers';
 import { getDomainConfig } from './domain-utils';
 
-const getEmailConfig = async () => {
-    let host = 'cravings.live';
-    try {
-        const headerList = await headers();
-        host = headerList.get('host') || 'cravings.live';
-    } catch (e) {
-        // Fallback for non-request contexts if any
+export const getEmailConfig = async (hostOverride?: string) => {
+    let host = hostOverride || 'cravings.live';
+    if (!hostOverride) {
+        try {
+            const headerList = await headers();
+            host = headerList.get('host') || 'cravings.live';
+        } catch (e) {
+            // Fallback for non-request contexts if any
+        }
     }
 
     const isMenuThere = host.includes('menuthere');
@@ -28,7 +30,7 @@ const getEmailConfig = async () => {
         appName: domainConfig.name,
         fromEmail: isMenuThere ? 'MenuThere <info@support.menuthere.com>' : 'Cravings <info@support.cravings.live>'
     });
-    
+
     return {
         apiKey,
         appName: domainConfig.name,
@@ -58,9 +60,9 @@ export async function sendWelcomeEmail(to: string, props: { partnerName: string;
             from: config.fromEmail,
             to,
             subject: `Your Menu is Live on ${config.appName}! 🚀`,
-            react: WelcomeEmail({ 
-                ...props, 
-                email: to, 
+            react: WelcomeEmail({
+                ...props,
+                email: to,
                 appName: config.appName,
                 logoUrl: config.logoUrl,
                 loginLink,
@@ -83,9 +85,9 @@ export async function sendUpgradeEmail(to: string, props: { partnerName: string;
             from: config.fromEmail,
             to,
             subject: `Your Plan has been Upgraded on ${config.appName}! ✨`,
-            react: UpgradeEmail({ 
-                ...props, 
-                appName: config.appName, 
+            react: UpgradeEmail({
+                ...props,
+                appName: config.appName,
                 logoUrl: config.logoUrl,
                 loginLink: `${config.baseUrl}/login`
             }),
@@ -116,7 +118,7 @@ export async function sendCancellationRequestEmail(props: { partnerName: string;
             from: config.fromEmail,
             to: props.partnerEmail,
             subject: `Cancellation Confirmation - ${config.appName}`,
-            react: CancelConfirmationEmail({ 
+            react: CancelConfirmationEmail({
                 partnerName: props.partnerName,
                 appName: config.appName,
                 logoUrl: config.logoUrl
@@ -144,10 +146,10 @@ export async function sendSupportEmail(props: { name: string; email: string; sub
             to: ADMIN_EMAIL,
             replyTo: props.email,
             subject: `Support Request [${config.appName}]: ${props.subject}`,
-            react: SupportEmail({ 
-                ...props, 
-                appName: config.appName, 
-                logoUrl: config.logoUrl 
+            react: SupportEmail({
+                ...props,
+                appName: config.appName,
+                logoUrl: config.logoUrl
             }),
         });
     } catch (error) {

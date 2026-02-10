@@ -2,7 +2,8 @@
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import React, { useEffect, useState, useRef } from "react";
-import Img from "../../../Img";
+// import Img from "../../../Img";
+import Image from "next/image";
 import ItemDetailsModal from "./ItemDetailsModal";
 import DescriptionWithTextBreak from "../../../DescriptionWithTextBreak";
 import useOrderStore from "@/store/orderStore";
@@ -345,10 +346,11 @@ const ItemCard = ({
 
             {item.image_url && item.image_url.length > 0 && (
               <div className="w-[100px] h-[100px] relative rounded-3xl overflow-hidden flex-shrink-0">
-                <Img
+                <Image
                   src={item.image_url.replace("+", "%2B")}
                   alt={`Best ${item.name} in ${hotelData?.location_details || hotelData?.district || hotelData?.country || 'town'}`}
-                  className={`object-cover w-full h-full ${!isOrderable ? "grayscale" : ""
+                  fill
+                  className={`object-cover ${!isOrderable ? "grayscale" : ""
                     }`}
                 />
 

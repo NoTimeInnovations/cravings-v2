@@ -4,8 +4,7 @@ import { uploadFileToS3 } from "@/app/actions/aws-s3";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import axios from "axios";
 import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY_CRAVINGS);
+import { getEmailConfig } from "@/lib/email";
 
 interface Item {
     name: string;
@@ -16,7 +15,8 @@ interface Item {
 export const generateAndUploadImages = async (
     partnerId: string,
     items: Item[],
-    email: string
+    email: string,
+    host: string
 ) => {
     try {
         console.log(`Starting background image generation for partner ${partnerId} with ${items.length} items`);
@@ -135,19 +135,25 @@ export const generateAndUploadImages = async (
         }
 
         // 3. Send Notification Email
-        await resend.emails.send({
-            from: "Cravings <info@cravings.live>",
-            to: email,
-            subject: "Your Menu Images are Ready!",
-            html: `
-                <h1>Your Menu is Fully Visualized!</h1>
-                <p>We have finished generating images for your menu items.</p>
-                <p>You can now view and edit them in your dashboard.</p>
-                <a href="https://cravings.live/admin-v2">Go to Dashboard</a>
-            `
-        });
-
-        console.log("Background image generation completed and email sent.");
+        // 3. Send Notification Email
+        const emailConfig = await getEmailConfig(host);
+        if (emailConfig.apiKey) {
+            const resend = new Resend(emailConfig.apiKey);
+            await resend.emails.send({
+                from: emailConfig.fromEmail,
+                to: email,
+                subject: `Your Menu Images are Ready! - ${emailConfig.appName}`,
+                html: `
+                    <h1>Your Menu is Fully Visualized!</h1>
+                    <p>We have finished generating images for your menu items.</p>
+                    <p>You can now view and edit them in your dashboard.</p>
+                    <a href="${emailConfig.baseUrl}/admin-v2">Go to Dashboard</a>
+                `
+            });
+            console.log("Background image generation completed and email sent.");
+        } else {
+            console.log("Background image generation completed but email skipped (no API key).");
+        }
 
     } catch (error) {
         console.error("Critical error in background image generation:", error);

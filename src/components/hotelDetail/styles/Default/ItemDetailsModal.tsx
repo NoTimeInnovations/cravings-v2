@@ -10,7 +10,8 @@ import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
 import HeadingWithAccent from "@/components/HeadingWithAccent";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { X } from "lucide-react";
-import Img from "@/components/Img";
+// import Img from "@/components/Img";
+import Image from "next/image";
 import { formatPrice } from "@/lib/constants";
 
 const ItemDetailsModal = ({
@@ -73,11 +74,12 @@ const ItemDetailsModal = ({
           </div>
 
           {item.image_url && (
-            <div className="w-full h-[200px] overflow-hidden rounded-3xl">
-              <Img
+            <div className="w-full h-[200px] overflow-hidden rounded-3xl relative">
+              <Image
                 src={item.image_url}
                 alt={item.name}
-                className="w-full h--full object-cover rounded-3xl"
+                fill
+                className="object-cover rounded-3xl"
               />
             </div>
           )}

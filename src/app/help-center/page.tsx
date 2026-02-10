@@ -1,12 +1,33 @@
+import { Metadata } from "next";
 import HelpCenterFacebook from "./FacebookSupport";
 import HelpCenterContactForm from "./ContactForm";
 import HelpCenterWhatsApp from "./WhatsAppSupport";
+import { JsonLd } from "@/components/seo/JsonLd";
 import {
     Accordion,
     AccordionContent,
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion";
+
+import { headers } from "next/headers";
+import { getDomainConfig } from "@/lib/domain-utils";
+
+export async function generateMetadata(): Promise<Metadata> {
+    const headersList = await headers();
+    const host = headersList.get("host");
+    const config = getDomainConfig(host);
+
+    return {
+        title: `Help & Support | ${config.name}`,
+        description: `Get help with your ${config.name} digital menu. FAQs, WhatsApp support, and email contact form. Quick answers to common questions about menu management, offers, and more.`,
+        openGraph: {
+            title: `Help & Support | ${config.name}`,
+            description: `Get help with your ${config.name} digital menu. FAQs, contact form, and WhatsApp support.`,
+            type: "website",
+        },
+    };
+}
 
 const FAQS = [
     {
@@ -56,8 +77,22 @@ const FAQS = [
 ];
 
 export default function HelpCenterPage() {
+    const faqSchema = {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": FAQS.map(faq => ({
+            "@type": "Question",
+            "name": faq.question,
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": faq.answer
+            }
+        }))
+    };
+
     return (
         <div className="py-36 px-5 sm:px-0">
+            <JsonLd data={faqSchema} />
             <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
                 <div className="space-y-2 text-center pb-6">
                     <h1 className="text-3xl font-bold tracking-tight">Help & Support</h1>

@@ -80,6 +80,8 @@ type MapboxGeocoder = IControl & {
 // Full-Page Address Management Component
 // =================================================================
 
+import { useDomain } from "@/providers/DomainProvider";
+
 const AddressManagementModal = ({
   open,
   onClose,
@@ -93,6 +95,7 @@ const AddressManagementModal = ({
   editAddress?: SavedAddress | null;
   hotelData: HotelData;
 }) => {
+  const { name: appName } = useDomain();
   const [label, setLabel] = useState<string>("Home");
   const [customLabel, setCustomLabel] = useState<string>("");
   const [flatNo, setFlatNo] = useState<string>("");
@@ -299,7 +302,7 @@ const AddressManagementModal = ({
         headers: {
           Accept: "application/json",
           Origin: window.location.origin,
-          "User-Agent": "CravingsApp/1.0 (your-email@example.com)",
+          "User-Agent": `${appName}App/1.0 (info@${typeof window !== 'undefined' ? window.location.host : 'cravings.live'})`,
         },
         mode: "cors",
       });

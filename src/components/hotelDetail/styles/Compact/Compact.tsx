@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { MyOrdersButton } from "./MyOrdersButton";
+import Link from "next/link";
+import Image from "next/image";
 import CompactOrders from "./CompactOrders";
 import { Utensils, ShoppingBag } from "lucide-react";
 import { DefaultHotelPageProps } from "../Default/Default";
@@ -235,8 +237,8 @@ const Compact = ({
       // If we have dynamic offers, remove any manual "Offer/Offers" category to avoid duplicates
       // We prioritize the dynamic one because it contains the actual discounted items logic.
       cats = cats.filter(c => {
-          const name = c.name.toLowerCase().trim();
-          return name !== 'offer' && name !== 'offers';
+        const name = c.name.toLowerCase().trim();
+        return name !== 'offer' && name !== 'offers';
       });
 
       cats.push({
@@ -314,11 +316,14 @@ const Compact = ({
                 {hoteldata?.store_banner &&
                   hoteldata?.store_banner !== "" &&
                   !bannerError ? (
-                  <img
+                  <Image
                     src={hoteldata?.store_banner}
                     alt="Hotel Logo"
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
                     onError={() => setBannerError(true)}
+                    priority
+                    fetchPriority="high"
                   />
                 ) : (
                   <div

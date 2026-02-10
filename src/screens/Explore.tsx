@@ -38,9 +38,9 @@ const Explore = ({
   const { ref, inView } = useInView();
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    saveUserLocation();
-  }, [initialDistrict, hasUserLocation]);
+  // useEffect(() => {
+  //   saveUserLocation();
+  // }, [initialDistrict, hasUserLocation]);
 
   const loadMore = async () => {
     if (!inView || isLoadingMore || offers.length >= totalOffers) return;
@@ -152,9 +152,8 @@ const Explore = ({
             className="flex items-center gap-1 px-3 py-1.5 text-xs bg-white border border-orange-300 rounded-full hover:bg-orange-50 transition-colors disabled:opacity-50"
           >
             <Navigation
-              className={`w-4 h-4 ${
-                isRefreshingLocation ? "animate-spin" : ""
-              }`}
+              className={`w-4 h-4 ${isRefreshingLocation ? "animate-spin" : ""
+                }`}
             />
             <span>Refresh Location</span>
           </button>

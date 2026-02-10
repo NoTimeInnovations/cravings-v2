@@ -3,11 +3,15 @@ import React from "react";
 import { CommonOffer } from "../superAdmin/OfferUploadSuperAdmin";
 import { Share2 } from "lucide-react";
 import { toast } from "sonner";
+import { useDomain } from "@/providers/DomainProvider";
 
 const ShareExploreItemBtn = ({ offer }: { offer: CommonOffer }) => {
+  const { name: appName } = useDomain();
+
   const handleShare = async () => {
     try {
-      const message = `*🚨 KIDILAN FOOD SPOT ALERT 🚨*\n\n🎉 *${offer.partner_name}* is offering *${offer.item_name}*${offer.price > 0 ? ` at *₹${offer.price}*!` : ''} 🌟\n\n🔗 View offer: https://www.cravings.live/explore/${offer.id}\n\nDon't miss out on this amazing offer from *Cravings*! 🍽️✨`;
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://cravings.live';
+      const message = `*🚨 KIDILAN FOOD SPOT ALERT 🚨*\n\n🎉 *${offer.partner_name}* is offering *${offer.item_name}*${offer.price > 0 ? ` at *₹${offer.price}*!` : ''} 🌟\n\n🔗 View offer: ${origin}/explore/${offer.id}\n\nDon't miss out on this amazing offer from *${appName}*! 🍽️✨`;
 
       const shareData = {
         title: `KIDILAN FOOD SPOT ALERT`,

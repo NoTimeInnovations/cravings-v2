@@ -7,6 +7,7 @@ export interface DomainConfig {
     logo?: string;
     logowhite?: string;
     icon?: string;
+    ogImage?: string;
 }
 
 export function getDomainConfig(host?: string | null): DomainConfig {

@@ -4,7 +4,8 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { getDomainConfig } from "@/lib/domain-utils";
-import { 
+import { JsonLd } from "@/components/seo/JsonLd";
+import {
   Utensils, Coffee, Cake, ChefHat, Truck, Building2, Wine, PartyPopper,
   ArrowRight, QrCode, Globe, TrendingUp, Clock, CheckCircle2, Star,
   Smartphone, CreditCard, BarChart3, Zap, Shield, Users, MapPin,
@@ -19,12 +20,12 @@ function replaceAppNameInObject(obj: any, appName: string): any {
     // Simple heuristic: don't replace if it looks like a path/url
     // Actually, image paths are strings too.
     if (obj.includes('/') || obj.includes('http')) {
-        return obj.replace(/\{appName\}/g, appName); // Only replace explicit placeholder in URLs
+      return obj.replace(/\{appName\}/g, appName); // Only replace explicit placeholder in URLs
     }
-    
+
     let text = obj.replace(/\{appName\}/g, appName);
     if (appName !== "Cravings") {
-        text = text.replace(/\bCravings\b/g, appName);
+      text = text.replace(/\bCravings\b/g, appName);
     }
     return text;
   }
@@ -56,10 +57,10 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     icon: Utensils,
     color: "bg-[#e65a22]",
     heroImage: "/images/solutions/restaurant-hero.jpg",
-    
+
     headline: "Smart Digital Menus for Modern Restaurants",
     subheadline: "Elevate your dining experience with beautiful, interactive menus that update in real-time",
-    
+
     introduction: `
       In today's competitive restaurant industry, first impressions matter more than ever. Your menu is often the first thing customers interact with — it sets the tone for their entire dining experience. Traditional paper menus are costly to print, difficult to update, and can't showcase your dishes in their best light.
 
@@ -171,10 +172,10 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     icon: Coffee,
     color: "bg-[#e65a22]",
     heroImage: "/images/solutions/cafe-hero.jpg",
-    
+
     headline: "Beautiful Digital Menus for Cafés & Coffee Shops",
     subheadline: "Showcase your specialty brews and artisan treats with menus as beautiful as your coffee",
-    
+
     introduction: `
       Your café is more than just a place to grab coffee — it's an experience. From the aroma of freshly ground beans to the carefully crafted latte art, every detail matters. Your menu should reflect that same attention to detail and aesthetic sensibility.
 
@@ -291,10 +292,10 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     icon: Cake,
     color: "bg-[#e65a22]",
     heroImage: "/images/solutions/bakery-hero.jpg",
-    
+
     headline: "Delicious Digital Menus for Bakeries",
     subheadline: "Display your freshly baked goods with mouth-watering visuals that drive sales",
-    
+
     introduction: `
       Fresh-baked bread, artisan pastries, custom cakes — your bakery creates edible art every single day. But a static menu board or printed flyer can never capture the golden crust of a just-baked croissant or the intricate decorations on a wedding cake.
 
@@ -411,10 +412,10 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     icon: ChefHat,
     color: "bg-[#e65a22]",
     heroImage: "/images/solutions/cloud-kitchen-hero.jpg",
-    
+
     headline: "Powerful Menu Management for Cloud Kitchens",
     subheadline: "Run multiple virtual brands from a single dashboard with enterprise-grade menu tools",
-    
+
     introduction: `
       Cloud kitchens are revolutionizing the food industry. Without the overhead of dine-in space, you can focus purely on what matters: great food delivered fast. But managing multiple brands, each with its own menu, pricing, and identity, can quickly become overwhelming.
 
@@ -531,10 +532,10 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     icon: Building2,
     color: "bg-[#e65a22]",
     heroImage: "/images/solutions/hotel-hero.jpg",
-    
+
     headline: "Elegant Digital Menus for Hotels & Resorts",
     subheadline: "Elevate your guest experience with sophisticated digital dining across all outlets",
-    
+
     introduction: `
       In hospitality, every touchpoint matters. From the moment guests check in to their final checkout, you're crafting an experience. Your food and beverage offerings are a crucial part of that experience — whether it's in-room dining at midnight, a romantic dinner at your signature restaurant, or cocktails by the pool.
 
@@ -571,7 +572,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
 
     features: [
       "Multi-outlet menu management",
-      
+
       "Room service ordering system",
       "Table reservation integration",
       "PMS and POS integrations",
@@ -604,7 +605,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     stats: [
       { value: "200+", label: "Hotels & Resorts" },
       { value: "25%", label: "Increase in F&B Revenue" },
-      
+
       { value: "4.9★", label: "Guest Satisfaction" }
     ],
 
@@ -642,10 +643,10 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     icon: Truck,
     color: "bg-[#e65a22]",
     heroImage: "/images/solutions/food-truck-hero.jpg",
-    
+
     headline: "Mobile Digital Menus for Food Trucks",
     subheadline: "Your menu goes wherever you go — update on-the-fly and sell more",
-    
+
     introduction: `
       Food trucks thrive on flexibility. You're at a music festival today, a corporate park tomorrow, and a weekend market on Saturday. Your menu might change based on what's fresh, what sold out, or what the crowd wants. Traditional menus just can't keep up.
 
@@ -762,10 +763,10 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     icon: Wine,
     color: "bg-[#e65a22]",
     heroImage: "/images/solutions/bar-hero.jpg",
-    
+
     headline: "Dynamic Digital Menus for Bars & Pubs",
     subheadline: "Showcase your cocktail creations and craft selections with style",
-    
+
     introduction: `
       Your bar is about atmosphere, experience, and exceptional drinks. From craft cocktails mixed by skilled bartenders to a rotating selection of craft beers, every offering tells a story. But in dim lighting, paper menus are hard to read, and your tap selection changes more often than you can print.
 
@@ -882,10 +883,10 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     icon: PartyPopper,
     color: "bg-[#e65a22]",
     heroImage: "/images/solutions/catering-hero.jpg",
-    
+
     headline: "Professional Digital Menus for Caterers",
     subheadline: "Impress clients with polished menus and streamline your event planning",
-    
+
     introduction: `
       Catering is a relationship business. Clients trust you with their most important moments — weddings, corporate galas, milestone birthdays. Your menu is often the first impression, shared across email threads and WhatsApp groups as families debate options. A beautiful, professional menu presentation sets you apart from competitors.
 
@@ -1042,7 +1043,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function SolutionPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const solution = SOLUTIONS_DATA[slug];
-  
+
   if (!solution) {
     notFound();
   }
@@ -1054,11 +1055,51 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 
   const IconComponent = solution.icon;
 
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": solution.faq.map(item => ({
+      "@type": "Question",
+      "name": item.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": item.answer
+      }
+    }))
+  };
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://www.cravings.live"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Solutions",
+        "item": "https://www.cravings.live/solutions"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": solution.title,
+        "item": `https://www.cravings.live/solutions/${slug}`
+      }
+    ]
+  };
+
   return (
     <main className="min-h-screen bg-[#f4e5d5] relative">
+      <JsonLd data={faqSchema} />
+      <JsonLd data={breadcrumbSchema} />
       {/* Grid Background */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] bg-[size:4rem_4rem]" />
-      
+
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 relative">

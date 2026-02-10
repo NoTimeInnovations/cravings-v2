@@ -27,12 +27,19 @@ import {
 } from "@/components/SubscriptionStatusCards";
 
 
+import { headers } from "next/headers";
+import { getDomainConfig } from "@/lib/domain-utils";
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ id: string[] }>;
 }): Promise<Metadata> {
   const { id: hotelIds } = await params;
+
+  const headersList = await headers();
+  const host = headersList.get("host");
+  const config = getDomainConfig(host);
 
   const hotelId = isUUID(hotelIds?.[0] || "") ? hotelIds?.[0] : hotelIds?.[1];
 
@@ -43,6 +50,8 @@ export async function generateMetadata({
           id,
           offer_types: ["delivery", "all"]
         });
+
+        if (!partnerData?.partners?.[0]) return null;
 
         return {
           id,
@@ -63,18 +72,18 @@ export async function generateMetadata({
     throw new Error("Hotel not found");
   }
 
+  const seoTitle = `Menu of ${hotel.store_name}${hotel.location ? ` - ${hotel.location}` : ''} | Powered by ${config.name}`;
+  const seoDescription = hotel.description?.trim() ||
+    `Explore the full menu of ${hotel.store_name}${hotel.location ? ` in ${hotel.location}` : ''}. Browse dishes, prices, and daily specials. Order online or scan QR code.`;
+
   return {
-    title: hotel.store_name,
+    title: seoTitle,
     icons: [hotel.store_banner || "/hotelDetailsBanner.jpeg"],
-    description:
-      hotel.description ||
-      `View the digital menu of ${hotel.store_name}, browse items, and place orders.`,
+    description: seoDescription,
     openGraph: {
       images: [hotel.store_banner || "/hotelDetailsBanner.jpeg"],
-      title: hotel.store_name,
-      description:
-        hotel.description ||
-        `View the digital menu of ${hotel.store_name}, browse items, and place orders.`,
+      title: seoTitle,
+      description: seoDescription,
     },
   };
 }

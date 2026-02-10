@@ -10,7 +10,8 @@
         "description": "MenuThere is your go-to solution for digital menus and restaurant management.",
         "logo": "/menuthere-logo.png",
         "icon": "/menuthere-logo.png",
-        "logowhite": "/menuthere-logo.png"
+        "logowhite": "/menuthere-logo.png",
+        "ogImage": "/menuthere-logo.png"
     },
     "default": {
         "name": "Cravings",

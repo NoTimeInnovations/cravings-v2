@@ -9,9 +9,12 @@ import Image from "next/image";
 import { Carousel, CarouselContent, CarouselItem } from "./ui/carousel";
 import Img from "./Img";
 
+import { useDomain } from "@/providers/DomainProvider";
+
 const PwaInstallPrompt = () => {
   const { isInstallable, promptInstall } = usePWAInstallPrompt();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { name: appName, icon } = useDomain();
   const scrnShots = [
     "/scrnshots/1.png",
     "/scrnshots/2.png",
@@ -40,8 +43,8 @@ const PwaInstallPrompt = () => {
         <div className="flex items-center justify-between px-4 py-3 border-b-2 border-black/10">
           <div className="flex items-center gap-2 ">
             <Img
-              src={"/icon-64x64.png"}
-              alt="Cravings"
+              src={icon || "/icon-64x64.png"}
+              alt={appName}
               width={64}
               height={64}
               className="rounded-md w-[50px] aspect-square sm:w-[80px]"
@@ -49,8 +52,8 @@ const PwaInstallPrompt = () => {
 
             {/* title and website  */}
             <div className="grid">
-              <h1 className="sm:text-xl">Cravings</h1>
-              <p className="text-sm sm:text-lg text-black/60">cravings.live</p>
+              <h1 className="sm:text-xl">{appName}</h1>
+              <p className="text-sm sm:text-lg text-black/60">{typeof window !== 'undefined' ? window.location.host : 'cravings.live'}</p>
             </div>
           </div>
 
@@ -66,7 +69,7 @@ const PwaInstallPrompt = () => {
         {/* contents  */}
         <div className="px-4 py-3 sm:py-5">
           <p className="text-sm text-black/60 sm:text-lg">
-            We are excited to introduce Cravings, your go-to app for finding the
+            We are excited to introduce {appName}, your go-to app for finding the
             best food offers from nearby hotels in real-time!
           </p>
 
