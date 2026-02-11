@@ -163,7 +163,7 @@ export const CategoryDropdown = ({
 
   return (
     <Select value={value} onValueChange={handleSelectChange}>
-      <SelectTrigger className="capitalize h-12 text-base">
+      <SelectTrigger className="capitalize h-12 text-base text-foreground bg-background">
         <SelectValue placeholder="Select category" />
       </SelectTrigger>
       <SelectContent className="max-w-[95vw]">
