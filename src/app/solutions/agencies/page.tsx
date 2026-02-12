@@ -67,8 +67,8 @@ export default async function AgenciesPage() {
             </h2>
             <p className="text-lg text-gray-600 leading-relaxed">
               Independent restaurants lose sales to static PDFs unable to reflect real-time changes.
-              As a MenuThere partner, you solve this with our proven $30/month platform –
-              instant QR updates trusted by 600+ locations – earning you position as their go-to advisor.
+              As a MenuThere partner, you solve this with our proven $30/month platform,
+              instant QR updates trusted by 600+ locations, earning you position as their go-to advisor.
             </p>
           </div>
         </div>
@@ -107,12 +107,12 @@ export default async function AgenciesPage() {
               <div className="divide-y divide-gray-700">
                 <div className="grid grid-cols-3 p-6 items-center hover:bg-white/5 transition-colors">
                   <div className="font-bold text-emerald-400 text-lg">Starter</div>
-                  <div className="text-gray-300">$0 – $1,000</div>
+                  <div className="text-gray-300">$0 to $1,000</div>
                   <div className="font-bold">20% <span className="text-sm font-normal text-gray-400">($6/month)</span></div>
                 </div>
                 <div className="grid grid-cols-3 p-6 items-center hover:bg-white/5 transition-colors bg-white/[0.02]">
                   <div className="font-bold text-blue-400 text-lg">Growth</div>
-                  <div className="text-gray-300">$1,001 – $5,000</div>
+                  <div className="text-gray-300">$1,001 to $5,000</div>
                   <div className="font-bold">25% <span className="text-sm font-normal text-gray-400">($7.50/month)</span></div>
                 </div>
                 <div className="grid grid-cols-3 p-6 items-center hover:bg-white/5 transition-colors relative overflow-hidden">
@@ -135,7 +135,7 @@ export default async function AgenciesPage() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-baseline border-b border-gray-700 pb-3">
                     <span className="text-gray-400 text-sm">Revenue</span>
-                    <span className="text-white font-medium">$0 – $1,000</span>
+                    <span className="text-white font-medium">$0 to $1,000</span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
                     <span className="text-gray-400 text-sm">Commission</span>
@@ -156,7 +156,7 @@ export default async function AgenciesPage() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-baseline border-b border-gray-700 pb-3">
                     <span className="text-gray-400 text-sm">Revenue</span>
-                    <span className="text-white font-medium">$1,001 – $5,000</span>
+                    <span className="text-white font-medium">$1,001 to $5,000</span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
                     <span className="text-gray-400 text-sm">Commission</span>
@@ -263,7 +263,7 @@ export default async function AgenciesPage() {
           { question: "Product Overview", answer: `Premium $30/month QR digital menu platform for global restaurants.` },
           { question: "Experience Required", answer: "Field sales expertise; comprehensive assets provided." },
           { question: "Payout Mechanics", answer: "Monthly Stripe disbursements on collection day, lifetime per active sub." },
-          { question: "Costs Involved", answer: "Zero – fully commission-driven." },
+          { question: "Costs Involved", answer: "Zero, fully commission-driven." },
           { question: "Territory", answer: "Worldwide independents, US prioritized." },
           { question: "Resources", answer: "Portal with videos, scripts, presentations; warm leads available." }
         ]}
