@@ -151,7 +151,7 @@ export default async function SolutionsPage() {
   const headersList = await headers();
   const host = headersList.get("host");
   const config = getDomainConfig(host);
-  const appName = config.name;
+  const appName = "MenuThere";
 
   return (
     <main className="min-h-screen bg-[#f4e5d5] relative">
@@ -171,7 +171,7 @@ export default async function SolutionsPage() {
               Your Business
             </h1>
             <p className="text-base text-gray-600 leading-relaxed mb-8 max-w-3xl mx-auto">
-              Whether you run a cozy café, a bustling restaurant, or a cloud kitchen empire —
+              Whether you run a cozy café, a bustling restaurant, or a cloud kitchen empire -
               our digital menu platform adapts to your unique needs. Beautiful, fast, and built for growth.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -351,7 +351,7 @@ export default async function SolutionsPage() {
             Ready to Transform Your Menu?
           </h2>
           <p className="text-xl text-orange-100 mb-8">
-            Join thousands of food businesses already using {appName} to delight their customers
+            Join thousands of food businesses already using MenuThere to delight their customers
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link

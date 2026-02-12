@@ -14,7 +14,7 @@ const trustedRestaurants = [
     "/logos/chillies.webp"
 ];
 
-export default function Hero({ appName = "Cravings" }: { appName?: string }) {
+export default function Hero({ appName = "MenuThere" }: { appName?: string }) {
     const [animationStep, setAnimationStep] = useState(0);
     const [currentWord, setCurrentWord] = useState(0);
     const words = ["restaurant", "cafeterias", "foodcourts", "quickservice"];

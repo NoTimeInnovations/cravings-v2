@@ -24,7 +24,7 @@ export default async function OwnersPage() {
   const headersList = await headers();
   const host = headersList.get("host");
   const config = getDomainConfig(host);
-  const appName = config.name;
+  const appName = "MenuThere";
 
   // Dynamic Content Replacement
   const dynamicHero = {
@@ -60,7 +60,7 @@ export default async function OwnersPage() {
       <SolutionsHero data={dynamicHero} />
 
       {/* Benefits Section */}
-      <SolutionsBenefits benefits={dynamicBenefits} eyebrow={`Why ${appName} for Owners?`} />
+      <SolutionsBenefits benefits={dynamicBenefits} eyebrow={`Why $MenuThere for Owners?`} />
 
       {/* Features Section */}
       <SolutionsFeatures features={dynamicFeatures} />

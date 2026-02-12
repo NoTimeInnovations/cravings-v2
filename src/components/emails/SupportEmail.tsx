@@ -25,7 +25,7 @@ export const SupportEmail = ({
     email,
     subject,
     message,
-    appName = "Cravings",
+    appName = "MenuThere",
     logoUrl,
 }: SupportEmailProps) => (
     <Html>
@@ -35,9 +35,9 @@ export const SupportEmail = ({
             <Container style={container}>
                 <Section style={header}>
                     {logoUrl ? (
-                        <img src={logoUrl} alt={appName} style={logoImage} />
+                        <img src={logoUrl} alt="MenuThere" style={logoImage} />
                     ) : (
-                        <Text style={logo}>{appName} Support</Text>
+                        <Text style={logo}>MenuThere Support</Text>
                     )}
                 </Section>
                 <Section style={content}>
@@ -56,7 +56,7 @@ export const SupportEmail = ({
                 </Section>
                 <Hr style={hr} />
                 <Text style={footer}>
-                    This email was sent via the {appName} support form.
+                    This email was sent via the MenuThere support form.
                 </Text>
             </Container>
         </Body>

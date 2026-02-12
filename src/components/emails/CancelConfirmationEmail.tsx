@@ -19,26 +19,26 @@ interface CancelConfirmationEmailProps {
 
 export const CancelConfirmationEmail = ({
     partnerName = "Partner",
-    appName = "Cravings",
+    appName = "MenuThere",
     logoUrl,
 }: CancelConfirmationEmailProps) => (
     <Html>
         <Head />
-        <Preview>We received your cancellation request from {appName}. We're sorry to see you go.</Preview>
+        <Preview>We received your cancellation request from MenuThere. We're sorry to see you go.</Preview>
         <Body style={main}>
             <Container style={container}>
                 <Section style={header}>
                     {logoUrl ? (
-                        <img src={logoUrl} alt={appName} style={logoImage} />
+                        <img src={logoUrl} alt="MenuThere" style={logoImage} />
                     ) : (
-                        <Text style={logo}>{appName}</Text>
+                        <Text style={logo}>MenuThere</Text>
                     )}
                 </Section>
                 <Section style={content}>
                     <Heading style={h1}>Cancellation Request Received</Heading>
                     <Text style={text}>Hi {partnerName},</Text>
                     <Text style={text}>
-                        We have received your request to cancel your subscription on <strong>{appName}</strong>. We are truly sorry to hear that you're thinking of leaving.
+                        We have received your request to cancel your subscription on <strong>MenuThere</strong>. We are truly sorry to hear that you're thinking of leaving.
                     </Text>
 
                     <Section style={infoBox}>
@@ -53,7 +53,7 @@ export const CancelConfirmationEmail = ({
 
                     <Hr style={hr} />
                     <Text style={footer}>
-                        © {new Date().getFullYear()} {appName}. All rights reserved.
+                        © {new Date().getFullYear()} MenuThere. All rights reserved.
                     </Text>
                 </Section>
             </Container>

@@ -28,7 +28,7 @@ const ExploreDetail = ({
   commonOffer: CommonOffer;
   decrypted: { id: string; role: string } | null;
 }) => {
-  const { name: appName } = useDomain();
+  const appName = "MenuThere";
   const allOfferReels = useMemo(
     () => [commonOffer, ...(commonOffer.partner?.common_offers || [])],
     [commonOffer]
@@ -293,7 +293,7 @@ const ExploreDetail = ({
             Craving for More? Explore Now!
           </h3>
           <p className="text-orange-100 mb-8 text-sm">
-            Don't miss out on this amazing deal from {appName}!
+            Don't miss out on this amazing deal from MenuThere!
           </p>
           {/* <button className="bg-white text-orange-600 px-12 py-4 rounded-xl font-bold text-xl hover:bg-orange-50 transition-colors shadow-lg">
             Order Now

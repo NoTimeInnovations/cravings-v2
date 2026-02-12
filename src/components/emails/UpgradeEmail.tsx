@@ -26,26 +26,26 @@ export const UpgradeEmail = ({
     newPlanName = "Premium Plan",
     features = [],
     loginLink = "https://cravings.live/login",
-    appName = "Cravings",
+    appName = "MenuThere",
     logoUrl,
 }: UpgradeEmailProps) => (
     <Html>
         <Head />
-        <Preview>Your plan has been upgraded! Enjoy your new features on {appName}.</Preview>
+        <Preview>Your plan has been upgraded! Enjoy your new features on MenuThere.</Preview>
         <Body style={main}>
             <Container style={container}>
                 <Section style={header}>
                     {logoUrl ? (
-                        <img src={logoUrl} alt={appName} style={logoImage} />
+                        <img src={logoUrl} alt="MenuThere" style={logoImage} />
                     ) : (
-                        <Text style={logo}>{appName}</Text>
+                        <Text style={logo}>MenuThere</Text>
                     )}
                 </Section>
                 <Section style={content}>
                     <Heading style={h1}>Plan Upgraded Successfully 🚀</Heading>
                     <Text style={text}>Hi {partnerName},</Text>
                     <Text style={text}>
-                        Great news! Your account on <strong>{appName}</strong> has been successfully upgraded to the <span style={highlight}>{newPlanName}</span>.
+                        Great news! Your account on <strong>MenuThere</strong> has been successfully upgraded to the <span style={highlight}>{newPlanName}</span>.
                     </Text>
 
                     <Section style={featureBox}>
@@ -67,7 +67,7 @@ export const UpgradeEmail = ({
 
                     <Hr style={hr} />
                     <Text style={footer}>
-                        © {new Date().getFullYear()} {appName}. All rights reserved.
+                        © {new Date().getFullYear()} MenuThere. All rights reserved.
                     </Text>
                 </Section>
             </Container>

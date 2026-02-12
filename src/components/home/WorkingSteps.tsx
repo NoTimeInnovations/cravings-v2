@@ -39,7 +39,7 @@ const STEPS = [
     }
 ];
 
-export default function WorkingSteps({ appName = "Cravings" }: { appName?: string }) {
+export default function WorkingSteps({ appName = "MenuThere" }: { appName?: string }) {
     return (
         <section className="py-24 relative overflow-hidden">
             {/* Background Grid Pattern (Matching other sections) */}
@@ -67,7 +67,7 @@ export default function WorkingSteps({ appName = "Cravings" }: { appName?: strin
                         </h2>
 
                         <p className="text-lg text-gray-500 leading-relaxed mb-10 max-w-lg">
-                            Stop losing customers to outdated menus. {appName} lets you instantly update products, add offers and specials, and toggle availability—fast.
+                            Stop losing customers to outdated menus. MenuThere lets you instantly update products, add offers and specials, and toggle availability-fast.
                         </p>
 
                         <Link

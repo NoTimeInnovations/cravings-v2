@@ -23,7 +23,7 @@ export default function BusinessPreview({
   onSubmit,
   isSubmitting,
 }: BusinessPreviewProps) {
-  const { name: appName } = useDomain();
+  const appName = "MenuThere";
   // Get must-try items
   const mustTryItems = menuItems.filter(item => item.mustTry);
 
@@ -34,7 +34,7 @@ export default function BusinessPreview({
     // Only open WhatsApp if not in a submitting state
     if (!isSubmitting) {
       // Open WhatsApp link
-      window.open(`https://wa.me/918590115462?text=Hi!%20I'm%20interested%20in%20partnering%20with%20${appName}.%20Can%20you%20share%20the%20details`, "_blank");
+      window.open(`https://wa.me/918590115462?text=Hi!%20I'm%20interested%20in%20partnering%20with%20$MenuThere.%20Can%20you%20share%20the%20details`, "_blank");
     }
   };
 
@@ -51,7 +51,7 @@ export default function BusinessPreview({
         <div className="bg-white p-3 border-b border-gray-200">
           <div className="flex items-center">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-xl text-orange-500">{appName}</span>
+              <span className="font-bold text-xl text-orange-500">MenuThere</span>
               <span className="text-sm bg-orange-100 text-orange-800 px-2 py-0.5 rounded">Business</span>
             </div>
           </div>

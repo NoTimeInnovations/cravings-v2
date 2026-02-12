@@ -68,7 +68,7 @@ export default async function Home() {
       <Background />
 
       {/* HERO SECTION (Client Component for Animations) */}
-      <Hero appName={config.name} />
+      <Hero appName="MenuThere" />
 
       {/* MARQUEE SECTION */}
       <section className="py-10 bg-[#f4e5d5] relative overflow-hidden">
@@ -97,7 +97,7 @@ export default async function Home() {
       </section> */}
 
       {/* HOW IT WORKS SECTION (Client Component for Step Animations) */}
-      <WorkingSteps appName={config.name} />
+      <WorkingSteps appName="MenuThere" />
 
       {/* FAQ SECTION */}
       <FAQ />
@@ -106,7 +106,7 @@ export default async function Home() {
       {/* <PricingSection country={country} /> */}
 
       {/* FOOTER CTA */}
-      <Footer appName={config.name} />
+      <Footer appName="MenuThere" />
 
       {/* Chatwoot Chat Bubble */}
       <Chatwoot />

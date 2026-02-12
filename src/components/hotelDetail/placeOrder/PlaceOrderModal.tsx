@@ -95,7 +95,7 @@ const AddressManagementModal = ({
   editAddress?: SavedAddress | null;
   hotelData: HotelData;
 }) => {
-  const { name: appName } = useDomain();
+  const appName = "MenuThere";
   const [label, setLabel] = useState<string>("Home");
   const [customLabel, setCustomLabel] = useState<string>("");
   const [flatNo, setFlatNo] = useState<string>("");
@@ -302,7 +302,7 @@ const AddressManagementModal = ({
         headers: {
           Accept: "application/json",
           Origin: window.location.origin,
-          "User-Agent": `${appName}App/1.0 (info@${typeof window !== 'undefined' ? window.location.host : 'cravings.live'})`,
+          "User-Agent": `$MenuThereApp/1.0 (info@${typeof window !== 'undefined' ? window.location.host : 'cravings.live'})`,
         },
         mode: "cors",
       });

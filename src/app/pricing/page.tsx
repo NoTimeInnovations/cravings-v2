@@ -33,7 +33,7 @@ export default async function PricingPage() {
                 </p>
             </div>
 
-            <PricingSection hideHeader={true} country={country} appName={config.name} />
+            <PricingSection hideHeader={true} country={country} appName="MenuThere" />
 
             {/* Chatwoot Chat Bubble */}
             <Chatwoot />

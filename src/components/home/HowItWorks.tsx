@@ -20,7 +20,7 @@ const steps = [
     {
         number: "3",
         title: "Share with customers",
-        description: "Scan the QR code or share the link. Customers always see your latest menu — no reprints needed."
+        description: "Scan the QR code or share the link. Customers always see your latest menu - no reprints needed."
     }
 ];
 

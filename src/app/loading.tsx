@@ -5,8 +5,8 @@ import React from "react";
 import { useDomain } from "@/providers/DomainProvider";
 
 const Loading = () => {
-  const { name: appName } = useDomain();
-  return <FullScreenLoader isLoading={true} loadingTexts={[`Loading ${appName}...`, "Preparing deliciousness...", "Almost there..."]} />;
+  const appName = "MenuThere";
+  return <FullScreenLoader isLoading={true} loadingTexts={[`Loading $MenuThere...`, "Preparing deliciousness...", "Almost there..."]} />;
 };
 
 export default Loading;

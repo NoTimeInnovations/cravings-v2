@@ -21,7 +21,7 @@ declare global {
     }
 }
 
-const PricingSection = ({ hideHeader = false, country: propCountry, appName = "Cravings" }: { hideHeader?: boolean; country?: string; appName?: string }) => {
+const PricingSection = ({ hideHeader = false, country: propCountry, appName = "MenuThere" }: { hideHeader?: boolean; country?: string; appName?: string }) => {
     const { userData } = useAuthStore();
     const router = useRouter();
     const [isCreatingAccount, setIsCreatingAccount] = useState(false);
@@ -135,7 +135,7 @@ const PricingSection = ({ hideHeader = false, country: propCountry, appName = "C
             const options = {
                 key: response.key_id,
                 subscription_id: response.subscription_id,
-                name: `${appName} App`,
+                name: `$MenuThere App`,
                 description: `Upgrade to ${plan.name}`,
                 handler: async function (response: any) {
                     setRedirectLoadingText("Verifying Payment...");

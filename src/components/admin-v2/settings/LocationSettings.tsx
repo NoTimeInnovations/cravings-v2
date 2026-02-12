@@ -11,16 +11,13 @@ import { toast } from "sonner";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { updatePartnerMutation } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
-import { Loader2, MapPin, Save } from "lucide-react";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
-// import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, MapPin } from "lucide-react";
+import { GoogleMap, useLoadScript, Marker, Autocomplete } from "@react-google-maps/api";
 import { useLocationStore } from "@/store/geolocationStore";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
-import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
-import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+// Google Maps libraries
+const libraries: ("places" | "geometry" | "drawing" | "visualization")[] = ["places"];
 
 export function LocationSettings() {
     const { userData, setState } = useAuthStore();
@@ -34,11 +31,16 @@ export function LocationSettings() {
 
     // Map State
     const [mapDialogOpen, setMapDialogOpen] = useState(false);
-    const mapContainer = useRef<HTMLDivElement>(null);
-    const map = useRef<mapboxgl.Map | null>(null);
-    // Use ref for marker to avoid stale closures in event listeners
-    const markerRef = useRef<mapboxgl.Marker | null>(null);
+    // Google Maps References
+    const mapRef = useRef<google.maps.Map | null>(null);
+    const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
     const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+    // Load Google Maps Script
+    const { isLoaded, loadError } = useLoadScript({
+        googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+        libraries,
+    });
 
     useEffect(() => {
         if (userData?.role === "partner") {
@@ -52,118 +54,39 @@ export function LocationSettings() {
         }
     }, [userData]);
 
-    // Initialize Map - use ResizeObserver to wait for container to have dimensions
-    useEffect(() => {
-        // If not open, just return (but don't destroy map if it exists)
-        if (!mapDialogOpen) return;
+    const handleMapLoad = useCallback((map: google.maps.Map) => {
+        mapRef.current = map;
+    }, []);
 
-        // If map already exists, just resize it to be safe
-        if (map.current) {
-            map.current.resize();
-            return;
+    const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
+        if (e.latLng) {
+            const lat = e.latLng.lat();
+            const lng = e.latLng.lng();
+            setSelectedLocation({ lat, lng });
         }
+    }, []);
 
-        let resizeObserver: ResizeObserver | null = null;
-        let initialized = false;
-
-        const initMap = () => {
-            if (initialized || !mapContainer.current) return;
-
-            const rect = mapContainer.current.getBoundingClientRect();
-            // If hidden or 0 size, we can't init yet
-            if (rect.width === 0 || rect.height === 0) return;
-
-            initialized = true;
-
-            // Double check existing map
-            if (map.current) return;
-
-            map.current = new mapboxgl.Map({
-                container: mapContainer.current,
-                style: "mapbox://styles/mapbox/streets-v12",
-                center: [
-                    geoLocation.longitude || 77.5946,
-                    geoLocation.latitude || 12.9716,
-                ],
-                zoom: 14,
-            });
-
-            // Add Geocoder
-            const geocoder = new MapboxGeocoder({
-                accessToken: mapboxgl.accessToken,
-                mapboxgl: mapboxgl,
-                marker: false, // We handle the marker ourselves
-                collapsed: false,
-                types: 'country,region,postcode,district,place,locality,neighborhood,address,poi',
-                limit: 10,
-            });
-            map.current.addControl(geocoder);
-
-            geocoder.on('result', (e: any) => {
-                const coords = e.result.geometry.coordinates;
-                const lng = coords[0];
-                const lat = coords[1];
-
-                if (markerRef.current) markerRef.current.remove();
-
-                const newMarker = new mapboxgl.Marker()
-                    .setLngLat([lng, lat])
-                    .addTo(map.current!);
-                markerRef.current = newMarker;
-
+    const onPlaceChanged = useCallback(() => {
+        if (autocompleteRef.current) {
+            const place = autocompleteRef.current.getPlace();
+            if (place.geometry && place.geometry.location) {
+                const lat = place.geometry.location.lat();
+                const lng = place.geometry.location.lng();
+                
                 setSelectedLocation({ lat, lng });
-            });
+                
+                // Update address/place_id/location from google results if needed
+                if(place.place_id) setPlaceId(place.place_id);
+                if(place.formatted_address) setLocation(place.formatted_address);
 
-
-            if (geoLocation.latitude && geoLocation.longitude) {
-                const newMarker = new mapboxgl.Marker()
-                    .setLngLat([geoLocation.longitude, geoLocation.latitude])
-                    .addTo(map.current);
-                markerRef.current = newMarker;
-            }
-
-            map.current.on("click", (e) => {
-                if (markerRef.current) markerRef.current.remove();
-                const newMarker = new mapboxgl.Marker()
-                    .setLngLat(e.lngLat)
-                    .addTo(map.current!);
-                markerRef.current = newMarker;
-                setSelectedLocation({ lat: e.lngLat.lat, lng: e.lngLat.lng });
-            });
-
-            // Once initialized, we can trigger a resize just in case
-            map.current.resize();
-
-            // Stop observing once initialized
-            if (resizeObserver) {
-                resizeObserver.disconnect();
-            }
-        };
-
-        if (mapContainer.current) {
-            // Try to init immediately
-            initMap();
-
-            // If not initialized, observe for size changes
-            if (!initialized) {
-                resizeObserver = new ResizeObserver(() => {
-                    initMap();
-                });
-                resizeObserver.observe(mapContainer.current);
+                // Pan map to new location
+                if (mapRef.current) {
+                    mapRef.current.panTo({ lat, lng });
+                    mapRef.current.setZoom(15);
+                }
             }
         }
-
-        return () => {
-            if (resizeObserver) {
-                resizeObserver.disconnect();
-            }
-            // We do NOT destroy the map on unmount of the effect here, 
-            // because we want to keep it alive while the component is mounted.
-            // Only destroy if the component really unmounts (handled by a separate cleanup effect if needed, 
-            // or we just let it be GC'd with the ref)
-        };
-    }, [mapDialogOpen, geoLocation.latitude, geoLocation.longitude]); // Re-run when dialog opens to trigger resize loop check
-    // Added geoLocation deps so initial center is correct if opened after loc fetch
+    }, []);
 
     const handleSaveLocation = useCallback(async () => {
         if (!userData) return;
@@ -205,6 +128,7 @@ export function LocationSettings() {
             setIsSaving(false);
         }
     }, [userData, location, locationDetails, placeId, selectedLocation, setState]);
+    
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
     useEffect(() => {
@@ -255,13 +179,9 @@ export function LocationSettings() {
                 setSelectedLocation({ lat: coords.lat, lng: coords.lng });
 
                 // Update map if open
-                if (map.current) {
-                    map.current.flyTo({ center: [coords.lng, coords.lat], zoom: 14 });
-                    if (markerRef.current) markerRef.current.remove();
-                    const newMarker = new mapboxgl.Marker()
-                        .setLngLat([coords.lng, coords.lat])
-                        .addTo(map.current);
-                    markerRef.current = newMarker;
+                if (mapRef.current) {
+                    mapRef.current.panTo({ lat: coords.lat, lng: coords.lng });
+                    mapRef.current.setZoom(15);
                 }
                 toast.success("Location fetched");
             }
@@ -275,9 +195,13 @@ export function LocationSettings() {
         if (selectedLocation) {
             setGeoLocation({ latitude: selectedLocation.lat, longitude: selectedLocation.lng });
             setMapDialogOpen(false);
-            // We don't save to DB yet, user must click "Save Changes"
+            
+            // If placeId and location were updated during search, this commits them to the local state
+            // that will be saved when "Save Changes" is clicked.
         }
     };
+
+    if (loadError) return <div>Error loading maps</div>;
 
     return (
         <div className="space-y-6">
@@ -288,20 +212,6 @@ export function LocationSettings() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label>Google Maps Link / Address</Label>
-                        <div className="flex gap-2">
-                            <Input
-                                value={location}
-                                onChange={(e) => setLocation(e.target.value)}
-                                placeholder="https://maps.google.com/..."
-                            />
-                            <Button variant="outline" onClick={() => window.open("https://www.google.com/maps", "_blank")}>
-                                Get Link
-                            </Button>
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
                         <Label>Location Details</Label>
                         <Textarea
                             value={locationDetails}
@@ -311,20 +221,11 @@ export function LocationSettings() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Place ID</Label>
-                        <Input
-                            value={placeId}
-                            onChange={(e) => setPlaceId(e.target.value)}
-                            placeholder="Google Place ID"
-                        />
-                    </div>
-
-                    <div className="space-y-2">
                         <Label>Map Location</Label>
                         <div className="h-48 w-full rounded-md overflow-hidden relative border bg-muted">
                             {geoLocation.latitude && geoLocation.longitude ? (
                                 <img
-                                    src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ff0000(${geoLocation.longitude},${geoLocation.latitude})/${geoLocation.longitude},${geoLocation.latitude},16/600x300?access_token=${mapboxgl.accessToken}`}
+                                    src={`https://maps.googleapis.com/maps/api/staticmap?center=${geoLocation.latitude},${geoLocation.longitude}&zoom=16&size=600x300&markers=color:red%7C${geoLocation.latitude},${geoLocation.longitude}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`}
                                     alt="Map preview"
                                     className="h-full w-full object-cover"
                                 />
@@ -347,33 +248,59 @@ export function LocationSettings() {
                 </CardContent>
             </Card>
 
-
-
-            {/* <Dialog open={mapDialogOpen} onOpenChange={setMapDialogOpen}>
-                <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
-                    <DialogHeader>
-                        <DialogTitle>Select Location</DialogTitle>
-                    </DialogHeader>
-                    <div className="flex-1 min-h-0 relative rounded-md overflow-hidden border" style={{ minHeight: '400px' }}>
-                        <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
-                    </div>
-                    <div className="flex justify-end gap-2 pt-4">
-                        <Button variant="outline" onClick={() => setMapDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleMapSave} disabled={!selectedLocation}>Set Location</Button>
-                    </div>
-                </DialogContent>
-            </Dialog> */}
-
             {/* Custom Modal using CSS display */}
             <div className={`fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 transition-all duration-200 ${mapDialogOpen ? "flex" : "hidden"}`}>
                 <div className="bg-background w-full max-w-4xl h-[80vh] flex flex-col rounded-lg border shadow-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                    <div className="p-6 pb-4 border-b">
+                    <div className="p-6 pb-4 border-b flex justify-between items-center bg-white z-10">
                         <h2 className="text-lg font-semibold leading-none tracking-tight">Select Location</h2>
+                        {/* Search Box inside Modal */}
+                        {isLoaded && (
+                            <div className="w-full max-w-sm">
+                                <Autocomplete
+                                    onLoad={(autocomplete) => { autocompleteRef.current = autocomplete; }}
+                                    onPlaceChanged={onPlaceChanged}
+                                >
+                                    <Input 
+                                        type="text"
+                                        placeholder="Search for a location"
+                                        className="w-full"
+                                    />
+                                </Autocomplete>
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex-1 min-h-0 relative bg-muted/20">
                         {/* Map Container */}
-                        <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
+                        {isLoaded && mapDialogOpen ? (
+                            <GoogleMap
+                                mapContainerStyle={{ width: '100%', height: '100%' }}
+                                center={{
+                                    lat: selectedLocation?.lat || geoLocation.latitude || 12.9716,
+                                    lng: selectedLocation?.lng || geoLocation.longitude || 77.5946
+                                }}
+                                zoom={14}
+                                onLoad={handleMapLoad}
+                                onClick={handleMapClick}
+                                options={{
+                                    streetViewControl: false,
+                                    mapTypeControl: false,
+                                }}
+                            >
+                                {(selectedLocation || (geoLocation.latitude && geoLocation.longitude)) && (
+                                    <Marker 
+                                        position={{
+                                            lat: selectedLocation?.lat || geoLocation.latitude,
+                                            lng: selectedLocation?.lng || geoLocation.longitude
+                                        }}
+                                    />
+                                )}
+                            </GoogleMap>
+                        ) : (
+                            <div className="flex h-full items-center justify-center">
+                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                            </div>
+                        )}
                     </div>
 
                     <div className="p-4 border-t flex justify-end gap-2 bg-background">
@@ -385,4 +312,3 @@ export function LocationSettings() {
         </div>
     );
 }
-

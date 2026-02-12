@@ -16,7 +16,7 @@ import { useDomain } from "@/providers/DomainProvider";
 
 type LoginMode = "user" | "partner";
 export default function Login() {
-  const { name: appName } = useDomain();
+  const appName = "MenuThere";
   const { signInWithPhone, signInPartnerWithEmail } = useAuthStore();
   const navigate = useRouter();
   const [mode, setMode] = useState<LoginMode>("partner");
@@ -96,7 +96,7 @@ export default function Login() {
         <div className="flex flex-col items-center mb-8">
           <UtensilsCrossed className="h-12 w-12 text-orange-600 mb-4" />
           <h1 className="text-3xl font-bold text-gray-900 text-center">
-            Welcome to {appName}
+            Welcome to MenuThere
           </h1>
         </div>
 

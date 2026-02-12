@@ -88,7 +88,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
                 {data.cta && <CTASection data={data.cta} />}
             </main>
 
-            <Footer appName={config.name} />
+            <Footer appName="MenuThere" />
 
             {/* Chatwoot Chat Bubble */}
             <Chatwoot />

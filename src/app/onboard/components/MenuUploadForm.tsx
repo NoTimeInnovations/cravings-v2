@@ -65,7 +65,7 @@ export default function MenuUploadForm({
   onPrevious,
   businessData,
 }: MenuUploadFormProps) {
-  const { name: appName } = useDomain();
+  const appName = "MenuThere";
   const defaultItem: Omit<MenuItem, "id"> = {
     name: "",
     price: 0,
@@ -614,12 +614,12 @@ export default function MenuUploadForm({
                             <div className="relative w-6 h-6">
                               <Image
                                 src="/icon-64x64.png"
-                                alt={`${appName} Logo`}
+                                alt={`$MenuThere Logo`}
                                 fill
                                 className="object-contain"
                               />
                             </div>
-                            <span className="font-bold text-xl text-orange-500">{appName}</span>
+                            <span className="font-bold text-xl text-orange-500">MenuThere</span>
                           </div>
                         </div>
                       </div>
@@ -752,7 +752,7 @@ export default function MenuUploadForm({
                 </div>
 
                 <div className="mt-4 text-center text-sm text-gray-500">
-                  <p>This is how your menu will appear in the {appName} app</p>
+                  <p>This is how your menu will appear in the MenuThere app</p>
                 </div>
               </div>
             </div>

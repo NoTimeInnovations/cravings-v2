@@ -213,7 +213,7 @@ const HIDDEN_PATHS = [
 
 import { Partner, useAuthStore } from "@/store/authStore";
 
-export function Navbar({ userData: propUserData, country, appName = "Cravings", logo, logowhite }: { userData: any; country?: string; appName?: string; logo?: string; logowhite?: string }) {
+export function Navbar({ userData: propUserData, country, appName = "MenuThere", logo, logowhite }: { userData: any; country?: string; appName?: string; logo?: string; logowhite?: string }) {
   const { userData: storeUserData } = useAuthStore();
   const userData = storeUserData || propUserData;
   const features = getFeatures(userData?.feature_flags as string);
@@ -356,7 +356,7 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
         <div className="flex items-center">
           <Image
             src={activeLogo}
-            alt={appName}
+            alt="MenuThere"
             width={160}
             height={40}
             className={cn(
@@ -366,14 +366,14 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
             priority
           />
           <span className={cn("text-2xl font-bold tracking-tight transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
-            {appName}
+            MenuThere
           </span>
         </div>
       ) : (
         <>
           <UtensilsCrossed className="h-6 w-6 text-orange-500" />
           <span className={cn("text-2xl font-bold tracking-tight transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
-            {appName}
+            MenuThere
           </span>
         </>
       )}

@@ -33,7 +33,7 @@ export default async function AgenciesPage() {
   const headersList = await headers();
   const host = headersList.get("host");
   const config = getDomainConfig(host);
-  const appName = config.name;
+  const appName = "MenuThere";
 
   // Dynamic Content Replacement
   const dynamicHero = {
@@ -67,7 +67,7 @@ export default async function AgenciesPage() {
             </h2>
             <p className="text-lg text-gray-600 leading-relaxed">
               Independent restaurants lose sales to static PDFs unable to reflect real-time changes.
-              As a {appName} partner, you solve this with our proven $30/month platform –
+              As a MenuThere partner, you solve this with our proven $30/month platform –
               instant QR updates trusted by 600+ locations – earning you position as their go-to advisor.
             </p>
           </div>
@@ -300,7 +300,7 @@ export default async function AgenciesPage() {
             <h4 className="text-lg font-bold text-white mb-4">Partner Program Terms</h4>
             <ul className="grid md:grid-cols-2 gap-x-12 gap-y-4 text-sm text-white/80 list-disc pl-5">
               <li>Income Continuity: Commissions continue for active subscriptions only.</li>
-              <li>Termination Rights: {appName} reserves the right to terminate for brand misalignment.</li>
+              <li>Termination Rights: MenuThere reserves the right to terminate for brand misalignment.</li>
               <li>Payout Timing: Exact day of subscription collection, net of fees.</li>
               <li>Eligibility: Worldwide partners accepted; subject to approval.</li>
             </ul>

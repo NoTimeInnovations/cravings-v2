@@ -29,26 +29,26 @@ export const WelcomeEmail = ({
     email,
     loginLink = "https://cravings.live/login",
     menuLink,
-    appName = "Cravings",
+    appName = "MenuThere",
     logoUrl,
 }: WelcomeEmailProps) => (
     <Html>
         <Head />
-        <Preview>Welcome to {appName}! Your digital menu is ready.</Preview>
+        <Preview>Welcome to MenuThere! Your digital menu is ready.</Preview>
         <Body style={main}>
             <Container style={container}>
                 <Section style={header}>
                     {logoUrl ? (
-                        <img src={logoUrl} alt={appName} style={logoImage} />
+                        <img src={logoUrl} alt="MenuThere" style={logoImage} />
                     ) : (
-                        <Text style={logo}>{appName}</Text>
+                        <Text style={logo}>MenuThere</Text>
                     )}
                 </Section>
                 <Section style={content}>
                     <Heading style={h1}>Your Menu is Live! 🎉</Heading>
                     <Text style={text}>Hi {partnerName},</Text>
                     <Text style={text}>
-                        Congratulations! Your digital menu has been created and is ready to share with your customers on <strong>{appName}</strong>.
+                        Congratulations! Your digital menu has been created and is ready to share with your customers on <strong>MenuThere</strong>.
                     </Text>
 
                     {menuLink && (
@@ -94,7 +94,7 @@ export const WelcomeEmail = ({
 
                     <Hr style={hr} />
                     <Text style={footer}>
-                        © {new Date().getFullYear()} {appName}. All rights reserved.
+                        © {new Date().getFullYear()} MenuThere. All rights reserved.
                     </Text>
                 </Section>
             </Container>

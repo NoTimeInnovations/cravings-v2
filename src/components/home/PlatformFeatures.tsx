@@ -34,7 +34,7 @@ const PRODUCTS = [
 
     {
         title: "Smart QR Menu",
-        description: "Customers scan and instantly view your menu on their phone — no app needed.",
+        description: "Customers scan and instantly view your menu on their phone - no app needed.",
         icon: ScanLine,
         href: "#",
         image: "/digital_menu_preview.png"

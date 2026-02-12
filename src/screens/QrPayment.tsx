@@ -79,7 +79,7 @@ const upiApps: UPIApp[] = [
 ];
 
 const QrPayment = () => {
-  const { name: appName } = useDomain();
+  const appName = "MenuThere";
   const [billAmount, setBillAmount] = useState<string>("");
   const [hotelDetails, setHotelDetails] = useState<HotelDetails>();
   const params = useParams();
@@ -314,7 +314,7 @@ const QrPayment = () => {
           {/* logo  */}
           <div className="flex items-center gap-2">
             <UtensilsCrossed className="w-10 h-10 text-white" />
-            <h1 className="text-white text-xl font-bold">{appName}</h1>
+            <h1 className="text-white text-xl font-bold">MenuThere</h1>
           </div>
 
           {/* short descritpion  */}
@@ -485,7 +485,7 @@ const QrPayment = () => {
             {/* Headings  */}
             <div className="flex flex-col gap-1">
               <h1 className="text-white text-4xl font-bold">
-                New To {appName}?
+                New To MenuThere?
               </h1>
               <div className="text-white/80 text-sm">
                 Sign in to get discounts and offers

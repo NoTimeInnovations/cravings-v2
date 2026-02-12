@@ -8,7 +8,7 @@ import { useDomain } from "@/providers/DomainProvider";
 
 const RateUsModal = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { name: appName } = useDomain();
+  const appName = "MenuThere";
 
   const handleClose = () => {
     setIsOpen(false);
@@ -27,7 +27,7 @@ const RateUsModal = () => {
       <DialogContent className="w-[90%] rounded-xl">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900">
-            Enjoy using {appName}?
+            Enjoy using MenuThere?
           </h2>
           <p className="text-sm text-gray-500 text-pretty pt-1">
             Please rate us on the play store.

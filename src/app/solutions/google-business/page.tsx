@@ -64,7 +64,7 @@ const HOW_IT_WORKS = [
         step: "03",
         title: "Sync & Go Live",
         description:
-            "Hit sync and your entire menu appears on Google Maps. Update anytime — changes reflect instantly.",
+            "Hit sync and your entire menu appears on Google Maps. Update anytime - changes reflect instantly.",
         icon: Zap,
     },
 ];
@@ -74,13 +74,13 @@ const BENEFITS = [
         icon: Search,
         title: "Boost Local SEO",
         description:
-            "Restaurants with complete Google Business Profiles get 7x more clicks. A synced menu is one of the strongest local ranking signals — helping you appear higher in \"restaurants near me\" searches.",
+            "Restaurants with complete Google Business Profiles get 7x more clicks. A synced menu is one of the strongest local ranking signals - helping you appear higher in \"restaurants near me\" searches.",
     },
     {
         icon: MapPin,
         title: "Show Up on Google Maps",
         description:
-            "When customers search for food on Google Maps, your full menu is visible right there — prices, categories, and items. They can decide to visit before even calling you.",
+            "When customers search for food on Google Maps, your full menu is visible right there - prices, categories, and items. They can decide to visit before even calling you.",
     },
     {
         icon: RefreshCw,
@@ -135,7 +135,7 @@ const FAQ = [
     {
         question: "How often should I sync my menu?",
         answer:
-            "We recommend syncing whenever you make changes to your menu — new items, price changes, or seasonal updates. The sync only takes a few seconds, so there's no reason not to keep it up-to-date. Some restaurants sync daily, others weekly.",
+            "We recommend syncing whenever you make changes to your menu - new items, price changes, or seasonal updates. The sync only takes a few seconds, so there's no reason not to keep it up-to-date. Some restaurants sync daily, others weekly.",
     },
     {
         question: "Will syncing overwrite my existing Google menu?",
@@ -150,12 +150,12 @@ const FAQ = [
     {
         question: "Is my Google account data safe?",
         answer:
-            "Absolutely. We use Google's official OAuth 2.0 and Business Profile API. We only request the minimum permissions needed to manage your menu. Your credentials are never stored — we use secure token-based authentication.",
+            "Absolutely. We use Google's official OAuth 2.0 and Business Profile API. We only request the minimum permissions needed to manage your menu. Your credentials are never stored - we use secure token-based authentication.",
     },
     {
         question: "What happens to menu images during sync?",
         answer:
-            "Menu item images from your profile are uploaded to Google along with the menu data. Large images are automatically optimized for Google's requirements. If an image fails to upload, the item still syncs — just without the photo.",
+            "Menu item images from your profile are uploaded to Google along with the menu data. Large images are automatically optimized for Google's requirements. If an image fails to upload, the item still syncs - just without the photo.",
     },
     {
         question: "Is this feature included in all plans?",
@@ -175,7 +175,7 @@ export default async function GoogleBusinessPage() {
     const headersList = await headers();
     const host = headersList.get("host");
     const config = getDomainConfig(host);
-    const appName = config.name;
+    const appName = "MenuThere";
 
     const faqSchema = {
         "@context": "https://schema.org",
@@ -249,7 +249,7 @@ export default async function GoogleBusinessPage() {
                             </h1>
                             <p className="text-base text-gray-600 leading-relaxed mb-8 max-w-xl">
                                 Keep your Google Business Profile menu always up-to-date.
-                                One-click sync from {appName} — your menu on Google Search &
+                                One-click sync from MenuThere - your menu on Google Search &
                                 Maps, accurate every time.
                             </p>
                             <div className="flex flex-col sm:flex-row gap-4">
@@ -269,7 +269,7 @@ export default async function GoogleBusinessPage() {
                             </div>
                         </div>
 
-                        {/* Right — Google Business Card Mockup */}
+                        {/* Right - Google Business Card Mockup */}
                         <div className="relative">
                             {/* Glow */}
                             <div className="absolute -inset-4 bg-gradient-to-br from-blue-400/20 via-green-400/10 to-yellow-400/20 rounded-3xl blur-2xl" />
@@ -484,7 +484,7 @@ export default async function GoogleBusinessPage() {
                             Why Restaurants Love Google Menu Sync
                         </h2>
                         <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                            Your menu is your most powerful marketing tool — make sure it
+                            Your menu is your most powerful marketing tool - make sure it
                             shows up where customers are searching
                         </p>
                     </div>
@@ -515,7 +515,7 @@ export default async function GoogleBusinessPage() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6">
                     <div className="text-center mb-16">
                         <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-                            Without Sync vs. With {appName}
+                            Without Sync vs. With MenuThere
                         </h2>
                         <p className="text-xl text-gray-600 max-w-2xl mx-auto">
                             See the difference automatic menu sync makes
@@ -536,7 +536,7 @@ export default async function GoogleBusinessPage() {
                                     "Menu on Google becomes outdated within days",
                                     "Price mismatches cause customer complaints",
                                     "Hours spent on data entry every month",
-                                    "No images — just plain text listings",
+                                    "No images - just plain text listings",
                                     "Inconsistent info across platforms",
                                 ].map((item, idx) => (
                                     <li key={idx} className="flex items-start gap-3">
@@ -551,7 +551,7 @@ export default async function GoogleBusinessPage() {
                         <div className="bg-white rounded-2xl border-2 border-green-100 p-8 relative shadow-lg shadow-green-50">
                             <div className="absolute -top-4 left-6">
                                 <span className="bg-green-100 text-green-700 text-sm font-bold px-4 py-1.5 rounded-full">
-                                    ✓ With {appName}
+                                    ✓ With MenuThere
                                 </span>
                             </div>
                             <ul className="space-y-4 mt-4">
@@ -608,7 +608,7 @@ export default async function GoogleBusinessPage() {
                                     Ready to sync your menu?
                                 </h3>
                                 <p className="text-lg text-orange-100 mb-8 leading-relaxed">
-                                    Join hundreds of restaurants already using {appName} to keep
+                                    Join hundreds of restaurants already using MenuThere to keep
                                     their Google presence up-to-date. Set up takes less than 5
                                     minutes.
                                 </p>
@@ -647,7 +647,7 @@ export default async function GoogleBusinessPage() {
                         </h2>
                         <p className="text-orange-100 max-w-xl mx-auto">
                             We&apos;re building powerful new features to help you manage your
-                            entire Google Business Profile — beyond just the menu.
+                            entire Google Business Profile - beyond just the menu.
                         </p>
                     </div>
 
@@ -663,7 +663,7 @@ export default async function GoogleBusinessPage() {
                             <p className="text-orange-100 text-sm leading-relaxed mb-5">
                                 Automatically publish posts, offers, events, and updates directly to your
                                 Google Business Profile. Share today&apos;s special, a new dish launch,
-                                or a festival offer — without logging into Google.
+                                or a festival offer - without logging into Google.
                             </p>
                             <div className="space-y-2.5">
                                 {[
@@ -690,7 +690,7 @@ export default async function GoogleBusinessPage() {
                             </div>
                             <p className="text-orange-100 text-sm leading-relaxed mb-5">
                                 Let AI craft thoughtful, personalized replies to every Google
-                                review — positive or negative. Respond faster, maintain your
+                                review - positive or negative. Respond faster, maintain your
                                 reputation, and show customers you care, 24/7.
                             </p>
                             <div className="space-y-2.5">
@@ -726,8 +726,8 @@ export default async function GoogleBusinessPage() {
                             </div>
                             <blockquote className="text-xl md:text-2xl font-medium leading-relaxed mb-8">
                                 &ldquo;We used to spend an entire afternoon every month updating
-                                our menu on Google. With {appName}, I hit one button and
-                                everything syncs — items, prices, even images. Our Google Maps
+                                our menu on Google. With MenuThere, I hit one button and
+                                everything syncs - items, prices, even images. Our Google Maps
                                 listing looks professional now and we&apos;ve seen a noticeable
                                 increase in walk-in customers who mention seeing our menu
                                 online.&rdquo;
@@ -766,7 +766,7 @@ export default async function GoogleBusinessPage() {
                         Your Menu Deserves to Be on Google
                     </h2>
                     <p className="text-xl text-orange-100 mb-10 max-w-2xl mx-auto">
-                        Join hundreds of restaurants using {appName} to sync their menu to
+                        Join hundreds of restaurants using MenuThere to sync their menu to
                         Google Maps. Set up in under 5 minutes, sync in under 30 seconds.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">

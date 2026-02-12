@@ -37,5 +37,5 @@ export default async function GetStartedPage() {
     // "logo" is /menuthere-white.png, which works on dark.
     const pageLogo = config.logowhite || config.logo;
 
-    return <GetStartedClient appName={config.name} logo={pageLogo} defaultCountry={validCountry} />;
+    return <GetStartedClient appName="MenuThere" logo={pageLogo} defaultCountry={validCountry} />;
 }

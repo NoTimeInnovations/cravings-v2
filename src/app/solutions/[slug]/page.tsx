@@ -16,7 +16,7 @@ import {
 // Helper function to replace app name in data
 function replaceAppNameInObject(obj: any, appName: string): any {
   if (typeof obj === "string") {
-    // Replace {appName} placeholder and "Cravings" text (carefully)
+    // Replace MenuThere placeholder and "Cravings" text (carefully)
     // Avoid replacing URLs that might contain "cravings" (e.g. calendly/cravings, image paths /images/solutions/...)
     // Simple heuristic: don't replace if it looks like a path/url
     // Actually, image paths are strings too.
@@ -52,7 +52,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
   restaurants: {
     slug: "restaurants",
     title: "Digital Menus for Restaurants",
-    metaTitle: "Restaurant Digital Menu Solution | QR Code Menus | {appName}",
+    metaTitle: "Restaurant Digital Menu Solution | QR Code Menus | MenuThere",
     metaDescription: "Transform your restaurant with smart QR code menus. Real-time updates, stunning visuals, Google Business sync. Reduce printing costs by 90%. Trusted by 5000+ restaurants across India.",
     keywords: "restaurant digital menu, QR code menu restaurant, contactless dining, restaurant technology, menu management system, restaurant POS integration",
     icon: Utensils,
@@ -63,9 +63,9 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     subheadline: "Elevate your dining experience with beautiful, interactive menus that update in real-time",
 
     introduction: `
-      In today's competitive restaurant industry, first impressions matter more than ever. Your menu is often the first thing customers interact with — it sets the tone for their entire dining experience. Traditional paper menus are costly to print, difficult to update, and can't showcase your dishes in their best light.
+      In today's competitive restaurant industry, first impressions matter more than ever. Your menu is often the first thing customers interact with - it sets the tone for their entire dining experience. Traditional paper menus are costly to print, difficult to update, and can't showcase your dishes in their best light.
 
-      {appName} transforms your restaurant menu into a powerful digital experience. With our smart QR code menus, customers can browse your offerings on their smartphones, complete with stunning food photography, detailed descriptions, allergen information, and real-time pricing. No app downloads required — just scan and explore.
+      MenuThere transforms your restaurant menu into a powerful digital experience. With our smart QR code menus, customers can browse your offerings on their smartphones, complete with stunning food photography, detailed descriptions, allergen information, and real-time pricing. No app downloads required - just scan and explore.
     `,
 
     benefits: [
@@ -136,7 +136,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     ],
 
     testimonial: {
-      quote: "Switching to {appName} digital menu was the best decision we made. Our customers love the visual menu, and we've seen a 20% increase in orders for items with photos. The Google sync feature is a game-changer for our visibility.",
+      quote: "Switching to MenuThere digital menu was the best decision we made. Our customers love the visual menu, and we've seen a 20% increase in orders for items with photos. The Google sync feature is a game-changer for our visibility.",
       author: "Rajesh Kumar",
       role: "Owner, Spice Garden Restaurant",
       location: "Kochi, Kerala"
@@ -145,7 +145,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     faq: [
       {
         question: "How do customers access the digital menu?",
-        answer: "Customers simply scan a QR code placed on their table using their smartphone camera. The menu opens instantly in their browser — no app download required. Works on any smartphone with a camera."
+        answer: "Customers simply scan a QR code placed on their table using their smartphone camera. The menu opens instantly in their browser - no app download required. Works on any smartphone with a camera."
       },
       {
         question: "Can I update the menu myself?",
@@ -157,7 +157,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
       },
       {
         question: "Can I integrate with my existing POS system?",
-        answer: "Yes! {appName} integrates with popular POS systems including PetPooja, POSist, and others. Orders flow directly to your kitchen display system."
+        answer: "Yes! MenuThere integrates with popular POS systems including PetPooja, POSist, and others. Orders flow directly to your kitchen display system."
       }
     ],
 
@@ -167,7 +167,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
   cafes: {
     slug: "cafes",
     title: "Digital Menus for Cafés & Coffee Shops",
-    metaTitle: "Café Digital Menu | Coffee Shop QR Menu Solution | {appName}",
+    metaTitle: "Café Digital Menu | Coffee Shop QR Menu Solution | MenuThere",
     metaDescription: "Create stunning digital menus for your café or coffee shop. Showcase specialty brews, seasonal drinks, and pastries with beautiful photography. Real-time updates, Instagram-worthy design.",
     keywords: "café digital menu, coffee shop QR code, café menu design, specialty coffee menu, coffee shop technology, contactless café ordering",
     icon: Coffee,
@@ -178,9 +178,9 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     subheadline: "Showcase your specialty brews and artisan treats with menus as beautiful as your coffee",
 
     introduction: `
-      Your café is more than just a place to grab coffee — it's an experience. From the aroma of freshly ground beans to the carefully crafted latte art, every detail matters. Your menu should reflect that same attention to detail and aesthetic sensibility.
+      Your café is more than just a place to grab coffee - it's an experience. From the aroma of freshly ground beans to the carefully crafted latte art, every detail matters. Your menu should reflect that same attention to detail and aesthetic sensibility.
 
-      {appName} helps cafés create Instagram-worthy digital menus that match their unique vibe. Whether you're a minimalist specialty coffee shop, a cozy neighborhood café, or a trendy brunch spot, our platform adapts to your brand. Showcase your single-origin coffees, seasonal specials, and house-made pastries with stunning visuals that make customers want to order (and share on social media).
+      MenuThere helps cafés create Instagram-worthy digital menus that match their unique vibe. Whether you're a minimalist specialty coffee shop, a cozy neighborhood café, or a trendy brunch spot, our platform adapts to your brand. Showcase your single-origin coffees, seasonal specials, and house-made pastries with stunning visuals that make customers want to order (and share on social media).
     `,
 
     benefits: [
@@ -287,7 +287,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
   bakeries: {
     slug: "bakeries",
     title: "Digital Menus for Bakeries & Pastry Shops",
-    metaTitle: "Bakery Digital Menu | Pastry Shop QR Menu | {appName}",
+    metaTitle: "Bakery Digital Menu | Pastry Shop QR Menu | MenuThere",
     metaDescription: "Showcase your freshly baked goods with stunning digital menus. Mark items as 'Fresh Today' or 'Sold Out' in real-time. Perfect for bakeries, pastry shops, and sweet shops.",
     keywords: "bakery digital menu, pastry shop QR code, cake menu online, bakery POS, sweet shop menu, confectionery menu",
     icon: Cake,
@@ -298,9 +298,9 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     subheadline: "Display your freshly baked goods with mouth-watering visuals that drive sales",
 
     introduction: `
-      Fresh-baked bread, artisan pastries, custom cakes — your bakery creates edible art every single day. But a static menu board or printed flyer can never capture the golden crust of a just-baked croissant or the intricate decorations on a wedding cake.
+      Fresh-baked bread, artisan pastries, custom cakes - your bakery creates edible art every single day. But a static menu board or printed flyer can never capture the golden crust of a just-baked croissant or the intricate decorations on a wedding cake.
 
-      {appName} brings your bakery to life with digital menus that showcase your creations in all their glory. Update availability in real-time (Fresh Out of the Oven! or Sold Out), display custom cake options with photo galleries, and let customers pre-order their favorites. Whether you're a neighborhood bakery, a cake studio, or a patisserie, our platform helps you sell more and waste less.
+      MenuThere brings your bakery to life with digital menus that showcase your creations in all their glory. Update availability in real-time (Fresh Out of the Oven! or Sold Out), display custom cake options with photo galleries, and let customers pre-order their favorites. Whether you're a neighborhood bakery, a cake studio, or a patisserie, our platform helps you sell more and waste less.
     `,
 
     benefits: [
@@ -312,7 +312,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
       {
         icon: Palette,
         title: "Custom Cake Galleries",
-        description: "Showcase your cake portfolio with photo galleries organized by occasion — weddings, birthdays, anniversaries. Let customers browse your designs and request quotes."
+        description: "Showcase your cake portfolio with photo galleries organized by occasion - weddings, birthdays, anniversaries. Let customers browse your designs and request quotes."
       },
       {
         icon: Bell,
@@ -407,7 +407,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
   "cloud-kitchens": {
     slug: "cloud-kitchens",
     title: "Digital Menu Management for Cloud Kitchens",
-    metaTitle: "Cloud Kitchen Menu System | Ghost Kitchen Solution | {appName}",
+    metaTitle: "Cloud Kitchen Menu System | Ghost Kitchen Solution | MenuThere",
     metaDescription: "Manage multiple virtual restaurant brands from one dashboard. Optimize menus across delivery platforms. Built for cloud kitchens, ghost kitchens, and virtual restaurants.",
     keywords: "cloud kitchen menu, ghost kitchen management, virtual restaurant menu, dark kitchen software, delivery kitchen POS, multi-brand menu system",
     icon: ChefHat,
@@ -420,7 +420,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     introduction: `
       Cloud kitchens are revolutionizing the food industry. Without the overhead of dine-in space, you can focus purely on what matters: great food delivered fast. But managing multiple brands, each with its own menu, pricing, and identity, can quickly become overwhelming.
 
-      {appName} is built for the cloud kitchen model. Manage all your virtual brands — whether it's 2 or 20 — from a single powerful dashboard. Update menus across Swiggy, Zomato, and your own website simultaneously. Track which items perform best, optimize pricing, and launch new brands in minutes instead of weeks.
+      MenuThere is built for the cloud kitchen model. Manage all your virtual brands - whether it's 2 or 20 - from a single powerful dashboard. Update menus across Swiggy, Zomato, and your own website simultaneously. Track which items perform best, optimize pricing, and launch new brands in minutes instead of weeks.
     `,
 
     benefits: [
@@ -432,7 +432,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
       {
         icon: RefreshCw,
         title: "Cross-Platform Sync",
-        description: "Update menus once and sync across all delivery platforms — Swiggy, Zomato, your website, and more. No more updating each platform manually."
+        description: "Update menus once and sync across all delivery platforms - Swiggy, Zomato, your website, and more. No more updating each platform manually."
       },
       {
         icon: BarChart3,
@@ -496,7 +496,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     ],
 
     testimonial: {
-      quote: "Managing 8 virtual brands across Swiggy and Zomato used to take hours every day. With {appName}, I update once and everything syncs. The analytics helped us identify our star performers and sunset underperforming brands. Our revenue per kitchen has increased 35% since we started using it.",
+      quote: "Managing 8 virtual brands across Swiggy and Zomato used to take hours every day. With MenuThere, I update once and everything syncs. The analytics helped us identify our star performers and sunset underperforming brands. Our revenue per kitchen has increased 35% since we started using it.",
       author: "Vikram Sharma",
       role: "Founder, Ghost Kitchen Ventures",
       location: "Delhi NCR"
@@ -527,7 +527,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
   hotels: {
     slug: "hotels",
     title: "Digital Menus for Hotels & Resorts",
-    metaTitle: "Hotel Digital Menu | Resort In-Room Dining Solution | {appName}",
+    metaTitle: "Hotel Digital Menu | Resort In-Room Dining Solution | MenuThere",
     metaDescription: "Elegant digital menus for hotels, resorts, and hospitality. In-room dining, restaurant, bar, and poolside service. ",
     keywords: "hotel digital menu, resort menu system, in-room dining technology, hospitality menu software, hotel restaurant POS",
     icon: Building2,
@@ -538,9 +538,9 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     subheadline: "Elevate your guest experience with sophisticated digital dining across all outlets",
 
     introduction: `
-      In hospitality, every touchpoint matters. From the moment guests check in to their final checkout, you're crafting an experience. Your food and beverage offerings are a crucial part of that experience — whether it's in-room dining at midnight, a romantic dinner at your signature restaurant, or cocktails by the pool.
+      In hospitality, every touchpoint matters. From the moment guests check in to their final checkout, you're crafting an experience. Your food and beverage offerings are a crucial part of that experience - whether it's in-room dining at midnight, a romantic dinner at your signature restaurant, or cocktails by the pool.
 
-      {appName} provides a seamless digital menu experience across all your hotel's F&B outlets. Guests access beautiful, multilingual menus from their smartphones — no app download required. Update prices, add seasonal specials, or mark items unavailable across all outlets from a single dashboard. Reduce operational friction while elevating the guest experience.
+      MenuThere provides a seamless digital menu experience across all your hotel's F&B outlets. Guests access beautiful, multilingual menus from their smartphones - no app download required. Update prices, add seasonal specials, or mark items unavailable across all outlets from a single dashboard. Reduce operational friction while elevating the guest experience.
     `,
 
     benefits: [
@@ -638,7 +638,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
   "food-trucks": {
     slug: "food-trucks",
     title: "Digital Menus for Food Trucks",
-    metaTitle: "Food Truck Digital Menu | Mobile Vendor QR Menu | {appName}",
+    metaTitle: "Food Truck Digital Menu | Mobile Vendor QR Menu | MenuThere",
     metaDescription: "Your menu, wherever you go. Update your food truck menu on-the-fly. Mobile-first design. Perfect for street food vendors, festivals, and events.",
     keywords: "food truck digital menu, mobile food vendor menu, street food QR code, festival food menu, pop-up restaurant menu, outdoor vendor technology",
     icon: Truck,
@@ -646,19 +646,19 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     heroImage: "/images/solutions/food-truck-hero.jpg",
 
     headline: "Mobile Digital Menus for Food Trucks",
-    subheadline: "Your menu goes wherever you go — update on-the-fly and sell more",
+    subheadline: "Your menu goes wherever you go - update on-the-fly and sell more",
 
     introduction: `
       Food trucks thrive on flexibility. You're at a music festival today, a corporate park tomorrow, and a weekend market on Saturday. Your menu might change based on what's fresh, what sold out, or what the crowd wants. Traditional menus just can't keep up.
 
-      {appName} is built for the mobile food business. Update your menu from your phone between locations. Mark items sold out in seconds when ingredients run low. Display a single QR code and let customers browse while waiting in line — reducing actual wait times and increasing orders.
+      MenuThere is built for the mobile food business. Update your menu from your phone between locations. Mark items sold out in seconds when ingredients run low. Display a single QR code and let customers browse while waiting in line - reducing actual wait times and increasing orders.
     `,
 
     benefits: [
       {
         icon: Smartphone,
         title: "Update From Your Phone",
-        description: "Change prices, mark items sold out, or add a special while standing at your truck. No laptop needed — full menu management from your smartphone."
+        description: "Change prices, mark items sold out, or add a special while standing at your truck. No laptop needed - full menu management from your smartphone."
       },
       {
         icon: Clock,
@@ -727,7 +727,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     ],
 
     testimonial: {
-      quote: "I update my sold-out items from my phone between customers. The pre-order feature has been game-changing — I know exactly how much to prep. My queues are shorter and sales are up.",
+      quote: "I update my sold-out items from my phone between customers. The pre-order feature has been game-changing - I know exactly how much to prep. My queues are shorter and sales are up.",
       author: "Ravi Krishnan",
       role: "Owner, Dosa On Wheels",
       location: "Chennai"
@@ -736,7 +736,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     faq: [
       {
         question: "Can I manage everything from my phone?",
-        answer: "Absolutely. Our mobile dashboard lets you do everything — add items, change prices, mark sold out, view orders — all from your smartphone."
+        answer: "Absolutely. Our mobile dashboard lets you do everything - add items, change prices, mark sold out, view orders - all from your smartphone."
       },
       {
         question: "How do location-based menus work?",
@@ -758,7 +758,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
   bars: {
     slug: "bars",
     title: "Digital Menus for Bars & Pubs",
-    metaTitle: "Bar Digital Menu | Pub QR Menu | Cocktail Menu App | {appName}",
+    metaTitle: "Bar Digital Menu | Pub QR Menu | Cocktail Menu App | MenuThere",
     metaDescription: "Dynamic digital menus for bars, pubs, and nightclubs. Showcase cocktails, craft beers, and happy hour specials. Dark mode design, tap rotation updates, age verification.",
     keywords: "bar digital menu, pub QR code menu, cocktail menu app, craft beer menu, nightclub menu, happy hour digital menu, bar technology",
     icon: Wine,
@@ -771,7 +771,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     introduction: `
       Your bar is about atmosphere, experience, and exceptional drinks. From craft cocktails mixed by skilled bartenders to a rotating selection of craft beers, every offering tells a story. But in dim lighting, paper menus are hard to read, and your tap selection changes more often than you can print.
 
-      {appName} brings your bar menu into the digital age with elegant dark mode designs that look stunning in low light. Update your tap rotation in seconds, promote happy hour specials automatically, and showcase your signature cocktails with beautiful photography. Customers browse on their phones, decide what they want, and spend less time flagging down bartenders — which means faster service and more sales.
+      MenuThere brings your bar menu into the digital age with elegant dark mode designs that look stunning in low light. Update your tap rotation in seconds, promote happy hour specials automatically, and showcase your signature cocktails with beautiful photography. Customers browse on their phones, decide what they want, and spend less time flagging down bartenders - which means faster service and more sales.
     `,
 
     benefits: [
@@ -847,7 +847,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     ],
 
     testimonial: {
-      quote: "Our tap list changes constantly — sometimes daily. Before Cravings, we had chalkboards that were always out of date. Now I update the menu from my phone in 10 seconds. The dark mode looks amazing in our bar, and customers love browsing cocktails with photos. Our average tab has gone up significantly.",
+      quote: "Our tap list changes constantly - sometimes daily. Before Cravings, we had chalkboards that were always out of date. Now I update the menu from my phone in 10 seconds. The dark mode looks amazing in our bar, and customers love browsing cocktails with photos. Our average tab has gone up significantly.",
       author: "Michael Chen",
       role: "Manager, The Crafty Pint",
       location: "Bangalore"
@@ -878,7 +878,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
   catering: {
     slug: "catering",
     title: "Digital Menus for Catering Services",
-    metaTitle: "Catering Digital Menu | Event Menu Solution | {appName}",
+    metaTitle: "Catering Digital Menu | Event Menu Solution | MenuThere",
     metaDescription: "Professional digital menus for caterers. Showcase packages for weddings, corporate events, and parties. Accept inquiries, share menus with clients, track popular items.",
     keywords: "catering digital menu, event catering packages, wedding catering menu, corporate catering solution, party menu planner, catering CRM",
     icon: PartyPopper,
@@ -889,9 +889,9 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     subheadline: "Impress clients with polished menus and streamline your event planning",
 
     introduction: `
-      Catering is a relationship business. Clients trust you with their most important moments — weddings, corporate galas, milestone birthdays. Your menu is often the first impression, shared across email threads and WhatsApp groups as families debate options. A beautiful, professional menu presentation sets you apart from competitors.
+      Catering is a relationship business. Clients trust you with their most important moments - weddings, corporate galas, milestone birthdays. Your menu is often the first impression, shared across email threads and WhatsApp groups as families debate options. A beautiful, professional menu presentation sets you apart from competitors.
 
-      {appName} helps caterers create stunning digital menus that impress clients from the first click. Share interactive menus via link — clients can browse packages, customize selections, and submit inquiries without endless back-and-forth. Track which items are most popular, identify trends, and optimize your offerings. From inquiry to invoice, streamline your entire workflow.
+      MenuThere helps caterers create stunning digital menus that impress clients from the first click. Share interactive menus via link - clients can browse packages, customize selections, and submit inquiries without endless back-and-forth. Track which items are most popular, identify trends, and optimize your offerings. From inquiry to invoice, streamline your entire workflow.
     `,
 
     benefits: [
@@ -913,7 +913,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
       {
         icon: Bell,
         title: "Inquiry Management",
-        description: "Receive event inquiries with all details — date, guest count, dietary requirements, budget. Respond quickly with prepared proposals."
+        description: "Receive event inquiries with all details - date, guest count, dietary requirements, budget. Respond quickly with prepared proposals."
       },
       {
         icon: TrendingUp,
@@ -967,7 +967,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     ],
 
     testimonial: {
-      quote: "Before {appName}, I spent hours creating PDF menus for each client inquiry. Now I send a link that looks incredibly professional. Clients can share it with their families, everyone adds comments, and I get all the details I need to quote accurately. My conversion rate from inquiry to booking has nearly doubled.",
+      quote: "Before MenuThere, I spent hours creating PDF menus for each client inquiry. Now I send a link that looks incredibly professional. Clients can share it with their families, everyone adds comments, and I get all the details I need to quote accurately. My conversion rate from inquiry to booking has nearly doubled.",
       author: "Anita Sharma",
       role: "Founder, Divine Catering Co.",
       location: "Hyderabad"
@@ -1052,7 +1052,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
   const headersList = await headers();
   const host = headersList.get("host");
   const config = getDomainConfig(host);
-  const appName = config.name;
+  const appName = "MenuThere";
 
   const IconComponent = solution.icon;
 
@@ -1166,7 +1166,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Why Choose {appName} for Your {solution.title.split(' for ')[1] || 'Business'}
+              Why Choose MenuThere for Your {solution.title.split(' for ')[1] || 'Business'}
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Purpose-built features designed specifically for your industry
@@ -1211,7 +1211,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
               <IconComponent className="w-16 h-16 mb-6 opacity-80" />
               <h3 className="text-2xl font-bold mb-4">Ready to get started?</h3>
               <p className="text-lg opacity-90 mb-6">
-                Join thousands of businesses already using {appName} to transform their menu experience.
+                Join thousands of businesses already using MenuThere to transform their menu experience.
               </p>
               <Link
                 href="/get-started"
@@ -1277,7 +1277,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
             Ready to Transform Your Menu?
           </h2>
           <p className="text-xl text-white/90 mb-8">
-            Join thousands of {solution.title.split(' for ')[1]?.toLowerCase() || 'businesses'} already using {appName}
+            Join thousands of {solution.title.split(' for ')[1]?.toLowerCase() || 'businesses'} already using MenuThere
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link

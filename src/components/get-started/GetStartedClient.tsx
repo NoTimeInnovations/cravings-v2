@@ -317,7 +317,7 @@ const CustomColorPicker = ({ label, color, onChange }: { label: string, color: s
 );
 
 import Image from "next/image";
-export default function GetStartedClient({ appName = "Cravings", logo, defaultCountry = "" }: { appName?: string; logo?: string; defaultCountry?: string }) {
+export default function GetStartedClient({ appName = "MenuThere", logo, defaultCountry = "" }: { appName?: string; logo?: string; defaultCountry?: string }) {
     const router = useRouter();
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [menuFiles, setMenuFiles] = useState<File[]>([]);
@@ -1509,18 +1509,18 @@ export default function GetStartedClient({ appName = "Cravings", logo, defaultCo
                                 <div className="flex items-center gap-2">
                                     <Image
                                         src={logo}
-                                        alt={appName}
+                                        alt="MenuThere"
                                         width={120}
                                         height={40}
                                         className="h-8 w-auto object-contain"
                                         priority
                                     />
-                                    <span className="text-xl font-bold text-gray-900">{appName}</span>
+                                    <span className="text-xl font-bold text-gray-900">MenuThere</span>
                                 </div>
                             ) : (
                                 <>
                                     <UtensilsCrossed className="h-6 w-6 text-orange-600" />
-                                    <span className="text-xl font-bold text-gray-900">{appName}</span>
+                                    <span className="text-xl font-bold text-gray-900">MenuThere</span>
                                 </>
                             )}
                         </div>
