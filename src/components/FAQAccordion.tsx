@@ -55,7 +55,7 @@ export function FAQAccordion({
                                     aria-expanded={isOpen}
                                 >
                                     <h3 className="text-lg font-bold text-gray-900 flex items-start gap-3">
-                                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-50 text-blue-600 text-sm font-bold flex-shrink-0 mt-0.5">
+                                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[#e65a22]/10 text-[#e65a22] text-sm font-bold flex-shrink-0 mt-0.5">
                                             Q
                                         </span>
                                         {item.question}
@@ -67,8 +67,8 @@ export function FAQAccordion({
                                 </button>
                                 <div
                                     className={`grid transition-all duration-300 ease-in-out ${isOpen
-                                            ? "grid-rows-[1fr] opacity-100"
-                                            : "grid-rows-[0fr] opacity-0"
+                                        ? "grid-rows-[1fr] opacity-100"
+                                        : "grid-rows-[0fr] opacity-0"
                                         }`}
                                 >
                                     <div className="overflow-hidden">

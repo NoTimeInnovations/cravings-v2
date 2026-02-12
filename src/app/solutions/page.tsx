@@ -18,8 +18,6 @@ import {
   TrendingUp,
   Clock,
   CheckCircle2,
-  Zap,
-  Star,
   Briefcase
 } from "lucide-react";
 
@@ -41,24 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-const FEATURED_SOLUTIONS = [
-  {
-    slug: "google-business",
-    title: "Google Business Profile Manager",
-    shortDesc: "Sync your menu with Google Maps automatically",
-    icon: Globe,
-    color: "bg-[#e65a22]",
-    featured: true
-  },
-  {
-    slug: "petpooja",
-    title: "PetPooja Integration",
-    shortDesc: "Seamless POS sync with PetPooja",
-    icon: Zap,
-    color: "bg-[#e65a22]",
-    featured: true
-  },
-];
+
 
 const SOLUTIONS = [
   {
@@ -179,17 +160,17 @@ export default async function SolutionsPage() {
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 relative">
+        <div className="max-w-[90%] mx-auto px-4 sm:px-6 relative">
           <div className="text-center max-w-4xl mx-auto">
             <span className="inline-block px-4 py-2 bg-[#e65a22]/10 text-[#d14d1a] rounded-full text-sm font-medium mb-6">
               Solutions for Every Food Business
             </span>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-6">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-2">
               Digital Menus That
               <span className="text-[#e65a22]"> Transform </span>
               Your Business
             </h1>
-            <p className="text-xl text-gray-600 leading-relaxed mb-8 max-w-3xl mx-auto">
+            <p className="text-base text-gray-600 leading-relaxed mb-8 max-w-3xl mx-auto">
               Whether you run a cozy café, a bustling restaurant, or a cloud kitchen empire —
               our digital menu platform adapts to your unique needs. Beautiful, fast, and built for growth.
             </p>
@@ -212,56 +193,7 @@ export default async function SolutionsPage() {
         </div>
       </section>
 
-      {/* Featured Integrations */}
-      <section className="py-20 bg-white/60 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-16">
-            <span className="inline-block px-4 py-2 bg-[#e65a22]/10 text-[#d14d1a] rounded-full text-sm font-medium mb-4">
-              <Star className="w-4 h-4 inline mr-1" />
-              Featured
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Powerful Integrations
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Connect with the tools you already use
-            </p>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {FEATURED_SOLUTIONS.map((solution) => (
-              <div
-                key={solution.slug}
-                className="group relative bg-white rounded-2xl border-2 border-[#e65a22]/20 overflow-hidden hover:shadow-xl hover:shadow-[#e65a22]/10 transition-all duration-300 hover:-translate-y-1"
-              >
-                <div className="absolute top-4 right-4">
-                  <span className="px-3 py-1 bg-[#e65a22] text-white text-xs font-bold rounded-full">
-                    Featured
-                  </span>
-                </div>
-                <div className="p-8">
-                  <div className={`w-16 h-16 rounded-xl ${solution.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                    <solution.icon className="w-8 h-8 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-[#e65a22] transition-colors">
-                    {solution.title}
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed mb-6">
-                    {solution.shortDesc}
-                  </p>
-                  <Link
-                    href={`/solutions/${solution.slug}`}
-                    className="inline-flex items-center text-sm font-medium text-[#e65a22] group-hover:text-[#d14d1a]"
-                  >
-                    Learn more
-                    <ArrowRight className="ml-1 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* Solutions Grid */}
       <section className="py-20 relative">

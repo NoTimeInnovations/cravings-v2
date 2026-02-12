@@ -19,19 +19,7 @@ const INTEGRATIONS = [
       "Multi-location support"
     ]
   },
-  {
-    title: "PetPooja Integration",
-    description: "Connect your digital menu with PetPooja POS. Menu updates, orders, and inventory sync automatically — no double entry.",
-    icon: Zap,
-    href: "/solutions/petpooja",
-    color: "bg-purple-500",
-    features: [
-      "Real-time POS sync",
-      "Order flow to kitchen",
-      "Inventory updates",
-      "Zero manual entry"
-    ]
-  }
+
 ];
 
 export default function Integrations() {
@@ -39,10 +27,10 @@ export default function Integrations() {
     <section className="py-24 bg-[#f4e5d5] relative overflow-hidden">
       {/* Grid Background */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] bg-[size:4rem_4rem]" />
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
         {/* Section Header */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}

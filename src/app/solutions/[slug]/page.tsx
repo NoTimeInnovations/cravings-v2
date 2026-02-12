@@ -1103,16 +1103,16 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 relative">
+        <div className="max-w-[90%] mx-auto px-4 sm:px-6 relative">
           <div className="max-w-4xl">
             <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${solution.color} text-white text-sm font-medium mb-6`}>
               <IconComponent className="w-4 h-4" />
               {solution.title}
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-6">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-2">
               {solution.headline}
             </h1>
-            <p className="text-xl text-gray-600 leading-relaxed mb-8 max-w-3xl">
+            <p className="text-base text-gray-600 leading-relaxed mb-8 max-w-3xl">
               {solution.subheadline}
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
@@ -1268,31 +1268,7 @@ export default async function SolutionPage({ params }: { params: Promise<{ slug:
       {/* FAQ */}
       <FAQAccordion items={solution.faq} />
 
-      {/* Related Solutions */}
-      <section className="py-20 bg-white/60 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl font-bold text-gray-900">Explore Other Solutions</h2>
-          </div>
-          <div className="flex flex-wrap justify-center gap-4">
-            {solution.relatedSolutions.map((slug) => {
-              const related = SOLUTIONS_DATA[slug];
-              if (!related) return null;
-              const RelatedIcon = related.icon;
-              return (
-                <Link
-                  key={slug}
-                  href={`/solutions/${slug}`}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-white rounded-full hover:bg-gray-50 transition-colors border border-gray-200"
-                >
-                  <RelatedIcon className="w-5 h-5 text-gray-600" />
-                  <span className="font-medium text-gray-900">{related.title.split(' for ')[1]}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+
 
       {/* CTA */}
       <section className="py-20 bg-[#e65a22] relative">

@@ -11,7 +11,7 @@ import FAQ from "@/components/home/FAQ";
 import Background from "@/components/home/Background";
 import PlatformFeatures from "@/components/home/PlatformFeatures";
 import AnimatedFeatures from "@/components/home/AnimatedFeatures";
-import Integrations from "@/components/home/Integrations";
+
 import Footer from "@/components/Footer";
 import Chatwoot from "@/components/Chatwoot";
 import { getDomainConfig } from "@/lib/domain-utils";
@@ -85,8 +85,7 @@ export default async function Home() {
       {/* PLATFORM FEATURES SECTION */}
       <PlatformFeatures />
 
-      {/* INTEGRATIONS SECTION */}
-      <Integrations />
+
 
       {/* ANIMATED FEATURES SECTION */}
       <AnimatedFeatures />

@@ -451,7 +451,7 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
             key={link.href}
             href={link.href}
             className={cn(
-              "items-center px-3 py-1 text-sm transition-colors hidden lg:inline-flex",
+              "items-center px-3 py-1 text-sm transition-colors hidden lg:inline-flex text-nowrap",
               currentPath === link.href
                 ? (isDarkText ? "text-gray-900 font-medium" : "text-white font-medium")
                 : (isDarkText ? "text-gray-500 hover:text-gray-900 font-medium" : "text-gray-400 hover:text-gray-200 font-medium")
@@ -556,16 +556,22 @@ export function Navbar({ userData: propUserData, country, appName = "Cravings", 
               {/* Featured: Google Business */}
               <Link
                 href="/solutions/google-business"
-                className="flex items-center gap-3 p-3 mb-4 rounded-lg bg-gradient-to-r from-blue-50 to-green-50 border border-blue-100 hover:shadow-md transition-all group/gbp"
+                className="flex items-center gap-3 p-3 mb-4 rounded-lg bg-[#e65a22]/10 border border-[#e65a22]/20 hover:shadow-md transition-all group/gbp"
                 onClick={() => setIsSolutionsOpen(false)}
               >
-                <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center shadow-sm">
-                  <Globe className="w-5 h-5 text-[#4285F4]" />
+                <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center shadow-sm overflow-hidden">
+                  <Image
+                    src="/google_business_logo.png"
+                    alt="Google Business"
+                    width={36}
+                    height={36}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-gray-900 font-semibold text-sm group-hover/gbp:text-[#4285F4] transition-colors">Google Business Profile Sync</h3>
-                    <span className="px-1.5 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded uppercase leading-none">New</span>
+                    <h3 className="text-gray-900 font-semibold text-sm group-hover/gbp:text-[#e65a22] transition-colors">Google Business Profile Sync</h3>
+                    <span className="px-1.5 py-0.5 bg-[#e65a22] text-white text-[10px] font-bold rounded uppercase leading-none">New</span>
                   </div>
                   <p className="text-gray-500 text-xs mt-0.5 leading-snug">Sync your menu to Google Maps automatically</p>
                 </div>

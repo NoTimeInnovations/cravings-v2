@@ -26,10 +26,10 @@ export function SolutionsHero({ data }: SolutionsHeroProps) {
             {/* Left Content Half */}
             <div className="flex-1 flex flex-col justify-center px-6 md:px-12 lg:px-20 py-20 lg:py-0 relative z-10">
                 <div className="max-w-xl">
-                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-sans font-medium text-gray-900 leading-[1.1] tracking-tight mb-8">
+                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-sans font-medium text-gray-900 leading-[1.1] tracking-tight mb-2">
                         {data.headline}
                     </h1>
-                    <p className="text-lg md:text-xl text-gray-600 mb-10 leading-relaxed font-normal">
+                    <p className="text-base text-gray-600 mb-10 leading-relaxed font-normal">
                         {data.subheadline}
                     </p>
 

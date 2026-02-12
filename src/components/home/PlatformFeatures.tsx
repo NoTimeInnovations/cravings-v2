@@ -31,14 +31,7 @@ const PRODUCTS = [
         image: "/digital_menu_preview.png",
         featured: true
     },
-    {
-        title: "PetPooja Integration",
-        description: "Seamlessly connect with PetPooja POS. Real-time sync for orders and menu.",
-        icon: Store,
-        href: "/solutions/petpooja",
-        image: "/live-update.png",
-        featured: true
-    },
+
     {
         title: "Smart QR Menu",
         description: "Customers scan and instantly view your menu on their phone — no app needed.",
