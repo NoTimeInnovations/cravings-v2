@@ -119,6 +119,7 @@ const AddressManagementModal = ({
   const [customLocation, setCustomLocation] = useState<string>("");
 
   const isIndia = hotelData?.country === "India";
+  const needDeliveryLocation = hotelData?.delivery_rules?.needDeliveryLocation ?? true;
 
   console.log("Hotel Country:", hotelData?.country, isIndia);
 
@@ -267,6 +268,10 @@ const AddressManagementModal = ({
   }, [showMap, open]);
 
   const isFormValid = () => {
+    if (!needDeliveryLocation) {
+      return !!customLocation?.trim();
+    }
+
     let isValid = true;
 
     if (isIndia) {
@@ -311,6 +316,12 @@ const AddressManagementModal = ({
         return;
       }
       const data = await res.json();
+
+      // For simplified form, populate the full address
+      if (!needDeliveryLocation && data.display_name) {
+        setCustomLocation(data.display_name);
+      }
+
       const addr = data?.address || {};
       const districtVal =
         addr.state_district || addr.district || addr.county || "";
@@ -336,6 +347,16 @@ const AddressManagementModal = ({
             const mbData = await mbRes.json();
             const features = mbData?.features || [];
             let mbPostcode = "";
+            let mbPlaceName = "";
+
+            if (features.length > 0) {
+              mbPlaceName = features[0].place_name;
+              // If nominatim failed to give display_name/customLocation, use mapbox
+              if (!needDeliveryLocation && !data.display_name && mbPlaceName) {
+                setCustomLocation(mbPlaceName);
+              }
+            }
+
             for (const f of features) {
               if (f.place_type?.includes("postcode")) {
                 mbPostcode = f.text || f.properties?.short_code || "";
@@ -361,7 +382,7 @@ const AddressManagementModal = ({
   };
 
   const handleSave = async () => {
-    if (!coordinates) {
+    if (needDeliveryLocation && !coordinates) {
       toast.error(
         "Please select a location on the map or use your current location"
       );
@@ -373,28 +394,30 @@ const AddressManagementModal = ({
       return;
     }
 
-    if (label === "Other" && !customLabel.trim()) {
+    if (needDeliveryLocation && label === "Other" && !customLabel.trim()) {
       toast.error("Please provide a custom label");
       return;
     }
 
     setSaving(true);
     try {
-      const fullAddress = isIndia
-        ? [
-          flatNo,
-          houseNo,
-          roadNo,
-          street,
-          area,
-          district,
-          landmark ? `near ${landmark}` : null,
-          city,
-          pincode,
-        ]
-          .filter(Boolean)
-          .join(", ")
-        : customLocation.trim(); // For non-India, use customLocation as full address
+      const fullAddress = !needDeliveryLocation
+        ? customLocation.trim()
+        : isIndia
+          ? [
+            flatNo,
+            houseNo,
+            roadNo,
+            street,
+            area,
+            district,
+            landmark ? `near ${landmark}` : null,
+            city,
+            pincode,
+          ]
+            .filter(Boolean)
+            .join(", ")
+          : customLocation.trim(); // For non-India, use customLocation as full address
 
       const normalizedLabel = label === "Other" ? customLabel.trim() : label;
 
@@ -454,8 +477,7 @@ const AddressManagementModal = ({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* Location Selection */}
-        {/* This block shows the choice buttons */}
+        {/* Location Selection - Always shown now */}
         {!coordinates && !showMap ? (
           <div className="space-y-3">
             <Button
@@ -524,9 +546,8 @@ const AddressManagementModal = ({
           </div>
         )}
 
-        {/* Address Form */}
         <div className="space-y-4">
-          {/* Label Selection */}
+          {/* Label Selection - Always shown */}
           <div>
             <Label className="text-sm font-medium">Address Label</Label>
             <div className="flex gap-2 mt-2">
@@ -552,7 +573,19 @@ const AddressManagementModal = ({
             )}
           </div>
 
-          {!isIndia && (
+          {/* Form Fields Logic */}
+          {!needDeliveryLocation ? (
+            <div>
+              <Label className="text-sm font-medium">Full Address</Label>
+              <Textarea
+                placeholder="Enter your full address here..."
+                value={customLocation}
+                onChange={(e) => setCustomLocation(e.target.value)}
+                className="mt-2"
+                rows={4}
+              />
+            </div>
+          ) : !isIndia ? (
             <div className="mt-4">
               <Label className="text-sm font-medium">Location Detail</Label>
               <Textarea
@@ -563,9 +596,7 @@ const AddressManagementModal = ({
                 rows={2}
               />
             </div>
-          )}
-
-          {isIndia && (
+          ) : (
             <>
               <div>
                 <Label htmlFor="house_flat">Flat No / House No *</Label>
@@ -1820,12 +1851,13 @@ const PlaceOrderModal = ({
 
     // Enhanced delivery address validation
     if (isDelivery) {
-      if (hotelData?.delivery_rules?.needDeliveryLocation ?? true) {
-        if (!address?.trim()) {
-          toast.error("Please enter your delivery address");
-          return;
-        }
+      const needLocation = hotelData?.delivery_rules?.needDeliveryLocation ?? true;
+      if (!address?.trim()) {
+        toast.error("Please enter your delivery address");
+        return;
+      }
 
+      if (needLocation) {
         if (hasDelivery && !selectedCoords) {
           toast.error("Please select your location on the map");
           return;
@@ -1964,7 +1996,7 @@ const PlaceOrderModal = ({
   const isPlaceOrderDisabled =
     orderStatus === "loading" || // Condition 1
     (tableNumber === 0 && !orderType) || // Condition 2
-    (isDelivery && hasDelivery && !isQrScan && (!address || !selectedCoords)) || // Condition 3
+    (isDelivery && hasDelivery && !isQrScan && (!address || ((hotelData?.delivery_rules?.needDeliveryLocation ?? true) && !selectedCoords))) || // Condition 3
     (isDelivery && deliveryInfo?.isOutOfRange) || // Condition 4
     (hasMultiWhatsapp && !selectedLocation); // Condition 5
 
@@ -2028,8 +2060,7 @@ const PlaceOrderModal = ({
                   />
                 </>
               ) : isDelivery &&
-                orderType === "delivery" &&
-                (hotelData?.delivery_rules?.needDeliveryLocation ?? true) ? (
+                orderType === "delivery" ? (
                 <UnifiedAddressSection
                   address={address || ""}
                   setAddress={setAddress}
