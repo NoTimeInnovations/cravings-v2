@@ -2,12 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { FaWhatsapp } from "react-icons/fa";
-
-const petrazGroup = {
-  location: "ernakulam",
-  link: "https://whatsapp.com/channel/0029VbBAoNf7YScxhH8IhV3E",
-  message: "Join our Petraz WhatsApp group for exclusive offers and updates!",
-};
+import { usePathname } from "next/navigation";
+import { useAuthStore } from "@/store/authStore";
 
 const whatsappGroups = [
   {
@@ -68,13 +64,33 @@ const whatsappGroups = [
   },
 ];
 
-const WhatsappGroupJoinAlertDialog = ({ isPetraz }: { isPetraz: boolean }) => {
+const HIDDEN_PATHS = [
+  "/get-started",
+  "/admin-v2",
+  "/admin",
+  "/pricing",
+  "/captain",
+  "/onboard",
+  "/superadmin",
+];
+
+const WhatsappGroupJoinAlertDialog = () => {
+  const pathname = usePathname();
+  const { userData } = useAuthStore();
   // 'hidden', 'modal', or 'floating'
   const [displayState, setDisplayState] = useState<
     "hidden" | "modal" | "floating"
   >("hidden");
   const [groupLink, setGroupLink] = useState("");
   const [district, setDistrict] = useState("");
+
+  // Hide on certain paths or for non-user/non-guest roles
+  const isHiddenPath = HIDDEN_PATHS.some((p) => pathname.startsWith(p));
+  const isUserOrGuest = !userData?.role || userData.role === "user";
+
+  if (isHiddenPath || !isUserOrGuest) {
+    return null;
+  }
 
   useEffect(() => {
     // 1. If user has ever clicked "Join Now", never show anything again.
@@ -147,13 +163,9 @@ const WhatsappGroupJoinAlertDialog = ({ isPetraz }: { isPetraz: boolean }) => {
             .replace(" district", "");
           let foundGroup = null;
 
-          if (!isPetraz) {
-            foundGroup = whatsappGroups.find(
-              (group) => group.location.toLowerCase() === userDistrict
-            );
-          } else {
-            foundGroup = petrazGroup;
-          }
+          foundGroup = whatsappGroups.find(
+            (group) => group.location.toLowerCase() === userDistrict
+          );
 
           if (foundGroup) {
             setGroupLink(foundGroup.link);
@@ -217,9 +229,7 @@ const WhatsappGroupJoinAlertDialog = ({ isPetraz }: { isPetraz: boolean }) => {
           Join our WhatsApp Group! 👋
         </h2>
         <p className="mb-6 text-sm text-gray-600">
-          {isPetraz
-            ? petrazGroup.message
-            : `Join our WhatsApp group for ${district} to get the latest updates and offers!`}
+          {`Join our WhatsApp group for ${district} to get the latest updates and offers!`}
         </p>
         <div className="flex justify-center">
           <button

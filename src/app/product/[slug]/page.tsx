@@ -10,89 +10,85 @@ import Footer from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
 import Chatwoot from "@/components/Chatwoot";
 
-import { headers } from "next/headers";
-import { getDomainConfig } from "@/lib/domain-utils";
 
 // Helper to get data for a specific slug
 async function getProductData(slug: string) {
-    const contentDir = path.join(process.cwd(), "src/content");
-    const filePath = path.join(contentDir, `${slug}.json`);
+  const contentDir = path.join(process.cwd(), "src/content");
+  const filePath = path.join(contentDir, `${slug}.json`);
 
-    try {
-        const fileContents = fs.readFileSync(filePath, "utf8");
-        return JSON.parse(fileContents);
-    } catch (error) {
-        return null;
-    }
+  try {
+    const fileContents = fs.readFileSync(filePath, "utf8");
+    return JSON.parse(fileContents);
+  } catch (error) {
+    return null;
+  }
 }
 
 // Generate static params if you want SSG (optional, but good for SEO)
 export async function generateStaticParams() {
-    const contentDir = path.join(process.cwd(), "src/content");
-    try {
-        const files = fs.readdirSync(contentDir);
-        return files
-            .filter((file) => file.endsWith(".json"))
-            .map((file) => ({
-                slug: file.replace(".json", ""),
-            }));
-    } catch (e) {
-        return [];
-    }
-
+  const contentDir = path.join(process.cwd(), "src/content");
+  try {
+    const files = fs.readdirSync(contentDir);
+    return files
+      .filter((file) => file.endsWith(".json"))
+      .map((file) => ({
+        slug: file.replace(".json", ""),
+      }));
+  } catch (e) {
+    return [];
+  }
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
-    const { slug } = await params;
-    const data = await getProductData(slug);
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  const { slug } = await params;
+  const data = await getProductData(slug);
 
-    const headersList = await headers();
-    const host = headersList.get("host");
-    const config = getDomainConfig(host);
-
-    if (!data) {
-        return {
-            title: `Product Not Found | ${config.name}`
-        }
-    }
-
+  if (!data) {
     return {
-        title: `${data.hero.eyebrow} - ${config.name}`,
-        description: data.hero.subheadline
-    }
+      title: "Product Not Found | Menuthere",
+    };
+  }
+
+  return {
+    title: `${data.hero.eyebrow} - Menuthere`,
+    description: data.hero.subheadline,
+  };
 }
 
-export default async function ProductPage({ params }: { params: { slug: string } }) {
-    const { slug } = await params;
-    const data = await getProductData(slug);
+export default async function ProductPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  const { slug } = await params;
+  const data = await getProductData(slug);
 
-    const headersList = await headers();
-    const host = headersList.get("host");
-    const config = getDomainConfig(host);
+  if (!data) {
+    notFound();
+  }
 
-    if (!data) {
-        notFound();
-    }
-
-    return (
-        <div className="min-h-screen bg-white font-sans text-gray-900">
-            {/* Navbar is strictly handled by root layout or manual import if needed.
+  return (
+    <div className="min-h-screen bg-white font-sans text-gray-900">
+      {/* Navbar is strictly handled by root layout or manual import if needed.
                 Assuming RootLayout handles it for now as per previous context. 
              */}
 
-            <main>
-                <HeroSection data={data.hero} />
-                <FeatureSection features={data.features} />
-                {data.reviews && <ClientReviewsSection reviews={data.reviews} />}
-                {data.faq && <FAQSection items={data.faq} />}
-                {data.cta && <CTASection data={data.cta} />}
-            </main>
+      <main>
+        <HeroSection data={data.hero} />
+        <FeatureSection features={data.features} />
+        {data.reviews && <ClientReviewsSection reviews={data.reviews} />}
+        {data.faq && <FAQSection items={data.faq} />}
+        {data.cta && <CTASection data={data.cta} />}
+      </main>
 
-            <Footer appName="MenuThere" />
+      <Footer appName="Menuthere" />
 
-            {/* Chatwoot Chat Bubble */}
-            <Chatwoot />
-        </div>
-    );
+      {/* Chatwoot Chat Bubble */}
+      <Chatwoot />
+    </div>
+  );
 }
-

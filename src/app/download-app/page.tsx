@@ -42,7 +42,7 @@ export default async function DownloadAppPage() {
                     </Link>
 
                     <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
-                        Cravings for <br />
+                        Menuthere for <br />
                         <span className="text-orange-200">Mobile & Desktop</span>
                     </h1>
 
@@ -94,7 +94,7 @@ export default async function DownloadAppPage() {
                     <div className="relative w-full flex justify-center items-center z-20">
                         <Image
                             src="/hero-image.png"
-                            alt="Cravings App Interface"
+                            alt="Menuthere App Interface"
                             width={1400}
                             height={1600}
                             priority

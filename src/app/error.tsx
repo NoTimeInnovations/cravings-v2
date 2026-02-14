@@ -1,7 +1,7 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
-import { UtensilsCrossed } from "lucide-react";
+import Image from "next/image";
 import { useEffect } from "react";
 
 export default function GlobalError({
@@ -15,7 +15,7 @@ export default function GlobalError({
 
   return (
     <div className="grid place-content-center w-full min-h-[90vh] opacity-70">
-      <UtensilsCrossed className="text-orange-600 h-40 w-40 justify-self-center" />
+      <Image src="/menuthere-logo.png" alt="Menuthere" width={160} height={160} className="h-40 w-40 object-contain justify-self-center" />
       <h1 className="text-center mt-2 font-bold text-xl text-orange-600">
         Something went wrong!
       </h1>

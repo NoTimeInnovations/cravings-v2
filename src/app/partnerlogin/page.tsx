@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
-import { UtensilsCrossed } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -37,7 +37,7 @@ export default function PartnerLoginPage() {
     <div className="min-h-[80vh] flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-lg p-6">
         <div className="flex flex-col items-center mb-8">
-          <UtensilsCrossed className="h-12 w-12 text-orange-600 mb-4" />
+          <Image src="/menuthere-logo.png" alt="Menuthere" width={48} height={48} className="h-12 w-12 object-contain mb-4" />
           <h1 className="text-3xl font-bold text-gray-900 text-center">
             Partner Login
           </h1>

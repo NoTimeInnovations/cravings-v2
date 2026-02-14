@@ -3,12 +3,11 @@ import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { Rating } from "@smastrom/react-rating";
 
-
 import { useDomain } from "@/providers/DomainProvider";
 
 const RateUsModal = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const appName = "MenuThere";
+  const appName = "Menuthere";
 
   const handleClose = () => {
     setIsOpen(false);
@@ -27,7 +26,7 @@ const RateUsModal = () => {
       <DialogContent className="w-[90%] rounded-xl">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900">
-            Enjoy using MenuThere?
+            Enjoy using Menuthere?
           </h2>
           <p className="text-sm text-gray-500 text-pretty pt-1">
             Please rate us on the play store.
@@ -39,13 +38,22 @@ const RateUsModal = () => {
         </div>
 
         <div className="grid grid-cols-2">
-          <div onClick={handleClose} className="text-center p-2 font-medium cursor-pointer">
+          <div
+            onClick={handleClose}
+            className="text-center p-2 font-medium cursor-pointer"
+          >
             Cancel
           </div>
-          <div onClick={() => {
-            window.open('https://play.google.com/store/apps/details?id=com.notime.cravings&pcampaignid=web_share', '_blank');
-            handleClose();
-          }} className="text-center p-2 font-semibold cursor-pointer text-orange-600 hover:text-orange-500 ">
+          <div
+            onClick={() => {
+              window.open(
+                "https://play.google.com/store/apps/details?id=com.notime.cravings&pcampaignid=web_share",
+                "_blank",
+              );
+              handleClose();
+            }}
+            className="text-center p-2 font-semibold cursor-pointer text-orange-600 hover:text-orange-500 "
+          >
             Rate Now
           </div>
         </div>

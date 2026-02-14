@@ -231,7 +231,7 @@ const MainPage = ({
         <div className="text-center mt-3 sm:mt-4">
           <p className="text-xs text-gray-400">
             Powered by{" "}
-            <span className="font-semibold text-emerald-400">Cravings</span>
+            <span className="font-semibold text-emerald-400">Menuthere</span>
           </p>
         </div>
       </div>

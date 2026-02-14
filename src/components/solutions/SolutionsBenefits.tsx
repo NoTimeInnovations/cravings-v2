@@ -13,7 +13,7 @@ interface SolutionsBenefitsProps {
     eyebrow?: string;
 }
 
-export function SolutionsBenefits({ benefits, eyebrow = "How Cravings helps you" }: SolutionsBenefitsProps) {
+export function SolutionsBenefits({ benefits, eyebrow = "How Menuthere helps you" }: SolutionsBenefitsProps) {
     if (!benefits || benefits.length === 0) return null;
 
     return (

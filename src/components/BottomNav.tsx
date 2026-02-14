@@ -16,9 +16,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
-const BottomNav = ({ userData: propUserData, country }: { userData: any; country?: string }) => {
-  const { userData: storeUserData } = useAuthStore();
-  const userData = storeUserData || propUserData;
+const BottomNav = () => {
+  const { userData } = useAuthStore();
   const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -142,7 +141,7 @@ const BottomNav = ({ userData: propUserData, country }: { userData: any; country
   }, [lastScrollY]);
 
   // Don't show on /captain* routes, otherwise show if items exist
-  const shouldShow = items.length > 0 && !pathname.startsWith("/captain") && !pathname.startsWith("/kot") && !pathname.startsWith("/bill") && !pathname.startsWith("/whatsappQr") && !pathname.startsWith("/get-started") && !pathname.startsWith("/admin-v2") && !pathname.startsWith("/pricing");
+  const shouldShow = items.length > 0 && !pathname.startsWith("/captain") && !pathname.startsWith("/kot") && !pathname.startsWith("/bill") && !pathname.startsWith("/whatsappQr") && !pathname.startsWith("/get-started") && !pathname.startsWith("/admin-v2") && !pathname.startsWith("/pricing") && !pathname.startsWith("/hotels") && !pathname.startsWith("/qrScan") && !pathname.startsWith("/business");
 
   if (!shouldShow) return null;
 

@@ -1756,7 +1756,7 @@ export default function ProfilePage() {
           title: partner.store_name,
           text:
             partner.description ||
-            `Check out ${partner.store_name} on Cravings!`,
+            `Check out ${partner.store_name} on Menuthere!`,
           url: businessUrl,
         });
       } else {

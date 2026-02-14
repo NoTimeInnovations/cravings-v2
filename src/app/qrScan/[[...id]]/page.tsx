@@ -74,7 +74,7 @@ export async function generateMetadata({
     throw new Error("Hotel not found");
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cravings.live';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://menuthere.com';
   const defaultBanner = `${baseUrl}/image_placeholder.webp`;
   const storeBanner = hotel.store_banner ? (hotel.store_banner.startsWith('http') ? hotel.store_banner : `${baseUrl}${hotel.store_banner}`) : defaultBanner;
 

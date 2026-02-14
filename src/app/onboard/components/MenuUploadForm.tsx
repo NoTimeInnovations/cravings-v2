@@ -15,7 +15,7 @@ import {
   Edit,
   Plus,
   X,
-  Smartphone
+  Smartphone,
 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import Image from "next/image";
@@ -32,8 +32,8 @@ import { Badge } from "@/components/ui/badge";
 
 // Custom CSS for hiding scrollbar
 const hideScrollbarStyle = {
-  scrollbarWidth: 'none' as const,  /* Firefox */
-  msOverflowStyle: 'none' as const,  /* Internet Explorer 10+ */
+  scrollbarWidth: "none" as const /* Firefox */,
+  msOverflowStyle: "none" as const /* Internet Explorer 10+ */,
 };
 
 // Custom CSS for hiding WebKit/Chrome scrollbar
@@ -65,7 +65,7 @@ export default function MenuUploadForm({
   onPrevious,
   businessData,
 }: MenuUploadFormProps) {
-  const appName = "MenuThere";
+  const appName = "Menuthere";
   const defaultItem: Omit<MenuItem, "id"> = {
     name: "",
     price: 0,
@@ -75,7 +75,9 @@ export default function MenuUploadForm({
     category: "Uncategorized",
   };
 
-  const [newItem, setNewItem] = useState<Omit<MenuItem, "id">>({ ...defaultItem });
+  const [newItem, setNewItem] = useState<Omit<MenuItem, "id">>({
+    ...defaultItem,
+  });
   /* eslint-disable @typescript-eslint/no-unused-vars */
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -84,10 +86,17 @@ export default function MenuUploadForm({
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [categories, setCategories] = useState<string[]>(["Uncategorized", "Starters", "Main Course", "Desserts"]);
+  const [categories, setCategories] = useState<string[]>([
+    "Uncategorized",
+    "Starters",
+    "Main Course",
+    "Desserts",
+  ]);
   const [newCategory, setNewCategory] = useState<string>("");
   const [addingCategory, setAddingCategory] = useState(false);
-  const [activePreviewCategory, setActivePreviewCategory] = useState<string | null>(null);
+  const [activePreviewCategory, setActivePreviewCategory] = useState<
+    string | null
+  >(null);
 
   // Load categories from local storage on component mount
   useEffect(() => {
@@ -112,18 +121,24 @@ export default function MenuUploadForm({
   }, [categories]);
 
   // Group menu items by category for the mobile preview
-  const menuItemsByCategory = menuItems.reduce((acc, item) => {
-    const category = item.category || "Uncategorized";
-    if (!acc[category]) {
-      acc[category] = [];
-    }
-    acc[category].push(item);
-    return acc;
-  }, {} as Record<string, MenuItem[]>);
+  const menuItemsByCategory = menuItems.reduce(
+    (acc, item) => {
+      const category = item.category || "Uncategorized";
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(item);
+      return acc;
+    },
+    {} as Record<string, MenuItem[]>,
+  );
 
   // Filter items based on selected category or show all
   const filteredMenuItems = activePreviewCategory
-    ? { [activePreviewCategory]: menuItemsByCategory[activePreviewCategory] || [] }
+    ? {
+        [activePreviewCategory]:
+          menuItemsByCategory[activePreviewCategory] || [],
+      }
     : menuItemsByCategory;
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -175,19 +190,19 @@ export default function MenuUploadForm({
       if (isEditing && editingItemId) {
         // Update existing item
         setMenuItems((prev) =>
-          prev.map(item =>
+          prev.map((item) =>
             item.id === editingItemId
               ? {
-                ...item,
-                name: newItem.name,
-                price: newItem.price,
-                description: newItem.description,
-                image: imageUrl,
-                mustTry: newItem.mustTry || false,
-                category: newItem.category || "Uncategorized",
-              }
-              : item
-          )
+                  ...item,
+                  name: newItem.name,
+                  price: newItem.price,
+                  description: newItem.description,
+                  image: imageUrl,
+                  mustTry: newItem.mustTry || false,
+                  category: newItem.category || "Uncategorized",
+                }
+              : item,
+          ),
         );
       } else {
         // Add new item with unique ID
@@ -213,7 +228,7 @@ export default function MenuUploadForm({
   };
 
   const handleEditItem = (id: string) => {
-    const itemToEdit = menuItems.find(item => item.id === id);
+    const itemToEdit = menuItems.find((item) => item.id === id);
     if (itemToEdit) {
       setNewItem({
         name: itemToEdit.name,
@@ -256,7 +271,7 @@ export default function MenuUploadForm({
       return;
     }
 
-    setCategories(prev => [...prev, newCategory.trim()]);
+    setCategories((prev) => [...prev, newCategory.trim()]);
     setNewCategory("");
     setAddingCategory(false);
   };
@@ -266,25 +281,25 @@ export default function MenuUploadForm({
     if (category === "Uncategorized") return;
 
     // Move items from this category to "Uncategorized"
-    setMenuItems(prev =>
-      prev.map(item =>
+    setMenuItems((prev) =>
+      prev.map((item) =>
         item.category === category
           ? { ...item, category: "Uncategorized" }
-          : item
-      )
+          : item,
+      ),
     );
 
     // Remove the category
-    setCategories(prev => prev.filter(c => c !== category));
+    setCategories((prev) => prev.filter((c) => c !== category));
   };
 
   // Toggle an item's mustTry status
   /* eslint-disable @typescript-eslint/no-unused-vars */
   const toggleMustTry = (id: string) => {
-    setMenuItems(prev =>
-      prev.map(item =>
-        item.id === id ? { ...item, mustTry: !item.mustTry } : item
-      )
+    setMenuItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, mustTry: !item.mustTry } : item,
+      ),
     );
   };
   /* eslint-enable @typescript-eslint/no-unused-vars */
@@ -299,9 +314,7 @@ export default function MenuUploadForm({
       </div>
 
       {error && (
-        <div className="bg-red-50 text-red-600 p-3 rounded-md">
-          {error}
-        </div>
+        <div className="bg-red-50 text-red-600 p-3 rounded-md">{error}</div>
       )}
 
       {/* Two-column layout with cards side by side */}
@@ -310,20 +323,27 @@ export default function MenuUploadForm({
         <Card className="p-4 bg-white lg:col-span-7">
           <div className="space-y-3">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-semibold text-gray-800">Menu Editor</h3>
+              <h3 className="text-lg font-semibold text-gray-800">
+                Menu Editor
+              </h3>
               <div className="text-xs text-gray-500">
-                Added Items: <span className="font-medium">{menuItems.length}/7</span>
+                Added Items:{" "}
+                <span className="font-medium">{menuItems.length}/7</span>
               </div>
             </div>
 
             {/* Categories management - Collapsed into a dropdown with inline editing */}
             <div className="border-b pb-3 mb-1">
               <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                <span className="text-sm font-medium text-gray-700">Categories:</span>
-                {categories.map(category => (
+                <span className="text-sm font-medium text-gray-700">
+                  Categories:
+                </span>
+                {categories.map((category) => (
                   <div key={category} className="flex items-center">
                     <Badge
-                      variant={category === "Uncategorized" ? "secondary" : "outline"}
+                      variant={
+                        category === "Uncategorized" ? "secondary" : "outline"
+                      }
                       className="text-xs py-0 h-6"
                     >
                       {category}
@@ -342,7 +362,11 @@ export default function MenuUploadForm({
                   className="inline-flex items-center h-6 rounded-full bg-gray-100 hover:bg-gray-200 px-2 text-xs text-gray-700"
                   onClick={() => setAddingCategory(!addingCategory)}
                 >
-                  {addingCategory ? <X size={10} className="mr-1" /> : <Plus size={10} className="mr-1" />}
+                  {addingCategory ? (
+                    <X size={10} className="mr-1" />
+                  ) : (
+                    <Plus size={10} className="mr-1" />
+                  )}
                   {addingCategory ? "Cancel" : "Add"}
                 </button>
               </div>
@@ -354,7 +378,7 @@ export default function MenuUploadForm({
                     onChange={(e) => setNewCategory(e.target.value)}
                     placeholder="New category name"
                     className="flex-1 h-8 text-sm"
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
                   />
                   <Button
                     onClick={handleAddCategory}
@@ -372,39 +396,63 @@ export default function MenuUploadForm({
             <div className="border rounded-lg p-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="name" className="text-xs mb-1 block text-gray-700">Item Name*</Label>
+                  <Label
+                    htmlFor="name"
+                    className="text-xs mb-1 block text-gray-700"
+                  >
+                    Item Name*
+                  </Label>
                   <Input
                     id="name"
                     placeholder="Enter item name"
                     value={newItem.name}
-                    onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                    onChange={(e) =>
+                      setNewItem({ ...newItem, name: e.target.value })
+                    }
                     className="h-9"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="price" className="text-xs mb-1 block text-gray-700">Price*</Label>
+                  <Label
+                    htmlFor="price"
+                    className="text-xs mb-1 block text-gray-700"
+                  >
+                    Price*
+                  </Label>
                   <Input
                     id="price"
                     type="number"
                     placeholder="Enter price"
                     value={newItem.price || ""}
-                    onChange={(e) => setNewItem({ ...newItem, price: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setNewItem({
+                        ...newItem,
+                        price: parseFloat(e.target.value) || 0,
+                      })
+                    }
                     className="h-9"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="category" className="text-xs mb-1 block text-gray-700">Category</Label>
+                  <Label
+                    htmlFor="category"
+                    className="text-xs mb-1 block text-gray-700"
+                  >
+                    Category
+                  </Label>
                   <Select
                     value={newItem.category || "Uncategorized"}
-                    onValueChange={(value) => setNewItem({ ...newItem, category: value })}
+                    onValueChange={(value) =>
+                      setNewItem({ ...newItem, category: value })
+                    }
                   >
                     <SelectTrigger id="category" className="h-9">
                       <SelectValue placeholder="Select a category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map(category => (
+                      {categories.map((category) => (
                         <SelectItem key={category} value={category}>
                           {category}
                         </SelectItem>
@@ -413,15 +461,20 @@ export default function MenuUploadForm({
                   </Select>
                 </div>
 
-
-
                 <div className="col-span-1">
-                  <Label htmlFor="description" className="text-xs mb-1 block text-gray-700">Description (Optional)</Label>
+                  <Label
+                    htmlFor="description"
+                    className="text-xs mb-1 block text-gray-700"
+                  >
+                    Description (Optional)
+                  </Label>
                   <Textarea
                     id="description"
                     placeholder="Enter item description"
                     value={newItem.description}
-                    onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                    onChange={(e) =>
+                      setNewItem({ ...newItem, description: e.target.value })
+                    }
                     className="h-[100px] resize-none text-sm"
                   />
                 </div>
@@ -430,18 +483,27 @@ export default function MenuUploadForm({
                     <Switch
                       id="must-try"
                       checked={newItem.mustTry || false}
-                      onCheckedChange={(checked) => setNewItem({ ...newItem, mustTry: checked })}
+                      onCheckedChange={(checked) =>
+                        setNewItem({ ...newItem, mustTry: checked })
+                      }
                       className="data-[state=checked]:bg-orange-500"
                     />
                     <Label htmlFor="must-try" className="text-xs font-medium">
                       <span className="text-black">Must</span>
                       <span className="text-orange-500">Try</span>
                     </Label>
-                    <span className="text-xs text-gray-500">(Highlight as special item)</span>
+                    <span className="text-xs text-gray-500">
+                      (Highlight as special item)
+                    </span>
                   </div>
                 </div>
                 <div className="col-span-2 relative">
-                  <Label htmlFor="image" className="text-xs mb-1 block text-gray-700">Item Image</Label>
+                  <Label
+                    htmlFor="image"
+                    className="text-xs mb-1 block text-gray-700"
+                  >
+                    Item Image
+                  </Label>
                   <div className="h-[100px] flex flex-col items-center justify-center border border-dashed border-gray-300 rounded-md relative bg-gray-50 hover:bg-gray-100 transition-colors">
                     {imagePreview ? (
                       <div className="relative w-full h-full">
@@ -494,10 +556,7 @@ export default function MenuUploadForm({
                       >
                         <Edit size={16} className="mr-1.5" /> Update Item
                       </Button>
-                      <Button
-                        variant="outline"
-                        onClick={resetForm}
-                      >
+                      <Button variant="outline" onClick={resetForm}>
                         Cancel
                       </Button>
                     </div>
@@ -516,7 +575,9 @@ export default function MenuUploadForm({
 
             {/* Menu items list - More visually distinct */}
             <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Added Items ({menuItems.length}/7)</h4>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">
+                Added Items ({menuItems.length}/7)
+              </h4>
 
               {menuItems.length === 0 ? (
                 <div className="text-center py-6 border border-dashed rounded-md bg-gray-50">
@@ -531,12 +592,17 @@ export default function MenuUploadForm({
                   {menuItems.map((item) => (
                     <div
                       key={item.id}
-                      className={`flex items-center justify-between p-2 rounded-md border ${item.mustTry ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-white'}`}
+                      className={`flex items-center justify-between p-2 rounded-md border ${item.mustTry ? "border-orange-200 bg-orange-50" : "border-gray-200 bg-white"}`}
                     >
                       <div className="flex items-center gap-2">
                         <div className="h-10 w-10 relative rounded overflow-hidden bg-gray-100 border border-gray-200">
                           {item.image ? (
-                            <Image src={item.image} alt={item.name} fill className="object-cover" />
+                            <Image
+                              src={item.image}
+                              alt={item.name}
+                              fill
+                              className="object-cover"
+                            />
                           ) : (
                             <div className="h-full w-full flex items-center justify-center">
                               <ImageIcon className="h-4 w-4 text-gray-400" />
@@ -547,13 +613,22 @@ export default function MenuUploadForm({
                           <div className="flex items-center gap-1">
                             <h4 className="font-medium text-sm">{item.name}</h4>
                             {item.mustTry && (
-                              <Badge className="bg-orange-500 text-white text-[10px] py-0 px-1.5">Must Try</Badge>
+                              <Badge className="bg-orange-500 text-white text-[10px] py-0 px-1.5">
+                                Must Try
+                              </Badge>
                             )}
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-medium">₹{item.price}</span>
+                            <span className="text-xs font-medium">
+                              ₹{item.price}
+                            </span>
                             <span className="text-gray-300">•</span>
-                            <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-gray-200 text-gray-500">{item.category}</Badge>
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] py-0 px-1.5 border-gray-200 text-gray-500"
+                            >
+                              {item.category}
+                            </Badge>
                           </div>
                         </div>
                       </div>
@@ -606,7 +681,10 @@ export default function MenuUploadForm({
 
                   {/* Screen content - positioned within the frame */}
                   <div className="absolute top-[50px] left-[17px] right-[17px] bottom-[23px] overflow-hidden rounded-[28px]">
-                    <div className="h-full w-full overflow-y-auto bg-white scrollbar-hide" style={hideScrollbarStyle}>
+                    <div
+                      className="h-full w-full overflow-y-auto bg-white scrollbar-hide"
+                      style={hideScrollbarStyle}
+                    >
                       {/* Restaurant header */}
                       <div className="bg-white p-3 border-b border-gray-200">
                         <div className="flex items-center">
@@ -614,12 +692,14 @@ export default function MenuUploadForm({
                             <div className="relative w-6 h-6">
                               <Image
                                 src="/icon-64x64.png"
-                                alt={`$MenuThere Logo`}
+                                alt={`$Menuthere Logo`}
                                 fill
                                 className="object-contain"
                               />
                             </div>
-                            <span className="font-bold text-xl text-orange-500">MenuThere</span>
+                            <span className="font-bold text-xl text-orange-500">
+                              Menuthere
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -644,21 +724,33 @@ export default function MenuUploadForm({
                             )}
                           </div>
                           <div>
-                            <h1 className="font-bold text-lg">{businessData.businessName}</h1>
-                            <p className="text-xs text-gray-500">{businessData.area}, {businessData.district}</p>
+                            <h1 className="font-bold text-lg">
+                              {businessData.businessName}
+                            </h1>
+                            <p className="text-xs text-gray-500">
+                              {businessData.area}, {businessData.district}
+                            </p>
                           </div>
                         </div>
                       )}
 
                       {/* Must try section - only if there are must-try items */}
-                      {menuItems.some(item => item.mustTry) && (
+                      {menuItems.some((item) => item.mustTry) && (
                         <div className="p-3 border-b">
-                          <h2 className="font-bold text-base mb-2">Must<span className="text-orange-500">Try</span></h2>
-                          <div className="flex space-x-2 overflow-x-auto pb-2 scrollbar-hide" style={hideScrollbarStyle}>
+                          <h2 className="font-bold text-base mb-2">
+                            Must<span className="text-orange-500">Try</span>
+                          </h2>
+                          <div
+                            className="flex space-x-2 overflow-x-auto pb-2 scrollbar-hide"
+                            style={hideScrollbarStyle}
+                          >
                             {menuItems
-                              .filter(item => item.mustTry)
-                              .map(item => (
-                                <div key={`must-try-${item.id}`} className="min-w-[120px] border rounded-lg overflow-hidden">
+                              .filter((item) => item.mustTry)
+                              .map((item) => (
+                                <div
+                                  key={`must-try-${item.id}`}
+                                  className="min-w-[120px] border rounded-lg overflow-hidden"
+                                >
                                   <div className="h-20 relative">
                                     {item.image ? (
                                       <Image
@@ -672,8 +764,12 @@ export default function MenuUploadForm({
                                     )}
                                   </div>
                                   <div className="p-2">
-                                    <p className="text-xs font-medium truncate">{item.name}</p>
-                                    <p className="text-xs text-orange-500 font-bold">₹{item.price}</p>
+                                    <p className="text-xs font-medium truncate">
+                                      {item.name}
+                                    </p>
+                                    <p className="text-xs text-orange-500 font-bold">
+                                      ₹{item.price}
+                                    </p>
                                   </div>
                                 </div>
                               ))}
@@ -688,17 +784,17 @@ export default function MenuUploadForm({
                           style={hideScrollbarStyle}
                         >
                           <div
-                            className={`${!activePreviewCategory ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-700'} px-3 py-1 rounded-full text-xs whitespace-nowrap cursor-pointer`}
+                            className={`${!activePreviewCategory ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700"} px-3 py-1 rounded-full text-xs whitespace-nowrap cursor-pointer`}
                             onClick={() => setActivePreviewCategory(null)}
                           >
                             All items
                           </div>
                           {Object.keys(menuItemsByCategory)
-                            .filter(cat => cat !== "Uncategorized")
-                            .map(cat => (
+                            .filter((cat) => cat !== "Uncategorized")
+                            .map((cat) => (
                               <div
                                 key={`cat-${cat}`}
-                                className={`${activePreviewCategory === cat ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-700'} px-3 py-1 rounded-full text-xs whitespace-nowrap cursor-pointer`}
+                                className={`${activePreviewCategory === cat ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700"} px-3 py-1 rounded-full text-xs whitespace-nowrap cursor-pointer`}
                                 onClick={() => setActivePreviewCategory(cat)}
                               >
                                 {cat}
@@ -714,37 +810,53 @@ export default function MenuUploadForm({
                             No menu items added
                           </div>
                         ) : (
-                          Object.entries(filteredMenuItems).map(([category, items]) => (
-                            <div key={`category-${category}`} className="mb-4">
-                              <h3 className="text-xs font-bold uppercase text-gray-500 px-3 mb-1">{category}</h3>
-                              <div className="space-y-2">
-                                {items.map(item => (
-                                  <div key={`preview-${item.id}`} className="flex px-3 py-2">
-                                    <div className="flex-1">
-                                      <p className="text-sm font-medium">{item.name}</p>
-                                      {item.description && (
-                                        <p className="text-xs text-gray-500 line-clamp-1">{item.description}</p>
-                                      )}
-                                      <p className="text-sm font-bold mt-1">₹{item.price}</p>
+                          Object.entries(filteredMenuItems).map(
+                            ([category, items]) => (
+                              <div
+                                key={`category-${category}`}
+                                className="mb-4"
+                              >
+                                <h3 className="text-xs font-bold uppercase text-gray-500 px-3 mb-1">
+                                  {category}
+                                </h3>
+                                <div className="space-y-2">
+                                  {items.map((item) => (
+                                    <div
+                                      key={`preview-${item.id}`}
+                                      className="flex px-3 py-2"
+                                    >
+                                      <div className="flex-1">
+                                        <p className="text-sm font-medium">
+                                          {item.name}
+                                        </p>
+                                        {item.description && (
+                                          <p className="text-xs text-gray-500 line-clamp-1">
+                                            {item.description}
+                                          </p>
+                                        )}
+                                        <p className="text-sm font-bold mt-1">
+                                          ₹{item.price}
+                                        </p>
+                                      </div>
+                                      <div className="w-16 h-16 rounded overflow-hidden ml-2">
+                                        {item.image ? (
+                                          <Image
+                                            src={item.image}
+                                            alt={item.name}
+                                            width={64}
+                                            height={64}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        ) : (
+                                          <div className="w-full h-full bg-gray-100"></div>
+                                        )}
+                                      </div>
                                     </div>
-                                    <div className="w-16 h-16 rounded overflow-hidden ml-2">
-                                      {item.image ? (
-                                        <Image
-                                          src={item.image}
-                                          alt={item.name}
-                                          width={64}
-                                          height={64}
-                                          className="w-full h-full object-cover"
-                                        />
-                                      ) : (
-                                        <div className="w-full h-full bg-gray-100"></div>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          ))
+                            ),
+                          )
                         )}
                       </div>
                     </div>
@@ -752,7 +864,7 @@ export default function MenuUploadForm({
                 </div>
 
                 <div className="mt-4 text-center text-sm text-gray-500">
-                  <p>This is how your menu will appear in the MenuThere app</p>
+                  <p>This is how your menu will appear in the Menuthere app</p>
                 </div>
               </div>
             </div>
@@ -770,4 +882,4 @@ export default function MenuUploadForm({
       </div>
     </div>
   );
-} 
+}

@@ -1,11 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  UtensilsCrossed,
   Download,
-  ShoppingBag,
   Globe,
   Smartphone,
   Monitor,
@@ -29,7 +27,7 @@ import {
   ChefHat,
   Truck,
   Wine,
-  PartyPopper
+  PartyPopper,
 } from "lucide-react";
 
 import Image from "next/image"; // Added import
@@ -49,31 +47,31 @@ const PRODUCTS = [
     title: "Digital Menu",
     description: "Accept orders via QR code scan",
     icon: ScanLine,
-    href: "/product/digital-menu"
+    href: "/product/digital-menu",
   },
   {
     title: "Own Delivery Website",
     description: "Commission-free delivery platform",
     icon: Globe,
-    href: "/product/delivery-website"
+    href: "/product/delivery-website",
   },
   {
     title: "Point Of Sale (POS)",
     description: "Manage billing and operations",
     icon: Monitor,
-    href: "/product/pos"
+    href: "/product/pos",
   },
   {
     title: "Table Ordering",
     description: "Seamless dining experience for customers",
     icon: Smartphone,
-    href: "/product/table-ordering"
+    href: "/product/table-ordering",
   },
   {
     title: "Captain Ordering",
     description: "Efficient order taking for staff",
     icon: ClipboardList,
-    href: "/product/captain-ordering"
+    href: "/product/captain-ordering",
   },
   /*
   {
@@ -90,13 +88,13 @@ const SOLUTIONS_ROLES = [
     title: "Owners",
     description: "Oversee operations and grow revenue",
     href: "/solutions/owners",
-    icon: Briefcase
+    icon: Briefcase,
   },
   {
     title: "Agencies",
     description: "Manage multiple client accounts easily",
     href: "/solutions/agencies",
-    icon: Building2
+    icon: Building2,
   },
   // {
   //   title: "Digital Marketers",
@@ -117,49 +115,49 @@ const SOLUTIONS_INDUSTRIES = [
     title: "Restaurants",
     description: "Smart digital menus for dine-in",
     href: "/solutions/restaurants",
-    icon: Utensils
+    icon: Utensils,
   },
   {
     title: "Cafés & Coffee Shops",
     description: "Modern menus for the perfect brew",
     href: "/solutions/cafes",
-    icon: Coffee
+    icon: Coffee,
   },
   {
     title: "Bakeries",
     description: "Showcase fresh bakes beautifully",
     href: "/solutions/bakeries",
-    icon: Cake
+    icon: Cake,
   },
   {
     title: "Cloud Kitchens",
     description: "Multi-brand menu management",
     href: "/solutions/cloud-kitchens",
-    icon: ChefHat
+    icon: ChefHat,
   },
   {
     title: "Hotels & Resorts",
     description: "Elegant guest dining experience",
     href: "/solutions/hotels",
-    icon: Hotel
+    icon: Hotel,
   },
   {
     title: "Food Trucks",
     description: "Mobile menus on the go",
     href: "/solutions/food-trucks",
-    icon: Truck
+    icon: Truck,
   },
   {
     title: "Bars & Pubs",
     description: "Dynamic drink menus with style",
     href: "/solutions/bars",
-    icon: Wine
+    icon: Wine,
   },
   {
     title: "Catering",
     description: "Professional event menus",
     href: "/solutions/catering",
-    icon: PartyPopper
+    icon: PartyPopper,
   },
 ];
 
@@ -180,42 +178,44 @@ const RESOURCES = [
     title: "Help Center",
     description: "Get support and find answers",
     href: "/help-center",
-    icon: HelpCircle
+    icon: HelpCircle,
   },
   {
     title: "Download App",
     description: "Get the app for iOS and Android",
     href: "/download-app",
-    icon: Download
-  }
+    icon: Download,
+  },
 ];
 
 const HIDDEN_PATHS = [
   "/hotels",
   "/hotels/.*",
-  "/hotels/[id]/reviews/new",
-  "/hotels/[id]/reviews",
-  "/hotels/[id]/menu/[mId]/reviews/new",
-  "/hotels/[id]/menu/[mId]/reviews",
   "/captain",
-  "/bill/[id]",
-  "/kot/[id]",
-  "/qrScan/DOWNTREE/[id]",
-  "/hotels/DOWNTREE/4ba747b0-827c-48de-b148-70e7a573564a",
-  "/whatsappQr/[id]",
+  "/captain/.*",
+  "/bill/.*",
+  "/kot/.*",
+  "/qrScan",
+  "/qrScan/.*",
+  "/whatsappQr/.*",
   "/get-started",
-  "/admin-v2/.*",
   "/admin-v2",
+  "/admin-v2/.*",
+  "/admin",
+  "/admin/.*",
+  "/order",
   "/order/.*",
-  "/order/[id]",
-  "/my-orders"
+  "/my-orders",
+  "/onboard",
+  "/onboard/.*",
 ];
 
 import { Partner, useAuthStore } from "@/store/authStore";
+import { ButtonV2 } from "@/components/ui/ButtonV2";
 
-export function Navbar({ userData: propUserData, country, appName = "MenuThere", logo, logowhite }: { userData: any; country?: string; appName?: string; logo?: string; logowhite?: string }) {
+export function Navbar() {
   const { userData: storeUserData } = useAuthStore();
-  const userData = storeUserData || propUserData;
+  const userData = storeUserData as any;
   const features = getFeatures(userData?.feature_flags as string);
   const router = useRouter();
   const pathname = usePathname();
@@ -224,39 +224,38 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
   const [isIOS, setIsIOS] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const currentPath = pathname.split("?")[0];
-  const [isScrolled, setIsScrolled] = useState(false);
   const [isProductsOpen, setIsProductsOpen] = useState(false);
   const [isSolutionsOpen, setIsSolutionsOpen] = useState(false);
   const [isResourcesOpen, setIsResourcesOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [expandedMobileSection, setExpandedMobileSection] = useState<string | null>(null);
+  const [expandedMobileSection, setExpandedMobileSection] = useState<
+    string | null
+  >(null);
+  const navContainerRef = useRef<HTMLDivElement>(null);
+  const [pillStyle, setPillStyle] = useState({ left: 0, width: 0, opacity: 0 });
 
   const toggleMobileSection = (section: string) => {
-    setExpandedMobileSection(expandedMobileSection === section ? null : section);
+    setExpandedMobileSection(
+      expandedMobileSection === section ? null : section,
+    );
   };
 
-  const isProductPage = pathname.startsWith("/product/");
-  const isSolutionsPage = pathname.startsWith("/solutions/");
-  const isHelpCenterPage = pathname.startsWith("/help-center");
-  const isDarkText =
-    !isScrolled &&
-    (isProductPage ||
-      isSolutionsPage ||
-      isHelpCenterPage ||
-      pathname === "/login" ||
-      pathname === "/" ||
-      pathname === "/explore" ||
-      pathname === "/profile" ||
-      pathname === "/captainlogin" ||
-      pathname === "/my-orders" ||
-      pathname === "/my-earnings" ||
-      pathname === "/offers" ||
-      pathname === "/pricing" ||
-      pathname.startsWith("/admin") ||
-      pathname.startsWith("/superadmin")); // Added superadmin support for dark text
+  const handleNavHover = (e: React.MouseEvent<HTMLElement>) => {
+    const container = navContainerRef.current;
+    if (!container) return;
+    const containerRect = container.getBoundingClientRect();
+    const targetRect = e.currentTarget.getBoundingClientRect();
+    setPillStyle({
+      left: targetRect.left - containerRect.left,
+      width: targetRect.width,
+      opacity: 1,
+    });
+  };
 
-  // const shouldShowBanner = pathname === "/" || pathname.startsWith("/product") || pathname.startsWith("/solutions");
-  const shouldShowBanner = false;
+  const handleNavLeave = () => {
+    setPillStyle((prev) => ({ ...prev, opacity: 0 }));
+  };
+
   const isUserOrGuest = userData?.role === "user" || !userData?.role;
 
   useEffect(() => {
@@ -266,15 +265,6 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
     } else {
       setIsInstalled(false);
     }
-  }, []);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 0);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   useEffect(() => {
@@ -296,7 +286,7 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
     return () => {
       window.removeEventListener(
         "beforeinstallprompt",
-        handleBeforeInstallPrompt
+        handleBeforeInstallPrompt,
       );
       window.removeEventListener("appinstalled", handleAppInstalled);
     };
@@ -306,7 +296,7 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
     if (isIOS) {
       toast.info(
         "To install the app on iOS:\n1. Tap the Share button\n2. Scroll down and tap 'Add to Home Screen'",
-        { duration: 5000 }
+        { duration: 5000 },
       );
       return;
     }
@@ -320,14 +310,14 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
       setDeferredPrompt(null);
     } else {
       const isStandalone = window.matchMedia(
-        "(display-mode: standalone)"
+        "(display-mode: standalone)",
       ).matches;
       if (isStandalone) {
         window.location.reload();
       } else {
         toast.info(
           "To install the app:\n1. Open your browser menu\n2. Look for 'Install App' or 'Add to Home Screen'\n3. Follow the prompts to install",
-          { duration: 5000 }
+          { duration: 5000 },
         );
       }
     }
@@ -345,38 +335,24 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
 
   const isHomePage = ["/offers", "/explore", "/"].includes(pathname);
 
-  const activeLogo = (isDarkText && logowhite) ? logowhite : logo;
-
   const renderBranding = () => (
     <div
       className="flex items-center space-x-2 cursor-pointer"
       onClick={() => (isHomePage ? null : router.back())}
     >
-      {activeLogo ? (
-        <div className="flex items-center">
-          <Image
-            src={activeLogo}
-            alt="MenuThere"
-            width={160}
-            height={40}
-            className={cn(
-              "h-12 w-auto object-contain",
-              (activeLogo.endsWith('.png')) && "rounded-md"
-            )}
-            priority
-          />
-          <span className={cn("text-2xl font-bold tracking-tight transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
-            MenuThere
-          </span>
-        </div>
-      ) : (
-        <>
-          <UtensilsCrossed className="h-6 w-6 text-orange-500" />
-          <span className={cn("text-2xl font-bold tracking-tight transition-colors", isDarkText ? "text-gray-900" : "text-white")}>
-            MenuThere
-          </span>
-        </>
-      )}
+      <div className="flex items-center">
+        <Image
+          src="/menuthere-logo.png"
+          alt="Menuthere"
+          width={48}
+          height={48}
+          className="h-10 w-10 object-contain rounded-md"
+          priority
+        />
+        <span className="text-2xl font-medium tracking-tight text-gray-900 ml-2 font-geist">
+          Menuthere
+        </span>
+      </div>
     </div>
   );
 
@@ -384,23 +360,16 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
     if (!userData) {
       return (
         <div className="flex items-center gap-3">
-          <Link
+          <ButtonV2
             href="/login"
-            className={cn(
-              "hidden sm:inline-flex items-center justify-center h-fit text-nowrap text-sm px-4 py-2 font-medium border rounded-md transition-colors",
-              isDarkText
-                ? "text-gray-900 border-gray-200 hover:bg-gray-100"
-                : "text-white border-white hover:bg-white/10"
-            )}
+            variant="secondary"
+            className="hidden sm:inline-flex"
           >
-            Log In
-          </Link>
-          <Link
-            href="https://cal.id/cravings"
-            className="inline-flex items-center justify-center h-fit text-nowrap text-sm px-4 py-2 font-medium text-white bg-[#0a0b10] rounded-md hover:bg-gray-900 transition-colors"
-          >
-            Book Demo
-          </Link>
+            Login
+          </ButtonV2>
+          <ButtonV2 href="/get-started" variant="primary">
+            Start for free
+          </ButtonV2>
         </div>
       );
     }
@@ -417,32 +386,29 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
     const adminLinks = [
       ...(userData?.role === "partner"
         ? [
-          { href: "/admin", label: "Admin" },
-          ...((features?.ordering.access || features?.delivery.access) &&
+            { href: "/admin", label: "Admin" },
+            ...((features?.ordering.access || features?.delivery.access) &&
             userData.status === "active"
-            ? [{ href: "/admin/orders", label: "Orders" }]
-            : []),
-          ...(features?.stockmanagement.access && userData.status === "active"
-            ? [{ href: "/admin/stock-management", label: "Stock Management" }]
-            : []),
-          ...(features?.purchasemanagement.access &&
+              ? [{ href: "/admin/orders", label: "Orders" }]
+              : []),
+            ...(features?.stockmanagement.access && userData.status === "active"
+              ? [{ href: "/admin/stock-management", label: "Stock Management" }]
+              : []),
+            ...(features?.purchasemanagement.access &&
             userData.status === "active"
-            ? [
-              {
-                href: "/admin/purchase-management",
-                label: "Purchase Management",
-              },
-            ]
-            : []),
-        ]
+              ? [
+                  {
+                    href: "/admin/purchase-management",
+                    label: "Purchase Management",
+                  },
+                ]
+              : []),
+          ]
         : []),
       ...(userData?.role === "superadmin"
         ? [{ href: "/superadmin", label: "Super Admin" }]
         : []),
     ];
-
-
-
 
     return (
       <>
@@ -450,11 +416,12 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
           <Link
             key={link.href}
             href={link.href}
+            onMouseEnter={handleNavHover}
             className={cn(
-              "items-center px-3 py-1 text-sm transition-colors hidden lg:inline-flex text-nowrap",
+              "items-center px-3 py-1.5 text-sm font-medium transition-colors hidden lg:inline-flex text-nowrap",
               currentPath === link.href
-                ? (isDarkText ? "text-gray-900 font-medium" : "text-white font-medium")
-                : (isDarkText ? "text-gray-500 hover:text-gray-900 font-medium" : "text-gray-400 hover:text-gray-200 font-medium")
+                ? "text-gray-900"
+                : "text-[#544b47] hover:text-gray-900",
             )}
           >
             {link.label}
@@ -523,33 +490,31 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
         {isUserOrGuest && (
           <div
             className={cn(
-              "relative px-3 py-1 text-sm font-medium cursor-pointer hidden lg:inline-flex items-center gap-1 transition-colors",
-              isDarkText ? "text-gray-700 hover:text-gray-900" : "text-white"
+              "relative px-3 py-1.5 text-sm font-medium cursor-pointer hidden lg:inline-flex items-center gap-1 transition-colors",
+              "text-[#544b47] hover:text-gray-900",
             )}
-            onMouseEnter={() => setIsSolutionsOpen(true)}
+            onMouseEnter={(e) => {
+              setIsSolutionsOpen(true);
+              handleNavHover(e);
+            }}
             onMouseLeave={() => setIsSolutionsOpen(false)}
             onClick={() => setIsSolutionsOpen(!isSolutionsOpen)}
           >
-            <span className={cn(
-              "flex items-center gap-1 transition-colors relative",
-              isDarkText ? "text-gray-900" : "text-white"
-            )}>
+            <span className="flex items-center gap-1 transition-colors">
               Solutions
-              <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", isSolutionsOpen ? "rotate-180" : "")} />
-
-              {/* Custom Underline */}
-              <span className={cn(
-                "absolute -bottom-2 left-0 w-full h-[1.5px] rounded-full transition-all duration-300 ease-out origin-left",
-                isDarkText ? "bg-gray-900" : "bg-white",
-                isSolutionsOpen ? "opacity-100 scale-x-100" : "opacity-0 scale-x-0"
-              )} />
+              <ChevronDown
+                className={cn(
+                  "w-4 h-4 transition-transform duration-200",
+                  isSolutionsOpen ? "rotate-180" : "",
+                )}
+              />
             </span>
 
             {/* Mega Menu Dropdown */}
             <div
               className={cn(
                 "absolute top-full left-1/2 -translate-x-1/2 mt-4 w-[900px] bg-white rounded-xl shadow-xl p-6 transition-all duration-200 z-[70] border border-gray-100 before:absolute before:-top-2 before:left-0 before:right-0 before:h-4 before:bg-transparent cursor-default",
-                isSolutionsOpen ? "opacity-100 visible" : "opacity-0 invisible"
+                isSolutionsOpen ? "opacity-100 visible" : "opacity-0 invisible",
               )}
               onClick={(e) => e.stopPropagation()}
             >
@@ -570,17 +535,25 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-gray-900 font-semibold text-sm group-hover/gbp:text-[#e65a22] transition-colors">Google Business Profile Sync</h3>
-                    <span className="px-1.5 py-0.5 bg-[#e65a22] text-white text-[10px] font-bold rounded uppercase leading-none">New</span>
+                    <h3 className="text-gray-900 font-semibold text-sm group-hover/gbp:text-[#e65a22] transition-colors">
+                      Google Business Profile Sync
+                    </h3>
+                    <span className="px-1.5 py-0.5 bg-[#e65a22] text-white text-[10px] font-bold rounded uppercase leading-none">
+                      New
+                    </span>
                   </div>
-                  <p className="text-gray-500 text-xs mt-0.5 leading-snug">Sync your menu to Google Maps automatically</p>
+                  <p className="text-gray-500 text-xs mt-0.5 leading-snug">
+                    Sync your menu to Google Maps automatically
+                  </p>
                 </div>
               </Link>
 
               <div className="grid grid-cols-[1fr_2fr] gap-x-4">
                 {/* Roles Column */}
                 <div className="space-y-4">
-                  <h4 className="text-gray-900 font-medium text-base px-2">Roles</h4>
+                  <h4 className="text-gray-900 font-medium text-base px-2">
+                    Roles
+                  </h4>
                   <div className="space-y-2">
                     {SOLUTIONS_ROLES.map((item) => (
                       <Link
@@ -607,7 +580,9 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
 
                 {/* Industries Column */}
                 <div className="space-y-4">
-                  <h4 className="text-gray-900 font-medium text-base px-2">Industries</h4>
+                  <h4 className="text-gray-900 font-medium text-base px-2">
+                    Industries
+                  </h4>
                   <div className="space-y-2 grid grid-cols-2">
                     {SOLUTIONS_INDUSTRIES.map((item) => (
                       <Link
@@ -639,33 +614,31 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
         {isUserOrGuest && (
           <div
             className={cn(
-              "relative px-3 py-1 text-sm font-medium cursor-pointer hidden lg:inline-flex items-center gap-1 transition-colors",
-              isDarkText ? "text-gray-700 hover:text-gray-900" : "text-white"
+              "relative px-3 py-1.5 text-sm font-medium cursor-pointer hidden lg:inline-flex items-center gap-1 transition-colors",
+              "text-[#544b47] hover:text-gray-900",
             )}
-            onMouseEnter={() => setIsResourcesOpen(true)}
+            onMouseEnter={(e) => {
+              setIsResourcesOpen(true);
+              handleNavHover(e);
+            }}
             onMouseLeave={() => setIsResourcesOpen(false)}
             onClick={() => setIsResourcesOpen(!isResourcesOpen)}
           >
-            <span className={cn(
-              "flex items-center gap-1 transition-colors relative",
-              isDarkText ? "text-gray-900" : "text-white"
-            )}>
+            <span className="flex items-center gap-1 transition-colors">
               Resources
-              <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", isResourcesOpen ? "rotate-180" : "")} />
-
-              {/* Custom Underline */}
-              <span className={cn(
-                "absolute -bottom-2 left-0 w-full h-[1.5px] rounded-full transition-all duration-300 ease-out origin-left",
-                isDarkText ? "bg-gray-900" : "bg-white",
-                isResourcesOpen ? "opacity-100 scale-x-100" : "opacity-0 scale-x-0"
-              )} />
+              <ChevronDown
+                className={cn(
+                  "w-4 h-4 transition-transform duration-200",
+                  isResourcesOpen ? "rotate-180" : "",
+                )}
+              />
             </span>
 
             {/* Mega Menu Dropdown */}
             <div
               className={cn(
                 "absolute top-full left-1/2 -translate-x-1/2 mt-4 w-[600px] bg-white rounded-xl shadow-xl p-6 transition-all duration-200 z-[70] border border-gray-100 before:absolute before:-top-2 before:left-0 before:right-0 before:h-4 before:bg-transparent cursor-default",
-                isResourcesOpen ? "opacity-100 visible" : "opacity-0 invisible"
+                isResourcesOpen ? "opacity-100 visible" : "opacity-0 invisible",
               )}
               onClick={(e) => e.stopPropagation()}
             >
@@ -698,10 +671,8 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
         {isUserOrGuest && (
           <Link
             href="/pricing"
-            className={cn(
-              "px-3 py-1 text-sm font-medium transition-colors hidden lg:inline-flex",
-              isDarkText ? "text-gray-700 hover:text-gray-900" : "text-white hover:text-white/80"
-            )}
+            onMouseEnter={handleNavHover}
+            className="px-3 py-1.5 text-sm font-medium transition-colors hidden lg:inline-flex text-[#544b47] hover:text-gray-900"
           >
             Pricing
           </Link>
@@ -711,41 +682,21 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
   };
 
   return (
-    <header className="fixed w-full z-[60] top-0 left-0 right-0 font-sans">
-      {/* Announcement Bar */}
-      {shouldShowBanner && (
-        <div
-          className={cn(
-            "w-full bg-[#0a0b10] text-[#e0e0e0] text-xs sm:text-sm text-center px-4 leading-tight transition-all duration-300 ease-in-out overflow-hidden origin-top",
-            isScrolled ? "max-h-0 py-0 opacity-0" : "max-h-12 py-2.5 opacity-100"
-          )}
-        >
-          🎉 New Year Offer: Get flat 20% OFF on all plans!{" "}
-          <span className="text-orange-500 cursor-pointer hover:underline font-medium ml-1">
-            Grab Deal
-          </span>
-        </div>
-      )}
-
+    <header className="fixed w-full z-[60] top-0 left-0 right-0 font-sans border-b border-stone-200">
       {/* Main Navbar */}
-      <nav
-        className={cn(
-          "w-full border-b transition-all duration-300",
-          isScrolled ? "bg-[#e55a23] shadow-sm border-transparent" : "bg-transparent border-transparent"
-        )}
-      >
+      <nav className="w-full bg-[#fcfbf7]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex justify-between h-16 items-center">
             {/* Left: Branding */}
-            <div className="flex-1 flex justify-start">
-              {renderBranding()}
-            </div>
+            <div className="flex-1 flex justify-start">{renderBranding()}</div>
 
-            {/* Mobile Menu Toggle */}
             {/* Mobile Menu Toggle */}
             <div className="lg:hidden flex justify-end">
               {userData?.role !== "user" ? (
-                <button onClick={() => setIsMobileMenuOpen(true)} className={cn("p-2", isDarkText ? "text-gray-900" : "text-white")}>
+                <button
+                  onClick={() => setIsMobileMenuOpen(true)}
+                  className="p-2 text-gray-900"
+                >
                   <Menu className="w-6 h-6" />
                 </button>
               ) : (
@@ -754,29 +705,33 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
             </div>
 
             {/* Center: Navigation Links */}
-            <div className="hidden lg:flex flex-1 justify-center items-center space-x-6 lg:space-x-8">
+            <div
+              ref={navContainerRef}
+              className="hidden lg:flex flex-1 justify-center items-center space-x-6 lg:space-x-8 relative"
+              onMouseLeave={handleNavLeave}
+            >
+              <div
+                className="absolute rounded-full bg-[#544b47]/10 pointer-events-none transition-all duration-300 ease-in-out"
+                style={{
+                  left: pillStyle.left,
+                  width: pillStyle.width,
+                  opacity: pillStyle.opacity,
+                  height: 32,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                }}
+              />
               {userData?.role !== "user" && renderNavigationLinks()}
             </div>
 
             {/* Right: Actions */}
-            <div className="hidden lg:flex flex-1 items-center justify-end gap-4">
-              {userData?.role !== "user" && userData?.role === "user" ? (
-                <Link href="/my-orders">
-                  <ShoppingBag className={cn("w-5 h-5 transition-colors", isDarkText ? "text-gray-500 hover:text-gray-900" : "text-gray-400 hover:text-white")} />
-                </Link>
-              ) : null}
-
+            <div className="hidden lg:flex flex-1 items-center justify-end gap-3">
               {renderUserProfile()}
 
               {userData && userData.role !== "user" && !isInstalled ? (
                 <button
                   onClick={handleInstallClick}
-                  className={cn(
-                    "inline-flex items-center h-fit text-nowrap text-xs gap-2 px-3 md:px-4 py-2 font-medium border rounded-lg transition-colors",
-                    isDarkText
-                      ? "text-gray-900 border-gray-200 hover:bg-gray-100"
-                      : "text-white border-white/20 hover:bg-white/10"
-                  )}
+                  className="inline-flex items-center h-fit text-nowrap text-xs gap-2 px-3 md:px-4 py-2 font-medium border rounded-lg transition-colors text-gray-900 border-gray-200 hover:bg-gray-100"
                 >
                   <Download className="w-4 h-4" />
                 </button>
@@ -788,14 +743,19 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
         </div>
 
         {/* Mobile Menu Overlay */}
-        <div className={cn(
-          "fixed inset-0 z-[100] bg-[#e55a23] transition-transform duration-300 ease-in-out lg:hidden flex flex-col",
-          isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
-        )}>
+        <div
+          className={cn(
+            "fixed inset-0 z-[100] bg-[#fcfbf7] transition-transform duration-300 ease-in-out lg:hidden flex flex-col",
+            isMobileMenuOpen ? "translate-x-0" : "translate-x-full",
+          )}
+        >
           {/* Mobile Header */}
-          <div className="flex items-center justify-between px-6 h-16 border-b border-white/10 shrink-0">
+          <div className="flex items-center justify-between px-6 h-16 border-b border-stone-200 shrink-0">
             {renderBranding()}
-            <button onClick={() => setIsMobileMenuOpen(false)} className="text-white p-2">
+            <button
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="text-gray-900 p-2"
+            >
               <X className="w-8 h-8" />
             </button>
           </div>
@@ -827,37 +787,64 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
                 </div> */}
 
                 {/* Solutions Accordion */}
-                <div className="border-b border-white/10 pb-2">
+                <div className="border-b border-stone-200 pb-2">
                   <button
-                    onClick={() => toggleMobileSection('solutions')}
-                    className="flex items-center justify-between w-full text-white font-medium text-lg py-3"
+                    onClick={() => toggleMobileSection("solutions")}
+                    className="flex items-center justify-between w-full text-gray-900 font-medium text-lg py-3"
                   >
                     Solutions
-                    <ChevronDown className={cn("w-5 h-5 transition-transform duration-200", expandedMobileSection === 'solutions' ? "rotate-180" : "")} />
+                    <ChevronDown
+                      className={cn(
+                        "w-5 h-5 transition-transform duration-200",
+                        expandedMobileSection === "solutions"
+                          ? "rotate-180"
+                          : "",
+                      )}
+                    />
                   </button>
-                  <div className={cn("space-y-6 pl-2 overflow-hidden transition-all duration-300", expandedMobileSection === 'solutions' ? "max-h-[1000px] opacity-100 pb-4" : "max-h-0 opacity-0")}>
+                  <div
+                    className={cn(
+                      "space-y-6 pl-2 overflow-hidden transition-all duration-300",
+                      expandedMobileSection === "solutions"
+                        ? "max-h-[1000px] opacity-100 pb-4"
+                        : "max-h-0 opacity-0",
+                    )}
+                  >
                     {/* Featured: Google Business */}
                     <Link
                       href="/solutions/google-business"
-                      className="flex items-center gap-3 p-3 rounded-lg bg-white/10 border border-white/20"
+                      className="flex items-center gap-3 p-3 rounded-lg bg-[#F4E0D0]/30 border border-[#B5581A]/10"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
-                      <Globe className="w-5 h-5 text-white" />
+                      <Globe className="w-5 h-5 text-[#B5581A]" />
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-white">Google Business Sync</span>
-                          <span className="px-1.5 py-0.5 bg-green-400 text-white text-[10px] font-bold rounded uppercase leading-none">New</span>
+                          <span className="font-semibold text-gray-900">
+                            Google Business Sync
+                          </span>
+                          <span className="px-1.5 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded uppercase leading-none">
+                            New
+                          </span>
                         </div>
-                        <span className="text-white/60 text-xs">Sync menu to Google Maps</span>
+                        <span className="text-gray-500 text-xs">
+                          Sync menu to Google Maps
+                        </span>
                       </div>
                     </Link>
                     {/* Roles */}
                     <div>
-                      <h4 className="text-white/50 text-xs font-bold mb-3 uppercase tracking-wider">Roles</h4>
+                      <h4 className="text-gray-400 text-xs font-bold mb-3 uppercase tracking-wider">
+                        Roles
+                      </h4>
                       <div className="space-y-3">
-                        {SOLUTIONS_ROLES.map(item => (
-                          <Link key={item.title} href={item.href} className="flex items-center gap-3 text-white/90 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
-                            <item.icon className="w-4 h-4" />
+                        {SOLUTIONS_ROLES.map((item) => (
+                          <Link
+                            key={item.title}
+                            href={item.href}
+                            className="flex items-center gap-3 text-gray-700 hover:text-gray-900"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <item.icon className="w-4 h-4 text-[#B5581A]" />
                             <span className="font-medium">{item.title}</span>
                           </Link>
                         ))}
@@ -865,11 +852,18 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
                     </div>
                     {/* Industries */}
                     <div>
-                      <h4 className="text-white/50 text-xs font-bold mb-3 uppercase tracking-wider">Industries</h4>
+                      <h4 className="text-gray-400 text-xs font-bold mb-3 uppercase tracking-wider">
+                        Industries
+                      </h4>
                       <div className="space-y-3">
-                        {SOLUTIONS_INDUSTRIES.map(item => (
-                          <Link key={item.title} href={item.href} className="flex items-center gap-3 text-white/90 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
-                            <item.icon className="w-4 h-4" />
+                        {SOLUTIONS_INDUSTRIES.map((item) => (
+                          <Link
+                            key={item.title}
+                            href={item.href}
+                            className="flex items-center gap-3 text-gray-700 hover:text-gray-900"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <item.icon className="w-4 h-4 text-[#B5581A]" />
                             <span className="font-medium">{item.title}</span>
                           </Link>
                         ))}
@@ -879,21 +873,42 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
                 </div>
 
                 {/* Resources Accordion */}
-                <div className="border-b border-white/10 pb-2">
+                <div className="border-b border-stone-200 pb-2">
                   <button
-                    onClick={() => toggleMobileSection('resources')}
-                    className="flex items-center justify-between w-full text-white font-medium text-lg py-3"
+                    onClick={() => toggleMobileSection("resources")}
+                    className="flex items-center justify-between w-full text-gray-900 font-medium text-lg py-3"
                   >
                     Resources
-                    <ChevronDown className={cn("w-5 h-5 transition-transform duration-200", expandedMobileSection === 'resources' ? "rotate-180" : "")} />
+                    <ChevronDown
+                      className={cn(
+                        "w-5 h-5 transition-transform duration-200",
+                        expandedMobileSection === "resources"
+                          ? "rotate-180"
+                          : "",
+                      )}
+                    />
                   </button>
-                  <div className={cn("space-y-4 pl-2 overflow-hidden transition-all duration-300", expandedMobileSection === 'resources' ? "max-h-[1000px] opacity-100 pb-4" : "max-h-0 opacity-0")}>
-                    {RESOURCES.map(item => (
-                      <Link key={item.title} href={item.href} className="flex items-start gap-4 text-white/90 hover:text-white" onClick={() => setIsMobileMenuOpen(false)}>
-                        <item.icon className="w-5 h-5 mt-0.5 shrink-0" />
+                  <div
+                    className={cn(
+                      "space-y-4 pl-2 overflow-hidden transition-all duration-300",
+                      expandedMobileSection === "resources"
+                        ? "max-h-[1000px] opacity-100 pb-4"
+                        : "max-h-0 opacity-0",
+                    )}
+                  >
+                    {RESOURCES.map((item) => (
+                      <Link
+                        key={item.title}
+                        href={item.href}
+                        className="flex items-start gap-4 text-gray-700 hover:text-gray-900"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <item.icon className="w-5 h-5 mt-0.5 shrink-0 text-[#B5581A]" />
                         <div>
                           <div className="font-medium">{item.title}</div>
-                          <div className="text-sm text-white/60 leading-snug">{item.description}</div>
+                          <div className="text-sm text-gray-500 leading-snug">
+                            {item.description}
+                          </div>
                         </div>
                       </Link>
                     ))}
@@ -901,11 +916,11 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
                 </div>
 
                 {/* Pricing Mobile Link */}
-                <div className="border-b border-white/10 pb-2">
+                <div className="border-b border-stone-200 pb-2">
                   <Link
                     href="/pricing"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center justify-between w-full text-white font-medium text-lg py-3"
+                    className="flex items-center justify-between w-full text-gray-900 font-medium text-lg py-3"
                   >
                     Pricing
                   </Link>
@@ -913,26 +928,37 @@ export function Navbar({ userData: propUserData, country, appName = "MenuThere",
               </>
             )}
             {/* Mobile Auth Buttons */}
-            <div className="pt-6 space-y-4">
+            <div className="pt-6 space-y-3">
               {!userData && (
-                <>
-                  <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="block w-full text-center py-3 text-white font-medium text-lg border border-white rounded-lg hover:bg-white/10 transition-colors">Log In</Link>
-                  <Link href="https://cal.id/cravings" onClick={() => setIsMobileMenuOpen(false)} className="block w-full text-center py-3 text-white font-medium text-lg bg-black rounded-lg hover:bg-gray-900 transition-colors">Book Demo</Link>
-                </>
+                <div className="flex flex-col gap-3">
+                  <ButtonV2
+                    href="/get-started"
+                    variant="primary"
+                    className="w-full justify-center"
+                  >
+                    Start for free
+                  </ButtonV2>
+                  <ButtonV2
+                    href="/login"
+                    variant="secondary"
+                    className="w-full justify-center"
+                  >
+                    Login
+                  </ButtonV2>
+                </div>
               )}
               {userData && (
                 <UserAvatar
                   userData={userData}
                   align="left"
                   label="My Account"
-                  className="text-white font-medium gap-4 hover:text-white/80 py-2"
+                  className="text-gray-900 font-medium gap-4 hover:text-gray-700 py-2"
                 />
               )}
             </div>
-
           </div>
         </div>
       </nav>
-    </header >
+    </header>
   );
 }

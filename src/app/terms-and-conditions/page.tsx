@@ -2,8 +2,8 @@ import React from "react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Terms & Conditions | Cravings Digital Menu",
-    description: "Terms and conditions for using Cravings Digital Menu services.",
+    title: "Terms & Conditions | Menuthere Digital Menu",
+    description: "Terms and conditions for using Menuthere Digital Menu services.",
 };
 
 const TermsAndConditionsPage = () => {
@@ -15,13 +15,13 @@ const TermsAndConditionsPage = () => {
 
                 <div className="space-y-8 text-gray-700 leading-relaxed">
                     <p>
-                        Welcome to Cravings, a product of <strong>INNOVIZE NOTIME PRIVATE LIMITED</strong>. By accessing or using our digital menu platform (“Service”), you agree to the following Terms & Conditions. Please read them carefully.
+                        Welcome to Menuthere, a product of <strong>INNOVIZE NOTIME PRIVATE LIMITED</strong>. By accessing or using our digital menu platform (“Service”), you agree to the following Terms & Conditions. Please read them carefully.
                     </p>
 
                     <section>
                         <h2 className="text-2xl font-bold text-gray-900 mb-3">1. About the Service</h2>
                         <p>
-                            Cravings provides an online platform where restaurants can create, edit, and manage digital menus accessible via QR codes. Optional features include menu customization, availability controls, offer displays, and table/WhatsApp ordering.
+                            Menuthere provides an online platform where restaurants can create, edit, and manage digital menus accessible via QR codes. Optional features include menu customization, availability controls, offer displays, and table/WhatsApp ordering.
                         </p>
                     </section>
 
@@ -41,7 +41,7 @@ const TermsAndConditionsPage = () => {
 
                     <section>
                         <h2 className="text-2xl font-bold text-gray-900 mb-3">4. Subscription & Billing</h2>
-                        <p className="mb-2">Cravings operates on a subscription model.</p>
+                        <p className="mb-2">Menuthere operates on a subscription model.</p>
                         <ul className="list-disc pl-6 space-y-2">
                             <li>Fees must be paid upfront for each billing cycle.</li>
                             <li>Plans automatically renew unless cancelled before the renewal date.</li>
@@ -67,7 +67,7 @@ const TermsAndConditionsPage = () => {
                     <section>
                         <h2 className="text-2xl font-bold text-gray-900 mb-3">6. Intellectual Property</h2>
                         <p>
-                            All software, branding, and platform features belong to Cravings. Restaurants retain ownership of their menu content, images, and business information.
+                            All software, branding, and platform features belong to Menuthere. Restaurants retain ownership of their menu content, images, and business information.
                         </p>
                     </section>
 
@@ -80,7 +80,7 @@ const TermsAndConditionsPage = () => {
 
                     <section>
                         <h2 className="text-2xl font-bold text-gray-900 mb-3">8. Limitation of Liability</h2>
-                        <p className="mb-2">Cravings is not responsible for:</p>
+                        <p className="mb-2">Menuthere is not responsible for:</p>
                         <ul className="list-disc pl-6 space-y-2">
                             <li>Loss of revenue due to inaccurate menu content entered by the user</li>
                             <li>Customer disputes between restaurants and diners</li>
@@ -110,7 +110,7 @@ const TermsAndConditionsPage = () => {
                             We may update these Terms at any time. Continued use of the Service indicates acceptance.
                         </p>
                         <p className="mt-4 font-medium">
-                            For questions, contact: <a href="mailto:support@cravings.live" className="text-orange-600 hover:underline">support@cravings.live</a>
+                            For questions, contact: <a href="mailto:menuthere@gmail.com" className="text-orange-600 hover:underline">menuthere@gmail.com</a>
                         </p>
                     </section>
 

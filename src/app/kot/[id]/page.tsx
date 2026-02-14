@@ -264,7 +264,7 @@ const PrintKOTPage = () => {
             </h2>
           )}
           {!DONT_SHOW_POWERED_BY_FOR_PARTNER_IDS.includes(order?.partner_id) && (
-            <p className="mt-2 text-xs text-gray-500">Powered By Cravings</p>
+            <p className="mt-2 text-xs text-gray-500">Powered By Menuthere</p>
           )}
         </div>
       </div>

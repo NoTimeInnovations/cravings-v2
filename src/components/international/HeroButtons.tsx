@@ -18,7 +18,7 @@ export default function HeroButtons() {
 
             <Button
                 variant="outline"
-                onClick={() => window.open("https://www.cravings.live/hotels/LE-GRAND-CAFE/20f7e974-f19e-4c11-b6b7-4385f61f27bf", "_blank")}
+                onClick={() => window.open("https://menuthere.com/hotels/LE-GRAND-CAFE/20f7e974-f19e-4c11-b6b7-4385f61f27bf", "_blank")}
                 className="border-orange-600 text-orange-600 px-8 py-6 rounded-lg text-lg hover:bg-orange-50"
             >
                 View Demo

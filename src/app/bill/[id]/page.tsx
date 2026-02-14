@@ -141,9 +141,8 @@ const PrintOrderPage = () => {
           orders_by_pk.partner.geo_location
         ) {
           try {
-            // https://api.mapbox.com/search/geocode/v6/reverse?longitude=-77.050&latitude=38.889&access_token=pk.eyJ1IjoiYWJoaW4yazMiLCJhIjoiY20wbWh5ZHFwMDJwcjJqcHVjM3kyZjZlNyJ9.cagUWYMuMzLdJQhMbYB50A
             const response = await fetch(
-              `https://api.mapbox.com/search/geocode/v6/reverse?longitude=${orders_by_pk.partner?.geo_location?.coordinates[0]}&latitude=${orders_by_pk.partner?.geo_location?.coordinates[1]}&access_token=pk.eyJ1IjoiYWJoaW4yazMiLCJhIjoiY20wbWh5ZHFwMDJwcjJqcHVjM3kyZjZlNyJ9.cagUWYMuMzLdJQhMbYB50A`
+              `https://api.mapbox.com/search/geocode/v6/reverse?longitude=${orders_by_pk.partner?.geo_location?.coordinates[0]}&latitude=${orders_by_pk.partner?.geo_location?.coordinates[1]}&access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`
             );
             geoData = await response.json();
 
@@ -690,7 +689,7 @@ const PrintOrderPage = () => {
           )}
 
           {!DONT_SHOW_POWERED_BY_FOR_PARTNER_IDS.includes(order?.partner_id) && (
-            <p className="mt-2 text-xs text-gray-500">Powered By Cravings</p>
+            <p className="mt-2 text-xs text-gray-500">Powered By Menuthere</p>
           )}
         </div>
       </div>

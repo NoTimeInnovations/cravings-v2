@@ -112,7 +112,7 @@ const SideActionButtons = ({
       try {
         await navigator.share({
           title: "Check out this offer!",
-          url: `https://cravings.live/explore/${commonOffer.id}`,
+          url: `https://menuthere.com/explore/${commonOffer.id}`,
         });
       } catch (error) {
         console.error("Error sharing:", error);

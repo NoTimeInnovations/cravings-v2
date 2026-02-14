@@ -4,7 +4,7 @@ import { uploadFileToS3 } from "@/app/actions/aws-s3";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import axios from "axios";
 import { Resend } from "resend";
-import { getEmailConfig } from "@/lib/email";
+import { EMAIL_CONFIG } from "@/lib/email";
 
 interface Item {
     name: string;
@@ -135,19 +135,17 @@ export const generateAndUploadImages = async (
         }
 
         // 3. Send Notification Email
-        // 3. Send Notification Email
-        const emailConfig = await getEmailConfig(host);
-        if (emailConfig.apiKey) {
-            const resend = new Resend(emailConfig.apiKey);
+        if (EMAIL_CONFIG.apiKey) {
+            const resend = new Resend(EMAIL_CONFIG.apiKey);
             await resend.emails.send({
-                from: emailConfig.fromEmail,
+                from: EMAIL_CONFIG.fromEmail,
                 to: email,
-                subject: `Your Menu Images are Ready! - ${emailConfig.appName}`,
+                subject: `Your Menu Images are Ready! - ${EMAIL_CONFIG.appName}`,
                 html: `
                     <h1>Your Menu is Fully Visualized!</h1>
                     <p>We have finished generating images for your menu items.</p>
                     <p>You can now view and edit them in your dashboard.</p>
-                    <a href="${emailConfig.baseUrl}/admin-v2">Go to Dashboard</a>
+                    <a href="${EMAIL_CONFIG.baseUrl}/admin-v2">Go to Dashboard</a>
                 `
             });
             console.log("Background image generation completed and email sent.");

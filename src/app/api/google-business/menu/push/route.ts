@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. Fetch Google Tokens (Using Master Account Logic)
-    const MASTER_PARTNER_ID = '20f7e974-f19e-4c11-b6b7-4385f61f27bf'; // Thrisha/MenuThere
+    const MASTER_PARTNER_ID = '20f7e974-f19e-4c11-b6b7-4385f61f27bf'; // Thrisha/Menuthere
     
     let tokens = await getTokensFromHasura(partnerId);
     

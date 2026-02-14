@@ -4,9 +4,15 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { FileClock, UtensilsCrossed } from "lucide-react";
+import { FileClock } from "lucide-react";
+import Image from "next/image";
 import { useAuthStore, User } from "@/store/authStore";
-import { getUserCountry, validatePhoneNumber, getPhoneValidationError, UserCountryInfo } from "@/lib/getUserCountry";
+import {
+  getUserCountry,
+  validatePhoneNumber,
+  getPhoneValidationError,
+  UserCountryInfo,
+} from "@/lib/getUserCountry";
 import { useDomain } from "@/providers/DomainProvider";
 // import PartnerLoginModal from "@/components/PartnerLoginModal";
 import {
@@ -51,9 +57,9 @@ const upiApps: UPIApp[] = [
     icon: "/google-pay.png",
     getUrl: ({ upiId, merchantName, amount, transactionId }) =>
       `gpay://upi/pay?pa=${upiId}&pn=${encodeURIComponent(
-        merchantName
+        merchantName,
       )}&tr=${transactionId}&tn=Payment%20to%20${encodeURIComponent(
-        merchantName
+        merchantName,
       )}&am=${amount}&cu=INR`,
   },
   {
@@ -61,9 +67,9 @@ const upiApps: UPIApp[] = [
     icon: "/phonepay-icon.jpg",
     getUrl: ({ upiId, merchantName, amount, transactionId }) =>
       `phonepe://pay?pa=${upiId}&pn=${encodeURIComponent(
-        merchantName
+        merchantName,
       )}&tr=${transactionId}&tn=Payment%20to%20${encodeURIComponent(
-        merchantName
+        merchantName,
       )}&am=${amount}&cu=INR`,
   },
   {
@@ -71,15 +77,15 @@ const upiApps: UPIApp[] = [
     icon: "/paytm-icon.jpg",
     getUrl: ({ upiId, merchantName, amount, transactionId }) =>
       `paytmmp://pay?pa=${upiId}&pn=${encodeURIComponent(
-        merchantName
+        merchantName,
       )}&tr=${transactionId}&tn=Payment%20to%20${encodeURIComponent(
-        merchantName
+        merchantName,
       )}&am=${amount}&cu=INR`,
   },
 ];
 
 const QrPayment = () => {
-  const appName = "MenuThere";
+  const appName = "Menuthere";
   const [billAmount, setBillAmount] = useState<string>("");
   const [hotelDetails, setHotelDetails] = useState<HotelDetails>();
   const params = useParams();
@@ -96,7 +102,8 @@ const QrPayment = () => {
   const [showHotelPage, setShowHotelPage] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isBillAmountSubmitted, setIsBillAmountSubmitted] = useState(false);
-  const [userCountryInfo, setUserCountryInfo] = useState<UserCountryInfo | null>(null);
+  const [userCountryInfo, setUserCountryInfo] =
+    useState<UserCountryInfo | null>(null);
 
   // Fetch user country info on mount
   useEffect(() => {
@@ -151,7 +158,7 @@ const QrPayment = () => {
 
   const handleSubmit = async (
     e?: React.FormEvent<HTMLFormElement>,
-    user?: User | null
+    user?: User | null,
   ) => {
     e?.preventDefault();
 
@@ -215,14 +222,21 @@ const QrPayment = () => {
       return;
     }
 
-    if (!phoneNumber || !validatePhoneNumber(phoneNumber, userCountryInfo.countryCode)) {
+    if (
+      !phoneNumber ||
+      !validatePhoneNumber(phoneNumber, userCountryInfo.countryCode)
+    ) {
       toast.error(getPhoneValidationError(userCountryInfo.countryCode));
       return;
     }
 
     try {
       setIsLoading(true);
-      const user = await signInWithPhone(phoneNumber, hotelDetails?.hotelId, userCountryInfo);
+      const user = await signInWithPhone(
+        phoneNumber,
+        hotelDetails?.hotelId,
+        userCountryInfo,
+      );
       setIsSignedIn(true);
       setIsLoading(false);
       await handleSubmit(undefined, user);
@@ -309,12 +323,12 @@ const QrPayment = () => {
   return (
     <main className="px-[7.5%] pt-[12%] pb-[20%] bg-orange-600 h-[100dvh] flex flex-col overflow-hidden">
       <div className="flex justify-between items-start">
-        {/* cravings title  */}
+        {/* menuthere title  */}
         <div className="flex flex-col gap-2 flex-1">
           {/* logo  */}
           <div className="flex items-center gap-2">
-            <UtensilsCrossed className="w-10 h-10 text-white" />
-            <h1 className="text-white text-xl font-bold">MenuThere</h1>
+            <Image src="/menuthere-logo.png" alt="Menuthere" width={40} height={40} className="w-10 h-10 object-contain" />
+            <h1 className="text-white text-xl font-bold">Menuthere</h1>
           </div>
 
           {/* short descritpion  */}
@@ -377,10 +391,10 @@ const QrPayment = () => {
                     onClick={
                       isPaymentSuccess
                         ? () => {
-                          router.push(
-                            `${window.location.origin}/hotels/${hotelDetails?.hotelId}`
-                          );
-                        }
+                            router.push(
+                              `${window.location.origin}/hotels/${hotelDetails?.hotelId}`,
+                            );
+                          }
                         : handlePayNow
                     }
                     className="bg-white text-black px-4 w-full py-2 rounded-md disabled:opacity-50 flex-1"
@@ -396,7 +410,7 @@ const QrPayment = () => {
                     <button
                       onClick={() => {
                         router.push(
-                          `${window.location.origin}/hotels/${hotelDetails?.hotelId}`
+                          `${window.location.origin}/hotels/${hotelDetails?.hotelId}`,
                         );
                       }}
                       className="bg-white text-black px-4 w-full py-2 rounded-md"
@@ -441,14 +455,15 @@ const QrPayment = () => {
                             ? `${window.location.origin}/hotels/${hotelDetails?.hotelId}`
                             : ""
                         }
-                        className={`text-black bg-white rounded-full px-3 py-2 text-[12px] capitalize flex items-center gap-1 font-medium ${hotelDetails
-                          ? "w-fit cursor-pointer select-none"
-                          : "h-8 w-[40%] animate-pulse cursor-default"
-                          }`}
+                        className={`text-black bg-white rounded-full px-3 py-2 text-[12px] capitalize flex items-center gap-1 font-medium ${
+                          hotelDetails
+                            ? "w-fit cursor-pointer select-none"
+                            : "h-8 w-[40%] animate-pulse cursor-default"
+                        }`}
                       >
                         {hotelDetails ? (
                           <>
-                            <UtensilsCrossed className="w-4 h-4" />
+                            <Image src="/menuthere-logo.png" alt="" width={16} height={16} className="w-4 h-4 object-contain" />
                             View Menu
                           </>
                         ) : null}
@@ -485,7 +500,7 @@ const QrPayment = () => {
             {/* Headings  */}
             <div className="flex flex-col gap-1">
               <h1 className="text-white text-4xl font-bold">
-                New To MenuThere?
+                New To Menuthere?
               </h1>
               <div className="text-white/80 text-sm">
                 Sign in to get discounts and offers
@@ -525,7 +540,10 @@ const QrPayment = () => {
                 disabled={
                   !userCountryInfo ||
                   !phoneNumber ||
-                  !validatePhoneNumber(phoneNumber, userCountryInfo.countryCode) ||
+                  !validatePhoneNumber(
+                    phoneNumber,
+                    userCountryInfo.countryCode,
+                  ) ||
                   isLoading
                 }
                 type="submit"

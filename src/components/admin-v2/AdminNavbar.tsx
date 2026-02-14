@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Menu, UtensilsCrossed, Printer } from "lucide-react";
+import { Menu, Printer } from "lucide-react";
+import Image from "next/image";
 import { SheetTrigger } from "@/components/ui/sheet";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Partner, useAuthStore } from "@/store/authStore";
@@ -29,9 +30,9 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                     <span className="sr-only">Toggle sidebar</span>
                 </Button>
                 <div className="flex items-center gap-2 hidden lg:flex">
-                    <UtensilsCrossed className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                    <Image src="/menuthere-logo.png" alt="Menuthere" width={24} height={24} className="h-6 w-6 object-contain" />
                     <span className="text-xl font-bold text-orange-600 dark:text-orange-400">
-                        {userData?.role === 'partner' ? (userData as Partner).store_name : "Cravings"}
+                        {userData?.role === 'partner' ? (userData as Partner).store_name : "Menuthere"}
                     </span>
                 </div>
             </div>

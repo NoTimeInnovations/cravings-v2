@@ -635,7 +635,7 @@ export default function SuperAdminCreatePartnerPage() {
                 <a
                   className="text-orange-600 underline"
                   target="_blank"
-                  href={`https://www.cravings.live/hotels/${
+                  href={`https://menuthere.com/hotels/${
                     partner?.store_name || partner?.name
                   }/${partner?.id}`}
                 >

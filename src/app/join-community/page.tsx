@@ -61,7 +61,7 @@ export default function JoinCommunityPage() {
       <section className="relative mx-auto max-w-7xl px-3 py-8 sm:px-4">
         <div className="mx-auto mb-4 text-center">
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
-            Cravings Kerala WhatsApp Groups
+            Menuthere Kerala WhatsApp Groups
           </h1>
         </div>
 

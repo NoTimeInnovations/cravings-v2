@@ -2,9 +2,9 @@
 
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY_CRAVINGS);
-const FROM_EMAIL = 'help@support.cravings.live';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'help@support.cravings.live';
+const resend = new Resend(process.env.RESEND_API_KEY_MENUTHERE);
+const FROM_EMAIL = 'Menuthere <menuthere@gmail.com>';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'menuthere@gmail.com';
 
 interface NotifyPlanInterestProps {
     partnerName: string;
@@ -24,7 +24,7 @@ export async function notifyPlanInterest({
     planId,
     partnerId // Added partnerId
 }: NotifyPlanInterestProps & { partnerId: string }) { // Update type definition inline or above
-    if (!process.env.RESEND_API_KEY_CRAVINGS) {
+    if (!process.env.RESEND_API_KEY_MENUTHERE) {
         return { success: false, message: "Email service not configured" };
     }
 
@@ -63,7 +63,7 @@ export async function notifyPlanInterest({
                     <p>Our team has been notified and we will contact you shortly to help you get started.</p>
                     <br/>
                     <p>Best regards,</p>
-                    <p>The Cravings Team</p>
+                    <p>The Menuthere Team</p>
                 </div>
             `,
         });

@@ -37,10 +37,6 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id: hotelIds } = await params;
 
-  const headersList = await headers();
-  const host = headersList.get("host");
-  const config = getDomainConfig(host);
-
   const hotelId = isUUID(hotelIds?.[0] || "") ? hotelIds?.[0] : hotelIds?.[1];
 
   const getHotelData = unstable_cache(
@@ -72,7 +68,7 @@ export async function generateMetadata({
     throw new Error("Hotel not found");
   }
 
-  const seoTitle = `Menu of ${hotel.store_name}${hotel.location ? ` - ${hotel.location}` : ''} | Powered by ${config.name}`;
+  const seoTitle = `Menu of ${hotel.store_name}${hotel.location ? ` - ${hotel.location}` : ''} | Powered by Menuthere`;
   const seoDescription = hotel.description?.trim() ||
     `Explore the full menu of ${hotel.store_name}${hotel.location ? ` in ${hotel.location}` : ''}. Browse dishes, prices, and daily specials. Order online or scan QR code.`;
 

@@ -454,7 +454,7 @@ export function GeneralSettings() {
                     <CardContent className="space-y-4">
                         {!googleConnected ? (
                             <div className="flex flex-col gap-4">
-                                <p className="text-sm text-muted-foreground">Link your Google account to allow Cravings to manage your menu automatically.</p>
+                                <p className="text-sm text-muted-foreground">Link your Google account to allow Menuthere to manage your menu automatically.</p>
                                 <Button disabled={isGoogleLoading} onClick={handleGoogleLogin} className="w-full sm:w-auto">
                                     {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                     Link Business Profile

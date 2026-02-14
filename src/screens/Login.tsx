@@ -3,26 +3,31 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
-import { UtensilsCrossed } from "lucide-react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { Notification } from "@/app/actions/notification";
-import { getUserCountry, validatePhoneNumber, getPhoneValidationError, UserCountryInfo } from "@/lib/getUserCountry";
+import {
+  getUserCountry,
+  validatePhoneNumber,
+  getPhoneValidationError,
+  UserCountryInfo,
+} from "@/lib/getUserCountry";
 import { useDomain } from "@/providers/DomainProvider";
 
 type LoginMode = "user" | "partner";
 export default function Login() {
-  const appName = "MenuThere";
+  const appName = "Menuthere";
   const { signInWithPhone, signInPartnerWithEmail } = useAuthStore();
   const navigate = useRouter();
   const [mode, setMode] = useState<LoginMode>("partner");
   const [isLoading, setIsLoading] = useState(false);
   const [userPhone, setUserPhone] = useState("");
-  const [userCountryInfo, setUserCountryInfo] = useState<UserCountryInfo | null>(null);
+  const [userCountryInfo, setUserCountryInfo] =
+    useState<UserCountryInfo | null>(null);
   const [partnerData, setPartnerData] = useState({
     email: "",
     password: "",
@@ -74,7 +79,10 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const partner = await signInPartnerWithEmail(partnerData.email, partnerData.password);
+      const partner = await signInPartnerWithEmail(
+        partnerData.email,
+        partnerData.password,
+      );
       await Notification.token.save();
 
       if (partner && partner.subscription_details) {
@@ -94,9 +102,9 @@ export default function Login() {
     <div className="min-h-[80vh] flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-lg p-6">
         <div className="flex flex-col items-center mb-8">
-          <UtensilsCrossed className="h-12 w-12 text-orange-600 mb-4" />
+          <Image src="/menuthere-logo.png" alt="Menuthere" width={48} height={48} className="h-12 w-12 object-contain mb-4" />
           <h1 className="text-3xl font-bold text-gray-900 text-center">
-            Welcome to MenuThere
+            Welcome to Menuthere
           </h1>
         </div>
 
@@ -104,16 +112,18 @@ export default function Login() {
           <Button
             type="button"
             onClick={() => setMode("partner")}
-            className={`flex-1 ${mode === "partner" ? "bg-orange-600" : "bg-gray-200"
-              }`}
+            className={`flex-1 ${
+              mode === "partner" ? "bg-orange-600" : "bg-gray-200"
+            }`}
           >
             Sign in as Partner
           </Button>
           <Button
             type="button"
             onClick={() => setMode("user")}
-            className={`flex-1 ${mode === "user" ? "bg-orange-600" : "bg-gray-200"
-              }`}
+            className={`flex-1 ${
+              mode === "user" ? "bg-orange-600" : "bg-gray-200"
+            }`}
           >
             Sign in as User
           </Button>
@@ -122,9 +132,7 @@ export default function Login() {
         {mode === "user" ? (
           <form onSubmit={handleUserSignIn} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="phone">
-                Phone Number
-              </Label>
+              <Label htmlFor="phone">Phone Number</Label>
               <div className="flex gap-2">
                 {userCountryInfo && (
                   <div className="flex items-center px-3 bg-gray-100 rounded-md text-sm font-medium">
@@ -142,7 +150,9 @@ export default function Login() {
                   value={userPhone}
                   onChange={(e) => {
                     const maxDigits = userCountryInfo?.phoneDigits || 10;
-                    setUserPhone(e.target.value.replace(/\D/g, "").slice(0, maxDigits));
+                    setUserPhone(
+                      e.target.value.replace(/\D/g, "").slice(0, maxDigits),
+                    );
                   }}
                   required
                   className="flex-1"
@@ -178,7 +188,6 @@ export default function Login() {
                 <Input
                   id="password"
                   type="password"
-
                   placeholder="Enter your password"
                   value={partnerData.password}
                   onChange={(e) =>
@@ -205,7 +214,10 @@ export default function Login() {
         )}
         {/* Owner login link */}
         <div className="mt-4 text-center">
-          <Link href="/pricing" className="text-sm text-orange-600 hover:underline">
+          <Link
+            href="/pricing"
+            className="text-sm text-orange-600 hover:underline"
+          >
             Are you an owner?
           </Link>
         </div>

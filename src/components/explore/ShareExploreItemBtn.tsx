@@ -6,12 +6,15 @@ import { toast } from "sonner";
 import { useDomain } from "@/providers/DomainProvider";
 
 const ShareExploreItemBtn = ({ offer }: { offer: CommonOffer }) => {
-  const appName = "MenuThere";
+  const appName = "Menuthere";
 
   const handleShare = async () => {
     try {
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://cravings.live';
-      const message = `*🚨 KIDILAN FOOD SPOT ALERT 🚨*\n\n🎉 *${offer.partner_name}* is offering *${offer.item_name}*${offer.price > 0 ? ` at *₹${offer.price}*!` : ''} 🌟\n\n🔗 View offer: ${origin}/explore/${offer.id}\n\nDon't miss out on this amazing offer from *$MenuThere*! 🍽️✨`;
+      const origin =
+        typeof window !== "undefined"
+          ? window.location.origin
+          : "https://menuthere.com";
+      const message = `*🚨 KIDILAN FOOD SPOT ALERT 🚨*\n\n🎉 *${offer.partner_name}* is offering *${offer.item_name}*${offer.price > 0 ? ` at *₹${offer.price}*!` : ""} 🌟\n\n🔗 View offer: ${origin}/explore/${offer.id}\n\nDon't miss out on this amazing offer from *$Menuthere*! 🍽️✨`;
 
       const shareData = {
         title: `KIDILAN FOOD SPOT ALERT`,

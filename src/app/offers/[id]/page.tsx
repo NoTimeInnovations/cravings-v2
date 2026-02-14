@@ -46,11 +46,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: product.menu.name,
     icons: [product.menu.image_url],
-    description: `Get ${product.menu.name} at ${product.partner?.store_name} with Cravings for just ₹${product.offer_price}`,
+    description: `Get ${product.menu.name} at ${product.partner?.store_name} with Menuthere for just ₹${product.offer_price}`,
     openGraph: {
       images: [product.menu.image_url],
       title: product.menu.name,
-      description: `Get ${product.menu.name} at ${product.partner?.store_name} with Cravings for just ₹${product.offer_price}`,
+      description: `Get ${product.menu.name} at ${product.partner?.store_name} with Menuthere for just ₹${product.offer_price}`,
     },
   };
 }

@@ -20,6 +20,19 @@ export default {
 				sans: ['var(--font-inter)', 'SuisseIntl-Regular', 'sans-serif'],
 			},
 			colors: {
+				terracotta: {
+					50: '#fdf3ee',
+					100: '#fbe4d8',
+					200: '#f6c5af',
+					300: '#f0a07d',
+					400: '#e87549',
+					500: '#a64e2a',
+					600: '#a64e2a',
+					700: '#8a3e20',
+					800: '#6f3320',
+					900: '#5b2c1e',
+					950: '#31140d',
+				},
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				card: {

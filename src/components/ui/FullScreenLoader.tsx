@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UtensilsCrossed, Zap, Sparkles } from "lucide-react";
+import { Zap, Sparkles } from "lucide-react";
+import Image from "next/image";
 
 interface FullScreenLoaderProps {
     isLoading: boolean;
@@ -85,7 +86,7 @@ export default function FullScreenLoader({ isLoading, loadingTexts }: FullScreen
                             }}
                             className="relative z-10 bg-white p-6 rounded-3xl shadow-2xl border border-orange-100"
                         >
-                            <UtensilsCrossed className="w-12 h-12 md:w-16 md:h-16 text-orange-600" />
+                            <Image src="/menuthere-logo.png" alt="Menuthere" width={64} height={64} className="w-12 h-12 md:w-16 md:h-16 object-contain" />
                             <motion.div
                                 animate={{ opacity: [0, 1, 0], scale: [0.5, 1.2, 0.5] }}
                                 transition={{ duration: 1.5, repeat: Infinity }}

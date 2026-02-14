@@ -10,24 +10,17 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 
-import { headers } from "next/headers";
-import { getDomainConfig } from "@/lib/domain-utils";
-
-export async function generateMetadata(): Promise<Metadata> {
-    const headersList = await headers();
-    const host = headersList.get("host");
-    const config = getDomainConfig(host);
-
-    return {
-        title: `Help & Support | ${config.name}`,
-        description: `Get help with your ${config.name} digital menu. FAQs, WhatsApp support, and email contact form. Quick answers to common questions about menu management, offers, and more.`,
-        openGraph: {
-            title: `Help & Support | ${config.name}`,
-            description: `Get help with your ${config.name} digital menu. FAQs, contact form, and WhatsApp support.`,
-            type: "website",
-        },
-    };
-}
+export const metadata: Metadata = {
+    title: "Help & Support | Menuthere",
+    description:
+        "Get help with your Menuthere digital menu. FAQs, WhatsApp support, and email contact form. Quick answers to common questions about menu management, offers, and more.",
+    openGraph: {
+        title: "Help & Support | Menuthere",
+        description:
+            "Get help with your Menuthere digital menu. FAQs, contact form, and WhatsApp support.",
+        type: "website",
+    },
+};
 
 const FAQS = [
     {

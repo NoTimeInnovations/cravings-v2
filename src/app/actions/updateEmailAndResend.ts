@@ -55,7 +55,7 @@ export const updateEmailAndResend = async (data: UpdateEmailData) => {
         // 3. Build menu link
         const storeName = partner.store_name || partner.name;
         const menuLink = firstQrCodeId
-            ? `https://cravings.live/qrScan/${storeName.replace(/ /g, "-")}/${firstQrCodeId}`
+            ? `https://menuthere.com/qrScan/${storeName.replace(/ /g, "-")}/${firstQrCodeId}`
             : undefined;
 
         // 4. Resend welcome email
@@ -64,7 +64,7 @@ export const updateEmailAndResend = async (data: UpdateEmailData) => {
         await sendWelcomeEmail(newEmail, {
             partnerName: partner.name,
             planName: planName,
-            loginLink: "https://cravings.live/login",
+            loginLink: "https://menuthere.com/login",
             menuLink: menuLink
         });
 

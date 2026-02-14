@@ -2,8 +2,8 @@ import React from "react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Refund Policy | Cravings Digital Menu",
-    description: "Refund policy for Cravings Digital Menu. Understand our 14-day refund eligibility and cancellation terms.",
+    title: "Refund Policy | Menuthere Digital Menu",
+    description: "Refund policy for Menuthere Digital Menu. Understand our 14-day refund eligibility and cancellation terms.",
 };
 
 const RefundPolicyPage = () => {
@@ -15,7 +15,7 @@ const RefundPolicyPage = () => {
 
                 <div className="space-y-8 text-gray-700 leading-relaxed">
                     <p>
-                        Cravings, operated by <strong>INNOVIZE NOTIME PRIVATE LIMITED</strong> ("we", "our", "us"), offers a 14-day refund policy for eligible purchases. This policy explains when and how refunds are processed.
+                        Menuthere, operated by <strong>INNOVIZE NOTIME PRIVATE LIMITED</strong> ("we", "our", "us"), offers a 14-day refund policy for eligible purchases. This policy explains when and how refunds are processed.
                     </p>
 
                     <section>
@@ -51,7 +51,7 @@ const RefundPolicyPage = () => {
                         <h2 className="text-2xl font-bold text-gray-900 mb-3">3. How to Request a Refund</h2>
                         <p className="mb-2">To request a refund:</p>
                         <p className="mb-2">
-                            Email us at <a href="mailto:thrisha@cravings.live" className="text-orange-600 hover:underline">thrisha@cravings.live</a>
+                            Email us at <a href="mailto:menuthere@gmail.com" className="text-orange-600 hover:underline">menuthere@gmail.com</a>
                         </p>
                         <p className="mb-2">Include:</p>
                         <ul className="list-disc pl-6 space-y-2">
@@ -101,7 +101,7 @@ const RefundPolicyPage = () => {
                             For questions or refund requests, contact:
                         </p>
                         <p className="mt-2 font-medium">
-                            📧 <a href="mailto:thrisha@cravings.live" className="text-orange-600 hover:underline">thrisha@cravings.live</a>
+                            📧 <a href="mailto:menuthere@gmail.com" className="text-orange-600 hover:underline">menuthere@gmail.com</a>
                         </p>
                     </section>
                 </div>

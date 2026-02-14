@@ -19,7 +19,6 @@ import {
   Hotel,
   Map,
   MapPin,
-  UtensilsCrossed,
   Star,
   Clock,
   Heart,
@@ -82,9 +81,9 @@ export async function generateMetadata({
       commonOffer.price
     }*! 🌟\n\n${
       commonOffer.insta_link ? `📱 Instagram: ${commonOffer.insta_link}\n` : ""
-    }🔗 View offer: www.cravings.live/explore/${
+    }🔗 View offer: www.menuthere.com/explore/${
       commonOffer.id
-    }\n\nDon't miss out on this amazing offer from *Cravings*! 🍽️✨`,
+    }\n\nDon't miss out on this amazing offer from *Menuthere*! 🍽️✨`,
     openGraph: {
       images: [commonOffer.image_url],
       title: commonOffer.item_name,
@@ -96,9 +95,9 @@ export async function generateMetadata({
         commonOffer.insta_link
           ? `📱 Instagram: ${commonOffer.insta_link}\n`
           : ""
-      }🔗 View offer: www.cravings.live/explore/${
+      }🔗 View offer: www.menuthere.com/explore/${
         commonOffer.id
-      }\n\nDon't miss out on this amazing offer from *Cravings*! 🍽️✨`,
+      }\n\nDon't miss out on this amazing offer from *Menuthere*! 🍽️✨`,
     },
   };
 }

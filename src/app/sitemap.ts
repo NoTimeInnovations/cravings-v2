@@ -1,207 +1,104 @@
-// app/hotels/sitemap.ts
 import { MetadataRoute } from "next";
-// import { fetchFromHasura } from "@/lib/hasuraClient";
-// import { getAllPartnersQuery } from "@/api/partners";
-// import { Partner } from "@/store/authStore";
 
-const BASE_URL = "https://www.cravings.live";
-// const ITEMS_PER_SITEMAP = 1000; // Adjust based on your needs
-
-// export async function generateSitemaps() {
-//   // Get total count of active partners
-//   // const data = await fetchFromHasura(getAllPartnersQuery, {
-//   //   limit: 1,
-//   //   offset: 0,
-//   // });
-
-//   // const totalCount = data.partners_aggregate.aggregate.count;
-//   // const sitemapCount = Math.ceil(totalCount / ITEMS_PER_SITEMAP);
-
-//   return Array.from({ length: sitemapCount }, (_, i) => ({ id: i }));
-// }
+const BASE_URL = "https://menuthere.com";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // const offset = id * ITEMS_PER_SITEMAP;
-
-  // // Fetch partners for this sitemap chunk
-  // const data = await fetchFromHasura(getAllPartnersQuery, {
-  //   limit: ITEMS_PER_SITEMAP,
-  //   offset: offset,
-  // });
-
-  // Static pages
-  const staticPages = [
-    // Main hotels page
+  return [
+    // Home
     {
-      url: `${BASE_URL}/hotels`,
+      url: BASE_URL,
       lastModified: new Date(),
-      changeFrequency: "weekly" as const,
+      changeFrequency: "weekly",
+      priority: 1.0,
+    },
+    // Solutions - Featured
+    {
+      url: `${BASE_URL}/solutions/google-business`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
       priority: 0.9,
-    },
-    // Offers page
-    {
-      url: `${BASE_URL}/offers`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.8,
-    },
-    // Explore page
-    {
-      url: `${BASE_URL}/explore`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.8,
-    },
-    // Products
-    {
-      url: `${BASE_URL}/product/digital-menu`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.8,
-    },
-    {
-      url: `${BASE_URL}/product/delivery-website`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.8,
-    },
-    {
-      url: `${BASE_URL}/product/pos`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.8,
-    },
-    {
-      url: `${BASE_URL}/product/table-ordering`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.8,
-    },
-    {
-      url: `${BASE_URL}/product/captain-ordering`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.8,
     },
     // Solutions - Roles
     {
       url: `${BASE_URL}/solutions/owners`,
       lastModified: new Date(),
-      changeFrequency: "weekly" as const,
+      changeFrequency: "weekly",
       priority: 0.8,
     },
     {
       url: `${BASE_URL}/solutions/agencies`,
       lastModified: new Date(),
-      changeFrequency: "weekly" as const,
+      changeFrequency: "weekly",
       priority: 0.8,
     },
     // Solutions - Industries
     {
-      url: `${BASE_URL}/solutions`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.9,
-    },
-    {
       url: `${BASE_URL}/solutions/restaurants`,
       lastModified: new Date(),
-      changeFrequency: "weekly" as const,
+      changeFrequency: "weekly",
       priority: 0.9,
     },
     {
       url: `${BASE_URL}/solutions/cafes`,
       lastModified: new Date(),
-      changeFrequency: "weekly" as const,
+      changeFrequency: "weekly",
       priority: 0.9,
     },
     {
       url: `${BASE_URL}/solutions/bakeries`,
       lastModified: new Date(),
-      changeFrequency: "weekly" as const,
+      changeFrequency: "weekly",
       priority: 0.9,
     },
     {
       url: `${BASE_URL}/solutions/cloud-kitchens`,
       lastModified: new Date(),
-      changeFrequency: "weekly" as const,
+      changeFrequency: "weekly",
       priority: 0.9,
     },
     {
       url: `${BASE_URL}/solutions/hotels`,
       lastModified: new Date(),
-      changeFrequency: "weekly" as const,
+      changeFrequency: "weekly",
       priority: 0.9,
     },
     {
       url: `${BASE_URL}/solutions/food-trucks`,
       lastModified: new Date(),
-      changeFrequency: "weekly" as const,
+      changeFrequency: "weekly",
       priority: 0.9,
     },
     {
       url: `${BASE_URL}/solutions/bars`,
       lastModified: new Date(),
-      changeFrequency: "weekly" as const,
+      changeFrequency: "weekly",
       priority: 0.9,
     },
     {
       url: `${BASE_URL}/solutions/catering`,
       lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.9,
-    },
-    {
-      url: `${BASE_URL}/solutions/google-business`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
-      priority: 0.9,
-    },
-    {
-      url: `${BASE_URL}/solutions/petpooja`,
-      lastModified: new Date(),
-      changeFrequency: "weekly" as const,
+      changeFrequency: "weekly",
       priority: 0.9,
     },
     // Resources
     {
       url: `${BASE_URL}/help-center`,
       lastModified: new Date(),
-      changeFrequency: "monthly" as const,
+      changeFrequency: "monthly",
       priority: 0.7,
     },
     {
       url: `${BASE_URL}/download-app`,
       lastModified: new Date(),
-      changeFrequency: "monthly" as const,
+      changeFrequency: "monthly",
       priority: 0.7,
     },
-    // Other
+    // Pricing
     {
       url: `${BASE_URL}/pricing`,
       lastModified: new Date(),
-      changeFrequency: "weekly" as const,
+      changeFrequency: "weekly",
       priority: 0.8,
     },
-
   ];
-
-  // Generate partner URLs in the format /hotels/partner.store_name/partner.id
-  // const partnerPages = data.partners.map((partner: Partner) => {
-  //   // Clean the store_name for URL (remove special chars, spaces, etc.)
-  //   const cleanStoreName = partner.store_name
-  //     .replace(/[^\w\s-]/g, '') // Remove special characters
-  //     .replace(/\s+/g, '-')     // Replace spaces with hyphens
-  //     .replace(/-+/g, '-')      // Replace multiple hyphens with single
-  //     .trim();
-
-  //   return {
-  //     url: `${BASE_URL}/hotels/${cleanStoreName}/${partner.id}`,
-  //     lastModified: new Date(), // Or use partner.updated_at if available
-  //     changeFrequency: "weekly" as const,
-  //     priority: 0.9,
-  //   };
-  // });
-
-  return [...staticPages];
 }

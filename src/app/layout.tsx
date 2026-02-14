@@ -1,83 +1,73 @@
 // app/layout.tsx
 import type { Metadata } from "next";
 import { Inter, Dancing_Script, Poppins, Roboto } from "next/font/google";
-import Script from "next/script"; // Import Script for Google Analytics
+import Script from "next/script";
 import "./globals.css";
-// import { Navbar } from "@/components/Navbar";
-// import Snow from "@/components/Snow";
-// import PwaInstallPrompt from "@/components/PwaInstallPrompt";
-// import RateUsModal from "@/components/RateUsModal";
 import "@smastrom/react-rating/style.css";
 import { Toaster } from "@/components/ui/sonner";
 import AuthInitializer from "@/providers/AuthInitializer";
 import BottomNav from "@/components/BottomNav";
 import { Navbar } from "@/components/Navbar";
-import { getAuthCookie } from "./auth/actions";
 import WhatsappGroupJoinAlertDialog from "@/components/WhatsappGroupJoinAlertDialog";
-import { cookies, headers } from "next/headers";
 import { PostHogProvider } from "@/providers/posthog-provider";
-// import CravingsCashInfoModal from "@/components/CravingsCashInfoModal";
-// import SyncUserOfferCoupons from "@/components/SyncUserOfferCoupons";
-// import LocationAccess from "@/components/LocationAccess";
-// import { Suspense } from "react";
-
-import { getDomainConfig } from "@/lib/domain-utils";
 import { DomainProvider } from "@/providers/DomainProvider";
+import type { DomainConfig } from "@/lib/domain-utils";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const headerList = await headers();
-  const host = headerList.get("host");
-  const config = getDomainConfig(host);
+const MENUTHERE_CONFIG: DomainConfig = {
+  name: "Menuthere",
+  title: "Menuthere",
+  description:
+    "Menuthere is the all-in-one platform for restaurants to manage digital menus, orders, and grow their business. Create your QR menu in minutes.",
+  logo: "/menuthere-logo.png",
+  icon: "/menuthere-logo.png",
+  logowhite: "/menuthere-white.png",
+  ogImage: "/og_image.png",
+};
 
-  return {
-    title: config.title,
-    description: config.description,
-    icons: config.icon ? [config.icon] : ["/icon-64x64.png", "/icon-192x192.png", "/icon-512x512.png"],
-    metadataBase: new URL(`https://${host || "cravings.live"}`),
-    robots: {
+export const metadata: Metadata = {
+  title: "Menuthere",
+  description:
+    "Menuthere is the all-in-one platform for restaurants to manage digital menus, orders, and grow their business. Create your QR menu in minutes.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/icon-64x64.png", sizes: "64x64", type: "image/png" },
+      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icon-192x192.png" }],
+  },
+  metadataBase: new URL("https://menuthere.com"),
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
       index: true,
       follow: true,
-      googleBot: {
-        index: true,
-        follow: true,
-        "max-video-preview": -1,
-        "max-image-preview": "large",
-        "max-snippet": -1,
-      },
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
     },
-    openGraph: {
-      title: config.title,
-      description: config.description,
-      type: "website",
-      images: [config.ogImage || "/og_image.png"],
-    },
-  };
-}
+  },
+  openGraph: {
+    title: "Menuthere",
+    description:
+      "Menuthere is the all-in-one platform for restaurants to manage digital menus, orders, and grow their business. Create your QR menu in minutes.",
+    type: "website",
+    images: ["/og_image.png"],
+  },
+};
 
-const petrazFilter = "PETRAZ";
-// const bottomNavFilter = [
-//   "PETRAZ",
-//   "HENZU",
-//   "DOWNTREE",
-//   "CHILLI'S-RESTAURANT",
-//   "Krishnakripa-Residency",
-// ];
-
-const bottomNavFilter = [
-  "hotels",
-  "qrScan",
-  "business",
-  "get-started",
-  "admin-v2",
-  "pricing",
-];
-
-const navbarFilter = ["get-started", "7eb04e2d-9c20-42ba-a6b6-fce8019cad5f", "admin-v2", "20f7e974-f19e-4c11-b6b7-4385f61f27bf", "admin", "hotels", "qrScan", "order", "my-orders"];
-
-const hideWhatsappGroupJoinDialog = ["Krishnakripa-Residency", "get-started", "admin-v2", "pricing", "admin", "20493cdc-dfca-4bde-8ca5-9caa998c9862"];
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
-const dancingScript = Dancing_Script({ subsets: ["latin"], variable: "--font-dancing-script", display: "swap" });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+const dancingScript = Dancing_Script({
+  subsets: ["latin"],
+  variable: "--font-dancing-script",
+  display: "swap",
+});
 const poppins = Poppins({
   weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
   subsets: ["latin"],
@@ -91,55 +81,30 @@ const roboto = Roboto({
   display: "swap",
 });
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await getAuthCookie();
-  const headerList = await headers();
-  const host = headerList.get("host");
-  const config = getDomainConfig(host);
-
-  const country = headerList.get("x-user-country") || "IN";
-
-  console.log("Country check;", country)
-
-  const pathname = headerList.get("set-cookie")?.includes("pathname=")
-    ? headerList.get("set-cookie")?.split("pathname=")[1].split(";")[0]
-    : undefined;
-
-  let isPetraz = false;
-  let isBottomNavHidden = false;
-  let isNavbarHidden = false;
-  let isWhatsappDialogHidden = false;
-
-  if (pathname) {
-    console.log("Current Pathname:", decodeURIComponent(pathname || ""));
-
-    isPetraz = pathname.includes(petrazFilter);
-    isBottomNavHidden = bottomNavFilter.some((filter) =>
-      pathname.includes(filter)
-    );
-    isNavbarHidden = navbarFilter.some((filter) => pathname.includes(filter));
-
-    isWhatsappDialogHidden = hideWhatsappGroupJoinDialog.some((filter) =>
-      pathname.includes(filter)
-    );
-
-    console.log("Is Petraz:", isPetraz);
-    console.log("Is Bottom Nav Hidden:", isBottomNavHidden);
-    console.log("Is Navbar Hidden:", isNavbarHidden);
-    console.log("Is Whatsapp Dialog Hidden:", isWhatsappDialogHidden);
-  }
-
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link href="https://db.onlinewebfonts.com/c/88f10bf18a36407ef36bf30bc25a3618?family=SuisseIntl-Regular" rel="stylesheet" />
-        <link href="https://db.onlinewebfonts.com/c/03d5b20d124cd26dc873bd4a8e42313e?family=SuisseIntl-Light" rel="stylesheet" />
-        <link href="https://db.onlinewebfonts.com/c/653d9381828e9577fb1e417dc047f89d?family=SuisseIntl-SemiBold" rel="stylesheet" />
-        <link href="https://db.onlinewebfonts.com/c/d1a580023d40c546276decde1c711e60?family=SuisseIntl-Bold" rel="stylesheet" />
+        <link
+          href="https://db.onlinewebfonts.com/c/88f10bf18a36407ef36bf30bc25a3618?family=SuisseIntl-Regular"
+          rel="stylesheet"
+        />
+        <link
+          href="https://db.onlinewebfonts.com/c/03d5b20d124cd26dc873bd4a8e42313e?family=SuisseIntl-Light"
+          rel="stylesheet"
+        />
+        <link
+          href="https://db.onlinewebfonts.com/c/653d9381828e9577fb1e417dc047f89d?family=SuisseIntl-SemiBold"
+          rel="stylesheet"
+        />
+        <link
+          href="https://db.onlinewebfonts.com/c/d1a580023d40c546276decde1c711e60?family=SuisseIntl-Bold"
+          rel="stylesheet"
+        />
         {/* Google Tag (gtag.js) */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=AW-17905683217"
@@ -171,23 +136,17 @@ document.head.appendChild(o)}initApollo();`,
           }}
         />
       </head>
-      <body className={`antialiased font-sans ${inter.variable} ${dancingScript.variable} ${poppins.variable} ${roboto.variable}`}>
+      <body
+        className={`antialiased font-sans ${inter.variable} ${dancingScript.variable} ${poppins.variable} ${roboto.variable}`}
+      >
         <PostHogProvider>
-          <DomainProvider config={config}>
+          <DomainProvider config={MENUTHERE_CONFIG}>
             <AuthInitializer />
-            {(user?.role === "user" || !user) && !isWhatsappDialogHidden && country === "IN" && (
-              <WhatsappGroupJoinAlertDialog isPetraz={isPetraz} />
-            )}
+            <WhatsappGroupJoinAlertDialog />
             <Toaster richColors closeButton position="top-center" />
-            {/* <Snow /> */}
-            {!isNavbarHidden ? <Navbar userData={user} country={country} appName="MenuThere" logo={config.logo} logowhite={config.logowhite} /> : null}
-            {/* <RateUsModal /> */}
-
-            {/* pwa install is currently turned off */}
-            {/* <PwaInstallPrompt /> */}
-
+            <Navbar />
             {children}
-            {!isBottomNavHidden ? <BottomNav userData={user} country={country} /> : null}
+            <BottomNav />
           </DomainProvider>
         </PostHogProvider>
       </body>

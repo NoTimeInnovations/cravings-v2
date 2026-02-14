@@ -43,6 +43,7 @@
     "@radix-ui/react-tooltip": "^1.1.5",
     "@react-email/components": "^1.0.1",
     "@react-email/render": "^2.0.0",
+    "@react-google-maps/api": "^2.20.8",
     "@react-hooks-library/core": "^0.6.2",
     "@sentry/nextjs": "^9.42.0",
     "@sentry/wizard": "^6.1.0",

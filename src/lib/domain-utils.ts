@@ -15,15 +15,10 @@ export function getDomainConfig(host?: string | null): DomainConfig {
 
     const cleanHost = host.toLowerCase();
 
-    // Check for specific domains
     if (cleanHost.includes('menuthere.com')) {
         return domainConfig['menuthere.com'];
     }
 
-    if (cleanHost.includes('cravings.live')) {
-        return domainConfig['cravings.live'];
-    }
-
-    // Fallback to default
+    // Fallback to default (Menuthere)
     return domainConfig['default'];
 }

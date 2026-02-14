@@ -55,7 +55,7 @@ export function AdminV2Settings() {
 
     const handleViewMenu = () => {
         if (hotelNameSlug && firstQrCodeId) {
-            const url = `https://www.cravings.live/qrScan/${hotelNameSlug}/${firstQrCodeId}`;
+            const url = `https://menuthere.com/qrScan/${hotelNameSlug}/${firstQrCodeId}`;
             window.open(url, "_blank");
         }
     };

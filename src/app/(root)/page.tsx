@@ -1,115 +1,141 @@
 import React from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import RestaurantMarquee from "@/components/international/RestaurantMarquee";
-import PricingSection from "@/components/international/PricingSection";
 import Hero from "@/components/home/Hero";
-import Features from "@/components/home/Features";
-import WorkingSteps from "@/components/home/WorkingSteps";
 import FAQ from "@/components/home/FAQ";
-import Background from "@/components/home/Background";
-import PlatformFeatures from "@/components/home/PlatformFeatures";
-import AnimatedFeatures from "@/components/home/AnimatedFeatures";
-
 import Footer from "@/components/Footer";
 import Chatwoot from "@/components/Chatwoot";
-import { getDomainConfig } from "@/lib/domain-utils";
-import { headers } from "next/headers";
 import { JsonLd } from "@/components/seo/JsonLd";
+import MonitorSection from "@/components/home/MonitorSection";
+import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const headersList = await headers();
-  const host = headersList.get("host");
-  const config = getDomainConfig(host);
+export const metadata: Metadata = {
+  title:
+    "Menuthere | #1 QR Code Digital Menu for Restaurants, Cafes & Hotels",
+  description:
+    "Create a stunning QR code digital menu for your restaurant in minutes. Real-time updates, Google Business sync, table ordering, POS billing, and zero printing costs. Trusted by 1,000+ restaurants. Start free.",
+  keywords: [
+    "digital menu",
+    "QR code menu",
+    "restaurant menu app",
+    "contactless menu",
+    "QR menu creator",
+    "restaurant digital menu",
+    "online menu for restaurant",
+    "table ordering system",
+    "restaurant POS",
+    "Google Business menu sync",
+    "restaurant technology",
+    "digital menu for cafes",
+    "digital menu for hotels",
+    "QR ordering system",
+    "restaurant management software",
+  ],
+  openGraph: {
+    title: "Menuthere | #1 QR Code Digital Menu for Restaurants",
+    description:
+      "Create a stunning QR code digital menu in minutes. Real-time updates, Google Business sync, and table ordering. Trusted by 1,000+ restaurants.",
+    images: ["/og_image.png"],
+    type: "website",
+    url: "https://menuthere.com",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Menuthere | #1 QR Code Digital Menu for Restaurants",
+    description:
+      "Create a stunning QR code digital menu in minutes. Trusted by 1,000+ restaurants.",
+    images: ["/og_image.png"],
+  },
+  alternates: {
+    canonical: "https://menuthere.com",
+  },
+};
 
-  return {
-    title: `${config.title} Digital Menu | The #1 QR Menu Creator for Restaurants`,
-    description: `Create a stunning digital menu instantly. No apps required. The smartest restaurant menu creator with QR codes, real-time editing, and marketing tools. Try for free.`,
-    keywords: ["Digital Menu", "QR Code Menu", "Restaurant Menu App", "Contactless Menu", "Menu Creator"],
-    openGraph: {
-      title: `${config.title} Digital Menu | The #1 QR Menu Creator`,
-      description: `Create a stunning digital menu instantly with ${config.name}. Join 400+ restaurants growing their business.`,
-      images: ["/og_image.png"],
-      type: "website",
-    },
-  };
-}
-
-export default async function Home() {
-  const headersList = await headers();
-  const country = headersList.get("x-user-country") || "US";
-  const host = headersList.get("host");
-  const config = getDomainConfig(host);
-
+export default function Home() {
   const softwareAppSchema = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "name": config.name,
-    "applicationCategory": "BusinessApplication",
-    "operatingSystem": "Web",
-    "offers": {
+    name: "Menuthere",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    offers: {
       "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
+      price: "0",
+      priceCurrency: "USD",
+      description: "Free digital menu plan with unlimited items and QR code generation",
     },
-    "description": `Create a stunning digital menu instantly. The smartest restaurant menu creator with QR codes, real-time editing, and marketing tools.`,
-    "url": `https://${host || 'www.cravings.live'}`,
-    "aggregateRating": {
+    description:
+      "Menuthere is the all-in-one digital menu platform for restaurants, cafes, and hotels. Create QR code menus, sync to Google Business Profile, accept table orders, and manage billing — all from one dashboard.",
+    url: "https://menuthere.com",
+    aggregateRating: {
       "@type": "AggregateRating",
-      "ratingValue": "4.8",
-      "ratingCount": "500"
-    }
+      ratingValue: "4.8",
+      ratingCount: "500",
+      bestRating: "5",
+    },
+    featureList: [
+      "QR Code Digital Menu",
+      "Google Business Profile Sync",
+      "Real-Time Menu Updates",
+      "Table Ordering System",
+      "POS Billing",
+      "Kitchen Order Tickets (KOT)",
+      "Analytics & Insights",
+      "Google Reviews Booster",
+      "Custom Branding & Themes",
+      "Multi-Location Support",
+    ],
+  };
+
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Menuthere",
+    url: "https://menuthere.com",
+    logo: "https://menuthere.com/menuthere-logo.png",
+    description:
+      "The all-in-one platform for restaurants to manage digital menus, orders, and grow their business online.",
+    sameAs: [
+      "https://www.instagram.com/menu.there/",
+      "https://www.linkedin.com/company/Menuthere",
+      "https://www.facebook.com/Menuthere",
+    ],
+    contactPoint: {
+      "@type": "ContactPoint",
+      email: "menuthere@gmail.com",
+      contactType: "customer support",
+      availableLanguage: ["English", "Hindi", "Malayalam"],
+    },
   };
 
   return (
-    <div className="min-h-screen w-full font-sans text-gray-900 relative">
+    <div className="min-h-screen w-full bg-white geist-font relative">
       <JsonLd data={softwareAppSchema} />
-      <Background />
+      <JsonLd data={organizationSchema} />
 
-      {/* HERO SECTION (Client Component for Animations) */}
-      <Hero appName="MenuThere" />
+      {/* HERO — headline, CTA, menu upload */}
+      <Hero />
 
-      {/* MARQUEE SECTION */}
-      <section className="py-10 bg-[#f4e5d5] relative overflow-hidden">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] bg-[size:4rem_4rem]" />
-        <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <p className="text-center text-sm font-semibold text-gray-500 uppercase tracking-widest mb-8">
-            Trusted by Top Restaurants & Hotels
-          </p>
-          <RestaurantMarquee />
-        </div>
-      </section>
+      {/* SOCIAL PROOF — restaurant logo marquee */}
+      <RestaurantMarquee />
 
+      {/* DIVIDER */}
+      <div className="w-full h-px bg-stone-200" />
 
-      {/* PLATFORM FEATURES SECTION */}
-      <PlatformFeatures />
+      {/* FEATURES — QR Menu, Google Sync, Updates, Ordering, Analytics, Reviews */}
+      <MonitorSection />
 
+      {/* CTA — start for free with stats */}
+      <StartFreeTrailSection />
 
-
-      {/* ANIMATED FEATURES SECTION */}
-      <AnimatedFeatures />
-
-      {/* FEATURES SECTION (Client Component for Hover Effects) */}
-      {/* <section className="py-24 relative overflow-hidden" id="features">
-        <div className="absolute inset-0 bg-white/40 -z-10" />
-        <Features />
-      </section> */}
-
-      {/* HOW IT WORKS SECTION (Client Component for Step Animations) */}
-      <WorkingSteps appName="MenuThere" />
-
-      {/* FAQ SECTION */}
+      {/* FAQ — SEO-rich questions with structured data */}
       <FAQ />
 
-      {/* PRICING SECTION */}
-      {/* <PricingSection country={country} /> */}
+      {/* FOOTER */}
+      <Footer appName="Menuthere" />
 
-      {/* FOOTER CTA */}
-      <Footer appName="MenuThere" />
-
-      {/* Chatwoot Chat Bubble */}
+      {/* CHAT */}
       <Chatwoot />
-    </div >
+    </div>
   );
 }

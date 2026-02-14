@@ -28,18 +28,18 @@ const ExploreDetail = ({
   commonOffer: CommonOffer;
   decrypted: { id: string; role: string } | null;
 }) => {
-  const appName = "MenuThere";
+  const appName = "Menuthere";
   const allOfferReels = useMemo(
     () => [commonOffer, ...(commonOffer.partner?.common_offers || [])],
-    [commonOffer]
+    [commonOffer],
   );
 
   const initialIndex = allOfferReels.findIndex(
-    (offer) => offer.id === commonOffer.id
+    (offer) => offer.id === commonOffer.id,
   );
 
   const [currentIndex, setCurrentIndex] = useState(
-    initialIndex !== -1 ? initialIndex : 0
+    initialIndex !== -1 ? initialIndex : 0,
   );
 
   const currentOffer = allOfferReels[currentIndex];
@@ -137,16 +137,14 @@ const ExploreDetail = ({
                   </div>
                 )}
 
-                {
-                  commonOffer?.detailed_location && (
-                    <div className="flex items-center gap-3 text-gray-600 text-sm mt-2">
-                      <MapPin className="w-5 h-5 text-orange-500 " />
-                      <span className="capitalize font-medium flex-1">
-                        {commonOffer.detailed_location}
-                      </span>
-                    </div>
-                  )
-                }
+                {commonOffer?.detailed_location && (
+                  <div className="flex items-center gap-3 text-gray-600 text-sm mt-2">
+                    <MapPin className="w-5 h-5 text-orange-500 " />
+                    <span className="capitalize font-medium flex-1">
+                      {commonOffer.detailed_location}
+                    </span>
+                  </div>
+                )}
 
                 {commonOffer?.partner?.phone && (
                   <Link
@@ -293,7 +291,7 @@ const ExploreDetail = ({
             Craving for More? Explore Now!
           </h3>
           <p className="text-orange-100 mb-8 text-sm">
-            Don't miss out on this amazing deal from MenuThere!
+            Don't miss out on this amazing deal from Menuthere!
           </p>
           {/* <button className="bg-white text-orange-600 px-12 py-4 rounded-xl font-bold text-xl hover:bg-orange-50 transition-colors shadow-lg">
             Order Now

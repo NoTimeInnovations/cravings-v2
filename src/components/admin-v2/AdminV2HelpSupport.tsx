@@ -47,7 +47,7 @@ export function AdminV2HelpSupport() {
 
     const handleWhatsAppChat = () => {
         const supportNumber = "918590115462";
-        const message = "Hi! I need help with the Cravings Admin Dashboard.";
+        const message = "Hi! I need help with the Menuthere Admin Dashboard.";
         const whatsappUrl = `https://wa.me/${supportNumber}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, "_blank");
     };

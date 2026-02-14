@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        const host = req.headers.get("host") || "cravings.live";
+        const host = req.headers.get("host") || "menuthere.com";
 
         // Trigger background process without awaiting
         generateAndUploadImages(partnerId, items, email, host).catch(err => {

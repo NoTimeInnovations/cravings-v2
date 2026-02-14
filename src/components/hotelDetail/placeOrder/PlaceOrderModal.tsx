@@ -33,7 +33,10 @@ import { useQrDataStore } from "@/store/qrDataStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { updateUserAddressesMutation } from "@/api/auth";
-import { validatePhoneNumber, getPhoneValidationError } from "@/lib/getUserCountry";
+import {
+  validatePhoneNumber,
+  getPhoneValidationError,
+} from "@/lib/getUserCountry";
 import { getPhoneDigitsForCountry } from "@/lib/countryPhoneMap";
 
 // Local types for user addresses (stored in users.addresses jsonb)
@@ -72,7 +75,7 @@ type MapboxGeocoder = IControl & {
     event: string,
     callback: (e: {
       result: { center: [number, number]; place_name: string };
-    }) => void
+    }) => void,
   ) => void;
 };
 
@@ -95,7 +98,7 @@ const AddressManagementModal = ({
   editAddress?: SavedAddress | null;
   hotelData: HotelData;
 }) => {
-  const appName = "MenuThere";
+  const appName = "Menuthere";
   const [label, setLabel] = useState<string>("Home");
   const [customLabel, setCustomLabel] = useState<string>("");
   const [flatNo, setFlatNo] = useState<string>("");
@@ -119,7 +122,8 @@ const AddressManagementModal = ({
   const [customLocation, setCustomLocation] = useState<string>("");
 
   const isIndia = hotelData?.country === "India";
-  const needDeliveryLocation = hotelData?.delivery_rules?.needDeliveryLocation ?? true;
+  const needDeliveryLocation =
+    hotelData?.delivery_rules?.needDeliveryLocation ?? true;
 
   console.log("Hotel Country:", hotelData?.country, isIndia);
 
@@ -177,7 +181,7 @@ const AddressManagementModal = ({
         (error) => {
           toast.error("Unable to get your location");
           console.error(error);
-        }
+        },
       );
     }
   };
@@ -195,7 +199,7 @@ const AddressManagementModal = ({
     const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
     if (!token) {
       toast.error(
-        "Mapbox token missing. Please set NEXT_PUBLIC_MAPBOX_TOKEN environment variable"
+        "Mapbox token missing. Please set NEXT_PUBLIC_MAPBOX_TOKEN environment variable",
       );
       return;
     }
@@ -207,7 +211,10 @@ const AddressManagementModal = ({
       center: coordinates
         ? [coordinates.lng, coordinates.lat]
         : hotelData?.geo_location?.coordinates
-          ? [hotelData?.geo_location.coordinates[0], hotelData?.geo_location.coordinates[1]]
+          ? [
+              hotelData?.geo_location.coordinates[0],
+              hotelData?.geo_location.coordinates[1],
+            ]
           : [76.322455, 10.050525],
       zoom: 15,
       accessToken: token,
@@ -307,7 +314,7 @@ const AddressManagementModal = ({
         headers: {
           Accept: "application/json",
           Origin: window.location.origin,
-          "User-Agent": `$MenuThereApp/1.0 (info@${typeof window !== 'undefined' ? window.location.host : 'cravings.live'})`,
+          "User-Agent": `$MenuThereApp/1.0 (info@${typeof window !== "undefined" ? window.location.host : "menuthere.com"})`,
         },
         mode: "cors",
       });
@@ -363,7 +370,7 @@ const AddressManagementModal = ({
               }
               if (!mbPostcode && Array.isArray(f.context)) {
                 const pc = f.context.find((c: any) =>
-                  (c.id as string)?.startsWith("postcode.")
+                  (c.id as string)?.startsWith("postcode."),
                 );
                 if (pc) mbPostcode = pc.text || pc.properties?.short_code || "";
               }
@@ -384,7 +391,7 @@ const AddressManagementModal = ({
   const handleSave = async () => {
     if (needDeliveryLocation && !coordinates) {
       toast.error(
-        "Please select a location on the map or use your current location"
+        "Please select a location on the map or use your current location",
       );
       return;
     }
@@ -405,18 +412,18 @@ const AddressManagementModal = ({
         ? customLocation.trim()
         : isIndia
           ? [
-            flatNo,
-            houseNo,
-            roadNo,
-            street,
-            area,
-            district,
-            landmark ? `near ${landmark}` : null,
-            city,
-            pincode,
-          ]
-            .filter(Boolean)
-            .join(", ")
+              flatNo,
+              houseNo,
+              roadNo,
+              street,
+              area,
+              district,
+              landmark ? `near ${landmark}` : null,
+              city,
+              pincode,
+            ]
+              .filter(Boolean)
+              .join(", ")
           : customLocation.trim(); // For non-India, use customLocation as full address
 
       const normalizedLabel = label === "Other" ? customLabel.trim() : label;
@@ -440,14 +447,12 @@ const AddressManagementModal = ({
         isDefault: false,
       };
 
-
-
       onSaved(addr);
       onClose();
       toast.success(
         editAddress
           ? "Address updated successfully"
-          : "Address saved successfully"
+          : "Address saved successfully",
       );
     } catch (error) {
       toast.error("Failed to save address");
@@ -715,12 +720,12 @@ const UnifiedAddressSection = ({
 }) => {
   const { userData: user } = useAuthStore();
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
-    null
+    null,
   );
   const [showDropdown, setShowDropdown] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(
-    null
+    null,
   );
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -813,7 +818,7 @@ const UnifiedAddressSection = ({
       };
       localStorage?.setItem(
         "user-location-store",
-        JSON.stringify(locationData)
+        JSON.stringify(locationData),
       );
     }
 
@@ -861,7 +866,7 @@ const UnifiedAddressSection = ({
   };
 
   const selectedAddress = savedAddresses.find(
-    (a) => a.id === selectedAddressId
+    (a) => a.id === selectedAddressId,
   );
 
   return (
@@ -891,15 +896,17 @@ const UnifiedAddressSection = ({
         >
           <span className="text-sm">
             {selectedAddress
-              ? `${selectedAddress.label}${selectedAddress.customLabel
-                ? ` (${selectedAddress.customLabel})`
-                : ""
-              }`
+              ? `${selectedAddress.label}${
+                  selectedAddress.customLabel
+                    ? ` (${selectedAddress.customLabel})`
+                    : ""
+                }`
               : "Select address"}
           </span>
           <ChevronDown
-            className={`h-4 w-4 transition-transform ${showDropdown ? "rotate-180" : ""
-              }`}
+            className={`h-4 w-4 transition-transform ${
+              showDropdown ? "rotate-180" : ""
+            }`}
           />
         </button>
 
@@ -1166,8 +1173,9 @@ const OrderTypeCard = ({
               : "Select order type"}
           </span>
           <svg
-            className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""
-              }`}
+            className={`w-4 h-4 transition-transform ${
+              isOpen ? "rotate-180" : ""
+            }`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -1254,8 +1262,9 @@ const MultiWhatsappCard = ({
             {selectedLocation ? selectedLocation.toUpperCase() : "Select Area"}
           </span>
           <svg
-            className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""
-              }`}
+            className={`w-4 h-4 transition-transform ${
+              isOpen ? "rotate-180" : ""
+            }`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -1420,15 +1429,15 @@ const BillCard = ({
 }: BillCardProps) => {
   const subtotal = items.reduce(
     (acc, item) => acc + item.price * item.quantity,
-    0
+    0,
   );
 
   const qrExtraCharges = qrGroup?.extra_charge
     ? getExtraCharge(
-      items,
-      qrGroup.extra_charge,
-      qrGroup.charge_type || "FLAT_FEE"
-    )
+        items,
+        qrGroup.extra_charge,
+        qrGroup.charge_type || "FLAT_FEE",
+      )
     : 0;
 
   const deliveryCharges =
@@ -1472,8 +1481,9 @@ const BillCard = ({
 
         {gstPercentage ? (
           <div className="flex justify-between">
-            <span>{`${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"
-              } (${gstPercentage}%)`}</span>
+            <span>{`${
+              hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"
+            } (${gstPercentage}%)`}</span>
             <span>
               {currency}
               {gstAmount.toFixed(2)}
@@ -1545,7 +1555,7 @@ const LoginDrawer = ({
 
   const handleLogin = async () => {
     // Get country code from hotelData
-    const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, '') || '91';
+    const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
     const phoneDigits = getPhoneDigitsForCountry(countryCode);
 
     if (!phoneNumber || !validatePhoneNumber(phoneNumber, countryCode)) {
@@ -1556,10 +1566,10 @@ const LoginDrawer = ({
     setIsSubmitting(true);
     try {
       const result = await signInWithPhone(phoneNumber, hotelId, {
-        country: hotelData?.country || 'India',
+        country: hotelData?.country || "India",
         countryCode,
-        callingCode: hotelData?.country_code || '+91',
-        phoneDigits
+        callingCode: hotelData?.country_code || "+91",
+        phoneDigits,
       });
       if (result) {
         toast.success("Logged in successfully");
@@ -1588,16 +1598,19 @@ const LoginDrawer = ({
           </Label>
           <div className="flex gap-2 mt-1">
             <div className="flex items-center px-3 bg-gray-100 rounded-md text-sm font-medium">
-              {hotelData?.country_code || '+91'}
+              {hotelData?.country_code || "+91"}
             </div>
             <Input
               type="tel"
               id="phone"
               value={phoneNumber}
               onChange={(e) => {
-                const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, '') || '91';
+                const countryCode =
+                  hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
                 const maxDigits = getPhoneDigitsForCountry(countryCode);
-                setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, maxDigits));
+                setPhoneNumber(
+                  e.target.value.replace(/\D/g, "").slice(0, maxDigits),
+                );
               }}
               placeholder="Enter your phone number"
               className="flex-1"
@@ -1748,7 +1761,7 @@ const PlaceOrderModal = ({
       return;
     }
     const savedArea = localStorage?.getItem(
-      `hotel-${hotelData.id}-selected-area`
+      `hotel-${hotelData.id}-selected-area`,
     );
     if (
       savedArea &&
@@ -1758,11 +1771,11 @@ const PlaceOrderModal = ({
       return;
     }
     const selectedPhone = localStorage?.getItem(
-      `hotel-${hotelData.id}-whatsapp-area`
+      `hotel-${hotelData.id}-whatsapp-area`,
     );
     if (selectedPhone) {
       const location = hotelData.whatsapp_numbers?.find(
-        (item) => item.number === selectedPhone
+        (item) => item.number === selectedPhone,
       );
       if (location) {
         setSelectedLocation(location.area);
@@ -1775,7 +1788,7 @@ const PlaceOrderModal = ({
   useEffect(() => {
     if (user && !selectedLocation) {
       const savedArea = localStorage?.getItem(
-        `hotel-${hotelData.id}-selected-area`
+        `hotel-${hotelData.id}-selected-area`,
       );
       if (
         savedArea &&
@@ -1790,11 +1803,11 @@ const PlaceOrderModal = ({
     setSelectedLocation(location || "");
     if (location) {
       const phoneNumber = hotelData.whatsapp_numbers?.find(
-        (item) => item.area === location
+        (item) => item.area === location,
       )?.number;
       localStorage?.setItem(
         `hotel-${hotelData.id}-whatsapp-area`,
-        phoneNumber || ""
+        phoneNumber || "",
       );
       localStorage?.setItem(`hotel-${hotelData.id}-selected-area`, location);
     } else {
@@ -1851,7 +1864,8 @@ const PlaceOrderModal = ({
 
     // Enhanced delivery address validation
     if (isDelivery) {
-      const needLocation = hotelData?.delivery_rules?.needDeliveryLocation ?? true;
+      const needLocation =
+        hotelData?.delivery_rules?.needDeliveryLocation ?? true;
       if (!address?.trim()) {
         toast.error("Please enter your delivery address");
         return;
@@ -1886,7 +1900,7 @@ const PlaceOrderModal = ({
         items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
       const gstAmount = getGstAmount(
         subtotal,
-        hotelData?.gst_percentage as number
+        hotelData?.gst_percentage as number,
       );
       const extraCharges = [];
 
@@ -1894,7 +1908,7 @@ const PlaceOrderModal = ({
         const qrChargeAmount = getExtraCharge(
           items || [],
           qrGroup.extra_charge,
-          qrGroup.charge_type || "FLAT_FEE"
+          qrGroup.charge_type || "FLAT_FEE",
         );
         if (qrChargeAmount > 0) {
           extraCharges.push({
@@ -1910,13 +1924,12 @@ const PlaceOrderModal = ({
         tableNumber === 0 &&
         qrGroup &&
         qrGroup.name &&
-        (orderType === "delivery" ||
-          orderType === "takeaway")
+        (orderType === "delivery" || orderType === "takeaway")
       ) {
         const table0ChargeAmount = getExtraCharge(
           items || [],
           qrGroup.extra_charge,
-          qrGroup.charge_type || "FLAT_FEE"
+          qrGroup.charge_type || "FLAT_FEE",
         );
         if (table0ChargeAmount > 0) {
           extraCharges.push({
@@ -1948,7 +1961,7 @@ const PlaceOrderModal = ({
         extraCharges.length > 0 ? extraCharges : null,
         undefined,
         orderNote || "",
-        tableName
+        tableName,
       );
 
       if (result) {
@@ -1975,7 +1988,7 @@ const PlaceOrderModal = ({
 
   const handleLoginSuccess = () => {
     const savedArea = localStorage?.getItem(
-      `hotel-${hotelData.id}-selected-area`
+      `hotel-${hotelData.id}-selected-area`,
     );
     if (savedArea && !selectedLocation) {
       setSelectedLocation(savedArea);
@@ -1996,7 +2009,12 @@ const PlaceOrderModal = ({
   const isPlaceOrderDisabled =
     orderStatus === "loading" || // Condition 1
     (tableNumber === 0 && !orderType) || // Condition 2
-    (isDelivery && hasDelivery && !isQrScan && (!address || ((hotelData?.delivery_rules?.needDeliveryLocation ?? true) && !selectedCoords))) || // Condition 3
+    (isDelivery &&
+      hasDelivery &&
+      !isQrScan &&
+      (!address ||
+        ((hotelData?.delivery_rules?.needDeliveryLocation ?? true) &&
+          !selectedCoords))) || // Condition 3
     (isDelivery && deliveryInfo?.isOutOfRange) || // Condition 4
     (hasMultiWhatsapp && !selectedLocation); // Condition 5
 
@@ -2005,8 +2023,9 @@ const PlaceOrderModal = ({
   return (
     <>
       <div
-        className={`fixed inset-0 z-[1000] bg-gray-50 text-black ${open_place_order_modal ? "block" : "hidden"
-          }`}
+        className={`fixed inset-0 z-[1000] bg-gray-50 text-black ${
+          open_place_order_modal ? "block" : "hidden"
+        }`}
       >
         <div className="sticky top-0 bg-white border-b">
           <div className="flex items-center gap-4 p-4">
@@ -2059,8 +2078,7 @@ const PlaceOrderModal = ({
                     tableName={qrData?.table_name || undefined}
                   />
                 </>
-              ) : isDelivery &&
-                orderType === "delivery" ? (
+              ) : isDelivery && orderType === "delivery" ? (
                 <UnifiedAddressSection
                   address={address || ""}
                   setAddress={setAddress}
@@ -2108,12 +2126,12 @@ const PlaceOrderModal = ({
                 (isDelivery &&
                   orderType === "delivery" &&
                   (totalPrice ?? 0) < minimumOrderAmount)) && (
-                  <div className="text-sm text-red-600 p-2 bg-red-50 rounded text-center">
-                    Minimum order amount for delivery is
-                    {hotelData?.currency || "₹"}
-                    {deliveryInfo?.minimumOrderAmount.toFixed(2)}
-                  </div>
-                )}
+                <div className="text-sm text-red-600 p-2 bg-red-50 rounded text-center">
+                  Minimum order amount for delivery is
+                  {hotelData?.currency || "₹"}
+                  {deliveryInfo?.minimumOrderAmount.toFixed(2)}
+                </div>
+              )}
 
               <div className="flex flex-col gap-3 mt-6">
                 {user?.role !== "partner" && user?.role !== "superadmin" ? (
@@ -2124,7 +2142,7 @@ const PlaceOrderModal = ({
                           handlePlaceOrder(() => {
                             if (!hotelData.petpooja_restaurant_id) {
                               const whatsappLink = getWhatsappLink(
-                                orderId as string
+                                orderId as string,
                               );
                               window.open(whatsappLink, "_blank");
                             }

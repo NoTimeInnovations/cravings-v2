@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Send Invite
-    // Invite Cravings Master Account (Thrisha/MenuThere)
+    // Invite Cravings Master Account (Thrisha/Menuthere)
     // Resource Name: accounts/111617069787035102385
     const CRAVINGS_ACCOUNT = 'accounts/111617069787035102385';
 

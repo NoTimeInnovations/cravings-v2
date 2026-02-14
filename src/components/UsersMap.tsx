@@ -5,8 +5,7 @@ import { Partner, User } from "@/store/authStore";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { revalidateTag } from "@/app/actions/revalidate";
 
-mapboxgl.accessToken =
-  "pk.eyJ1IjoiYWJoaW4yazMiLCJhIjoiY20wbWh5ZHFwMDJwcjJqcHVjM3kyZjZlNyJ9.cagUWYMuMzLdJQhMbYB50A";
+mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
 // --- HELPER FUNCTION ---
 const createGeoJSONCircle = (center: [number, number], radiusInKm: number, points: number = 64) => {
@@ -125,7 +124,7 @@ const UsersMap = ({
           partner.store_name
         }" class="w-20 h-20 rounded-full object-cover mx-auto mb-2 border-2 border-gray-200" />
           <h3 class="font-bold text-md mb-1">${partner.store_name}</h3>
-          <a href="https://cravings.live/hotels/${
+          <a href="https://menuthere.com/hotels/${
             partner.id
           }" target="_blank" rel="noopener noreferrer" class="text-orange-600 hover:text-orange-800 text-sm font-medium">View Hotel →</a>
         </div>

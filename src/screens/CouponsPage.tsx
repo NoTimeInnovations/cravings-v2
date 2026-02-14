@@ -8,7 +8,7 @@ import React, { useEffect } from "react";
 import { useDomain } from "@/providers/DomainProvider";
 
 const CouponsPage = () => {
-  const appName = "MenuThere";
+  const appName = "Menuthere";
   const { userData } = useAuthStore();
   const router = useRouter();
 
@@ -29,7 +29,7 @@ const CouponsPage = () => {
     if (navigator.share) {
       navigator.share({
         title: appName,
-        text: `Join me on $MenuThere`,
+        text: `Join me on $Menuthere`,
         url: shareUrl,
       });
     } else {
@@ -59,10 +59,10 @@ const CouponsPage = () => {
           Share & Earn Coupons
         </h1>
         <p className="text-sm text-black/50 pt-2">
-          Love using MenuThere? Share the joy with your friends and family! For
+          Love using Menuthere? Share the joy with your friends and family! For
           every successful signup of the new user, you&apos;ll receive 50Rs
-          exclusive MenuThere cash to enjoy delicious offers and more. Start sharing,
-          start saving!
+          exclusive Menuthere cash to enjoy delicious offers and more. Start
+          sharing, start saving!
         </p>
       </div>
 

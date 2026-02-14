@@ -2,8 +2,8 @@ import React from "react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Privacy Policy | Cravings Digital Menu",
-    description: "Privacy policy for Cravings Digital Menu. Learn how we collect, use, and protect your data.",
+    title: "Privacy Policy | Menuthere Digital Menu",
+    description: "Privacy policy for Menuthere Digital Menu. Learn how we collect, use, and protect your data.",
 };
 
 const PrivacyPolicyPage = () => {
@@ -15,7 +15,7 @@ const PrivacyPolicyPage = () => {
 
                 <div className="space-y-8 text-gray-700 leading-relaxed">
                     <p>
-                        Cravings, operated by <strong>INNOVIZE NOTIME PRIVATE LIMITED</strong> (“we”, “our”, “us”), is committed to protecting your privacy. This policy explains what information we collect, how we use it, and your rights.
+                        Menuthere, operated by <strong>INNOVIZE NOTIME PRIVATE LIMITED</strong> (“we”, “our”, “us”), is committed to protecting your privacy. This policy explains what information we collect, how we use it, and your rights.
                     </p>
 
                     <section>
@@ -81,7 +81,7 @@ const PrivacyPolicyPage = () => {
                     <section>
                         <h2 className="text-2xl font-bold text-gray-900 mb-3">7. Children’s Privacy</h2>
                         <p>
-                            Cravings is not intended for individuals under 18.
+                            Menuthere is not intended for individuals under 18.
                         </p>
                     </section>
 
@@ -98,7 +98,7 @@ const PrivacyPolicyPage = () => {
                             We may update this policy when needed. Changes will appear on this page.
                         </p>
                         <p className="mt-4 font-medium">
-                            Questions? Contact <a href="mailto:support@cravings.live" className="text-orange-600 hover:underline">support@cravings.live</a>
+                            Questions? Contact <a href="mailto:menuthere@gmail.com" className="text-orange-600 hover:underline">menuthere@gmail.com</a>
                         </p>
                     </section>
                 </div>

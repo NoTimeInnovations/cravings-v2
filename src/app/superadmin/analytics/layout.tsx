@@ -1,7 +1,7 @@
 import React from 'react';
 
 export const metadata = {
-  title: 'Analytics Dashboard | Cravings Admin',
+  title: 'Analytics Dashboard | Menuthere Admin',
   description: 'Analytics dashboard for monitoring performance metrics',
 };
 

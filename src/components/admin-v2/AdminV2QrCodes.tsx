@@ -114,7 +114,7 @@ export function AdminV2QrCodes() {
     const [loading, setLoading] = useState(true);
 
     const [limit, setLimit] = useState(10);
-    const DOMAIN = "www.cravings.live";
+    const DOMAIN = "menuthere.com";
 
     // Filtering
     const [tableSearch, setTableSearch] = useState("");

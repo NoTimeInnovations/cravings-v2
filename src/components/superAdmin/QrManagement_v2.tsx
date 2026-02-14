@@ -115,9 +115,9 @@ const QrManagement_v2 = () => {
   });
 
   const [selectedDomain, setSelectedDomain] = useState(() => {
-    if (typeof window === "undefined") return "cravings.live";
+    if (typeof window === "undefined") return "menuthere.com";
     const savedDomain = localStorage?.getItem("qrManagementDomain");
-    return savedDomain || "cravings.live";
+    return savedDomain || "menuthere.com";
   });
 
   const [limitInput, setLimitInput] = useState(limit.toString());
@@ -629,9 +629,9 @@ const QrManagement_v2 = () => {
                   <SelectValue placeholder="Select Domain" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cravings.live">cravings.live</SelectItem>
-                  <SelectItem value="app.cravings.live">
-                    app.cravings.live
+                  <SelectItem value="menuthere.com">menuthere.com</SelectItem>
+                  <SelectItem value="app.menuthere.com">
+                    app.menuthere.com
                   </SelectItem>
                 </SelectContent>
               </Select>

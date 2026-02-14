@@ -823,7 +823,7 @@ const handleDownload = async () => {
 
     // 3. Generate QR codes and add rows with images
     for (const code of selectedCodes) {
-      const qrLink = `https://www.cravings.live/whatsappQr/${code.id}`;
+      const qrLink = `https://menuthere.com/whatsappQr/${code.id}`;
       
       // Add the text data for the row
       const row = worksheet.addRow({

@@ -23,9 +23,9 @@ export default function BusinessPreview({
   onSubmit,
   isSubmitting,
 }: BusinessPreviewProps) {
-  const appName = "MenuThere";
+  const appName = "Menuthere";
   // Get must-try items
-  const mustTryItems = menuItems.filter(item => item.mustTry);
+  const mustTryItems = menuItems.filter((item) => item.mustTry);
 
   const handleUpgradeClick = () => {
     // Submit the business data first
@@ -34,7 +34,10 @@ export default function BusinessPreview({
     // Only open WhatsApp if not in a submitting state
     if (!isSubmitting) {
       // Open WhatsApp link
-      window.open(`https://wa.me/918590115462?text=Hi!%20I'm%20interested%20in%20partnering%20with%20$MenuThere.%20Can%20you%20share%20the%20details`, "_blank");
+      window.open(
+        `https://wa.me/918590115462?text=Hi!%20I'm%20interested%20in%20partnering%20with%20$Menuthere.%20Can%20you%20share%20the%20details`,
+        "_blank",
+      );
     }
   };
 
@@ -51,8 +54,12 @@ export default function BusinessPreview({
         <div className="bg-white p-3 border-b border-gray-200">
           <div className="flex items-center">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-xl text-orange-500">MenuThere</span>
-              <span className="text-sm bg-orange-100 text-orange-800 px-2 py-0.5 rounded">Business</span>
+              <span className="font-bold text-xl text-orange-500">
+                Menuthere
+              </span>
+              <span className="text-sm bg-orange-100 text-orange-800 px-2 py-0.5 rounded">
+                Business
+              </span>
             </div>
           </div>
         </div>
@@ -83,8 +90,19 @@ export default function BusinessPreview({
         {/* Search Bar (Non-functional) */}
         <div className="bg-white p-4 border-t border-b border-gray-100">
           <div className="bg-gray-100 rounded-full py-2 px-4 flex items-center">
-            <svg className="w-4 h-4 text-gray-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg
+              className="w-4 h-4 text-gray-500 mr-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
             </svg>
             <span className="text-gray-400 text-sm">Search</span>
           </div>
@@ -93,14 +111,19 @@ export default function BusinessPreview({
         {/* Must Try Section */}
         <div className="bg-white p-4">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-bold text-xl">Must<span className="text-orange-500">Try</span></h2>
+            <h2 className="font-bold text-xl">
+              Must<span className="text-orange-500">Try</span>
+            </h2>
           </div>
 
           <div className="overflow-x-auto pb-2">
             <div className="flex space-x-4">
               {mustTryItems.length > 0 ? (
-                mustTryItems.map(item => (
-                  <div key={item.id} className="min-w-[200px] rounded-lg overflow-hidden shadow-sm border">
+                mustTryItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="min-w-[200px] rounded-lg overflow-hidden shadow-sm border"
+                  >
                     <div className="h-32 relative">
                       {item.image ? (
                         <Image
@@ -118,9 +141,13 @@ export default function BusinessPreview({
                     <div className="p-2">
                       <h3 className="font-medium">{item.name}</h3>
                       <div className="flex justify-between items-center mt-1">
-                        <p className="font-bold text-orange-500">₹{item.price}</p>
+                        <p className="font-bold text-orange-500">
+                          ₹{item.price}
+                        </p>
                       </div>
-                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.description}</p>
+                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                        {item.description}
+                      </p>
                     </div>
                   </div>
                 ))
@@ -156,11 +183,16 @@ export default function BusinessPreview({
         {/* Menu Items */}
         <div className="bg-white p-4 border-t border-gray-100">
           <div className="space-y-4">
-            {menuItems.map(item => (
-              <div key={item.id} className="flex gap-4 border-b pb-4 last:border-0">
+            {menuItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex gap-4 border-b pb-4 last:border-0"
+              >
                 <div className="flex-1">
                   <h3 className="font-medium">{item.name}</h3>
-                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">{item.description}</p>
+                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                    {item.description}
+                  </p>
                   <p className="font-bold mt-2">₹{item.price}</p>
                 </div>
                 <div className="w-20 h-20 rounded overflow-hidden">
@@ -210,4 +242,4 @@ export default function BusinessPreview({
       </div>
     </div>
   );
-} 
+}

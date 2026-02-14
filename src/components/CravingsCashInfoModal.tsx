@@ -10,7 +10,7 @@ import { useDomain } from "@/providers/DomainProvider";
 const CravingsCashInfoModal = () => {
   const [open, setOpen] = useState(false);
   const { userData } = useAuthStore();
-  const appName = "MenuThere";
+  const appName = "Menuthere";
 
   useEffect(() => {
     const request = indexedDB.open("firebaseLocalStorageDb");
@@ -49,7 +49,7 @@ const CravingsCashInfoModal = () => {
     >
       <DialogContent className="max-w-[90%] sm:max-w-sm grid justify-items-center rounded-3xl py-10 px-10 gap-5">
         <h1 className="font-bold text-2xl text-center">
-          🎉Welcome to <span className="text-orange-600">MenuThere</span>!
+          🎉Welcome to <span className="text-orange-600">Menuthere</span>!
         </h1>
 
         <div className="grid justify-items-center text-orange-600 text-2xl font-bold">
@@ -58,7 +58,7 @@ const CravingsCashInfoModal = () => {
         </div>
 
         <p className="text-center text-black/80">
-          Sign up now and get ₹100 MenuThere Cash to enjoy delicious offers! 💰
+          Sign up now and get ₹100 Menuthere Cash to enjoy delicious offers! 💰
         </p>
 
         <div className="flex gap-2 items-center">

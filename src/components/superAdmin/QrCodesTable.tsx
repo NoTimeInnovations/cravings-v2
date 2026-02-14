@@ -176,7 +176,7 @@ export function QrCodesTable({
 
   const handleCopyAllLinks = () => {
     const links = qrCodes
-      .map(qr => `https://cravings.live/qrScan/${store_name.replace(/\s+/g, '-')}/${qr.id}`)
+      .map(qr => `https://menuthere.com/qrScan/${store_name.replace(/\s+/g, '-')}/${qr.id}`)
       .join('\n');
     
     navigator.clipboard.writeText(links)
@@ -190,7 +190,7 @@ export function QrCodesTable({
   };
 
   const handleCopySingleLink = (qrId: string) => {
-    const link = `https://cravings.live/qrScan/${store_name.replace(/\s+/g, '-')}/${qrId}`;
+    const link = `https://menuthere.com/qrScan/${store_name.replace(/\s+/g, '-')}/${qrId}`;
     
     navigator.clipboard.writeText(link)
       .then(() => {
@@ -215,7 +215,7 @@ export function QrCodesTable({
 
       for (let i = 0; i < qrCodes.length; i++) {
         const qr = qrCodes[i];
-        const qrUrl = `https://cravings.live/qrScan/${store_name.replace(/\s+/g, '-')}/${qr.id}`;
+        const qrUrl = `https://menuthere.com/qrScan/${store_name.replace(/\s+/g, '-')}/${qr.id}`;
         
         // Generate QR code as base64
         const base64 = await QRCode.toDataURL(qrUrl);

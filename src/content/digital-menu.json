@@ -7,7 +7,7 @@
         "primaryCta": "Create Your Menu",
         "primaryCtaLink": "/get-started",
         "secondaryCta": "View Live Demo",
-        "secondaryCtaLink": "https://www.cravings.live/hotels/20f7e974-f19e-4c11-b6b7-4385f61f27bf",
+        "secondaryCtaLink": "https://menuthere.com/hotels/20f7e974-f19e-4c11-b6b7-4385f61f27bf",
         "image": "/assets/mockups/digital-menu-hero-v2.png",
         "video": "https://youtu.be/s9q0S9Dhtaw?si=M0mUT9ttpF6kex78"
     },
@@ -77,7 +77,7 @@
             "author": "Sarah Jenkins",
             "role": "Owner",
             "company": "The Burger Joint",
-            "text": "Cravings transformed how we handle orders during rush hour. The digital menu is a lifesaver!",
+            "text": "Menuthere transformed how we handle orders during rush hour. The digital menu is a lifesaver!",
             "avatar": "/assets/avatars/avatar-1.png"
         },
         {
@@ -125,10 +125,10 @@
     ],
     "cta": {
         "title": "Ready to digitize your restaurant?",
-        "description": "Join thousands of restaurants using Cravings to serve customers better.",
+        "description": "Join thousands of restaurants using Menuthere to serve customers better.",
         "buttonText": "Get Started Now",
         "buttonLink": "/get-started",
         "secondaryButtonText": "Book Demo",
-        "secondaryButtonLink": "https://www.cravings.live/hotels/20f7e974-f19e-4c11-b6b7-4385f61f27bf"
+        "secondaryButtonLink": "https://menuthere.com/hotels/20f7e974-f19e-4c11-b6b7-4385f61f27bf"
     }
 }

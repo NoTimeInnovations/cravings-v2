@@ -2,8 +2,8 @@ import { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Business Onboarding - Cravings",
-  description: "Register your business with Cravings and start serving customers",
+  title: "Business Onboarding - Menuthere",
+  description: "Register your business with Menuthere and start serving customers",
 };
 
 export default function OnboardingLayout({
@@ -17,7 +17,7 @@ export default function OnboardingLayout({
         <div className="container mx-auto py-4 px-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-xl text-orange-500">Cravings</span>
+              <span className="font-bold text-xl text-orange-500">Menuthere</span>
               <span className="text-sm bg-orange-100 text-orange-800 px-2 py-0.5 rounded">Business</span>
             </div>
             <div>
@@ -31,7 +31,7 @@ export default function OnboardingLayout({
       <main>{children}</main>
       <footer className="bg-white border-t mt-12">
         <div className="container mx-auto py-6 px-4 text-center text-sm text-gray-500">
-          &copy; {new Date().getFullYear()} Cravings. All rights reserved.
+          &copy; {new Date().getFullYear()} Menuthere. All rights reserved.
         </div>
       </footer>
     </div>

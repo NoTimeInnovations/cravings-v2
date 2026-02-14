@@ -146,13 +146,13 @@ export const onBoardUserSignup = async (data: OnboardingData) => {
             // Build menu link
             const storeName = partnerPayload.store_name || partnerPayload.name;
             const menuLink = firstQrCodeId
-                ? `https://cravings.live/qrScan/${storeName.replace(/ /g, "-")}/${firstQrCodeId}`
+                ? `https://menuthere.com/qrScan/${storeName.replace(/ /g, "-")}/${firstQrCodeId}`
                 : undefined;
 
             await sendWelcomeEmail(partnerPayload.email, {
                 partnerName: partnerPayload.name,
                 planName: planName,
-                loginLink: "https://cravings.live/login",
+                loginLink: "https://menuthere.com/login",
                 menuLink: menuLink
             });
         } catch (emailError) {

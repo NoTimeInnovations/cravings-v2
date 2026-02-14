@@ -1,6 +1,6 @@
 "use client";
 
-import { UtensilsCrossed } from "lucide-react";
+import Image from "next/image";
 
 import { useState } from "react";
 import { AdminNavbar } from "@/components/admin-v2/AdminNavbar";
@@ -84,8 +84,8 @@ export default function AdminPage() {
                     <SheetContent side="left" className="p-0 w-64">
                         <div className="py-4">
                             <div className="px-4 mb-4 flex items-center gap-2">
-                                <UtensilsCrossed className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-                                <span className="text-xl font-bold text-orange-600 dark:text-orange-400">Cravings</span>
+                                <Image src="/menuthere-logo.png" alt="Menuthere" width={24} height={24} className="h-6 w-6 object-contain" />
+                                <span className="text-xl font-bold text-orange-600 dark:text-orange-400">Menuthere</span>
                             </div>
                             <AdminSidebar
                                 activeView={activeView}
