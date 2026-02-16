@@ -145,7 +145,7 @@ function OffersAnimationInner({ onComplete }: { onComplete: () => void }) {
             </svg>
           )}
           <span className="text-[9px] md:text-xs font-semibold text-white">
-            {applied ? "Offer Applied!" : phase === "applying" ? "Applying..." : "Create Offer"}
+            {applied ? "Offer Created!" : phase === "applying" ? "Creating..." : "Create Offer"}
           </span>
         </div>
       </div>

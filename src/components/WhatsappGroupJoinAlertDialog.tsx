@@ -91,12 +91,10 @@ const WhatsappGroupJoinAlertDialog = () => {
   // Hide on certain paths or for non-user/non-guest roles
   const isHiddenPath = HIDDEN_PATHS.some((p) => pathname.startsWith(p));
   const isUserOrGuest = !userData?.role || userData.role === "user";
-
-  if (isHiddenPath || !isUserOrGuest) {
-    return null;
-  }
+  const shouldHide = isHiddenPath || !isUserOrGuest;
 
   useEffect(() => {
+    if (shouldHide) return;
     // 1. If user has ever clicked "Join Now", never show anything again.
     const hasJoined = localStorage?.getItem("whatsappDialogJoined");
     if (hasJoined === "true") {
@@ -121,7 +119,11 @@ const WhatsappGroupJoinAlertDialog = () => {
     }, 10000);
 
     return () => clearTimeout(timer);
-  }, [cachedCoords, pathname]);
+  }, [shouldHide, cachedCoords, pathname]);
+
+  if (shouldHide) {
+    return null;
+  }
 
   const fetchUserLocation = (showModalOnSuccess = false) => {
     // Use cached location from store if available (no permission prompt)
