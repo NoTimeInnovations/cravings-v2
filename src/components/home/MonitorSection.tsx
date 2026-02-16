@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import RealTimeMenuAnimation from "./RealTimeMenuAnimation";
 
 const FEATURES = [
   {
@@ -76,6 +77,11 @@ export default function MonitorSection() {
           cta={feature.cta}
           image={feature.image}
           align={index % 2 === 0 ? "left" : "right"}
+          customPanel={
+            feature.title === "Real-Time Menu Updates"
+              ? "realtime"
+              : undefined
+          }
         />
       ))}
     </section>
@@ -137,7 +143,7 @@ function ImagePanel({ image, title }: { image: string; title: string }) {
           src={image}
           alt={title}
           fill
-          className="object-contain"
+          className="object-contain transition-transform duration-500 ease-out hover:scale-110"
         />
       </div>
     </div>
@@ -151,6 +157,7 @@ function MonitorSectionCard({
   cta,
   image,
   align,
+  customPanel,
 }: {
   title: string;
   description: string;
@@ -158,7 +165,15 @@ function MonitorSectionCard({
   cta: string;
   image: string;
   align: "left" | "right";
+  customPanel?: "realtime";
 }) {
+  const panel =
+    customPanel === "realtime" ? (
+      <RealTimeMenuAnimation />
+    ) : (
+      <ImagePanel image={image} title={title} />
+    );
+
   return (
     <div className="relative z-10">
       {/* line  */}
@@ -166,9 +181,7 @@ function MonitorSectionCard({
 
       {/* Mobile: stacked rows */}
       <div className="md:hidden flex flex-col">
-        <div className="w-full relative h-48">
-          <ImagePanel image={image} title={title} />
-        </div>
+        <div className={`w-full relative ${customPanel ? "h-64" : "h-48"}`}>{panel}</div>
         <div className="w-full h-px bg-stone-200"></div>
         <CardContent
           title={title}
@@ -193,7 +206,7 @@ function MonitorSectionCard({
             cta={cta}
           />
         ) : (
-          <ImagePanel image={image} title={title} />
+          panel
         )}
         <div className="w-px h-full bg-stone-200" />
         {align === "left" ? (
@@ -204,7 +217,7 @@ function MonitorSectionCard({
             cta={cta}
           />
         ) : (
-          <ImagePanel image={image} title={title} />
+          panel
         )}
       </div>
     </div>
