@@ -107,6 +107,7 @@ export interface Partner extends BaseUser {
     expiryDate: string;
   };
   petpooja_restaurant_id?: string;
+  username?: string;
 }
 
 export interface SuperAdmin extends BaseUser {

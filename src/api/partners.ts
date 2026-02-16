@@ -117,9 +117,19 @@ export const getPartnerByIdQuery = `
 
 
 
+export const getPartnerByUsernameQuery = `
+query GetPartnerByUsername($username: String!) {
+  partners(where: {username: {_eq: $username}}) {
+    id
+    username
+  }
+}
+`;
+
 export const getPartnerAndOffersQuery = `
 query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
   partners(where: {id: {_eq: $id}}) {
+    username
     district
     location
     delivery_status
@@ -343,6 +353,7 @@ export interface Partner {
   phone?: string;
   district?: string;
   petpooja_restaurant_id?: string;
+  username?: string;
 }
 
 export interface UpdatePartnerStatusResponse {

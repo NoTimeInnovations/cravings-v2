@@ -1,7 +1,7 @@
 "use client";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Partner } from "@/store/authStore";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Table,
   TableBody,
@@ -39,6 +39,7 @@ interface PartnerWithDetails extends Partner {
   business_type?: string;
   country?: string;
   state?: string;
+  username?: string;
 }
 
 const EditPartners = () => {
@@ -74,6 +75,7 @@ const EditPartners = () => {
             country_code
             state
             country
+            username
           }
         }`
       );
@@ -120,11 +122,55 @@ const EditPartners = () => {
 
   const handleEdit = (partner: PartnerWithDetails) => {
     setSelectedPartner(partner);
+    setUsernameStatus("idle");
+    originalUsernameRef.current = partner.username || "";
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
+  const usernameCheckTimeout = useRef<NodeJS.Timeout | null>(null);
+  const originalUsernameRef = useRef<string>("");
+
+  const validateAndCheckUsername = (username: string) => {
+    if (usernameCheckTimeout.current) clearTimeout(usernameCheckTimeout.current);
+    if (!username || username.length < 3) { setUsernameStatus("idle"); return; }
+    if (username === originalUsernameRef.current) { setUsernameStatus("idle"); return; }
+    setUsernameStatus("checking");
+    usernameCheckTimeout.current = setTimeout(async () => {
+      try {
+        const { checkUsernameAvailable } = await import("@/app/actions/checkUsername");
+        const { isAvailable } = await checkUsernameAvailable(username);
+        setUsernameStatus(isAvailable ? "available" : "taken");
+      } catch {
+        setUsernameStatus("idle");
+      }
+    }, 500);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPartner) return;
+
+    const newUsername = selectedPartner.username || undefined;
+
+    // Validate username uniqueness if changed
+    if (newUsername && newUsername !== originalUsernameRef.current) {
+      if (newUsername.length < 3) {
+        toast.error("Username must be at least 3 characters");
+        return;
+      }
+      if (!/^[a-z0-9_]+$/.test(newUsername)) {
+        toast.error("Username can only contain lowercase letters, numbers, and underscores");
+        return;
+      }
+      const { checkUsernameAvailable } = await import("@/app/actions/checkUsername");
+      const { isAvailable } = await checkUsernameAvailable(newUsername);
+      if (!isAvailable) {
+        toast.error("This username is already taken");
+        setUsernameStatus("taken");
+        return;
+      }
+    }
+
     const updates = {
       name: selectedPartner.name,
       email: selectedPartner.email,
@@ -144,6 +190,7 @@ const EditPartners = () => {
       country: selectedPartner.country,
       country_code: selectedPartner.country_code,
       state: selectedPartner.state,
+      username: newUsername,
     };
     updatePartner(selectedPartner.id, updates);
     setSelectedPartner(null);
@@ -202,6 +249,31 @@ const EditPartners = () => {
                       setSelectedPartner({ ...selectedPartner, store_name: e.target.value })
                     }
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    value={selectedPartner.username || ""}
+                    placeholder="e.g. the_burger_joint"
+                    onChange={(e) => {
+                      const raw = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "");
+                      setSelectedPartner({ ...selectedPartner, username: raw });
+                      validateAndCheckUsername(raw);
+                    }}
+                  />
+                  <p className="text-xs text-gray-500">
+                    menuthere.com/{selectedPartner.username || "username"}
+                  </p>
+                  {usernameStatus === "checking" && (
+                    <p className="text-xs text-gray-400">Checking availability...</p>
+                  )}
+                  {usernameStatus === "available" && (
+                    <p className="text-xs text-green-600">Username is available</p>
+                  )}
+                  {usernameStatus === "taken" && (
+                    <p className="text-xs text-red-500">This username is already taken</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="location">Location</Label>

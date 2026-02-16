@@ -76,6 +76,7 @@ interface HotelDetails {
   instagram_link?: string;
   location_link?: string;
   currency: string;
+  username: string;
 }
 
 // --- Constants ---
@@ -413,7 +414,10 @@ export default function GetStartedClient({
     instagram_link: "",
     location_link: "",
     currency: getDefaultCurrency(defaultCountry),
+    username: "",
   });
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
+  const usernameCheckTimeout = useRef<NodeJS.Timeout | null>(null);
   const [isExtractingMenu, setIsExtractingMenu] = useState(false);
   const [extractedItems, setExtractedItems] = useState<MenuItem[]>([]);
 
@@ -533,6 +537,36 @@ export default function GetStartedClient({
     setMenuFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const validateAndCheckUsername = (username: string) => {
+    if (usernameCheckTimeout.current) {
+      clearTimeout(usernameCheckTimeout.current);
+    }
+    if (!username || username.length < 3) {
+      setUsernameStatus("idle");
+      return;
+    }
+    if (!/^[a-z0-9_]+$/.test(username)) {
+      setUsernameStatus("idle");
+      return;
+    }
+    setUsernameStatus("checking");
+    usernameCheckTimeout.current = setTimeout(async () => {
+      try {
+        const { checkUsernameAvailable } = await import("@/app/actions/checkUsername");
+        const { isAvailable } = await checkUsernameAvailable(username);
+        setUsernameStatus(isAvailable ? "available" : "taken");
+      } catch {
+        setUsernameStatus("idle");
+      }
+    }, 1000);
+  };
+
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "");
+    setHotelDetails((prev) => ({ ...prev, username: raw }));
+    setUsernameStatus("idle");
+  };
+
   const handleDetailsChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
@@ -553,6 +587,17 @@ export default function GetStartedClient({
         [name]: value,
         district: "", // Clear district when state changes
       }));
+    } else if (name === "name") {
+      // Auto-generate username from store name (no availability check on every keystroke)
+      const autoUsername = value
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, "_")
+        .replace(/[^a-z0-9_]/g, "")
+        .replace(/_+/g, "_")
+        .replace(/^_|_$/g, "");
+      setHotelDetails((prev) => ({ ...prev, name: value, username: autoUsername }));
+      setUsernameStatus("idle");
     } else {
       setHotelDetails((prev) => ({ ...prev, [name]: value }));
     }
@@ -766,6 +811,24 @@ export default function GetStartedClient({
         return;
       }
 
+      // Check username availability
+      if (hotelDetails.username && hotelDetails.username.length >= 3) {
+        const { checkUsernameAvailable, generateUniqueUsername } = await import("@/app/actions/checkUsername");
+        const { isAvailable } = await checkUsernameAvailable(hotelDetails.username);
+        if (!isAvailable) {
+          // Auto-generate a unique username
+          const uniqueUsername = await generateUniqueUsername(hotelDetails.name);
+          setHotelDetails((prev) => ({ ...prev, username: uniqueUsername }));
+          hotelDetails.username = uniqueUsername;
+        }
+      } else if (hotelDetails.name) {
+        // Generate username if empty
+        const { generateUniqueUsername } = await import("@/app/actions/checkUsername");
+        const uniqueUsername = await generateUniqueUsername(hotelDetails.name);
+        setHotelDetails((prev) => ({ ...prev, username: uniqueUsername }));
+        hotelDetails.username = uniqueUsername;
+      }
+
       const countryEntry = countryCodes.find(
         (c) => c.country === hotelDetails.country,
       );
@@ -855,6 +918,7 @@ export default function GetStartedClient({
         referral_code: authCredentials.referralCode,
         subscription_details: subscriptionDetails,
         feature_flags: finalFlags.join(","),
+        username: hotelDetails.username || undefined,
       };
 
       // Construct Categories Data
@@ -1098,6 +1162,44 @@ export default function GetStartedClient({
             onChange={handleDetailsChange}
             className="h-10 md:h-11 rounded-xl text-sm md:text-base"
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="username" className="text-sm">
+            Username
+          </Label>
+          <div className="flex items-center h-10 md:h-11 rounded-xl border border-gray-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-orange-600 focus-within:ring-offset-2">
+            <span className="pl-3 text-sm text-gray-400 whitespace-nowrap select-none">menuthere.com/</span>
+            <input
+              id="username"
+              name="username"
+              placeholder="your_store_name"
+              value={hotelDetails.username || ""}
+              onChange={handleUsernameChange}
+              onBlur={() => validateAndCheckUsername(hotelDetails.username || "")}
+              className="flex-1 h-full bg-transparent px-1 py-2 text-sm md:text-base outline-none"
+            />
+          </div>
+          {hotelDetails.username ? (
+            <div className="flex items-center gap-1.5">
+              {usernameStatus === "checking" && (
+                <p className="text-xs text-gray-400">Checking availability...</p>
+              )}
+              {usernameStatus === "available" && (
+                <p className="text-xs text-green-600 flex items-center gap-1">
+                  <Check className="w-3 h-3" /> Username is available
+                </p>
+              )}
+              {usernameStatus === "taken" && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> This username is already taken
+                </p>
+              )}
+              {usernameStatus === "idle" && hotelDetails.username.length > 0 && hotelDetails.username.length < 3 && (
+                <p className="text-xs text-gray-400">Username must be at least 3 characters</p>
+              )}
+            </div>
+          ) : null}
         </div>
 
         <div className="space-y-2">
