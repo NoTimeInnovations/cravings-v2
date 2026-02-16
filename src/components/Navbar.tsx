@@ -715,7 +715,7 @@ export function Navbar() {
   };
 
   return (
-    <header className="fixed w-full z-[60] top-0 left-0 right-0 font-sans border-b border-stone-200">
+    <header className="fixed w-full z-[60] top-0 left-0 right-0 geist-font border-b border-stone-200">
       {/* Main Navbar */}
       <nav className="w-full bg-[#fcfbf7]">
         <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">

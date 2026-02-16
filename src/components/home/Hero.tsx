@@ -11,9 +11,8 @@ export default function Hero() {
         </h1>
 
         {/* Subtitle */}
-        <p className="geist-font text-lg text-[#544b47] max-w-md mt-5 leading-relaxed">
-          Beautiful QR code menus with real-time updates, Google Business sync
-          &amp; analytics. No app needed — just scan and order.
+        <p className="geist-font text-lg text-[#544b47] max-w-md mt-5 leading-relaxed text-pretty">
+          QR code menus with real-time updates, Google Business sync &amp; analytics. No app needed.
         </p>
 
         {/* CTA Buttons */}
@@ -21,7 +20,7 @@ export default function Hero() {
           <ButtonV2 href="/get-started" variant="primary">
             Start for free
           </ButtonV2>
-          <ButtonV2 href="/book-demo" variant="secondary">
+          <ButtonV2 href="https://cal.id/menuthere" variant="secondary">
             Book a Demo
           </ButtonV2>
         </div>
