@@ -1,6 +1,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import RealTimeMenuAnimation from "./RealTimeMenuAnimation";
+import OffersAnimation from "./OffersAnimation";
+import AnalyticsAnimation from "./AnalyticsAnimation";
+import ReviewsAnimation from "./ReviewsAnimation";
+import GoogleSyncAnimation from "./GoogleSyncAnimation";
+import SmartQRAnimation from "./SmartQRAnimation";
 
 const FEATURES = [
   {
@@ -80,7 +85,17 @@ export default function MonitorSection() {
           customPanel={
             feature.title === "Real-Time Menu Updates"
               ? "realtime"
-              : undefined
+              : feature.title === "Dynamic Offers & Promotions"
+                ? "offers"
+                : feature.title === "Analytics & Insights"
+                  ? "analytics"
+                  : feature.title === "Google Reviews Booster"
+                    ? "reviews"
+                    : feature.title === "Google Business Menu Sync"
+                      ? "googlesync"
+                      : feature.title === "Smart QR Menu"
+                        ? "smartqr"
+                        : undefined
           }
         />
       ))}
@@ -165,11 +180,21 @@ function MonitorSectionCard({
   cta: string;
   image: string;
   align: "left" | "right";
-  customPanel?: "realtime";
+  customPanel?: "realtime" | "offers" | "analytics" | "reviews" | "googlesync" | "smartqr";
 }) {
   const panel =
     customPanel === "realtime" ? (
       <RealTimeMenuAnimation />
+    ) : customPanel === "offers" ? (
+      <OffersAnimation />
+    ) : customPanel === "analytics" ? (
+      <AnalyticsAnimation />
+    ) : customPanel === "reviews" ? (
+      <ReviewsAnimation />
+    ) : customPanel === "googlesync" ? (
+      <GoogleSyncAnimation />
+    ) : customPanel === "smartqr" ? (
+      <SmartQRAnimation />
     ) : (
       <ImagePanel image={image} title={title} />
     );

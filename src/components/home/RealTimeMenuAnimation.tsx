@@ -57,7 +57,7 @@ function RealTimeMenuAnimationInner() {
   return (
     <div className="relative flex flex-col items-center gap-2 md:gap-7 w-full max-w-[220px] md:max-w-[420px] px-2 md:px-4">
       {/* Menu item card */}
-      <div className="w-full bg-white rounded-xl md:rounded-3xl shadow-lg border border-stone-100 overflow-hidden">
+      <div className="w-full bg-[#fcfbf7] rounded-xl md:rounded-3xl shadow-lg border border-stone-100 overflow-hidden">
         <div className="flex gap-2 md:gap-5 p-2.5 md:p-7">
           <div className="flex-1 flex flex-col justify-between min-h-[60px] md:min-h-[130px]">
             <div>
@@ -70,16 +70,16 @@ function RealTimeMenuAnimationInner() {
                 dessert.
               </p>
             </div>
-            <p className="text-sm md:text-2xl font-bold text-red-500 mt-1 md:mt-4">$3.00</p>
+            <p className="text-sm md:text-2xl font-bold text-[#a64e2a] mt-1 md:mt-4">$3.00</p>
           </div>
-          <div className="w-10 h-10 md:w-28 md:h-28 rounded-lg md:rounded-2xl overflow-hidden flex-shrink-0 bg-amber-50 flex items-center justify-center text-xl md:text-6xl">
+          <div className="w-10 h-10 md:w-28 md:h-28 rounded-lg md:rounded-2xl overflow-hidden flex-shrink-0 bg-[#a64e2a]/10 flex items-center justify-center text-xl md:text-6xl">
             🍰
           </div>
         </div>
       </div>
 
       {/* Edit menu title input */}
-      <div className="w-full bg-white rounded-lg md:rounded-xl shadow-md border border-stone-200 px-3 md:px-6 py-2 md:py-5 flex flex-col gap-0.5 md:gap-2">
+      <div className="w-full bg-[#fcfbf7] rounded-lg md:rounded-xl shadow-md border border-stone-200 px-3 md:px-6 py-2 md:py-5 flex flex-col gap-0.5 md:gap-2">
         <span className="text-[8px] md:text-xs font-medium text-stone-400 uppercase tracking-wide">
           Menu Item Title
         </span>
