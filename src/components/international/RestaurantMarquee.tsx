@@ -73,9 +73,9 @@ export default function RestaurantMarquee() {
   }, []);
 
   return (
-    <div className="overflow-hidden max-w-[70%] mx-auto my-20">
+    <div className="overflow-hidden max-w-[70%] mx-auto my-20 ">
       <p className="text-center text-lg text-stone-500 mb-10 tracking-wide">
-        1,000+ restaurants and cafes are creating digital menus, managing
+        600+ restaurants and cafes are creating digital menus, managing
         orders, and growing their business with Menuthere.
       </p>
       <div

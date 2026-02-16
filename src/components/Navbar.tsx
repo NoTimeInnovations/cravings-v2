@@ -336,24 +336,19 @@ export function Navbar() {
   const isHomePage = ["/offers", "/explore", "/"].includes(pathname);
 
   const renderBranding = () => (
-    <div
-      className="flex items-center space-x-2 cursor-pointer"
-      onClick={() => (isHomePage ? null : router.back())}
+    <Link
+      href="/"
+      className="flex items-center cursor-pointer"
     >
-      <div className="flex items-center">
-        <Image
-          src="/menuthere-logo.png"
-          alt="Menuthere"
-          width={48}
-          height={48}
-          className="h-10 w-10 object-contain rounded-md"
-          priority
-        />
-        <span className="text-2xl font-medium tracking-tight text-gray-900 ml-2 font-geist">
-          Menuthere
-        </span>
-      </div>
-    </div>
+      <Image
+        src="/menuthere_logo_full.svg"
+        alt="Menuthere"
+        width={171}
+        height={46}
+        className="h-8 w-auto object-contain"
+        priority
+      />
+    </Link>
   );
 
   const renderAuthButtons = () => {
@@ -685,10 +680,32 @@ export function Navbar() {
     <header className="fixed w-full z-[60] top-0 left-0 right-0 font-sans border-b border-stone-200">
       {/* Main Navbar */}
       <nav className="w-full bg-[#fcfbf7]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">
           <div className="flex justify-between h-16 items-center">
-            {/* Left: Branding */}
-            <div className="flex-1 flex justify-start">{renderBranding()}</div>
+            {/* Left: Branding + Nav Links */}
+            <div className="flex items-center gap-10">
+              {renderBranding()}
+
+              {/* Desktop Navigation Links */}
+              <div
+                ref={navContainerRef}
+                className="hidden lg:flex items-center gap-1 relative"
+                onMouseLeave={handleNavLeave}
+              >
+                <div
+                  className="absolute rounded-full bg-[#544b47]/10 pointer-events-none transition-all duration-300 ease-in-out"
+                  style={{
+                    left: pillStyle.left,
+                    width: pillStyle.width,
+                    opacity: pillStyle.opacity,
+                    height: 32,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                  }}
+                />
+                {userData?.role !== "user" && renderNavigationLinks()}
+              </div>
+            </div>
 
             {/* Mobile Menu Toggle */}
             <div className="lg:hidden flex justify-end">
@@ -704,28 +721,8 @@ export function Navbar() {
               )}
             </div>
 
-            {/* Center: Navigation Links */}
-            <div
-              ref={navContainerRef}
-              className="hidden lg:flex flex-1 justify-center items-center space-x-6 lg:space-x-8 relative"
-              onMouseLeave={handleNavLeave}
-            >
-              <div
-                className="absolute rounded-full bg-[#544b47]/10 pointer-events-none transition-all duration-300 ease-in-out"
-                style={{
-                  left: pillStyle.left,
-                  width: pillStyle.width,
-                  opacity: pillStyle.opacity,
-                  height: 32,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                }}
-              />
-              {userData?.role !== "user" && renderNavigationLinks()}
-            </div>
-
             {/* Right: Actions */}
-            <div className="hidden lg:flex flex-1 items-center justify-end gap-3">
+            <div className="hidden lg:flex items-center gap-3">
               {renderUserProfile()}
 
               {userData && userData.role !== "user" && !isInstalled ? (

@@ -8,9 +8,8 @@ export const saveUserLocation = async (shouldReload = true) => {
 
   const pathname = window.location.pathname;
   const shouldAskLocation =
-    pathname.startsWith("/hotels") ||
-    pathname === "/explore" ||
-    pathname.startsWith("/qrScan");
+    pathname.startsWith("/qrScan") ||
+    pathname.startsWith("/hotelsNear");
 
   if (navigator.geolocation && (!currentSession || !hasUserLocation) && shouldAskLocation) {
     navigator.geolocation.getCurrentPosition(

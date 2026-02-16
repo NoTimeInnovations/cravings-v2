@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { FaWhatsapp } from "react-icons/fa";
 import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+import { useLocationStore } from "@/store/geolocationStore";
 
 const whatsappGroups = [
   {
@@ -74,9 +75,12 @@ const HIDDEN_PATHS = [
   "/superadmin",
 ];
 
+const LOCATION_ALLOWED_PATHS = ["/qrScan", "/hotelsNear"];
+
 const WhatsappGroupJoinAlertDialog = () => {
   const pathname = usePathname();
   const { userData } = useAuthStore();
+  const cachedCoords = useLocationStore((s) => s.coords);
   // 'hidden', 'modal', or 'floating'
   const [displayState, setDisplayState] = useState<
     "hidden" | "modal" | "floating"
@@ -106,24 +110,37 @@ const WhatsappGroupJoinAlertDialog = () => {
     if (closedTimestamp) {
       const sevenDaysInMillis = 7 * 24 * 60 * 60 * 1000;
       if (Date.now() - parseInt(closedTimestamp) < sevenDaysInMillis) {
-        // We still fetch the location to get the correct group link for the icon
-        fetchUserLocation(false); // `false` means don't show modal on success
+        fetchUserLocation(false);
         return;
       }
     }
 
     // 3. For new users, wait 10 seconds and then try to show the modal.
     const timer = setTimeout(() => {
-      fetchUserLocation(true); // `true` means show modal on success
+      fetchUserLocation(true);
     }, 10000);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [cachedCoords, pathname]);
 
   const fetchUserLocation = (showModalOnSuccess = false) => {
-    if (!navigator.geolocation) {
+    // Use cached location from store if available (no permission prompt)
+    if (cachedCoords) {
+      const mockPosition = {
+        coords: { latitude: cachedCoords.lat, longitude: cachedCoords.lng },
+      } as GeolocationPosition;
+      handleSuccess(mockPosition, showModalOnSuccess);
       return;
     }
+
+    // Only request location permission on allowed paths
+    const canRequestLocation = LOCATION_ALLOWED_PATHS.some((p) =>
+      pathname.startsWith(p)
+    );
+    if (!canRequestLocation || !navigator.geolocation) {
+      return;
+    }
+
     navigator.geolocation.getCurrentPosition(
       (position) => handleSuccess(position, showModalOnSuccess),
       handleError
