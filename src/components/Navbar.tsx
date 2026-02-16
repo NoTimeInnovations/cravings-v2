@@ -210,6 +210,20 @@ const HIDDEN_PATHS = [
   "/onboard/.*",
 ];
 
+// Known top-level static routes — any single-segment path NOT in this list
+// is treated as a partner username route and the navbar is hidden.
+const KNOWN_STATIC_ROUTES = new Set([
+  "actions", "admin", "admin-v2", "api", "auth", "bill", "business",
+  "captain", "captainlogin", "coupons", "create-offer-promotion", "demo",
+  "download-app", "explore", "get-started", "help-center", "hotels",
+  "join-community", "kot", "login", "my-earnings", "my-orders", "newlogin",
+  "offers", "onboard", "order", "partner", "partnerlogin", "pricing",
+  "privacy-policy", "product", "profile", "qrScan", "reel-analytics",
+  "refund-policy", "sentry-example-page", "solutions", "superadmin",
+  "superLogin", "terms-and-conditions", "test", "tutorials", "user-map",
+  "whatsappQr",
+]);
+
 import { Partner, useAuthStore } from "@/store/authStore";
 import { ButtonV2 } from "@/components/ui/ButtonV2";
 
@@ -362,7 +376,11 @@ export function Navbar() {
     const pattern = path.replace(/\[.*?\]/g, "[^/]+");
     const regex = new RegExp(`^${pattern}$`);
     return regex.test(currentPath);
-  });
+  }) || (() => {
+    // Hide navbar for partner username routes (single-segment paths like /burger_joint)
+    const segments = currentPath.split("/").filter(Boolean);
+    return segments.length === 1 && !KNOWN_STATIC_ROUTES.has(segments[0]);
+  })();
 
   if (shouldHideNavbar) {
     return null;

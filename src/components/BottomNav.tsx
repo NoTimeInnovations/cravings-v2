@@ -140,8 +140,26 @@ const BottomNav = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
 
+  // Hide on partner username routes (single-segment paths that aren't known static routes)
+  const isUsernameRoute = (() => {
+    const segments = pathname.split("/").filter(Boolean);
+    if (segments.length !== 1) return false;
+    const knownRoutes = new Set([
+      "actions", "admin", "admin-v2", "api", "auth", "bill", "business",
+      "captain", "captainlogin", "coupons", "create-offer-promotion", "demo",
+      "download-app", "explore", "get-started", "help-center", "hotels",
+      "join-community", "kot", "login", "my-earnings", "my-orders", "newlogin",
+      "offers", "onboard", "order", "partner", "partnerlogin", "pricing",
+      "privacy-policy", "product", "profile", "qrScan", "reel-analytics",
+      "refund-policy", "sentry-example-page", "solutions", "superadmin",
+      "superLogin", "terms-and-conditions", "test", "tutorials", "user-map",
+      "whatsappQr",
+    ]);
+    return !knownRoutes.has(segments[0]);
+  })();
+
   // Don't show on /captain* routes, otherwise show if items exist
-  const shouldShow = items.length > 0 && !pathname.startsWith("/captain") && !pathname.startsWith("/kot") && !pathname.startsWith("/bill") && !pathname.startsWith("/whatsappQr") && !pathname.startsWith("/get-started") && !pathname.startsWith("/admin-v2") && !pathname.startsWith("/pricing") && !pathname.startsWith("/hotels") && !pathname.startsWith("/qrScan") && !pathname.startsWith("/business");
+  const shouldShow = items.length > 0 && !isUsernameRoute && !pathname.startsWith("/captain") && !pathname.startsWith("/kot") && !pathname.startsWith("/bill") && !pathname.startsWith("/whatsappQr") && !pathname.startsWith("/get-started") && !pathname.startsWith("/admin-v2") && !pathname.startsWith("/pricing") && !pathname.startsWith("/hotels") && !pathname.startsWith("/qrScan") && !pathname.startsWith("/business");
 
   if (!shouldShow) return null;
 
