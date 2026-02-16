@@ -96,6 +96,24 @@ function GoogleSyncAnimationInner({ onComplete }: { onComplete: () => void }) {
         </div>
       </div>
 
+      {/* Sync button */}
+      <div className="w-full bg-[#fcfbf7] rounded-lg md:rounded-xl shadow-md border border-stone-200 px-3 md:px-5 py-2 md:py-3">
+        <div className={`w-full flex items-center justify-center gap-1.5 md:gap-2 rounded-md md:rounded-lg py-1.5 md:py-2.5 px-3 md:px-4 transition-all duration-300 ${
+          completedSteps >= SYNC_STEPS.length ? "bg-[#a64e2a]" : "bg-[#a64e2a]"
+        }`}>
+          {completedSteps < SYNC_STEPS.length ? (
+            <div className="w-3 h-3 md:w-4 md:h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <svg className="w-3 h-3 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+          <span className="text-[9px] md:text-xs font-semibold text-white">
+            {completedSteps >= SYNC_STEPS.length ? "Sync Complete!" : "Syncing to Google..."}
+          </span>
+        </div>
+      </div>
+
     </div>
   );
 }

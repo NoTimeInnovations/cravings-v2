@@ -99,6 +99,18 @@ function SmartQRAnimationInner({ onComplete }: { onComplete: () => void }) {
         </div>
       </div>
 
+      {/* Menu link bar */}
+      <div className="w-full bg-[#fcfbf7] rounded-lg md:rounded-xl shadow-md border border-stone-200 px-3 md:px-5 py-2 md:py-3">
+        <div className="flex items-center gap-1.5 md:gap-2">
+          <svg className="w-2.5 h-2.5 md:w-4 md:h-4 text-stone-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+          <span className="text-[10px] md:text-sm text-stone-600 truncate">
+            menuthere.com/your-restaurant
+          </span>
+        </div>
+      </div>
+
     </div>
   );
 }
