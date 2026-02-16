@@ -29,13 +29,13 @@ export default function Hero() {
       <div className="w-full max-w-2xl mx-auto text-center flex flex-col items-center">
         {/* Heading */}
         <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-gray-900 tracking-tight">
-          Update your menu in seconds with Menuthere
+          Create your restaurant&apos;s digital menu in minutes
         </h1>
 
         {/* Subtitle */}
         <p className="geist-font text-base md:text-lg text-[#544b47] max-w-md mt-5 leading-relaxed">
-          Create a stunning QR code menu in minutes. No app needed — just scan,
-          browse &amp; order.
+          Beautiful QR code menus with real-time updates, Google Business sync
+          &amp; analytics. No app needed — just scan and order.
         </p>
 
         {/* CTA Buttons */}

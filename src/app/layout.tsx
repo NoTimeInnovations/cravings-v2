@@ -15,9 +15,10 @@ import type { DomainConfig } from "@/lib/domain-utils";
 
 const MENUTHERE_CONFIG: DomainConfig = {
   name: "Menuthere",
-  title: "Menuthere",
+  title:
+    "Menuthere | Free QR Code Digital Menu for Restaurants, Cafes & Hotels",
   description:
-    "Menuthere is the all-in-one platform for restaurants to manage digital menus, orders, and grow their business. Create your QR menu in minutes.",
+    "Create your free QR code digital menu in minutes. Real-time updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants, cafes & hotels.",
   logo: "/menuthere-logo.png",
   icon: "/menuthere-logo.png",
   logowhite: "/menuthere-white.png",
@@ -25,9 +26,10 @@ const MENUTHERE_CONFIG: DomainConfig = {
 };
 
 export const metadata: Metadata = {
-  title: "Menuthere",
+  title:
+    "Menuthere | Free QR Code Digital Menu for Restaurants, Cafes & Hotels",
   description:
-    "Menuthere is the all-in-one platform for restaurants to manage digital menus, orders, and grow their business. Create your QR menu in minutes.",
+    "Create your free QR code digital menu in minutes. Real-time updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants, cafes & hotels.",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "32x32" },
@@ -50,9 +52,10 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "Menuthere",
+    title:
+      "Menuthere | Free QR Code Digital Menu for Restaurants, Cafes & Hotels",
     description:
-      "Menuthere is the all-in-one platform for restaurants to manage digital menus, orders, and grow their business. Create your QR menu in minutes.",
+      "Create your free QR code digital menu in minutes. Real-time updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants, cafes & hotels.",
     type: "website",
     images: ["/og_image.png"],
   },

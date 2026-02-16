@@ -96,25 +96,6 @@ function GoogleSyncAnimationInner({ onComplete }: { onComplete: () => void }) {
         </div>
       </div>
 
-      {/* Status bar */}
-      <div className="w-full bg-[#fcfbf7] rounded-lg md:rounded-xl shadow-md border border-stone-200 px-3 md:px-5 py-2 md:py-3.5">
-        <div className="flex items-center justify-between">
-          <span className="text-[9px] md:text-xs font-medium text-stone-500">
-            {completedSteps >= SYNC_STEPS.length
-              ? "Sync complete!"
-              : `Syncing ${SYNC_STEPS[Math.min(completedSteps, SYNC_STEPS.length - 1)].label.toLowerCase()}...`}
-          </span>
-          <span className="text-[9px] md:text-xs font-bold text-stone-700">
-            {Math.round((completedSteps / SYNC_STEPS.length) * 100)}%
-          </span>
-        </div>
-        <div className="w-full h-1 md:h-1.5 bg-stone-100 rounded-full overflow-hidden mt-1 md:mt-2">
-          <div
-            className="h-full bg-[#a64e2a] rounded-full transition-all duration-700 ease-out"
-            style={{ width: `${(completedSteps / SYNC_STEPS.length) * 100}%` }}
-          />
-        </div>
-      </div>
     </div>
   );
 }

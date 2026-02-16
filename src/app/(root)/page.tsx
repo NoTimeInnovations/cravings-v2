@@ -11,9 +11,9 @@ import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
 
 export const metadata: Metadata = {
   title:
-    "Menuthere | #1 QR Code Digital Menu for Restaurants, Cafes & Hotels",
+    "Menuthere | Free QR Code Digital Menu for Restaurants, Cafes & Hotels",
   description:
-    "Create a stunning QR code digital menu for your restaurant in minutes. Real-time updates, Google Business sync, table ordering, POS billing, and zero printing costs. Trusted by 1,000+ restaurants. Start free.",
+    "Create your restaurant's free QR code digital menu in minutes. Instant updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants, cafes & hotels. Start free today.",
   keywords: [
     "digital menu",
     "QR code menu",
@@ -22,28 +22,28 @@ export const metadata: Metadata = {
     "QR menu creator",
     "restaurant digital menu",
     "online menu for restaurant",
-    "table ordering system",
-    "restaurant POS",
     "Google Business menu sync",
     "restaurant technology",
     "digital menu for cafes",
     "digital menu for hotels",
-    "QR ordering system",
+    "QR menu for restaurant",
     "restaurant management software",
   ],
   openGraph: {
-    title: "Menuthere | #1 QR Code Digital Menu for Restaurants",
+    title:
+      "Menuthere | Free QR Code Digital Menu for Restaurants, Cafes & Hotels",
     description:
-      "Create a stunning QR code digital menu in minutes. Real-time updates, Google Business sync, and table ordering. Trusted by 1,000+ restaurants.",
+      "Create your restaurant's free QR code digital menu in minutes. Instant updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants.",
     images: ["/og_image.png"],
     type: "website",
     url: "https://menuthere.com",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Menuthere | #1 QR Code Digital Menu for Restaurants",
+    title:
+      "Menuthere | Free QR Code Digital Menu for Restaurants, Cafes & Hotels",
     description:
-      "Create a stunning QR code digital menu in minutes. Trusted by 1,000+ restaurants.",
+      "Create your restaurant's free QR code digital menu in minutes. Instant updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants.",
     images: ["/og_image.png"],
   },
   alternates: {
@@ -65,7 +65,7 @@ export default function Home() {
       description: "Free digital menu plan with unlimited items and QR code generation",
     },
     description:
-      "Menuthere is the all-in-one digital menu platform for restaurants, cafes, and hotels. Create QR code menus, sync to Google Business Profile, accept table orders, and manage billing — all from one dashboard.",
+      "Menuthere is the all-in-one digital menu platform for restaurants, cafes, and hotels. Create QR code menus, sync to Google Business Profile, run dynamic offers, and track analytics — all from one dashboard.",
     url: "https://menuthere.com",
     aggregateRating: {
       "@type": "AggregateRating",
@@ -77,9 +77,7 @@ export default function Home() {
       "QR Code Digital Menu",
       "Google Business Profile Sync",
       "Real-Time Menu Updates",
-      "Table Ordering System",
-      "POS Billing",
-      "Kitchen Order Tickets (KOT)",
+      "Dynamic Offers & Promotions",
       "Analytics & Insights",
       "Google Reviews Booster",
       "Custom Branding & Themes",

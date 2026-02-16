@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 const MENU_ITEMS = [
   { name: "Butter Chicken", price: "$12.00", emoji: "🍛" },
   { name: "Caesar Salad", price: "$8.50", emoji: "🥗" },
-  { name: "Margherita Pizza", price: "$10.00", emoji: "🍕" },
 ];
 
 function SmartQRAnimationInner({ onComplete }: { onComplete: () => void }) {
@@ -19,7 +18,6 @@ function SmartQRAnimationInner({ onComplete }: { onComplete: () => void }) {
     timers.push(setTimeout(() => setPhase("menu"), 2200));
     timers.push(setTimeout(() => setVisibleItems(1), 2600));
     timers.push(setTimeout(() => setVisibleItems(2), 2900));
-    timers.push(setTimeout(() => setVisibleItems(3), 3200));
     timers.push(setTimeout(onComplete, 5500));
 
     return () => timers.forEach(clearTimeout);
@@ -70,7 +68,7 @@ function SmartQRAnimationInner({ onComplete }: { onComplete: () => void }) {
           )}
 
           {phase === "menu" && (
-            <div className="flex flex-col gap-1.5 md:gap-3">
+            <div className="flex flex-col gap-1.5 md:gap-3 h-[100px] md:h-[180px] justify-center">
               <p className="text-[10px] md:text-sm font-semibold text-stone-900 mb-0.5 md:mb-1">
                 Digital Menu
               </p>
@@ -101,16 +99,6 @@ function SmartQRAnimationInner({ onComplete }: { onComplete: () => void }) {
         </div>
       </div>
 
-      {/* Bottom label */}
-      <div className="w-full bg-[#fcfbf7] rounded-lg md:rounded-xl shadow-md border border-stone-200 px-3 md:px-5 py-1.5 md:py-3 text-center">
-        <p className="text-[8px] md:text-xs text-stone-500 font-medium">
-          {phase === "scan"
-            ? "Customer scans QR code"
-            : phase === "loading"
-              ? "No app download needed"
-              : "Full menu loads instantly"}
-        </p>
-      </div>
     </div>
   );
 }

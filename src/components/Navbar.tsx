@@ -232,6 +232,8 @@ export function Navbar() {
     string | null
   >(null);
   const navContainerRef = useRef<HTMLDivElement>(null);
+  const solutionsDropdownRef = useRef<HTMLDivElement>(null);
+  const resourcesDropdownRef = useRef<HTMLDivElement>(null);
   const [pillStyle, setPillStyle] = useState({ left: 0, width: 0, opacity: 0 });
 
   const toggleMobileSection = (section: string) => {
@@ -255,6 +257,39 @@ export function Navbar() {
   const handleNavLeave = () => {
     setPillStyle((prev) => ({ ...prev, opacity: 0 }));
   };
+
+  // Clamp dropdown horizontally so it never overflows the viewport
+  const clampDropdownToViewport = (el: HTMLDivElement | null) => {
+    if (!el) return;
+    el.style.marginLeft = "0px";
+    requestAnimationFrame(() => {
+      const rect = el.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const gap = 16;
+      if (rect.right > vw - gap) {
+        el.style.marginLeft = `${vw - gap - rect.right}px`;
+      } else if (rect.left < gap) {
+        el.style.marginLeft = `${gap - rect.left}px`;
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (isSolutionsOpen) clampDropdownToViewport(solutionsDropdownRef.current);
+  }, [isSolutionsOpen]);
+
+  useEffect(() => {
+    if (isResourcesOpen) clampDropdownToViewport(resourcesDropdownRef.current);
+  }, [isResourcesOpen]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (isSolutionsOpen) clampDropdownToViewport(solutionsDropdownRef.current);
+      if (isResourcesOpen) clampDropdownToViewport(resourcesDropdownRef.current);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [isSolutionsOpen, isResourcesOpen]);
 
   const isUserOrGuest = userData?.role === "user" || !userData?.role;
 
@@ -507,64 +542,69 @@ export function Navbar() {
 
             {/* Mega Menu Dropdown */}
             <div
+              ref={solutionsDropdownRef}
               className={cn(
-                "absolute top-full left-1/2 -translate-x-1/2 mt-4 w-[900px] bg-white rounded-xl shadow-xl p-6 transition-all duration-200 z-[70] border border-gray-100 before:absolute before:-top-2 before:left-0 before:right-0 before:h-4 before:bg-transparent cursor-default",
-                isSolutionsOpen ? "opacity-100 visible" : "opacity-0 invisible",
+                "absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[820px] max-w-[calc(100vw-2rem)] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_12px_60px_-10px_rgba(0,0,0,0.2)] transition-all duration-300 ease-out z-[70] border border-stone-200/60 before:absolute before:-top-3 before:left-0 before:right-0 before:h-4 before:bg-transparent cursor-default",
+                isSolutionsOpen ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2",
               )}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Featured: Google Business */}
-              <Link
-                href="/solutions/google-business"
-                className="flex items-center gap-3 p-3 mb-4 rounded-lg bg-[#e65a22]/10 border border-[#e65a22]/20 hover:shadow-md transition-all group/gbp"
-                onClick={() => setIsSolutionsOpen(false)}
-              >
-                <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center shadow-sm overflow-hidden">
-                  <Image
-                    src="/google_business_logo.png"
-                    alt="Google Business"
-                    width={36}
-                    height={36}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-gray-900 font-semibold text-sm group-hover/gbp:text-[#e65a22] transition-colors">
-                      Google Business Profile Sync
-                    </h3>
-                    <span className="px-1.5 py-0.5 bg-[#e65a22] text-white text-[10px] font-bold rounded uppercase leading-none">
-                      New
-                    </span>
+              <div className="px-5 pt-5 pb-4">
+                <Link
+                  href="/solutions/google-business"
+                  className="flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r from-[#a64e2a]/8 to-[#a64e2a]/4 border border-[#a64e2a]/10 hover:border-[#a64e2a]/25 hover:from-[#a64e2a]/12 hover:to-[#a64e2a]/6 transition-all duration-200 group/gbp"
+                  onClick={() => setIsSolutionsOpen(false)}
+                >
+                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm overflow-hidden ring-1 ring-stone-100">
+                    <Image
+                      src="/google_business_logo.png"
+                      alt="Google Business"
+                      width={36}
+                      height={36}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                  <p className="text-gray-500 text-xs mt-0.5 leading-snug">
-                    Sync your menu to Google Maps automatically
-                  </p>
-                </div>
-              </Link>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-stone-900 font-semibold text-sm group-hover/gbp:text-[#a64e2a] transition-colors">
+                        Google Business Profile Sync
+                      </h3>
+                      <span className="px-1.5 py-0.5 bg-[#a64e2a] text-white text-[9px] font-bold rounded-md uppercase leading-none tracking-wide">
+                        New
+                      </span>
+                    </div>
+                    <p className="text-stone-500 text-xs mt-0.5">
+                      Sync your menu to Google Maps automatically
+                    </p>
+                  </div>
+                </Link>
+              </div>
 
-              <div className="grid grid-cols-[1fr_2fr] gap-x-4">
+              <div className="h-px bg-stone-100 mx-5" />
+
+              <div className="grid grid-cols-[1fr_2fr] gap-0 p-5">
                 {/* Roles Column */}
-                <div className="space-y-4">
-                  <h4 className="text-gray-900 font-medium text-base px-2">
-                    Roles
+                <div className="pr-5 border-r border-stone-100">
+                  <h4 className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider mb-3 px-2">
+                    By Role
                   </h4>
-                  <div className="space-y-2">
+                  <div className="space-y-0.5">
                     {SOLUTIONS_ROLES.map((item) => (
                       <Link
                         key={item.title}
                         href={item.href}
-                        className="flex items-start gap-3 group/item hover:bg-gray-50 p-2 rounded-lg transition-colors"
+                        className="flex items-center gap-3 group/item hover:bg-stone-50 px-2 py-2.5 rounded-lg transition-colors"
                         onClick={() => setIsSolutionsOpen(false)}
                       >
-                        <div className="mt-0.5">
-                          <item.icon className="w-5 h-5 text-orange-600" />
+                        <div className="w-8 h-8 rounded-lg bg-stone-100/80 flex items-center justify-center flex-shrink-0 group-hover/item:bg-[#a64e2a]/10 transition-colors">
+                          <item.icon className="w-4 h-4 text-stone-500 group-hover/item:text-[#a64e2a] transition-colors" />
                         </div>
                         <div>
-                          <h3 className="text-gray-900 font-semibold text-sm group-hover/item:text-orange-600 transition-colors">
+                          <h3 className="text-stone-800 font-medium text-[13px] group-hover/item:text-[#a64e2a] transition-colors">
                             {item.title}
                           </h3>
-                          <p className="text-gray-500 text-xs mt-0.5 leading-snug">
+                          <p className="text-stone-400 text-[11px] leading-snug">
                             {item.description}
                           </p>
                         </div>
@@ -574,28 +614,25 @@ export function Navbar() {
                 </div>
 
                 {/* Industries Column */}
-                <div className="space-y-4">
-                  <h4 className="text-gray-900 font-medium text-base px-2">
-                    Industries
+                <div className="pl-5">
+                  <h4 className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider mb-3 px-2">
+                    By Industry
                   </h4>
-                  <div className="space-y-2 grid grid-cols-2">
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
                     {SOLUTIONS_INDUSTRIES.map((item) => (
                       <Link
                         key={item.title}
                         href={item.href}
-                        className="flex items-start gap-3 group/item hover:bg-gray-50 p-2 rounded-lg transition-colors"
+                        className="flex items-center gap-2.5 group/item hover:bg-stone-50 px-2 py-2 rounded-lg transition-colors"
                         onClick={() => setIsSolutionsOpen(false)}
                       >
-                        <div className="mt-0.5">
-                          <item.icon className="w-5 h-5 text-orange-600" />
+                        <div className="w-7 h-7 rounded-md bg-stone-100/80 flex items-center justify-center flex-shrink-0 group-hover/item:bg-[#a64e2a]/10 transition-colors">
+                          <item.icon className="w-3.5 h-3.5 text-stone-500 group-hover/item:text-[#a64e2a] transition-colors" />
                         </div>
                         <div>
-                          <h3 className="text-gray-900 font-semibold text-sm group-hover/item:text-orange-600 transition-colors">
+                          <h3 className="text-stone-700 font-medium text-[13px] group-hover/item:text-[#a64e2a] transition-colors leading-tight">
                             {item.title}
                           </h3>
-                          <p className="text-gray-500 text-xs mt-0.5 leading-snug">
-                            {item.description}
-                          </p>
                         </div>
                       </Link>
                     ))}
@@ -631,28 +668,29 @@ export function Navbar() {
 
             {/* Mega Menu Dropdown */}
             <div
+              ref={resourcesDropdownRef}
               className={cn(
-                "absolute top-full left-1/2 -translate-x-1/2 mt-4 w-[600px] bg-white rounded-xl shadow-xl p-6 transition-all duration-200 z-[70] border border-gray-100 before:absolute before:-top-2 before:left-0 before:right-0 before:h-4 before:bg-transparent cursor-default",
-                isResourcesOpen ? "opacity-100 visible" : "opacity-0 invisible",
+                "absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[320px] max-w-[calc(100vw-2rem)] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_12px_60px_-10px_rgba(0,0,0,0.2)] transition-all duration-300 ease-out z-[70] border border-stone-200/60 before:absolute before:-top-3 before:left-0 before:right-0 before:h-4 before:bg-transparent cursor-default",
+                isResourcesOpen ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2",
               )}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+              <div className="p-3 space-y-0.5">
                 {RESOURCES.map((item) => (
                   <Link
                     key={item.title}
                     href={item.href}
-                    className="flex items-start gap-4 group/item hover:bg-gray-50 p-2 -mx-2 rounded-lg transition-colors"
+                    className="flex items-center gap-3 group/item hover:bg-stone-50 px-3 py-3 rounded-xl transition-colors"
                     onClick={() => setIsResourcesOpen(false)}
                   >
-                    <div className="mt-1">
-                      <item.icon className="w-5 h-5 text-orange-600" />
+                    <div className="w-9 h-9 rounded-lg bg-stone-100/80 flex items-center justify-center flex-shrink-0 group-hover/item:bg-[#a64e2a]/10 transition-colors">
+                      <item.icon className="w-4 h-4 text-stone-500 group-hover/item:text-[#a64e2a] transition-colors" />
                     </div>
                     <div>
-                      <h3 className="text-gray-900 font-semibold text-sm group-hover/item:text-orange-600 transition-colors">
+                      <h3 className="text-stone-800 font-medium text-[13px] group-hover/item:text-[#a64e2a] transition-colors">
                         {item.title}
                       </h3>
-                      <p className="text-gray-500 text-xs mt-0.5 leading-snug">
+                      <p className="text-stone-400 text-[11px] leading-snug">
                         {item.description}
                       </p>
                     </div>
