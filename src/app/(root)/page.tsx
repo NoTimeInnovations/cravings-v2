@@ -1,14 +1,24 @@
-import React from "react";
+import React, { Suspense } from "react";
 import type { Metadata } from "next";
-import RestaurantMarquee from "@/components/international/RestaurantMarquee";
+import dynamic from "next/dynamic";
 import Hero from "@/components/home/Hero";
-import FAQ from "@/components/home/FAQ";
-import Footer from "@/components/Footer";
-import Chatwoot from "@/components/Chatwoot";
 import { JsonLd } from "@/components/seo/JsonLd";
-import MonitorSection from "@/components/home/MonitorSection";
-import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
-import DashboardAnimation from "@/components/home/DashboardAnimation";
+
+const DashboardAnimation = dynamic(
+  () => import("@/components/home/DashboardAnimation")
+);
+const RestaurantMarquee = dynamic(
+  () => import("@/components/international/RestaurantMarquee")
+);
+const MonitorSection = dynamic(
+  () => import("@/components/home/MonitorSection")
+);
+const StartFreeTrailSection = dynamic(
+  () => import("@/components/home/StartFreeTrailSection")
+);
+const FAQ = dynamic(() => import("@/components/home/FAQ"));
+const Footer = dynamic(() => import("@/components/Footer"));
+const Chatwoot = dynamic(() => import("@/components/Chatwoot"));
 
 export const metadata: Metadata = {
   title:
@@ -116,30 +126,44 @@ export default function Home() {
       <Hero />
 
       {/* DASHBOARD ILLUSTRATION — animated product demo */}
-      <section className="bg-[#fcfbf7]">
-        <DashboardAnimation />
-      </section>
+      <Suspense fallback={<div className="bg-[#fcfbf7] w-full h-[300px] md:h-[420px]" />}>
+        <section className="bg-[#fcfbf7]">
+          <DashboardAnimation />
+        </section>
+      </Suspense>
 
       {/* SOCIAL PROOF — restaurant logo marquee */}
-      <RestaurantMarquee />
+      <Suspense>
+        <RestaurantMarquee />
+      </Suspense>
 
       {/* DIVIDER */}
       <div className="w-full h-px bg-stone-200" />
 
       {/* FEATURES — QR Menu, Google Sync, Updates, Ordering, Analytics, Reviews */}
-      <MonitorSection />
+      <Suspense>
+        <MonitorSection />
+      </Suspense>
 
       {/* CTA — start for free with stats */}
-      <StartFreeTrailSection />
+      <Suspense>
+        <StartFreeTrailSection />
+      </Suspense>
 
       {/* FAQ — SEO-rich questions with structured data */}
-      <FAQ />
+      <Suspense>
+        <FAQ />
+      </Suspense>
 
       {/* FOOTER */}
-      <Footer appName="Menuthere" />
+      <Suspense>
+        <Footer appName="Menuthere" />
+      </Suspense>
 
       {/* CHAT */}
-      <Chatwoot />
+      <Suspense>
+        <Chatwoot />
+      </Suspense>
     </div>
   );
 }

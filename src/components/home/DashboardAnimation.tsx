@@ -184,8 +184,8 @@ function MenuPreview({
               )}
             </div>
           </div>
-          <div className="w-10 h-10 md:w-16 md:h-16 rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-[#F4E0D0]/40 to-[#a64e2a]/10 flex items-center justify-center text-base md:text-2xl">
-            🥩
+          <div className="w-10 h-10 md:w-16 md:h-16 rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0">
+            <img src="/dashboard/brisket.webp" alt="Smoked BBQ Brisket" className="w-full h-full object-cover" />
           </div>
         </div>
 
@@ -200,8 +200,8 @@ function MenuPreview({
             </p>
             <p className="text-[8px] md:text-[11px] font-bold text-[#B5581A] mt-0.5 md:mt-1">$14.00</p>
           </div>
-          <div className="w-10 h-10 md:w-16 md:h-16 rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0 bg-[#F4E0D0]/20 flex items-center justify-center text-base md:text-2xl">
-            🍔
+          <div className="w-10 h-10 md:w-16 md:h-16 rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0">
+            <img src="/dashboard/burger.webp" alt="Classic Cheeseburger" className="w-full h-full object-cover" />
           </div>
         </div>
 
@@ -216,8 +216,8 @@ function MenuPreview({
             </p>
             <p className="text-[8px] md:text-[11px] font-bold text-[#B5581A] mt-0.5 md:mt-1">$22.00</p>
           </div>
-          <div className="w-10 h-10 md:w-16 md:h-16 rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0 bg-[#F4E0D0]/20 flex items-center justify-center text-base md:text-2xl">
-            🐟
+          <div className="w-10 h-10 md:w-16 md:h-16 rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0">
+            <img src="/dashboard/salmon.webp" alt="Grilled Salmon" className="w-full h-full object-cover" />
           </div>
         </div>
       </div>
@@ -419,7 +419,9 @@ function DashboardAnimationInner({ onComplete }: { onComplete: () => void }) {
             {/* Image */}
             <div className="mb-2.5 md:mb-4">
               <label className="text-[8px] md:text-[11px] font-medium text-stone-500 mb-0.5 md:mb-1 block">Image</label>
-              <div className="w-10 h-10 md:w-14 md:h-14 rounded-md border border-dashed border-stone-300 bg-stone-50 flex items-center justify-center text-lg md:text-2xl">🥩</div>
+              <div className="w-10 h-10 md:w-14 md:h-14 rounded-md border border-dashed border-stone-300 overflow-hidden">
+                <img src="/dashboard/brisket.webp" alt="Smoked BBQ Brisket" className="w-full h-full object-cover" />
+              </div>
             </div>
 
             {/* Action Buttons */}

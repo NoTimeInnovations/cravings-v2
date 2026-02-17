@@ -16,7 +16,7 @@ const FEATURES = [
       "Customers scan a QR code and instantly browse your full menu on their phone. No app downloads, no waiting. A beautiful, mobile-first menu with high-quality images, dietary filters, and smart search — designed to increase average order value by up to 25%.",
     href: "/solutions/restaurants",
     cta: "Learn more about Digital Menu",
-    image: "/features/smartqr-v2.png",
+    image: "/features/smartqr-v2.webp",
   },
   {
     title: "Google Business Menu Sync",
@@ -24,7 +24,7 @@ const FEATURES = [
       "Automatically sync your complete menu — categories, items, prices, and photos — to your Google Business Profile in one click. Show up on Google Maps with a full menu. Restaurants with complete profiles get 7x more clicks and drive 30% more footfall.",
     href: "/solutions/google-business",
     cta: "See how Google Sync works",
-    image: "/features/syncmenu-v2.png",
+    image: "/features/syncmenu-v2.webp",
   },
   {
     title: "Real-Time Menu Updates",
@@ -32,7 +32,7 @@ const FEATURES = [
       "Change prices, add new items, toggle availability, or run time-based offers — all in real-time. Updates reflect instantly on your digital menu. No reprints, no designers, no delays. Save thousands annually on printing costs alone.",
     href: "/get-started",
     cta: "Explore menu management",
-    image: "/features/realtimesync-v2.png",
+    image: "/features/realtimesync-v2.webp",
   },
   {
     title: "Dynamic Offers & Promotions",
@@ -40,7 +40,7 @@ const FEATURES = [
       "Run flash deals, happy-hour specials, or time-based discounts that activate and expire automatically. Highlight best-sellers with Must-Try badges and Chef's Choice tags. Drive repeat visits and boost revenue without printing a single flyer.",
     href: "/solutions/owners",
     cta: "See how offers work",
-    image: "/features/offersandpromo-v2.png",
+    image: "/features/offersandpromo-v2.webp",
   },
   {
     title: "Analytics & Insights",
@@ -48,7 +48,7 @@ const FEATURES = [
       "Track daily scan volumes, peak hour heatmaps, device usage, and best-selling items. Make data-driven decisions about your pricing, promotions, and menu placement. Know exactly what is working and what needs attention.",
     href: "/solutions/owners",
     cta: "Learn about analytics",
-    image: "/features/analytics-v2.png",
+    image: "/features/analytics-v2.webp",
   },
   {
     title: "Google Reviews Booster",
@@ -56,7 +56,7 @@ const FEATURES = [
       "Automatically prompt customers to leave a Google review after scanning your menu. Build your 5-star rating effortlessly. Display real-time Google reviews on your digital menu to build instant trust with new customers.",
     href: "/solutions/restaurants",
     cta: "Boost your reviews",
-    image: "/features/googelreview-v2.png",
+    image: "/features/googelreview-v2.webp",
   },
 ];
 
