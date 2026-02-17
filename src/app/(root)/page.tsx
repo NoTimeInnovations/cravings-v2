@@ -8,6 +8,7 @@ import Chatwoot from "@/components/Chatwoot";
 import { JsonLd } from "@/components/seo/JsonLd";
 import MonitorSection from "@/components/home/MonitorSection";
 import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
+import DashboardAnimation from "@/components/home/DashboardAnimation";
 
 export const metadata: Metadata = {
   title:
@@ -113,6 +114,11 @@ export default function Home() {
 
       {/* HERO — headline, CTA, menu upload */}
       <Hero />
+
+      {/* DASHBOARD ILLUSTRATION — animated product demo */}
+      <section className="bg-[#fcfbf7]">
+        <DashboardAnimation />
+      </section>
 
       {/* SOCIAL PROOF — restaurant logo marquee */}
       <RestaurantMarquee />
