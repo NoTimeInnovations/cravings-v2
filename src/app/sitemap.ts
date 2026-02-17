@@ -8,7 +8,6 @@ const getAllActivePartnersForSitemap = `
     partners(where: {status: {_eq: "active"}}) {
       id
       store_name
-      updated_at
     }
   }
 `;
@@ -18,7 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let hotelEntries: MetadataRoute.Sitemap = [];
   try {
     const data = await fetchFromHasura(getAllActivePartnersForSitemap);
-    const partners: { id: string; store_name: string; updated_at: string }[] =
+    const partners: { id: string; store_name: string }[] =
       data?.partners || [];
 
     hotelEntries = partners.map((partner) => {
@@ -27,9 +26,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       );
       return {
         url: `${BASE_URL}/hotels/${slug}/${partner.id}`,
-        lastModified: partner.updated_at
-          ? new Date(partner.updated_at)
-          : new Date(),
+        lastModified: new Date(),
         changeFrequency: "weekly" as const,
         priority: 0.8,
       };
