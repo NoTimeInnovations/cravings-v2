@@ -3,6 +3,9 @@ import HelpCenterFacebook from "./FacebookSupport";
 import HelpCenterContactForm from "./ContactForm";
 import HelpCenterWhatsApp from "./WhatsAppSupport";
 import { JsonLd } from "@/components/seo/JsonLd";
+import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
+import Footer from "@/components/Footer";
+import Chatwoot from "@/components/Chatwoot";
 import {
     Accordion,
     AccordionContent,
@@ -37,7 +40,7 @@ const FAQS = [
     },
     {
         question: "How do I instantly update my menu products?",
-        answer: "Go to the Menu section in your dashboard. You’ll see all categories and products listed-click any to edit details like name, price, image, or description, then save for instant updates."
+        answer: "Go to the Menu section in your dashboard. You'll see all categories and products listed-click any to edit details like name, price, image, or description, then save for instant updates."
     },
     {
         question: "How do I rearrange menu items or categories?",
@@ -45,7 +48,7 @@ const FAQS = [
     },
     {
         question: "How do I add offers or specials to menu items?",
-        answer: "For Specials/Best Sellers: In Menu section, toggle the option per item-they’ll appear as Must-Try at the top. For custom offers: Go to Offers section, create single/multi-item deals, and they activate instantly."
+        answer: "For Specials/Best Sellers: In Menu section, toggle the option per item-they'll appear as Must-Try at the top. For custom offers: Go to Offers section, create single/multi-item deals, and they activate instantly."
     },
     {
         question: "Hard to update banners or product images without tech help?",
@@ -84,52 +87,82 @@ export default function HelpCenterPage() {
     };
 
     return (
-        <div className="py-36 px-5 sm:px-0">
+        <div className="min-h-screen w-full bg-white geist-font">
             <JsonLd data={faqSchema} />
-            <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
-                <div className="space-y-2 text-center pb-6">
-                    <h1 className="text-3xl font-bold tracking-tight">Help & Support</h1>
-                    <p className="text-muted-foreground">
+
+            {/* Hero Header */}
+            <section className="flex items-center justify-center px-5 pb-16 pt-32 md:pt-40 bg-[#fcfbf7]">
+                <div className="w-full max-w-2xl mx-auto text-center">
+                    <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-stone-900 tracking-tight">
+                        Help &{" "}
+                        <span className="text-stone-500 italic">Support.</span>
+                    </h1>
+                    <p className="geist-font text-lg text-stone-500 max-w-md mx-auto mt-5 leading-relaxed">
                         Need assistance? Reach out to us via email or chat directly on WhatsApp.
                     </p>
                 </div>
+            </section>
 
-                <div className="grid md:grid-cols-2 gap-8">
-                    {/* Contact Form */}
-                    <HelpCenterContactForm />
+            {/* Divider */}
+            <div className="w-full h-px bg-stone-200" />
 
-                    {/* Chat Support Options */}
-                    <div className="flex flex-col gap-4">
-                        <div className="flex-1">
-                            <HelpCenterWhatsApp />
-                        </div>
-                        <div className="flex-1">
-                            <HelpCenterFacebook />
+            {/* Contact & Support */}
+            <section className="bg-white border-l border-r border-stone-200 sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] mx-auto py-16">
+                <div className="max-w-4xl mx-auto px-6">
+                    <div className="grid md:grid-cols-2 gap-8">
+                        <HelpCenterContactForm />
+                        <div className="flex flex-col gap-4">
+                            <div className="flex-1">
+                                <HelpCenterWhatsApp />
+                            </div>
+                            <div className="flex-1">
+                                <HelpCenterFacebook />
+                            </div>
                         </div>
                     </div>
                 </div>
+            </section>
 
-                {/* FAQ Section */}
-                <div className="bg-card text-card-foreground p-6 rounded-3xl border border-border space-y-4">
-                    <h3 className="font-semibold text-foreground">Common Questions</h3>
+            {/* Divider */}
+            <div className="w-full h-px bg-stone-200" />
+
+            {/* FAQ Section */}
+            <section className="py-24 bg-white sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] mx-auto border-r border-l border-stone-200">
+                <div className="max-w-3xl mx-auto px-6 lg:px-8">
+                    <div className="text-center mb-14">
+                        <h2 className="geist-font text-3xl md:text-5xl font-semibold text-gray-900 tracking-tight">
+                            Frequently asked{" "}
+                            <span className="text-gray-400 italic">questions.</span>
+                        </h2>
+                    </div>
+
                     <Accordion type="single" collapsible className="w-full">
                         {FAQS.map((faq, index) => (
                             <AccordionItem
                                 key={index}
                                 value={`item-${index}`}
-                                className="border-b border-border last:border-0"
+                                className="border-b border-gray-200 last:border-b-0 py-1"
                             >
-                                <AccordionTrigger className="text-left text-sm font-medium hover:no-underline py-3">
+                                <AccordionTrigger className="text-left text-base font-medium text-gray-900 hover:no-underline py-5">
                                     {faq.question}
                                 </AccordionTrigger>
-                                <AccordionContent className="text-sm text-muted-foreground pb-4">
+                                <AccordionContent className="text-gray-600 text-sm leading-relaxed pb-5">
                                     {faq.answer}
                                 </AccordionContent>
                             </AccordionItem>
                         ))}
                     </Accordion>
                 </div>
-            </div>
+            </section>
+
+            {/* CTA */}
+            <StartFreeTrailSection />
+
+            {/* Footer */}
+            <Footer appName="Menuthere" />
+
+            {/* Chat */}
+            <Chatwoot />
         </div>
     );
 }

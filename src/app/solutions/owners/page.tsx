@@ -1,11 +1,11 @@
 import { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
-import { SolutionsHero } from "@/components/solutions/SolutionsHero";
-import { SolutionsBenefits } from "@/components/solutions/SolutionsBenefits";
-import { SolutionsFeatures } from "@/components/solutions/SolutionsFeatures";
+import { ButtonV2 } from "@/components/ui/ButtonV2";
+import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
+import Footer from "@/components/Footer";
+import Chatwoot from "@/components/Chatwoot";
 import ownersData from "@/content/solutions/owners.json";
-import { ArrowRight, Star } from "lucide-react";
+import { Star, CheckCircle2 } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Restaurant Owner Solutions | Menuthere",
@@ -14,52 +14,149 @@ export const metadata: Metadata = {
 };
 
 export default function OwnersPage() {
-  const features = ownersData.features.map((f) => ({
-    ...f,
-    imagePosition: f.imagePosition as "left" | "right" | undefined,
-  }));
-
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-white geist-font">
       {/* Hero Section */}
-      <SolutionsHero data={ownersData.hero} />
+      <section className="flex items-center justify-center px-5 pb-16 pt-32 md:pt-40 bg-[#fcfbf7]">
+        <div className="w-full max-w-2xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F4E0D0]/70 text-[#B5581A] text-xs font-medium mb-6">
+            {ownersData.hero.eyebrow}
+          </div>
+          <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-stone-900 tracking-tight">
+            {ownersData.hero.headline}
+          </h1>
+          <p className="geist-font text-lg text-stone-500 max-w-lg mx-auto mt-5 leading-relaxed">
+            {ownersData.hero.subheadline}
+          </p>
+          <div className="flex items-center gap-3 mt-8 justify-center">
+            <ButtonV2 href="/get-started" variant="primary">
+              Get Started
+            </ButtonV2>
+            <ButtonV2 href="https://cal.id/menuthere" variant="secondary">
+              Book a Demo
+            </ButtonV2>
+          </div>
+        </div>
+      </section>
+
+      {/* Divider */}
+      <div className="w-full h-px bg-stone-200" />
 
       {/* Benefits Section */}
-      <SolutionsBenefits
-        benefits={ownersData.benefits}
-        eyebrow="Why Menuthere for Owners?"
-      />
+      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
+        <div className="max-w-5xl mx-auto px-6 md:px-16">
+          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-12">
+            Why Menuthere{" "}
+            <span className="text-stone-500">for Owners?</span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {ownersData.benefits.map((benefit, index) => (
+              <div
+                key={index}
+                className="bg-white rounded-xl p-6 border border-stone-200"
+              >
+                <div className="w-10 h-10 rounded-lg bg-[#F4E0D0]/70 flex items-center justify-center mb-4">
+                  <span className="text-[#B5581A] font-semibold text-sm">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                </div>
+                <h3 className="text-base font-semibold text-stone-900 mb-2">
+                  {benefit.title}
+                </h3>
+                <p className="text-stone-500 text-sm leading-relaxed">
+                  {benefit.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-      {/* Features Section */}
-      <SolutionsFeatures features={features} />
+      {/* Divider */}
+      <div className="w-full h-px bg-stone-200" />
+
+      {/* Features Sections */}
+      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%]">
+        {ownersData.features.map((feature, index) => {
+          const isImageRight = feature.imagePosition
+            ? feature.imagePosition === "right"
+            : index % 2 === 0;
+
+          return (
+            <div key={index} className="py-20 border-b border-stone-200 last:border-b-0">
+              <div className="max-w-5xl mx-auto px-6 md:px-16">
+                <div
+                  className={`flex flex-col lg:flex-row items-center gap-12 lg:gap-16 ${
+                    !isImageRight ? "lg:flex-row-reverse" : ""
+                  }`}
+                >
+                  {/* Text Content */}
+                  <div className="flex-1 space-y-5">
+                    <h2 className="geist-font font-semibold text-2xl md:text-3xl text-stone-900 leading-tight">
+                      {feature.title}
+                    </h2>
+                    <p className="text-stone-500 leading-relaxed">
+                      {feature.description}
+                    </p>
+                    <ul className="space-y-3 pt-2">
+                      {feature.list.map((item, idx) => (
+                        <li key={idx} className="flex items-center gap-3">
+                          <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-green-500" />
+                          <span className="text-stone-600 text-sm">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Image */}
+                  <div className="flex-1 w-full">
+                    <div className="relative aspect-[4/3] rounded-xl overflow-hidden border border-stone-200 bg-stone-50">
+                      {feature.image && (
+                        <Image
+                          src={feature.image}
+                          alt={feature.title}
+                          fill
+                          className="object-cover"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </section>
+
+      {/* Divider */}
+      <div className="w-full h-px bg-stone-200" />
 
       {/* Reviews Section */}
-      <section className="py-20 bg-gray-50">
-        <div className="container mx-auto px-4 md:px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-medium text-gray-900 mb-4 tracking-tight">
-              Loved by Restaurant Owners
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
+        <div className="max-w-5xl mx-auto px-6 md:px-16">
+          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-12 text-center">
+            Loved by restaurant{" "}
+            <span className="text-stone-500 italic">owners.</span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {ownersData.reviews.map((review, index) => (
               <div
                 key={index}
-                className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex flex-col"
+                className="bg-white p-6 rounded-xl border border-stone-200 flex flex-col"
               >
                 <div className="flex items-center gap-1 mb-4">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className="w-5 h-5 text-yellow-400 fill-current"
+                      className="w-4 h-4 text-yellow-400 fill-current"
                     />
                   ))}
                 </div>
-                <p className="text-gray-600 mb-6 text-lg italic flex-grow">
-                  "{review.text}"
+                <p className="text-stone-600 mb-6 text-sm leading-relaxed italic flex-grow">
+                  &ldquo;{review.text}&rdquo;
                 </p>
-                <div className="flex items-center gap-4 mt-auto">
-                  <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gray-200">
+                <div className="flex items-center gap-3 mt-auto">
+                  <div className="relative w-10 h-10 rounded-full overflow-hidden bg-stone-100">
                     <Image
                       src={review.avatar}
                       alt={review.author}
@@ -68,10 +165,10 @@ export default function OwnersPage() {
                     />
                   </div>
                   <div>
-                    <div className="font-bold text-gray-900">
+                    <div className="font-semibold text-stone-900 text-sm">
                       {review.author}
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-xs text-stone-500">
                       {review.role}, {review.company}
                     </div>
                   </div>
@@ -82,32 +179,14 @@ export default function OwnersPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-black text-white">
-        <div className="container mx-auto px-4 md:px-6 text-center max-w-3xl">
-          <h2 className="text-3xl md:text-4xl font-medium mb-6 tracking-tight">
-            {ownersData.cta.title}
-          </h2>
-          <p className="text-xl text-gray-400 mb-10">
-            {ownersData.cta.description}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href={ownersData.cta.buttonLink}
-              className="inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-black bg-white rounded-lg hover:bg-gray-100 transition-all"
-            >
-              {ownersData.cta.buttonText}
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </Link>
-            <Link
-              href={ownersData.cta.secondaryButtonLink}
-              className="inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-white border border-gray-700 rounded-lg hover:bg-gray-900 transition-all"
-            >
-              {ownersData.cta.secondaryButtonText}
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* CTA */}
+      <StartFreeTrailSection />
+
+      {/* Footer */}
+      <Footer appName="Menuthere" />
+
+      {/* Chat */}
+      <Chatwoot />
     </main>
   );
 }

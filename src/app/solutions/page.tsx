@@ -1,6 +1,5 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import {
   Utensils,
   Coffee,
@@ -18,17 +17,22 @@ import {
   CheckCircle2,
   Briefcase,
 } from "lucide-react";
+import { ButtonV2 } from "@/components/ui/ButtonV2";
+import RestaurantMarquee from "@/components/international/RestaurantMarquee";
+import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
+import Footer from "@/components/Footer";
+import Chatwoot from "@/components/Chatwoot";
 
 export const metadata: Metadata = {
   title: "Digital Menu Solutions for Every Food Business | Menuthere",
   description:
-    "Transform your food business with smart digital menus. Perfect for restaurants, cafés, bakeries, cloud kitchens, hotels, food trucks, bars, and catering services. QR code menus, real-time updates, Google Business Profile sync.",
+    "Transform your food business with smart digital menus. Perfect for restaurants, cafes, bakeries, cloud kitchens, hotels, food trucks, bars, and catering services. QR code menus, real-time updates, Google Business Profile sync.",
   keywords:
-    "digital menu, QR code menu, restaurant technology, café menu, bakery menu, cloud kitchen, food truck menu, hotel dining, bar menu, catering menu, contactless ordering",
+    "digital menu, QR code menu, restaurant technology, cafe menu, bakery menu, cloud kitchen, food truck menu, hotel dining, bar menu, catering menu, contactless ordering",
   openGraph: {
     title: "Digital Menu Solutions | Menuthere",
     description:
-      "Smart digital menus for restaurants, cafés, bakeries, and more. Real-time updates, beautiful designs, zero printing costs.",
+      "Smart digital menus for restaurants, cafes, bakeries, and more. Real-time updates, beautiful designs, zero printing costs.",
     type: "website",
     url: "https://menuthere.com/solutions",
   },
@@ -40,80 +44,60 @@ const SOLUTIONS = [
     title: "Restaurants",
     shortDesc: "Smart digital menus for dine-in excellence",
     icon: Utensils,
-    color: "bg-[#e65a22]",
-    image: "/images/solutions/restaurant.jpg",
   },
   {
     slug: "cafes",
-    title: "Cafés & Coffee Shops",
+    title: "Cafes & Coffee Shops",
     shortDesc: "Modern menus for the perfect brew experience",
     icon: Coffee,
-    color: "bg-[#e65a22]",
-    image: "/images/solutions/cafe.jpg",
   },
   {
     slug: "bakeries",
     title: "Bakeries & Pastry Shops",
     shortDesc: "Showcase your fresh bakes beautifully",
     icon: Cake,
-    color: "bg-[#e65a22]",
-    image: "/images/solutions/bakery.jpg",
   },
   {
     slug: "cloud-kitchens",
     title: "Cloud Kitchens",
     shortDesc: "Multi-brand menu management made easy",
     icon: ChefHat,
-    color: "bg-[#e65a22]",
-    image: "/images/solutions/cloud-kitchen.jpg",
   },
   {
     slug: "hotels",
     title: "Hotels & Resorts",
     shortDesc: "Elegant dining experiences for guests",
     icon: Building2,
-    color: "bg-[#e65a22]",
-    image: "/images/solutions/hotel.jpg",
   },
   {
     slug: "food-trucks",
     title: "Food Trucks",
     shortDesc: "Mobile menus that go wherever you go",
     icon: Truck,
-    color: "bg-[#e65a22]",
-    image: "/images/solutions/food-truck.jpg",
   },
   {
     slug: "bars",
     title: "Bars & Pubs",
     shortDesc: "Dynamic drink menus with style",
     icon: Wine,
-    color: "bg-[#e65a22]",
-    image: "/images/solutions/bar.jpg",
   },
   {
     slug: "catering",
     title: "Catering Services",
     shortDesc: "Professional menus for every event",
     icon: PartyPopper,
-    color: "bg-[#e65a22]",
-    image: "/images/solutions/catering.jpg",
   },
   {
     slug: "owners",
     title: "Restaurant Owners",
     shortDesc: "Take back control of your restaurant operations",
     icon: Briefcase,
-    color: "bg-[#e65a22]",
-    image: "/assets/mockups/solutions-owners-v4.png",
   },
   {
     slug: "agencies",
     title: "Agencies & Consultants",
     shortDesc: "Manage multiple client accounts with ease",
     icon: Briefcase,
-    color: "bg-[#e65a22]",
-    image: "/assets/mockups/agencis-v1.jpeg",
   },
 ];
 
@@ -142,253 +126,200 @@ const FEATURES = [
 ];
 
 export default async function SolutionsPage() {
-  const appName = "Menuthere";
-
   return (
-    <main className="min-h-screen bg-[#f4e5d5] relative">
-      {/* Grid Background */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] bg-[size:4rem_4rem]" />
-
+    <main className="min-h-screen w-full bg-white geist-font">
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 overflow-hidden">
-        <div className="max-w-[90%] mx-auto px-4 sm:px-6 relative">
-          <div className="text-center max-w-4xl mx-auto">
-            <span className="inline-block px-4 py-2 bg-[#e65a22]/10 text-[#d14d1a] rounded-full text-sm font-medium mb-6">
-              Solutions for Every Food Business
-            </span>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-2">
-              Digital Menus That
-              <span className="text-[#e65a22]"> Transform </span>
-              Your Business
-            </h1>
-            <p className="text-base text-gray-600 leading-relaxed mb-8 max-w-3xl mx-auto">
-              Whether you run a cozy café, a bustling restaurant, or a cloud
-              kitchen empire - our digital menu platform adapts to your unique
-              needs. Beautiful, fast, and built for growth.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/get-started"
-                className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-[#e65a22] rounded-xl hover:bg-[#d14d1a] hover:shadow-lg transition-all duration-300"
-              >
-                Get Started Free
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Link>
-              <Link
-                href="https://cal.id/menuthere"
-                className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-gray-900 bg-white border-2 border-gray-200 rounded-xl hover:border-[#e65a22] hover:text-[#e65a22] transition-all duration-300"
-              >
-                Book a Demo
-              </Link>
-            </div>
+      <section className="flex items-center justify-center px-5 pb-16 pt-32 md:pt-40 bg-[#fcfbf7]">
+        <div className="w-full max-w-2xl mx-auto text-center">
+          <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-stone-900 tracking-tight">
+            Digital menus that{" "}
+            <span className="text-stone-500 italic">transform</span> your
+            business.
+          </h1>
+          <p className="geist-font text-lg text-stone-500 max-w-lg mx-auto mt-5 leading-relaxed">
+            Whether you run a cozy cafe, a bustling restaurant, or a cloud
+            kitchen empire - our platform adapts to your unique needs.
+          </p>
+          <div className="flex items-center gap-3 mt-8 justify-center">
+            <ButtonV2 href="/get-started" variant="primary">
+              Get Started Free
+            </ButtonV2>
+            <ButtonV2 href="https://cal.id/menuthere" variant="secondary">
+              Book a Demo
+            </ButtonV2>
           </div>
         </div>
       </section>
+
+      {/* Divider */}
+      <div className="w-full h-px bg-stone-200" />
 
       {/* Solutions Grid */}
-      <section className="py-20 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Choose Your Industry
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Tailored digital menu solutions designed specifically for your
-              type of food business
-            </p>
-          </div>
+      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
+        <div className="max-w-5xl mx-auto px-6 md:px-16">
+          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-4">
+            Choose your industry,{" "}
+            <span className="text-stone-500">get started.</span>
+          </h2>
+          <p className="text-base text-stone-500 max-w-xl leading-relaxed mb-12">
+            Tailored digital menu solutions designed specifically for your type
+            of food business.
+          </p>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {SOLUTIONS.map((solution, idx) => (
-              <div key={solution.slug} className="flex flex-col">
-                <Link
-                  href={`/solutions/${solution.slug}`}
-                  className="group relative bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:shadow-gray-200/50 transition-all duration-300 hover:-translate-y-1 flex-1"
-                >
-                  <div className="p-6">
-                    <div
-                      className={`w-14 h-14 rounded-xl ${solution.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
-                    >
-                      <solution.icon className="w-7 h-7 text-white" />
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-[#e65a22] transition-colors">
-                      {solution.title}
-                    </h3>
-                    <p className="text-gray-600 text-sm leading-relaxed mb-4">
-                      {solution.shortDesc}
-                    </p>
-                    <span className="inline-flex items-center text-sm font-medium text-[#e65a22] group-hover:text-[#d14d1a]">
-                      Learn more
-                      <ArrowRight className="ml-1 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </span>
-                  </div>
-                </Link>
-                {/* Related solutions cross-links for SEO */}
-                <div className="flex gap-2 mt-2 px-1 flex-wrap">
-                  <span className="text-xs text-gray-400">Related:</span>
-                  {SOLUTIONS.filter((_, i) => {
-                    const next1 = (idx + 1) % SOLUTIONS.length;
-                    const next2 = (idx + 2) % SOLUTIONS.length;
-                    return i === next1 || i === next2;
-                  }).map((related) => (
-                    <Link
-                      key={related.slug}
-                      href={`/solutions/${related.slug}`}
-                      className="text-xs text-gray-400 hover:text-[#e65a22] transition-colors"
-                    >
-                      {related.title}
-                    </Link>
-                  ))}
-                </div>
+        <div className="max-w-5xl mx-auto px-6 md:px-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {SOLUTIONS.map((solution) => (
+            <Link
+              key={solution.slug}
+              href={`/solutions/${solution.slug}`}
+              className="group relative bg-white rounded-xl border border-stone-200 p-6 hover:border-stone-400 transition-all duration-300"
+            >
+              <div className="w-10 h-10 rounded-lg bg-[#F4E0D0]/70 flex items-center justify-center mb-4 group-hover:bg-[#B5581A] transition-colors duration-300">
+                <solution.icon className="w-5 h-5 text-[#B5581A] group-hover:text-white transition-colors duration-300" />
               </div>
-            ))}
-          </div>
+              <h3 className="text-base font-semibold text-stone-900 mb-1 group-hover:text-[#B5581A] transition-colors">
+                {solution.title}
+              </h3>
+              <p className="text-stone-500 text-sm leading-relaxed">
+                {solution.shortDesc}
+              </p>
+              <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[#B5581A] opacity-0 group-hover:opacity-100 transition-opacity">
+                Learn more
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </Link>
+          ))}
         </div>
       </section>
+
+      {/* Divider */}
+      <div className="w-full h-px bg-stone-200" />
 
       {/* Features Section */}
-      <section className="py-20 bg-white/60 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Powerful Features for Every Business
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              All the tools you need to modernize your menu and delight your
-              customers
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {FEATURES.map((feature, idx) => (
-              <div
-                key={idx}
-                className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow border border-gray-100"
-              >
-                <div className="w-12 h-12 rounded-lg bg-[#e65a22]/10 flex items-center justify-center mb-4">
-                  <feature.icon className="w-6 h-6 text-[#e65a22]" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-600 text-sm">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Google Business Profile Section */}
-      <section className="py-20 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <span className="inline-block px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium mb-6">
-                Google Business Integration
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
-                Sync Your Menu with Google Business Profile
-              </h2>
-              <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-                Automatically update your Google Business Profile menu whenever
-                you make changes. Customers searching for you on Google Maps
-                will always see your latest offerings, prices, and availability.
-              </p>
-              <ul className="space-y-4 mb-8">
-                {[
-                  "One-click sync to Google Business Profile",
-                  "Real-time menu updates across platforms",
-                  "Improved local SEO and visibility",
-                  "Attract more customers from Google Search & Maps",
-                ].map((item, idx) => (
-                  <li key={idx} className="flex items-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    <span className="text-gray-700">{item}</span>
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/product/google-business-manager"
-                className="inline-flex items-center text-[#e65a22] font-semibold hover:text-[#d14d1a]"
-              >
-                Learn about Google Business Manager
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Link>
-            </div>
-            <div className="relative">
-              <div className="bg-blue-600 rounded-2xl p-8 text-white shadow-xl">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
-                    <svg className="w-8 h-8" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="font-bold text-lg">
-                      Google Business Profile
-                    </div>
-                    <div className="text-blue-100 text-sm">Menu Manager</div>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="bg-white/10 rounded-lg p-4">
-                    <div className="text-sm text-blue-100 mb-1">
-                      Menu Items Synced
-                    </div>
-                    <div className="text-2xl font-bold">247</div>
-                  </div>
-                  <div className="bg-white/10 rounded-lg p-4">
-                    <div className="text-sm text-blue-100 mb-1">Last Sync</div>
-                    <div className="text-lg font-semibold">Just now ✓</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 bg-[#e65a22] relative">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
-            Ready to Transform Your Menu?
+      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
+        <div className="max-w-5xl mx-auto px-6 md:px-16">
+          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-12">
+            Powerful features,{" "}
+            <span className="text-stone-500">every business.</span>
           </h2>
-          <p className="text-xl text-orange-100 mb-8">
-            Join thousands of food businesses already using Menuthere to delight
-            their customers
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/get-started"
-              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-[#e65a22] bg-white rounded-xl hover:bg-gray-50 transition-colors"
+        </div>
+
+        <div className="max-w-5xl mx-auto px-6 md:px-16 grid grid-cols-1 md:grid-cols-2 gap-6">
+          {FEATURES.map((feature, idx) => (
+            <div
+              key={idx}
+              className="bg-white rounded-xl p-6 border border-stone-200"
             >
-              Start Free Trial
-            </Link>
+              <div className="w-10 h-10 rounded-lg bg-[#F4E0D0]/70 flex items-center justify-center mb-4">
+                <feature.icon className="w-5 h-5 text-[#B5581A]" />
+              </div>
+              <h3 className="text-base font-semibold text-stone-900 mb-2">
+                {feature.title}
+              </h3>
+              <p className="text-stone-500 text-sm leading-relaxed">
+                {feature.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Divider */}
+      <div className="w-full h-px bg-stone-200" />
+
+      {/* Google Business Section */}
+      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
+        <div className="max-w-5xl mx-auto px-6 md:px-16 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div>
+            <span className="inline-block px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium mb-6">
+              Google Business Integration
+            </span>
+            <h2 className="geist-font font-semibold text-2xl md:text-3xl text-stone-900 leading-tight mb-4">
+              Sync your menu with Google Business Profile
+            </h2>
+            <p className="text-base text-stone-500 mb-6 leading-relaxed">
+              Automatically update your Google Business Profile menu whenever
+              you make changes. Customers searching for you on Google Maps will
+              always see your latest offerings.
+            </p>
+            <ul className="space-y-3 mb-6">
+              {[
+                "One-click sync to Google Business Profile",
+                "Real-time menu updates across platforms",
+                "Improved local SEO and visibility",
+                "Attract more customers from Google Search & Maps",
+              ].map((item, idx) => (
+                <li key={idx} className="flex items-center gap-3">
+                  <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className="text-stone-600 text-sm">{item}</span>
+                </li>
+              ))}
+            </ul>
             <Link
-              href="/pricing"
-              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white border-2 border-white rounded-xl hover:bg-white/10 transition-colors"
+              href="/solutions/google-business"
+              className="inline-flex items-center gap-2 text-sm font-medium text-[#B5581A] hover:text-[#9a4a15] transition-colors group"
             >
-              View Pricing
+              Learn about Google Business Manager
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
+          </div>
+          <div className="bg-blue-600 rounded-2xl p-8 text-white">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <div className="font-semibold">Google Business Profile</div>
+                <div className="text-blue-200 text-sm">Menu Manager</div>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="bg-white/10 rounded-lg p-4">
+                <div className="text-sm text-blue-200 mb-1">
+                  Menu Items Synced
+                </div>
+                <div className="text-2xl font-bold">247</div>
+              </div>
+              <div className="bg-white/10 rounded-lg p-4">
+                <div className="text-sm text-blue-200 mb-1">Last Sync</div>
+                <div className="text-lg font-semibold">Just now</div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
+
+      {/* Social Proof */}
+      <RestaurantMarquee />
+
+      {/* Divider */}
+      <div className="w-full h-px bg-stone-200" />
+
+      {/* CTA */}
+      <StartFreeTrailSection />
+
+      {/* Footer */}
+      <Footer appName="Menuthere" />
+
+      {/* Chat */}
+      <Chatwoot />
     </main>
   );
 }

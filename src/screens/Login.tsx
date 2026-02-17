@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
-import { Button } from "@/components/ui/button";
+import { ButtonV2 } from "@/components/ui/ButtonV2";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
@@ -99,43 +99,49 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-lg p-6">
-        <div className="flex flex-col items-center mb-8">
-          <Image src="/menuthere-logo.png" alt="Menuthere" width={48} height={48} className="h-12 w-12 object-contain mb-4" />
-          <h1 className="text-3xl font-bold text-gray-900 text-center">
+    <div className="min-h-[calc(100dvh-4rem)] flex items-center justify-center px-4 py-8 sm:px-6">
+      <div className="w-full max-w-sm sm:max-w-md bg-white rounded-xl p-5 sm:p-8">
+        <div className="flex flex-col items-center mb-6 sm:mb-8">
+          <Image
+            src="/menuthere-logo.png"
+            alt="Menuthere"
+            width={48}
+            height={48}
+            className="h-10 w-10 sm:h-12 sm:w-12 object-contain mb-3"
+          />
+          <h1 className="text-2xl sm:text-3xl font-semibold text-stone-900 text-center">
             Welcome to Menuthere
           </h1>
         </div>
 
         <div className="flex gap-2 mb-6">
-          <Button
-            type="button"
+          <ButtonV2
+            variant={mode === "partner" ? "primary" : "secondary"}
             onClick={() => setMode("partner")}
-            className={`flex-1 ${
-              mode === "partner" ? "bg-orange-600" : "bg-gray-200"
-            }`}
+            showArrow={false}
+            className="flex-1 justify-center"
           >
-            Sign in as Partner
-          </Button>
-          <Button
-            type="button"
+            Partner
+          </ButtonV2>
+          <ButtonV2
+            variant={mode === "user" ? "primary" : "secondary"}
             onClick={() => setMode("user")}
-            className={`flex-1 ${
-              mode === "user" ? "bg-orange-600" : "bg-gray-200"
-            }`}
+            showArrow={false}
+            className="flex-1 justify-center"
           >
-            Sign in as User
-          </Button>
+            User
+          </ButtonV2>
         </div>
 
         {mode === "user" ? (
           <form onSubmit={handleUserSignIn} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="phone" className="text-sm text-stone-700">
+                Phone Number
+              </Label>
               <div className="flex gap-2">
                 {userCountryInfo && (
-                  <div className="flex items-center px-3 bg-gray-100 rounded-md text-sm font-medium">
+                  <div className="flex items-center px-4 bg-stone-50 rounded-xl text-sm font-medium text-stone-600 shrink-0 border border-stone-200">
                     {userCountryInfo.callingCode}
                   </div>
                 )}
@@ -144,8 +150,8 @@ export default function Login() {
                   type="tel"
                   placeholder={
                     userCountryInfo
-                      ? `Enter your ${userCountryInfo.phoneDigits}-digit phone number`
-                      : "Enter your phone number"
+                      ? `${userCountryInfo.phoneDigits}-digit number`
+                      : "Phone number"
                   }
                   value={userPhone}
                   onChange={(e) => {
@@ -155,68 +161,69 @@ export default function Login() {
                     );
                   }}
                   required
-                  className="flex-1"
+                  className="flex-1 min-w-0 h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-[#B5581A]/30 focus-visible:border-[#B5581A]/50"
                 />
               </div>
             </div>
-            <Button
+            <ButtonV2
               type="submit"
-              className="w-full bg-orange-600 hover:bg-orange-700"
+              variant="primary"
               disabled={isLoading}
+              className="w-full justify-center"
             >
               {isLoading ? "Please wait..." : "Continue"}
-            </Button>
+            </ButtonV2>
           </form>
         ) : (
-          <div className="space-y-4">
-            <form onSubmit={handlePartnerSignIn} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={partnerData.email}
-                  onChange={(e) =>
-                    setPartnerData({ ...partnerData, email: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={partnerData.password}
-                  onChange={(e) =>
-                    setPartnerData({ ...partnerData, password: e.target.value })
-                  }
-                  required
-                />
-                {/* <Link
-                  href="/login/forgot-password"
-                  className="text-right flex flex-1 justify-end w-full  text-sm text-gray-500 hover:text-orange-600"
-                >
-                  Forgot Password?
-                </Link> */}
-              </div>
-              <Button
-                type="submit"
-                className="w-full bg-orange-600 hover:bg-orange-700"
-                disabled={isLoading}
-              >
-                {isLoading ? "Please wait..." : "Sign In"}
-              </Button>
-            </form>
-          </div>
+          <form onSubmit={handlePartnerSignIn} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm text-stone-700">
+                Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                value={partnerData.email}
+                onChange={(e) =>
+                  setPartnerData({ ...partnerData, email: e.target.value })
+                }
+                required
+                className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-[#B5581A]/30 focus-visible:border-[#B5581A]/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm text-stone-700">
+                Password
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter your password"
+                value={partnerData.password}
+                onChange={(e) =>
+                  setPartnerData({ ...partnerData, password: e.target.value })
+                }
+                required
+                className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-[#B5581A]/30 focus-visible:border-[#B5581A]/50"
+              />
+            </div>
+            <ButtonV2
+              type="submit"
+              variant="primary"
+              disabled={isLoading}
+              className="w-full justify-center"
+            >
+              {isLoading ? "Please wait..." : "Sign In"}
+            </ButtonV2>
+          </form>
         )}
+
         {/* Owner login link */}
-        <div className="mt-4 text-center">
+        <div className="mt-5 text-center">
           <Link
             href="/pricing"
-            className="text-sm text-orange-600 hover:underline"
+            className="text-sm text-stone-500 hover:text-stone-900 transition-colors"
           >
             Are you an owner?
           </Link>

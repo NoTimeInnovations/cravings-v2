@@ -1,13 +1,12 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { ButtonV2 } from "@/components/ui/ButtonV2";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Loader2,
   Upload,
-  ChevronRight,
   Check,
 
   ArrowLeft,
@@ -360,13 +359,13 @@ const CustomColorPicker = ({
   onChange: (c: string) => void;
 }) => (
   <div className="flex flex-col gap-1.5">
-    <span className="text-xs font-medium text-gray-600 uppercase tracking-wider">
+    <span className="text-xs font-medium text-stone-600 uppercase tracking-wider">
       {label}
     </span>
     <Popover>
       <PopoverTrigger asChild>
         <button
-          className="w-full h-10 rounded-lg border border-gray-200 shadow-sm flex items-center justify-between px-3 hover:border-orange-300 transition-colors"
+          className="w-full h-10 rounded-lg border border-stone-200 shadow-sm flex items-center justify-between px-3 hover:border-[#B5581A]/30 transition-colors"
           style={{ backgroundColor: color }}
         >
           <span
@@ -1019,16 +1018,16 @@ export default function GetStartedClient({
   const renderStep1 = () => (
     <div className="max-w-md mx-auto text-center space-y-6 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="space-y-2">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">
+        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-stone-900">
           Upload Your Menu
         </h1>
-        <p className="text-sm md:text-base text-gray-500">
+        <p className="text-sm md:text-base text-stone-500">
           Take a photo of your menu and we'll digitize it instantly.
         </p>
       </div>
 
       <div
-        className={`border-2 border-dashed rounded-3xl p-6 md:p-10 transition-colors relative group ${menuFiles.length > 0 ? "border-green-500 bg-green-50" : "border-gray-200 hover:bg-gray-50"}`}
+        className={`border-2 border-dashed rounded-3xl p-6 md:p-10 transition-colors relative group ${menuFiles.length > 0 ? "border-green-500 bg-green-50" : "border-stone-200 hover:bg-stone-50"}`}
       >
         <input
           type="file"
@@ -1039,21 +1038,21 @@ export default function GetStartedClient({
         />
         <div className="flex flex-col items-center gap-4">
           <div
-            className={`w-12 h-12 md:w-16 md:h-16 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 ${menuFiles.length > 0 ? "bg-green-100" : "bg-orange-100"}`}
+            className={`w-12 h-12 md:w-16 md:h-16 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 ${menuFiles.length > 0 ? "bg-green-100" : "bg-[#F4E0D0]/70"}`}
           >
             {menuFiles.length > 0 ? (
               <Check className="w-6 h-6 md:w-8 md:h-8 text-green-600" />
             ) : (
-              <Upload className="w-6 h-6 md:w-8 md:h-8 text-orange-600" />
+              <Upload className="w-6 h-6 md:w-8 md:h-8 text-[#B5581A]" />
             )}
           </div>
           <div className="space-y-1">
-            <p className="font-semibold text-gray-900 text-sm md:text-base">
+            <p className="font-semibold text-stone-900 text-sm md:text-base">
               {menuFiles.length > 0
                 ? `${menuFiles.length} File(s) Selected`
                 : "Click to upload, drag & drop, or paste"}
             </p>
-            <p className="text-xs md:text-sm text-gray-500">
+            <p className="text-xs md:text-sm text-stone-500">
               JPG, PNG, PDF up to 10MB
             </p>
             {menuFiles.length > 0 && (
@@ -1071,7 +1070,7 @@ export default function GetStartedClient({
           {menuFiles.map((file, idx) => (
             <div
               key={idx}
-              className={`relative group/file aspect-square rounded-xl overflow-hidden border ${file.size > MAX_FILE_SIZE ? "border-red-500" : "border-gray-200"}`}
+              className={`relative group/file aspect-square rounded-xl overflow-hidden border ${file.size > MAX_FILE_SIZE ? "border-red-500" : "border-stone-200"}`}
             >
               {file.size > MAX_FILE_SIZE && (
                 <div className="absolute top-0 left-0 right-0 z-20 bg-red-500/90 text-white text-[10px] py-1 px-2 text-center font-medium">
@@ -1103,48 +1102,47 @@ export default function GetStartedClient({
         </div>
       )}
 
-      <Button
+      <ButtonV2
         onClick={handleStep1Next}
         disabled={
           menuFiles.length === 0 ||
           menuFiles.some((f) => f.size > MAX_FILE_SIZE)
         }
-        className="w-full h-10 md:h-11 text-base md:text-lg rounded-lg bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        variant="primary"
+        className="w-full justify-center"
       >
         {menuFiles.some((f) => f.size > MAX_FILE_SIZE)
           ? "Remove invalid files to continue"
-          : "Next Step"}{" "}
-        <ChevronRight className="ml-2 w-4 h-4 md:w-5 md:h-5" />
-      </Button>
+          : "Next Step"}
+      </ButtonV2>
 
       <div className="relative py-4">
         <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-gray-200" />
+          <span className="w-full border-t border-stone-200" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-white px-2 text-gray-500">Or</span>
+          <span className="bg-white px-2 text-stone-500">Or</span>
         </div>
       </div>
 
-      <Button
-        variant="outline"
+      <button
         onClick={handleStartWithSampleData}
-        className="w-full h-12 md:h-14 text-base md:text-lg rounded-xl border-2 border-dashed border-orange-300 text-orange-700 hover:bg-orange-50 hover:border-orange-400 bg-white/50 transition-all group relative overflow-hidden"
+        className="w-full h-12 md:h-14 text-base md:text-lg rounded-xl border-2 border-dashed border-[#B5581A]/30 text-[#B5581A] hover:bg-[#F4E0D0]/30 hover:border-[#B5581A]/50 bg-white/50 transition-all group relative overflow-hidden flex items-center justify-center font-medium"
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-orange-100/0 via-orange-100/30 to-orange-100/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-        <Sparkles className="w-5 h-5 mr-2 text-orange-500 group-hover:text-orange-600 transition-colors" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#F4E0D0]/0 via-[#F4E0D0]/30 to-[#F4E0D0]/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+        <Sparkles className="w-5 h-5 mr-2 text-[#B5581A] group-hover:text-[#B5581A] transition-colors" />
         <span>Try with Sample Menu</span>
-      </Button>
+      </button>
     </div>
   );
 
   const renderStep2 = () => (
     <div className="max-w-md mx-auto space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="sm:text-center space-y-2">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">
+        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-stone-900">
           Restaurant Details
         </h1>
-        <p className="text-sm md:text-base text-gray-500">
+        <p className="text-sm md:text-base text-stone-500">
           Tell us a bit about your place to personalize your menu.
         </p>
       </div>
@@ -1160,7 +1158,7 @@ export default function GetStartedClient({
             placeholder="e.g. The Burger Joint"
             value={hotelDetails.name}
             onChange={handleDetailsChange}
-            className="h-10 md:h-11 rounded-xl text-sm md:text-base"
+            className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-[#B5581A]/30 focus-visible:border-[#B5581A]/50 text-sm md:text-base"
           />
         </div>
 
@@ -1168,8 +1166,8 @@ export default function GetStartedClient({
           <Label htmlFor="username" className="text-sm">
             Username
           </Label>
-          <div className="flex items-center h-10 md:h-11 rounded-xl border border-gray-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-orange-600 focus-within:ring-offset-2">
-            <span className="pl-3 text-sm text-gray-400 whitespace-nowrap select-none">menuthere.com/</span>
+          <div className="flex items-center h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 overflow-hidden focus-within:ring-2 focus-within:ring-[#B5581A]/30 focus-within:ring-offset-0">
+            <span className="pl-3 text-sm text-stone-400 whitespace-nowrap select-none">menuthere.com/</span>
             <input
               id="username"
               name="username"
@@ -1183,7 +1181,7 @@ export default function GetStartedClient({
           {hotelDetails.username ? (
             <div className="flex items-center gap-1.5">
               {usernameStatus === "checking" && (
-                <p className="text-xs text-gray-400">Checking availability...</p>
+                <p className="text-xs text-stone-400">Checking availability...</p>
               )}
               {usernameStatus === "available" && (
                 <p className="text-xs text-green-600 flex items-center gap-1">
@@ -1196,7 +1194,7 @@ export default function GetStartedClient({
                 </p>
               )}
               {usernameStatus === "idle" && hotelDetails.username.length > 0 && hotelDetails.username.length < 3 && (
-                <p className="text-xs text-gray-400">Username must be at least 3 characters</p>
+                <p className="text-xs text-stone-400">Username must be at least 3 characters</p>
               )}
             </div>
           ) : null}
@@ -1213,7 +1211,7 @@ export default function GetStartedClient({
             placeholder="+91 98765 43210"
             value={hotelDetails.phone}
             onChange={handleDetailsChange}
-            className="h-10 md:h-11 rounded-xl text-sm md:text-base"
+            className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-[#B5581A]/30 focus-visible:border-[#B5581A]/50 text-sm md:text-base"
           />
         </div>
 
@@ -1230,9 +1228,9 @@ export default function GetStartedClient({
             onChange={(e) =>
               setAuthCredentials((prev) => ({ ...prev, email: e.target.value }))
             }
-            className="h-10 md:h-11 rounded-xl text-sm md:text-base"
+            className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-[#B5581A]/30 focus-visible:border-[#B5581A]/50 text-sm md:text-base"
           />
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-stone-500">
             We'll send your dashboard login details here.
           </p>
         </div>
@@ -1248,7 +1246,7 @@ export default function GetStartedClient({
             name="country"
             value={hotelDetails.country}
             onChange={handleDetailsChange}
-            className="w-full h-10 md:h-11 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-900 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B5581A]/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <option value="" disabled>
               Select Country
@@ -1271,7 +1269,7 @@ export default function GetStartedClient({
               name="state"
               value={hotelDetails.state}
               onChange={handleDetailsChange}
-              className="w-full h-10 md:h-11 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-900 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B5581A]/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="" disabled>
                 Select State
@@ -1289,7 +1287,7 @@ export default function GetStartedClient({
               placeholder="State / Province"
               value={hotelDetails.state}
               onChange={handleDetailsChange}
-              className="h-10 md:h-11 rounded-xl text-sm md:text-base"
+              className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-[#B5581A]/30 focus-visible:border-[#B5581A]/50 text-sm md:text-base"
             />
           )}
         </div>
@@ -1304,7 +1302,7 @@ export default function GetStartedClient({
               name="district"
               value={hotelDetails.district}
               onChange={handleDetailsChange}
-              className="w-full h-10 md:h-11 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-900 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B5581A]/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="" disabled>
                 Select District
@@ -1319,15 +1317,16 @@ export default function GetStartedClient({
         )}
       </div>
 
-      <Button
+      <ButtonV2
         onClick={handleNextToExtraction}
         disabled={
           !hotelDetails.name || !hotelDetails.phone || !hotelDetails.country
         }
-        className="w-full h-10 md:h-11 text-base md:text-lg rounded-full bg-orange-600 hover:bg-orange-700"
+        variant="primary"
+        className="w-full justify-center"
       >
-        Create Menu <ChevronRight className="ml-2 w-4 h-4 md:w-5 md:h-5" />
-      </Button>
+        Create Menu
+      </ButtonV2>
     </div>
   );
 
@@ -1365,17 +1364,17 @@ export default function GetStartedClient({
         <div className="w-full max-w-md space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
           <button
             onClick={() => setShowEmailChangeForm(false)}
-            className="absolute top-6 right-6 p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="absolute top-6 right-6 p-2 hover:bg-stone-100 rounded-full transition-colors"
           >
             <X size={24} />
           </button>
 
           <div className="text-center space-y-2">
-            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mail className="w-8 h-8 text-orange-600" />
+            <div className="w-16 h-16 bg-[#F4E0D0]/70 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Mail className="w-8 h-8 text-[#B5581A]" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Change Email</h1>
-            <p className="text-gray-500">
+            <h1 className="text-2xl font-semibold text-stone-900">Change Email</h1>
+            <p className="text-stone-500">
               Enter your correct email address. We'll send your menu link and
               dashboard credentials there.
             </p>
@@ -1390,15 +1389,17 @@ export default function GetStartedClient({
                 placeholder="you@example.com"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
-                className="h-12 rounded-xl text-base"
+                className="h-12 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-[#B5581A]/30 focus-visible:border-[#B5581A]/50 text-base"
                 autoFocus
               />
             </div>
 
-            <Button
+            <ButtonV2
               onClick={handleEmailChange}
               disabled={isUpdatingEmail || !newEmail}
-              className="w-full h-12 text-lg rounded-xl bg-orange-600 hover:bg-orange-700"
+              variant="primary"
+              showArrow={false}
+              className="w-full justify-center"
             >
               {isUpdatingEmail ? (
                 <>
@@ -1411,7 +1412,7 @@ export default function GetStartedClient({
                   Update & Resend
                 </>
               )}
-            </Button>
+            </ButtonV2>
           </div>
         </div>
       </div>
@@ -1426,39 +1427,42 @@ export default function GetStartedClient({
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto md:mx-0 mb-4">
             <Mail className="w-10 h-10 text-green-600" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+          <h1 className="text-3xl font-semibold tracking-tight text-stone-900">
             Check Your Email!
           </h1>
-          <p className="text-gray-600 text-lg">
+          <p className="text-stone-600 text-lg">
             We've sent your menu link and dashboard login credentials to:
           </p>
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-            <p className="text-xl font-semibold text-gray-900 break-all">
+          <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">
+            <p className="text-xl font-semibold text-stone-900 break-all">
               {authCredentials.email}
             </p>
           </div>
-          <p className="text-gray-500 text-sm">
+          <p className="text-stone-500 text-sm">
             Can't find it? Check your spam folder or update your email below.
           </p>
         </div>
 
-        <Button
-          variant="outline"
+        <ButtonV2
+          variant="secondary"
+          showArrow={false}
           onClick={() => {
             setNewEmail("");
             setShowEmailChangeForm(true);
           }}
-          className="w-full h-12 text-base rounded-xl border-2 border-dashed border-orange-300 text-orange-700 hover:bg-orange-50"
+          className="w-full justify-center"
         >
           Wrong email? Change it
-        </Button>
+        </ButtonV2>
 
-        <Button
+        <ButtonV2
           onClick={() => router.push("/login")}
-          className="w-full h-12 text-base rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-200"
+          variant="primary"
+          showArrow={false}
+          className="w-full justify-center"
         >
           Login to Dashboard
-        </Button>
+        </ButtonV2>
       </div>
     );
   };
@@ -1472,26 +1476,29 @@ export default function GetStartedClient({
             <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto">
               <AlertCircle className="w-10 h-10 text-red-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-2xl font-semibold text-stone-900">
               Extraction Failed
             </h2>
-            <p className="text-gray-500">{extractionError}</p>
+            <p className="text-stone-500">{extractionError}</p>
           </div>
 
           <div className="flex flex-col gap-3">
-            <Button
+            <ButtonV2
               onClick={handleRetryExtraction}
-              className="w-full h-11 text-base rounded-full bg-orange-600 hover:bg-orange-700"
+              variant="primary"
+              showArrow={false}
+              className="w-full justify-center"
             >
               Try Again
-            </Button>
-            <Button
-              variant="outline"
+            </ButtonV2>
+            <ButtonV2
+              variant="secondary"
               onClick={handleCancelExtraction}
-              className="w-full h-11 text-base rounded-full"
+              showArrow={false}
+              className="w-full justify-center"
             >
               Cancel & Upload Again
-            </Button>
+            </ButtonV2>
           </div>
         </div>
       );
@@ -1502,13 +1509,13 @@ export default function GetStartedClient({
       return (
         <div className="max-w-md mx-auto text-center space-y-6 md:space-y-8 animate-in fade-in duration-500 min-h-[50vh] flex flex-col items-center justify-center">
           <div className="space-y-4">
-            <div className="w-16 h-16 md:w-20 md:h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto">
-              <Loader2 className="w-8 h-8 md:w-10 md:h-10 text-orange-600 animate-spin" />
+            <div className="w-16 h-16 md:w-20 md:h-20 bg-[#F4E0D0]/70 rounded-full flex items-center justify-center mx-auto">
+              <Loader2 className="w-8 h-8 md:w-10 md:h-10 text-[#B5581A] animate-spin" />
             </div>
-            <h1 className="text-xl md:text-3xl font-bold tracking-tight text-gray-900">
+            <h1 className="text-xl md:text-3xl font-semibold tracking-tight text-stone-900">
               Extracting Your Menu
             </h1>
-            <p className="text-sm md:text-base text-gray-500">
+            <p className="text-sm md:text-base text-stone-500">
               Please wait while we process your menu image...
             </p>
           </div>
@@ -1526,10 +1533,10 @@ export default function GetStartedClient({
           ) : (
             <>
               <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+                <h1 className="text-3xl font-semibold tracking-tight text-stone-900">
                   Your Menu is Ready!
                 </h1>
-                <p className="text-gray-500">
+                <p className="text-stone-500">
                   We've extracted {extractedItems.length} items. Customize your
                   theme below.
                 </p>
@@ -1537,7 +1544,7 @@ export default function GetStartedClient({
 
               <div className="hidden md:block space-y-6">
                 <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-gray-700">
+                  <h3 className="text-sm font-medium text-stone-700">
                     Choose a Theme
                   </h3>
                   <div className="grid grid-cols-4 gap-3">
@@ -1552,14 +1559,14 @@ export default function GetStartedClient({
                           !isCustomMode &&
                           selectedPalette.background === palette.background &&
                           selectedPalette.accent === palette.accent
-                            ? "border-orange-600 ring-2 ring-orange-100"
-                            : "border-gray-200 hover:border-gray-300"
+                            ? "border-[#B5581A] ring-2 ring-[#F4E0D0]"
+                            : "border-stone-200 hover:border-stone-300"
                         }`}
                         style={{ backgroundColor: palette.background }}
                       >
                         <div className="flex flex-col items-center gap-1">
                           <span
-                            className="text-xs font-bold"
+                            className="text-xs font-semibold"
                             style={{ color: palette.text }}
                           >
                             Aa
@@ -1577,12 +1584,12 @@ export default function GetStartedClient({
                       onClick={() => setIsCustomMode(true)}
                       className={`h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 relative overflow-hidden transition-all ${
                         isCustomMode
-                          ? "border-orange-600 ring-2 ring-orange-100"
-                          : "border-gray-200 hover:border-gray-300"
+                          ? "border-[#B5581A] ring-2 ring-[#F4E0D0]"
+                          : "border-stone-200 hover:border-stone-300"
                       } bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100`}
                     >
-                      <Palette size={20} className="text-gray-700" />
-                      <span className="text-[10px] font-bold text-gray-600">
+                      <Palette size={20} className="text-stone-700" />
+                      <span className="text-[10px] font-semibold text-stone-600">
                         Custom
                       </span>
                     </button>
@@ -1590,7 +1597,7 @@ export default function GetStartedClient({
 
                   {/* Custom Color Editor (slide down) */}
                   {isCustomMode && (
-                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 space-y-4 animate-in slide-in-from-top-2">
+                    <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-4 animate-in slide-in-from-top-2">
                       <div className="grid grid-cols-3 gap-3">
                         <CustomColorPicker
                           label="Background"
@@ -1618,12 +1625,13 @@ export default function GetStartedClient({
                   )}
                 </div>
 
-                <Button
+                <ButtonV2
                   onClick={handleFinalPublish}
-                  className="w-full h-14 text-lg rounded-full bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200"
+                  variant="primary"
+                  className="w-full justify-center"
                 >
-                  Publish Live <ChevronRight className="ml-2 w-5 h-5" />
-                </Button>
+                  Publish Live
+                </ButtonV2>
               </div>
             </>
           )}
@@ -1654,7 +1662,7 @@ export default function GetStartedClient({
                       className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${
                         selectedPalette.background === palette.background &&
                         selectedPalette.accent === palette.accent
-                          ? "border-orange-600 scale-110 ring-2 ring-orange-100"
+                          ? "border-[#B5581A] scale-110 ring-2 ring-[#F4E0D0]"
                           : "border-white/50"
                       }`}
                       style={{ backgroundColor: palette.background }}
@@ -1670,29 +1678,29 @@ export default function GetStartedClient({
                     onClick={() => setIsCustomMode(true)}
                     className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${
                       isCustomMode
-                        ? "border-orange-600 scale-110 ring-2 ring-orange-100"
-                        : "border-gray-200"
+                        ? "border-[#B5581A] scale-110 ring-2 ring-[#F4E0D0]"
+                        : "border-stone-200"
                     } bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100`}
                   >
-                    <Palette size={18} className="text-gray-700" />
+                    <Palette size={18} className="text-stone-700" />
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="bg-white/95 backdrop-blur-xl p-4 rounded-3xl shadow-2xl border border-gray-100 animate-in slide-in-from-bottom-10 fade-in duration-300 space-y-4">
+              <div className="bg-white/95 backdrop-blur-xl p-4 rounded-3xl shadow-2xl border border-stone-100 animate-in slide-in-from-bottom-10 fade-in duration-300 space-y-4">
                 <div className="flex items-center justify-between">
                   <button
                     onClick={() => setIsCustomMode(false)}
-                    className="p-2 -ml-2 rounded-full hover:bg-gray-100 text-gray-500"
+                    className="p-2 -ml-2 rounded-full hover:bg-stone-100 text-stone-500"
                   >
                     <ArrowLeft size={20} />
                   </button>
-                  <div className="flex bg-gray-100 rounded-lg p-1">
+                  <div className="flex bg-stone-100 rounded-lg p-1">
                     {(["background", "text", "accent"] as const).map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setMobileTab(tab)}
-                        className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all ${mobileTab === tab ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
+                        className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all ${mobileTab === tab ? "bg-white shadow text-stone-900" : "text-stone-500 hover:text-stone-700"}`}
                       >
                         {tab}
                       </button>
@@ -1717,12 +1725,13 @@ export default function GetStartedClient({
             )}
 
             {!isCustomMode && (
-              <Button
+              <ButtonV2
                 onClick={handleFinalPublish}
-                className="w-full h-12 text-base rounded-full bg-green-600 hover:bg-green-700 shadow-xl"
+                variant="primary"
+                className="w-full justify-center"
               >
-                Publish Live <ChevronRight className="ml-2 w-5 h-5" />
-              </Button>
+                Publish Live
+              </ButtonV2>
             )}
           </div>
         )}
@@ -1736,37 +1745,40 @@ export default function GetStartedClient({
                   <Mail className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 leading-tight">
+                  <h3 className="text-lg font-semibold text-stone-900 leading-tight">
                     Check Your Email!
                   </h3>
-                  <p className="text-xs text-gray-500 break-all">
+                  <p className="text-xs text-stone-500 break-all">
                     {authCredentials.email}
                   </p>
                 </div>
               </div>
 
-              <p className="text-sm text-gray-600 text-center">
+              <p className="text-sm text-stone-600 text-center">
                 We've sent your menu link and dashboard credentials to your
                 email.
               </p>
 
-              <Button
-                variant="outline"
-                className="w-full h-11 text-sm rounded-xl border-2 border-dashed border-orange-300 text-orange-700 hover:bg-orange-50"
+              <ButtonV2
+                variant="secondary"
+                showArrow={false}
+                className="w-full justify-center text-sm"
                 onClick={() => {
                   setNewEmail("");
                   setShowEmailChangeForm(true);
                 }}
               >
                 Wrong email? Change it
-              </Button>
+              </ButtonV2>
 
-              <Button
+              <ButtonV2
                 onClick={() => router.push("/login")}
-                className="w-full h-11 text-sm rounded-xl bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-200"
+                variant="primary"
+                showArrow={false}
+                className="w-full justify-center text-sm"
               >
                 Login to Dashboard
-              </Button>
+              </ButtonV2>
             </div>
           </div>
         )}
@@ -1786,15 +1798,15 @@ export default function GetStartedClient({
         ]}
       />
       {/* Header Steps */}
-      <header className="border-b border-gray-100 bg-white/80 backdrop-blur-md z-50">
+      <header className="border-b border-stone-100 bg-white/80 backdrop-blur-md z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             {step > 1 && (
               <button
                 onClick={() => setStep((s) => (s - 1) as any)}
-                className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors"
+                className="p-2 -ml-2 rounded-full hover:bg-stone-100 transition-colors"
               >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
+                <ArrowLeft className="w-5 h-5 text-stone-600" />
               </button>
             )}
             <div
@@ -1811,14 +1823,14 @@ export default function GetStartedClient({
                     className="h-8 w-auto object-contain"
                     priority
                   />
-                  <span className="text-xl font-bold text-gray-900">
+                  <span className="text-xl font-semibold text-stone-900">
                     Menuthere
                   </span>
                 </div>
               ) : (
                 <>
                   <Image src="/menuthere-logo.png" alt="Menuthere" width={24} height={24} className="h-6 w-6 object-contain" />
-                  <span className="text-xl font-bold text-gray-900">
+                  <span className="text-xl font-semibold text-stone-900">
                     Menuthere
                   </span>
                 </>
@@ -1826,7 +1838,7 @@ export default function GetStartedClient({
             </div>
           </div>
           {/* Step Indicator */}
-          <div className="text-sm font-medium text-gray-500">
+          <div className="text-sm font-medium text-stone-500">
             Step {step} of 3
           </div>
         </div>

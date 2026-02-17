@@ -1,9 +1,9 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { headers } from "next/headers";
-import { getDomainConfig } from "@/lib/domain-utils";
-import { FAQAccordion } from "@/components/FAQAccordion";
 import { JsonLd } from "@/components/seo/JsonLd";
+import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
+import Footer from "@/components/Footer";
+import Chatwoot from "@/components/Chatwoot";
 import Image from "next/image";
 import {
   ArrowRight,
@@ -19,11 +19,16 @@ import {
   ArrowUpRight,
   Sparkles,
   MessageSquare,
-  ImageIcon,
   Send,
   Utensils,
   Zap,
 } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
@@ -209,7 +214,7 @@ export default async function GoogleBusinessPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f4e5d5] relative">
+    <main className="min-h-screen bg-white relative">
       <JsonLd data={faqSchema} />
       <JsonLd data={breadcrumbSchema} />
 
@@ -739,45 +744,44 @@ export default async function GoogleBusinessPage() {
       </section>
 
       {/* ═══════════════ FAQ ═══════════════ */}
-      <FAQAccordion
-        items={FAQ}
-        subtitle="Everything you need to know about Google Business Profile menu sync"
-      />
-
-      {/* ═══════════════ CTA ═══════════════ */}
-      <section className="py-24 bg-[#e65a22] relative overflow-hidden">
-        {/* Decorative */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:4rem_4rem]" />
-
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center relative z-10">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 text-white rounded-full text-sm font-medium mb-6">
-            <Globe className="w-4 h-4" />
-            Google Business Profile Integration
+      <section className="py-24 bg-white relative">
+        <div className="max-w-3xl mx-auto px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <h2 className="geist-font text-3xl md:text-5xl font-semibold text-gray-900 tracking-tight">
+              Frequently asked{" "}
+              <span className="text-gray-400 italic">questions.</span>
+            </h2>
+            <p className="text-stone-500 mt-4">
+              Everything you need to know about Google Business Profile menu sync
+            </p>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
-            Your Menu Deserves to Be on Google
-          </h2>
-          <p className="text-xl text-orange-100 mb-10 max-w-2xl mx-auto">
-            Join hundreds of restaurants using Menuthere to sync their menu to
-            Google Maps. Set up in under 5 minutes, sync in under 30 seconds.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/get-started"
-              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-[#e65a22] bg-white rounded-xl hover:bg-gray-50 transition-colors shadow-lg"
-            >
-              Start Free Trial
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </Link>
-            <Link
-              href="/pricing"
-              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white border-2 border-white rounded-xl hover:bg-white/10 transition-colors"
-            >
-              View Pricing
-            </Link>
-          </div>
+          <Accordion type="single" collapsible className="w-full">
+            {FAQ.map((faq, index) => (
+              <AccordionItem
+                key={index}
+                value={`item-${index}`}
+                className="border-b border-gray-200 last:border-b-0 py-1"
+              >
+                <AccordionTrigger className="text-left text-base font-medium text-gray-900 hover:no-underline py-5">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-gray-600 text-sm leading-relaxed pb-5">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         </div>
       </section>
+
+      {/* CTA */}
+      <StartFreeTrailSection />
+
+      {/* Footer */}
+      <Footer appName="Menuthere" />
+
+      {/* Chat */}
+      <Chatwoot />
     </main>
   );
 }

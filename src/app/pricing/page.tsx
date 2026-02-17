@@ -1,7 +1,11 @@
 import React from "react";
 import type { Metadata } from "next";
 import PricingSection from "@/components/international/PricingSection";
+import RestaurantMarquee from "@/components/international/RestaurantMarquee";
+import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
+import Footer from "@/components/Footer";
 import Chatwoot from "@/components/Chatwoot";
+
 export const metadata: Metadata = {
   title: "Pricing | Menuthere Digital Menu",
   description:
@@ -14,20 +18,39 @@ export default async function PricingPage() {
   const country = headersList.get("x-user-country") || "IN";
 
   return (
-    <div className="min-h-screen w-full font-sans text-gray-900 bg-orange-50 pt-20">
-      <div className="max-w-7xl mx-auto px-4 text-center py-6 md:py-10">
-        <h1 className="text-2xl md:text-5xl font-extrabold text-gray-900 mb-3 md:mb-6">
-          Plans that scale with your business
-        </h1>
-        <p className="text-sm md:text-xl text-gray-600 max-w-2xl mx-auto">
-          Start for free and upgrade as you grow. No credit card required to
-          start.
-        </p>
-      </div>
+    <div className="min-h-screen w-full bg-white geist-font">
+      {/* Hero Header */}
+      <section className="flex items-center justify-center px-5 pb-12 pt-32 md:pt-40 bg-[#fcfbf7]">
+        <div className="w-full max-w-2xl mx-auto text-center">
+          <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-stone-900 tracking-tight">
+            Plans that scale{" "}
+            <span className="text-stone-500">with your business.</span>
+          </h1>
+          <p className="geist-font text-lg text-stone-500 max-w-md mx-auto mt-5 leading-relaxed">
+            Start for free and upgrade as you grow. No credit card required.
+          </p>
+        </div>
+      </section>
 
+      {/* Divider */}
+      <div className="w-full h-px bg-stone-200" />
+
+      {/* Pricing Cards */}
       <PricingSection hideHeader={true} country={country} appName="Menuthere" />
 
-      {/* Chatwoot Chat Bubble */}
+      {/* Social Proof */}
+      <RestaurantMarquee />
+
+      {/* Divider */}
+      <div className="w-full h-px bg-stone-200" />
+
+      {/* CTA */}
+      <StartFreeTrailSection />
+
+      {/* Footer */}
+      <Footer appName="Menuthere" />
+
+      {/* Chat */}
       <Chatwoot />
     </div>
   );

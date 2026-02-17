@@ -1,9 +1,17 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { FAQAccordion } from "@/components/FAQAccordion";
+import { ButtonV2 } from "@/components/ui/ButtonV2";
+import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
+import Footer from "@/components/Footer";
+import Chatwoot from "@/components/Chatwoot";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   Utensils,
   Coffee,
@@ -13,10 +21,6 @@ import {
   Building2,
   Wine,
   PartyPopper,
-  ArrowRight,
-  QrCode,
-  Globe,
-  TrendingUp,
   Clock,
   CheckCircle2,
   Star,
@@ -31,6 +35,8 @@ import {
   RefreshCw,
   Bell,
   Palette,
+  Globe,
+  TrendingUp,
 } from "lucide-react";
 
 // Solution data with comprehensive SEO content
@@ -1232,57 +1238,44 @@ export default async function SolutionPage({
   };
 
   return (
-    <main className="min-h-screen bg-[#f4e5d5] relative">
+    <main className="min-h-screen w-full bg-white geist-font">
       <JsonLd data={faqSchema} />
       <JsonLd data={breadcrumbSchema} />
-      {/* Grid Background */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] bg-[size:4rem_4rem]" />
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 overflow-hidden">
-        <div className="max-w-[90%] mx-auto px-4 sm:px-6 relative">
-          <div className="max-w-4xl">
-            <div
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${solution.color} text-white text-sm font-medium mb-6`}
-            >
-              <IconComponent className="w-4 h-4" />
-              {solution.title}
-            </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-2">
-              {solution.headline}
-            </h1>
-            <p className="text-base text-gray-600 leading-relaxed mb-8 max-w-3xl">
-              {solution.subheadline}
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link
-                href="/get-started"
-                className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-[#e65a22] rounded-xl hover:bg-[#d14d1a] hover:shadow-lg transition-all duration-300"
-              >
-                Get Started Free
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Link>
-              <Link
-                href="https://cal.id/cravings"
-                className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-gray-900 bg-white border-2 border-gray-200 rounded-xl hover:border-[#e65a22] hover:text-[#e65a22] transition-all duration-300"
-              >
-                Book a Demo
-              </Link>
-            </div>
+      <section className="flex items-center justify-center px-5 pb-16 pt-32 md:pt-40 bg-[#fcfbf7]">
+        <div className="w-full max-w-2xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F4E0D0]/70 text-[#B5581A] text-xs font-medium mb-6">
+            <IconComponent className="w-3.5 h-3.5" />
+            {solution.title}
+          </div>
+          <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-stone-900 tracking-tight">
+            {solution.headline}
+          </h1>
+          <p className="geist-font text-lg text-stone-500 max-w-lg mx-auto mt-5 leading-relaxed">
+            {solution.subheadline}
+          </p>
+          <div className="flex items-center gap-3 mt-8 justify-center">
+            <ButtonV2 href="/get-started" variant="primary">
+              Get Started Free
+            </ButtonV2>
+            <ButtonV2 href="https://cal.id/menuthere" variant="secondary">
+              Book a Demo
+            </ButtonV2>
           </div>
         </div>
       </section>
 
       {/* Stats Bar */}
-      <section className={`py-8 ${solution.color}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <section className="bg-terracotta-600 py-8 border-t border-b border-stone-200">
+        <div className="max-w-5xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-white text-center">
             {solution.stats.map((stat, idx) => (
               <div key={idx}>
-                <div className="text-3xl md:text-4xl font-bold">
+                <div className="text-2xl md:text-3xl font-semibold">
                   {stat.value}
                 </div>
-                <div className="text-sm md:text-base opacity-90">
+                <div className="text-sm opacity-80 mt-1">
                   {stat.label}
                 </div>
               </div>
@@ -1292,120 +1285,121 @@ export default async function SolutionPage({
       </section>
 
       {/* Introduction */}
-      <section className="py-20 bg-white/60 relative">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="prose prose-lg prose-gray max-w-none">
-            {solution.introduction
-              .replace(/\{appName\}/g, "Menuthere")
-              .split("\n\n")
-              .map((paragraph, idx) => (
-                <p key={idx} className="text-gray-600 leading-relaxed text-lg">
-                  {paragraph.trim()}
-                </p>
-              ))}
-          </div>
+      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
+        <div className="max-w-3xl mx-auto px-6 md:px-16">
+          {solution.introduction
+            .replace(/\{appName\}/g, "Menuthere")
+            .split("\n\n")
+            .filter((p) => p.trim())
+            .map((paragraph, idx) => (
+              <p key={idx} className="text-stone-600 leading-relaxed text-base mb-6 last:mb-0">
+                {paragraph.trim()}
+              </p>
+            ))}
         </div>
       </section>
+
+      {/* Divider */}
+      <div className="w-full h-px bg-stone-200" />
 
       {/* Benefits Grid */}
-      <section className="py-20 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Why Choose Menuthere for Your{" "}
-              {solution.title.split(" for ")[1] || "Business"}
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Purpose-built features designed specifically for your industry
-            </p>
-          </div>
+      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
+        <div className="max-w-5xl mx-auto px-6 md:px-16">
+          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-4">
+            Why choose Menuthere{" "}
+            <span className="text-stone-500">
+              for {solution.title.split(" for ")[1]?.toLowerCase() || "your business"}?
+            </span>
+          </h2>
+          <p className="text-base text-stone-500 max-w-xl leading-relaxed mb-12">
+            Purpose-built features designed specifically for your industry.
+          </p>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {solution.benefits.map((benefit, idx) => (
-              <div
-                key={idx}
-                className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow border border-gray-100"
-              >
-                <div
-                  className={`w-12 h-12 rounded-lg ${solution.color} flex items-center justify-center mb-4`}
-                >
-                  <benefit.icon className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">
-                  {benefit.title}
-                </h3>
-                <p className="text-gray-600 leading-relaxed">
-                  {benefit.description}
-                </p>
+        <div className="max-w-5xl mx-auto px-6 md:px-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {solution.benefits.map((benefit, idx) => (
+            <div
+              key={idx}
+              className="bg-white rounded-xl p-6 border border-stone-200"
+            >
+              <div className="w-10 h-10 rounded-lg bg-[#F4E0D0]/70 flex items-center justify-center mb-4">
+                <benefit.icon className="w-5 h-5 text-[#B5581A]" />
               </div>
-            ))}
-          </div>
+              <h3 className="text-base font-semibold text-stone-900 mb-2">
+                {benefit.title}
+              </h3>
+              <p className="text-stone-500 text-sm leading-relaxed">
+                {benefit.description}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
+
+      {/* Divider */}
+      <div className="w-full h-px bg-stone-200" />
 
       {/* Features List */}
-      <section className="py-20 bg-white/60 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
-                Everything You Need to Succeed
-              </h2>
-              <p className="text-xl text-gray-600 mb-8">
-                A comprehensive toolkit designed to modernize your menu and
-                delight your customers.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {solution.features.map((feature, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    <CheckCircle2
-                      className={`w-5 h-5 flex-shrink-0 text-green-500`}
-                    />
-                    <span className="text-gray-700">{feature}</span>
-                  </div>
-                ))}
-              </div>
+      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
+        <div className="max-w-5xl mx-auto px-6 md:px-16 grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+          <div>
+            <h2 className="geist-font font-semibold text-2xl md:text-3xl text-stone-900 leading-tight mb-4">
+              Everything you need{" "}
+              <span className="text-stone-500">to succeed.</span>
+            </h2>
+            <p className="text-base text-stone-500 mb-8 leading-relaxed">
+              A comprehensive toolkit designed to modernize your menu and
+              delight your customers.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {solution.features.map((feature, idx) => (
+                <div key={idx} className="flex items-center gap-3">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-green-500" />
+                  <span className="text-stone-600 text-sm">{feature}</span>
+                </div>
+              ))}
             </div>
-            <div
-              className={`${solution.color} rounded-2xl p-8 text-white shadow-xl`}
+          </div>
+          <div className="bg-terracotta-600 rounded-2xl p-8 text-white">
+            <IconComponent className="w-12 h-12 mb-6 opacity-80" />
+            <h3 className="text-xl font-semibold mb-3">Ready to get started?</h3>
+            <p className="text-white/80 mb-6">
+              Join thousands of businesses already using Menuthere to
+              transform their menu experience.
+            </p>
+            <Link
+              href="/get-started"
+              className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium bg-white text-stone-900 rounded-full hover:bg-stone-100 transition-colors"
             >
-              <IconComponent className="w-16 h-16 mb-6 opacity-80" />
-              <h3 className="text-2xl font-bold mb-4">Ready to get started?</h3>
-              <p className="text-lg opacity-90 mb-6">
-                Join thousands of businesses already using Menuthere to
-                transform their menu experience.
-              </p>
-              <Link
-                href="/get-started"
-                className="inline-flex items-center justify-center px-6 py-3 text-lg font-semibold bg-white text-gray-900 rounded-xl hover:bg-gray-100 transition-colors"
-              >
-                Start Free Trial
-              </Link>
-            </div>
+              Start Free Trial
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Use Cases */}
-      <section className="py-20 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Perfect For Every Type of{" "}
-              {solution.title.split(" for ")[1]?.split(" ")[0] || "Business"}
-            </h2>
-          </div>
+      {/* Divider */}
+      <div className="w-full h-px bg-stone-200" />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* Use Cases */}
+      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
+        <div className="max-w-5xl mx-auto px-6 md:px-16">
+          <h2 className="geist-font font-semibold text-3xl md:text-4xl text-stone-900 leading-tight mb-12">
+            Perfect for every type{" "}
+            <span className="text-stone-500">
+              of {solution.title.split(" for ")[1]?.split(" ")[0]?.toLowerCase() || "business"}.
+            </span>
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {solution.useCases.map((useCase, idx) => (
               <div
                 key={idx}
-                className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
+                className="bg-white rounded-xl p-6 border border-stone-200"
               >
-                <h3 className="text-xl font-bold text-gray-900 mb-3">
+                <h3 className="text-base font-semibold text-stone-900 mb-2">
                   {useCase.title}
                 </h3>
-                <p className="text-gray-600 leading-relaxed">
+                <p className="text-stone-500 text-sm leading-relaxed">
                   {useCase.description}
                 </p>
               </div>
@@ -1414,26 +1408,27 @@ export default async function SolutionPage({
         </div>
       </section>
 
+      {/* Divider */}
+      <div className="w-full h-px bg-stone-200" />
+
       {/* Testimonial */}
-      <section className="py-20 bg-white/60 relative">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div
-            className={`${solution.color} rounded-2xl p-8 md:p-12 text-white shadow-xl`}
-          >
+      <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
+        <div className="max-w-3xl mx-auto px-6 md:px-16">
+          <div className="bg-terracotta-600 rounded-2xl p-8 md:p-12 text-white">
             <div className="flex gap-1 mb-6">
               {[1, 2, 3, 4, 5].map((star) => (
-                <Star key={star} className="w-6 h-6 fill-current" />
+                <Star key={star} className="w-5 h-5 fill-current" />
               ))}
             </div>
-            <blockquote className="text-xl md:text-2xl font-medium leading-relaxed mb-8">
-              "{solution.testimonial.quote.replace(/\{appName\}/g, "Menuthere")}"
+            <blockquote className="text-lg md:text-xl font-medium leading-relaxed mb-8">
+              &ldquo;{solution.testimonial.quote.replace(/\{appName\}/g, "Menuthere")}&rdquo;
             </blockquote>
             <div>
-              <div className="font-bold text-lg">
+              <div className="font-semibold">
                 {solution.testimonial.author}
               </div>
-              <div className="opacity-80">{solution.testimonial.role}</div>
-              <div className="opacity-60 text-sm">
+              <div className="text-white/70 text-sm">{solution.testimonial.role}</div>
+              <div className="text-white/50 text-xs mt-1">
                 {solution.testimonial.location}
               </div>
             </div>
@@ -1442,35 +1437,42 @@ export default async function SolutionPage({
       </section>
 
       {/* FAQ */}
-      <FAQAccordion items={solution.faq} />
-
-      {/* CTA */}
-      <section className="py-20 bg-[#e65a22] relative">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-6">
-            Ready to Transform Your Menu?
-          </h2>
-          <p className="text-xl text-white/90 mb-8">
-            Join thousands of{" "}
-            {solution.title.split(" for ")[1]?.toLowerCase() || "businesses"}{" "}
-            already using Menuthere
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/get-started"
-              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-[#e65a22] bg-white rounded-xl hover:bg-gray-50 transition-colors"
-            >
-              Start Free Trial
-            </Link>
-            <Link
-              href="/pricing"
-              className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white border-2 border-white rounded-xl hover:bg-white/10 transition-colors"
-            >
-              View Pricing
-            </Link>
+      <section className="py-24 bg-white sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] mx-auto border-r border-l border-stone-200">
+        <div className="max-w-3xl mx-auto px-6 lg:px-8">
+          <div className="text-center mb-14">
+            <h2 className="geist-font text-3xl md:text-5xl font-semibold text-gray-900 tracking-tight">
+              Frequently asked{" "}
+              <span className="text-gray-400 italic">questions.</span>
+            </h2>
           </div>
+
+          <Accordion type="single" collapsible className="w-full">
+            {solution.faq.map((item, index) => (
+              <AccordionItem
+                key={index}
+                value={`item-${index}`}
+                className="border-b border-gray-200 last:border-b-0 py-1"
+              >
+                <AccordionTrigger className="text-left text-base font-medium text-gray-900 hover:no-underline py-5">
+                  {item.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-gray-600 text-sm leading-relaxed pb-5">
+                  {item.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         </div>
       </section>
+
+      {/* CTA */}
+      <StartFreeTrailSection />
+
+      {/* Footer */}
+      <Footer appName="Menuthere" />
+
+      {/* Chat */}
+      <Chatwoot />
     </main>
   );
 }
