@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Check, QrCode, Globe, Printer } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ButtonV2 } from "@/components/ui/ButtonV2";
 import { useRouter } from "next/navigation";
 import { onBoardUserSignup } from "@/app/actions/onBoardUserSignup";
 import FullScreenLoader from "@/components/ui/FullScreenLoader";
@@ -138,8 +138,8 @@ const PricingSection = ({
       tabLabel: "Billing",
       description: "Advanced billing for efficient restaurant management.",
       icon: Printer,
-      color: "text-orange-600",
-      bg: "bg-orange-100",
+      color: "text-[#B5581A]",
+      bg: "bg-[#F4E0D0]/70",
       features: [
         "Fully online and offline billing",
         "Remote reports tracking",
@@ -438,7 +438,7 @@ const PricingSection = ({
 
   return (
     <section
-      className="py-6 md:py-24 bg-gradient-to-br from-orange-50 to-white"
+      className="py-6 md:py-24 bg-white"
       id="pricing"
     >
       <FullScreenLoader
@@ -459,20 +459,20 @@ const PricingSection = ({
       <div className="max-w-7xl mx-auto px-4 md:px-6 text-center">
         {!hideHeader && (
           <>
-            <h2 className="text-lg md:text-4xl font-bold text-gray-900 mb-2 md:mb-4">
+            <h2 className="text-lg md:text-4xl font-semibold text-stone-900 mb-2 md:mb-4 tracking-tight">
               Simple, Transparent Pricing
             </h2>
-            <p className="text-xs md:text-lg text-gray-600 mb-6 md:mb-12">
+            <p className="text-xs md:text-lg text-stone-500 mb-6 md:mb-12">
               Choose the plan that fits your growth.
             </p>
           </>
         )}
 
         {isIndia ? (
-          <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden max-w-4xl mx-auto">
+          <div className="bg-white rounded-3xl border border-stone-200 overflow-hidden max-w-4xl mx-auto">
             <Tabs defaultValue="digital" className="w-full">
-              <div className="bg-gray-50/50 p-2 border-b border-gray-100">
-                <TabsList className="grid w-full grid-cols-3 h-auto p-1 gap-2 bg-gray-100/50 rounded-xl">
+              <div className="bg-stone-50/50 p-2 border-b border-stone-200">
+                <TabsList className="grid w-full grid-cols-3 h-auto p-1 gap-2 bg-stone-100/50 rounded-xl">
                   <TabsTrigger
                     value="digital"
                     className="py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary font-medium rounded-lg transition-all"
@@ -510,10 +510,10 @@ const PricingSection = ({
                       <plan.icon className="w-8 h-8" />
                     </div>
 
-                    <h3 className="text-3xl font-bold text-gray-900 mb-2">
+                    <h3 className="text-3xl font-semibold text-stone-900 mb-2">
                       {plan.title}
                     </h3>
-                    <p className="text-gray-500 mb-8">{plan.description}</p>
+                    <p className="text-stone-500 mb-8">{plan.description}</p>
 
                     {/* Pricing Cards selection */}
                     <div
@@ -545,28 +545,28 @@ const PricingSection = ({
                             className={cn(
                               "cursor-pointer rounded-xl p-6 border-2 transition-all relative",
                               isActuallySelected
-                                ? "border-orange-500 bg-orange-50/30 ring-1 ring-orange-500/20"
-                                : "border-gray-100 hover:border-gray-200 bg-white",
+                                ? "border-[#B5581A] bg-[#F4E0D0]/30/30 ring-1 ring-[#B5581A]/20"
+                                : "border-stone-200 hover:border-gray-200 bg-white",
                             )}
                           >
-                            <h4 className="font-semibold text-gray-900 mb-1">
+                            <h4 className="font-semibold text-stone-900 mb-1">
                               {variant.type === "monthly"
                                 ? "Monthly"
                                 : "Yearly"}
                             </h4>
                             <div className="flex items-baseline justify-center gap-1">
-                              <span className="text-2xl font-bold text-gray-900">
+                              <span className="text-2xl font-semibold text-stone-900">
                                 ₹{variant.price}
                               </span>
-                              {/* <span className="text-xs text-gray-500">{variant.period}</span> */}
+                              {/* <span className="text-xs text-stone-500">{variant.period}</span> */}
                             </div>
-                            {/* <p className="text-xs text-gray-500 mt-1">{variant.label}</p> */}
-                            <p className="text-xs text-gray-400 mt-1">
+                            {/* <p className="text-xs text-stone-500 mt-1">{variant.label}</p> */}
+                            <p className="text-xs text-stone-400 mt-1">
                               {variant.billed}
                             </p>
 
                             {(variant as any).savings && (
-                              <span className="absolute top-3 right-3 text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                              <span className="absolute top-3 right-3 text-[10px] font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
                                 {(variant as any).savings}
                               </span>
                             )}
@@ -582,20 +582,21 @@ const PricingSection = ({
                           <div className="mt-0.5 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
                             <Check className="h-3 w-3 text-green-600" />
                           </div>
-                          <span className="text-gray-700 text-sm">
+                          <span className="text-stone-700 text-sm">
                             {feature}
                           </span>
                         </div>
                       ))}
                     </div>
 
-                    <Button
-                      size="lg"
-                      className="w-full max-w-md bg-orange-600 hover:bg-orange-700 text-white font-semibold h-12 rounded-xl shadow-lg shadow-orange-200"
+                    <ButtonV2
                       onClick={() => handleIndiaPlanClick(key)}
+                      variant="primary"
+                      showArrow={false}
+                      className="w-full max-w-md justify-center h-12"
                     >
                       Get Started
-                    </Button>
+                    </ButtonV2>
                   </div>
                 </TabsContent>
               ))}
@@ -644,14 +645,14 @@ const PricingSection = ({
               return (
                 <div
                   key={index}
-                  className={`relative min-w-[75vw] md:min-w-0 snap-center bg-white rounded-2xl md:rounded-3xl shadow-lg md:shadow-xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 ${
+                  className={`relative min-w-[75vw] md:min-w-0 snap-center bg-white rounded-2xl md:rounded-3xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 ${
                     plan.popular
-                      ? "border-orange-200 ring-2 ring-orange-100 shadow-orange-100"
-                      : "border-gray-100"
+                      ? "border-[#B5581A]/30 ring-2 ring-[#F4E0D0]"
+                      : "border-stone-200"
                   }`}
                 >
                   {plan.popular && (
-                    <div className="absolute top-0 inset-x-0 bg-orange-600 py-1 text-white text-[10px] md:text-xs font-bold tracking-wide uppercase">
+                    <div className="absolute top-0 inset-x-0 bg-[#B5581A] py-1 text-white text-[10px] md:text-xs font-semibold tracking-wide uppercase">
                       Most Popular
                     </div>
                   )}
@@ -660,32 +661,32 @@ const PricingSection = ({
                     className={`p-5 md:p-8 ${plan.popular ? "pt-7 md:pt-10" : ""} flex flex-col h-full`}
                   >
                     <div className="mb-3 md:mb-6">
-                      <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-1 md:mb-2">
+                      <h3 className="text-lg md:text-xl font-semibold text-stone-900 mb-1 md:mb-2">
                         {plan.name}
                       </h3>
-                      <p className="text-gray-500 text-xs md:text-sm min-h-[2.5rem] md:h-10">
+                      <p className="text-stone-500 text-xs md:text-sm min-h-[2.5rem] md:h-10">
                         {plan.description}
                       </p>
                     </div>
 
                     <div className="flex flex-col items-center mb-4 md:mb-8">
                       <div className="flex items-baseline justify-center">
-                        <span className="text-3xl md:text-4xl font-extrabold text-gray-900">
+                        <span className="text-3xl md:text-4xl font-semibold text-stone-900">
                           {plan.price}
                         </span>
                         {plan.period && (
-                          <span className="text-gray-500 font-medium ml-1 text-xs md:text-base">
+                          <span className="text-stone-500 font-medium ml-1 text-xs md:text-base">
                             {plan.period}
                           </span>
                         )}
                       </div>
                       {plan.yearly_price && (
-                        <span className="text-xs text-gray-400 mt-1">
+                        <span className="text-xs text-stone-400 mt-1">
                           Billed {plan.yearly_price} Yearly
                         </span>
                       )}
                       {!plan.yearly_price && plan.period === "/year" && (
-                        <span className="text-xs text-gray-400 mt-1">
+                        <span className="text-xs text-stone-400 mt-1">
                           Billed Yearly
                         </span>
                       )}
@@ -700,7 +701,7 @@ const PricingSection = ({
                           <div className="mt-0.5 w-4 h-4 md:w-5 md:h-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
                             <Check className="h-2.5 w-2.5 md:h-3 md:w-3 text-green-600" />
                           </div>
-                          <span className="text-gray-700 text-xs md:text-sm leading-tight">
+                          <span className="text-stone-700 text-xs md:text-sm leading-tight">
                             {feature}
                           </span>
                         </div>
@@ -708,25 +709,25 @@ const PricingSection = ({
                     </div>
 
                     {isPlanDisabled ? (
-                      <Button
+                      <ButtonV2
                         disabled
-                        className="w-full py-4 rounded-lg shadow-none text-sm font-semibold bg-gray-100 text-gray-400 border-2 border-transparent cursor-not-allowed h-auto"
+                        variant="secondary"
+                        showArrow={false}
+                        className="w-full justify-center mt-auto"
                       >
                         {buttonText}
-                      </Button>
+                      </ButtonV2>
                     ) : (
                       <div className="block w-full mt-auto">
-                        <Button
+                        <ButtonV2
                           onClick={() => handlePlanClick(plan)}
                           disabled={isCreatingAccount}
-                          className={`w-full py-4 rounded-lg text-sm font-semibold h-auto transition-all ${
-                            plan.popular
-                              ? "bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-200 hover:shadow-orange-300"
-                              : "bg-white border-2 border-orange-100 text-orange-600 hover:bg-orange-50 hover:border-orange-200 shadow-sm hover:shadow-md"
-                          }`}
+                          variant={plan.popular ? "primary" : "secondary"}
+                          showArrow={false}
+                          className="w-full justify-center"
                         >
                           {buttonText}
-                        </Button>
+                        </ButtonV2>
                       </div>
                     )}
                   </div>
@@ -736,7 +737,7 @@ const PricingSection = ({
           </div>
         )}
 
-        <p className="mt-6 md:mt-8 text-xs md:text-sm text-gray-400">
+        <p className="mt-6 md:mt-8 text-xs md:text-sm text-stone-400">
           All plans include our core features. Cancel anytime.
         </p>
       </div>

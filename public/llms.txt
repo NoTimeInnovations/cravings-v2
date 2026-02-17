@@ -1,0 +1,191 @@
+# Menuthere
+
+> Menuthere is the all-in-one digital menu platform for restaurants, cafes, hotels, bakeries, cloud kitchens, food trucks, bars, and catering services. Create a free QR code digital menu in minutes with real-time updates, Google Business Profile sync, dynamic offers, analytics, and online ordering. No app download required for customers. Trusted by 600+ restaurants across India.
+
+## Overview
+
+Menuthere helps food businesses go digital with a smart QR code menu system. Customers scan a QR code and instantly browse the full menu on their phone — no app needed. Restaurant owners get a powerful dashboard to manage menus, orders, offers, analytics, and Google Business sync from one place.
+
+- Website: https://menuthere.com
+- Get Started Free: https://menuthere.com/get-started
+- Pricing: https://menuthere.com/pricing
+- Help Center: https://menuthere.com/help-center
+- Download App: https://menuthere.com/download-app
+- Book a Demo: https://cal.id/menuthere
+
+## Core Features
+
+### Smart QR Menu
+Customers scan a QR code and instantly see the full menu on their phone. No app downloads needed. Beautiful, mobile-first design with high-quality food images, dietary filters, and smart search. Menus load in under 2 seconds. Visual menus increase average order value by up to 25%.
+
+### Google Business Profile Menu Sync
+Automatically sync your complete menu — categories, items, prices, and photos — to your Google Business Profile in one click. Restaurants with complete Google profiles get 7x more clicks and drive 30% more footfall. Show up on Google Maps with your full, up-to-date menu.
+
+### Real-Time Menu Updates
+Change prices, add items, toggle availability, or run time-based offers instantly from the dashboard. Updates reflect on the digital menu in real time. No reprinting, no designers, no delays. Save thousands annually on printing costs.
+
+### Dynamic Offers and Promotions
+Create flash deals, happy-hour specials, or time-based discounts that activate and expire automatically. Highlight best-sellers with Must-Try badges and Chef's Choice tags. Drive repeat visits without printing flyers.
+
+### Analytics and Insights
+Track daily scan volumes, peak hour heatmaps, device usage, and best-selling items. Make data-driven decisions about pricing, promotions, and menu placement.
+
+### Google Reviews Booster
+Automatically prompt customers to leave a Google review after scanning the menu. Display real-time Google reviews on the digital menu. Build a 5-star rating effortlessly.
+
+### Online Ordering
+Accept table orders directly from customers via QR code. Includes KOT (Kitchen Order Ticket) and bill printing, WhatsApp order integration, and POS compatibility.
+
+### Billing System
+Fully online and offline billing with remote reports tracking, multi-terminal billing, KOT and bill printing with Bluetooth/USB, and real-time inventory sync.
+
+## Pricing
+
+### Free Trial
+$0 for 20 days. Includes unlimited scans, unlimited offers, unlimited edits, and chat support. No credit card required.
+
+### Standard Plan
+$9/month or $108/year. Includes 500 scans per month, unlimited offers, unlimited edits, and priority chat support.
+
+### Plus Plan (Most Popular)
+$29/month or $348/year. Includes unlimited scans, unlimited offers, unlimited edits, and priority chat support.
+
+### India-Specific Plans
+- Digital Menu: Starting at Rs 299/month or Rs 2,999/year
+- Online Ordering: Starting at Rs 499/month or Rs 4,999/year (plus 2% transaction fee)
+- Billing: Rs 4,999/year
+
+All plans include core features. Cancel anytime. Start free and upgrade as you grow.
+
+## Solutions by Industry
+
+### Restaurants
+Smart digital menus for modern restaurants. Replace printed menus with scannable QR codes. Update prices and items instantly.
+- Learn more: https://menuthere.com/solutions/restaurants
+
+### Cafes and Coffee Shops
+Instagram-worthy menus for specialty brews and pastries. Showcase seasonal drinks and daily specials with real-time updates.
+- Learn more: https://menuthere.com/solutions/cafes
+
+### Bakeries and Pastry Shops
+Showcase fresh-baked goods with real-time availability. Mark items as sold out instantly when they run out.
+- Learn more: https://menuthere.com/solutions/bakeries
+
+### Cloud Kitchens
+Manage multiple virtual brands from one dashboard. Separate menus for each brand with unified analytics.
+- Learn more: https://menuthere.com/solutions/cloud-kitchens
+
+### Hotels and Resorts
+Elegant digital menus for in-room dining and all food and beverage outlets. Multi-location support for hotel chains.
+- Learn more: https://menuthere.com/solutions/hotels
+
+### Food Trucks
+Mobile menus that update on the fly. Perfect for changing locations and rotating menus.
+- Learn more: https://menuthere.com/solutions/food-trucks
+
+### Bars and Pubs
+Dark mode designs, tap rotation updates, and happy hour automation. Showcase cocktail menus and daily specials.
+- Learn more: https://menuthere.com/solutions/bars
+
+### Catering Services
+Professional digital menus for events and weddings. Create custom menus for each event.
+- Learn more: https://menuthere.com/solutions/catering
+
+## Solutions by Role
+
+### Restaurant Owners
+Full control over menus, pricing, offers, and analytics from one dashboard. Save time and reduce costs.
+- Learn more: https://menuthere.com/solutions/owners
+
+### Agencies
+Earn 20-30% lifetime recurring commissions as a Menuthere agency partner. Reseller portal with demo links and branded materials. Supports 600+ live deployments.
+- Learn more: https://menuthere.com/solutions/agencies
+
+### Google Business Optimization
+Sync menus directly to Google Business Profile. Boost local SEO and drive more foot traffic.
+- Learn more: https://menuthere.com/solutions/google-business
+
+## Key Metrics
+
+- 600+ restaurants trust Menuthere
+- 4.8 out of 5 star average rating from 500+ reviews
+- 7x more profile clicks with Google Business sync
+- 30% more footfall for restaurants with complete profiles
+- 25% increase in average order value with visual menus
+- Under 2 second menu load time
+- 99.9% platform uptime
+- Save Rs 15,000 to Rs 50,000 annually on printing costs
+
+## Technical Capabilities
+
+- Unlimited menu items and categories
+- High-quality food photography display
+- Allergen and dietary information labels
+- Daily specials and limited-time offers
+- Table ordering integration
+- Custom branding and themes with color picker
+- Multi-location support for restaurant chains
+- Nutritional information display
+- Multi-language menu support
+- Mobile-first responsive design
+- Social media sharing
+- WhatsApp order integration
+- KOT and bill printing via Bluetooth or USB
+- Inventory and stock management
+- Team roles and permissions
+- Staff training and onboarding support
+
+## Frequently Asked Questions
+
+Q: How do I create a digital menu with Menuthere?
+A: Visit https://menuthere.com/get-started, upload a photo of your existing menu, fill in your restaurant details, and your digital menu is created automatically using AI extraction. You can customize themes, colors, and content from the dashboard.
+
+Q: Do my customers need to download an app?
+A: No. Customers simply scan the QR code with their phone camera and the menu opens instantly in their browser. No app download required.
+
+Q: How do I update menu prices or items?
+A: Log into your dashboard, go to the Menu section, click any item to edit details like name, price, image, or description, then save. Changes go live instantly.
+
+Q: Can I toggle items as out of stock?
+A: Yes. In the Menu section, click Availability at the top. Toggle entire categories or individual items on or off with a single click.
+
+Q: How does Google Business sync work?
+A: Connect your Google Business Profile from the dashboard. Click sync and your complete menu — categories, items, prices, and photos — is automatically pushed to your Google listing.
+
+Q: Can I run offers and promotions?
+A: Yes. Go to the Offers section in your dashboard to create flash deals, happy hour specials, or time-based discounts that activate and expire automatically.
+
+Q: Can I cancel my subscription?
+A: Yes. Cancel anytime from your account. Your plan stays active until the current billing period ends.
+
+Q: Is there a free plan?
+A: Yes. Start with a free 20-day trial that includes all features. No credit card required.
+
+Q: Does Menuthere support multiple locations?
+A: Yes. Multi-location support is available for restaurant chains and hotel groups.
+
+## Contact
+
+- Email: menuthere@gmail.com
+- Instagram: https://www.instagram.com/menu.there/
+- LinkedIn: https://www.linkedin.com/company/Menuthere
+- Facebook: https://www.facebook.com/Menuthere
+- Support languages: English, Hindi, Malayalam
+
+## Legal
+
+- Privacy Policy: https://menuthere.com/privacy-policy
+- Terms of Service: https://menuthere.com/terms-and-conditions
+- Refund Policy: https://menuthere.com/refund-policy
+
+## Sitemap
+
+- Home: https://menuthere.com
+- Pricing: https://menuthere.com/pricing
+- Get Started: https://menuthere.com/get-started
+- Login: https://menuthere.com/login
+- Help Center: https://menuthere.com/help-center
+- Download App: https://menuthere.com/download-app
+- Solutions: https://menuthere.com/solutions/restaurants
+- Google Business Sync: https://menuthere.com/solutions/google-business
+- XML Sitemap: https://menuthere.com/sitemap.xml

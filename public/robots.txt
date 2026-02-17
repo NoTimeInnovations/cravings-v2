@@ -1,6 +1,9 @@
 User-agent: *
 Allow: /
 Allow: /solutions/
+Allow: /solutions/google-business
+Allow: /solutions/owners
+Allow: /solutions/agencies
 Allow: /solutions/restaurants
 Allow: /solutions/cafes
 Allow: /solutions/bakeries
@@ -9,6 +12,12 @@ Allow: /solutions/hotels
 Allow: /solutions/food-trucks
 Allow: /solutions/bars
 Allow: /solutions/catering
+Allow: /help-center
+Allow: /download-app
+Allow: /pricing
+Allow: /get-started
+Allow: /login
+Allow: /hotels/
 Disallow: /admin/
 Disallow: /admin-v2/
 Disallow: /captain/
@@ -16,4 +25,5 @@ Disallow: /api/
 Disallow: /superadmin/
 Disallow: /test/
 
-Sitemap: https://www.cravings.live/sitemap.xml
+Sitemap: https://menuthere.com/sitemap.xml
+LLMs: https://menuthere.com/llms.txt
