@@ -1,8 +1,43 @@
 import { MetadataRoute } from "next";
+import { fetchFromHasura } from "@/lib/hasuraClient";
 
 const BASE_URL = "https://menuthere.com";
 
+const getAllActivePartnersForSitemap = `
+  query GetAllActivePartnersForSitemap {
+    partners(where: {status: {_eq: "active"}}) {
+      id
+      store_name
+      updated_at
+    }
+  }
+`;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Fetch all active partners for hotel pages
+  let hotelEntries: MetadataRoute.Sitemap = [];
+  try {
+    const data = await fetchFromHasura(getAllActivePartnersForSitemap);
+    const partners: { id: string; store_name: string; updated_at: string }[] =
+      data?.partners || [];
+
+    hotelEntries = partners.map((partner) => {
+      const slug = encodeURIComponent(
+        partner.store_name.replace(/\s+/g, "-")
+      );
+      return {
+        url: `${BASE_URL}/hotels/${slug}/${partner.id}`,
+        lastModified: partner.updated_at
+          ? new Date(partner.updated_at)
+          : new Date(),
+        changeFrequency: "weekly" as const,
+        priority: 0.8,
+      };
+    });
+  } catch (error) {
+    console.error("Failed to fetch partners for sitemap:", error);
+  }
+
   return [
     // Home
     {
@@ -100,5 +135,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.8,
     },
+    // Hotel pages (dynamic)
+    ...hotelEntries,
   ];
 }

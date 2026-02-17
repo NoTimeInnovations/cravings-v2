@@ -37,42 +37,42 @@ export default function Footer({
             <ul className="space-y-2.5">
               <li>
                 <Link
-                  href="/product/digital-menu"
+                  href="/solutions/google-business"
                   className="text-sm text-white/70 hover:text-white transition-colors"
                 >
-                  Digital Menu
+                  Google Business Sync
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/product/table-ordering"
+                  href="/solutions/owners"
                   className="text-sm text-white/70 hover:text-white transition-colors"
                 >
-                  Table Ordering
+                  Owners
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/product/captain-ordering"
+                  href="/solutions/agencies"
                   className="text-sm text-white/70 hover:text-white transition-colors"
                 >
-                  Captain Ordering
+                  Agencies
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/product/delivery-website"
+                  href="/solutions/restaurants"
                   className="text-sm text-white/70 hover:text-white transition-colors"
                 >
-                  Delivery Website
+                  Restaurants
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/product/pos"
+                  href="/solutions/cafes"
                   className="text-sm text-white/70 hover:text-white transition-colors"
                 >
-                  POS System
+                  Cafés
                 </Link>
               </li>
             </ul>
@@ -88,6 +88,14 @@ export default function Footer({
                   className="text-sm text-white/70 hover:text-white transition-colors"
                 >
                   Help Center
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/download-app"
+                  className="text-sm text-white/70 hover:text-white transition-colors"
+                >
+                  Download App
                 </Link>
               </li>
               <li>
