@@ -32,39 +32,43 @@ export default function Chatwoot({
     type = "standard",
 }: ChatwootProps) {
     useEffect(() => {
-        // Prevent duplicate loading
-        if (window.$chatwoot) {
-            return;
-        }
+        // Delay Chatwoot loading by 5 seconds to avoid blocking initial render
+        const timer = setTimeout(() => {
+            // Prevent duplicate loading
+            if (window.$chatwoot) {
+                return;
+            }
 
-        // Set Chatwoot settings before loading the script
-        window.chatwootSettings = {
-            hideMessageBubble: false,
-            position,
-            locale,
-            type,
-        };
-
-        // Create and load the Chatwoot script
-        const baseUrl = CHATWOOT_URL.endsWith('/') ? CHATWOOT_URL : `${CHATWOOT_URL}/`;
-
-        (function (d: Document, t: string) {
-            const g = d.createElement(t) as HTMLScriptElement;
-            const s = d.getElementsByTagName(t)[0];
-            g.src = `${baseUrl}packs/js/sdk.js`;
-            g.defer = true;
-            g.async = true;
-            s.parentNode?.insertBefore(g, s);
-
-            g.onload = function () {
-                window.chatwootSDK?.run({
-                    websiteToken: CHATWOOT_TOKEN,
-                    baseUrl: baseUrl,
-                });
+            // Set Chatwoot settings before loading the script
+            window.chatwootSettings = {
+                hideMessageBubble: false,
+                position,
+                locale,
+                type,
             };
-        })(document, "script");
+
+            // Create and load the Chatwoot script
+            const baseUrl = CHATWOOT_URL.endsWith('/') ? CHATWOOT_URL : `${CHATWOOT_URL}/`;
+
+            (function (d: Document, t: string) {
+                const g = d.createElement(t) as HTMLScriptElement;
+                const s = d.getElementsByTagName(t)[0];
+                g.src = `${baseUrl}packs/js/sdk.js`;
+                g.defer = true;
+                g.async = true;
+                s.parentNode?.insertBefore(g, s);
+
+                g.onload = function () {
+                    window.chatwootSDK?.run({
+                        websiteToken: CHATWOOT_TOKEN,
+                        baseUrl: baseUrl,
+                    });
+                };
+            })(document, "script");
+        }, 5000);
 
         return () => {
+            clearTimeout(timer);
             // Cleanup on unmount
             const chatwootWidget = document.querySelector(".woot-widget-holder");
             if (chatwootWidget) {

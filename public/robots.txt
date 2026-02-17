@@ -26,4 +26,3 @@ Disallow: /superadmin/
 Disallow: /test/
 
 Sitemap: https://menuthere.com/sitemap.xml
-LLMs: https://menuthere.com/llms.txt

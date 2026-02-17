@@ -1,21 +1,23 @@
 "use client";
 
-import posthog from "posthog-js";
-import { PostHogProvider as PHProvider } from "posthog-js/react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, Suspense } from "react";
+import { useEffect, Suspense, useState, useRef, createContext, useContext } from "react";
 
-function PostHogPageview() {
+// Lightweight context that provides posthog instance (or null while loading)
+const PostHogContext = createContext<any>(null);
+export const usePostHog = () => useContext(PostHogContext);
+
+function PostHogPageview({ posthog }: { posthog: any }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   useEffect(() => {
     if (
       pathname &&
+      posthog &&
       typeof window !== "undefined" &&
       window.location.hostname.includes("Menuthere.com")
     ) {
-      // Exclude specific paths from pageview tracking
       const excludedPaths = [
         "/superadmin",
         "/qrScan",
@@ -25,7 +27,6 @@ function PostHogPageview() {
         "/admin-v2",
       ];
 
-      // Check if pathname starts with any excluded path
       const isExcluded = excludedPaths.some((path) =>
         pathname.startsWith(path),
       );
@@ -34,7 +35,6 @@ function PostHogPageview() {
         return;
       }
 
-      // Only capture on Menuthere.com
       if (!window.location.hostname.includes("Menuthere.com")) {
         return;
       }
@@ -48,43 +48,59 @@ function PostHogPageview() {
         $current_url: url,
       });
     }
-  }, [pathname, searchParams]);
+  }, [pathname, searchParams, posthog]);
 
   return null;
 }
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
+  const [posthog, setPosthog] = useState<any>(null);
+  const initialized = useRef(false);
+
   useEffect(() => {
-    // Only initialize PostHog on Menuthere.com
-    if (typeof window !== "undefined") {
-      if (window.location.hostname.includes("Menuthere.com")) {
-        posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY as string, {
-          api_host:
-            process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
-          person_profiles: "identified_only",
-          capture_pageview: false,
-          defaults: "2025-11-30",
-          autocapture: false,
-        });
-      } else {
-        // Explicitly disable capturing for other domains (e.g. cravings.live)
-        // This prevents any accidental autocapture or events
-        if (
-          posthog.has_opted_out_capturing &&
-          !posthog.has_opted_out_capturing()
-        ) {
-          posthog.opt_out_capturing();
+    if (initialized.current) return;
+    initialized.current = true;
+
+    if (typeof window === "undefined") return;
+
+    // Delay PostHog initialization to avoid blocking main thread on initial load
+    const timer = setTimeout(() => {
+      import("posthog-js").then((mod) => {
+        const ph = mod.default;
+
+        if (window.location.hostname.includes("Menuthere.com")) {
+          ph.init(process.env.NEXT_PUBLIC_POSTHOG_KEY as string, {
+            api_host:
+              process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
+            person_profiles: "identified_only",
+            capture_pageview: false,
+            defaults: "2025-11-30",
+            autocapture: false,
+          });
+        } else {
+          if (
+            ph.has_opted_out_capturing &&
+            !ph.has_opted_out_capturing()
+          ) {
+            ph.opt_out_capturing();
+          }
         }
-      }
-    }
+
+        setPosthog(ph);
+      });
+    }, 3000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   return (
-    <PHProvider client={posthog}>
-      <Suspense fallback={null}>
-        <PostHogPageview />
-      </Suspense>
+    <PostHogContext.Provider value={posthog}>
+      {posthog && (
+        <Suspense fallback={null}>
+          <PostHogPageview posthog={posthog} />
+        </Suspense>
+      )}
       {children}
-    </PHProvider>
+    </PostHogContext.Provider>
   );
 }

@@ -2,16 +2,18 @@
 import type { Metadata } from "next";
 import { Inter, Dancing_Script, Poppins, Roboto } from "next/font/google";
 import Script from "next/script";
+import dynamic from "next/dynamic";
 import "./globals.css";
 import "@smastrom/react-rating/style.css";
 import { Toaster } from "@/components/ui/sonner";
-import AuthInitializer from "@/providers/AuthInitializer";
 import BottomNav from "@/components/BottomNav";
 import { Navbar } from "@/components/Navbar";
-import WhatsappGroupJoinAlertDialog from "@/components/WhatsappGroupJoinAlertDialog";
 import { PostHogProvider } from "@/providers/posthog-provider";
 import { DomainProvider } from "@/providers/DomainProvider";
 import type { DomainConfig } from "@/lib/domain-utils";
+
+const AuthInitializer = dynamic(() => import("@/providers/AuthInitializer"));
+const WhatsappGroupJoinAlertDialog = dynamic(() => import("@/components/WhatsappGroupJoinAlertDialog"));
 
 const MENUTHERE_CONFIG: DomainConfig = {
   name: "Menuthere",
@@ -72,13 +74,13 @@ const dancingScript = Dancing_Script({
   display: "swap",
 });
 const poppins = Poppins({
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+  weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
   variable: "--font-poppins",
   display: "swap",
 });
 const roboto = Roboto({
-  weight: ["100", "300", "400", "500", "700", "900"],
+  weight: ["400", "500", "700"],
   subsets: ["latin"],
   variable: "--font-roboto",
   display: "swap",
@@ -92,30 +94,38 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Geist font — reduced weights, loaded via link instead of CSS @import */}
         <link
-          href="https://db.onlinewebfonts.com/c/88f10bf18a36407ef36bf30bc25a3618?family=SuisseIntl-Regular"
           rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap"
         />
-        <link
-          href="https://db.onlinewebfonts.com/c/03d5b20d124cd26dc873bd4a8e42313e?family=SuisseIntl-Light"
-          rel="stylesheet"
+        {/* SuisseIntl fonts — loaded async to avoid render-blocking */}
+        <Script
+          id="suisse-fonts-loader"
+          strategy="lazyOnload"
+          dangerouslySetInnerHTML={{
+            __html: `
+              ['88f10bf18a36407ef36bf30bc25a3618?family=SuisseIntl-Regular',
+               '03d5b20d124cd26dc873bd4a8e42313e?family=SuisseIntl-Light',
+               '653d9381828e9577fb1e417dc047f89d?family=SuisseIntl-SemiBold',
+               'd1a580023d40c546276decde1c711e60?family=SuisseIntl-Bold'
+              ].forEach(function(id){
+                var l=document.createElement('link');
+                l.rel='stylesheet';
+                l.href='https://db.onlinewebfonts.com/c/'+id;
+                document.head.appendChild(l);
+              });
+            `,
+          }}
         />
-        <link
-          href="https://db.onlinewebfonts.com/c/653d9381828e9577fb1e417dc047f89d?family=SuisseIntl-SemiBold"
-          rel="stylesheet"
-        />
-        <link
-          href="https://db.onlinewebfonts.com/c/d1a580023d40c546276decde1c711e60?family=SuisseIntl-Bold"
-          rel="stylesheet"
-        />
-        {/* Google Tag (gtag.js) */}
+        {/* Google Tag (gtag.js) — lazyOnload to avoid blocking main thread */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=AW-17905683217"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
         />
         <Script
           id="google-tag-manager"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
@@ -127,10 +137,10 @@ export default function RootLayout({
             `,
           }}
         />
-        {/* Apollo Tracking Script */}
+        {/* Apollo Tracking Script — lazyOnload to avoid blocking main thread */}
         <Script
           id="apollo-tracker"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
           dangerouslySetInnerHTML={{
             __html: `function initApollo(){var n=Math.random().toString(36).substring(7),o=document.createElement("script");
 o.src="https://assets.apollo.io/micro/website-tracker/tracker.iife.js?nocache="+n,o.async=!0,o.defer=!0,

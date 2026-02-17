@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -321,4 +319,13 @@ button[data-state="open"] h1 .left-marker {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #a3a3a3;
+}
+
+/* Marquee animation — GPU-accelerated, no JS needed */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee linear infinite;
 }

@@ -1,11 +1,13 @@
 import Link from "next/link";
 import Image from "next/image";
-import RealTimeMenuAnimation from "./RealTimeMenuAnimation";
-import OffersAnimation from "./OffersAnimation";
-import AnalyticsAnimation from "./AnalyticsAnimation";
-import ReviewsAnimation from "./ReviewsAnimation";
-import GoogleSyncAnimation from "./GoogleSyncAnimation";
-import SmartQRAnimation from "./SmartQRAnimation";
+import dynamic from "next/dynamic";
+
+const RealTimeMenuAnimation = dynamic(() => import("./RealTimeMenuAnimation"));
+const OffersAnimation = dynamic(() => import("./OffersAnimation"));
+const AnalyticsAnimation = dynamic(() => import("./AnalyticsAnimation"));
+const ReviewsAnimation = dynamic(() => import("./ReviewsAnimation"));
+const GoogleSyncAnimation = dynamic(() => import("./GoogleSyncAnimation"));
+const SmartQRAnimation = dynamic(() => import("./SmartQRAnimation"));
 
 const FEATURES = [
   {

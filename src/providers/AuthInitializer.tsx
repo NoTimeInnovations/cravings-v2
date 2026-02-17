@@ -6,7 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import { getAuthCookie, getTempUserIdCookie, setTempUserIdCookie } from "@/app/auth/actions";
 import { Notification } from "@/app/actions/notification";
 import { usePathname, useRouter } from "next/navigation";
-import { usePostHog } from "posthog-js/react";
+import { usePostHog } from "@/providers/posthog-provider";
 
 const AuthInitializer = () => {
   const { fetchUser, userData, loading } = useAuthStore();
