@@ -16,7 +16,7 @@ function PostHogPageview({ posthog }: { posthog: any }) {
       pathname &&
       posthog &&
       typeof window !== "undefined" &&
-      window.location.hostname.includes("Menuthere.com")
+      window.location.hostname.includes("menuthere.com")
     ) {
       const excludedPaths = [
         "/superadmin",
@@ -35,7 +35,7 @@ function PostHogPageview({ posthog }: { posthog: any }) {
         return;
       }
 
-      if (!window.location.hostname.includes("Menuthere.com")) {
+      if (!window.location.hostname.includes("menuthere.com")) {
         return;
       }
 
@@ -68,13 +68,12 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
       import("posthog-js").then((mod) => {
         const ph = mod.default;
 
-        if (window.location.hostname.includes("Menuthere.com")) {
+        if (window.location.hostname.includes("menuthere.com")) {
           ph.init(process.env.NEXT_PUBLIC_POSTHOG_KEY as string, {
             api_host:
               process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
             person_profiles: "identified_only",
             capture_pageview: false,
-            defaults: "2025-11-30",
             autocapture: false,
           });
         } else {
