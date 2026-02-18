@@ -34,9 +34,6 @@ import axios from "axios";
 // Free plan IDs that should not see the "Get all images" button
 const FREE_PLAN_IDS = ["int_free", "in_trial"];
 
-// LocalStorage key to track if user has used the "Get all images" feature
-const AUTO_IMAGES_USED_KEY = "auto_images_used";
-
 export function AdminV2Menu() {
     const {
         items: menu,
@@ -61,14 +58,13 @@ export function AdminV2Menu() {
     const [isFetchingImages, setIsFetchingImages] = useState(false);
     const [imagesFetchedCount, setImagesFetchedCount] = useState(0);
     const [totalItemsToFetch, setTotalItemsToFetch] = useState(0);
-    const [hasUsedAutoImages, setHasUsedAutoImages] = useState(false);
     const [isGoogleLinked, setIsGoogleLinked] = useState(false);
 
     // Check if user has a non-free plan
     const partner = userData as Partner;
     const planId = partner?.subscription_details?.plan?.id;
     const isFreePlan = !planId || FREE_PLAN_IDS.includes(planId);
-    const canUseAutoImages = !isFreePlan && !hasUsedAutoImages;
+    const canUseAutoImages = !isFreePlan;
 
     // Check Google Link Status
     useEffect(() => {
@@ -81,15 +77,6 @@ export function AdminV2Menu() {
                     }
                 })
                 .catch(err => console.error("Failed to check Google status", err));
-        }
-    }, [userData?.id]);
-
-    // Check localStorage on mount for whether auto images feature was used
-    useEffect(() => {
-        if (userData?.id) {
-            const usedKey = `${AUTO_IMAGES_USED_KEY}_${userData.id}`;
-            const hasUsed = localStorage.getItem(usedKey) === "true";
-            setHasUsedAutoImages(hasUsed);
         }
     }, [userData?.id]);
 
@@ -190,13 +177,6 @@ export function AdminV2Menu() {
             }
 
             setImagesFetchedCount(prev => prev + 1);
-        }
-
-        // Mark feature as used in localStorage
-        if (userData?.id) {
-            const usedKey = `${AUTO_IMAGES_USED_KEY}_${userData.id}`;
-            localStorage.setItem(usedKey, "true");
-            setHasUsedAutoImages(true);
         }
 
         setIsFetchingImages(false);
