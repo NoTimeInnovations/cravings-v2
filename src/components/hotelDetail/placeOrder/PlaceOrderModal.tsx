@@ -1,26 +1,26 @@
 "use client";
 import useOrderStore, { OrderItem } from "@/store/orderStore";
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import { useAuthStore, User } from "@/store/authStore";
+import { useEffect, useRef, useState } from "react";
+import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import {
   Loader2,
   ArrowLeft,
   MapPin,
   LocateFixed,
-  X,
   CheckCircle2,
   Edit,
   Trash2,
   Plus,
   ChevronDown,
+  Home,
+  Briefcase,
+  X,
 } from "lucide-react";
 import { useLocationStore } from "@/store/geolocationStore";
-import mapboxgl, { LngLatLike, IControl } from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+import { GoogleMap, useLoadScript, Marker } from "@react-google-maps/api";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import Link from "next/link";
@@ -69,21 +69,13 @@ interface DeliveryInfo {
   minimumOrderAmount: number;
 }
 
-// Add type for MapboxGeocoder
-type MapboxGeocoder = IControl & {
-  on: (
-    event: string,
-    callback: (e: {
-      result: { center: [number, number]; place_name: string };
-    }) => void,
-  ) => void;
-};
+// Google Maps configuration
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+const DEFAULT_CENTER = { lat: 10.050525, lng: 76.322455 };
 
 // =================================================================
-// Full-Page Address Management Component
+// Full-Page Address Management Component with Google Maps
 // =================================================================
-
-import { useDomain } from "@/providers/DomainProvider";
 
 const AddressManagementModal = ({
   open,
@@ -98,7 +90,6 @@ const AddressManagementModal = ({
   editAddress?: SavedAddress | null;
   hotelData: HotelData;
 }) => {
-  const appName = "Menuthere";
   const [label, setLabel] = useState<string>("Home");
   const [customLabel, setCustomLabel] = useState<string>("");
   const [flatNo, setFlatNo] = useState<string>("");
@@ -116,16 +107,17 @@ const AddressManagementModal = ({
   } | null>(null);
   const [saving, setSaving] = useState(false);
   const [showMap, setShowMap] = useState(false);
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
-  const markerRef = useRef<mapboxgl.Marker | null>(null);
   const [customLocation, setCustomLocation] = useState<string>("");
+  const mapRef = useRef<google.maps.Map | null>(null);
 
   const isIndia = hotelData?.country === "India";
   const needDeliveryLocation =
     hotelData?.delivery_rules?.needDeliveryLocation ?? true;
 
-  console.log("Hotel Country:", hotelData?.country, isIndia);
+  // Load Google Maps script once
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+  });
 
   // Pre-fill form when editing
   useEffect(() => {
@@ -148,7 +140,7 @@ const AddressManagementModal = ({
           lng: editAddress.longitude,
         });
       }
-      setShowMap(true); // Open map by default for editing too? usually yes or no. For editing we have coords, so map shows.
+      setShowMap(true);
     } else {
       // Reset form for new address
       setLabel("Home");
@@ -164,19 +156,18 @@ const AddressManagementModal = ({
       setCustomLocation("");
       setPincode("");
       setCoordinates(null);
-      setShowMap(true); // Automatically show map for new address
+      setShowMap(true);
     }
   }, [editAddress, open]);
 
   const getCurrentLocation = () => {
-    console.log("REFRESH LOCATION");
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
           setCoordinates({ lat: latitude, lng: longitude });
-          reverseGeocodeNominatim(latitude, longitude);
-          toast.success("Location Displayed successfully");
+          reverseGeocode(latitude, longitude);
+          toast.success("Location detected successfully");
         },
         (error) => {
           toast.error("Unable to get your location");
@@ -186,93 +177,53 @@ const AddressManagementModal = ({
     }
   };
 
-  useEffect(() => {
-    if (coordinates && !pincode) {
-      reverseGeocodeNominatim(coordinates.lat, coordinates.lng);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coordinates]);
+  const reverseGeocode = async (lat: number, lng: number) => {
+    try {
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+        if (status === "OK" && results && results[0]) {
+          const addressComponents = results[0].address_components;
+          const formattedAddress = results[0].formatted_address;
 
-  const initializeMap = () => {
-    if (!mapRef.current || mapInstanceRef.current) return;
+          if (!needDeliveryLocation) {
+            setCustomLocation(formattedAddress);
+          }
 
-    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-    if (!token) {
-      toast.error(
-        "Mapbox token missing. Please set NEXT_PUBLIC_MAPBOX_TOKEN environment variable",
-      );
-      return;
-    }
-    mapboxgl.accessToken = token as string;
+          // Parse address components
+          addressComponents.forEach((component) => {
+            const types = component.types;
+            if (types.includes("postal_code")) {
+              setPincode(component.long_name);
+            }
+            if (types.includes("locality") || types.includes("administrative_area_level_2")) {
+              setCity(component.long_name);
+            }
+            if (types.includes("administrative_area_level_3")) {
+              setDistrict(component.long_name);
+            }
+            if (types.includes("sublocality") || types.includes("sublocality_level_1")) {
+              setArea(component.long_name);
+            }
+          });
 
-    mapInstanceRef.current = new mapboxgl.Map({
-      container: mapRef.current,
-      style: "mapbox://styles/mapbox/streets-v11",
-      center: coordinates
-        ? [coordinates.lng, coordinates.lat]
-        : hotelData?.geo_location?.coordinates
-          ? [
-              hotelData?.geo_location.coordinates[0],
-              hotelData?.geo_location.coordinates[1],
-            ]
-          : [76.322455, 10.050525],
-      zoom: 15,
-      accessToken: token,
-    });
-
-    mapInstanceRef.current.on("load", () => {
-      if (hotelData?.geo_location?.coordinates) {
-        const [lng, lat] = hotelData.geo_location.coordinates;
-        const el = document.createElement("div");
-        el.className =
-          "w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-lg";
-        el.style.backgroundImage = `url(${hotelData.store_banner})`;
-        el.style.backgroundSize = "cover";
-
-        new mapboxgl.Marker(el)
-          .setLngLat([lng, lat])
-          .addTo(mapInstanceRef.current!);
-      }
-    });
-
-    mapInstanceRef.current.on("click", (e) => {
-      const { lng, lat } = e.lngLat;
-      setCoordinates({ lat, lng });
-
-      if (markerRef.current) {
-        markerRef.current.remove();
-      }
-      markerRef.current = new mapboxgl.Marker()
-        .setLngLat([lng, lat])
-        .addTo(mapInstanceRef.current!);
-
-      reverseGeocodeNominatim(lat, lng);
-    });
-
-    if (coordinates) {
-      markerRef.current = new mapboxgl.Marker()
-        .setLngLat([coordinates.lng, coordinates.lat])
-        .addTo(mapInstanceRef.current);
+          if (!needDeliveryLocation && !customLocation) {
+            setCustomLocation(formattedAddress);
+          }
+        }
+      });
+    } catch (error) {
+      console.error("Geocoding error:", error);
     }
   };
 
-  useEffect(() => {
-    if (showMap && open) {
-      setTimeout(initializeMap, 100);
+  const handleMapClick = (e: google.maps.MapMouseEvent) => {
+    if (e.latLng) {
+      const lat = e.latLng.lat();
+      const lng = e.latLng.lng();
+      setCoordinates({ lat, lng });
+      reverseGeocode(lat, lng);
     }
-
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-      if (markerRef.current) {
-        markerRef.current.remove();
-        markerRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showMap, open]);
+  };
 
   const isFormValid = () => {
     if (!needDeliveryLocation) {
@@ -297,102 +248,9 @@ const AddressManagementModal = ({
     return isValid;
   };
 
-  // ✅ CHANGE 1: This function now resets to the choice screen
-  const resetLocationSelection = () => {
-    setCoordinates(null);
-    setShowMap(false); // Set to false to show the choice screen
-    if (markerRef.current) {
-      markerRef.current.remove();
-      markerRef.current = null;
-    }
-  };
-
-  const reverseGeocodeNominatim = async (lat: number, lng: number) => {
-    try {
-      const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=jsonv2&addressdetails=1&zoom=18&countrycodes=in&accept-language=en`;
-      const res = await fetch(url, {
-        headers: {
-          Accept: "application/json",
-          Origin: window.location.origin,
-          "User-Agent": `$MenuThereApp/1.0 (info@${typeof window !== "undefined" ? window.location.host : "menuthere.com"})`,
-        },
-        mode: "cors",
-      });
-      if (!res.ok) {
-        console.error("Nominatim response not ok", res.status, res.statusText);
-        return;
-      }
-      const data = await res.json();
-
-      // For simplified form, populate the full address
-      if (!needDeliveryLocation && data.display_name) {
-        setCustomLocation(data.display_name);
-      }
-
-      const addr = data?.address || {};
-      const districtVal =
-        addr.state_district || addr.district || addr.county || "";
-      const cityVal = addr.city || addr.town || addr.village || "";
-      const postcode = addr.postcode || "";
-      const neighbourhood =
-        addr.neighbourhood ||
-        addr.suburb ||
-        addr.quarter ||
-        addr.residential ||
-        "";
-
-      if (districtVal) setDistrict(districtVal);
-      if (cityVal) setCity(cityVal);
-      if (postcode) {
-        setPincode(postcode);
-      } else {
-        const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-        if (token) {
-          try {
-            const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?types=postcode,address,place&language=en&access_token=${token}`;
-            const mbRes = await fetch(mapboxUrl);
-            const mbData = await mbRes.json();
-            const features = mbData?.features || [];
-            let mbPostcode = "";
-            let mbPlaceName = "";
-
-            if (features.length > 0) {
-              mbPlaceName = features[0].place_name;
-              // If nominatim failed to give display_name/customLocation, use mapbox
-              if (!needDeliveryLocation && !data.display_name && mbPlaceName) {
-                setCustomLocation(mbPlaceName);
-              }
-            }
-
-            for (const f of features) {
-              if (f.place_type?.includes("postcode")) {
-                mbPostcode = f.text || f.properties?.short_code || "";
-              }
-              if (!mbPostcode && Array.isArray(f.context)) {
-                const pc = f.context.find((c: any) =>
-                  (c.id as string)?.startsWith("postcode."),
-                );
-                if (pc) mbPostcode = pc.text || pc.properties?.short_code || "";
-              }
-              if (mbPostcode) break;
-            }
-            if (mbPostcode) setPincode(mbPostcode);
-          } catch (err) {
-            console.error("Mapbox fallback geocode failed", err);
-          }
-        }
-      }
-      if (neighbourhood && !area) setArea(neighbourhood);
-    } catch (e) {
-      console.error("Nominatim reverse geocode failed", e);
-    }
-  };
-
   const handleSave = async () => {
     if (needDeliveryLocation && !coordinates) {
-      toast.error(
-        "Please select a location on the map or use your current location",
-      );
+      toast.error("Please select a location on the map");
       return;
     }
 
@@ -424,7 +282,7 @@ const AddressManagementModal = ({
             ]
               .filter(Boolean)
               .join(", ")
-          : customLocation.trim(); // For non-India, use customLocation as full address
+          : customLocation.trim();
 
       const normalizedLabel = label === "Other" ? customLabel.trim() : label;
 
@@ -464,269 +322,364 @@ const AddressManagementModal = ({
 
   if (!open) return null;
 
+  const mapCenter = coordinates
+    ? coordinates
+    : hotelData?.geo_location?.coordinates
+      ? { lat: hotelData.geo_location.coordinates[1], lng: hotelData.geo_location.coordinates[0] }
+      : DEFAULT_CENTER;
+
   return (
     <div className="fixed inset-0 z-[70] bg-white h-[100dvh] flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-white">
+      {/* Modern Header */}
+      <div className="flex items-center justify-between px-4 py-4 border-b bg-white sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-lg font-semibold">
-            {editAddress ? "Edit Address" : "Add New Address"}
-          </h1>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full hover:bg-stone-100 transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5 text-stone-700" />
+          </button>
+          <div>
+            <h1 className="text-lg font-semibold text-gray-900">
+              {editAddress ? "Edit Address" : "Add New Address"}
+            </h1>
+            <p className="text-xs text-stone-500">
+              {needDeliveryLocation ? "Select location and fill details" : "Enter your address"}
+            </p>
+          </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* Location Selection - Always shown now */}
-        {!coordinates && !showMap ? (
-          <div className="space-y-3">
-            <Button
-              onClick={getCurrentLocation}
-              className="w-full"
-              variant="outline"
-            >
-              <LocateFixed className="mr-2 h-4 w-4" />
-              Use My Current Location
-            </Button>
-
-            <div className="flex items-center">
-              <div className="flex-1 h-px bg-gray-200" />
-              <span className="px-3 text-xs text-gray-500">OR</span>
-              <div className="flex-1 h-px bg-gray-200" />
+      <div className="flex-1 overflow-y-auto bg-stone-50">
+        <div className="max-w-2xl mx-auto p-4 space-y-4">
+          {/* Map Section with Modern Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-2xl shadow-sm overflow-hidden border border-stone-200"
+          >
+            <div className="p-4 border-b border-stone-200">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-[#B5581A]" />
+                Select Location
+              </h3>
+              <p className="text-sm text-stone-600 mt-1">
+                Tap on the map or use current location
+              </p>
             </div>
 
-            <Button
-              onClick={() => setShowMap(true)}
-              className="w-full"
-              variant="outline"
-            >
-              <MapPin className="mr-2 h-4 w-4" />
-              Select Location on Map
-            </Button>
-          </div>
-        ) : !showMap ? ( // This block shows the "Change location" button when coordinates are set
-          <div className="space-y-3">
-            <div className="p-3 rounded-md bg-green-50 text-green-700 border border-green-200">
-              Location selected successfully
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={resetLocationSelection}
-            >
-              Change location
-            </Button>
-          </div>
-        ) : null}
+              {showMap ? (
+                <div className="space-y-0">
+                  {/* Google Map */}
+                  <div className="h-[400px] w-full relative">
+                    {loadError ? (
+                      <div className="flex items-center justify-center h-full text-red-600">
+                        <p>Error loading maps</p>
+                      </div>
+                    ) : !isLoaded ? (
+                      <div className="flex items-center justify-center h-full">
+                        <Loader2 className="h-8 w-8 animate-spin text-[#B5581A]" />
+                      </div>
+                    ) : (
+                      <GoogleMap
+                        mapContainerStyle={{ width: "100%", height: "100%" }}
+                        center={mapCenter}
+                        zoom={15}
+                        onClick={handleMapClick}
+                        onLoad={(map) => {
+                          mapRef.current = map;
+                        }}
+                        options={{
+                          zoomControl: true,
+                          streetViewControl: false,
+                          mapTypeControl: false,
+                          fullscreenControl: false,
+                        }}
+                      >
+                        {/* Hotel Marker */}
+                        {hotelData?.geo_location?.coordinates && (
+                          <Marker
+                            position={{
+                              lat: hotelData.geo_location.coordinates[1],
+                              lng: hotelData.geo_location.coordinates[0],
+                            }}
+                            icon={hotelData.store_banner || undefined}
+                          />
+                        )}
+                        {/* User Location Marker */}
+                        {coordinates && (
+                          <Marker position={coordinates} />
+                        )}
+                      </GoogleMap>
+                    )}
+                  </div>
 
-        {/* Map */}
-        {showMap && (
-          <div className="space-y-3">
-            <div className="h-80 rounded-lg overflow-hidden border">
-              <div ref={mapRef} className="w-full h-full" />
-            </div>
-            {/* ✅ CHANGE 2: Add a Cancel button next to the Confirm button */}
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowMap(false)}
-                className="w-full"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => setShowMap(false)}
-                className="w-full"
-                disabled={!coordinates}
-              >
-                Confirm Location
-              </Button>
-            </div>
-          </div>
-        )}
+                  {/* Map Actions */}
+                  <div className="p-4 bg-stone-50 border-t border-stone-200">
+                    {coordinates ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={getCurrentLocation}
+                          className="flex-1 px-4 py-2.5 border border-stone-300 text-stone-700 rounded-lg hover:bg-white transition-colors text-sm font-medium"
+                        >
+                          <LocateFixed className="h-4 w-4 inline mr-2" />
+                          Relocate
+                        </button>
+                        <button
+                          onClick={() => setShowMap(false)}
+                          className="flex-1 px-4 py-2.5 bg-[#B5581A] text-white rounded-lg hover:bg-[#a64e2a] transition-colors text-sm font-medium"
+                        >
+                          Confirm Location
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-center text-sm text-stone-500">
+                        Click on the map to select your location
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : !coordinates ? (
+                <div className="p-6 space-y-3">
+                  <button
+                    onClick={getCurrentLocation}
+                    className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-[#F4E0D0]/70 text-[#B5581A] rounded-xl hover:bg-[#B5581A] hover:text-white transition-all duration-300 font-medium border border-[#B5581A]/30"
+                  >
+                    <LocateFixed className="h-5 w-5" />
+                    Use My Current Location
+                  </button>
 
-        <div className="space-y-4">
-          {/* Label Selection - Always shown */}
-          <div>
-            <Label className="text-sm font-medium">Address Label</Label>
-            <div className="flex gap-2 mt-2">
-              {["Home", "Work", "Other"].map((option) => (
-                <Button
-                  key={option}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-px bg-stone-200" />
+                    <span className="text-xs text-stone-400 uppercase tracking-wider">or</span>
+                    <div className="flex-1 h-px bg-stone-200" />
+                  </div>
+
+                  <button
+                    onClick={() => setShowMap(true)}
+                    className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-stone-300 text-stone-700 rounded-xl hover:bg-stone-100 transition-all duration-300 font-medium"
+                  >
+                    <MapPin className="h-5 w-5" />
+                    Select on Map
+                  </button>
+                </div>
+              ) : (
+                <div className="p-6 space-y-3">
+                  <div className="flex items-center gap-3 p-4 bg-green-50 text-green-700 rounded-xl border border-green-200">
+                    <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="font-medium">Location Selected</p>
+                      <p className="text-sm text-green-600 mt-0.5">
+                        Your location has been set successfully
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowMap(true)}
+                    className="w-full px-4 py-2.5 border border-stone-300 text-stone-700 rounded-xl hover:bg-stone-50 transition-colors text-sm font-medium"
+                  >
+                    Change Location
+                  </button>
+                </div>
+              )}
+          </motion.div>
+
+          {/* Address Type Selection */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-2xl shadow-sm p-5 border border-stone-200"
+          >
+            <Label className="text-sm font-semibold text-gray-900 mb-3 block">
+              Save address as
+            </Label>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { value: "Home", icon: Home },
+                { value: "Work", icon: Briefcase },
+                { value: "Other", icon: MapPin },
+              ].map((option) => (
+                <button
+                  key={option.value}
                   type="button"
-                  variant={label === option ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setLabel(option)}
+                  onClick={() => setLabel(option.value)}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                    label === option.value
+                      ? "border-[#B5581A] bg-[#F4E0D0]/30 text-[#B5581A]"
+                      : "border-stone-200 hover:border-stone-300 text-stone-600"
+                  }`}
                 >
-                  {option}
-                </Button>
+                  <option.icon className="h-5 w-5" />
+                  <span className="text-sm font-medium">{option.value}</span>
+                </button>
               ))}
             </div>
             {label === "Other" && (
               <Input
-                placeholder="Name of Location"
+                placeholder="Enter custom label (e.g., Mom's House)"
                 value={customLabel}
                 onChange={(e) => setCustomLabel(e.target.value)}
-                className="mt-2"
+                className="mt-3 rounded-lg text-gray-900 placeholder:text-gray-400"
               />
             )}
-          </div>
+          </motion.div>
 
-          {/* Form Fields Logic */}
-          {!needDeliveryLocation ? (
-            <div>
-              <Label className="text-sm font-medium">Full Address</Label>
-              <Textarea
-                placeholder="Enter your full address here..."
-                value={customLocation}
-                onChange={(e) => setCustomLocation(e.target.value)}
-                className="mt-2"
-                rows={4}
-              />
-            </div>
-          ) : !isIndia ? (
-            <div className="mt-4">
-              <Label className="text-sm font-medium">Location Detail</Label>
-              <Textarea
-                placeholder="E.g., Opposite City Mall, Next to ABC Store"
-                value={customLocation}
-                onChange={(e) => setCustomLocation(e.target.value)}
-                className="mt-2"
-                rows={2}
-              />
-            </div>
-          ) : (
-            <>
+          {/* Address Form Fields */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-2xl shadow-sm p-5 border border-stone-200 space-y-4"
+          >
+            <h3 className="font-semibold text-gray-900">Address Details</h3>
+
+            {!needDeliveryLocation ? (
               <div>
-                <Label htmlFor="house_flat">Flat No / House No *</Label>
-                <Input
-                  id="house_flat"
-                  placeholder="Flat No / House No"
-                  value={flatNo || houseNo}
-                  onChange={(e) => {
-                    setFlatNo(e.target.value);
-                    setHouseNo("");
-                  }}
-                  required
+                <Label className="text-sm font-medium text-gray-700">Full Address *</Label>
+                <Textarea
+                  placeholder="Enter your complete address..."
+                  value={customLocation}
+                  onChange={(e) => setCustomLocation(e.target.value)}
+                  className="mt-2 rounded-lg resize-none text-gray-900 placeholder:text-gray-400"
+                  rows={4}
                 />
               </div>
-
+            ) : !isIndia ? (
               <div>
-                <Label htmlFor="road_street">Road Name / Street Name *</Label>
-                <Input
-                  id="road_street"
-                  placeholder="Road Name / Street Name"
-                  value={street || roadNo}
-                  onChange={(e) => {
-                    setStreet(e.target.value);
-                    setRoadNo("");
-                  }}
-                  required
+                <Label className="text-sm font-medium text-gray-700">Location Details</Label>
+                <Textarea
+                  placeholder="E.g., Near City Mall, Building 5..."
+                  value={customLocation}
+                  onChange={(e) => setCustomLocation(e.target.value)}
+                  className="mt-2 rounded-lg resize-none text-gray-900 placeholder:text-gray-400"
+                  rows={3}
                 />
               </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Flat/House No *</Label>
+                    <Input
+                      placeholder="e.g., 101"
+                      value={flatNo || houseNo}
+                      onChange={(e) => {
+                        setFlatNo(e.target.value);
+                        setHouseNo("");
+                      }}
+                      className="mt-1.5 rounded-lg text-gray-900 placeholder:text-gray-400"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Road/Street *</Label>
+                    <Input
+                      placeholder="e.g., MG Road"
+                      value={street || roadNo}
+                      onChange={(e) => {
+                        setStreet(e.target.value);
+                        setRoadNo("");
+                      }}
+                      className="mt-1.5 rounded-lg text-gray-900 placeholder:text-gray-400"
+                    />
+                  </div>
+                </div>
 
-              <div>
-                <Label className="text-sm font-medium">Area/Locality *</Label>
-                <Input
-                  placeholder="Area or Locality"
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">District</Label>
-                <Input
-                  placeholder="District"
-                  value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium">Landmark</Label>
-                <Input
-                  placeholder="Landmark (Optional)"
-                  value={landmark}
-                  onChange={(e) => setLandmark(e.target.value)}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-sm font-medium">City *</Label>
+                  <Label className="text-sm font-medium text-gray-700">Area/Locality *</Label>
                   <Input
-                    placeholder="City"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    required
+                    placeholder="e.g., Indiranagar"
+                    value={area}
+                    onChange={(e) => setArea(e.target.value)}
+                    className="mt-1.5 rounded-lg text-gray-900 placeholder:text-gray-400"
                   />
                 </div>
+
                 <div>
-                  <Label className="text-sm font-medium">Pincode *</Label>
+                  <Label className="text-sm font-medium text-gray-700">Landmark (Optional)</Label>
                   <Input
-                    placeholder="Pincode"
-                    value={pincode}
-                    onChange={(e) => setPincode(e.target.value)}
-                    required
+                    placeholder="e.g., Near Metro Station"
+                    value={landmark}
+                    onChange={(e) => setLandmark(e.target.value)}
+                    className="mt-1.5 rounded-lg text-gray-900 placeholder:text-gray-400"
                   />
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">City *</Label>
+                    <Input
+                      placeholder="e.g., Bangalore"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      className="mt-1.5 rounded-lg text-gray-900 placeholder:text-gray-400"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">Pincode *</Label>
+                    <Input
+                      placeholder="e.g., 560038"
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value)}
+                      className="mt-1.5 rounded-lg text-gray-900 placeholder:text-gray-400"
+                    />
+                  </div>
+                </div>
               </div>
-            </>
-          )}
+            )}
+          </motion.div>
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="p-4 border-t bg-white">
-        <Button onClick={handleSave} disabled={saving} className="w-full">
-          {saving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : editAddress ? (
-            "Update Address"
-          ) : (
-            "Save Address"
-          )}
-        </Button>
+      {/* Footer with Save Button */}
+      <div className="p-4 border-t bg-white sticky bottom-0">
+        <div className="max-w-2xl mx-auto">
+          <button
+            onClick={handleSave}
+            disabled={saving || !isFormValid()}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-[#B5581A] text-white rounded-xl hover:bg-[#a64e2a] transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#B5581A]/20"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Saving...
+              </>
+            ) : editAddress ? (
+              <>
+                <CheckCircle2 className="h-5 w-5" />
+                Update Address
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-5 w-5" />
+                Save Address
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
 };
 
 // =================================================================
-// Unified Address Section Component
+// Modern Address Section Component
 // =================================================================
 
 const UnifiedAddressSection = ({
-  address,
   setAddress,
-  deliveryInfo,
-  hotelData, // <-- MODIFICATION: Added hotelData prop
+  hotelData,
 }: {
   address: string;
   setAddress: (addr: string) => void;
   deliveryInfo: DeliveryInfo | null;
-  hotelData: HotelData; // <-- MODIFICATION: Added hotelData prop type
+  hotelData: HotelData;
 }) => {
   const { userData: user } = useAuthStore();
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
-    null,
-  );
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
-  const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(
-    null,
-  );
+  const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const savedAddresses = ((user as any)?.addresses || []) as SavedAddress[];
@@ -745,16 +698,10 @@ const UnifiedAddressSection = ({
   }, []);
 
   useEffect(() => {
-    if (savedAddresses.length === 0) {
-      return;
-    }
+    if (savedAddresses.length === 0) return;
     const defaultAddress =
       savedAddresses.find((addr) => addr.isDefault) || savedAddresses[0];
-    if (
-      defaultAddress &&
-      defaultAddress.id !== selectedAddressId &&
-      !selectedAddressId
-    ) {
+    if (defaultAddress && defaultAddress.id !== selectedAddressId && !selectedAddressId) {
       handleAddressSelect(defaultAddress);
     }
   }, [savedAddresses, selectedAddressId]);
@@ -787,7 +734,6 @@ const UnifiedAddressSection = ({
   };
 
   const handleAddressSelect = (addr: SavedAddress | null) => {
-    console.log("Selected Address:", addr);
     setSelectedAddressId(addr?.id || null);
 
     const fullAddress =
@@ -816,10 +762,7 @@ const UnifiedAddressSection = ({
           },
         },
       };
-      localStorage?.setItem(
-        "user-location-store",
-        JSON.stringify(locationData),
-      );
+      localStorage?.setItem("user-location-store", JSON.stringify(locationData));
     }
 
     if (addr?.latitude && addr?.longitude) {
@@ -865,146 +808,170 @@ const UnifiedAddressSection = ({
     }
   };
 
-  const selectedAddress = savedAddresses.find(
-    (a) => a.id === selectedAddressId,
-  );
+  const selectedAddress = savedAddresses.find((a) => a.id === selectedAddressId);
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 mb-4">
-      <div className="flex justify-between items-center mb-3">
-        <h3 className="font-bold text-lg">Delivery Address</h3>
-        <Button
-          variant="outline"
-          className="border border-black hover:bg-gray-200"
-          size="sm"
-          onClick={() => {
-            setEditingAddress(null);
-            setShowAddressModal(true);
-          }}
-        >
-          <Plus className="h-4 w-4 mr-1" />
-          Add Address
-        </Button>
-      </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden"
+    >
+      <div className="p-5">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-[#B5581A]" />
+            <h3 className="font-semibold text-gray-900 text-base">Delivery Address</h3>
+          </div>
+          <button
+            onClick={() => {
+              setEditingAddress(null);
+              setShowAddressModal(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#B5581A] border border-[#B5581A]/30 rounded-lg hover:bg-[#F4E0D0]/30 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Add New
+          </button>
+        </div>
 
-      {/* Address Dropdown */}
-      <div className="relative mb-3" ref={dropdownRef}>
-        <button
-          type="button"
-          onClick={() => setShowDropdown(!showDropdown)}
-          className="w-full p-3 border rounded-md bg-white text-left flex justify-between items-center hover:bg-gray-50"
-        >
-          <span className="text-sm">
-            {selectedAddress
-              ? `${selectedAddress.label}${
-                  selectedAddress.customLabel
-                    ? ` (${selectedAddress.customLabel})`
-                    : ""
-                }`
-              : "Select address"}
-          </span>
-          <ChevronDown
-            className={`h-4 w-4 transition-transform ${
-              showDropdown ? "rotate-180" : ""
-            }`}
-          />
-        </button>
+        {/* Address Selection Dropdown */}
+        {savedAddresses.length > 0 && (
+          <div className="relative mb-3" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50 text-left flex justify-between items-center hover:bg-stone-100 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                {selectedAddress?.label === "Home" && <Home className="h-4 w-4 text-stone-600" />}
+                {selectedAddress?.label === "Work" && <Briefcase className="h-4 w-4 text-stone-600" />}
+                {selectedAddress?.label !== "Home" && selectedAddress?.label !== "Work" && (
+                  <MapPin className="h-4 w-4 text-stone-600" />
+                )}
+                <span className="text-sm font-medium text-gray-900">
+                  {selectedAddress
+                    ? `${selectedAddress.label}${
+                        selectedAddress.customLabel ? ` (${selectedAddress.customLabel})` : ""
+                      }`
+                    : "Select address"}
+                </span>
+              </div>
+              <ChevronDown
+                className={`h-4 w-4 text-stone-600 transition-transform ${
+                  showDropdown ? "rotate-180" : ""
+                }`}
+              />
+            </button>
 
-        {showDropdown && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
-            {savedAddresses.length > 0 ? (
-              savedAddresses.map((addr) => (
-                <div
-                  key={addr.id}
-                  className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                  onClick={() => handleAddressSelect(addr)}
+            <AnimatePresence>
+              {showDropdown && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute top-full left-0 right-0 mt-2 bg-white border border-stone-200 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto"
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-sm">
-                        {addr.label}
-                        {addr.customLabel ? ` (${addr.customLabel})` : ""}
-                      </div>
-                      <div className="text-xs text-gray-600 truncate">
-                        {addr.address ||
-                          [
-                            addr.flat_no,
-                            addr.house_no,
-                            addr.area,
-                            addr.district,
-                            addr.city,
-                          ]
-                            .filter(Boolean)
-                            .join(", ")}
+                  {savedAddresses.map((addr) => (
+                    <div
+                      key={addr.id}
+                      className="p-4 hover:bg-stone-50 cursor-pointer border-b border-stone-100 last:border-b-0 transition-colors"
+                      onClick={() => handleAddressSelect(addr)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3 flex-1">
+                          {addr.label === "Home" && <Home className="h-4 w-4 text-stone-600 mt-0.5" />}
+                          {addr.label === "Work" && <Briefcase className="h-4 w-4 text-stone-600 mt-0.5" />}
+                          {addr.label !== "Home" && addr.label !== "Work" && (
+                            <MapPin className="h-4 w-4 text-stone-600 mt-0.5" />
+                          )}
+                          <div className="flex-1">
+                            <div className="font-medium text-sm text-gray-900">
+                              {addr.label}
+                              {addr.customLabel ? ` (${addr.customLabel})` : ""}
+                            </div>
+                            <div className="text-xs text-stone-600 mt-1 line-clamp-2">
+                              {addr.address ||
+                                [addr.flat_no, addr.house_no, addr.area, addr.city]
+                                  .filter(Boolean)
+                                  .join(", ")}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {/* Selected Address Display */}
+        {selectedAddress && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-gradient-to-br from-[#F4E0D0]/20 to-transparent rounded-xl p-4 border border-[#B5581A]/20"
+          >
+            <div className="flex justify-between items-start gap-3">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="font-semibold text-gray-900">
+                    {selectedAddress.label}
+                    {selectedAddress.customLabel ? ` (${selectedAddress.customLabel})` : ""}
+                  </span>
+                  {selectedAddress.isDefault && (
+                    <span className="text-xs bg-[#B5581A] text-white px-2 py-0.5 rounded-full">
+                      Default
+                    </span>
+                  )}
                 </div>
-              ))
-            ) : (
-              <div className="p-3 text-sm text-gray-500">
-                No saved addresses
+                <p className="text-sm text-stone-700 leading-relaxed">
+                  {selectedAddress.address ||
+                    [
+                      selectedAddress.flat_no,
+                      selectedAddress.house_no,
+                      selectedAddress.road_no,
+                      selectedAddress.street,
+                      selectedAddress.area,
+                      selectedAddress.district,
+                      selectedAddress.landmark,
+                      selectedAddress.city,
+                      selectedAddress.pincode,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                </p>
               </div>
-            )}
+              <div className="flex gap-1">
+                <button
+                  onClick={() => {
+                    setEditingAddress(selectedAddress);
+                    setShowAddressModal(true);
+                  }}
+                  className="p-2 rounded-lg hover:bg-white transition-colors"
+                >
+                  <Edit className="h-4 w-4 text-stone-600" />
+                </button>
+                <button
+                  onClick={() => handleDeleteAddress(selectedAddress.id)}
+                  className="p-2 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {savedAddresses.length === 0 && (
+          <div className="text-center py-8">
+            <MapPin className="h-12 w-12 text-stone-300 mx-auto mb-3" />
+            <p className="text-sm text-stone-600">No saved addresses yet</p>
+            <p className="text-xs text-stone-500 mt-1">Add your first address to get started</p>
           </div>
         )}
       </div>
-
-      {/* Selected Address Display - Expanded but dropdown remains */}
-      {selectedAddress && (
-        <div className="border rounded-lg p-4 mb-3 bg-gray-50">
-          <div className="flex justify-between items-start">
-            <div className="flex-1">
-              <div className="font-medium text-base mb-2">
-                {selectedAddress.label}
-                {selectedAddress.customLabel
-                  ? ` (${selectedAddress.customLabel})`
-                  : ""}
-                {selectedAddress.isDefault && (
-                  <span className="ml-2 text-xs bg-black text-white px-2 py-0.5 rounded">
-                    Default
-                  </span>
-                )}
-              </div>
-              <div className="text-sm text-gray-700 leading-relaxed">
-                {selectedAddress.address ||
-                  [
-                    selectedAddress.flat_no,
-                    selectedAddress.house_no,
-                    selectedAddress.road_no,
-                    selectedAddress.street,
-                    selectedAddress.area,
-                    selectedAddress.district,
-                    selectedAddress.landmark,
-                    selectedAddress.city,
-                    selectedAddress.pincode,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")}
-              </div>
-            </div>
-            <div className="flex gap-2 ml-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setEditingAddress(selectedAddress);
-                  setShowAddressModal(true);
-                }}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDeleteAddress(selectedAddress.id)}
-              >
-                <Trash2 className="h-4 w-4 text-red-500" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Address Management Modal */}
       <AddressManagementModal
@@ -1015,14 +982,14 @@ const UnifiedAddressSection = ({
         }}
         onSaved={handleAddressSaved}
         editAddress={editingAddress}
-        hotelData={hotelData} // <-- MODIFICATION: Pass hotelData down
+        hotelData={hotelData}
       />
-    </div>
+    </motion.div>
   );
 };
 
 // =================================================================
-// New Order Status Dialog Component
+// Modern Order Status Dialog
 // =================================================================
 
 const OrderStatusDialog = ({
@@ -1036,7 +1003,7 @@ const OrderStatusDialog = ({
 
   useEffect(() => {
     if (status === "loading") {
-      setLoadingText("Getting your items..."); // Reset on open
+      setLoadingText("Getting your items...");
       const texts = ["Preparing your order...", "Finalizing your order..."];
       let currentIndex = 0;
       const interval = setInterval(() => {
@@ -1046,7 +1013,7 @@ const OrderStatusDialog = ({
         } else {
           clearInterval(interval);
         }
-      }, 2000); // Change text every 2 seconds
+      }, 2000);
       return () => clearInterval(interval);
     }
   }, [status]);
@@ -1090,7 +1057,7 @@ const OrderStatusDialog = ({
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="text-center text-white p-8 bg-black/30 rounded-2xl shadow-lg flex flex-col items-center"
+              className="text-center text-white p-8 bg-black/30 rounded-2xl shadow-lg flex flex-col items-center max-w-md mx-4"
             >
               <motion.div
                 initial={{ scale: 0 }}
@@ -1104,18 +1071,16 @@ const OrderStatusDialog = ({
               >
                 <CheckCircle2 className="w-24 h-24 text-green-400 mx-auto" />
               </motion.div>
-              <h2 className="mt-6 text-3xl font-bold">
-                Order Placed Successfully!
-              </h2>
+              <h2 className="mt-6 text-3xl font-bold">Order Placed Successfully!</h2>
               <p className="mt-2 text-gray-300">
                 Your order is confirmed and is being prepared.
               </p>
-              <Button
+              <button
                 onClick={onClose}
-                className="mt-8 bg-white text-black hover:bg-gray-200"
+                className="mt-8 px-8 py-3 bg-white text-black rounded-xl hover:bg-gray-200 font-semibold transition-colors"
               >
                 Close
-              </Button>
+              </button>
             </motion.div>
           )}
         </motion.div>
@@ -1125,10 +1090,199 @@ const OrderStatusDialog = ({
 };
 
 // =================================================================
-// Unchanged Components (OrderTypeCard, MultiWhatsappCard, etc.)
+// Modern Items Card
 // =================================================================
 
-// Order Type Card Component
+const ItemsCard = ({
+  items,
+  increaseQuantity,
+  decreaseQuantity,
+  removeItem,
+  currency,
+}: {
+  items: OrderItem[];
+  increaseQuantity: (id: string) => void;
+  decreaseQuantity: (id: string) => void;
+  removeItem: (id: string) => void;
+  currency: string;
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden"
+    >
+      <div className="p-5">
+        <h3 className="font-semibold text-gray-900 text-base mb-4">Your Order</h3>
+        <div className="space-y-3">
+          {items.map((item, index) => (
+            <motion.div
+              key={item.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="flex justify-between items-center py-3 border-b border-stone-100 last:border-b-0"
+            >
+              <div className="flex-1">
+                <DescriptionWithTextBreak
+                  spanClassName="text-sm font-medium text-gray-900"
+                  accent="black"
+                  maxChars={25}
+                >
+                  {item.name}
+                </DescriptionWithTextBreak>
+                <p className="text-xs text-stone-500 mt-0.5">{item.category.name}</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 bg-stone-50 rounded-lg p-1">
+                  <button
+                    onClick={() => {
+                      if (item.quantity > 1) {
+                        decreaseQuantity(item.id as string);
+                      } else {
+                        removeItem(item.id as string);
+                      }
+                    }}
+                    className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white transition-colors text-stone-600 font-semibold"
+                  >
+                    −
+                  </button>
+                  <span className="text-sm font-semibold text-gray-900 w-8 text-center">
+                    {item.quantity}
+                  </span>
+                  <button
+                    onClick={() => increaseQuantity(item.id as string)}
+                    className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white transition-colors text-[#B5581A] font-semibold"
+                  >
+                    +
+                  </button>
+                </div>
+                <span className="font-semibold text-gray-900 min-w-[70px] text-right">
+                  {currency}
+                  {(item.price * item.quantity).toFixed(2)}
+                </span>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// =================================================================
+// Modern Bill Card
+// =================================================================
+
+interface BillCardProps {
+  items: OrderItem[];
+  currency: string;
+  gstPercentage?: number;
+  deliveryInfo: DeliveryInfo | null;
+  isDelivery: boolean;
+  hotelData: HotelData;
+  qrGroup: QrGroup | null;
+}
+
+const BillCard = ({
+  items,
+  currency,
+  gstPercentage,
+  deliveryInfo,
+  isDelivery,
+  hotelData,
+  qrGroup,
+}: BillCardProps) => {
+  const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+
+  const qrExtraCharges = qrGroup?.extra_charge
+    ? getExtraCharge(items, qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE")
+    : 0;
+
+  const deliveryCharges =
+    isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange
+      ? deliveryInfo.cost
+      : 0;
+
+  const gstAmount = (subtotal * (gstPercentage || 0)) / 100;
+  const grandTotal = subtotal + qrExtraCharges + gstAmount + deliveryCharges;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-gradient-to-br from-[#F4E0D0]/20 to-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden"
+    >
+      <div className="p-5">
+        <h3 className="font-semibold text-gray-900 text-base mb-4">Bill Summary</h3>
+        <div className="space-y-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-stone-600">Item Total</span>
+            <span className="font-medium text-gray-900">
+              {currency}
+              {subtotal.toFixed(2)}
+            </span>
+          </div>
+
+          {qrGroup && qrExtraCharges > 0 && (
+            <div className="flex justify-between text-sm">
+              <div>
+                <span className="text-stone-600">{qrGroup.name || "Service Charge"}</span>
+                <p className="text-xs text-stone-500">
+                  {qrGroup.charge_type === "PER_ITEM" ? "Per item" : "Fixed"}
+                </p>
+              </div>
+              <span className="font-medium text-gray-900">
+                {currency}
+                {qrExtraCharges.toFixed(2)}
+              </span>
+            </div>
+          )}
+
+          {gstPercentage ? (
+            <div className="flex justify-between text-sm">
+              <span className="text-stone-600">
+                {hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%)
+              </span>
+              <span className="font-medium text-gray-900">
+                {currency}
+                {gstAmount.toFixed(2)}
+              </span>
+            </div>
+          ) : null}
+
+          {isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && (
+            <div className="flex justify-between text-sm">
+              <div>
+                <span className="text-stone-600">Delivery Charge</span>
+                <p className="text-xs text-stone-500">{deliveryInfo.distance.toFixed(1)} km</p>
+              </div>
+              <span className="font-medium text-gray-900">
+                {currency}
+                {deliveryInfo.cost.toFixed(2)}
+              </span>
+            </div>
+          )}
+
+          <div className="border-t border-stone-200 pt-3 mt-3">
+            <div className="flex justify-between items-center">
+              <span className="font-semibold text-gray-900">Total Amount</span>
+              <span className="font-bold text-xl text-[#B5581A]">
+                {currency}
+                {grandTotal.toFixed(2)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// =================================================================
+// Modern Order Type Card
+// =================================================================
+
 const OrderTypeCard = ({
   orderType,
   setOrderType,
@@ -1136,87 +1290,43 @@ const OrderTypeCard = ({
   orderType: "takeaway" | "delivery" | null;
   setOrderType: (type: "takeaway" | "delivery") => void;
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const options = [
-    { value: "takeaway", label: "Takeaway" },
-    { value: "delivery", label: "Delivery" },
-  ];
-
   return (
-    <div className="border rounded-lg p-4 bg-white relative" ref={dropdownRef}>
-      <h3 className="font-medium mb-3">Order Type</h3>
-      <div className="relative">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-2xl shadow-sm border border-stone-200 p-5"
+    >
+      <h3 className="font-semibold text-gray-900 text-base mb-4">Order Type</h3>
+      <div className="grid grid-cols-2 gap-3">
         <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="w-full p-3 border border-gray-300 rounded-md bg-white text-black focus:outline-none focus:ring-2 focus:ring-black/20 focus:border-black text-left flex justify-between items-center"
+          onClick={() => setOrderType("takeaway")}
+          className={`p-4 rounded-xl border-2 transition-all text-sm font-medium ${
+            orderType === "takeaway"
+              ? "border-[#B5581A] bg-[#F4E0D0]/30 text-[#B5581A]"
+              : "border-stone-200 hover:border-stone-300 text-stone-600"
+          }`}
         >
-          <span>
-            {orderType
-              ? options.find((opt) => opt.value === orderType)?.label
-              : "Select order type"}
-          </span>
-          <svg
-            className={`w-4 h-4 transition-transform ${
-              isOpen ? "rotate-180" : ""
-            }`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
+          Takeaway
         </button>
-
-        {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
-            <div
-              className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-              onClick={() => {
-                setOrderType("takeaway");
-                setIsOpen(false);
-              }}
-            >
-              Takeaway
-            </div>
-            <div
-              className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-              onClick={() => {
-                setOrderType("delivery");
-                setIsOpen(false);
-              }}
-            >
-              Delivery
-            </div>
-          </div>
-        )}
+        <button
+          onClick={() => setOrderType("delivery")}
+          className={`p-4 rounded-xl border-2 transition-all text-sm font-medium ${
+            orderType === "delivery"
+              ? "border-[#B5581A] bg-[#F4E0D0]/30 text-[#B5581A]"
+              : "border-stone-200 hover:border-stone-300 text-stone-600"
+          }`}
+        >
+          Delivery
+        </button>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
+// =================================================================
 // Multi WhatsApp Card Component
+// =================================================================
+
 const MultiWhatsappCard = ({
   hotelData,
   selectedLocation,
@@ -1250,129 +1360,71 @@ const MultiWhatsappCard = ({
   }, []);
 
   return (
-    <div className="border rounded-lg p-4 bg-white relative" ref={dropdownRef}>
-      <h3 className="font-medium mb-3">Select Hotel Location</h3>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-2xl shadow-sm border border-stone-200 p-5"
+      ref={dropdownRef}
+    >
+      <h3 className="font-semibold text-gray-900 text-base mb-4">Hotel Location</h3>
       <div className="relative">
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="w-full p-3 border border-gray-300 rounded-md bg-white text-black focus:outline-none focus:ring-2 focus:ring-black/20 focus:border-black text-left flex justify-between items-center"
+          className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50 text-left flex justify-between items-center hover:bg-stone-100 transition-colors"
         >
-          <span>
+          <span className="text-sm font-medium text-gray-900">
             {selectedLocation ? selectedLocation.toUpperCase() : "Select Area"}
           </span>
-          <svg
-            className={`w-4 h-4 transition-transform ${
+          <ChevronDown
+            className={`h-4 w-4 text-stone-600 transition-transform ${
               isOpen ? "rotate-180" : ""
             }`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
+          />
         </button>
 
-        {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-48 overflow-y-auto">
-            <div
-              className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-              onClick={() => {
-                setSelectedLocation("");
-                setIsOpen(false);
-              }}
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute top-full left-0 right-0 mt-2 bg-white border border-stone-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto"
             >
-              Select Area
-            </div>
-            {hotelData.whatsapp_numbers.map((item) => (
               <div
-                key={item.area}
-                className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                className="p-3 hover:bg-stone-50 cursor-pointer transition-colors"
                 onClick={() => {
-                  setSelectedLocation(item.area);
+                  setSelectedLocation("");
                   setIsOpen(false);
                 }}
               >
-                {item.area.toUpperCase()}
+                <span className="text-sm text-stone-600">Select Area</span>
               </div>
-            ))}
-          </div>
-        )}
+              {hotelData.whatsapp_numbers.map((item) => (
+                <div
+                  key={item.area}
+                  className="p-3 hover:bg-stone-50 cursor-pointer border-t border-stone-100 transition-colors"
+                  onClick={() => {
+                    setSelectedLocation(item.area);
+                    setIsOpen(false);
+                  }}
+                >
+                  <span className="text-sm font-medium text-gray-900">
+                    {item.area.toUpperCase()}
+                  </span>
+                </div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
-const ItemsCard = ({
-  items,
-  increaseQuantity,
-  decreaseQuantity,
-  removeItem,
-  currency,
-}: {
-  items: OrderItem[];
-  increaseQuantity: (id: string) => void;
-  decreaseQuantity: (id: string) => void;
-  removeItem: (id: string) => void;
-  currency: string;
-}) => {
-  return (
-    <div className="bg-white rounded-lg shadow p-4 mb-4">
-      <h3 className="font-bold text-lg mb-3">Your Order</h3>
-      <div className="space-y-3">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="flex justify-between items-center border-b pb-2 gap-5"
-          >
-            <div>
-              <DescriptionWithTextBreak
-                spanClassName="text-sm text-black"
-                accent="black"
-                maxChars={15}
-              >
-                {item.name}
-              </DescriptionWithTextBreak>
-              <p className="text-xs text-gray-500">{item.category.name}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    if (item.quantity > 1) {
-                      decreaseQuantity(item.id as string);
-                    } else {
-                      removeItem(item.id as string);
-                    }
-                  }}
-                  className="w-6 h-6 rounded-full flex items-center justify-center border"
-                >
-                  -
-                </button>
-                <span>{item.quantity}</span>
-                <button
-                  onClick={() => increaseQuantity(item.id as string)}
-                  className="w-6 h-6 rounded-full flex items-center justify-center border"
-                >
-                  +
-                </button>
-              </div>
-              <span className="font-medium min-w-[60px] text-right">
-                {currency}
-                {(item.price * item.quantity).toFixed(2)}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
+// =================================================================
+// Table Number Card
+// =================================================================
 
 const TableNumberCard = ({
   tableNumber,
@@ -1383,140 +1435,34 @@ const TableNumberCard = ({
   hotelData: HotelData;
   tableName?: string;
 }) => {
-  const isRoom = hotelData?.id === "33f5474e-4644-4e47-a327-94684c71b170"; //Krishnakripa Residency
+  const isRoom = hotelData?.id === "33f5474e-4644-4e47-a327-94684c71b170";
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 mb-4">
-      <h3 className="font-bold text-lg mb-3">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-gradient-to-br from-[#F4E0D0]/20 to-white rounded-2xl shadow-sm border border-stone-200 p-5"
+    >
+      <h3 className="font-semibold text-gray-900 text-base mb-3">
         {isRoom ? "Room" : "Table"} Information
       </h3>
-
-      {!tableName && (
-        <div className="flex items-center text-sm gap-2">
-          {isRoom ? null : <span className="font-medium">Table Number:</span>}
-          <span className="text-lg font-semibold">{tableNumber}</span>
-        </div>
-      )}
-
-      {tableName && (
-        <div className="flex items-center text-sm gap-2">
-          {isRoom ? null : <span className="font-medium">Table Name:</span>}
-          <span className="text-lg font-semibold"> {tableName}</span>
-        </div>
-      )}
-    </div>
-  );
-};
-
-interface BillCardProps {
-  items: OrderItem[];
-  currency: string;
-  gstPercentage?: number;
-  deliveryInfo: DeliveryInfo | null;
-  isDelivery: boolean;
-  hotelData: HotelData;
-  qrGroup: QrGroup | null;
-}
-
-const BillCard = ({
-  items,
-  currency,
-  gstPercentage,
-  deliveryInfo,
-  isDelivery,
-  hotelData,
-  qrGroup,
-}: BillCardProps) => {
-  const subtotal = items.reduce(
-    (acc, item) => acc + item.price * item.quantity,
-    0,
-  );
-
-  const qrExtraCharges = qrGroup?.extra_charge
-    ? getExtraCharge(
-        items,
-        qrGroup.extra_charge,
-        qrGroup.charge_type || "FLAT_FEE",
-      )
-    : 0;
-
-  const deliveryCharges =
-    isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange
-      ? deliveryInfo.cost
-      : 0;
-
-  // const taxableAmount = subtotal + qrExtraCharges;
-  const gstAmount = (subtotal * (gstPercentage || 0)) / 100;
-
-  const grandTotal = subtotal + qrExtraCharges + gstAmount + deliveryCharges;
-
-  return (
-    <div className="bg-white rounded-lg shadow p-4">
-      <h3 className="font-bold text-lg mb-3">Bill Summary</h3>
-      <div className="space-y-2">
-        <div className="flex justify-between">
-          <span>Items Subtotal</span>
-          <span>
-            {currency}
-            {subtotal.toFixed(2)}
-          </span>
-        </div>
-
-        {qrGroup && qrExtraCharges > 0 ? (
-          <div className="flex justify-between">
-            <div>
-              <span>{qrGroup.name || "Service Charge"}</span>
-              <p className="text-xs text-gray-500">
-                {qrGroup.charge_type === "PER_ITEM"
-                  ? "Per item charge"
-                  : "Fixed charge"}
-              </p>
-            </div>
-            <span>
-              {currency}
-              {qrExtraCharges.toFixed(2)}
-            </span>
-          </div>
-        ) : null}
-
-        {gstPercentage ? (
-          <div className="flex justify-between">
-            <span>{`${
-              hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"
-            } (${gstPercentage}%)`}</span>
-            <span>
-              {currency}
-              {gstAmount.toFixed(2)}
-            </span>
-          </div>
-        ) : null}
-
-        {isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? (
-          <div className="flex justify-between">
-            <div>
-              <span>Delivery Charge</span>
-              <p className="text-xs text-gray-500">
-                Distance: {deliveryInfo.distance} km
-              </p>
-            </div>
-            <span>
-              {currency}
-              {deliveryInfo.cost.toFixed(2)}
-            </span>
-          </div>
-        ) : null}
-
-        <div className="border-t pt-2 mt-2 flex justify-between font-bold text-lg">
-          <span>Grand Total</span>
-          <span>
-            {currency}
-            {grandTotal.toFixed(2)}
-          </span>
-        </div>
+      <div className="flex items-center gap-2">
+        {tableName ? (
+          <span className="text-2xl font-bold text-[#B5581A]">{tableName}</span>
+        ) : (
+          <>
+            {!isRoom && <span className="text-sm text-stone-600">Table Number:</span>}
+            <span className="text-2xl font-bold text-[#B5581A]">{tableNumber}</span>
+          </>
+        )}
       </div>
-    </div>
+    </motion.div>
   );
 };
+
+// =================================================================
+// Login Card
+// =================================================================
 
 const LoginCard = ({
   setShowLoginDrawer,
@@ -1524,17 +1470,28 @@ const LoginCard = ({
   setShowLoginDrawer: (show: boolean) => void;
 }) => {
   return (
-    <div className="bg-white rounded-lg shadow p-4 mb-4">
-      <h3 className="font-bold text-lg mb-2">Almost there!</h3>
-      <p className="text-gray-600 mb-4">
-        Login/create account quickly to place order
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-gradient-to-br from-[#F4E0D0]/30 to-white rounded-2xl shadow-sm border border-[#B5581A]/30 p-6"
+    >
+      <h3 className="font-bold text-gray-900 text-lg mb-2">Almost there!</h3>
+      <p className="text-stone-600 mb-4 text-sm">
+        Login or create account to place your order
       </p>
-      <Button onClick={() => setShowLoginDrawer(true)} className="w-full">
-        Proceed with Phone Number
-      </Button>
-    </div>
+      <button
+        onClick={() => setShowLoginDrawer(true)}
+        className="w-full px-6 py-3.5 bg-[#B5581A] text-white rounded-xl hover:bg-[#a64e2a] transition-all duration-300 font-semibold shadow-lg shadow-[#B5581A]/20"
+      >
+        Continue with Phone Number
+      </button>
+    </motion.div>
   );
 };
+
+// =================================================================
+// Login Drawer
+// =================================================================
 
 const LoginDrawer = ({
   showLoginDrawer,
@@ -1554,7 +1511,6 @@ const LoginDrawer = ({
   const { signInWithPhone } = useAuthStore();
 
   const handleLogin = async () => {
-    // Get country code from hotelData
     const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
     const phoneDigits = getPhoneDigitsForCountry(countryCode);
 
@@ -1588,65 +1544,105 @@ const LoginDrawer = ({
   if (!showLoginDrawer) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-lg p-6 w-[90vw] max-w-md shadow-lg">
-        <h2 className="text-xl font-bold mb-2">Login</h2>
-        <p className="text-gray-600 mb-4">Enter your phone number to proceed</p>
-        <div className="mb-4">
-          <Label htmlFor="phone">
-            Phone Number {hotelData?.country && `(${hotelData.country})`}
-          </Label>
-          <div className="flex gap-2 mt-1">
-            <div className="flex items-center px-3 bg-gray-100 rounded-md text-sm font-medium">
-              {hotelData?.country_code || "+91"}
-            </div>
-            <Input
-              type="tel"
-              id="phone"
-              value={phoneNumber}
-              onChange={(e) => {
-                const countryCode =
-                  hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
-                const maxDigits = getPhoneDigitsForCountry(countryCode);
-                setPhoneNumber(
-                  e.target.value.replace(/\D/g, "").slice(0, maxDigits),
-                );
-              }}
-              placeholder="Enter your phone number"
-              className="flex-1"
-            />
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+        onClick={() => setShowLoginDrawer(false)}
+      >
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.95, opacity: 0, y: 20 }}
+          transition={{ type: "spring", duration: 0.3 }}
+          className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Close button */}
+          <button
             onClick={() => setShowLoginDrawer(false)}
-            variant="outline"
-            className="flex-1"
+            className="absolute top-4 right-4 p-2 rounded-full hover:bg-stone-100 transition-colors"
           >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleLogin}
-            className="flex-1"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Continuing...
-              </>
-            ) : (
-              "Continue"
-            )}
-          </Button>
-        </div>
-      </div>
-    </div>
+            <X className="h-5 w-5 text-stone-600" />
+          </button>
+
+          {/* Header */}
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back!</h2>
+            <p className="text-stone-600 text-sm">
+              Enter your phone number to continue with your order
+            </p>
+          </div>
+
+          {/* Phone Input */}
+          <div className="mb-6">
+            <Label htmlFor="phone" className="text-sm font-semibold text-gray-900 mb-3 block">
+              Phone Number
+              {hotelData?.country && (
+                <span className="text-stone-500 font-normal ml-1">({hotelData.country})</span>
+              )}
+            </Label>
+            <div className="flex gap-3">
+              <div className="flex items-center justify-center px-4 bg-stone-100 rounded-xl text-base font-bold text-gray-900 border border-stone-200">
+                {hotelData?.country_code || "+91"}
+              </div>
+              <Input
+                type="tel"
+                id="phone"
+                value={phoneNumber}
+                onChange={(e) => {
+                  const countryCode =
+                    hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
+                  const maxDigits = getPhoneDigitsForCountry(countryCode);
+                  setPhoneNumber(
+                    e.target.value.replace(/\D/g, "").slice(0, maxDigits),
+                  );
+                }}
+                placeholder="Enter phone number"
+                className="flex-1 rounded-xl text-gray-900 placeholder:text-gray-400 bg-white border-stone-200 focus:border-[#B5581A] focus:ring-[#B5581A] h-12 text-base"
+                autoFocus
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowLoginDrawer(false)}
+              className="flex-1 px-4 py-3.5 border-2 border-stone-200 text-stone-700 rounded-xl hover:bg-stone-50 transition-colors font-semibold"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleLogin}
+              disabled={isSubmitting || !phoneNumber}
+              className="flex-1 px-4 py-3.5 bg-[#B5581A] text-white rounded-xl hover:bg-[#a64e2a] transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#B5581A]/20 disabled:shadow-none"
+            >
+              {isSubmitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Verifying...
+                </span>
+              ) : (
+                "Continue"
+              )}
+            </button>
+          </div>
+
+          {/* Privacy Note */}
+          <p className="text-xs text-stone-500 text-center mt-4">
+            We'll send you an OTP to verify your number
+          </p>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 
 // =================================================================
-// Main PlaceOrderModal Component (Updated Logic)
+// Main PlaceOrderModal Component
 // =================================================================
 
 const PlaceOrderModal = ({
@@ -1693,9 +1689,7 @@ const PlaceOrderModal = ({
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
 
-  const [orderStatus, setOrderStatus] = useState<
-    "idle" | "loading" | "success"
-  >("idle");
+  const [orderStatus, setOrderStatus] = useState<"idle" | "loading" | "success">("idle");
 
   useEffect(() => {
     if (typeof navigator !== "undefined") {
@@ -1703,9 +1697,7 @@ const PlaceOrderModal = ({
     }
   }, []);
 
-  const isDelivery =
-    tableNumber === 0 ? orderType === "delivery" : !tableNumber;
-
+  const isDelivery = tableNumber === 0 ? orderType === "delivery" : !tableNumber;
   const hasDelivery = hotelData?.geo_location;
   const isQrScan = qrId !== null && tableNumber !== 0;
 
@@ -1714,12 +1706,7 @@ const PlaceOrderModal = ({
       setOpenPlaceOrderModal(false);
       setOpenDrawerBottom(true);
     }
-  }, [
-    open_place_order_modal,
-    items,
-    setOpenDrawerBottom,
-    setOpenPlaceOrderModal,
-  ]);
+  }, [open_place_order_modal, items, setOpenDrawerBottom, setOpenPlaceOrderModal]);
 
   useEffect(() => {
     if (open_place_order_modal && tableNumber === 0 && !orderType) {
@@ -1760,9 +1747,7 @@ const PlaceOrderModal = ({
     ) {
       return;
     }
-    const savedArea = localStorage?.getItem(
-      `hotel-${hotelData.id}-selected-area`,
-    );
+    const savedArea = localStorage?.getItem(`hotel-${hotelData.id}-selected-area`);
     if (
       savedArea &&
       hotelData.whatsapp_numbers?.some((item) => item.area === savedArea)
@@ -1770,9 +1755,7 @@ const PlaceOrderModal = ({
       setSelectedLocation(savedArea);
       return;
     }
-    const selectedPhone = localStorage?.getItem(
-      `hotel-${hotelData.id}-whatsapp-area`,
-    );
+    const selectedPhone = localStorage?.getItem(`hotel-${hotelData.id}-whatsapp-area`);
     if (selectedPhone) {
       const location = hotelData.whatsapp_numbers?.find(
         (item) => item.number === selectedPhone,
@@ -1787,9 +1770,7 @@ const PlaceOrderModal = ({
 
   useEffect(() => {
     if (user && !selectedLocation) {
-      const savedArea = localStorage?.getItem(
-        `hotel-${hotelData.id}-selected-area`,
-      );
+      const savedArea = localStorage?.getItem(`hotel-${hotelData.id}-selected-area`);
       if (
         savedArea &&
         hotelData.whatsapp_numbers?.some((item) => item.area === savedArea)
@@ -1805,10 +1786,7 @@ const PlaceOrderModal = ({
       const phoneNumber = hotelData.whatsapp_numbers?.find(
         (item) => item.area === location,
       )?.number;
-      localStorage?.setItem(
-        `hotel-${hotelData.id}-whatsapp-area`,
-        phoneNumber || "",
-      );
+      localStorage?.setItem(`hotel-${hotelData.id}-whatsapp-area`, phoneNumber || "");
       localStorage?.setItem(`hotel-${hotelData.id}-selected-area`, location);
     } else {
       localStorage?.removeItem(`hotel-${hotelData.id}-whatsapp-area`);
@@ -1856,16 +1834,13 @@ const PlaceOrderModal = ({
       return;
     }
 
-    // Check if address is selected for delivery orders
     if (orderType === "delivery" && !address?.trim()) {
       toast.error("Please select a delivery address");
       return;
     }
 
-    // Enhanced delivery address validation
     if (isDelivery) {
-      const needLocation =
-        hotelData?.delivery_rules?.needDeliveryLocation ?? true;
+      const needLocation = hotelData?.delivery_rules?.needDeliveryLocation ?? true;
       if (!address?.trim()) {
         toast.error("Please enter your delivery address");
         return;
@@ -1898,10 +1873,7 @@ const PlaceOrderModal = ({
     try {
       const subtotal =
         items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
-      const gstAmount = getGstAmount(
-        subtotal,
-        hotelData?.gst_percentage as number,
-      );
+      const gstAmount = getGstAmount(subtotal, hotelData?.gst_percentage as number);
       const extraCharges = [];
 
       if (isQrScan && qrGroup && qrGroup.name) {
@@ -1965,31 +1937,27 @@ const PlaceOrderModal = ({
       );
 
       if (result) {
-        // Store order ID in localStorage for WhatsApp message
         if (result.id) {
           localStorage?.setItem("last-order-id", result.id);
         }
 
-        // Execute callback first (for Android), then show success screen.
         if (onSuccessCallback) {
           onSuccessCallback();
         }
         setOrderStatus("success");
       } else {
         toast.error("Failed to place order. Please try again.");
-        setOrderStatus("idle"); // Reset on failure
+        setOrderStatus("idle");
       }
     } catch (error) {
       console.error("Error placing order:", error);
       toast.error("Failed to place order. Please try again.");
-      setOrderStatus("idle"); // Reset on error
+      setOrderStatus("idle");
     }
   };
 
   const handleLoginSuccess = () => {
-    const savedArea = localStorage?.getItem(
-      `hotel-${hotelData.id}-selected-area`,
-    );
+    const savedArea = localStorage?.getItem(`hotel-${hotelData.id}-selected-area`);
     if (savedArea && !selectedLocation) {
       setSelectedLocation(savedArea);
     }
@@ -2007,38 +1975,43 @@ const PlaceOrderModal = ({
   const minimumOrderAmount = deliveryInfo?.minimumOrderAmount || 0;
 
   const isPlaceOrderDisabled =
-    orderStatus === "loading" || // Condition 1
-    (tableNumber === 0 && !orderType) || // Condition 2
+    orderStatus === "loading" ||
+    (tableNumber === 0 && !orderType) ||
     (isDelivery &&
       hasDelivery &&
       !isQrScan &&
       (!address ||
-        ((hotelData?.delivery_rules?.needDeliveryLocation ?? true) &&
-          !selectedCoords))) || // Condition 3
-    (isDelivery && deliveryInfo?.isOutOfRange) || // Condition 4
-    (hasMultiWhatsapp && !selectedLocation); // Condition 5
+        ((hotelData?.delivery_rules?.needDeliveryLocation ?? true) && !selectedCoords))) ||
+    (isDelivery && deliveryInfo?.isOutOfRange) ||
+    (hasMultiWhatsapp && !selectedLocation);
 
   const { qrData } = useQrDataStore();
 
   return (
     <>
       <div
-        className={`fixed inset-0 z-[1000] bg-gray-50 text-black ${
+        className={`fixed inset-0 z-[1000] bg-stone-50 ${
           open_place_order_modal ? "block" : "hidden"
         }`}
       >
-        <div className="sticky top-0 bg-white border-b">
+        {/* Modern Header */}
+        <div className="sticky top-0 bg-white border-b border-stone-200 shadow-sm z-10">
           <div className="flex items-center gap-4 p-4">
             <button
               onClick={() => {
                 setOpenPlaceOrderModal(false);
                 setOpenDrawerBottom(true);
               }}
-              className="p-2 rounded-full hover:bg-gray-200"
+              className="p-2 rounded-full hover:bg-stone-100 transition-colors"
             >
-              <ArrowLeft size={20} />
+              <ArrowLeft size={20} className="text-stone-700" />
             </button>
-            <h1 className="text-xl font-bold">Review Your Order</h1>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Review Your Order</h1>
+              <p className="text-xs text-stone-500 mt-0.5">
+                {items?.length || 0} item{(items?.length || 0) !== 1 ? "s" : ""}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -2054,14 +2027,7 @@ const PlaceOrderModal = ({
               />
 
               {tableNumber === 0 && (
-                <OrderTypeCard
-                  orderType={orderType}
-                  setOrderType={setOrderType}
-                />
-              )}
-
-              {tableNumber === 0 && hasMultiWhatsapp && (
-                <div className="h-2"></div>
+                <OrderTypeCard orderType={orderType} setOrderType={setOrderType} />
               )}
 
               <MultiWhatsappCard
@@ -2071,21 +2037,20 @@ const PlaceOrderModal = ({
               />
 
               {isQrScan ? (
-                <>
-                  <TableNumberCard
-                    hotelData={hotelData}
-                    tableNumber={tableNumber}
-                    tableName={qrData?.table_name || undefined}
-                  />
-                </>
+                <TableNumberCard
+                  hotelData={hotelData}
+                  tableNumber={tableNumber}
+                  tableName={qrData?.table_name || undefined}
+                />
               ) : isDelivery && orderType === "delivery" ? (
                 <UnifiedAddressSection
                   address={address || ""}
                   setAddress={setAddress}
                   deliveryInfo={deliveryInfo}
-                  hotelData={hotelData} // <-- MODIFICATION: Pass hotelData down
+                  hotelData={hotelData}
                 />
               ) : null}
+
               <BillCard
                 items={items || []}
                 currency={hotelData?.currency || "₹"}
@@ -2096,20 +2061,27 @@ const PlaceOrderModal = ({
                 hotelData={hotelData}
               />
 
-              <div className="border rounded-lg p-4 bg-white">
-                <h3 className="font-medium mb-3">Order Note</h3>
-                <textarea
-                  placeholder="Add any special instructions or notes for this order..."
+              {/* Order Note */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-2xl shadow-sm border border-stone-200 p-5"
+              >
+                <h3 className="font-semibold text-gray-900 text-base mb-3">
+                  Special Instructions
+                </h3>
+                <Textarea
+                  placeholder="Add cooking instructions, allergies, or delivery notes..."
                   value={orderNote ?? ""}
                   onChange={(e) => setOrderNote(e.target.value)}
-                  className="w-full p-3 border rounded-md resize-none bg-white text-black"
+                  className="resize-none rounded-lg border-stone-200 text-gray-900 placeholder:text-gray-400"
                   rows={3}
                   maxLength={500}
                 />
-                <div className="text-xs text-black bg-white mt-1">
+                <div className="text-xs text-stone-500 mt-2 text-right">
                   {(orderNote ?? "").length}/500 characters
                 </div>
-              </div>
+              </motion.div>
 
               {!user && <LoginCard setShowLoginDrawer={setShowLoginDrawer} />}
 
@@ -2117,8 +2089,8 @@ const PlaceOrderModal = ({
                 !isQrScan &&
                 orderType === "delivery" &&
                 deliveryInfo?.isOutOfRange && (
-                  <div className="text-sm text-red-600 p-2 bg-red-50 rounded text-center">
-                    Delivery is not available to your selected location
+                  <div className="text-sm text-red-600 p-4 bg-red-50 rounded-xl text-center border border-red-200">
+                    ⚠️ Delivery is not available to your selected location
                   </div>
                 )}
 
@@ -2126,24 +2098,22 @@ const PlaceOrderModal = ({
                 (isDelivery &&
                   orderType === "delivery" &&
                   (totalPrice ?? 0) < minimumOrderAmount)) && (
-                <div className="text-sm text-red-600 p-2 bg-red-50 rounded text-center">
-                  Minimum order amount for delivery is
-                  {hotelData?.currency || "₹"}
+                <div className="text-sm text-amber-700 p-4 bg-amber-50 rounded-xl text-center border border-amber-200">
+                  ⚠️ Minimum order amount for delivery is {hotelData?.currency || "₹"}
                   {deliveryInfo?.minimumOrderAmount.toFixed(2)}
                 </div>
               )}
 
+              {/* Action Buttons */}
               <div className="flex flex-col gap-3 mt-6">
                 {user?.role !== "partner" && user?.role !== "superadmin" ? (
                   <>
                     {isAndroid ? (
-                      <Button
+                      <button
                         onClick={() =>
                           handlePlaceOrder(() => {
                             if (!hotelData.petpooja_restaurant_id) {
-                              const whatsappLink = getWhatsappLink(
-                                orderId as string,
-                              );
+                              const whatsappLink = getWhatsappLink(orderId as string);
                               window.open(whatsappLink, "_blank");
                             }
                           })
@@ -2156,21 +2126,21 @@ const PlaceOrderModal = ({
                             orderType === "delivery" &&
                             (totalPrice ?? 0) < minimumOrderAmount)
                         }
-                        className="w-full"
+                        className="w-full px-6 py-4 bg-[#B5581A] text-white rounded-xl hover:bg-[#a64e2a] transition-all duration-300 font-semibold shadow-lg shadow-[#B5581A]/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                       >
                         {orderStatus === "loading" ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <span className="flex items-center justify-center gap-2">
+                            <Loader2 className="h-5 w-5 animate-spin" />
                             Placing Order...
-                          </>
+                          </span>
                         ) : (
                           "Place Order"
                         )}
-                      </Button>
+                      </button>
                     ) : (
                       <>
                         {hotelData.petpooja_restaurant_id ? (
-                          <Button
+                          <button
                             onClick={() => handlePlaceOrder()}
                             disabled={
                               isPlaceOrderDisabled ||
@@ -2180,17 +2150,17 @@ const PlaceOrderModal = ({
                                 orderType === "delivery" &&
                                 (totalPrice ?? 0) < minimumOrderAmount)
                             }
-                            className="w-full"
+                            className="w-full px-6 py-4 bg-[#B5581A] text-white rounded-xl hover:bg-[#a64e2a] transition-all duration-300 font-semibold shadow-lg shadow-[#B5581A]/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                           >
                             {orderStatus === "loading" ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              <span className="flex items-center justify-center gap-2">
+                                <Loader2 className="h-5 w-5 animate-spin" />
                                 Placing Order...
-                              </>
+                              </span>
                             ) : (
                               "Place Order"
                             )}
-                          </Button>
+                          </button>
                         ) : (
                           <Link
                             href={getWhatsappLink(orderId as string)}
@@ -2209,7 +2179,7 @@ const PlaceOrderModal = ({
                               }
                             }}
                           >
-                            <Button
+                            <button
                               onClick={() => handlePlaceOrder()}
                               disabled={
                                 isPlaceOrderDisabled ||
@@ -2219,49 +2189,36 @@ const PlaceOrderModal = ({
                                   orderType === "delivery" &&
                                   (totalPrice ?? 0) < minimumOrderAmount)
                               }
-                              className="w-full"
+                              className="w-full px-6 py-4 bg-[#B5581A] text-white rounded-xl hover:bg-[#a64e2a] transition-all duration-300 font-semibold shadow-lg shadow-[#B5581A]/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                             >
                               {orderStatus === "loading" ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <span className="flex items-center justify-center gap-2">
+                                  <Loader2 className="h-5 w-5 animate-spin" />
                                   Placing Order...
-                                </>
+                                </span>
                               ) : (
                                 "Place Order"
                               )}
-                            </Button>
+                            </button>
                           </Link>
                         )}
                       </>
                     )}
                   </>
                 ) : (
-                  <div className="text-red-500 text-center text-sm bg-red-50 py-2 rounded-sm">
-                    {" "}
-                    Login as user to place orders{" "}
+                  <div className="text-red-600 text-center text-sm bg-red-50 py-3 rounded-xl border border-red-200">
+                    Login as user to place orders
                   </div>
                 )}
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setOpenPlaceOrderModal(false);
-                    setOpenDrawerBottom(true);
-                  }}
-                  className="w-full"
-                >
-                  Back
-                </Button>
               </div>
             </div>
           )}
         </div>
 
         <div
-          className="fixed bottom-0 left-0 right-0 bg-white border-t h-4 "
+          className="fixed bottom-0 left-0 right-0 bg-white border-t h-4"
           style={{
-            bottom: keyboardOpen
-              ? `${window.visualViewport?.offsetTop || 0}px`
-              : "0",
+            bottom: keyboardOpen ? `${window.visualViewport?.offsetTop || 0}px` : "0",
           }}
         />
 
@@ -2274,10 +2231,7 @@ const PlaceOrderModal = ({
         />
       </div>
 
-      <OrderStatusDialog
-        status={orderStatus}
-        onClose={handleCloseSuccessDialog}
-      />
+      <OrderStatusDialog status={orderStatus} onClose={handleCloseSuccessDialog} />
     </>
   );
 };

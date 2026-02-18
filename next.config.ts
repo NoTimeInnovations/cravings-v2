@@ -58,8 +58,12 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "foodoffers-2cedb.firebasestorage.app",
+        hostname: "foodoffers-2cedb.firebasestorage .app",
       },
+      {
+        protocol: "https",
+        hostname: "media-assets.swiggy.com",
+      }
     ],
   },
   async headers() {
