@@ -394,6 +394,7 @@ export default function GetStartedClient({
 }) {
   const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [menuFiles, setMenuFiles] = useState<File[]>([]);
 
   // Determine default currency based on country
@@ -454,8 +455,37 @@ export default function GetStartedClient({
 
   // --- Persistence & Hydration ---
 
-  // Hydrate from localStorage
+  // Hydrate from URL and localStorage
   useEffect(() => {
+    // Read step from URL
+    const searchParams = new URLSearchParams(window.location.search);
+    const urlStep = searchParams.get('step');
+    let initialStep: 1 | 2 | 3 = 1;
+
+    if (urlStep && ['1', '2', '3'].includes(urlStep)) {
+      initialStep = parseInt(urlStep) as 1 | 2 | 3;
+    }
+
+    // Check for uploaded file from landing page
+    const uploadedFileData = sessionStorage.getItem("uploaded_menu_file");
+    if (uploadedFileData) {
+      try {
+        const fileData = JSON.parse(uploadedFileData);
+        // Convert base64 back to File object
+        fetch(fileData.data)
+          .then((res) => res.blob())
+          .then((blob) => {
+            const file = new File([blob], fileData.name, { type: fileData.type });
+            setMenuFiles([file]);
+            // Clear from sessionStorage after loading
+            sessionStorage.removeItem("uploaded_menu_file");
+          });
+      } catch (e) {
+        console.error("Failed to load uploaded file", e);
+        sessionStorage.removeItem("uploaded_menu_file");
+      }
+    }
+
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
@@ -466,12 +496,17 @@ export default function GetStartedClient({
           parsed.step === 3 &&
           (!parsed.extractedItems || parsed.extractedItems.length === 0)
         ) {
-          setStep(1);
+          setStep(urlStep ? initialStep : 1);
           // Don't restore other state to be safe, or maybe just restore details?
           // Let's restore details but reset step.
           if (parsed.hotelDetails) setHotelDetails(parsed.hotelDetails);
         } else {
-          if (parsed.step) setStep(parsed.step);
+          // Use URL step if present, otherwise use stored step
+          if (urlStep) {
+            setStep(initialStep);
+          } else if (parsed.step) {
+            setStep(parsed.step);
+          }
           if (parsed.hotelDetails) setHotelDetails(parsed.hotelDetails);
           if (parsed.extractedItems) setExtractedItems(parsed.extractedItems);
           if (parsed.selectedPalette)
@@ -481,11 +516,17 @@ export default function GetStartedClient({
       } catch (e) {
         console.error("Failed to parse stored state", e);
       }
+    } else if (urlStep) {
+      setStep(initialStep);
     }
+
+    setIsHydrated(true);
   }, []);
 
-  // Persist to localStorage
+  // Persist to localStorage and update URL
   useEffect(() => {
+    if (!isHydrated) return; // Don't update URL during initial hydration
+
     const stateToSave = {
       step,
       hotelDetails,
@@ -494,7 +535,12 @@ export default function GetStartedClient({
       colorPalettes,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
-  }, [step, hotelDetails, extractedItems, selectedPalette, colorPalettes]);
+
+    // Update URL with current step
+    const url = new URL(window.location.href);
+    url.searchParams.set('step', step.toString());
+    window.history.replaceState({}, '', url.toString());
+  }, [step, hotelDetails, extractedItems, selectedPalette, colorPalettes, isHydrated]);
 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -740,6 +786,7 @@ export default function GetStartedClient({
     setExtractedItems(SAMPLE_MENU_ITEMS);
     extractionPromise.current = Promise.resolve(SAMPLE_MENU_ITEMS);
 
+    router.push('/get-started?step=2');
     setStep(2);
     toast.success("Loaded sample menu data!");
   };
@@ -748,6 +795,7 @@ export default function GetStartedClient({
     setExtractionError(null);
     setMenuFiles([]);
     setExtractedItems([]);
+    router.push('/get-started?step=1');
     setStep(1);
   };
 
@@ -760,6 +808,8 @@ export default function GetStartedClient({
       return []; // Return empty array on failure to avoid unhandled rejection
     });
 
+    // Navigate to step 2
+    router.push('/get-started?step=2');
     setStep(2);
   };
 
@@ -769,7 +819,8 @@ export default function GetStartedClient({
       return;
     }
 
-    // Move to step 3 immediately without waiting
+    // Navigate to step 3
+    router.push('/get-started?step=3');
     setStep(3);
 
     // Wait for extraction in the background
@@ -1320,7 +1371,7 @@ export default function GetStartedClient({
       <ButtonV2
         onClick={handleNextToExtraction}
         disabled={
-          !hotelDetails.name || !hotelDetails.phone || !hotelDetails.country
+          !hotelDetails.name || !hotelDetails.phone || !hotelDetails.country || !authCredentials.email
         }
         variant="primary"
         className="w-full justify-center"
@@ -1803,7 +1854,11 @@ export default function GetStartedClient({
           <div className="flex items-center gap-4">
             {step > 1 && (
               <button
-                onClick={() => setStep((s) => (s - 1) as any)}
+                onClick={() => {
+                  const prevStep = (step - 1) as 1 | 2 | 3;
+                  router.push(`/get-started?step=${prevStep}`);
+                  setStep(prevStep);
+                }}
                 className="p-2 -ml-2 rounded-full hover:bg-stone-100 transition-colors"
               >
                 <ArrowLeft className="w-5 h-5 text-stone-600" />

@@ -2,8 +2,10 @@
 
 import { useState, useRef } from "react";
 import { ArrowRight, Upload, X, Image as ImageIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function MenuUpload() {
+  const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -20,6 +22,33 @@ export default function MenuUpload() {
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
     if (inputRef.current) inputRef.current.value = "";
+  }
+
+  async function handleNext() {
+    if (!file) return;
+
+    try {
+      // Convert file to base64 to store in sessionStorage
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        const fileData = {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: base64,
+        };
+
+        // Store file in sessionStorage
+        sessionStorage.setItem("uploaded_menu_file", JSON.stringify(fileData));
+
+        // Navigate to get-started page
+        router.push("/get-started?step=1");
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Error processing file:", error);
+    }
   }
 
   return (
@@ -85,7 +114,10 @@ export default function MenuUpload() {
       )}
 
       {file && (
-        <button className="group inline-flex items-center gap-3 rounded-full bg-[#B5581A] pl-6 pr-2 py-2 text-sm font-medium text-white hover:bg-[#9a4a15] transition-all duration-300 ease-in-out">
+        <button
+          onClick={handleNext}
+          className="group inline-flex items-center gap-3 rounded-full bg-[#B5581A] pl-6 pr-2 py-2 text-sm font-medium text-white hover:bg-[#9a4a15] transition-all duration-300 ease-in-out"
+        >
           Next
           <span className="flex items-center justify-center w-8 h-8 rounded-full border border-white/30 transition-all duration-300">
             <ArrowRight className="w-4 h-4" />
