@@ -458,75 +458,98 @@ const OrderDrawer = ({
         </div>
       </div>
 
-      {/* Full-Screen Login Modal (only shown when user is not logged in) */}
+      {/* Full-Screen Login Modal - Mobile First */}
       {showLoginModal && (
         <div className="fixed inset-0 z-[70] bg-white flex flex-col">
-          <div className="flex items-center justify-between p-4 border-b">
-            <button
-              onClick={() => {
-                setShowLoginModal(false);
-                // setOpenOrderDrawer(true);
-                // setOpenDrawerBottom(false);
-              }}
-              className="p-2 rounded-full hover:bg-gray-100"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <h2 className="text-lg font-semibold">Login to Continue</h2>
-            <div className="w-10" />
+          {/* Header Bar */}
+          <div className="border-b border-stone-200 bg-white sticky top-0 z-10">
+            <div className="flex items-center justify-between px-4 pt-4">
+              <button
+                onClick={() => setShowLoginModal(false)}
+                className="p-2 -ml-2 rounded-full hover:bg-stone-100 transition-all duration-200"
+                aria-label="Close"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-stone-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <h2 className="text-base font-semibold text-gray-900">Login to Continue</h2>
+              <div className="w-9" />
+            </div>
+            <p className="text-stone-500 text-xs text-center pb-3 px-4">
+              Please enter your phone number to review your order
+            </p>
           </div>
 
-          <div className="flex-1 p-6 space-y-6 overflow-y-auto">
-            <div>
-              <h3 className="text-xl font-bold">Welcome Back</h3>
-              <p className="text-gray-600 mt-1">
-                Please enter your phone number to review your order.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">
-                Phone Number
-              </Label>
-              <div className="flex gap-2">
-                <div className="flex items-center px-3 bg-gray-100 rounded-md text-sm font-medium">
-                  {hotelData?.country_code || '+91'}
+          {/* Content Container */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-md mx-auto px-6 py-8 space-y-8">
+              {/* Phone Input */}
+              <div className="space-y-3">
+                <Label htmlFor="phone" className="text-sm font-semibold text-gray-900 block">
+                  Phone Number
+                  {hotelData?.country && (
+                    <span className="text-stone-500 font-normal ml-2 text-xs">
+                      ({hotelData.country})
+                    </span>
+                  )}
+                </Label>
+                <div className="flex gap-3">
+                  <div className="flex items-center justify-center px-4 sm:px-5 bg-[#F4E0D0]/30 rounded-2xl text-base font-bold text-[#B5581A] border border-[#B5581A]/20">
+                    {hotelData?.country_code || '+91'}
+                  </div>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="Enter your phone number"
+                    value={phoneNumber}
+                    onChange={(e) => {
+                      const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, '') || '91';
+                      const maxDigits = getPhoneDigitsForCountry(countryCode);
+                      setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, maxDigits));
+                    }}
+                    autoFocus
+                    className="flex-1 rounded-2xl text-gray-900 placeholder:text-gray-400 bg-white border-stone-200 focus:border-[#B5581A] focus:ring-2 focus:ring-[#B5581A]/20 h-14 text-base px-4 sm:px-5 transition-all duration-200"
+                  />
                 </div>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder={`Enter your phone number`}
-                  value={phoneNumber}
-                  onChange={(e) => {
-                    const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, '') || '91';
-                    const maxDigits = getPhoneDigitsForCountry(countryCode);
-                    setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, maxDigits));
-                  }}
-                  autoFocus
-                  className="flex-1"
-                />
               </div>
-            </div>
 
-            <Button
-              className="w-full bg-black text-white"
-              disabled={isSubmitting}
-              onClick={handleLoginAndProceed}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Logging In...
-                </>
-              ) : (
-                "Continue"
-              )}
-            </Button>
+              {/* Action Buttons */}
+              <div className="space-y-3 pt-4">
+                <button
+                  onClick={handleLoginAndProceed}
+                  disabled={isSubmitting || !phoneNumber}
+                  className="w-full px-6 py-4 bg-[#F4E0D0]/70 text-[#B5581A] rounded-full hover:bg-[#B5581A] hover:text-white border border-[#B5581A]/30 hover:border-[#B5581A] transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                >
+                  {isSubmitting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Verifying...
+                    </span>
+                  ) : (
+                    "Continue"
+                  )}
+                </button>
 
-            <div className="text-sm text-gray-500 mt-4">
-              By continuing, you agree to our Terms of Service and Privacy Policy.
+                <button
+                  onClick={() => setShowLoginModal(false)}
+                  className="w-full px-6 py-3.5 rounded-full border border-stone-300 bg-transparent text-stone-800 hover:bg-stone-100 hover:text-stone-900 hover:border-stone-500 transition-all duration-200 font-medium text-base"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              {/* Privacy Note */}
+              <p className="text-xs text-stone-500 text-center leading-relaxed pt-2">
+                By continuing, you agree to our{" "}
+                <span className="text-[#B5581A] hover:underline cursor-pointer">
+                  Terms of Service
+                </span>{" "}
+                and{" "}
+                <span className="text-[#B5581A] hover:underline cursor-pointer">
+                  Privacy Policy
+                </span>
+              </p>
             </div>
           </div>
         </div>

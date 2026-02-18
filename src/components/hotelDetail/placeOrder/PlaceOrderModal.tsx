@@ -16,9 +16,10 @@ import {
   Home,
   Briefcase,
   X,
+  Search,
 } from "lucide-react";
 import { useLocationStore } from "@/store/geolocationStore";
-import { GoogleMap, useLoadScript, Marker } from "@react-google-maps/api";
+import { GoogleMap, useLoadScript, Marker, Autocomplete } from "@react-google-maps/api";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -72,6 +73,7 @@ interface DeliveryInfo {
 // Google Maps configuration
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 const DEFAULT_CENTER = { lat: 10.050525, lng: 76.322455 };
+const GOOGLE_MAPS_LIBRARIES: ["places"] = ["places"];
 
 // =================================================================
 // Full-Page Address Management Component with Google Maps
@@ -109,14 +111,17 @@ const AddressManagementModal = ({
   const [showMap, setShowMap] = useState(false);
   const [customLocation, setCustomLocation] = useState<string>("");
   const mapRef = useRef<google.maps.Map | null>(null);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const [searchValue, setSearchValue] = useState("");
 
   const isIndia = hotelData?.country === "India";
   const needDeliveryLocation =
     hotelData?.delivery_rules?.needDeliveryLocation ?? true;
 
-  // Load Google Maps script once
+  // Load Google Maps script once with Places library
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   // Pre-fill form when editing
@@ -213,6 +218,26 @@ const AddressManagementModal = ({
       });
     } catch (error) {
       console.error("Geocoding error:", error);
+    }
+  };
+
+  const onPlaceChanged = () => {
+    if (autocompleteRef.current) {
+      const place = autocompleteRef.current.getPlace();
+      if (place.geometry?.location) {
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
+        setCoordinates({ lat, lng });
+        reverseGeocode(lat, lng);
+
+        // Center map on selected place
+        if (mapRef.current) {
+          mapRef.current.panTo({ lat, lng });
+          mapRef.current.setZoom(17);
+        }
+
+        toast.success("Location found!");
+      }
     }
   };
 
@@ -370,6 +395,29 @@ const AddressManagementModal = ({
 
               {showMap ? (
                 <div className="space-y-0">
+                  {/* Search Location */}
+                  {isLoaded && (
+                    <div className="p-4 bg-white border-b border-stone-200">
+                      <Autocomplete
+                        onLoad={(autocomplete) => {
+                          autocompleteRef.current = autocomplete;
+                        }}
+                        onPlaceChanged={onPlaceChanged}
+                      >
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
+                          <Input
+                            type="text"
+                            placeholder="Search for a location..."
+                            value={searchValue}
+                            onChange={(e) => setSearchValue(e.target.value)}
+                            className="pl-10 rounded-xl text-gray-900 placeholder:text-gray-400 border-stone-200 focus:border-[#B5581A] focus:ring-[#B5581A]"
+                          />
+                        </div>
+                      </Autocomplete>
+                    </div>
+                  )}
+
                   {/* Google Map */}
                   <div className="h-[400px] w-full relative">
                     {loadError ? (
@@ -403,7 +451,14 @@ const AddressManagementModal = ({
                               lat: hotelData.geo_location.coordinates[1],
                               lng: hotelData.geo_location.coordinates[0],
                             }}
-                            icon={hotelData.store_banner || undefined}
+                            icon={{
+                              path: google.maps.SymbolPath.CIRCLE,
+                              scale: 8,
+                              fillColor: "#B5581A",
+                              fillOpacity: 1,
+                              strokeColor: "#FFFFFF",
+                              strokeWeight: 2,
+                            }}
                           />
                         )}
                         {/* User Location Marker */}
@@ -1549,43 +1604,59 @@ const LoginDrawer = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+        className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-md p-4"
         onClick={() => setShowLoginDrawer(false)}
       >
         <motion.div
-          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          initial={{ scale: 0.9, opacity: 0, y: 30 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.95, opacity: 0, y: 20 }}
-          transition={{ type: "spring", duration: 0.3 }}
-          className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative"
+          exit={{ scale: 0.9, opacity: 0, y: 30 }}
+          transition={{ type: "spring", duration: 0.4, bounce: 0.3 }}
+          className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl relative border border-stone-100"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Close button */}
           <button
             onClick={() => setShowLoginDrawer(false)}
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-stone-100 transition-colors"
+            className="absolute top-5 right-5 p-2 rounded-full hover:bg-stone-100 transition-all duration-200 group"
+            aria-label="Close"
           >
-            <X className="h-5 w-5 text-stone-600" />
+            <X className="h-5 w-5 text-stone-500 group-hover:text-stone-700" />
           </button>
 
           {/* Header */}
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back!</h2>
-            <p className="text-stone-600 text-sm">
-              Enter your phone number to continue with your order
-            </p>
+          <div className="mb-8 text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                Welcome Back
+              </h2>
+              <p className="text-stone-600 text-[15px] leading-relaxed">
+                Please enter your phone number to review your order
+              </p>
+            </motion.div>
           </div>
 
           {/* Phone Input */}
-          <div className="mb-6">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mb-8"
+          >
             <Label htmlFor="phone" className="text-sm font-semibold text-gray-900 mb-3 block">
               Phone Number
               {hotelData?.country && (
-                <span className="text-stone-500 font-normal ml-1">({hotelData.country})</span>
+                <span className="text-stone-500 font-normal ml-2 text-xs">
+                  ({hotelData.country})
+                </span>
               )}
             </Label>
             <div className="flex gap-3">
-              <div className="flex items-center justify-center px-4 bg-stone-100 rounded-xl text-base font-bold text-gray-900 border border-stone-200">
+              <div className="flex items-center justify-center px-5 bg-[#F4E0D0]/30 rounded-2xl text-base font-bold text-[#B5581A] border border-[#B5581A]/20">
                 {hotelData?.country_code || "+91"}
               </div>
               <Input
@@ -1600,25 +1671,24 @@ const LoginDrawer = ({
                     e.target.value.replace(/\D/g, "").slice(0, maxDigits),
                   );
                 }}
-                placeholder="Enter phone number"
-                className="flex-1 rounded-xl text-gray-900 placeholder:text-gray-400 bg-white border-stone-200 focus:border-[#B5581A] focus:ring-[#B5581A] h-12 text-base"
+                placeholder="Enter your phone number"
+                className="flex-1 rounded-2xl text-gray-900 placeholder:text-gray-400 bg-white border-stone-200 focus:border-[#B5581A] focus:ring-2 focus:ring-[#B5581A]/20 h-14 text-base px-5 transition-all duration-200"
                 autoFocus
               />
             </div>
-          </div>
+          </motion.div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3">
-            <button
-              onClick={() => setShowLoginDrawer(false)}
-              className="flex-1 px-4 py-3.5 border-2 border-stone-200 text-stone-700 rounded-xl hover:bg-stone-50 transition-colors font-semibold"
-            >
-              Cancel
-            </button>
+          {/* Action Button */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="space-y-4"
+          >
             <button
               onClick={handleLogin}
               disabled={isSubmitting || !phoneNumber}
-              className="flex-1 px-4 py-3.5 bg-[#B5581A] text-white rounded-xl hover:bg-[#a64e2a] transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#B5581A]/20 disabled:shadow-none"
+              className="w-full px-6 py-4 bg-[#F4E0D0]/70 text-[#B5581A] rounded-full hover:bg-[#B5581A] hover:text-white border border-[#B5581A]/30 hover:border-[#B5581A] transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
             >
               {isSubmitting ? (
                 <span className="flex items-center justify-center gap-2">
@@ -1629,12 +1699,31 @@ const LoginDrawer = ({
                 "Continue"
               )}
             </button>
-          </div>
+
+            <button
+              onClick={() => setShowLoginDrawer(false)}
+              className="w-full px-6 py-3.5 rounded-full border border-stone-300 bg-transparent text-stone-800 hover:bg-stone-100 hover:text-stone-900 hover:border-stone-500 transition-all duration-200 font-medium text-base"
+            >
+              Cancel
+            </button>
+          </motion.div>
 
           {/* Privacy Note */}
-          <p className="text-xs text-stone-500 text-center mt-4">
-            We'll send you an OTP to verify your number
-          </p>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="text-xs text-stone-500 text-center mt-6 leading-relaxed"
+          >
+            By continuing, you agree to our{" "}
+            <span className="text-[#B5581A] hover:underline cursor-pointer">
+              Terms of Service
+            </span>{" "}
+            and{" "}
+            <span className="text-[#B5581A] hover:underline cursor-pointer">
+              Privacy Policy
+            </span>
+          </motion.p>
         </motion.div>
       </motion.div>
     </AnimatePresence>

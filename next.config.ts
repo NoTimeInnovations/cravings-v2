@@ -18,51 +18,11 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "**.supabase.co",
+        hostname: "**",
       },
       {
-        protocol: "https",
-        hostname: "**.supabase.in",
-      },
-      {
-        protocol: "https",
-        hostname: "lh3.googleusercontent.com",
-      },
-      {
-        protocol: "https",
-        hostname: "maps.googleapis.com",
-      },
-      {
-        protocol: "https",
-        hostname: "menuthere.com",
-      },
-      {
-        protocol: "https",
-        hostname: "images.unsplash.com",
-      },
-      {
-        protocol: "https",
-        hostname: "www.gstatic.com",
-      },
-      {
-        protocol: "https",
-        hostname: "cravingsbucket.s3.ap-southeast-2.amazonaws.com",
-      },
-      {
-        protocol: "https",
-        hostname: "image.pollinations.ai",
-      },
-      {
-        protocol: "https",
-        hostname: "api.mapbox.com",
-      },
-      {
-        protocol: "https",
-        hostname: "foodoffers-2cedb.firebasestorage .app",
-      },
-      {
-        protocol: "https",
-        hostname: "media-assets.swiggy.com",
+        protocol: "http",
+        hostname: "**",
       }
     ],
   },

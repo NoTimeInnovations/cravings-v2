@@ -435,7 +435,7 @@ export function DeliverySettings() {
                             <SelectContent>
                                 {countryCodes.map((c) => (
                                     <SelectItem key={c.code} value={c.code}>
-                                        {c.flag} {c.name} ({c.code})
+                                        {c.country} ({c.code})
                                     </SelectItem>
                                 ))}
                             </SelectContent>
