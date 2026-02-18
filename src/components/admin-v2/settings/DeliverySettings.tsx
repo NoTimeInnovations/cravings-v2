@@ -15,6 +15,7 @@ import { revalidateTag } from "@/app/actions/revalidate";
 import { Loader2, Save, Plus, Trash2 } from "lucide-react";
 import { DeliveryRules, DeliveryRange } from "@/store/orderStore";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
+import { countryCodes } from "@/utils/countryCodes";
 
 export function DeliverySettings() {
     const { userData, setState } = useAuthStore();
@@ -31,6 +32,8 @@ export function DeliverySettings() {
         isDeliveryActive: true,
         needDeliveryLocation: true,
     });
+    const [whatsappNumbers, setWhatsappNumbers] = useState<{ number: string; area: string }[]>([]);
+    const [countryCode, setCountryCode] = useState("+91");
 
     const currencySymbol = (userData as Partner)?.currency || "₹";
 
@@ -53,16 +56,41 @@ export function DeliverySettings() {
                 isDeliveryActive: userData.delivery_rules?.isDeliveryActive ?? true,
                 needDeliveryLocation: userData.delivery_rules?.needDeliveryLocation ?? true,
             });
+
+            // Initialize WhatsApp numbers
+            setWhatsappNumbers(
+                userData.whatsapp_numbers?.length > 0
+                    ? userData.whatsapp_numbers
+                    : [{ number: userData.phone || "", area: "default" }]
+            );
+
+            // Initialize country code
+            setCountryCode(userData.country_code || "+91");
         }
     }, [userData]);
 
     const handleSaveDelivery = useCallback(async () => {
         if (!userData) return;
+
+        // Validate WhatsApp numbers
+        for (const item of whatsappNumbers) {
+            if (!item.number || item.number.length !== 10) {
+                toast.error(`Please enter a valid WhatsApp Number for ${item.area || "unnamed area"}`);
+                return;
+            }
+            if (!item.area) {
+                toast.error("Please specify an area for each number");
+                return;
+            }
+        }
+
         setIsSaving(true);
         try {
             const updates = {
                 delivery_rate: deliveryRate,
-                delivery_rules: deliveryRules
+                delivery_rules: deliveryRules,
+                whatsapp_numbers: whatsappNumbers,
+                country_code: countryCode
             };
 
             await fetchFromHasura(updatePartnerMutation, {
@@ -79,7 +107,7 @@ export function DeliverySettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, deliveryRate, deliveryRules, setState]);
+    }, [userData, deliveryRate, deliveryRules, whatsappNumbers, countryCode, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -118,9 +146,16 @@ export function DeliverySettings() {
             needDeliveryLocation: data.delivery_rules?.needDeliveryLocation ?? true,
         };
 
+        const initialWhatsapp = data.whatsapp_numbers?.length > 0
+            ? data.whatsapp_numbers
+            : [{ number: data.phone || "", area: "default" }];
+        const initialCountryCode = data.country_code || "+91";
+
         const hasChanges =
             deliveryRate !== initialRate ||
-            JSON.stringify(deliveryRules) !== JSON.stringify(initialRules);
+            JSON.stringify(deliveryRules) !== JSON.stringify(initialRules) ||
+            JSON.stringify(whatsappNumbers) !== JSON.stringify(initialWhatsapp) ||
+            countryCode !== initialCountryCode;
 
         setHasChanges(hasChanges);
 
@@ -128,6 +163,8 @@ export function DeliverySettings() {
         userData,
         deliveryRate,
         deliveryRules,
+        whatsappNumbers,
+        countryCode,
         setHasChanges
     ]);
 
@@ -151,6 +188,26 @@ export function DeliverySettings() {
             const newRanges = [...(prev.delivery_ranges || [])];
             newRanges[index] = { ...newRanges[index], [field]: value };
             return { ...prev, delivery_ranges: newRanges };
+        });
+    };
+
+    const addWhatsappNumber = () => {
+        setWhatsappNumbers(prev => [...prev, { number: "", area: "" }]);
+    };
+
+    const removeWhatsappNumber = (index: number) => {
+        if (whatsappNumbers.length === 1) {
+            toast.error("You must have at least one WhatsApp number");
+            return;
+        }
+        setWhatsappNumbers(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const updateWhatsappNumber = (index: number, field: "number" | "area", value: string) => {
+        setWhatsappNumbers(prev => {
+            const newNumbers = [...prev];
+            newNumbers[index] = { ...newNumbers[index], [field]: value };
+            return newNumbers;
         });
     };
 
@@ -363,6 +420,68 @@ export function DeliverySettings() {
                 </CardContent>
             </Card>
 
+            <Card>
+                <CardHeader>
+                    <CardTitle>Delivery Contact Numbers</CardTitle>
+                    <CardDescription>Manage WhatsApp numbers for different delivery areas.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <Label>Country Code</Label>
+                        <Select value={countryCode} onValueChange={setCountryCode}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {countryCodes.map((c) => (
+                                    <SelectItem key={c.code} value={c.code}>
+                                        {c.flag} {c.name} ({c.code})
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-3">
+                        {whatsappNumbers.map((item, idx) => (
+                            <div key={idx} className="flex items-end gap-2 p-3 border rounded-lg bg-muted/20">
+                                <div className="flex-1 space-y-1">
+                                    <Label className="text-xs">Area/Location</Label>
+                                    <Input
+                                        value={item.area}
+                                        onChange={(e) => updateWhatsappNumber(idx, "area", e.target.value)}
+                                        placeholder="e.g., Downtown, North Zone"
+                                    />
+                                </div>
+                                <div className="flex-1 space-y-1">
+                                    <Label className="text-xs">WhatsApp Number (10 digits)</Label>
+                                    <Input
+                                        value={item.number}
+                                        onChange={(e) => updateWhatsappNumber(idx, "number", e.target.value)}
+                                        placeholder="9876543210"
+                                        maxLength={10}
+                                    />
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive"
+                                    onClick={() => removeWhatsappNumber(idx)}
+                                    disabled={whatsappNumbers.length === 1}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={addWhatsappNumber}>
+                        <Plus className="mr-2 h-4 w-4" /> Add WhatsApp Number
+                    </Button>
+                    <p className="text-sm text-muted-foreground">
+                        Add multiple WhatsApp numbers for different delivery areas to help customers contact the right person.
+                    </p>
+                </CardContent>
+            </Card>
 
         </div>
     );

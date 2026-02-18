@@ -305,6 +305,12 @@ export function Navbar() {
     return () => window.removeEventListener("resize", handleResize);
   }, [isSolutionsOpen, isResourcesOpen]);
 
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+    setExpandedMobileSection(null);
+  }, [pathname]);
+
   const isUserOrGuest = userData?.role === "user" || !userData?.role;
 
   useEffect(() => {
