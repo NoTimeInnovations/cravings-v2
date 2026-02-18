@@ -63,7 +63,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
             return;
         }
 
-        if (variants.length === 0 && (!editingItem.price || parseFloat(editingItem.price) <= 0) && !editingItem.is_price_as_per_size) {
+        if (variants.length === 0 && (!editingItem.price || parseFloat(editingItem.price) < 0) && !editingItem.is_price_as_per_size) {
             toast.error("Please set either a base price, add options, or enable 'Price as per Size'");
             return;
         }
