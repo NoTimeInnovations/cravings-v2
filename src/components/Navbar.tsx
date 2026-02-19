@@ -775,6 +775,7 @@ export function Navbar() {
                 <button
                   onClick={() => setIsMobileMenuOpen(true)}
                   className="p-2 text-gray-900"
+                  aria-label="Open menu"
                 >
                   <Menu className="w-6 h-6" />
                 </button>
@@ -791,6 +792,7 @@ export function Navbar() {
                 <button
                   onClick={handleInstallClick}
                   className="inline-flex items-center h-fit text-nowrap text-xs gap-2 px-3 md:px-4 py-2 font-medium border rounded-lg transition-colors text-gray-900 border-gray-200 hover:bg-gray-100"
+                  aria-label="Install app"
                 >
                   <Download className="w-4 h-4" />
                 </button>
@@ -814,6 +816,7 @@ export function Navbar() {
             <button
               onClick={() => setIsMobileMenuOpen(false)}
               className="text-gray-900 p-2"
+              aria-label="Close menu"
             >
               <X className="w-8 h-8" />
             </button>

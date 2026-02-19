@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ['192.168.20.6', 'localhost', '192.168.1.16'],
 
   images: {
-    minimumCacheTTL: 60,
+    minimumCacheTTL: 2592000, // 30 days
     remotePatterns: [
       {
         protocol: "https",
@@ -31,6 +31,24 @@ const nextConfig: NextConfig = {
       {
         source: "/.well-known/:file*",
         headers: [{ key: "Content-Type", value: "application/json" }],
+      },
+      {
+        source: "/_next/static/(.*)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/(.*\\.(?:ico|png|jpg|jpeg|gif|webp|svg|woff|woff2))",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
       },
     ];
   },

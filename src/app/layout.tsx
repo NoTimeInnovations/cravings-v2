@@ -1,6 +1,6 @@
 // app/layout.tsx
 import type { Metadata } from "next";
-import { Inter, Dancing_Script, Poppins, Roboto } from "next/font/google";
+import { Inter, Dancing_Script, Poppins, Roboto, Geist } from "next/font/google";
 import Script from "next/script";
 import dynamic from "next/dynamic";
 import "./globals.css";
@@ -85,6 +85,11 @@ const roboto = Roboto({
   variable: "--font-roboto",
   display: "swap",
 });
+const geist = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist",
+  display: "swap",
+});
 
 export default function RootLayout({
   children,
@@ -94,27 +99,30 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Geist font — reduced weights, loaded via link instead of CSS @import */}
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap"
-        />
-        {/* SuisseIntl fonts — loaded async to avoid render-blocking */}
+        {/* Preconnect to critical third-party origins */}
+        <link rel="preconnect" href="https://us-assets.i.posthog.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://us.i.posthog.com" />
+        <link rel="dns-prefetch" href="https://db.onlinewebfonts.com" />
+
+        {/* SuisseIntl fonts — deferred to idle time to avoid blocking main thread */}
         <Script
           id="suisse-fonts-loader"
           strategy="lazyOnload"
           dangerouslySetInnerHTML={{
             __html: `
-              ['88f10bf18a36407ef36bf30bc25a3618?family=SuisseIntl-Regular',
+              var ids=['88f10bf18a36407ef36bf30bc25a3618?family=SuisseIntl-Regular',
                '03d5b20d124cd26dc873bd4a8e42313e?family=SuisseIntl-Light',
                '653d9381828e9577fb1e417dc047f89d?family=SuisseIntl-SemiBold',
-               'd1a580023d40c546276decde1c711e60?family=SuisseIntl-Bold'
-              ].forEach(function(id){
-                var l=document.createElement('link');
-                l.rel='stylesheet';
+               'd1a580023d40c546276decde1c711e60?family=SuisseIntl-Bold'];
+              function loadFonts(){ids.forEach(function(id){
+                var l=document.createElement('link');l.rel='stylesheet';
                 l.href='https://db.onlinewebfonts.com/c/'+id;
+                l.media='print';l.onload=function(){l.media='all'};
                 document.head.appendChild(l);
-              });
+              })}
+              if(typeof requestIdleCallback!=='undefined'){requestIdleCallback(loadFonts)}
+              else{setTimeout(loadFonts,2000)}
             `,
           }}
         />
@@ -150,7 +158,7 @@ document.head.appendChild(o)}initApollo();`,
         />
       </head>
       <body
-        className={`antialiased font-sans ${inter.variable} ${dancingScript.variable} ${poppins.variable} ${roboto.variable}`}
+        className={`antialiased font-sans ${inter.variable} ${dancingScript.variable} ${poppins.variable} ${roboto.variable} ${geist.variable}`}
       >
         <PostHogProvider>
           <DomainProvider config={MENUTHERE_CONFIG}>
@@ -158,7 +166,9 @@ document.head.appendChild(o)}initApollo();`,
             <WhatsappGroupJoinAlertDialog />
             <Toaster richColors closeButton position="top-center" />
             <Navbar />
-            {children}
+            <main id="main-content">
+              {children}
+            </main>
             <BottomNav />
           </DomainProvider>
         </PostHogProvider>

@@ -17,9 +17,7 @@ iframe::-webkit-scrollbar {
   display: none !important;
 }
 
-html,
-body,
-* {
+html {
   scroll-behavior: smooth;
 }
 
@@ -101,7 +99,7 @@ body {
 }
 
 .geist-font {
-  font-family: "Geist", sans-serif;
+  font-family: var(--font-geist), "Geist", sans-serif;
   font-optical-sizing: auto;
   font-weight: 400;
   font-style: normal;

@@ -165,10 +165,9 @@ const BottomNav = () => {
 
   return (
     <section className={`lg:hidden`}>
-      {/* Spacer to prevent content from being hidden behind the fixed nav */}
-      {/* <div className="h-[64px] w-full" aria-hidden="true"></div> */}
       {/* Bottom Navigation Bar */}
-      <div
+      <nav
+        aria-label="Bottom navigation"
         className={`fixed bottom-0 left-0 w-full bg-white px-4 py-3 flex justify-around z-[500] border-t border-gray-200 transition-transform duration-300 ${isVisible ? "translate-y-0" : "translate-y-full"
           }`}
       >
@@ -201,7 +200,7 @@ const BottomNav = () => {
             </Link>
           );
         })}
-      </div>
+      </nav>
 
       {/* Gradient overlay at bottom to indicate scrollable content */}
       <div className="fixed bottom-0 left-0 w-full h-[100px] bg-gradient-to-t from-black/10 to-transparent z-[40] pointer-events-none"></div>
