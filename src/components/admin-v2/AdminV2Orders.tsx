@@ -32,7 +32,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { FileText, Trash2, Eye, Printer, MoreVertical, ReceiptText, Search, CreditCard, Clock, MapPin } from "lucide-react";
+import { FileText, Trash2, Eye, Printer, MoreVertical, ReceiptText, Search, CreditCard, Clock, MapPin, Table2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
@@ -406,7 +406,7 @@ export function AdminV2Orders() {
                         <TableRow>
                             <TableHead>Invoice No</TableHead>
                             <TableHead>Order ID</TableHead>
-                            <TableHead>Table No</TableHead>
+                            <TableHead>Table / Location</TableHead>
                             <TableHead>Payment method</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>Time</TableHead>
@@ -427,7 +427,7 @@ export function AdminV2Orders() {
                                     {order.id.slice(0, 8)}
                                 </TableCell>
                                 <TableCell>
-                                    {order.tableName || order.tableNumber || "N/A"}
+                                    {order.tableName || order.tableNumber || order.deliveryAddress || "N/A"}
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant="outline" className="bg-gray-50 text-black dark:text-black">
@@ -548,8 +548,12 @@ export function AdminV2Orders() {
                             <div className="flex flex-col gap-2 text-sm">
                                 <div className="flex justify-between items-center">
                                     <div className="flex items-center gap-2">
-                                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                                        <span className="font-medium">{order.tableName || order.tableNumber || "N/A"}</span>
+                                        {order.tableName || order.tableNumber ? (
+                                            <Table2 className="h-4 w-4 text-muted-foreground" />
+                                        ) : (
+                                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                        <span className="font-medium">{order.tableName || order.tableNumber || order.deliveryAddress || "N/A"}</span>
                                     </div>
                                     <Badge variant="outline" className="capitalize text-xs">
                                         {(order.type === 'delivery' && !order.deliveryAddress)

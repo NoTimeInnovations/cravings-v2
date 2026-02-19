@@ -1413,17 +1413,17 @@ const BillCard = ({
             </div>
           ) : null}
 
-          {isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && (
+          {isDelivery && (deliveryInfo?.cost ?? 0) > 0 && !deliveryInfo?.isOutOfRange && (
             <div className="flex justify-between text-sm">
               <div>
                 <span className="text-stone-600">Delivery Charge</span>
                 <p className="text-xs text-stone-500">
-                  {deliveryInfo.distance.toFixed(1)} km
+                  {deliveryInfo?.distance?.toFixed(1)} km
                 </p>
               </div>
               <span className="font-medium text-gray-900">
                 {currency}
-                {deliveryInfo.cost.toFixed(2)}
+                {deliveryInfo?.cost?.toFixed(2)}
               </span>
             </div>
           )}

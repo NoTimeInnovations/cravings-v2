@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
-import { Loader2, Search, Printer, ReceiptText, Trash2, MapPin, CreditCard, Clock } from "lucide-react";
+import { Loader2, Search, Printer, ReceiptText, Trash2, MapPin, Table2, CreditCard, Clock } from "lucide-react";
 import { Partner, useAuthStore } from "@/store/authStore";
 import useOrderStore, { Order } from "@/store/orderStore";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -398,7 +398,7 @@ export function AdminV2AllOrders() {
                                 <TableRow>
                                     <TableHead>Invoice No</TableHead>
                                     <TableHead>Order ID</TableHead>
-                                    <TableHead>Table No</TableHead>
+                                    <TableHead>Table / Location</TableHead>
                                     <TableHead>Payment method</TableHead>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Time</TableHead>
@@ -419,7 +419,7 @@ export function AdminV2AllOrders() {
                                             {order.id.slice(0, 8)}
                                         </TableCell>
                                         <TableCell>
-                                            {order.tableName || order.tableNumber || "N/A"}
+                                            {order.tableName || order.tableNumber || order.deliveryAddress || "N/A"}
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className="bg-gray-50 text-black dark:text-black">
@@ -527,6 +527,7 @@ export function AdminV2AllOrders() {
                                             <SelectContent>
                                                 <SelectItem value="pending">Pending</SelectItem>
                                                 <SelectItem value="accepted">Accepted</SelectItem>
+                                                <SelectItem value="dispatched">Dispatched</SelectItem>
                                                 <SelectItem value="completed">Completed</SelectItem>
                                                 <SelectItem value="cancelled">Cancelled</SelectItem>
                                             </SelectContent>
@@ -536,8 +537,12 @@ export function AdminV2AllOrders() {
                                 <CardContent className="p-3 space-y-3">
                                     <div className="grid grid-cols-2 gap-2 text-sm">
                                         <div className="flex items-center gap-2">
-                                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                                            <span className="font-medium">{order.tableName || order.tableNumber || "N/A"}</span>
+                                            {order.tableName || order.tableNumber ? (
+                                                <Table2 className="h-4 w-4 text-muted-foreground" />
+                                            ) : (
+                                                <MapPin className="h-4 w-4 text-muted-foreground" />
+                                            )}
+                                            <span className="font-medium">{order.tableName || order.tableNumber || order.deliveryAddress || "N/A"}</span>
                                         </div>
                                         <div className="flex items-center gap-2 justify-end">
                                             <CreditCard className="h-4 w-4 text-muted-foreground" />
