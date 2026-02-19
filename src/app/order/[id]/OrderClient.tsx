@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { formatDate } from "@/lib/formatDate";
+import { formatDate, getDateOnly } from "@/lib/formatDate";
 import { ExtraCharge } from "@/store/posStore";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { subscribeToHasura } from "@/lib/hasuraSubscription";
@@ -25,6 +25,7 @@ const GET_ORDER_QUERY = `
       delivery_location
       status
       status_history
+      display_id
       partner_id
       partner {
         gst_percentage
@@ -79,6 +80,7 @@ const OrderClient = () => {
                         qrId: order?.qr_id,
                         status: order?.status,
                         status_history: order?.status_history,
+                        display_id: order?.display_id,
                         type: order?.type,
                         phone: order?.phone,
                         notes: order?.notes,
@@ -167,7 +169,9 @@ const OrderClient = () => {
                             <div className="flex justify-between items-center">
                                 <div>
                                     <h1 className="text-2xl font-bold">
-                                        Order #{order?.id.slice(0, 8)}
+                                        Order #{(Number(order?.display_id) ?? 0) > 0
+                                            ? `${order?.display_id}-${getDateOnly(order?.createdAt || "")}`
+                                            : order?.id.slice(0, 8)}
                                     </h1>
                                     <p className="text-sm text-gray-500">
                                         {order?.createdAt && formatDate(order?.createdAt)}

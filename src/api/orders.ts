@@ -441,6 +441,7 @@ subscription GetUserOrders($user_id: uuid!) {
     notes
     status
     status_history
+    display_id
     partner_id
     partner {
       gst_percentage

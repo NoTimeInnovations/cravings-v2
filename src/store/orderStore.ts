@@ -474,6 +474,7 @@ const useOrderStore = create(
               delivery_location: order.delivery_location,
               partnerId: order.partner_id,
               partner: order.partner,
+              display_id: order.display_id,
               notes: order.notes || null,
               userId: order.user_id,
               gstIncluded: order.gst_included,

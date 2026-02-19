@@ -23,6 +23,7 @@ import { toStatusDisplayFormat } from "@/lib/statusHistory";
 import Link from "next/link";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
+import { getDateOnly } from "@/lib/formatDate";
 
 const Page = () => {
   const { userData } = useAuthStore();
@@ -164,7 +165,9 @@ const Page = () => {
                         </span>
                       </div>
                       <p className="text-sm text-gray-500">
-                        #{order.id.split("-")[0]} • {format(new Date(order.createdAt), "MMM d, h:mm a")}
+                        #{(Number(order.display_id) ?? 0) > 0
+                          ? `${order.display_id}-${getDateOnly(order.createdAt)}`
+                          : order.id.split("-")[0]} • {format(new Date(order.createdAt), "MMM d, h:mm a")}
                       </p>
                     </div>
                     <div
