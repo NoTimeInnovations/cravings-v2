@@ -12,10 +12,254 @@ import { toast } from "sonner";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { updatePartnerMutation } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
-import { Loader2, Save, Plus, Trash2 } from "lucide-react";
+import { Loader2, Save, Plus, Trash2, Clock, Keyboard } from "lucide-react";
 import { DeliveryRules, DeliveryRange } from "@/store/orderStore";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { countryCodes } from "@/utils/countryCodes";
+
+function TimePicker({ value, onChange }: { value: string; onChange: (val: string) => void }) {
+    const [open, setOpen] = useState(false);
+    const [selecting, setSelecting] = useState<"hours" | "minutes">("hours");
+    const [inputMode, setInputMode] = useState<"clock" | "keyboard">("clock");
+    const [tempH, setTempH] = useState(12);
+    const [tempM, setTempM] = useState(0);
+    const [tempPeriod, setTempPeriod] = useState<"AM" | "PM">("AM");
+    const [kbHour, setKbHour] = useState("");
+    const [kbMin, setKbMin] = useState("");
+
+    useEffect(() => {
+        if (open) {
+            const [h24, m] = (value || "00:00").split(":").map(Number);
+            const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
+            setTempH(h12);
+            setTempM(m);
+            setTempPeriod(h24 >= 12 ? "PM" : "AM");
+            setSelecting("hours");
+            setInputMode("clock");
+            setKbHour(String(h12));
+            setKbMin(String(m).padStart(2, "0"));
+        }
+    }, [open, value]);
+
+    const to24 = (h12: number, period: "AM" | "PM") => {
+        if (period === "AM") return h12 === 12 ? 0 : h12;
+        return h12 === 12 ? 12 : h12 + 12;
+    };
+
+    const handleSet = () => {
+        let finalH = tempH;
+        let finalM = tempM;
+        if (inputMode === "keyboard") {
+            finalH = Math.min(12, Math.max(1, parseInt(kbHour) || 12));
+            finalM = Math.min(59, Math.max(0, parseInt(kbMin) || 0));
+        }
+        const h24 = to24(finalH, tempPeriod);
+        onChange(`${String(h24).padStart(2, "0")}:${String(finalM).padStart(2, "0")}`);
+        setOpen(false);
+    };
+
+    const handleClear = () => {
+        onChange("00:00");
+        setOpen(false);
+    };
+
+    const displayValue = (() => {
+        const [h24, m] = (value || "00:00").split(":").map(Number);
+        const period = h24 >= 12 ? "PM" : "AM";
+        const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
+        return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+    })();
+
+    const CLOCK_SIZE = 240;
+    const CENTER = CLOCK_SIZE / 2;
+    const RADIUS = 95;
+
+    const clockNumbers = selecting === "hours"
+        ? [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        : [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+
+    const selectedVal = selecting === "hours" ? tempH : tempM;
+
+    const getAngle = (val: number) => {
+        if (selecting === "hours") {
+            return ((val % 12) * 30 - 90) * (Math.PI / 180);
+        }
+        return (val * 6 - 90) * (Math.PI / 180);
+    };
+
+    const handAngle = getAngle(selectedVal);
+    const handX = CENTER + (RADIUS - 20) * Math.cos(handAngle);
+    const handY = CENTER + (RADIUS - 20) * Math.sin(handAngle);
+
+    return (
+        <>
+            <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="flex items-center gap-2 border rounded-lg px-3 py-2.5 bg-background hover:bg-accent transition-colors"
+            >
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">{displayValue}</span>
+            </button>
+
+            {open && (
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70" onClick={() => setOpen(false)}>
+                    <div className="bg-[#2b2b2b] rounded-[28px] w-[320px] shadow-2xl z-[100000]" onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="px-6 pt-5 pb-4">
+                            <p className="text-[#aaa] text-xs font-medium mb-4 tracking-wide">Set time</p>
+                            <div className="flex items-center justify-center">
+                                <button
+                                    type="button"
+                                    onClick={() => { setSelecting("hours"); setInputMode("clock"); }}
+                                    className={`text-[52px] font-light leading-none transition-colors ${selecting === "hours" ? "text-white" : "text-[#666]"}`}
+                                >
+                                    {tempH}
+                                </button>
+                                <span className="text-[52px] font-light leading-none text-[#666] mx-0.5">:</span>
+                                <button
+                                    type="button"
+                                    onClick={() => { setSelecting("minutes"); setInputMode("clock"); }}
+                                    className={`text-[52px] font-light leading-none transition-colors ${selecting === "minutes" ? "text-white" : "text-[#666]"}`}
+                                >
+                                    {String(tempM).padStart(2, "0")}
+                                </button>
+                                <div className="flex flex-col ml-3 gap-0.5">
+                                    <button
+                                        type="button"
+                                        onClick={() => setTempPeriod("AM")}
+                                        className={`text-sm font-bold transition-colors ${tempPeriod === "AM" ? "text-white" : "text-[#666]"}`}
+                                    >
+                                        AM
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setTempPeriod("PM")}
+                                        className={`text-sm font-bold transition-colors ${tempPeriod === "PM" ? "text-white" : "text-[#666]"}`}
+                                    >
+                                        PM
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Body */}
+                        {inputMode === "clock" ? (
+                            <div className="px-6 pb-2 flex justify-center bg-[#2b2b2b] rounded-xl">
+                                <div className="relative" style={{ width: CLOCK_SIZE, height: CLOCK_SIZE }}>
+                                    <div className="absolute inset-0 rounded-full bg-[#3a3a3a]" />
+                                    {/* Center dot */}
+                                    <div className="absolute top-1/2 left-1/2 w-2 h-2 rounded-full bg-orange-500 -translate-x-1/2 -translate-y-1/2 z-10" />
+                                    {/* Hand line */}
+                                    <svg className="absolute inset-0 z-[5]" width={CLOCK_SIZE} height={CLOCK_SIZE}>
+                                        <line x1={CENTER} y1={CENTER} x2={handX} y2={handY} stroke="#f97316" strokeWidth="2" />
+                                    </svg>
+                                    {/* Numbers */}
+                                    {clockNumbers.map((num, i) => {
+                                        const angle = (i * 30 - 90) * (Math.PI / 180);
+                                        const x = CENTER + RADIUS * Math.cos(angle);
+                                        const y = CENTER + RADIUS * Math.sin(angle);
+                                        const isSelected = num === selectedVal;
+                                        return (
+                                            <button
+                                                key={num}
+                                                type="button"
+                                                onClick={() => {
+                                                    if (selecting === "hours") {
+                                                        setTempH(num);
+                                                        setTimeout(() => setSelecting("minutes"), 300);
+                                                    } else {
+                                                        setTempM(num);
+                                                    }
+                                                }}
+                                                className={`absolute w-10 h-10 -ml-5 -mt-5 rounded-full flex items-center justify-center text-sm font-medium z-10 transition-colors
+                                                    ${isSelected ? "bg-orange-500 text-white" : "text-[#ccc] hover:bg-[#4a4a4a]"}`}
+                                                style={{ left: x, top: y }}
+                                            >
+                                                {selecting === "minutes" ? String(num).padStart(2, "0") : num}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="px-6 pb-4">
+                                <p className="text-[#aaa] text-sm font-medium mb-3">Type in time</p>
+                                <div className="flex items-end gap-3">
+                                    <div className="flex-1">
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={2}
+                                            value={kbHour}
+                                            onChange={e => {
+                                                const v = e.target.value.replace(/\D/g, "");
+                                                setKbHour(v);
+                                                const n = parseInt(v);
+                                                if (n >= 1 && n <= 12) setTempH(n);
+                                            }}
+                                            className="w-full bg-[#3a3a3a] border-b-2 border-orange-500 text-white text-2xl font-bold text-center py-2 rounded-t-lg outline-none"
+                                        />
+                                        <p className="text-[#888] text-xs mt-1 text-center">hour</p>
+                                    </div>
+                                    <span className="text-2xl font-bold text-[#666] pb-6">:</span>
+                                    <div className="flex-1">
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={2}
+                                            value={kbMin}
+                                            onChange={e => {
+                                                const v = e.target.value.replace(/\D/g, "");
+                                                setKbMin(v);
+                                                const n = parseInt(v);
+                                                if (n >= 0 && n <= 59) setTempM(n);
+                                            }}
+                                            className="w-full bg-[#3a3a3a] border-b-2 border-orange-500 text-white text-2xl font-bold text-center py-2 rounded-t-lg outline-none"
+                                        />
+                                        <p className="text-[#888] text-xs mt-1 text-center">minute</p>
+                                    </div>
+                                    <div className="pb-5">
+                                        <select
+                                            value={tempPeriod}
+                                            onChange={e => setTempPeriod(e.target.value as "AM" | "PM")}
+                                            className="bg-[#3a3a3a] text-white text-lg font-medium px-3 py-2 rounded-lg border border-[#555] outline-none"
+                                        >
+                                            <option value="AM">am</option>
+                                            <option value="PM">pm</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Footer */}
+                        <div className="flex items-center justify-between px-4 py-3">
+                            <button
+                                type="button"
+                                onClick={() => setInputMode(prev => prev === "clock" ? "keyboard" : "clock")}
+                                className="p-2 rounded-full text-[#aaa] hover:bg-[#3a3a3a] transition-colors"
+                            >
+                                {inputMode === "clock" ? <Keyboard className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
+                            </button>
+                            <div className="flex items-center gap-2">
+                                <button type="button" onClick={handleClear} className="px-4 py-2 text-sm font-bold text-[#aaa] hover:text-white transition-colors">
+                                    CLEAR
+                                </button>
+                                <button type="button" onClick={() => setOpen(false)} className="px-4 py-2 text-sm font-bold text-[#aaa] hover:text-white transition-colors">
+                                    CANCEL
+                                </button>
+                                <button type="button" onClick={handleSet} className="px-4 py-2 text-sm font-bold text-orange-500 hover:text-orange-400 transition-colors">
+                                    SET
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+}
 
 export function DeliverySettings() {
     const { userData, setState } = useAuthStore();
@@ -397,22 +641,20 @@ export function DeliverySettings() {
 
                     <div className="space-y-2">
                         <Label>Delivery Time Window</Label>
-                        <div className="flex items-center gap-2">
-                            <Input
-                                type="time"
-                                value={deliveryRules.delivery_time_allowed?.from || ""}
-                                onChange={(e) => setDeliveryRules(prev => ({
+                        <div className="flex items-center gap-3">
+                            <TimePicker
+                                value={deliveryRules.delivery_time_allowed?.from || "00:00"}
+                                onChange={(val) => setDeliveryRules(prev => ({
                                     ...prev,
-                                    delivery_time_allowed: { from: e.target.value, to: prev.delivery_time_allowed?.to || "23:59" }
+                                    delivery_time_allowed: { from: val, to: prev.delivery_time_allowed?.to || "23:59" }
                                 }))}
                             />
-                            <span>to</span>
-                            <Input
-                                type="time"
-                                value={deliveryRules.delivery_time_allowed?.to || ""}
-                                onChange={(e) => setDeliveryRules(prev => ({
+                            <span className="text-sm text-muted-foreground">to</span>
+                            <TimePicker
+                                value={deliveryRules.delivery_time_allowed?.to || "23:59"}
+                                onChange={(val) => setDeliveryRules(prev => ({
                                     ...prev,
-                                    delivery_time_allowed: { from: prev.delivery_time_allowed?.from || "00:00", to: e.target.value }
+                                    delivery_time_allowed: { from: prev.delivery_time_allowed?.from || "00:00", to: val }
                                 }))}
                             />
                         </div>
