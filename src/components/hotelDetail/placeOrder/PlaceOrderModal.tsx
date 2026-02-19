@@ -19,7 +19,12 @@ import {
   Search,
 } from "lucide-react";
 import { useLocationStore } from "@/store/geolocationStore";
-import { GoogleMap, useLoadScript, Marker, Autocomplete } from "@react-google-maps/api";
+import {
+  GoogleMap,
+  useLoadScript,
+  Marker,
+  Autocomplete,
+} from "@react-google-maps/api";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -215,13 +220,19 @@ const AddressManagementModal = ({
             if (types.includes("postal_code")) {
               setPincode(component.long_name);
             }
-            if (types.includes("locality") || types.includes("administrative_area_level_2")) {
+            if (
+              types.includes("locality") ||
+              types.includes("administrative_area_level_2")
+            ) {
               setCity(component.long_name);
             }
             if (types.includes("administrative_area_level_3")) {
               setDistrict(component.long_name);
             }
-            if (types.includes("sublocality") || types.includes("sublocality_level_1")) {
+            if (
+              types.includes("sublocality") ||
+              types.includes("sublocality_level_1")
+            ) {
               setArea(component.long_name);
             }
           });
@@ -365,7 +376,10 @@ const AddressManagementModal = ({
   const mapCenter = coordinates
     ? coordinates
     : hotelData?.geo_location?.coordinates
-      ? { lat: hotelData.geo_location.coordinates[1], lng: hotelData.geo_location.coordinates[0] }
+      ? {
+          lat: hotelData.geo_location.coordinates[1],
+          lng: hotelData.geo_location.coordinates[0],
+        }
       : DEFAULT_CENTER;
 
   return (
@@ -384,7 +398,9 @@ const AddressManagementModal = ({
               {editAddress ? "Edit Address" : "Add New Address"}
             </h1>
             <p className="text-xs text-stone-500">
-              {needDeliveryLocation ? "Select location and fill details" : "Enter your address"}
+              {needDeliveryLocation
+                ? "Select location and fill details"
+                : "Enter your address"}
             </p>
           </div>
         </div>
@@ -408,150 +424,150 @@ const AddressManagementModal = ({
               </p>
             </div>
 
-              {showMap ? (
-                <div className="space-y-0">
-                  {/* Search Location */}
-                  {isLoaded && (
-                    <div className="p-4 bg-white border-b border-stone-200">
-                      <Autocomplete
-                        onLoad={(autocomplete) => {
-                          autocompleteRef.current = autocomplete;
-                        }}
-                        onPlaceChanged={onPlaceChanged}
+            {showMap ? (
+              <div className="space-y-0">
+                {/* Search Location */}
+                {isLoaded && (
+                  <div className="p-4 bg-white border-b border-stone-200">
+                    <Autocomplete
+                      onLoad={(autocomplete) => {
+                        autocompleteRef.current = autocomplete;
+                      }}
+                      onPlaceChanged={onPlaceChanged}
+                    >
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
+                        <Input
+                          type="text"
+                          placeholder="Search for a location..."
+                          value={searchValue}
+                          onChange={(e) => setSearchValue(e.target.value)}
+                          className="pl-10 rounded-xl text-gray-900 placeholder:text-gray-400 border-stone-200 focus:border-[#B5581A] focus:ring-[#B5581A]"
+                        />
+                      </div>
+                    </Autocomplete>
+                  </div>
+                )}
+
+                {/* Google Map */}
+                <div className="h-[400px] w-full relative">
+                  {loadError ? (
+                    <div className="flex items-center justify-center h-full text-red-600">
+                      <p>Error loading maps</p>
+                    </div>
+                  ) : !isLoaded ? (
+                    <div className="flex items-center justify-center h-full">
+                      <Loader2 className="h-8 w-8 animate-spin text-[#B5581A]" />
+                    </div>
+                  ) : (
+                    <GoogleMap
+                      mapContainerStyle={{ width: "100%", height: "100%" }}
+                      center={mapCenter}
+                      zoom={15}
+                      onClick={handleMapClick}
+                      onLoad={(map) => {
+                        mapRef.current = map;
+                      }}
+                      options={{
+                        zoomControl: true,
+                        streetViewControl: false,
+                        mapTypeControl: false,
+                        fullscreenControl: false,
+                      }}
+                    >
+                      {/* Hotel Marker */}
+                      {hotelData?.geo_location?.coordinates && (
+                        <Marker
+                          position={{
+                            lat: hotelData.geo_location.coordinates[1],
+                            lng: hotelData.geo_location.coordinates[0],
+                          }}
+                          icon={{
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 8,
+                            fillColor: "#B5581A",
+                            fillOpacity: 1,
+                            strokeColor: "#FFFFFF",
+                            strokeWeight: 2,
+                          }}
+                        />
+                      )}
+                      {/* User Location Marker */}
+                      {coordinates && <Marker position={coordinates} />}
+                    </GoogleMap>
+                  )}
+                </div>
+
+                {/* Map Actions */}
+                <div className="p-4 bg-stone-50 border-t border-stone-200">
+                  {coordinates ? (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={getCurrentLocation}
+                        className="flex-1 px-4 py-2.5 border border-stone-300 text-stone-700 rounded-lg hover:bg-white transition-colors text-sm font-medium"
                       >
-                        <div className="relative">
-                          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-stone-400" />
-                          <Input
-                            type="text"
-                            placeholder="Search for a location..."
-                            value={searchValue}
-                            onChange={(e) => setSearchValue(e.target.value)}
-                            className="pl-10 rounded-xl text-gray-900 placeholder:text-gray-400 border-stone-200 focus:border-[#B5581A] focus:ring-[#B5581A]"
-                          />
-                        </div>
-                      </Autocomplete>
+                        <LocateFixed className="h-4 w-4 inline mr-2" />
+                        Relocate
+                      </button>
+                      <button
+                        onClick={() => setShowMap(false)}
+                        className="flex-1 px-4 py-2.5 bg-[#B5581A] text-white rounded-lg hover:bg-[#a64e2a] transition-colors text-sm font-medium"
+                      >
+                        Confirm Location
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center text-sm text-stone-500">
+                      Click on the map to select your location
                     </div>
                   )}
+                </div>
+              </div>
+            ) : !coordinates ? (
+              <div className="p-6 space-y-3">
+                <button
+                  onClick={getCurrentLocation}
+                  className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-[#F4E0D0]/70 text-[#B5581A] rounded-xl hover:bg-[#B5581A] hover:text-white transition-all duration-300 font-medium border border-[#B5581A]/30"
+                >
+                  <LocateFixed className="h-5 w-5" />
+                  Use My Current Location
+                </button>
 
-                  {/* Google Map */}
-                  <div className="h-[400px] w-full relative">
-                    {loadError ? (
-                      <div className="flex items-center justify-center h-full text-red-600">
-                        <p>Error loading maps</p>
-                      </div>
-                    ) : !isLoaded ? (
-                      <div className="flex items-center justify-center h-full">
-                        <Loader2 className="h-8 w-8 animate-spin text-[#B5581A]" />
-                      </div>
-                    ) : (
-                      <GoogleMap
-                        mapContainerStyle={{ width: "100%", height: "100%" }}
-                        center={mapCenter}
-                        zoom={15}
-                        onClick={handleMapClick}
-                        onLoad={(map) => {
-                          mapRef.current = map;
-                        }}
-                        options={{
-                          zoomControl: true,
-                          streetViewControl: false,
-                          mapTypeControl: false,
-                          fullscreenControl: false,
-                        }}
-                      >
-                        {/* Hotel Marker */}
-                        {hotelData?.geo_location?.coordinates && (
-                          <Marker
-                            position={{
-                              lat: hotelData.geo_location.coordinates[1],
-                              lng: hotelData.geo_location.coordinates[0],
-                            }}
-                            icon={{
-                              path: google.maps.SymbolPath.CIRCLE,
-                              scale: 8,
-                              fillColor: "#B5581A",
-                              fillOpacity: 1,
-                              strokeColor: "#FFFFFF",
-                              strokeWeight: 2,
-                            }}
-                          />
-                        )}
-                        {/* User Location Marker */}
-                        {coordinates && (
-                          <Marker position={coordinates} />
-                        )}
-                      </GoogleMap>
-                    )}
-                  </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-stone-200" />
+                  <span className="text-xs text-stone-400 uppercase tracking-wider">
+                    or
+                  </span>
+                  <div className="flex-1 h-px bg-stone-200" />
+                </div>
 
-                  {/* Map Actions */}
-                  <div className="p-4 bg-stone-50 border-t border-stone-200">
-                    {coordinates ? (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={getCurrentLocation}
-                          className="flex-1 px-4 py-2.5 border border-stone-300 text-stone-700 rounded-lg hover:bg-white transition-colors text-sm font-medium"
-                        >
-                          <LocateFixed className="h-4 w-4 inline mr-2" />
-                          Relocate
-                        </button>
-                        <button
-                          onClick={() => setShowMap(false)}
-                          className="flex-1 px-4 py-2.5 bg-[#B5581A] text-white rounded-lg hover:bg-[#a64e2a] transition-colors text-sm font-medium"
-                        >
-                          Confirm Location
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="text-center text-sm text-stone-500">
-                        Click on the map to select your location
-                      </div>
-                    )}
+                <button
+                  onClick={() => setShowMap(true)}
+                  className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-stone-300 text-stone-700 rounded-xl hover:bg-stone-100 transition-all duration-300 font-medium"
+                >
+                  <MapPin className="h-5 w-5" />
+                  Select on Map
+                </button>
+              </div>
+            ) : (
+              <div className="p-6 space-y-3">
+                <div className="flex items-center gap-3 p-4 bg-green-50 text-green-700 rounded-xl border border-green-200">
+                  <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-medium">Location Selected</p>
+                    <p className="text-sm text-green-600 mt-0.5">
+                      Your location has been set successfully
+                    </p>
                   </div>
                 </div>
-              ) : !coordinates ? (
-                <div className="p-6 space-y-3">
-                  <button
-                    onClick={getCurrentLocation}
-                    className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-[#F4E0D0]/70 text-[#B5581A] rounded-xl hover:bg-[#B5581A] hover:text-white transition-all duration-300 font-medium border border-[#B5581A]/30"
-                  >
-                    <LocateFixed className="h-5 w-5" />
-                    Use My Current Location
-                  </button>
-
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 h-px bg-stone-200" />
-                    <span className="text-xs text-stone-400 uppercase tracking-wider">or</span>
-                    <div className="flex-1 h-px bg-stone-200" />
-                  </div>
-
-                  <button
-                    onClick={() => setShowMap(true)}
-                    className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-stone-300 text-stone-700 rounded-xl hover:bg-stone-100 transition-all duration-300 font-medium"
-                  >
-                    <MapPin className="h-5 w-5" />
-                    Select on Map
-                  </button>
-                </div>
-              ) : (
-                <div className="p-6 space-y-3">
-                  <div className="flex items-center gap-3 p-4 bg-green-50 text-green-700 rounded-xl border border-green-200">
-                    <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="font-medium">Location Selected</p>
-                      <p className="text-sm text-green-600 mt-0.5">
-                        Your location has been set successfully
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowMap(true)}
-                    className="w-full px-4 py-2.5 border border-stone-300 text-stone-700 rounded-xl hover:bg-stone-50 transition-colors text-sm font-medium"
-                  >
-                    Change Location
-                  </button>
-                </div>
-              )}
+                <button
+                  onClick={() => setShowMap(true)}
+                  className="w-full px-4 py-2.5 border border-stone-300 text-stone-700 rounded-xl hover:bg-stone-50 transition-colors text-sm font-medium"
+                >
+                  Change Location
+                </button>
+              </div>
+            )}
           </motion.div>
 
           {/* Address Type Selection */}
@@ -606,7 +622,9 @@ const AddressManagementModal = ({
 
             {!needDeliveryLocation ? (
               <div>
-                <Label className="text-sm font-medium text-gray-700">Full Address *</Label>
+                <Label className="text-sm font-medium text-gray-700">
+                  Full Address *
+                </Label>
                 <Textarea
                   placeholder="Enter your complete address..."
                   value={customLocation}
@@ -617,7 +635,9 @@ const AddressManagementModal = ({
               </div>
             ) : !isIndia ? (
               <div>
-                <Label className="text-sm font-medium text-gray-700">Location Details</Label>
+                <Label className="text-sm font-medium text-gray-700">
+                  Location Details
+                </Label>
                 <Textarea
                   placeholder="E.g., Near City Mall, Building 5..."
                   value={customLocation}
@@ -630,7 +650,9 @@ const AddressManagementModal = ({
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-sm font-medium text-gray-700">Flat/House No *</Label>
+                    <Label className="text-sm font-medium text-gray-700">
+                      Flat/House No *
+                    </Label>
                     <Input
                       placeholder="e.g., 101"
                       value={flatNo || houseNo}
@@ -642,7 +664,9 @@ const AddressManagementModal = ({
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-gray-700">Road/Street *</Label>
+                    <Label className="text-sm font-medium text-gray-700">
+                      Road/Street *
+                    </Label>
                     <Input
                       placeholder="e.g., MG Road"
                       value={street || roadNo}
@@ -656,7 +680,9 @@ const AddressManagementModal = ({
                 </div>
 
                 <div>
-                  <Label className="text-sm font-medium text-gray-700">Area/Locality *</Label>
+                  <Label className="text-sm font-medium text-gray-700">
+                    Area/Locality *
+                  </Label>
                   <Input
                     placeholder="e.g., Indiranagar"
                     value={area}
@@ -666,7 +692,9 @@ const AddressManagementModal = ({
                 </div>
 
                 <div>
-                  <Label className="text-sm font-medium text-gray-700">Landmark (Optional)</Label>
+                  <Label className="text-sm font-medium text-gray-700">
+                    Landmark (Optional)
+                  </Label>
                   <Input
                     placeholder="e.g., Near Metro Station"
                     value={landmark}
@@ -677,7 +705,9 @@ const AddressManagementModal = ({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-sm font-medium text-gray-700">City *</Label>
+                    <Label className="text-sm font-medium text-gray-700">
+                      City *
+                    </Label>
                     <Input
                       placeholder="e.g., Bangalore"
                       value={city}
@@ -686,7 +716,9 @@ const AddressManagementModal = ({
                     />
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-gray-700">Pincode *</Label>
+                    <Label className="text-sm font-medium text-gray-700">
+                      Pincode *
+                    </Label>
                     <Input
                       placeholder="e.g., 560038"
                       value={pincode}
@@ -746,10 +778,14 @@ const UnifiedAddressSection = ({
   hotelData: HotelData;
 }) => {
   const { userData: user } = useAuthStore();
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+    null,
+  );
   const [showDropdown, setShowDropdown] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
-  const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(null);
+  const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(
+    null,
+  );
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const savedAddresses = ((user as any)?.addresses || []) as SavedAddress[];
@@ -771,7 +807,11 @@ const UnifiedAddressSection = ({
     if (savedAddresses.length === 0) return;
     const defaultAddress =
       savedAddresses.find((addr) => addr.isDefault) || savedAddresses[0];
-    if (defaultAddress && defaultAddress.id !== selectedAddressId && !selectedAddressId) {
+    if (
+      defaultAddress &&
+      defaultAddress.id !== selectedAddressId &&
+      !selectedAddressId
+    ) {
       handleAddressSelect(defaultAddress);
     }
   }, [savedAddresses, selectedAddressId]);
@@ -832,7 +872,10 @@ const UnifiedAddressSection = ({
           },
         },
       };
-      localStorage?.setItem("user-location-store", JSON.stringify(locationData));
+      localStorage?.setItem(
+        "user-location-store",
+        JSON.stringify(locationData),
+      );
     }
 
     if (addr?.latitude && addr?.longitude) {
@@ -878,7 +921,9 @@ const UnifiedAddressSection = ({
     }
   };
 
-  const selectedAddress = savedAddresses.find((a) => a.id === selectedAddressId);
+  const selectedAddress = savedAddresses.find(
+    (a) => a.id === selectedAddressId,
+  );
 
   return (
     <motion.div
@@ -890,7 +935,9 @@ const UnifiedAddressSection = ({
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
             <MapPin className="h-5 w-5 text-[#B5581A]" />
-            <h3 className="font-semibold text-gray-900 text-base">Delivery Address</h3>
+            <h3 className="font-semibold text-gray-900 text-base">
+              Delivery Address
+            </h3>
           </div>
           <button
             onClick={() => {
@@ -913,15 +960,22 @@ const UnifiedAddressSection = ({
               className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50 text-left flex justify-between items-center hover:bg-stone-100 transition-colors"
             >
               <div className="flex items-center gap-3">
-                {selectedAddress?.label === "Home" && <Home className="h-4 w-4 text-stone-600" />}
-                {selectedAddress?.label === "Work" && <Briefcase className="h-4 w-4 text-stone-600" />}
-                {selectedAddress?.label !== "Home" && selectedAddress?.label !== "Work" && (
-                  <MapPin className="h-4 w-4 text-stone-600" />
+                {selectedAddress?.label === "Home" && (
+                  <Home className="h-4 w-4 text-stone-600" />
                 )}
+                {selectedAddress?.label === "Work" && (
+                  <Briefcase className="h-4 w-4 text-stone-600" />
+                )}
+                {selectedAddress?.label !== "Home" &&
+                  selectedAddress?.label !== "Work" && (
+                    <MapPin className="h-4 w-4 text-stone-600" />
+                  )}
                 <span className="text-sm font-medium text-gray-900">
                   {selectedAddress
                     ? `${selectedAddress.label}${
-                        selectedAddress.customLabel ? ` (${selectedAddress.customLabel})` : ""
+                        selectedAddress.customLabel
+                          ? ` (${selectedAddress.customLabel})`
+                          : ""
                       }`
                     : "Select address"}
                 </span>
@@ -949,8 +1003,12 @@ const UnifiedAddressSection = ({
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-3 flex-1">
-                          {addr.label === "Home" && <Home className="h-4 w-4 text-stone-600 mt-0.5" />}
-                          {addr.label === "Work" && <Briefcase className="h-4 w-4 text-stone-600 mt-0.5" />}
+                          {addr.label === "Home" && (
+                            <Home className="h-4 w-4 text-stone-600 mt-0.5" />
+                          )}
+                          {addr.label === "Work" && (
+                            <Briefcase className="h-4 w-4 text-stone-600 mt-0.5" />
+                          )}
                           {addr.label !== "Home" && addr.label !== "Work" && (
                             <MapPin className="h-4 w-4 text-stone-600 mt-0.5" />
                           )}
@@ -961,7 +1019,12 @@ const UnifiedAddressSection = ({
                             </div>
                             <div className="text-xs text-stone-600 mt-1 line-clamp-2">
                               {addr.address ||
-                                [addr.flat_no, addr.house_no, addr.area, addr.city]
+                                [
+                                  addr.flat_no,
+                                  addr.house_no,
+                                  addr.area,
+                                  addr.city,
+                                ]
                                   .filter(Boolean)
                                   .join(", ")}
                             </div>
@@ -988,7 +1051,9 @@ const UnifiedAddressSection = ({
                 <div className="flex items-center gap-2 mb-2">
                   <span className="font-semibold text-gray-900">
                     {selectedAddress.label}
-                    {selectedAddress.customLabel ? ` (${selectedAddress.customLabel})` : ""}
+                    {selectedAddress.customLabel
+                      ? ` (${selectedAddress.customLabel})`
+                      : ""}
                   </span>
                   {selectedAddress.isDefault && (
                     <span className="text-xs bg-[#B5581A] text-white px-2 py-0.5 rounded-full">
@@ -1038,7 +1103,9 @@ const UnifiedAddressSection = ({
           <div className="text-center py-8">
             <MapPin className="h-12 w-12 text-stone-300 mx-auto mb-3" />
             <p className="text-sm text-stone-600">No saved addresses yet</p>
-            <p className="text-xs text-stone-500 mt-1">Add your first address to get started</p>
+            <p className="text-xs text-stone-500 mt-1">
+              Add your first address to get started
+            </p>
           </div>
         )}
       </div>
@@ -1088,14 +1155,6 @@ const OrderStatusDialog = ({
     }
   }, [status]);
 
-  const handleTrackOrder = () => {
-    const orderId = localStorage?.getItem("last-order-id");
-    if (orderId) {
-      window.location.href = `/order/${orderId}`;
-    }
-    onClose();
-  };
-
   return (
     <AnimatePresence>
       {status !== "idle" && (
@@ -1135,7 +1194,7 @@ const OrderStatusDialog = ({
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="text-center bg-white rounded-2xl shadow-2xl flex flex-col items-center max-w-xs w-[85vw] mx-4 p-8"
+              className="text-center text-white p-8  rounded-2xl shadow-lg flex flex-col items-center max-w-md mx-4"
             >
               <motion.div
                 initial={{ scale: 0 }}
@@ -1146,39 +1205,18 @@ const OrderStatusDialog = ({
                   stiffness: 400,
                   damping: 15,
                 }}
-                className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center"
               >
-                <CheckCircle2 className="w-10 h-10 text-green-500" />
+                <CheckCircle2 className="w-24 h-24 text-green-400 mx-auto" />
               </motion.div>
-
-              <motion.h2
-                initial={{ y: 10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="mt-5 text-xl font-bold text-gray-900"
+              <h2 className="mt-6 text-3xl font-bold">
+                Order Placed Successfully!
+              </h2>
+              <button
+                onClick={onClose}
+                className="mt-8 px-8 py-3 bg-white text-black rounded-xl hover:bg-gray-200 font-semibold transition-colors"
               >
-                Order Placed!
-              </motion.h2>
-
-              <motion.div
-                initial={{ y: 10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="mt-6 w-full flex flex-col gap-3"
-              >
-                <button
-                  onClick={handleTrackOrder}
-                  className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-full font-semibold transition-colors text-sm"
-                >
-                  Track Order
-                </button>
-                <button
-                  onClick={onClose}
-                  className="w-full py-3 border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-full font-medium transition-colors text-sm"
-                >
-                  Close
-                </button>
-              </motion.div>
+                Close
+              </button>
             </motion.div>
           )}
         </motion.div>
@@ -1211,7 +1249,9 @@ const ItemsCard = ({
       className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden"
     >
       <div className="p-5">
-        <h3 className="font-semibold text-gray-900 text-base mb-4">Your Order</h3>
+        <h3 className="font-semibold text-gray-900 text-base mb-4">
+          Your Order
+        </h3>
         <div className="space-y-3">
           {items.map((item, index) => (
             <motion.div
@@ -1229,7 +1269,9 @@ const ItemsCard = ({
                 >
                   {item.name}
                 </DescriptionWithTextBreak>
-                <p className="text-xs text-stone-500 mt-0.5">{item.category.name}</p>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  {item.category.name}
+                </p>
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 bg-stone-50 rounded-lg p-1">
@@ -1291,10 +1333,17 @@ const BillCard = ({
   hotelData,
   qrGroup,
 }: BillCardProps) => {
-  const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const subtotal = items.reduce(
+    (acc, item) => acc + item.price * item.quantity,
+    0,
+  );
 
   const qrExtraCharges = qrGroup?.extra_charge
-    ? getExtraCharge(items, qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE")
+    ? getExtraCharge(
+        items,
+        qrGroup.extra_charge,
+        qrGroup.charge_type || "FLAT_FEE",
+      )
     : 0;
 
   const deliveryCharges =
@@ -1312,7 +1361,9 @@ const BillCard = ({
       className="bg-gradient-to-br from-[#F4E0D0]/20 to-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden"
     >
       <div className="p-5">
-        <h3 className="font-semibold text-gray-900 text-base mb-4">Bill Summary</h3>
+        <h3 className="font-semibold text-gray-900 text-base mb-4">
+          Bill Summary
+        </h3>
         <div className="space-y-3">
           <div className="flex justify-between text-sm">
             <span className="text-stone-600">Item Total</span>
@@ -1325,7 +1376,9 @@ const BillCard = ({
           {qrGroup && qrExtraCharges > 0 && (
             <div className="flex justify-between text-sm">
               <div>
-                <span className="text-stone-600">{qrGroup.name || "Service Charge"}</span>
+                <span className="text-stone-600">
+                  {qrGroup.name || "Service Charge"}
+                </span>
                 <p className="text-xs text-stone-500">
                   {qrGroup.charge_type === "PER_ITEM" ? "Per item" : "Fixed"}
                 </p>
@@ -1340,7 +1393,8 @@ const BillCard = ({
           {gstPercentage ? (
             <div className="flex justify-between text-sm">
               <span className="text-stone-600">
-                {hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%)
+                {hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"}{" "}
+                ({gstPercentage}%)
               </span>
               <span className="font-medium text-gray-900">
                 {currency}
@@ -1353,7 +1407,9 @@ const BillCard = ({
             <div className="flex justify-between text-sm">
               <div>
                 <span className="text-stone-600">Delivery Charge</span>
-                <p className="text-xs text-stone-500">{deliveryInfo.distance.toFixed(1)} km</p>
+                <p className="text-xs text-stone-500">
+                  {deliveryInfo.distance.toFixed(1)} km
+                </p>
               </div>
               <span className="font-medium text-gray-900">
                 {currency}
@@ -1464,7 +1520,9 @@ const MultiWhatsappCard = ({
       className="bg-white rounded-2xl shadow-sm border border-stone-200 p-5"
       ref={dropdownRef}
     >
-      <h3 className="font-semibold text-gray-900 text-base mb-4">Hotel Location</h3>
+      <h3 className="font-semibold text-gray-900 text-base mb-4">
+        Hotel Location
+      </h3>
       <div className="relative">
         <button
           type="button"
@@ -1549,8 +1607,12 @@ const TableNumberCard = ({
           <span className="text-2xl font-bold text-[#B5581A]">{tableName}</span>
         ) : (
           <>
-            {!isRoom && <span className="text-sm text-stone-600">Table Number:</span>}
-            <span className="text-2xl font-bold text-[#B5581A]">{tableNumber}</span>
+            {!isRoom && (
+              <span className="text-sm text-stone-600">Table Number:</span>
+            )}
+            <span className="text-2xl font-bold text-[#B5581A]">
+              {tableNumber}
+            </span>
           </>
         )}
       </div>
@@ -1690,7 +1752,10 @@ const LoginDrawer = ({
             transition={{ delay: 0.2 }}
             className="mb-8"
           >
-            <Label htmlFor="phone" className="text-sm font-semibold text-gray-900 mb-3 block">
+            <Label
+              htmlFor="phone"
+              className="text-sm font-semibold text-gray-900 mb-3 block"
+            >
               Phone Number
               {hotelData?.country && (
                 <span className="text-stone-500 font-normal ml-2 text-xs">
@@ -1821,7 +1886,9 @@ const PlaceOrderModal = ({
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
 
-  const [orderStatus, setOrderStatus] = useState<"idle" | "loading" | "success">("idle");
+  const [orderStatus, setOrderStatus] = useState<
+    "idle" | "loading" | "success"
+  >("idle");
 
   useEffect(() => {
     if (typeof navigator !== "undefined") {
@@ -1829,7 +1896,8 @@ const PlaceOrderModal = ({
     }
   }, []);
 
-  const isDelivery = tableNumber === 0 ? orderType === "delivery" : !tableNumber;
+  const isDelivery =
+    tableNumber === 0 ? orderType === "delivery" : !tableNumber;
   const hasDelivery = hotelData?.geo_location;
   const isQrScan = qrId !== null && tableNumber !== 0;
 
@@ -1838,7 +1906,12 @@ const PlaceOrderModal = ({
       setOpenPlaceOrderModal(false);
       setOpenDrawerBottom(true);
     }
-  }, [open_place_order_modal, items, setOpenDrawerBottom, setOpenPlaceOrderModal]);
+  }, [
+    open_place_order_modal,
+    items,
+    setOpenDrawerBottom,
+    setOpenPlaceOrderModal,
+  ]);
 
   useEffect(() => {
     if (open_place_order_modal && tableNumber === 0 && !orderType) {
@@ -1879,7 +1952,9 @@ const PlaceOrderModal = ({
     ) {
       return;
     }
-    const savedArea = localStorage?.getItem(`hotel-${hotelData.id}-selected-area`);
+    const savedArea = localStorage?.getItem(
+      `hotel-${hotelData.id}-selected-area`,
+    );
     if (
       savedArea &&
       hotelData.whatsapp_numbers?.some((item) => item.area === savedArea)
@@ -1887,7 +1962,9 @@ const PlaceOrderModal = ({
       setSelectedLocation(savedArea);
       return;
     }
-    const selectedPhone = localStorage?.getItem(`hotel-${hotelData.id}-whatsapp-area`);
+    const selectedPhone = localStorage?.getItem(
+      `hotel-${hotelData.id}-whatsapp-area`,
+    );
     if (selectedPhone) {
       const location = hotelData.whatsapp_numbers?.find(
         (item) => item.number === selectedPhone,
@@ -1902,7 +1979,9 @@ const PlaceOrderModal = ({
 
   useEffect(() => {
     if (user && !selectedLocation) {
-      const savedArea = localStorage?.getItem(`hotel-${hotelData.id}-selected-area`);
+      const savedArea = localStorage?.getItem(
+        `hotel-${hotelData.id}-selected-area`,
+      );
       if (
         savedArea &&
         hotelData.whatsapp_numbers?.some((item) => item.area === savedArea)
@@ -1918,7 +1997,10 @@ const PlaceOrderModal = ({
       const phoneNumber = hotelData.whatsapp_numbers?.find(
         (item) => item.area === location,
       )?.number;
-      localStorage?.setItem(`hotel-${hotelData.id}-whatsapp-area`, phoneNumber || "");
+      localStorage?.setItem(
+        `hotel-${hotelData.id}-whatsapp-area`,
+        phoneNumber || "",
+      );
       localStorage?.setItem(`hotel-${hotelData.id}-selected-area`, location);
     } else {
       localStorage?.removeItem(`hotel-${hotelData.id}-whatsapp-area`);
@@ -1972,7 +2054,8 @@ const PlaceOrderModal = ({
     }
 
     if (isDelivery) {
-      const needLocation = hotelData?.delivery_rules?.needDeliveryLocation ?? true;
+      const needLocation =
+        hotelData?.delivery_rules?.needDeliveryLocation ?? true;
       if (!address?.trim()) {
         toast.error("Please enter your delivery address");
         return;
@@ -2005,7 +2088,10 @@ const PlaceOrderModal = ({
     try {
       const subtotal =
         items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
-      const gstAmount = getGstAmount(subtotal, hotelData?.gst_percentage as number);
+      const gstAmount = getGstAmount(
+        subtotal,
+        hotelData?.gst_percentage as number,
+      );
       const extraCharges = [];
 
       if (isQrScan && qrGroup && qrGroup.name) {
@@ -2089,7 +2175,9 @@ const PlaceOrderModal = ({
   };
 
   const handleLoginSuccess = () => {
-    const savedArea = localStorage?.getItem(`hotel-${hotelData.id}-selected-area`);
+    const savedArea = localStorage?.getItem(
+      `hotel-${hotelData.id}-selected-area`,
+    );
     if (savedArea && !selectedLocation) {
       setSelectedLocation(savedArea);
     }
@@ -2113,7 +2201,8 @@ const PlaceOrderModal = ({
       hasDelivery &&
       !isQrScan &&
       (!address ||
-        ((hotelData?.delivery_rules?.needDeliveryLocation ?? true) && !selectedCoords))) ||
+        ((hotelData?.delivery_rules?.needDeliveryLocation ?? true) &&
+          !selectedCoords))) ||
     (isDelivery && deliveryInfo?.isOutOfRange) ||
     (hasMultiWhatsapp && !selectedLocation);
 
@@ -2139,7 +2228,9 @@ const PlaceOrderModal = ({
               <ArrowLeft size={20} className="text-stone-700" />
             </button>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Review Your Order</h1>
+              <h1 className="text-xl font-bold text-gray-900">
+                Review Your Order
+              </h1>
               <p className="text-xs text-stone-500 mt-0.5">
                 {items?.length || 0} item{(items?.length || 0) !== 1 ? "s" : ""}
               </p>
@@ -2159,7 +2250,10 @@ const PlaceOrderModal = ({
               />
 
               {tableNumber === 0 && (
-                <OrderTypeCard orderType={orderType} setOrderType={setOrderType} />
+                <OrderTypeCard
+                  orderType={orderType}
+                  setOrderType={setOrderType}
+                />
               )}
 
               <MultiWhatsappCard
@@ -2231,7 +2325,8 @@ const PlaceOrderModal = ({
                   orderType === "delivery" &&
                   (totalPrice ?? 0) < minimumOrderAmount)) && (
                 <div className="text-sm text-amber-700 p-4 bg-amber-50 rounded-xl text-center border border-amber-200">
-                  ⚠️ Minimum order amount for delivery is {hotelData?.currency || "₹"}
+                  ⚠️ Minimum order amount for delivery is{" "}
+                  {hotelData?.currency || "₹"}
                   {deliveryInfo?.minimumOrderAmount.toFixed(2)}
                 </div>
               )}
@@ -2245,7 +2340,9 @@ const PlaceOrderModal = ({
                         onClick={() =>
                           handlePlaceOrder(() => {
                             if (!hotelData.petpooja_restaurant_id) {
-                              const whatsappLink = getWhatsappLink(orderId as string);
+                              const whatsappLink = getWhatsappLink(
+                                orderId as string,
+                              );
                               window.open(whatsappLink, "_blank");
                             }
                           })
@@ -2350,7 +2447,9 @@ const PlaceOrderModal = ({
         <div
           className="fixed bottom-0 left-0 right-0 bg-white border-t h-4"
           style={{
-            bottom: keyboardOpen ? `${window.visualViewport?.offsetTop || 0}px` : "0",
+            bottom: keyboardOpen
+              ? `${window.visualViewport?.offsetTop || 0}px`
+              : "0",
           }}
         />
 
@@ -2363,7 +2462,10 @@ const PlaceOrderModal = ({
         />
       </div>
 
-      <OrderStatusDialog status={orderStatus} onClose={handleCloseSuccessDialog} />
+      <OrderStatusDialog
+        status={orderStatus}
+        onClose={handleCloseSuccessDialog}
+      />
     </>
   );
 };
