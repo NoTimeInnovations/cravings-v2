@@ -146,7 +146,7 @@ const AddressManagementModal = ({
         });
       }
       setShowMap(true);
-    } else {
+    } else if (open) {
       // Reset form for new address
       setLabel("Home");
       setCustomLabel("");
@@ -162,6 +162,21 @@ const AddressManagementModal = ({
       setPincode("");
       setCoordinates(null);
       setShowMap(true);
+
+      // Auto-fetch current location for new addresses
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            setCoordinates({ lat: latitude, lng: longitude });
+            reverseGeocode(latitude, longitude);
+            toast.success("Location detected successfully");
+          },
+          () => {
+            // Silently fail — user can manually pick location
+          },
+        );
+      }
     }
   }, [editAddress, open]);
 
@@ -356,7 +371,7 @@ const AddressManagementModal = ({
   return (
     <div className="fixed inset-0 z-[70] bg-white h-[100dvh] flex flex-col">
       {/* Modern Header */}
-      <div className="flex items-center justify-between px-4 py-4 border-b bg-white sticky top-0 z-10">
+      <div className="flex items-center justify-between px-4 py-4 border-b bg-white shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={onClose}
@@ -687,7 +702,7 @@ const AddressManagementModal = ({
       </div>
 
       {/* Footer with Save Button */}
-      <div className="p-4 border-t bg-white sticky bottom-0">
+      <div className="p-4 border-t bg-white shrink-0">
         <div className="max-w-2xl mx-auto">
           <button
             onClick={handleSave}
