@@ -262,7 +262,7 @@ function TimePicker({ value, onChange }: { value: string; onChange: (val: string
 }
 
 export function DeliverySettings() {
-    const { userData, setState } = useAuthStore();
+    const { userData, setState, features } = useAuthStore();
     const [isSaving, setIsSaving] = useState(false);
 
     const [deliveryRate, setDeliveryRate] = useState(0);
@@ -662,7 +662,7 @@ export function DeliverySettings() {
                 </CardContent>
             </Card>
 
-            <Card>
+            {features?.multiwhatsapp?.access && features?.multiwhatsapp?.enabled && <Card>
                 <CardHeader>
                     <CardTitle>Delivery Contact Numbers</CardTitle>
                     <CardDescription>Manage WhatsApp numbers for different delivery areas.</CardDescription>
@@ -723,7 +723,7 @@ export function DeliverySettings() {
                         Add multiple WhatsApp numbers for different delivery areas to help customers contact the right person.
                     </p>
                 </CardContent>
-            </Card>
+            </Card>}
 
         </div>
     );

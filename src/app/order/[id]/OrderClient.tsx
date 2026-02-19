@@ -169,9 +169,7 @@ const OrderClient = () => {
                             <div className="flex justify-between items-center">
                                 <div>
                                     <h1 className="text-2xl font-bold">
-                                        Order #{(Number(order?.display_id) ?? 0) > 0
-                                            ? `${order?.display_id}-${getDateOnly(order?.createdAt || "")}`
-                                            : order?.id.slice(0, 8)}
+                                        Order #{order?.id.slice(0, 8)}
                                     </h1>
                                     <p className="text-sm text-gray-500">
                                         {order?.createdAt && formatDate(order?.createdAt)}

@@ -121,9 +121,7 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                                     </span>
                                 </div>
                                 <p className="text-sm text-gray-500">
-                                    #{(Number(order.display_id) ?? 0) > 0
-                                        ? `${order.display_id}-${getDateOnly(order.createdAt)}`
-                                        : order.id.split("-")[0]} • {format(new Date(order.createdAt), "MMM d, h:mm a")}
+                                    #{order.id.slice(0, 8)} • {format(new Date(order.createdAt), "MMM d, h:mm a")}
                                 </p>
                             </div>
                             <div className="text-orange-600 bg-orange-50 p-2 rounded-full transition-colors">

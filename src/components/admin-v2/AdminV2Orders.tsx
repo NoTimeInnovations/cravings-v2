@@ -404,7 +404,8 @@ export function AdminV2Orders() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Invoice ID</TableHead>
+                            <TableHead>Invoice No</TableHead>
+                            <TableHead>Order ID</TableHead>
                             <TableHead>Table No</TableHead>
                             <TableHead>Payment method</TableHead>
                             <TableHead>Date</TableHead>
@@ -421,6 +422,9 @@ export function AdminV2Orders() {
                                     {(Number(order.display_id) ?? 0) > 0
                                         ? `${order.display_id}-${getDateOnly(order.createdAt)}`
                                         : order.id.slice(0, 8)}
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground font-mono">
+                                    {order.id.slice(0, 8)}
                                 </TableCell>
                                 <TableCell>
                                     {order.tableName || order.tableNumber || "N/A"}
@@ -500,7 +504,7 @@ export function AdminV2Orders() {
                         ))}
                         {filteredOrders.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                                     No orders found
                                 </TableCell>
                             </TableRow>
@@ -515,11 +519,14 @@ export function AdminV2Orders() {
                     <Card key={order.id} className="overflow-hidden">
                         <CardHeader className="bg-muted/40 p-3">
                             <div className="flex justify-between items-center">
-                                <CardTitle className="text-sm font-medium">
-                                    {(Number(order.display_id) ?? 0) > 0
-                                        ? `Invoice #${order.display_id}-${getDateOnly(order.createdAt)}`
-                                        : `Order #${order.id.slice(0, 8)}`}
-                                </CardTitle>
+                                <div>
+                                    <CardTitle className="text-sm font-medium">
+                                        {(Number(order.display_id) ?? 0) > 0
+                                            ? `Invoice No: ${order.display_id}-${getDateOnly(order.createdAt)}`
+                                            : `Order #${order.id.slice(0, 8)}`}
+                                    </CardTitle>
+                                    <p className="text-xs text-muted-foreground font-mono mt-0.5">ID: #{order.id.slice(0, 8)}</p>
+                                </div>
                                 <Select
                                     value={order.status}
                                     onValueChange={(val) => handleUpdateOrderStatus(order.id, val)}

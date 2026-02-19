@@ -23,7 +23,7 @@ import {
 import useOrderStore from "@/store/orderStore";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
 import { toast } from "sonner";
-import { Printer, Edit } from "lucide-react";
+import { Printer, Edit, MapPin, Phone } from "lucide-react";
 
 import {
     DropdownMenu,
@@ -172,6 +172,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                         <p className="text-muted-foreground">
                             {format(new Date(order.createdAt), "PPP p")}
                         </p>
+                        <p className="text-sm text-muted-foreground font-mono">ID: #{order.id.slice(0, 8)}</p>
                     </div>
                 </div>
 
@@ -235,10 +236,36 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                 </Badge>
                             </div>
                         </div>
+                        {(order.phone || order.user?.phone) && (
+                            <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Phone:</span>
+                                <a
+                                    href={`tel:${order.phone || order.user?.phone}`}
+                                    className="font-medium flex items-center gap-1.5 text-blue-600 hover:underline"
+                                >
+                                    <Phone className="h-3.5 w-3.5" />
+                                    {order.phone || order.user?.phone}
+                                </a>
+                            </div>
+                        )}
                         {order.deliveryAddress && (
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Address:</span>
                                 <span className="font-medium text-right">{order.deliveryAddress}</span>
+                            </div>
+                        )}
+                        {order.delivery_location?.coordinates && (
+                            <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Location:</span>
+                                <a
+                                    href={`https://www.google.com/maps?q=${order.delivery_location.coordinates[1]},${order.delivery_location.coordinates[0]}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-medium flex items-center gap-1.5 text-blue-600 hover:underline"
+                                >
+                                    <MapPin className="h-3.5 w-3.5" />
+                                    View on Google Maps
+                                </a>
                             </div>
                         )}
                         {order.notes && (

@@ -505,16 +505,16 @@ const AddressManagementModal = ({
                     <div className="flex gap-2">
                       <button
                         onClick={getCurrentLocation}
-                        className="flex-1 px-4 py-2.5 border border-stone-300 text-stone-700 rounded-lg hover:bg-white transition-colors text-sm font-medium"
+                        className="flex-1 px-4 py-2.5 text-nowrap border border-stone-300 text-stone-700 rounded-lg hover:bg-white transition-colors text-sm font-medium"
                       >
                         <LocateFixed className="h-4 w-4 inline mr-2" />
-                        Relocate
+                        Use Current Location
                       </button>
                       <button
                         onClick={() => setShowMap(false)}
                         className="flex-1 px-4 py-2.5 bg-[#B5581A] text-white rounded-lg hover:bg-[#a64e2a] transition-colors text-sm font-medium"
                       >
-                        Confirm Location
+                        Confirm
                       </button>
                     </div>
                   ) : (
