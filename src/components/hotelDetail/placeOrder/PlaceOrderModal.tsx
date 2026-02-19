@@ -483,12 +483,13 @@ const AddressManagementModal = ({
                             lng: hotelData.geo_location.coordinates[0],
                           }}
                           icon={{
-                            path: google.maps.SymbolPath.CIRCLE,
-                            scale: 8,
-                            fillColor: "#B5581A",
+                            path: "M12 0C7.03 0 3 4.03 3 9c0 6.75 9 15 9 15s9-8.25 9-15c0-4.97-4.03-9-9-9zm0 12.75c-2.07 0-3.75-1.68-3.75-3.75S9.93 5.25 12 5.25 15.75 6.93 15.75 9 14.07 12.75 12 12.75z",
+                            fillColor: "#16a34a",
                             fillOpacity: 1,
                             strokeColor: "#FFFFFF",
-                            strokeWeight: 2,
+                            strokeWeight: 1.5,
+                            scale: 1.5,
+                            anchor: new google.maps.Point(12, 24),
                           }}
                         />
                       )}
@@ -517,8 +518,17 @@ const AddressManagementModal = ({
                       </button>
                     </div>
                   ) : (
-                    <div className="text-center text-sm text-stone-500">
-                      Click on the map to select your location
+                    <div className="space-y-2">
+                      <button
+                        onClick={getCurrentLocation}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#F4E0D0]/70 text-[#B5581A] rounded-lg hover:bg-[#B5581A] hover:text-white transition-all duration-300 text-sm font-medium border border-[#B5581A]/30"
+                      >
+                        <LocateFixed className="h-4 w-4" />
+                        Use My Current Location
+                      </button>
+                      <p className="text-center text-xs text-stone-400">
+                        or click on the map to select your location
+                      </p>
                     </div>
                   )}
                 </div>
