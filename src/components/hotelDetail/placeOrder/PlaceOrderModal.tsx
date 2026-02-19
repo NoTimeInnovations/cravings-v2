@@ -1088,6 +1088,14 @@ const OrderStatusDialog = ({
     }
   }, [status]);
 
+  const handleTrackOrder = () => {
+    const orderId = localStorage?.getItem("last-order-id");
+    if (orderId) {
+      window.location.href = `/order/${orderId}`;
+    }
+    onClose();
+  };
+
   return (
     <AnimatePresence>
       {status !== "idle" && (
@@ -1127,7 +1135,7 @@ const OrderStatusDialog = ({
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="text-center text-white p-8 bg-black/30 rounded-2xl shadow-lg flex flex-col items-center max-w-md mx-4"
+              className="text-center bg-white rounded-2xl shadow-2xl flex flex-col items-center max-w-xs w-[85vw] mx-4 p-8"
             >
               <motion.div
                 initial={{ scale: 0 }}
@@ -1138,19 +1146,39 @@ const OrderStatusDialog = ({
                   stiffness: 400,
                   damping: 15,
                 }}
+                className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center"
               >
-                <CheckCircle2 className="w-24 h-24 text-green-400 mx-auto" />
+                <CheckCircle2 className="w-10 h-10 text-green-500" />
               </motion.div>
-              <h2 className="mt-6 text-3xl font-bold">Order Placed Successfully!</h2>
-              <p className="mt-2 text-gray-300">
-                Your order is confirmed and is being prepared.
-              </p>
-              <button
-                onClick={onClose}
-                className="mt-8 px-8 py-3 bg-white text-black rounded-xl hover:bg-gray-200 font-semibold transition-colors"
+
+              <motion.h2
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="mt-5 text-xl font-bold text-gray-900"
               >
-                Close
-              </button>
+                Order Placed!
+              </motion.h2>
+
+              <motion.div
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="mt-6 w-full flex flex-col gap-3"
+              >
+                <button
+                  onClick={handleTrackOrder}
+                  className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-full font-semibold transition-colors text-sm"
+                >
+                  Track Order
+                </button>
+                <button
+                  onClick={onClose}
+                  className="w-full py-3 border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-full font-medium transition-colors text-sm"
+                >
+                  Close
+                </button>
+              </motion.div>
             </motion.div>
           )}
         </motion.div>

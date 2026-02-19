@@ -268,14 +268,14 @@ const Compact = ({
   return (
     <div
       style={{
-        backgroundColor: localStyles?.backgroundColor || "#fff",
+        backgroundColor: activeTab === "orders" ? "#f9fafb" : (localStyles?.backgroundColor || "#fff"),
       }}
       className="min-h-screen"
     >
       <main
         style={{
-          color: localStyles?.color || "#000",
-          backgroundColor: localStyles?.backgroundColor || "#fff",
+          color: activeTab === "orders" ? "#000" : (localStyles?.color || "#000"),
+          backgroundColor: activeTab === "orders" ? "#f9fafb" : (localStyles?.backgroundColor || "#fff"),
         }}
         className="max-w-3xl mx-auto relative pb-40 "
       >
