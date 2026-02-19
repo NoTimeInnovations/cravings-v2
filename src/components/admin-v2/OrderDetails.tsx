@@ -226,9 +226,11 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                         <div className="flex justify-between items-center">
                             <span className="text-muted-foreground">Order Info:</span>
                             <div className="flex gap-2">
-                                <Badge variant="outline" className="font-medium">
-                                    Table: {order.tableName || order.tableNumber || "N/A"}
-                                </Badge>
+                                {(order.tableName || (order.tableNumber && order.tableNumber !== 0)) && (
+                                    <Badge variant="outline" className="font-medium">
+                                        Table: {order.tableName || order.tableNumber}
+                                    </Badge>
+                                )}
                                 <Badge variant="secondary" className="font-medium capitalize">
                                     {(order.type === 'delivery' && !order.deliveryAddress)
                                         ? "Takeaway"
