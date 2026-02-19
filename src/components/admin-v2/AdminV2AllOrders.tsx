@@ -227,6 +227,7 @@ export function AdminV2AllOrders() {
             case "pending": return "bg-yellow-100 text-yellow-800";
             case "cancelled": return "bg-red-100 text-red-800";
             case "accepted": return "bg-blue-100 text-blue-800";
+            case "dispatched": return "bg-purple-100 text-purple-900";
             default: return "bg-gray-100 text-gray-800";
         }
     };
@@ -360,6 +361,8 @@ export function AdminV2AllOrders() {
                                 <SelectContent>
                                     <SelectItem value="all">All Statuses</SelectItem>
                                     <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="accepted">Accepted</SelectItem>
+                                    <SelectItem value="dispatched">Dispatched</SelectItem>
                                     <SelectItem value="completed">Completed</SelectItem>
                                     <SelectItem value="cancelled">Cancelled</SelectItem>
                                 </SelectContent>
@@ -439,6 +442,7 @@ export function AdminV2AllOrders() {
                                                 <SelectContent>
                                                     <SelectItem value="pending">Pending</SelectItem>
                                                     <SelectItem value="accepted">Accepted</SelectItem>
+                                                    <SelectItem value="dispatched">Dispatched</SelectItem>
                                                     <SelectItem value="completed">Completed</SelectItem>
                                                     <SelectItem value="cancelled">Cancelled</SelectItem>
                                                 </SelectContent>

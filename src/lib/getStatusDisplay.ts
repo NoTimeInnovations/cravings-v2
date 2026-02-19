@@ -18,34 +18,34 @@ export const getStatusDisplay = (
     };
   }
 
-  if (isCompleted) {
+  if (isCompleted || order?.status === "completed") {
     return {
       text: "Completed",
       className: "bg-green-100 text-green-800",
     };
   }
 
-  if (isDispatched) {
+  if (isDispatched || order?.status === "dispatched") {
     if (orderType === "delivery") {
       if (order.deliveryAddress && order.delivery_location) {
         return {
           text: "Dispatched",
-          className: "bg-purple-100 text-purple-800",
+          className: "bg-purple-100 text-purple-900",
         };
       }
       return {
         text: "Ready for pickup",
-        className: "bg-purple-100 text-purple-800",
+        className: "bg-purple-100 text-purple-900",
       };
     }
 
     return {
       text: "Ready to serve",
-      className: "bg-purple-100 text-purple-800",
+      className: "bg-purple-100 text-purple-900",
     };
   }
 
-  if (isAccepted) {
+  if (isAccepted || order?.status === "accepted") {
     return {
       text: "Accepted",
       className: "bg-blue-100 text-blue-800",

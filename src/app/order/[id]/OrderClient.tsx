@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { formatDate } from "@/lib/formatDate";
 import { ExtraCharge } from "@/store/posStore";
-import StatusHistoryTimeline from "@/components/StatusHistoryTimeline";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { subscribeToHasura } from "@/lib/hasuraSubscription";
 import { Order, OrderItem } from "@/store/orderStore";
@@ -118,10 +117,10 @@ const OrderClient = () => {
     }, [orderId]);
 
     // Calculate order totals
-    const subtotal = order?.items?.reduce(
+    const foodTotal = order?.items?.reduce(
         (sum, orderItem) => sum + orderItem.price * orderItem.quantity,
         0
-    );
+    ) ?? 0;
 
     const extraChargesTotal =
         order?.extraCharges?.reduce(
@@ -135,9 +134,10 @@ const OrderClient = () => {
             0
         ) || 0;
 
-    const gstPercentage = order?.gstIncluded || 0;
-    const gstAmount = ((subtotal ?? 0) * gstPercentage) / 100;
-    const grandTotal = (subtotal ?? 0) + gstAmount + extraChargesTotal;
+    const subtotal = foodTotal + extraChargesTotal;
+    const gstPercentage = order?.partner?.gst_percentage || 0;
+    const gstAmount = (subtotal * gstPercentage) / 100;
+    const grandTotal = subtotal + gstAmount;
 
     const statusDisplay = getStatusDisplay(order as Order);
 
@@ -245,13 +245,6 @@ const OrderClient = () => {
                                     </div>
                                 </div>
 
-                                <div className="sm:hidden">
-                                    <StatusHistoryTimeline
-                                        order={order ?? undefined}
-                                        status_history={order?.status_history || {}}
-                                    />
-                                </div>
-
                                 <div>
                                     <h2 className="text-lg font-semibold mb-4">Order Items</h2>
                                     <div className="border rounded-lg divide-y">
@@ -292,7 +285,7 @@ const OrderClient = () => {
                                             <p className="text-sm text-gray-500">Subtotal</p>
                                             <p className="text-sm">
                                                 {order?.partner?.currency || "₹"}
-                                                {subtotal?.toFixed(2)}
+                                                {subtotal.toFixed(2)}
                                             </p>
                                         </div>
 
@@ -310,7 +303,7 @@ const OrderClient = () => {
                                             <p>Grand Total</p>
                                             <p>
                                                 {order?.partner?.currency || "₹"}
-                                                {order?.totalPrice.toFixed(2)}
+                                                {grandTotal.toFixed(2)}
                                             </p>
                                         </div>
                                     </div>
@@ -318,11 +311,6 @@ const OrderClient = () => {
                             </div>
                         </div>
 
-                        <div className="hidden sm:block">
-                            <StatusHistoryTimeline
-                                status_history={order?.status_history || {}}
-                            />
-                        </div>
                     </div>
                 </div>
             )}
