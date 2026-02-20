@@ -25,7 +25,7 @@ export const getStatusDisplay = (
     };
   }
 
-  if (isDispatched) {
+  if (isDispatched || order?.status === "dispatched") {
     if (orderType === "delivery") {
       if (order.deliveryAddress && order.delivery_location) {
         return {

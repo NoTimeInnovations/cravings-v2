@@ -342,7 +342,8 @@ export function DeliverySettings() {
                 updates
             });
 
-            revalidateTag(userData.id);
+            await revalidateTag(userData.id);
+            await revalidateTag("hotel-data");
             setState(updates);
             toast.success("Delivery settings updated successfully");
         } catch (error) {

@@ -42,7 +42,7 @@ export async function fetchHotelDataById(hotelId: string) {
       }
     },
     [hotelId, "hotel-data"],
-    { tags: [hotelId, "hotel-data"] }
+    { tags: [hotelId, "hotel-data"], revalidate: 60 }
   );
 
   const raw = await getHotelData(hotelId);
@@ -65,7 +65,7 @@ export async function fetchHotelMetadata(hotelId: string) {
       }
     },
     [hotelId, "hotel-data"],
-    { tags: [hotelId, "hotel-data"] }
+    { tags: [hotelId, "hotel-data"], revalidate: 60 }
   );
 
   return getHotelData(hotelId);

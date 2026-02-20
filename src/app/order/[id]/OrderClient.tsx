@@ -146,7 +146,7 @@ const OrderClient = () => {
     const router = useRouter();
 
     return (
-        <div className="bg-gray-50 min-h-screen">
+        <div className="bg-gray-50 min-h-screen pb-16">
             {/* Top Navbar */}
             <div className="bg-white border-b sticky top-0 z-50 px-4 py-3 flex items-center gap-3 shadow-sm">
                 <button

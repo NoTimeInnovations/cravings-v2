@@ -547,13 +547,13 @@ export function AdminV2Orders() {
                         <CardContent className="p-3 space-y-3">
                             <div className="flex flex-col gap-2 text-sm">
                                 <div className="flex justify-between items-center">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-start gap-2">
                                         {order.tableName || order.tableNumber ? (
-                                            <Table2 className="h-4 w-4 text-muted-foreground" />
+                                            <Table2 className="h-4 w-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
                                         ) : (
-                                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                                            <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
                                         )}
-                                        <span className="font-medium">{order.tableName || order.tableNumber || order.deliveryAddress || "N/A"}</span>
+                                        <span className="font-medium break-words">{order.tableName || order.tableNumber || order.deliveryAddress || "N/A"}</span>
                                     </div>
                                     <Badge variant="outline" className="capitalize text-xs">
                                         {(order.type === 'delivery' && !order.deliveryAddress)

@@ -59,7 +59,7 @@ export async function generateMetadata({
       }
     },
     [hotelId as string, "hotel-data"],
-    { tags: [hotelId as string, "hotel-data"] }
+    { tags: [hotelId as string, "hotel-data"], revalidate: 60 }
   );
 
   const hotel = await getHotelData(hotelId);
@@ -145,7 +145,7 @@ const HotelPage = async ({
       }
     },
     [hotelId as string, "hotel-data"],
-    { tags: [hotelId as string, "hotel-data"] }
+    { tags: [hotelId as string, "hotel-data"], revalidate: 60 }
   );
 
   let hoteldata = hotelId
