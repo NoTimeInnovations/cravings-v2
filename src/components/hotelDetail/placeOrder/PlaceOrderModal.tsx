@@ -1142,9 +1142,11 @@ const UnifiedAddressSection = ({
 const OrderStatusDialog = ({
   status,
   onClose,
+  partnerId,
 }: {
   status: "idle" | "loading" | "success";
   onClose: () => void;
+  partnerId?: string;
 }) => {
   const [loadingText, setLoadingText] = useState("Getting your items...");
 
@@ -1221,6 +1223,11 @@ const OrderStatusDialog = ({
               <h2 className="mt-6 text-3xl font-bold">
                 Order Placed Successfully!
               </h2>
+              {partnerId === "098fa941-3476-4a2c-b1f8-ea88eb15ad4f" && (
+                <p className="mt-3 text-sm text-white/80 text-center px-4">
+                  Kindly make the payment using the WhatsApp QR code and share the payment confirmation screenshot to confirm your order.
+                </p>
+              )}
               <button
                 onClick={onClose}
                 className="mt-8 px-8 py-3 bg-white text-black rounded-xl hover:bg-gray-200 font-semibold transition-colors"
@@ -2475,6 +2482,7 @@ const PlaceOrderModal = ({
       <OrderStatusDialog
         status={orderStatus}
         onClose={handleCloseSuccessDialog}
+        partnerId={hotelData?.id}
       />
     </>
   );

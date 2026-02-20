@@ -23,7 +23,7 @@ import {
 import useOrderStore from "@/store/orderStore";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
 import { toast } from "sonner";
-import { Printer, Edit, MapPin, Phone } from "lucide-react";
+import { Printer, Edit, MapPin, Phone, MessageCircle } from "lucide-react";
 
 import {
     DropdownMenu,
@@ -241,13 +241,24 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                         {(order.phone || order.user?.phone) && (
                             <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Phone:</span>
-                                <a
-                                    href={`tel:${order.phone || order.user?.phone}`}
-                                    className="font-medium flex items-center gap-1.5 text-blue-600 hover:underline"
-                                >
-                                    <Phone className="h-3.5 w-3.5" />
-                                    {order.phone || order.user?.phone}
-                                </a>
+                                <div className="flex items-center gap-3">
+                                    <a
+                                        href={`tel:${order.phone || order.user?.phone}`}
+                                        className="font-medium flex items-center gap-1.5 text-blue-600 hover:underline"
+                                    >
+                                        <Phone className="h-3.5 w-3.5" />
+                                        {order.phone || order.user?.phone}
+                                    </a>
+                                    <a
+                                        href={`https://wa.me/${(() => { const p = (order.phone || order.user?.phone || "").replace(/\s+/g, ""); return /^\+/.test(p) ? p : /^\d{10}$/.test(p) ? `+91${p}` : p; })()}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="font-medium flex items-center gap-1 text-green-600 hover:underline"
+                                    >
+                                        <MessageCircle className="h-3.5 w-3.5" />
+                                        WhatsApp
+                                    </a>
+                                </div>
                             </div>
                         )}
                         {order.deliveryAddress && (
