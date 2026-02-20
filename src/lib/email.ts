@@ -8,7 +8,7 @@ import SupportEmail from '@/components/emails/SupportEmail';
 export const EMAIL_CONFIG = {
     apiKey: process.env.RESEND_API_KEY_MENUTHERE,
     appName: 'Menuthere',
-    fromEmail: 'Menuthere <menuthere@gmail.com>',
+    fromEmail: 'Menuthere <support@mail.menuthere.com>',
     logoUrl: 'https://menuthere.com/menuthere-logo.png',
     baseUrl: 'https://menuthere.com',
 };

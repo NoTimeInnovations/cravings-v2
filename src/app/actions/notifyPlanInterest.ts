@@ -3,7 +3,7 @@
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY_MENUTHERE);
-const FROM_EMAIL = 'Menuthere <menuthere@gmail.com>';
+const FROM_EMAIL = 'Menuthere <support@mail.menuthere.com>';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'menuthere@gmail.com';
 
 interface NotifyPlanInterestProps {
