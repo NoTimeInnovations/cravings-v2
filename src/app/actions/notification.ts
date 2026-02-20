@@ -167,7 +167,7 @@ class PartnerNotification {
       `You have a new order of ${orderItemsDesc}`,
       tokens,
       {
-        url: "https://menuthere.com/admin/orders",
+        url: "https://menuthere.com",
         channel_id: "cravings_channel_1",
         sound: "custom_sound.caf",
         order_id: order.id,
