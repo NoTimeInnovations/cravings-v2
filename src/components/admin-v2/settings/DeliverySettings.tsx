@@ -276,6 +276,7 @@ export function DeliverySettings() {
         isDeliveryActive: true,
         needDeliveryLocation: true,
         parcel_charge: 0,
+        parcel_charge_type: "fixed",
     });
     const [whatsappNumbers, setWhatsappNumbers] = useState<{ number: string; area: string }[]>([]);
     const [countryCode, setCountryCode] = useState("+91");
@@ -301,6 +302,7 @@ export function DeliverySettings() {
                 isDeliveryActive: userData.delivery_rules?.isDeliveryActive ?? true,
                 needDeliveryLocation: userData.delivery_rules?.needDeliveryLocation ?? true,
                 parcel_charge: userData.delivery_rules?.parcel_charge || 0,
+                parcel_charge_type: userData.delivery_rules?.parcel_charge_type || "fixed",
             });
 
             // Initialize WhatsApp numbers
@@ -392,6 +394,7 @@ export function DeliverySettings() {
             isDeliveryActive: data.delivery_rules?.isDeliveryActive ?? true,
             needDeliveryLocation: data.delivery_rules?.needDeliveryLocation ?? true,
             parcel_charge: data.delivery_rules?.parcel_charge || 0,
+            parcel_charge_type: data.delivery_rules?.parcel_charge_type || "fixed",
         };
 
         const initialWhatsapp = data.whatsapp_numbers?.length > 0
@@ -664,20 +667,42 @@ export function DeliverySettings() {
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <Label>Parcel/Packaging Charge ({currencySymbol})</Label>
-                        <Input
-                            type="number"
-                            min="0"
-                            value={deliveryRules.parcel_charge || 0}
-                            onChange={(e) => setDeliveryRules(prev => ({
-                                ...prev,
-                                parcel_charge: Number(e.target.value)
-                            }))}
-                            placeholder="0"
-                        />
+                    <div className="space-y-3">
+                        <Label>Parcel/Packaging Charge</Label>
+                        <div className="flex gap-3 items-start">
+                            <Select
+                                value={deliveryRules.parcel_charge_type || "fixed"}
+                                onValueChange={(val) => setDeliveryRules(prev => ({
+                                    ...prev,
+                                    parcel_charge_type: val as "fixed" | "variable"
+                                }))}
+                            >
+                                <SelectTrigger className="w-[140px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="fixed">Fixed</SelectItem>
+                                    <SelectItem value="variable">Per Item</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <div className="flex-1">
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    value={deliveryRules.parcel_charge || 0}
+                                    onChange={(e) => setDeliveryRules(prev => ({
+                                        ...prev,
+                                        parcel_charge: Number(e.target.value)
+                                    }))}
+                                    placeholder="0"
+                                />
+                            </div>
+                        </div>
                         <p className="text-sm text-muted-foreground">
-                            Flat charge added to delivery and takeaway orders for packaging.
+                            {(deliveryRules.parcel_charge_type || "fixed") === "fixed"
+                                ? `Flat ${currencySymbol}${deliveryRules.parcel_charge || 0} charge added to delivery and takeaway orders.`
+                                : `${currencySymbol}${deliveryRules.parcel_charge || 0} per item — total charge = item count × per-item charge.`
+                            }
                         </p>
                     </div>
                 </CardContent>

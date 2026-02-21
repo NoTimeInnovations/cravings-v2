@@ -1370,9 +1370,14 @@ const BillCard = ({
       ? deliveryInfo.cost
       : 0;
 
+  const totalItemCount = items.reduce((acc, item) => acc + item.quantity, 0);
+  const parcelChargeType = hotelData?.delivery_rules?.parcel_charge_type || "fixed";
+  const parcelChargeValue = hotelData?.delivery_rules?.parcel_charge || 0;
   const parcelCharge =
-    tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge
-      ? hotelData.delivery_rules.parcel_charge
+    tableNumber === 0 && parcelChargeValue > 0
+      ? parcelChargeType === "variable"
+        ? totalItemCount * parcelChargeValue
+        : parcelChargeValue
       : 0;
 
   const gstAmount = (subtotal * (gstPercentage || 0)) / 100;
@@ -1444,7 +1449,14 @@ const BillCard = ({
 
           {parcelCharge > 0 && (
             <div className="flex justify-between text-sm">
-              <span className="text-stone-600">Parcel Charge</span>
+              <div>
+                <span className="text-stone-600">Parcel Charge</span>
+                {parcelChargeType === "variable" && (
+                  <p className="text-xs text-stone-500">
+                    {totalItemCount} items × {currency}{parcelChargeValue.toFixed(2)}
+                  </p>
+                )}
+              </div>
               <span className="font-medium text-gray-900">
                 {currency}
                 {parcelCharge.toFixed(2)}
@@ -2178,9 +2190,14 @@ const PlaceOrderModal = ({
         hotelData?.delivery_rules?.parcel_charge &&
         hotelData.delivery_rules.parcel_charge > 0
       ) {
+        const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
+        const itemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+        const parcelAmount = chargeType === "variable"
+          ? itemCount * hotelData.delivery_rules.parcel_charge
+          : hotelData.delivery_rules.parcel_charge;
         extraCharges.push({
           name: "Parcel Charge",
-          amount: hotelData.delivery_rules.parcel_charge,
+          amount: parcelAmount,
           charge_type: "FLAT_FEE",
         });
       }

@@ -63,6 +63,7 @@ export interface DeliveryRules {
   isDeliveryActive: boolean;
   needDeliveryLocation: boolean;
   parcel_charge?: number;
+  parcel_charge_type?: "fixed" | "variable"; // fixed = flat amount, variable = per item
 }
 
 export interface Order {
