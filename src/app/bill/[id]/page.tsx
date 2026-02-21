@@ -232,9 +232,10 @@ const PrintOrderPage = () => {
           }
         }, 0);
 
-        const discountedTaxableAmount = Math.max(0, subtotal - discountAmount);
-        const gstAmount = (discountedTaxableAmount * gstPercentage) / 100;
-        const grandTotal = discountedTaxableAmount + gstAmount;
+        const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+        const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
+        const gstAmount = (discountedFoodSubtotal * gstPercentage) / 100;
+        const grandTotal = discountedSubtotal + gstAmount;
 
         // Generate UPI payment QR code if enabled
         let upiString = null;
@@ -411,9 +412,10 @@ const PrintOrderPage = () => {
     }
   }, 0);
 
-  const discountedTaxableAmount = Math.max(0, subtotal - discountAmount);
-  const gstAmount = (discountedTaxableAmount * gstPercentage) / 100;
-  const grandTotal = discountedTaxableAmount + gstAmount;
+  const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+  const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
+  const gstAmount = (discountedFoodSubtotal * gstPercentage) / 100;
+  const grandTotal = discountedSubtotal + gstAmount;
 
   return (
     <div className="">

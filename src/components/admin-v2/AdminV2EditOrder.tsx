@@ -195,21 +195,22 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
             )
             : 0;
 
-        const taxableAmount = foodSubtotal + extraChargesTotal + qrGroupCharges;
+        const subtotal = foodSubtotal + extraChargesTotal + qrGroupCharges;
 
         const discountAmount = discounts.reduce((total, discount) => {
             if (discount.type === "flat") {
                 return total + discount.value;
             } else {
-                return total + (taxableAmount * discount.value) / 100;
+                return total + (subtotal * discount.value) / 100;
             }
         }, 0);
 
-        const discountedTaxableAmount = Math.max(0, taxableAmount - discountAmount);
+        const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+        const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
 
-        const gstAmount = gstPercentage > 0 ? (discountedTaxableAmount * gstPercentage) / 100 : 0;
+        const gstAmount = gstPercentage > 0 ? (discountedFoodSubtotal * gstPercentage) / 100 : 0;
 
-        return discountedTaxableAmount + gstAmount;
+        return discountedSubtotal + gstAmount;
     };
 
     useEffect(() => {
@@ -791,18 +792,18 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                                     const foodSubtotal = items.reduce((sum, item) => sum + item.menu.price * item.quantity, 0);
                                                     const extraChargesTotal = extraCharges.reduce((sum, charge) => sum + charge.amount, 0);
                                                     const qrGroupCharges = qrGroup?.extra_charge ? getExtraCharge(items as any[], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE") : 0;
-                                                    const taxableAmount = foodSubtotal + extraChargesTotal + qrGroupCharges;
+                                                    const subtotal = foodSubtotal + extraChargesTotal + qrGroupCharges;
 
                                                     const discountAmount = discounts.reduce((total, discount) => {
                                                         if (discount.type === "flat") {
                                                             return total + discount.value;
                                                         } else {
-                                                            return total + (taxableAmount * discount.value) / 100;
+                                                            return total + (subtotal * discount.value) / 100;
                                                         }
                                                     }, 0);
 
-                                                    const discountedTaxableAmount = Math.max(0, taxableAmount - discountAmount);
-                                                    return ((discountedTaxableAmount * gstPercentage) / 100).toFixed(2);
+                                                    const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
+                                                    return ((discountedFoodSubtotal * gstPercentage) / 100).toFixed(2);
                                                 })()}
                                             </span>
                                         </div>

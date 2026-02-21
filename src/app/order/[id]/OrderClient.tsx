@@ -138,7 +138,7 @@ const OrderClient = () => {
 
     const subtotal = foodTotal + extraChargesTotal;
     const gstPercentage = order?.partner?.gst_percentage || 0;
-    const gstAmount = (subtotal * gstPercentage) / 100;
+    const gstAmount = (foodTotal * gstPercentage) / 100;
     const grandTotal = subtotal + gstAmount;
 
     const statusDisplay = getStatusDisplay(order as Order);

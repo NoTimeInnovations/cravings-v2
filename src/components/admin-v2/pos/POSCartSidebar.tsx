@@ -279,20 +279,21 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     };
 
     const extraChargesTotal = extraCharges.reduce((acc, curr) => acc + curr.amount, 0);
-    const taxableAmount = totalAmount + extraChargesTotal;
+    const subtotal = totalAmount + extraChargesTotal;
 
     // Calculate current order discounts
     const discountAmount = usePOSStore.getState().discounts.reduce((total, discount) => {
         if (discount.type === "flat") {
             return total + discount.value;
         } else {
-            return total + (taxableAmount * discount.value) / 100;
+            return total + (subtotal * discount.value) / 100;
         }
     }, 0);
 
-    const discountedTaxableAmount = Math.max(0, taxableAmount - discountAmount);
-    const gstAmount = getGstAmount(discountedTaxableAmount, partnerData?.gst_percentage || 0);
-    const grandTotal = discountedTaxableAmount + gstAmount;
+    const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+    const discountedFoodAmount = Math.max(0, totalAmount - discountAmount);
+    const gstAmount = getGstAmount(discountedFoodAmount, partnerData?.gst_percentage || 0);
+    const grandTotal = discountedSubtotal + gstAmount;
 
     const activeOrderDataSubtotal = activeOrderData
         ? (activeOrderData.items || activeOrderData.order_items)?.reduce((acc: number, item: any) => {
@@ -306,21 +307,22 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     const activeOrderDataExtraCharges = activeOrderData?.extraCharges || activeOrderData?.extra_charges || [];
     const activeOrderDataExtraChargesTotal = activeOrderDataExtraCharges.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0);
 
-    const activeOrderDataTaxableAmount = activeOrderDataSubtotal + activeOrderDataExtraChargesTotal;
+    const activeOrderDataTotal = activeOrderDataSubtotal + activeOrderDataExtraChargesTotal;
 
     const activeOrderDataDiscounts = activeOrderData?.discounts || [];
     const activeOrderDataDiscountAmount = activeOrderDataDiscounts.reduce((total: number, discount: any) => {
         if (discount.type === "flat") {
             return total + (discount.value || 0);
         } else {
-            return total + (activeOrderDataTaxableAmount * (discount.value || 0)) / 100;
+            return total + (activeOrderDataTotal * (discount.value || 0)) / 100;
         }
     }, 0);
 
-    const activeOrderDataDiscountedTaxableAmount = Math.max(0, activeOrderDataTaxableAmount - activeOrderDataDiscountAmount);
+    const activeOrderDataDiscountedTotal = Math.max(0, activeOrderDataTotal - activeOrderDataDiscountAmount);
+    const activeOrderDataDiscountedFoodSubtotal = Math.max(0, activeOrderDataSubtotal - activeOrderDataDiscountAmount);
 
     const activeOrderDataGstAmount = activeOrderData
-        ? getGstAmount(activeOrderDataDiscountedTaxableAmount, activeOrderData.gstIncluded || 0)
+        ? getGstAmount(activeOrderDataDiscountedFoodSubtotal, activeOrderData.gstIncluded || 0)
         : 0;
 
 

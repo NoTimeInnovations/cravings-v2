@@ -214,10 +214,11 @@ const OrderDrawer = ({
   const calculateGrandTotal = () => {
     const baseTotal =
       items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
-    let taxableAmount = baseTotal;
+
+    let grandTotal = baseTotal;
 
     if (qrGroup?.extra_charge) {
-      taxableAmount += getExtraCharge(
+      grandTotal += getExtraCharge(
         items || [],
         qrGroup.extra_charge,
         qrGroup.charge_type || "FLAT_FEE"
@@ -225,13 +226,11 @@ const OrderDrawer = ({
     }
 
     if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge) {
-      taxableAmount += hotelData.delivery_rules.parcel_charge;
+      grandTotal += hotelData.delivery_rules.parcel_charge;
     }
 
-    let grandTotal = taxableAmount;
-
     if (hotelData?.gst_percentage) {
-      grandTotal += getGstAmount(taxableAmount, hotelData.gst_percentage);
+      grandTotal += getGstAmount(baseTotal, hotelData.gst_percentage);
     }
 
     return grandTotal.toFixed(2);
@@ -287,11 +286,10 @@ const OrderDrawer = ({
       tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge
         ? hotelData.delivery_rules.parcel_charge
         : 0;
-    const taxableAmount = baseTotal + qrCharge + deliveryCharge + parcelCharge;
     const gstAmount = hotelData?.gst_percentage
-      ? getGstAmount(taxableAmount, hotelData.gst_percentage)
+      ? getGstAmount(baseTotal, hotelData.gst_percentage)
       : 0;
-    const grandTotal = taxableAmount + gstAmount;
+    const grandTotal = baseTotal + qrCharge + deliveryCharge + parcelCharge + gstAmount;
 
     const hasMultiWhatsapp = getFeatures(hotelData?.feature_flags || "")
       ?.multiwhatsapp?.enabled;

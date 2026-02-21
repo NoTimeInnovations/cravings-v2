@@ -151,9 +151,10 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
         }
     }, 0);
 
-    const discountedTaxableAmount = Math.max(0, subtotal - discountAmount);
-    const gstAmount = (discountedTaxableAmount * gstPercentage) / 100;
-    const grandTotal = discountedTaxableAmount + gstAmount;
+    const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+    const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
+    const gstAmount = (discountedFoodSubtotal * gstPercentage) / 100;
+    const grandTotal = discountedSubtotal + gstAmount;
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">

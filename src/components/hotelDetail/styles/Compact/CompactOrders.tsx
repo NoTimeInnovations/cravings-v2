@@ -86,20 +86,21 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                         0
                     ) || 0;
 
-                const taxableAmount = foodTotal + extraChargesTotal;
+                const subtotal = foodTotal + extraChargesTotal;
 
                 const discounts = order.discounts || [];
                 const discountAmount = discounts.reduce((total: number, discount: any) => {
                     if (discount.type === "flat") {
                         return total + discount.value;
                     } else {
-                        return total + (taxableAmount * discount.value) / 100;
+                        return total + (subtotal * discount.value) / 100;
                     }
                 }, 0);
 
-                const discountedTaxableAmount = Math.max(0, taxableAmount - discountAmount);
-                const gstAmount = getGstAmount(discountedTaxableAmount, gstPercentage);
-                const grandTotal = discountedTaxableAmount + gstAmount;
+                const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+                const discountedFoodTotal = Math.max(0, foodTotal - discountAmount);
+                const gstAmount = getGstAmount(discountedFoodTotal, gstPercentage);
+                const grandTotal = discountedSubtotal + gstAmount;
                 const statusDisplay = getStatusDisplay(order);
 
                 return (

@@ -57,9 +57,10 @@ const BillTemplate = React.forwardRef<HTMLDivElement, BillTemplateProps>(
       }
     }, 0);
 
-    const discountedTaxableAmount = Math.max(0, subtotal - discountAmount);
-    const gstAmount = getGstAmount(discountedTaxableAmount, gstPercentage);
-    const grandTotal = discountedTaxableAmount + gstAmount;
+    const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+    const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
+    const gstAmount = getGstAmount(discountedFoodSubtotal, gstPercentage);
+    const grandTotal = discountedSubtotal + gstAmount;
 
 
     // Determine order type and display text

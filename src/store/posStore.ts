@@ -493,21 +493,21 @@ export const usePOSStore = create<POSState>((set, get) => ({
       const gstPercentage = partnerData?.gst_percentage || 0;
 
       const extraChargesTotal = extraCharges.reduce((acc, curr) => acc + curr.amount, 0);
-      const taxableAmount = totalAmount + extraChargesTotal;
+      const subtotal = totalAmount + extraChargesTotal;
 
       // Calculate Discount
       const discountAmount = discounts.reduce((total, discount) => {
         if (discount.type === "flat") {
           return total + discount.value;
         } else {
-          // Percentage discount applies to the taxable amount (food + extra charges)
-          return total + (taxableAmount * discount.value) / 100;
+          return total + (subtotal * discount.value) / 100;
         }
       }, 0);
 
-      const discountedTaxableAmount = Math.max(0, taxableAmount - discountAmount);
-      const gstAmount = getGstAmount(discountedTaxableAmount, gstPercentage);
-      const grandTotal = discountedTaxableAmount + gstAmount;
+      const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+      const discountedFoodAmount = Math.max(0, totalAmount - discountAmount);
+      const gstAmount = getGstAmount(discountedFoodAmount, gstPercentage);
+      const grandTotal = discountedSubtotal + gstAmount;
 
       // Update order basic info
       await fetchFromHasura(updateOrderMutation, {
@@ -600,30 +600,27 @@ export const usePOSStore = create<POSState>((set, get) => ({
       0
     );
 
-    // Calculate GST on food and extra charges
-
-
-    // Return grand total
     // Calculate Discount
-    const taxableAmount = foodSubtotal + extraChargesSubtotal;
+    const subtotal = foodSubtotal + extraChargesSubtotal;
     const discountAmount = discounts.reduce((total, discount) => {
       if (discount.type === "flat") {
         return total + discount.value;
       } else {
-        return total + (taxableAmount * discount.value) / 100;
+        return total + (subtotal * discount.value) / 100;
       }
     }, 0);
 
-    const discountedTaxableAmount = Math.max(0, taxableAmount - discountAmount);
+    const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+    const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
 
-    // Calculate GST on discounted amount
+    // Calculate GST on food items only
     const gstAmount = getGstAmount(
-      discountedTaxableAmount,
+      discountedFoodSubtotal,
       gstPercentage
     );
 
     // Return grand total
-    return discountedTaxableAmount + gstAmount;
+    return discountedSubtotal + gstAmount;
   },
 
   checkout: async () => {
@@ -681,21 +678,23 @@ export const usePOSStore = create<POSState>((set, get) => ({
 
       // QR group charges are now included in extraCharges, so no need to add them separately
 
-      const taxableAmount = foodSubtotal + allExtraCharges.reduce((sum, charge) => sum + charge.amount, 0);
+      const extraChargesTotal = allExtraCharges.reduce((sum, charge) => sum + charge.amount, 0);
+      const subtotal = foodSubtotal + extraChargesTotal;
 
       const discountAmount = discounts.reduce((total, discount) => {
         if (discount.type === "flat") {
           return total + discount.value;
         } else {
-          return total + (taxableAmount * discount.value) / 100;
+          return total + (subtotal * discount.value) / 100;
         }
       }, 0);
 
-      const discountedTaxableAmount = Math.max(0, taxableAmount - discountAmount);
+      const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+      const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
 
       const grandTotal =
-        discountedTaxableAmount +
-        getGstAmount(discountedTaxableAmount, gstPercentage);
+        discountedSubtotal +
+        getGstAmount(discountedFoodSubtotal, gstPercentage);
 
       // Determine order type and type string
       // If posOrderType is takeaway, use "delivery" with no address.

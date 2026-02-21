@@ -1375,9 +1375,8 @@ const BillCard = ({
       ? hotelData.delivery_rules.parcel_charge
       : 0;
 
-  const taxableAmount = subtotal + qrExtraCharges + deliveryCharges + parcelCharge;
-  const gstAmount = (taxableAmount * (gstPercentage || 0)) / 100;
-  const grandTotal = taxableAmount + gstAmount;
+  const gstAmount = (subtotal * (gstPercentage || 0)) / 100;
+  const grandTotal = subtotal + qrExtraCharges + deliveryCharges + parcelCharge + gstAmount;
 
   return (
     <motion.div
@@ -2186,10 +2185,8 @@ const PlaceOrderModal = ({
         });
       }
 
-      const totalExtraCharges = extraCharges.reduce((sum, c) => sum + c.amount, 0);
-      const taxableAmount = subtotal + totalExtraCharges;
       const gstAmount = getGstAmount(
-        taxableAmount,
+        subtotal,
         hotelData?.gst_percentage as number,
       );
 
