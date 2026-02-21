@@ -275,6 +275,7 @@ export function DeliverySettings() {
         delivery_time_allowed: null,
         isDeliveryActive: true,
         needDeliveryLocation: true,
+        parcel_charge: 0,
     });
     const [whatsappNumbers, setWhatsappNumbers] = useState<{ number: string; area: string }[]>([]);
     const [countryCode, setCountryCode] = useState("+91");
@@ -299,6 +300,7 @@ export function DeliverySettings() {
                 delivery_time_allowed: userData.delivery_rules?.delivery_time_allowed || null,
                 isDeliveryActive: userData.delivery_rules?.isDeliveryActive ?? true,
                 needDeliveryLocation: userData.delivery_rules?.needDeliveryLocation ?? true,
+                parcel_charge: userData.delivery_rules?.parcel_charge || 0,
             });
 
             // Initialize WhatsApp numbers
@@ -389,6 +391,7 @@ export function DeliverySettings() {
             delivery_time_allowed: data.delivery_rules?.delivery_time_allowed || null,
             isDeliveryActive: data.delivery_rules?.isDeliveryActive ?? true,
             needDeliveryLocation: data.delivery_rules?.needDeliveryLocation ?? true,
+            parcel_charge: data.delivery_rules?.parcel_charge || 0,
         };
 
         const initialWhatsapp = data.whatsapp_numbers?.length > 0
@@ -659,6 +662,23 @@ export function DeliverySettings() {
                                 }))}
                             />
                         </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Parcel/Packaging Charge ({currencySymbol})</Label>
+                        <Input
+                            type="number"
+                            min="0"
+                            value={deliveryRules.parcel_charge || 0}
+                            onChange={(e) => setDeliveryRules(prev => ({
+                                ...prev,
+                                parcel_charge: Number(e.target.value)
+                            }))}
+                            placeholder="0"
+                        />
+                        <p className="text-sm text-muted-foreground">
+                            Flat charge added to delivery and takeaway orders for packaging.
+                        </p>
                     </div>
                 </CardContent>
             </Card>

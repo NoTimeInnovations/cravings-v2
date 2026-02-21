@@ -62,6 +62,7 @@ export interface DeliveryRules {
   } | null;
   isDeliveryActive: boolean;
   needDeliveryLocation: boolean;
+  parcel_charge?: number;
 }
 
 export interface Order {

@@ -214,18 +214,24 @@ const OrderDrawer = ({
   const calculateGrandTotal = () => {
     const baseTotal =
       items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
-    let grandTotal = baseTotal;
-
-    if (hotelData?.gst_percentage) {
-      grandTotal += getGstAmount(baseTotal, hotelData.gst_percentage);
-    }
+    let taxableAmount = baseTotal;
 
     if (qrGroup?.extra_charge) {
-      grandTotal += getExtraCharge(
+      taxableAmount += getExtraCharge(
         items || [],
         qrGroup.extra_charge,
         qrGroup.charge_type || "FLAT_FEE"
       );
+    }
+
+    if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge) {
+      taxableAmount += hotelData.delivery_rules.parcel_charge;
+    }
+
+    let grandTotal = taxableAmount;
+
+    if (hotelData?.gst_percentage) {
+      grandTotal += getGstAmount(taxableAmount, hotelData.gst_percentage);
     }
 
     return grandTotal.toFixed(2);
@@ -263,9 +269,6 @@ const OrderDrawer = ({
 
     const baseTotal =
       items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
-    const gstAmount = hotelData?.gst_percentage
-      ? getGstAmount(baseTotal, hotelData.gst_percentage)
-      : 0;
     const qrCharge = qrGroup?.extra_charge
       ? getExtraCharge(
         items || [],
@@ -280,7 +283,15 @@ const OrderDrawer = ({
         !deliveryInfo?.isOutOfRange
         ? deliveryInfo.cost
         : 0;
-    const grandTotal = baseTotal + gstAmount + qrCharge + deliveryCharge;
+    const parcelCharge =
+      tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge
+        ? hotelData.delivery_rules.parcel_charge
+        : 0;
+    const taxableAmount = baseTotal + qrCharge + deliveryCharge + parcelCharge;
+    const gstAmount = hotelData?.gst_percentage
+      ? getGstAmount(taxableAmount, hotelData.gst_percentage)
+      : 0;
+    const grandTotal = taxableAmount + gstAmount;
 
     const hasMultiWhatsapp = getFeatures(hotelData?.feature_flags || "")
       ?.multiwhatsapp?.enabled;
@@ -356,7 +367,12 @@ const OrderDrawer = ({
         ? `*${qrGroup.name}:* ${hotelData.currency}${qrCharge.toFixed(2)}`
         : ""
       }
-    
+
+    ${parcelCharge > 0
+        ? `*Parcel Charge:* ${hotelData.currency}${parcelCharge.toFixed(2)}`
+        : ""
+      }
+
     * Total Price:* ${hotelData.currency}${grandTotal.toFixed(2)}
     ${orderNote ? `\n*📝 Note:* ${orderNote}` : ""}
   `;

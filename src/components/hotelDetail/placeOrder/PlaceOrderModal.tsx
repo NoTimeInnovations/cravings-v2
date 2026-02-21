@@ -1339,6 +1339,7 @@ interface BillCardProps {
   isDelivery: boolean;
   hotelData: HotelData;
   qrGroup: QrGroup | null;
+  tableNumber: number;
 }
 
 const BillCard = ({
@@ -1349,6 +1350,7 @@ const BillCard = ({
   isDelivery,
   hotelData,
   qrGroup,
+  tableNumber,
 }: BillCardProps) => {
   const subtotal = items.reduce(
     (acc, item) => acc + item.price * item.quantity,
@@ -1368,8 +1370,14 @@ const BillCard = ({
       ? deliveryInfo.cost
       : 0;
 
-  const gstAmount = (subtotal * (gstPercentage || 0)) / 100;
-  const grandTotal = subtotal + qrExtraCharges + gstAmount + deliveryCharges;
+  const parcelCharge =
+    tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge
+      ? hotelData.delivery_rules.parcel_charge
+      : 0;
+
+  const taxableAmount = subtotal + qrExtraCharges + deliveryCharges + parcelCharge;
+  const gstAmount = (taxableAmount * (gstPercentage || 0)) / 100;
+  const grandTotal = taxableAmount + gstAmount;
 
   return (
     <motion.div
@@ -1431,6 +1439,16 @@ const BillCard = ({
               <span className="font-medium text-gray-900">
                 {currency}
                 {deliveryInfo?.cost?.toFixed(2)}
+              </span>
+            </div>
+          )}
+
+          {parcelCharge > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-stone-600">Parcel Charge</span>
+              <span className="font-medium text-gray-900">
+                {currency}
+                {parcelCharge.toFixed(2)}
               </span>
             </div>
           )}
@@ -2105,10 +2123,6 @@ const PlaceOrderModal = ({
     try {
       const subtotal =
         items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
-      const gstAmount = getGstAmount(
-        subtotal,
-        hotelData?.gst_percentage as number,
-      );
       const extraCharges = [];
 
       if (isQrScan && qrGroup && qrGroup.name) {
@@ -2159,6 +2173,25 @@ const PlaceOrderModal = ({
           charge_type: "FLAT_FEE",
         });
       }
+
+      if (
+        tableNumber === 0 &&
+        hotelData?.delivery_rules?.parcel_charge &&
+        hotelData.delivery_rules.parcel_charge > 0
+      ) {
+        extraCharges.push({
+          name: "Parcel Charge",
+          amount: hotelData.delivery_rules.parcel_charge,
+          charge_type: "FLAT_FEE",
+        });
+      }
+
+      const totalExtraCharges = extraCharges.reduce((sum, c) => sum + c.amount, 0);
+      const taxableAmount = subtotal + totalExtraCharges;
+      const gstAmount = getGstAmount(
+        taxableAmount,
+        hotelData?.gst_percentage as number,
+      );
 
       const result = await placeOrder(
         hotelData,
@@ -2302,6 +2335,7 @@ const PlaceOrderModal = ({
                 isDelivery={isDelivery && !isQrScan && orderType === "delivery"}
                 qrGroup={qrGroup}
                 hotelData={hotelData}
+                tableNumber={tableNumber}
               />
 
               {/* Order Note */}

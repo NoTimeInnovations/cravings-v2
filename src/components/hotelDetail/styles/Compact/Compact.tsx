@@ -294,11 +294,13 @@ const Compact = ({
             />
 
             {/* rateusbtn  */}
-            <RateUs
-              hoteldata={hoteldata}
-              socialLinks={socialLinks}
-              hasBottomNav={showBottomNav}
-            />
+            {hoteldata?.id !== "efd0b93b-9607-44b3-b2dc-a03e77f3dd0e" && (
+              <RateUs
+                hoteldata={hoteldata}
+                socialLinks={socialLinks}
+                hasBottomNav={showBottomNav}
+              />
+            )}
 
             {/* MyOrdersButton - Top Right */}
             {/* <div className="absolute top-4 right-4 z-40">
