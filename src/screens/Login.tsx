@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { ButtonV2 } from "@/components/ui/ButtonV2";
-import Image from "next/image";
+
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -102,7 +102,7 @@ export default function Login() {
     <div className="min-h-[calc(100dvh-4rem)] flex items-center justify-center px-4 py-8 sm:px-6">
       <div className="w-full max-w-sm sm:max-w-md bg-white rounded-xl p-5 sm:p-8">
         <div className="flex flex-col items-center mb-6 sm:mb-8">
-          <Image
+          <img
             src="/menuthere-logo.png"
             alt="Menuthere"
             width={48}

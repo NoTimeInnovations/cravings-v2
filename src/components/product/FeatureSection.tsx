@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
+
 import { Check } from "lucide-react";
 
 interface Feature {
@@ -50,11 +50,11 @@ export function FeatureSection({ features }: FeaturesProps) {
                                 {/* Image / Visual */}
                                 <div className="flex-1 w-full">
                                     <div className={`relative rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 aspect-square md:aspect-[4/3] shadow-lg ${!isRightAligned ? "bg-orange-50/50" : "bg-blue-50/50"}`}>
-                                        <Image
+                                        <img
                                             src={feature.image}
                                             alt={feature.title}
-                                            fill
                                             className="object-cover object-center"
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                         />
                                     </div>
                                 </div>

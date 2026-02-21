@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { MyOrdersButton } from "./MyOrdersButton";
 import Link from "next/link";
-import Image from "next/image";
+
 import CompactOrders from "./CompactOrders";
 import { Utensils, ShoppingBag } from "lucide-react";
 import { DefaultHotelPageProps } from "../Default/Default";
@@ -318,14 +318,12 @@ const Compact = ({
                 {hoteldata?.store_banner &&
                   hoteldata?.store_banner !== "" &&
                   !bannerError ? (
-                  <Image
+                  <img
                     src={hoteldata?.store_banner}
                     alt="Hotel Logo"
-                    fill
                     className="object-cover"
                     onError={() => setBannerError(true)}
-                    priority
-                    fetchPriority="high"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
                   <div

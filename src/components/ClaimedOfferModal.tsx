@@ -1,7 +1,6 @@
 import { Offer } from "@/store/offerStore_hasura";
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
-import Image from "next/image";
 import { Button } from "./ui/button";
 import DiscountBadge from "./DiscountBadge";
 import Link from "next/link";

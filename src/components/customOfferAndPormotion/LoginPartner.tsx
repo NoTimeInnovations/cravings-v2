@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+
 import React, { useState } from "react";
 import { Button } from "../ui/button";
 import { useAuthStore } from "@/store/authStore";
@@ -38,7 +38,7 @@ const LoginPartner = () => {
     <div className="min-h-[80vh] flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-lg p-6">
         <div className="flex flex-col items-center mb-8">
-          <Image src="/menuthere-logo.png" alt="Menuthere" width={48} height={48} className="h-12 w-12 object-contain mb-4" />
+          <img src="/menuthere-logo.png" alt="Menuthere" width={48} height={48} className="h-12 w-12 object-contain mb-4" />
           <h1 className="text-3xl font-bold text-gray-900 text-center">
             Welcome to Menuthere
           </h1>

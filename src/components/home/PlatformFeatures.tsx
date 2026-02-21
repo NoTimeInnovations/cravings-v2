@@ -19,7 +19,7 @@ import {
     Power,
     Star
 } from "lucide-react";
-import Image from "next/image";
+
 import { cn } from "@/lib/utils";
 
 const PRODUCTS = [
@@ -156,11 +156,11 @@ export default function PlatformFeatures() {
                             </p>
 
                             <div className="relative mt-auto -mx-6 -mb-6 h-52 w-[calc(100%+3rem)] rounded-b-2xl overflow-hidden">
-                                <Image
+                                <img
                                     src={product.image}
                                     alt={product.title}
-                                    fill
                                     className="object-contain mix-blend-multiply"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 />
                             </div>
                         </div>

@@ -2,7 +2,7 @@
 import usePWAInstallPrompt from "@/hooks/usePwaInstallPrompt";
 import React, { useEffect, useState } from "react";
 import { Drawer, DrawerContent } from "./ui/drawer";
-import Image from "next/image";
+
 import { Carousel, CarouselContent, CarouselItem } from "./ui/carousel";
 import Img from "./Img";
 

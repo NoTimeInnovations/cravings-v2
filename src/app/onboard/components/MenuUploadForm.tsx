@@ -18,7 +18,6 @@ import {
   Smartphone,
 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
-import Image from "next/image";
 import { MenuItem, BusinessRegistrationData } from "../page";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -507,10 +506,10 @@ export default function MenuUploadForm({
                   <div className="h-[100px] flex flex-col items-center justify-center border border-dashed border-gray-300 rounded-md relative bg-gray-50 hover:bg-gray-100 transition-colors">
                     {imagePreview ? (
                       <div className="relative w-full h-full">
-                        <Image
+                        <img
                           src={imagePreview}
                           alt="Preview"
-                          fill
+                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                           className="object-contain p-1"
                         />
                         <button
@@ -597,10 +596,10 @@ export default function MenuUploadForm({
                       <div className="flex items-center gap-2">
                         <div className="h-10 w-10 relative rounded overflow-hidden bg-gray-100 border border-gray-200">
                           {item.image ? (
-                            <Image
+                            <img
                               src={item.image}
                               alt={item.name}
-                              fill
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                               className="object-cover"
                             />
                           ) : (
@@ -672,10 +671,10 @@ export default function MenuUploadForm({
               <div className="relative">
                 {/* Phone frame image */}
                 <div className="relative w-[300px] h-[610px]">
-                  <Image
+                  <img
                     src="/phone_frame.png"
                     alt="Phone frame"
-                    fill
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                     className="object-contain"
                   />
 
@@ -690,10 +689,10 @@ export default function MenuUploadForm({
                         <div className="flex items-center">
                           <div className="flex items-center gap-2">
                             <div className="relative w-6 h-6">
-                              <Image
+                              <img
                                 src="/icon-64x64.png"
                                 alt={`$Menuthere Logo`}
-                                fill
+                                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                                 className="object-contain"
                               />
                             </div>
@@ -709,10 +708,10 @@ export default function MenuUploadForm({
                         <div className="p-3 flex items-center gap-3 border-b border-gray-100">
                           <div className="h-12 w-12 relative rounded-full overflow-hidden border border-gray-200">
                             {businessData?.logo ? (
-                              <Image
+                              <img
                                 src={businessData.logo}
                                 alt={businessData.businessName}
-                                fill
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                 className="object-cover"
                               />
                             ) : (
@@ -753,10 +752,10 @@ export default function MenuUploadForm({
                                 >
                                   <div className="h-20 relative">
                                     {item.image ? (
-                                      <Image
+                                      <img
                                         src={item.image}
                                         alt={item.name}
-                                        fill
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                         className="object-cover"
                                       />
                                     ) : (
@@ -840,7 +839,7 @@ export default function MenuUploadForm({
                                       </div>
                                       <div className="w-16 h-16 rounded overflow-hidden ml-2">
                                         {item.image ? (
-                                          <Image
+                                          <img
                                             src={item.image}
                                             alt={item.name}
                                             width={64}

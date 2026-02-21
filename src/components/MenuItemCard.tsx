@@ -2,7 +2,6 @@
 import { MenuItem } from "@/screens/HotelMenuPage_v2";
 import React, { useEffect, useState } from "react";
 import { Card } from "./ui/card";
-import Image from "next/image";
 import placeHolderImage from "../../public/image_placeholder.png";
 import Link from "next/link";
 import Img from "./Img";

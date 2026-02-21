@@ -7,7 +7,7 @@ import useOrderStore from "@/store/orderStore";
 import { Offer } from "@/store/offerStore_hasura";
 import { useRouter } from "next/navigation";
 import { formatPrice, requiresThreeDecimalPlaces } from "@/lib/constants";
-import Image from "next/image";
+
 
 import { getTagColor } from "@/data/foodTags";
 
@@ -391,13 +391,12 @@ const ItemCard = ({
         <div className="relative">
           <div className="relative">
             <div className="overflow-hidden aspect-square h-28 rounded-3xl relative">
-              <Image
+              <img
                 src={item.image_url || "/image_placeholder.png"}
                 alt={`Best ${item.name} in ${hoteldata.location_details || hoteldata.district || hoteldata.country || 'town'}`}
-                fill
-                quality={80}
                 className={`object-cover ${!item.image_url ? "invert opacity-50" : ""
                   } ${!item.is_available || isOutOfStock ? "grayscale" : ""}`}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             </div>
             {(!item.is_available || isOutOfStock) && (

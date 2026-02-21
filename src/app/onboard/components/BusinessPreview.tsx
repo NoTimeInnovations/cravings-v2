@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Loader2, ChevronRight } from "lucide-react";
-import Image from "next/image";
 import { BusinessRegistrationData, MenuItem } from "../page";
 
 interface BusinessPreviewProps {
@@ -68,7 +67,7 @@ export default function BusinessPreview({
         <div className="bg-white p-4 flex items-center space-x-3">
           <div className="relative w-16 h-16 overflow-hidden rounded-full border border-gray-100">
             {businessData.logo ? (
-              <Image
+              <img
                 src={businessData.logo}
                 alt={businessData.businessName}
                 width={64}
@@ -126,10 +125,10 @@ export default function BusinessPreview({
                   >
                     <div className="h-32 relative">
                       {item.image ? (
-                        <Image
+                        <img
                           src={item.image}
                           alt={item.name}
-                          fill
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           className="object-cover"
                         />
                       ) : (
@@ -197,7 +196,7 @@ export default function BusinessPreview({
                 </div>
                 <div className="w-20 h-20 rounded overflow-hidden">
                   {item.image ? (
-                    <Image
+                    <img
                       src={item.image}
                       alt={item.name}
                       width={80}

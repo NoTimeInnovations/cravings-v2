@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Card } from "./ui/card";
-import Image from "next/image";
+
 import DiscountBadge from "./DiscountBadge";import { Offer } from "@/store/offerStore_hasura";
 import Img from "./Img";
 ;

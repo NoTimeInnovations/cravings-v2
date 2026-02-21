@@ -84,8 +84,6 @@ export default function RestaurantMarquee() {
                   src={r.logo}
                   alt={r.name}
                   fill
-                  sizes="96px"
-                  loading="lazy"
                   className="object-cover hover:scale-110 transition-transform duration-300 grayscale contrast-70 hover:contrast-100 hover:grayscale-0"
                 />
               </div>

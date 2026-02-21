@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
@@ -30,7 +31,6 @@ import {
   PartyPopper,
 } from "lucide-react";
 
-import Image from "next/image"; // Added import
 
 import { getFeatures } from "@/lib/getFeatures";
 import { toast } from "sonner";
@@ -405,7 +405,6 @@ export function Navbar() {
         width={171}
         height={46}
         className="h-8 w-auto object-contain"
-        priority
       />
     </Link>
   );

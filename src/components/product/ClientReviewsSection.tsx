@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
+
 import useEmblaCarousel from "embla-carousel-react";
 import { cn } from "@/lib/utils";
 
@@ -62,7 +62,7 @@ export function ClientReviewsSection({ reviews }: ClientReviewsSectionProps) {
                                             <div className="w-24 h-16 relative flex items-center justify-center bg-white rounded-lg shadow-sm px-4 py-2">
                                                 {/* Using placeholder logic similar to reference 'Logo' style */}
                                                 {review.avatar && !review.avatar.includes("avatar-") ? (
-                                                    <Image src={review.avatar} alt={review.author} width={80} height={40} className="w-full h-full object-contain" />
+                                                    <img src={review.avatar} alt={review.author} width={80} height={40} className="w-full h-full object-contain" />
                                                 ) : (
                                                     // Text fallback that looks like a logo
                                                     <span className="font-bold text-gray-700 text-sm tracking-tight">{review.company}</span>

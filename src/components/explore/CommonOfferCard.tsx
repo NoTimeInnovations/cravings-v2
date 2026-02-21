@@ -1,6 +1,6 @@
 import React from "react";
 import { CommonOffer } from "../superAdmin/OfferUploadSuperAdmin";
-import Image from "next/image";
+
 import { truncateWithEllipsis } from "@/lib/truncate";
 import Link from "next/link";
 import Img from "../Img";

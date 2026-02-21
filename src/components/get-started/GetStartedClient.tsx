@@ -382,7 +382,6 @@ const CustomColorPicker = ({
   </div>
 );
 
-import Image from "next/image";
 export default function GetStartedClient({
   appName = "Menuthere",
   logo,
@@ -1870,13 +1869,12 @@ export default function GetStartedClient({
             >
               {logo ? (
                 <div className="flex items-center gap-2">
-                  <Image
+                  <img
                     src={logo}
                     alt="Menuthere"
                     width={120}
                     height={40}
                     className="h-8 w-auto object-contain"
-                    priority
                   />
                   <span className="text-xl font-semibold text-stone-900">
                     Menuthere
@@ -1884,7 +1882,7 @@ export default function GetStartedClient({
                 </div>
               ) : (
                 <>
-                  <Image src="/menuthere-logo.png" alt="Menuthere" width={24} height={24} className="h-6 w-6 object-contain" />
+                  <img src="/menuthere-logo.png" alt="Menuthere" width={24} height={24} className="h-6 w-6 object-contain" />
                   <span className="text-xl font-semibold text-stone-900">
                     Menuthere
                   </span>

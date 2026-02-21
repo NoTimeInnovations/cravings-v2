@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import Image from "next/image";
+
 import { Monitor } from "lucide-react";
 import RestaurantMarquee from "@/components/international/RestaurantMarquee";
 import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
@@ -88,12 +88,11 @@ export default async function DownloadAppPage() {
 
                     {/* Right Image */}
                     <div className="relative flex justify-center items-center">
-                        <Image
+                        <img
                             src="/hero-image.png"
                             alt="Menuthere App Interface"
                             width={1400}
                             height={1600}
-                            priority
                             className="w-full max-w-[500px] h-auto drop-shadow-2xl"
                         />
                     </div>

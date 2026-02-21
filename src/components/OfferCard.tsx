@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import Image from "next/image";
+
 import { Clock, MapPin, Route, UtensilsCrossed } from "lucide-react";
 import { CountdownTimer } from "./CountdownTimer";
 import DiscountBadge from "./DiscountBadge";

@@ -11,7 +11,7 @@ import HeadingWithAccent from "@/components/HeadingWithAccent";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { X } from "lucide-react";
 // import Img from "@/components/Img";
-import Image from "next/image";
+
 import { formatPrice } from "@/lib/constants";
 
 const ItemDetailsModal = ({
@@ -75,11 +75,11 @@ const ItemDetailsModal = ({
 
           {item.image_url && (
             <div className="w-full h-[200px] overflow-hidden rounded-3xl relative">
-              <Image
+              <img
                 src={item.image_url}
                 alt={item.name}
-                fill
                 className="object-cover rounded-3xl"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             </div>
           )}

@@ -3,7 +3,7 @@ import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import React from "react";
 // import Img from "@/components/Img";
-import Image from "next/image";
+
 import {
   Dialog,
   DialogClose,
@@ -21,13 +21,12 @@ const HotelBanner = ({ styles, hoteldata }: { styles: Styles; hoteldata: HotelDa
           style={styles.border}
           className="relative h-[130px] aspect-square rounded-full overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
         >
-          <Image
+          <img
             src={hoteldata?.store_banner || "/image_placeholder.png"}
             alt={hoteldata?.store_name}
-            fill
             className="object-cover"
-            priority={true}
             fetchPriority="high"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         </div>
       </DialogTrigger>
@@ -43,11 +42,11 @@ const HotelBanner = ({ styles, hoteldata }: { styles: Styles; hoteldata: HotelDa
           </DialogClose>
 
           {/* Full-size image */}
-          <Image
+          <img
             src={hoteldata?.store_banner || "/image_placeholder.png"}
             alt={hoteldata?.store_name}
-            fill
             className="object-contain"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         </div>
       </DialogContent>

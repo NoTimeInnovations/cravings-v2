@@ -1,7 +1,7 @@
 "use client";
 import Img from "@/components/Img";
 import { useAuthStore } from "@/store/authStore";
-import Image from "next/image";
+
 import { useRouter } from "next/navigation";
 import React, { useEffect } from "react";
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
+
 import { Loader2, Check, AlertCircle, Upload, ClipboardPaste, Image as ImageIcon, X } from "lucide-react";
 import AIImageGenerateModal from "@/components/AIImageGenerateModal";
 import { useMenuStore } from "@/store/menuStore_hasura";

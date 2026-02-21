@@ -1,6 +1,6 @@
 import { getAllPartnersQuery } from '@/api/partners'
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import Image from 'next/image'
+
 import Link from 'next/link'
 
 export default async function HotelsPage() {
@@ -19,13 +19,11 @@ export default async function HotelsPage() {
             className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col border-2"
           >
             <div className="relative h-32 w-full">
-              <Image
+              <img
                 src={partner.store_banner || '/default-banner.jpg'}
                 alt={partner.store_name}
-                fill
                 className="object-cover rounded-t-lg"
-                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                priority={false}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             </div>
             

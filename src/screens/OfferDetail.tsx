@@ -20,7 +20,7 @@ import { CountdownTimer } from "@/components/CountdownTimer";
 import { Partner, useAuthStore } from "@/store/authStore";
 import Share from "@/components/Share";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
+
 import DiscountBadge from "@/components/DiscountBadge";
 import Link from "next/link";
 // import { useReviewsStore } from "@/store/reviewsStore";

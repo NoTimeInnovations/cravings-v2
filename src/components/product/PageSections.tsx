@@ -51,8 +51,6 @@ interface CTAProps {
     };
 }
 
-// Added Image import at the top of the file
-import Image from "next/image";
 import { ArrowRight, HelpCircle } from "lucide-react";
 
 export function CTASection({ data }: CTAProps) {
@@ -110,7 +108,7 @@ export function CTASection({ data }: CTAProps) {
                     <div className="flex-1 relative w-full flex justify-center lg:justify-end">
                         <div className="relative w-full max-w-[600px]">
                             {/* Using the same image as root page */}
-                            <Image
+                            <img
                                 src="/hero-image.png"
                                 alt="Dashboard Mockup"
                                 width={1200}

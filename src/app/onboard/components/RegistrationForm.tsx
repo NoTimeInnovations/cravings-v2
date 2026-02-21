@@ -19,7 +19,7 @@ import { MapPin } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useLocationStore } from "@/store/locationStore";
 import { BusinessRegistrationData } from "../page";
-import Image from "next/image";
+
 
 // Define the validation schema
 const registrationSchema = z.object({
@@ -364,7 +364,7 @@ export default function RegistrationForm({
           <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-md p-6 h-[150px] relative">
             {logoPreview ? (
               <div className="relative w-24 h-24">
-                <Image
+                <img
                   src={logoPreview}
                   alt="Business Logo"
                   width={96}
