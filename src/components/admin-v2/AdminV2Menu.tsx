@@ -32,7 +32,7 @@ import { formatDisplayName, useCategoryStore } from "@/store/categoryStore_hasur
 import axios from "axios";
 
 // Free plan IDs that should not see the "Get all images" button
-const FREE_PLAN_IDS = ["int_free", "in_trial"];
+const FREE_PLAN_IDS = ["in_trial"];
 
 export function AdminV2Menu() {
     const {

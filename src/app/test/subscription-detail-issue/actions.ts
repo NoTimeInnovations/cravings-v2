@@ -23,7 +23,7 @@ export async function fixPartnerSubscription(partnerId: string) {
     const isIndia = partner.country === "IN";
     const defaultPlan = isIndia
       ? plans.india.find((p) => p.id === "in_trial")
-      : plans.international.find((p) => p.id === "int_free");
+      : plans.international.find((p) => p.id === "int_digital_monthly");
 
     let subDetails = partner.subscription_details || {
       status: "active",

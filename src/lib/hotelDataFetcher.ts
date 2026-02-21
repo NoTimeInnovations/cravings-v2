@@ -283,7 +283,7 @@ export async function processHotelPage(
         scanStats?.qr_scans_aggregate?.aggregate?.count || 0;
 
       const limit =
-        planDetails.max_scan_count ?? planDetails.scan_limit ?? 1000;
+        (planDetails as any).max_scan_count ?? planDetails.scan_limit ?? 1000;
       const isUnlimited = limit === -1;
 
       if (!isUnlimited && currentTotalScans >= limit) {

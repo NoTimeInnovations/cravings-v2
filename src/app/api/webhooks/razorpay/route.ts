@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { revalidateTag } from "@/app/actions/revalidate";
+import plansData from "@/data/plans.json";
+
+// Build set of all valid Razorpay plan IDs from plans.json
+const VALID_RZ_PLAN_IDS = new Set(
+    [...plansData.india, ...plansData.international]
+        .flatMap((p: any) => [p.rz_plan_id, p.rz_plan_id_test])
+        .filter(Boolean)
+);
 
 export async function POST(req: NextRequest) {
     try {
@@ -27,7 +35,8 @@ export async function POST(req: NextRequest) {
         const event = JSON.parse(bodyText);
         const subscription = event.payload.subscription.entity;
 
-        if (!["plan_RtsiLYTs1J0XAP", "plan_RtsjPhPF68TVwL"].includes(subscription.plan_id)) {
+        if (!VALID_RZ_PLAN_IDS.has(subscription.plan_id)) {
+            console.log(`Ignoring webhook for unknown plan_id: ${subscription.plan_id}`);
             return NextResponse.json({ status: "ok" });
         }
 

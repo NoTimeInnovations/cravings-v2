@@ -48,13 +48,11 @@ const PricingSection = ({
   const displayPlans = !isIndia ? plansData.international : plansData.india;
 
   useEffect(() => {
-    if (isIndia) {
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.async = true;
-      document.body.appendChild(script);
-    }
-  }, [isIndia]);
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    document.body.appendChild(script);
+  }, []);
 
   // New India Plans Data
   const indiaPlans = {
@@ -161,6 +159,44 @@ const PricingSection = ({
     },
   };
 
+  // International Plan Data
+  const internationalPlan = {
+    id: "digital",
+    title: "Digital Menu",
+    description: "Essential digital menu for your restaurant",
+    icon: QrCode,
+    color: "text-blue-600",
+    bg: "bg-blue-100",
+    features: [
+      "Digital menu",
+      "Unlimited items",
+      "QR code generation",
+      "Unlimited edits",
+      "Priority chat support",
+    ],
+    variants: [
+      {
+        id: "int_digital_monthly",
+        name: "Digital Menu Monthly",
+        price: "19",
+        period: "/month",
+        billed: "Billed monthly",
+        type: "monthly",
+        rz_plan_id: "plan_SIjWQgXZj9I2Vx",
+      },
+      {
+        id: "int_digital",
+        name: "Digital Menu Yearly",
+        price: "190",
+        period: "/year",
+        billed: "Billed annually",
+        type: "yearly",
+        savings: "Save $38",
+        rz_plan_id: "plan_SIjXPD8frrA8TZ",
+      },
+    ],
+  };
+
   const [selectedVariants, setSelectedVariants] = useState<
     Record<string, number>
   >({
@@ -169,8 +205,10 @@ const PricingSection = ({
     billing: 0,
   });
 
+  const [selectedIntlVariant, setSelectedIntlVariant] = useState(1); // Default to yearly
+
   // Helper to check if plan is free
-  const isPlanFree = (pid: string) => pid === "int_free" || pid === "in_trial";
+  const isPlanFree = (pid: string) => pid === "in_trial";
   const isFreePlanUsed = (userData as any)?.subscription_details
     ?.isFreePlanUsed;
 
@@ -270,7 +308,7 @@ const PricingSection = ({
         const phone = (userData as any).phone || "";
         const storeName = (userData as any).store_name || "Store";
 
-        if (isIndia) {
+        if (plan.rz_plan_id) {
           await handlePayment(plan);
           return;
         }
@@ -432,6 +470,16 @@ const PricingSection = ({
       name: category.title, // Use category title context
       description: category.description,
       // Ensure compatibility with existing logic
+      period_days: selectedVariant.type === "monthly" ? 30 : 365,
+    });
+  };
+
+  const handleInternationalPlanClick = () => {
+    const selectedVariant = internationalPlan.variants[selectedIntlVariant];
+    handlePlanClick({
+      ...selectedVariant,
+      name: internationalPlan.title,
+      description: internationalPlan.description,
       period_days: selectedVariant.type === "monthly" ? 30 : 365,
     });
   };
@@ -603,137 +651,83 @@ const PricingSection = ({
             </Tabs>
           </div>
         ) : (
-          // International Layout (Existing)
-          <div className="flex flex-nowrap overflow-x-auto snap-x snap-mandatory gap-4 px-4 pb-4 -mx-4 md:grid md:grid-cols-3 md:gap-8 md:overflow-visible md:p-0 md:m-0 scrollbar-hidden">
-            {displayPlans.map((plan: any, index: number) => {
-              const isThisPlanFree = isPlanFree(plan.id);
-
-              // Check if this is the user's current plan
-              const currentPlanId = (userData as any)?.subscription_details
-                ?.plan?.id;
-              const isCurrentPlan = userData && currentPlanId === plan.id;
-
-              const isPlanDisabled =
-                plan.disabled ||
-                (isFreePlanUsed && isThisPlanFree) ||
-                isCurrentPlan;
-
-              // Determine Button Text Logic
-              let buttonText = plan.buttonText || "Get Plan";
-
-              if (isCurrentPlan) {
-                // Logic: Signed in and this is their active plan
-                buttonText = "Current Plan";
-              } else if (isThisPlanFree && isFreePlanUsed) {
-                // Logic: It's a free plan, but they already used their trial
-                buttonText = "Trial Used";
-              } else if (!userData && !isThisPlanFree) {
-                // Logic: Not signed in, looking at a paid plan -> CTA to start trial/signup
-                buttonText = "Get Free Trial";
-              } else if (
-                userData &&
-                isIndia &&
-                isFreePlanUsed &&
-                !isThisPlanFree
-              ) {
-                // Logic: Signed in, India, Trial Used, looking at a Paid Plan
-                buttonText = "Get Now";
-              } else if (!userData && plan.contact_sales) {
-                buttonText = "Get Plan";
-              }
-
-              return (
+          // International Layout - Single plan with monthly/yearly toggle
+          <div className="bg-white rounded-3xl border border-stone-200 overflow-hidden max-w-xl mx-auto">
+            <div className="p-6 md:p-10">
+              <div className="flex flex-col items-center">
                 <div
-                  key={index}
-                  className={`relative min-w-[75vw] md:min-w-0 snap-center bg-white rounded-2xl md:rounded-3xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 ${
-                    plan.popular
-                      ? "border-[#B5581A]/30 ring-2 ring-[#F4E0D0]"
-                      : "border-stone-200"
-                  }`}
+                  className={`w-16 h-16 rounded-2xl ${internationalPlan.bg} ${internationalPlan.color} flex items-center justify-center mb-6`}
                 >
-                  {plan.popular && (
-                    <div className="absolute top-0 inset-x-0 bg-[#B5581A] py-1 text-white text-[10px] md:text-xs font-semibold tracking-wide uppercase">
-                      Most Popular
-                    </div>
-                  )}
+                  <internationalPlan.icon className="w-8 h-8" />
+                </div>
 
-                  <div
-                    className={`p-5 md:p-8 ${plan.popular ? "pt-7 md:pt-10" : ""} flex flex-col h-full`}
-                  >
-                    <div className="mb-3 md:mb-6">
-                      <h3 className="text-lg md:text-xl font-semibold text-stone-900 mb-1 md:mb-2">
-                        {plan.name}
-                      </h3>
-                      <p className="text-stone-500 text-xs md:text-sm min-h-[2.5rem] md:h-10">
-                        {plan.description}
-                      </p>
-                    </div>
+                <h3 className="text-3xl font-semibold text-stone-900 mb-2">
+                  {internationalPlan.title}
+                </h3>
+                <p className="text-stone-500 mb-8">
+                  {internationalPlan.description}
+                </p>
 
-                    <div className="flex flex-col items-center mb-4 md:mb-8">
-                      <div className="flex items-baseline justify-center">
-                        <span className="text-3xl md:text-4xl font-semibold text-stone-900">
-                          {plan.price}
-                        </span>
-                        {plan.period && (
-                          <span className="text-stone-500 font-medium ml-1 text-xs md:text-base">
-                            {plan.period}
+                {/* Pricing Cards selection */}
+                <div className="grid gap-4 w-full mb-8 grid-cols-1 md:grid-cols-2 max-w-2xl">
+                  {internationalPlan.variants.map((variant, index) => {
+                    const isActuallySelected = selectedIntlVariant === index;
+
+                    return (
+                      <div
+                        key={index}
+                        onClick={() => setSelectedIntlVariant(index)}
+                        className={cn(
+                          "cursor-pointer rounded-xl p-6 border-2 transition-all relative",
+                          isActuallySelected
+                            ? "border-[#B5581A] bg-[#F4E0D0]/30 ring-1 ring-[#B5581A]/20"
+                            : "border-stone-200 hover:border-gray-200 bg-white",
+                        )}
+                      >
+                        <h4 className="font-semibold text-stone-900 mb-1">
+                          {variant.type === "monthly" ? "Monthly" : "Yearly"}
+                        </h4>
+                        <div className="flex items-baseline justify-center gap-1">
+                          <span className="text-2xl font-semibold text-stone-900">
+                            ${variant.price}
+                          </span>
+                        </div>
+                        <p className="text-xs text-stone-400 mt-1">
+                          {variant.billed}
+                        </p>
+
+                        {(variant as any).savings && (
+                          <span className="absolute top-3 right-3 text-[10px] font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                            {(variant as any).savings}
                           </span>
                         )}
                       </div>
-                      {plan.yearly_price && (
-                        <span className="text-xs text-stone-400 mt-1">
-                          Billed {plan.yearly_price} Yearly
-                        </span>
-                      )}
-                      {!plan.yearly_price && plan.period === "/year" && (
-                        <span className="text-xs text-stone-400 mt-1">
-                          Billed Yearly
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="space-y-2 md:space-y-4 mb-6 md:mb-8 flex-grow">
-                      {plan.features.map((feature: string, i: number) => (
-                        <div
-                          key={i}
-                          className="flex items-start gap-2 md:gap-3 text-left"
-                        >
-                          <div className="mt-0.5 w-4 h-4 md:w-5 md:h-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                            <Check className="h-2.5 w-2.5 md:h-3 md:w-3 text-green-600" />
-                          </div>
-                          <span className="text-stone-700 text-xs md:text-sm leading-tight">
-                            {feature}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {isPlanDisabled ? (
-                      <ButtonV2
-                        disabled
-                        variant="secondary"
-                        showArrow={false}
-                        className="w-full justify-center mt-auto"
-                      >
-                        {buttonText}
-                      </ButtonV2>
-                    ) : (
-                      <div className="block w-full mt-auto">
-                        <ButtonV2
-                          onClick={() => handlePlanClick(plan)}
-                          disabled={isCreatingAccount}
-                          variant={plan.popular ? "primary" : "secondary"}
-                          showArrow={false}
-                          className="w-full justify-center"
-                        >
-                          {buttonText}
-                        </ButtonV2>
-                      </div>
-                    )}
-                  </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+
+                {/* Features */}
+                <div className="flex flex-col gap-3 text-left max-w-md w-full mb-8">
+                  {internationalPlan.features.map((feature, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <div className="mt-0.5 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                        <Check className="h-3 w-3 text-green-600" />
+                      </div>
+                      <span className="text-stone-700 text-sm">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <ButtonV2
+                  onClick={() => handleInternationalPlanClick()}
+                  variant="primary"
+                  showArrow={false}
+                  className="w-full max-w-md justify-center h-12"
+                >
+                  Get Started
+                </ButtonV2>
+              </div>
+            </div>
           </div>
         )}
 

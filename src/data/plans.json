@@ -1,65 +1,45 @@
 {
     "international": [
         {
-            "id": "int_free",
-            "name": "Free",
-            "price": "$0",
-            "description": "Perfect for trying out Menuthere",
+            "id": "int_digital_monthly",
+            "rz_plan_id": "plan_SIjWQgXZj9I2Vx",
+            "name": "Digital Menu Monthly",
+            "price": "$19",
+            "description": "Essential digital menu for your restaurant",
             "features": [
-                "20 days validity",
-                "Unlimited scans",
-                "Unlimited offers",
+                "Digital menu",
+                "Unlimited items",
+                "QR code generation",
                 "Unlimited edits",
-                "Chat support"
+                "Priority chat support"
             ],
-            "buttonText": "Start Free",
+            "buttonText": "Get Started",
             "popular": false,
-            "period": "",
-            "period_days": 20,
-            "max_scan_count": -1,
+            "period": "/month",
+            "period_days": 30,
+            "disabled": false,
             "scan_limit": -1
         },
         {
-            "id": "int_standard",
-            "name": "Standard",
-            "price": "$9",
-            "description": "For growing restaurants",
+            "id": "int_digital",
+            "rz_plan_id": "plan_SIjXPD8frrA8TZ",
+            "name": "Digital Menu Yearly",
+            "price": "$190",
+            "description": "Essential digital menu for your restaurant",
             "features": [
-                "500 scans per month",
-                "Unlimited offers",
+                "Digital menu",
+                "Unlimited items",
+                "QR code generation",
                 "Unlimited edits",
                 "Priority chat support"
             ],
-            "buttonText": "Contact Sales",
-            "popular": false,
-            "disabled": false,
-            "contact_sales": true,
-            "period": "/month",
-            "period_days": 365,
-            "max_scan_count": 500,
-            "scan_limit": -1,
-            "yearly_price": "$108"
-        },
-        {
-            "id": "int_plus",
-            "name": "Plus",
-            "price": "$29",
-            "description": "For growing businesses",
-            "features": [
-                "Unlimited scans",
-                "Unlimited offers",
-                "Unlimited edits",
-                "Priority chat support"
-            ],
-            "buttonText": "Contact Sales",
+            "buttonText": "Get Started",
             "popular": true,
-            "disabled": false,
-            "contact_sales": true,
-            "period": "/month",
+            "period": "/year",
             "period_days": 365,
-            "max_scan_count": -1,
+            "disabled": false,
             "scan_limit": -1,
-            "yearly_price": "$348"
+            "savings": "Save $38"
         }
     ],
     "india": [
