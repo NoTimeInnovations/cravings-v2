@@ -18,7 +18,7 @@ const WhatsappGroupJoinAlertDialog = dynamic(() => import("@/components/Whatsapp
 const MENUTHERE_CONFIG: DomainConfig = {
   name: "Menuthere",
   title:
-    "Menuthere | Free QR Code Digital Menu for Restaurants, Cafes & Hotels",
+    "Menuthere | QR Code Digital Menu for Restaurants, Cafes & Hotels",
   description:
     "Create your free QR code digital menu in minutes. Real-time updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants, cafes & hotels.",
   logo: "/menuthere-logo.png",
@@ -29,7 +29,7 @@ const MENUTHERE_CONFIG: DomainConfig = {
 
 export const metadata: Metadata = {
   title:
-    "Menuthere | Free QR Code Digital Menu for Restaurants, Cafes & Hotels",
+    "Menuthere | QR Code Digital Menu for Restaurants, Cafes & Hotels",
   description:
     "Create your free QR code digital menu in minutes. Real-time updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants, cafes & hotels.",
   icons: {
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title:
-      "Menuthere | Free QR Code Digital Menu for Restaurants, Cafes & Hotels",
+      "Menuthere | QR Code Digital Menu for Restaurants, Cafes & Hotels",
     description:
       "Create your free QR code digital menu in minutes. Real-time updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants, cafes & hotels.",
     type: "website",
