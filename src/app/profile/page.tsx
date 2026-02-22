@@ -504,7 +504,7 @@ export default function ProfilePage() {
       });
       revalidateTag(userData?.id as string);
       signOut();
-      router.push("/explore");
+      router.push("/");
     } catch (error) {
       console.error("Error deleting account:", error);
       setError("Failed to delete account. Please try again.");
@@ -1804,7 +1804,7 @@ export default function ProfilePage() {
               <div
                 onClick={() => {
                   signOut();
-                  router.push("/explore");
+                  router.push("/");
                 }}
                 className="cursor-pointer hover:text-red-500 transition-all rounded-full flex flex-col items-center justify-center gap-1 text-gray-500"
               >

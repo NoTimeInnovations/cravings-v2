@@ -136,8 +136,8 @@ const PricingSection = ({
       tabLabel: "Billing",
       description: "Advanced billing for efficient restaurant management.",
       icon: Printer,
-      color: "text-[#B5581A]",
-      bg: "bg-[#F4E0D0]/70",
+      color: "text-orange-600",
+      bg: "bg-orange-100/70",
       features: [
         "Fully online and offline billing",
         "Remote reports tracking",
@@ -593,7 +593,7 @@ const PricingSection = ({
                             className={cn(
                               "cursor-pointer rounded-xl p-6 border-2 transition-all relative",
                               isActuallySelected
-                                ? "border-[#B5581A] bg-[#F4E0D0]/30/30 ring-1 ring-[#B5581A]/20"
+                                ? "border-orange-600 bg-orange-100/30/30 ring-1 ring-orange-600/20"
                                 : "border-stone-200 hover:border-gray-200 bg-white",
                             )}
                           >
@@ -680,7 +680,7 @@ const PricingSection = ({
                         className={cn(
                           "cursor-pointer rounded-xl p-6 border-2 transition-all relative",
                           isActuallySelected
-                            ? "border-[#B5581A] bg-[#F4E0D0]/30 ring-1 ring-[#B5581A]/20"
+                            ? "border-orange-600 bg-orange-100/30 ring-1 ring-orange-600/20"
                             : "border-stone-200 hover:border-gray-200 bg-white",
                         )}
                       >

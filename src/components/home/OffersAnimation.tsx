@@ -102,7 +102,7 @@ function OffersAnimationInner({ onComplete }: { onComplete: () => void }) {
                       {offer.original}
                     </span>
                     {applied && (
-                      <span className="text-xs md:text-lg font-bold text-[#a64e2a] animate-[fadeSlideIn_0.4s_ease-out]">
+                      <span className="text-xs md:text-lg font-bold text-orange-600 animate-[fadeSlideIn_0.4s_ease-out]">
                         {offer.discounted}
                       </span>
                     )}
@@ -110,13 +110,13 @@ function OffersAnimationInner({ onComplete }: { onComplete: () => void }) {
                 </div>
                 <span className={`inline-block text-[7px] md:text-[10px] font-bold px-1.5 md:px-2.5 py-0.5 rounded-full w-fit mt-1 md:mt-2 transition-all duration-400 ${
                   applied
-                    ? "bg-[#a64e2a] text-white opacity-100"
+                    ? "bg-orange-600 text-white opacity-100"
                     : "bg-transparent text-transparent opacity-0"
                 }`}>
                   {offer.badge}
                 </span>
               </div>
-              <div className="w-10 h-10 md:w-18 md:h-18 rounded-lg md:rounded-xl flex-shrink-0 bg-[#a64e2a]/10 flex items-center justify-center text-xl md:text-4xl">
+              <div className="w-10 h-10 md:w-18 md:h-18 rounded-lg md:rounded-xl flex-shrink-0 bg-orange-600/10 flex items-center justify-center text-xl md:text-4xl">
                 {offer.emoji}
               </div>
             </div>
@@ -128,10 +128,10 @@ function OffersAnimationInner({ onComplete }: { onComplete: () => void }) {
       <div ref={buttonRef} className="w-full bg-[#fcfbf7] rounded-lg md:rounded-xl shadow-md border border-stone-200 px-3 md:px-5 py-2 md:py-3">
         <div className={`w-full flex items-center justify-center gap-1.5 md:gap-2 rounded-md md:rounded-lg py-1.5 md:py-2.5 px-3 md:px-4 transition-all duration-300 ${
           phase === "clicking"
-            ? "bg-[#a64e2a] scale-95"
+            ? "bg-orange-600 scale-95"
             : phase === "applying"
-              ? "bg-[#a64e2a] scale-95"
-              : "bg-[#a64e2a]"
+              ? "bg-orange-600 scale-95"
+              : "bg-orange-600"
         }`}>
           {phase === "applying" ? (
             <div className="w-3 h-3 md:w-4 md:h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

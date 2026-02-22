@@ -65,7 +65,7 @@ export default function Login() {
         localStorage?.removeItem("redirectPath");
         navigate.push(redirectPath);
       } else {
-        navigate.push("/explore");
+        navigate.push("/");
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to sign in");
@@ -103,15 +103,12 @@ export default function Login() {
       <div className="w-full max-w-sm sm:max-w-md bg-white rounded-xl p-5 sm:p-8">
         <div className="flex flex-col items-center mb-6 sm:mb-8">
           <img
-            src="/menuthere-logo.png"
+            src="/menuthere_logo_full.svg"
             alt="Menuthere"
-            width={48}
-            height={48}
-            className="h-10 w-10 sm:h-12 sm:w-12 object-contain mb-3"
+            width={171}
+            height={46}
+            className="h-12 sm:h-10 w-auto object-contain mb-3"
           />
-          <h1 className="text-2xl sm:text-3xl font-semibold text-stone-900 text-center">
-            Welcome to Menuthere
-          </h1>
         </div>
 
         <div className="flex gap-2 mb-6">
@@ -161,7 +158,7 @@ export default function Login() {
                     );
                   }}
                   required
-                  className="flex-1 min-w-0 h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-[#B5581A]/30 focus-visible:border-[#B5581A]/50"
+                  className="flex-1 min-w-0 h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
                 />
               </div>
             </div>
@@ -189,7 +186,7 @@ export default function Login() {
                   setPartnerData({ ...partnerData, email: e.target.value })
                 }
                 required
-                className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-[#B5581A]/30 focus-visible:border-[#B5581A]/50"
+                className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
               />
             </div>
             <div className="space-y-2">
@@ -205,7 +202,7 @@ export default function Login() {
                   setPartnerData({ ...partnerData, password: e.target.value })
                 }
                 required
-                className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-[#B5581A]/30 focus-visible:border-[#B5581A]/50"
+                className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
               />
             </div>
             <ButtonV2

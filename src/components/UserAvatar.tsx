@@ -98,7 +98,7 @@ const UserAvatar = ({ userData, align = "right", label, className }: { userData:
       }
 
       setTimeout(() => {
-        router.push("/explore");
+        router.push("/");
         router.refresh();
       }, 1000);
 

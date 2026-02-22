@@ -6,7 +6,7 @@ function StarIcon({ filled, className }: { filled: boolean; className?: string }
   return (
     <svg
       className={`${className} transition-all duration-300 ${
-        filled ? "text-[#a64e2a] scale-110" : "text-stone-200 scale-100"
+        filled ? "text-orange-600 scale-110" : "text-stone-200 scale-100"
       }`}
       fill={filled ? "currentColor" : "none"}
       stroke="currentColor"
@@ -94,7 +94,7 @@ function ReviewsAnimationInner({ onComplete }: { onComplete: () => void }) {
       {/* Recent review */}
       <div className="w-full bg-[#fcfbf7] rounded-lg md:rounded-xl shadow-md border border-stone-200 px-3 md:px-5 py-2.5 md:py-4">
         <div className="flex items-center gap-1.5 md:gap-2 mb-1 md:mb-2">
-          <div className="w-5 h-5 md:w-7 md:h-7 rounded-full bg-[#a64e2a]/15 flex items-center justify-center text-[10px] md:text-xs font-bold text-[#a64e2a]">
+          <div className="w-5 h-5 md:w-7 md:h-7 rounded-full bg-orange-600/15 flex items-center justify-center text-[10px] md:text-xs font-bold text-orange-600">
             S
           </div>
           <span className="text-[10px] md:text-xs font-medium text-stone-700">

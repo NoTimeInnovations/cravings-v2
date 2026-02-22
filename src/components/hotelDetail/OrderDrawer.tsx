@@ -517,7 +517,7 @@ const OrderDrawer = ({
                   )}
                 </Label>
                 <div className="flex gap-3">
-                  <div className="flex items-center justify-center px-4 sm:px-5 bg-[#F4E0D0]/30 rounded-2xl text-base font-bold text-[#B5581A] border border-[#B5581A]/20">
+                  <div className="flex items-center justify-center px-4 sm:px-5 bg-orange-100/30 rounded-2xl text-base font-bold text-orange-600 border border-orange-600/20">
                     {hotelData?.country_code || '+91'}
                   </div>
                   <Input
@@ -531,7 +531,7 @@ const OrderDrawer = ({
                       setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, maxDigits));
                     }}
                     autoFocus
-                    className="flex-1 rounded-2xl text-gray-900 placeholder:text-gray-400 bg-white border-stone-200 focus:border-[#B5581A] focus:ring-2 focus:ring-[#B5581A]/20 h-14 text-base px-4 sm:px-5 transition-all duration-200"
+                    className="flex-1 rounded-2xl text-gray-900 placeholder:text-gray-400 bg-white border-stone-200 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20 h-14 text-base px-4 sm:px-5 transition-all duration-200"
                   />
                 </div>
               </div>
@@ -541,7 +541,7 @@ const OrderDrawer = ({
                 <button
                   onClick={handleLoginAndProceed}
                   disabled={isSubmitting || !phoneNumber}
-                  className="w-full px-6 py-4 bg-[#F4E0D0]/70 text-[#B5581A] rounded-full hover:bg-[#B5581A] hover:text-white border border-[#B5581A]/30 hover:border-[#B5581A] transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                  className="w-full px-6 py-4 bg-orange-100/70 text-orange-600 rounded-full hover:bg-orange-600 hover:text-white border border-orange-600/30 hover:border-orange-600 transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
                 >
                   {isSubmitting ? (
                     <span className="flex items-center justify-center gap-2">
@@ -564,11 +564,11 @@ const OrderDrawer = ({
               {/* Privacy Note */}
               <p className="text-xs text-stone-500 text-center leading-relaxed pt-2">
                 By continuing, you agree to our{" "}
-                <span className="text-[#B5581A] hover:underline cursor-pointer">
+                <span className="text-orange-600 hover:underline cursor-pointer">
                   Terms of Service
                 </span>{" "}
                 and{" "}
-                <span className="text-[#B5581A] hover:underline cursor-pointer">
+                <span className="text-orange-600 hover:underline cursor-pointer">
                   Privacy Policy
                 </span>
               </p>

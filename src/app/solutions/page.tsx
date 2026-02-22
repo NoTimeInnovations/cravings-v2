@@ -174,16 +174,16 @@ export default async function SolutionsPage() {
               href={`/solutions/${solution.slug}`}
               className="group relative bg-white rounded-xl border border-stone-200 p-6 hover:border-stone-400 transition-all duration-300"
             >
-              <div className="w-10 h-10 rounded-lg bg-[#F4E0D0]/70 flex items-center justify-center mb-4 group-hover:bg-[#B5581A] transition-colors duration-300">
-                <solution.icon className="w-5 h-5 text-[#B5581A] group-hover:text-white transition-colors duration-300" />
+              <div className="w-10 h-10 rounded-lg bg-orange-100/70 flex items-center justify-center mb-4 group-hover:bg-orange-600 transition-colors duration-300">
+                <solution.icon className="w-5 h-5 text-orange-600 group-hover:text-white transition-colors duration-300" />
               </div>
-              <h3 className="text-base font-semibold text-stone-900 mb-1 group-hover:text-[#B5581A] transition-colors">
+              <h3 className="text-base font-semibold text-stone-900 mb-1 group-hover:text-orange-600 transition-colors">
                 {solution.title}
               </h3>
               <p className="text-stone-500 text-sm leading-relaxed">
                 {solution.shortDesc}
               </p>
-              <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[#B5581A] opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity">
                 Learn more
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
               </div>
@@ -210,8 +210,8 @@ export default async function SolutionsPage() {
               key={idx}
               className="bg-white rounded-xl p-6 border border-stone-200"
             >
-              <div className="w-10 h-10 rounded-lg bg-[#F4E0D0]/70 flex items-center justify-center mb-4">
-                <feature.icon className="w-5 h-5 text-[#B5581A]" />
+              <div className="w-10 h-10 rounded-lg bg-orange-100/70 flex items-center justify-center mb-4">
+                <feature.icon className="w-5 h-5 text-orange-600" />
               </div>
               <h3 className="text-base font-semibold text-stone-900 mb-2">
                 {feature.title}
@@ -257,7 +257,7 @@ export default async function SolutionsPage() {
             </ul>
             <Link
               href="/solutions/google-business"
-              className="inline-flex items-center gap-2 text-sm font-medium text-[#B5581A] hover:text-[#9a4a15] transition-colors group"
+              className="inline-flex items-center gap-2 text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors group"
             >
               Learn about Google Business Manager
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

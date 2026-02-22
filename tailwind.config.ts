@@ -17,7 +17,7 @@ export default {
 			},
 			fontFamily: {
 				handwriting: ['var(--font-dancing-script)', 'cursive'],
-				sans: ['var(--font-inter)', 'SuisseIntl-Regular', 'sans-serif'],
+				sans: ['var(--font-geist)', 'var(--font-inter)', 'sans-serif'],
 			},
 			colors: {
 				terracotta: {

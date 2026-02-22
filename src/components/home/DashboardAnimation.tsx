@@ -36,7 +36,7 @@ function AnimCursor({
         />
       </svg>
       {clicking && (
-        <div className="absolute -top-1 -left-1 w-6 h-6 rounded-full bg-[#B5581A]/20 animate-ping" />
+        <div className="absolute -top-1 -left-1 w-6 h-6 rounded-full bg-orange-600/20 animate-ping" />
       )}
     </div>
   );
@@ -82,7 +82,7 @@ function SidebarIcons({ activeIndex }: { activeIndex: number }) {
         <div
           key={i}
           className={`flex items-center justify-center w-full py-2.5 transition-colors ${
-            i === activeIndex ? "text-[#B5581A] bg-[#F4E0D0]/50" : "text-stone-400"
+            i === activeIndex ? "text-orange-600 bg-orange-100/50" : "text-stone-400"
           }`}
         >
           {icon}
@@ -103,7 +103,7 @@ function MenuPreview({
   return (
     <div className="flex flex-col h-full">
       {/* Mini banner */}
-      <div className="relative w-full h-10 md:h-16 bg-gradient-to-br from-[#B5581A] to-[#8B3F10] flex items-center justify-center overflow-hidden">
+      <div className="relative w-full h-10 md:h-16 bg-gradient-to-br from-orange-600 to-orange-700 flex items-center justify-center overflow-hidden">
         <div
           className="absolute inset-0 opacity-10"
           style={{
@@ -135,7 +135,7 @@ function MenuPreview({
             key={cat}
             className={`px-1.5 md:px-2.5 py-1 md:py-1.5 text-[6px] md:text-[9px] font-medium whitespace-nowrap border-b-[1.5px] transition-colors ${
               i === 2
-                ? "text-[#B5581A] border-[#B5581A]"
+                ? "text-orange-600 border-orange-600"
                 : "text-stone-400 border-transparent"
             }`}
           >
@@ -146,7 +146,7 @@ function MenuPreview({
 
       {/* Category heading */}
       <div className="px-2 md:px-3 pt-1.5 md:pt-2.5 pb-1 md:pb-1">
-        <p className="text-[7px] md:text-[10px] font-bold text-[#B5581A]">Entrees</p>
+        <p className="text-[7px] md:text-[10px] font-bold text-orange-600">Entrees</p>
       </div>
 
       {/* Menu items list */}
@@ -167,7 +167,7 @@ function MenuPreview({
                 className={`font-bold transition-all duration-300 ${
                   showOfferBadge
                     ? "text-stone-400 line-through text-[6px] md:text-[8px]"
-                    : "text-[#B5581A] text-[8px] md:text-[11px]"
+                    : "text-orange-600 text-[8px] md:text-[11px]"
                 }`}
               >
                 $18.00
@@ -198,7 +198,7 @@ function MenuPreview({
             <p className="text-[6px] md:text-[8px] text-stone-400 mt-0.5 line-clamp-1">
               Angus beef patty, cheddar, brioche bun
             </p>
-            <p className="text-[8px] md:text-[11px] font-bold text-[#B5581A] mt-0.5 md:mt-1">$14.00</p>
+            <p className="text-[8px] md:text-[11px] font-bold text-orange-600 mt-0.5 md:mt-1">$14.00</p>
           </div>
           <div className="w-10 h-10 md:w-16 md:h-16 rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0">
             <img src="/dashboard/burger.webp" alt="Classic Cheeseburger" className="w-full h-full object-cover" />
@@ -214,7 +214,7 @@ function MenuPreview({
             <p className="text-[6px] md:text-[8px] text-stone-400 mt-0.5 line-clamp-1">
               Atlantic salmon, lemon herb butter
             </p>
-            <p className="text-[8px] md:text-[11px] font-bold text-[#B5581A] mt-0.5 md:mt-1">$22.00</p>
+            <p className="text-[8px] md:text-[11px] font-bold text-orange-600 mt-0.5 md:mt-1">$22.00</p>
           </div>
           <div className="w-10 h-10 md:w-16 md:h-16 rounded-xl md:rounded-2xl overflow-hidden flex-shrink-0">
             <img src="/dashboard/salmon.webp" alt="Grilled Salmon" className="w-full h-full object-cover" />
@@ -395,7 +395,7 @@ function DashboardAnimationInner({ onComplete }: { onComplete: () => void }) {
               <div
                 ref={inputRef}
                 className={`h-6 md:h-9 rounded-md border px-2 md:px-3 flex items-center text-[9px] md:text-sm transition-all duration-300 ${
-                  inputFocused ? "border-[#B5581A]/50 ring-2 ring-[#B5581A]/10 bg-white" : "border-stone-200 bg-stone-50"
+                  inputFocused ? "border-orange-600/50 ring-2 ring-orange-600/10 bg-white" : "border-stone-200 bg-stone-50"
                 }`}
               >
                 <span className="text-stone-900">{typedText}</span>
@@ -430,11 +430,11 @@ function DashboardAnimationInner({ onComplete }: { onComplete: () => void }) {
               <div
                 ref={saveRef}
                 className={`flex items-center justify-center gap-1 h-6 md:h-8 px-2.5 md:px-4 rounded-md text-[8px] md:text-xs font-semibold transition-all duration-300 cursor-default select-none ${
-                  saveState === "clicking" ? "bg-[#B5581A] text-white scale-[0.92]"
-                  : saveState === "saving" ? "bg-[#B5581A] text-white"
+                  saveState === "clicking" ? "bg-orange-600 text-white scale-[0.92]"
+                  : saveState === "saving" ? "bg-orange-600 text-white"
                   : saveState === "saved" ? "bg-green-600 text-white"
-                  : saveState === "hover" ? "bg-[#B5581A] text-white shadow-sm"
-                  : "bg-[#F4E0D0]/70 text-[#B5581A] border border-[#B5581A]/30"
+                  : saveState === "hover" ? "bg-orange-600 text-white shadow-sm"
+                  : "bg-orange-100/70 text-orange-600 border border-orange-600/30"
                 }`}
               >
                 {saveState === "saving" ? (
@@ -450,15 +450,15 @@ function DashboardAnimationInner({ onComplete }: { onComplete: () => void }) {
               <div
                 ref={offerRef}
                 className={`flex items-center justify-center gap-1 h-6 md:h-8 px-2.5 md:px-4 rounded-md text-[8px] md:text-xs font-medium transition-all duration-300 border cursor-default select-none ${
-                  offerState === "clicking" || showDialog ? "border-[#B5581A] bg-[#F4E0D0] text-[#B5581A] scale-[0.92]"
-                  : offerState === "adding" ? "border-[#B5581A] bg-[#F4E0D0]/50 text-[#B5581A]"
+                  offerState === "clicking" || showDialog ? "border-orange-600 bg-orange-100 text-orange-600 scale-[0.92]"
+                  : offerState === "adding" ? "border-orange-600 bg-orange-100/50 text-orange-600"
                   : offerState === "added" ? "border-green-500 bg-green-50 text-green-700"
-                  : offerState === "hover" ? "border-[#B5581A]/50 bg-[#F4E0D0]/30 text-[#B5581A]"
+                  : offerState === "hover" ? "border-orange-600/50 bg-orange-100/30 text-orange-600"
                   : "border-stone-200 text-stone-600 bg-white"
                 }`}
               >
                 {offerState === "adding" ? (
-                  <><div className="w-2 h-2 md:w-3 md:h-3 border-[1.5px] border-[#B5581A] border-t-transparent rounded-full animate-spin" /><span>Applying…</span></>
+                  <><div className="w-2 h-2 md:w-3 md:h-3 border-[1.5px] border-orange-600 border-t-transparent rounded-full animate-spin" /><span>Applying…</span></>
                 ) : offerState === "added" ? (
                   <><svg className="w-2.5 h-2.5 md:w-3 md:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg><span>Offer Added</span></>
                 ) : (
@@ -474,7 +474,7 @@ function DashboardAnimationInner({ onComplete }: { onComplete: () => void }) {
               >
                 <div className="flex items-center justify-between px-2.5 md:px-4 pt-2.5 md:pt-3.5 pb-1.5 md:pb-2">
                   <div className="flex items-center gap-1.5">
-                    <svg className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 text-[#B5581A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
                     </svg>
                     <span className="text-[8px] md:text-xs font-semibold text-stone-800">Add Offer</span>
@@ -486,7 +486,7 @@ function DashboardAnimationInner({ onComplete }: { onComplete: () => void }) {
                 <div className="px-2.5 md:px-4 pb-2.5 md:pb-3.5">
                   <label className="text-[7px] md:text-[10px] font-medium text-stone-500 mb-0.5 md:mb-1 block">Discount Percentage</label>
                   <div className={`h-5 md:h-8 rounded-md border px-2 md:px-2.5 flex items-center gap-0.5 text-[9px] md:text-sm mb-2 md:mb-3 transition-all duration-200 ${
-                    phase === "dialog-typing" ? "border-[#B5581A]/50 ring-2 ring-[#B5581A]/10 bg-white" : "border-stone-200 bg-stone-50"
+                    phase === "dialog-typing" ? "border-orange-600/50 ring-2 ring-orange-600/10 bg-white" : "border-stone-200 bg-stone-50"
                   }`}>
                     <span className="text-stone-900 font-medium">{discountTyped}</span>
                     {phase === "dialog-typing" && <span className="inline-block w-px h-2.5 md:h-3.5 bg-stone-800 animate-pulse" />}
@@ -497,15 +497,15 @@ function DashboardAnimationInner({ onComplete }: { onComplete: () => void }) {
                     <div className="flex items-center justify-between text-[7px] md:text-[10px] text-stone-500 mb-2 md:mb-3 px-0.5 animate-[fadeSlideIn_0.3s_ease-out]">
                       <span>$18.00</span>
                       <span className="text-stone-300">→</span>
-                      <span className="font-semibold text-[#B5581A]">$12.60</span>
+                      <span className="font-semibold text-orange-600">$12.60</span>
                     </div>
                   )}
                   <div
                     ref={applyRef}
                     className={`flex items-center justify-center gap-1 h-5 md:h-7 rounded-md text-[7px] md:text-[11px] font-semibold transition-all duration-200 cursor-default select-none ${
-                      applyState === "clicking" ? "bg-[#B5581A] text-white scale-[0.92]"
-                      : applyState === "hover" ? "bg-[#B5581A] text-white shadow-sm"
-                      : "bg-[#F4E0D0]/70 text-[#B5581A] border border-[#B5581A]/30"
+                      applyState === "clicking" ? "bg-orange-600 text-white scale-[0.92]"
+                      : applyState === "hover" ? "bg-orange-600 text-white shadow-sm"
+                      : "bg-orange-100/70 text-orange-600 border border-orange-600/30"
                     }`}
                   >
                     <span>Apply 30% Off</span>
@@ -546,7 +546,7 @@ function DashboardAnimationInner({ onComplete }: { onComplete: () => void }) {
       />
 
       {/* Glow effect */}
-      <div className="absolute -inset-6 -z-10 bg-gradient-to-b from-[#F4E0D0]/15 via-transparent to-transparent rounded-3xl blur-2xl pointer-events-none" />
+      <div className="absolute -inset-6 -z-10 bg-gradient-to-b from-orange-100/15 via-transparent to-transparent rounded-3xl blur-2xl pointer-events-none" />
     </div>
   );
 }

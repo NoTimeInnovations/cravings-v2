@@ -28,7 +28,7 @@ export function ButtonV2({
   const variants = {
     primary: cn(
       baseStyles,
-      "rounded-full bg-[#F4E0D0]/70 pl-4 pr-1.5 py-2 text-[#B5581A] hover:bg-[#B5581A] hover:text-white border border-[#B5581A]/30 hover:border-[#B5581A] group",
+      "rounded-full bg-orange-100/70 pl-4 pr-1.5 py-2 text-orange-600 hover:bg-orange-600 hover:text-white border border-orange-600/30 hover:border-orange-600 group",
     ),
     secondary: cn(
       baseStyles,
@@ -40,7 +40,7 @@ export function ButtonV2({
     <>
       {children}
       {variant === "primary" && showArrow && (
-        <span className="flex items-center justify-center w-6 h-6 rounded-full border border-[#B5581A]/30 group-hover:border-white/30 transition-all duration-300">
+        <span className="flex items-center justify-center w-6 h-6 rounded-full border border-orange-600/30 group-hover:border-white/30 transition-all duration-300">
           <ArrowRight className="w-3 h-3" />
         </span>
       )}

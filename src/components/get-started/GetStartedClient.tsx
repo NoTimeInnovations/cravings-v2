@@ -365,7 +365,7 @@ const CustomColorPicker = ({
     <Popover>
       <PopoverTrigger asChild>
         <button
-          className="w-full h-10 rounded-lg border border-stone-200 shadow-sm flex items-center justify-between px-3 hover:border-[#B5581A]/30 transition-colors"
+          className="w-full h-10 rounded-lg border border-stone-200 shadow-sm flex items-center justify-between px-3 hover:border-orange-600/30 transition-colors"
           style={{ backgroundColor: color }}
         >
           <span
@@ -1088,12 +1088,12 @@ export default function GetStartedClient({
         />
         <div className="flex flex-col items-center gap-4">
           <div
-            className={`w-12 h-12 md:w-16 md:h-16 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 ${menuFiles.length > 0 ? "bg-green-100" : "bg-[#F4E0D0]/70"}`}
+            className={`w-12 h-12 md:w-16 md:h-16 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 ${menuFiles.length > 0 ? "bg-green-100" : "bg-orange-100/70"}`}
           >
             {menuFiles.length > 0 ? (
               <Check className="w-6 h-6 md:w-8 md:h-8 text-green-600" />
             ) : (
-              <Upload className="w-6 h-6 md:w-8 md:h-8 text-[#B5581A]" />
+              <Upload className="w-6 h-6 md:w-8 md:h-8 text-orange-600" />
             )}
           </div>
           <div className="space-y-1">
@@ -1177,10 +1177,10 @@ export default function GetStartedClient({
 
       <button
         onClick={handleStartWithSampleData}
-        className="w-full h-12 md:h-14 text-base md:text-lg rounded-xl border-2 border-dashed border-[#B5581A]/30 text-[#B5581A] hover:bg-[#F4E0D0]/30 hover:border-[#B5581A]/50 bg-white/50 transition-all group relative overflow-hidden flex items-center justify-center font-medium"
+        className="w-full h-12 md:h-14 text-base md:text-lg rounded-xl border-2 border-dashed border-orange-600/30 text-orange-600 hover:bg-orange-100/30 hover:border-orange-600/50 bg-white/50 transition-all group relative overflow-hidden flex items-center justify-center font-medium"
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-[#F4E0D0]/0 via-[#F4E0D0]/30 to-[#F4E0D0]/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-        <Sparkles className="w-5 h-5 mr-2 text-[#B5581A] group-hover:text-[#B5581A] transition-colors" />
+        <div className="absolute inset-0 bg-gradient-to-r from-orange-100/0 via-orange-100/30 to-orange-100/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+        <Sparkles className="w-5 h-5 mr-2 text-orange-600 group-hover:text-orange-600 transition-colors" />
         <span>Try with Sample Menu</span>
       </button>
     </div>
@@ -1208,7 +1208,7 @@ export default function GetStartedClient({
             placeholder="e.g. The Burger Joint"
             value={hotelDetails.name}
             onChange={handleDetailsChange}
-            className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-[#B5581A]/30 focus-visible:border-[#B5581A]/50 text-sm md:text-base"
+            className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50 text-sm md:text-base"
           />
         </div>
 
@@ -1216,7 +1216,7 @@ export default function GetStartedClient({
           <Label htmlFor="username" className="text-sm">
             Username
           </Label>
-          <div className="flex items-center h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 overflow-hidden focus-within:ring-2 focus-within:ring-[#B5581A]/30 focus-within:ring-offset-0">
+          <div className="flex items-center h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 overflow-hidden focus-within:ring-2 focus-within:ring-orange-600/30 focus-within:ring-offset-0">
             <span className="pl-3 text-sm text-stone-400 whitespace-nowrap select-none">menuthere.com/</span>
             <input
               id="username"
@@ -1261,7 +1261,7 @@ export default function GetStartedClient({
             placeholder="+91 98765 43210"
             value={hotelDetails.phone}
             onChange={handleDetailsChange}
-            className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-[#B5581A]/30 focus-visible:border-[#B5581A]/50 text-sm md:text-base"
+            className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50 text-sm md:text-base"
           />
         </div>
 
@@ -1278,7 +1278,7 @@ export default function GetStartedClient({
             onChange={(e) =>
               setAuthCredentials((prev) => ({ ...prev, email: e.target.value }))
             }
-            className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-[#B5581A]/30 focus-visible:border-[#B5581A]/50 text-sm md:text-base"
+            className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50 text-sm md:text-base"
           />
           <p className="text-xs text-stone-500">
             We'll send your dashboard login details here.
@@ -1296,7 +1296,7 @@ export default function GetStartedClient({
             name="country"
             value={hotelDetails.country}
             onChange={handleDetailsChange}
-            className="w-full h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-900 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B5581A]/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-900 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <option value="" disabled>
               Select Country
@@ -1319,7 +1319,7 @@ export default function GetStartedClient({
               name="state"
               value={hotelDetails.state}
               onChange={handleDetailsChange}
-              className="w-full h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-900 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B5581A]/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-900 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="" disabled>
                 Select State
@@ -1337,7 +1337,7 @@ export default function GetStartedClient({
               placeholder="State / Province"
               value={hotelDetails.state}
               onChange={handleDetailsChange}
-              className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-[#B5581A]/30 focus-visible:border-[#B5581A]/50 text-sm md:text-base"
+              className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50 text-sm md:text-base"
             />
           )}
         </div>
@@ -1352,7 +1352,7 @@ export default function GetStartedClient({
               name="district"
               value={hotelDetails.district}
               onChange={handleDetailsChange}
-              className="w-full h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-900 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B5581A]/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-900 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="" disabled>
                 Select District
@@ -1420,8 +1420,8 @@ export default function GetStartedClient({
           </button>
 
           <div className="text-center space-y-2">
-            <div className="w-16 h-16 bg-[#F4E0D0]/70 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mail className="w-8 h-8 text-[#B5581A]" />
+            <div className="w-16 h-16 bg-orange-100/70 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Mail className="w-8 h-8 text-orange-600" />
             </div>
             <h1 className="text-2xl font-semibold text-stone-900">Change Email</h1>
             <p className="text-stone-500">
@@ -1439,7 +1439,7 @@ export default function GetStartedClient({
                 placeholder="you@example.com"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
-                className="h-12 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-[#B5581A]/30 focus-visible:border-[#B5581A]/50 text-base"
+                className="h-12 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50 text-base"
                 autoFocus
               />
             </div>
@@ -1559,8 +1559,8 @@ export default function GetStartedClient({
       return (
         <div className="max-w-md mx-auto text-center space-y-6 md:space-y-8 animate-in fade-in duration-500 min-h-[50vh] flex flex-col items-center justify-center">
           <div className="space-y-4">
-            <div className="w-16 h-16 md:w-20 md:h-20 bg-[#F4E0D0]/70 rounded-full flex items-center justify-center mx-auto">
-              <Loader2 className="w-8 h-8 md:w-10 md:h-10 text-[#B5581A] animate-spin" />
+            <div className="w-16 h-16 md:w-20 md:h-20 bg-orange-100/70 rounded-full flex items-center justify-center mx-auto">
+              <Loader2 className="w-8 h-8 md:w-10 md:h-10 text-orange-600 animate-spin" />
             </div>
             <h1 className="text-xl md:text-3xl font-semibold tracking-tight text-stone-900">
               Extracting Your Menu
@@ -1609,7 +1609,7 @@ export default function GetStartedClient({
                           !isCustomMode &&
                           selectedPalette.background === palette.background &&
                           selectedPalette.accent === palette.accent
-                            ? "border-[#B5581A] ring-2 ring-[#F4E0D0]"
+                            ? "border-orange-600 ring-2 ring-orange-100"
                             : "border-stone-200 hover:border-stone-300"
                         }`}
                         style={{ backgroundColor: palette.background }}
@@ -1634,7 +1634,7 @@ export default function GetStartedClient({
                       onClick={() => setIsCustomMode(true)}
                       className={`h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 relative overflow-hidden transition-all ${
                         isCustomMode
-                          ? "border-[#B5581A] ring-2 ring-[#F4E0D0]"
+                          ? "border-orange-600 ring-2 ring-orange-100"
                           : "border-stone-200 hover:border-stone-300"
                       } bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100`}
                     >
@@ -1712,7 +1712,7 @@ export default function GetStartedClient({
                       className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${
                         selectedPalette.background === palette.background &&
                         selectedPalette.accent === palette.accent
-                          ? "border-[#B5581A] scale-110 ring-2 ring-[#F4E0D0]"
+                          ? "border-orange-600 scale-110 ring-2 ring-orange-100"
                           : "border-white/50"
                       }`}
                       style={{ backgroundColor: palette.background }}
@@ -1728,7 +1728,7 @@ export default function GetStartedClient({
                     onClick={() => setIsCustomMode(true)}
                     className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${
                       isCustomMode
-                        ? "border-[#B5581A] scale-110 ring-2 ring-[#F4E0D0]"
+                        ? "border-orange-600 scale-110 ring-2 ring-orange-100"
                         : "border-stone-200"
                     } bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100`}
                   >

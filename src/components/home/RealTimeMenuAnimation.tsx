@@ -70,9 +70,9 @@ function RealTimeMenuAnimationInner() {
                 dessert.
               </p>
             </div>
-            <p className="text-sm md:text-xl font-bold text-[#a64e2a] mt-1 md:mt-3">$3.00</p>
+            <p className="text-sm md:text-xl font-bold text-orange-600 mt-1 md:mt-3">$3.00</p>
           </div>
-          <div className="w-12 h-12 md:w-24 md:h-24 rounded-lg md:rounded-2xl overflow-hidden flex-shrink-0 bg-[#a64e2a]/10 flex items-center justify-center text-2xl md:text-5xl">
+          <div className="w-12 h-12 md:w-24 md:h-24 rounded-lg md:rounded-2xl overflow-hidden flex-shrink-0 bg-orange-600/10 flex items-center justify-center text-2xl md:text-5xl">
             🍰
           </div>
         </div>

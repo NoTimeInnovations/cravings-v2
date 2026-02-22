@@ -1245,7 +1245,7 @@ export default async function SolutionPage({
       {/* Hero Section */}
       <section className="flex items-center justify-center px-5 pb-16 pt-32 md:pt-40 bg-[#fcfbf7]">
         <div className="w-full max-w-2xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F4E0D0]/70 text-[#B5581A] text-xs font-medium mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100/70 text-orange-600 text-xs font-medium mb-6">
             <IconComponent className="w-3.5 h-3.5" />
             {solution.title}
           </div>
@@ -1267,7 +1267,7 @@ export default async function SolutionPage({
       </section>
 
       {/* Stats Bar */}
-      <section className="bg-terracotta-600 py-8 border-t border-b border-stone-200">
+      <section className="bg-orange-600 py-8 border-t border-b border-stone-200">
         <div className="max-w-5xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-white text-center">
             {solution.stats.map((stat, idx) => (
@@ -1322,8 +1322,8 @@ export default async function SolutionPage({
               key={idx}
               className="bg-white rounded-xl p-6 border border-stone-200"
             >
-              <div className="w-10 h-10 rounded-lg bg-[#F4E0D0]/70 flex items-center justify-center mb-4">
-                <benefit.icon className="w-5 h-5 text-[#B5581A]" />
+              <div className="w-10 h-10 rounded-lg bg-orange-100/70 flex items-center justify-center mb-4">
+                <benefit.icon className="w-5 h-5 text-orange-600" />
               </div>
               <h3 className="text-base font-semibold text-stone-900 mb-2">
                 {benefit.title}
@@ -1360,7 +1360,7 @@ export default async function SolutionPage({
               ))}
             </div>
           </div>
-          <div className="bg-terracotta-600 rounded-2xl p-8 text-white">
+          <div className="bg-orange-600 rounded-2xl p-8 text-white">
             <IconComponent className="w-12 h-12 mb-6 opacity-80" />
             <h3 className="text-xl font-semibold mb-3">Ready to get started?</h3>
             <p className="text-white/80 mb-6">
@@ -1414,7 +1414,7 @@ export default async function SolutionPage({
       {/* Testimonial */}
       <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] py-20">
         <div className="max-w-3xl mx-auto px-6 md:px-16">
-          <div className="bg-terracotta-600 rounded-2xl p-8 md:p-12 text-white">
+          <div className="bg-orange-600 rounded-2xl p-8 md:p-12 text-white">
             <div className="flex gap-1 mb-6">
               {[1, 2, 3, 4, 5].map((star) => (
                 <Star key={star} className="w-5 h-5 fill-current" />

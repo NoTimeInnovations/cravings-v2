@@ -151,9 +151,13 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL(redirectPath, request.url));
       }
 
-      // User redirects to /explore
+      // User stays on home page
       if (decrypted?.role === "user") {
-        return NextResponse.redirect(new URL("/explore", request.url));
+        return NextResponse.next({
+          request: {
+            headers: requestHeaders,
+          },
+        });
       }
 
       // For users, redirect to their last visited hotel only on an initial page load.
@@ -208,7 +212,7 @@ export async function proxy(request: NextRequest) {
   const roleAccessRules = {
     user: {
       allowed: ["/profile", "/my-orders"],
-      redirect: "/explore",
+      redirect: "/",
     },
     partner: {
       allowed: [
@@ -218,7 +222,7 @@ export async function proxy(request: NextRequest) {
         "/admin/orders",
         "/admin/captain-management",
       ],
-      redirect: "/explore",
+      redirect: "/",
     },
     superadmin: {
       allowed: [
@@ -227,11 +231,11 @@ export async function proxy(request: NextRequest) {
         "/profile",
         "/superadmin/create-partner",
       ],
-      redirect: "/explore",
+      redirect: "/",
     },
     captain: {
       allowed: ["/captain", "/captain/pos"],
-      redirect: "/explore",
+      redirect: "/",
     },
   };
 
@@ -264,7 +268,7 @@ export async function proxy(request: NextRequest) {
   // If no auth token, redirect based on the route
   if (!authToken) {
     const isSuperadminRoute = pathname.startsWith("/superadmin");
-    let redirectPath = isSuperadminRoute ? "/explore" : "/explore";
+    let redirectPath = "/";
 
     if (country !== "IN") {
       redirectPath = "/";
@@ -349,7 +353,7 @@ export async function proxy(request: NextRequest) {
     });
   } catch (error) {
     console.error("Auth verification failed:", error);
-    const redirectPath = country !== "IN" ? "/" : "/explore";
+    const redirectPath = "/";
     const response = NextResponse.redirect(new URL(redirectPath, request.url));
     response.cookies.delete("new_auth_token");
     return response;

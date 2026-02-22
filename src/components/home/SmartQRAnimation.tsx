@@ -50,7 +50,7 @@ function SmartQRAnimationInner({ onComplete }: { onComplete: () => void }) {
                     d="M3 3h7v7H3V3zm11 0h7v7h-7V3zM3 14h7v7H3v-7zm14 3h.01M17 14h.01M14 17h.01M14 14h3v3h-3v-3zm0 3h3v3h-3v-3zm3-3h3v3h-3v-3z"
                   />
                 </svg>
-                <div className="absolute inset-0 border-2 border-[#a64e2a] rounded-lg animate-pulse" />
+                <div className="absolute inset-0 border-2 border-orange-600 rounded-lg animate-pulse" />
               </div>
               <p className="text-[9px] md:text-xs text-stone-400 font-medium">
                 Scanning QR Code...
@@ -60,7 +60,7 @@ function SmartQRAnimationInner({ onComplete }: { onComplete: () => void }) {
 
           {phase === "loading" && (
             <div className="flex flex-col items-center justify-center h-[100px] md:h-[180px] gap-2 md:gap-3">
-              <div className="w-6 h-6 md:w-8 md:h-8 border-2 border-[#a64e2a] border-t-transparent rounded-full animate-spin" />
+              <div className="w-6 h-6 md:w-8 md:h-8 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
               <p className="text-[9px] md:text-xs text-stone-400 font-medium">
                 Loading menu...
               </p>
@@ -81,14 +81,14 @@ function SmartQRAnimationInner({ onComplete }: { onComplete: () => void }) {
                       : "opacity-0 translate-y-2"
                   }`}
                 >
-                  <div className="w-7 h-7 md:w-11 md:h-11 rounded-md md:rounded-lg bg-[#a64e2a]/10 flex items-center justify-center text-sm md:text-xl flex-shrink-0">
+                  <div className="w-7 h-7 md:w-11 md:h-11 rounded-md md:rounded-lg bg-orange-600/10 flex items-center justify-center text-sm md:text-xl flex-shrink-0">
                     {item.emoji}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[9px] md:text-xs font-medium text-stone-900 truncate">
                       {item.name}
                     </p>
-                    <p className="text-[8px] md:text-[11px] font-semibold text-[#a64e2a]">
+                    <p className="text-[8px] md:text-[11px] font-semibold text-orange-600">
                       {item.price}
                     </p>
                   </div>

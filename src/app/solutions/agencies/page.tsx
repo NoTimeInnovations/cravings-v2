@@ -25,7 +25,7 @@ export default function AgenciesPage() {
       {/* Hero Section */}
       <section className="flex items-center justify-center px-5 pb-16 pt-32 md:pt-40 bg-[#fcfbf7]">
         <div className="w-full max-w-2xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F4E0D0]/70 text-[#B5581A] text-xs font-medium mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100/70 text-orange-600 text-xs font-medium mb-6">
             Agency Partner Program
           </div>
           <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-stone-900 tracking-tight">
@@ -80,8 +80,8 @@ export default function AgenciesPage() {
                 key={index}
                 className="bg-white rounded-xl p-6 border border-stone-200"
               >
-                <div className="w-10 h-10 rounded-lg bg-[#F4E0D0]/70 flex items-center justify-center mb-4">
-                  <span className="text-[#B5581A] font-semibold text-sm">
+                <div className="w-10 h-10 rounded-lg bg-orange-100/70 flex items-center justify-center mb-4">
+                  <span className="text-orange-600 font-semibold text-sm">
                     {String(index + 1).padStart(2, "0")}
                   </span>
                 </div>
@@ -160,7 +160,7 @@ export default function AgenciesPage() {
       <section id="earnings" className="bg-stone-900 py-20">
         <div className="max-w-5xl mx-auto px-6 md:px-16">
           <div className="text-center mb-14">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F4E0D0]/20 text-[#F4E0D0] text-xs font-medium mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100/20 text-orange-100 text-xs font-medium mb-6">
               High Earning Potential
             </div>
             <h2 className="geist-font text-3xl md:text-4xl font-semibold text-white tracking-tight mb-4">
@@ -195,8 +195,8 @@ export default function AgenciesPage() {
                   25% <span className="text-sm font-normal text-stone-400">($7.50/month)</span>
                 </div>
               </div>
-              <div className="grid grid-cols-3 p-5 items-center bg-[#B5581A]/10">
-                <div className="font-semibold text-[#F4E0D0]">Elite</div>
+              <div className="grid grid-cols-3 p-5 items-center bg-orange-600/10">
+                <div className="font-semibold text-orange-100">Elite</div>
                 <div className="text-stone-300 text-sm">$5,001+</div>
                 <div className="font-semibold text-white">
                   30% <span className="text-sm font-normal text-stone-400">($9/month)</span>
@@ -210,7 +210,7 @@ export default function AgenciesPage() {
             {[
               { tier: "Starter", color: "text-emerald-400", revenue: "$0 to $1,000", commission: "20%", amount: "$6/month per sub" },
               { tier: "Growth", color: "text-blue-400", revenue: "$1,001 to $5,000", commission: "25%", amount: "$7.50/month per sub" },
-              { tier: "Elite", color: "text-[#F4E0D0]", revenue: "$5,001+", commission: "30%", amount: "$9/month per sub" },
+              { tier: "Elite", color: "text-orange-100", revenue: "$5,001+", commission: "30%", amount: "$9/month per sub" },
             ].map((item, idx) => (
               <div key={idx} className="rounded-xl border border-stone-700 p-5">
                 <div className="flex justify-between items-center mb-4">
@@ -256,7 +256,7 @@ export default function AgenciesPage() {
               { step: "03", title: "Revenue Share", desc: "Automated tracking and same-day payouts on collected funds." },
             ].map((item, idx) => (
               <div key={idx} className="flex flex-col items-center text-center">
-                <div className="w-20 h-20 rounded-full bg-[#F4E0D0]/70 flex items-center justify-center mb-5 text-xl font-semibold text-[#B5581A] relative z-10">
+                <div className="w-20 h-20 rounded-full bg-orange-100/70 flex items-center justify-center mb-5 text-xl font-semibold text-orange-600 relative z-10">
                   {item.step}
                 </div>
                 <h3 className="text-base font-semibold text-stone-900 mb-2">
@@ -358,7 +358,7 @@ export default function AgenciesPage() {
                 className="flex items-center justify-center gap-2 text-stone-700"
               >
                 <Check
-                  className="w-5 h-5 text-terracotta-600 flex-shrink-0"
+                  className="w-5 h-5 text-orange-600 flex-shrink-0"
                   strokeWidth={3}
                 />
                 <span className="font-medium text-sm whitespace-nowrap">{item}</span>

@@ -392,7 +392,7 @@ export function Navbar() {
     return null;
   }
 
-  const isHomePage = ["/offers", "/explore", "/"].includes(pathname);
+  const isHomePage = ["/offers", "/"].includes(pathname);
 
   const renderBranding = () => (
     <Link
@@ -576,7 +576,7 @@ export function Navbar() {
               <div className="px-5 pt-5 pb-4">
                 <Link
                   href="/solutions/google-business"
-                  className="flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r from-[#a64e2a]/8 to-[#a64e2a]/4 border border-[#a64e2a]/10 hover:border-[#a64e2a]/25 hover:from-[#a64e2a]/12 hover:to-[#a64e2a]/6 transition-all duration-200 group/gbp"
+                  className="flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r from-orange-600/8 to-orange-600/4 border border-orange-600/10 hover:border-orange-600/25 hover:from-orange-600/12 hover:to-orange-600/6 transition-all duration-200 group/gbp"
                   onClick={() => setIsSolutionsOpen(false)}
                 >
                   <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm overflow-hidden ring-1 ring-stone-100">
@@ -590,10 +590,10 @@ export function Navbar() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-stone-900 font-semibold text-sm group-hover/gbp:text-[#a64e2a] transition-colors">
+                      <h3 className="text-stone-900 font-semibold text-sm group-hover/gbp:text-orange-600 transition-colors">
                         Google Business Profile Sync
                       </h3>
-                      <span className="px-1.5 py-0.5 bg-[#a64e2a] text-white text-[9px] font-bold rounded-md uppercase leading-none tracking-wide">
+                      <span className="px-1.5 py-0.5 bg-orange-600 text-white text-[9px] font-bold rounded-md uppercase leading-none tracking-wide">
                         New
                       </span>
                     </div>
@@ -620,11 +620,11 @@ export function Navbar() {
                         className="flex items-center gap-3 group/item hover:bg-stone-50 px-2 py-2.5 rounded-lg transition-colors"
                         onClick={() => setIsSolutionsOpen(false)}
                       >
-                        <div className="w-8 h-8 rounded-lg bg-stone-100/80 flex items-center justify-center flex-shrink-0 group-hover/item:bg-[#a64e2a]/10 transition-colors">
-                          <item.icon className="w-4 h-4 text-stone-500 group-hover/item:text-[#a64e2a] transition-colors" />
+                        <div className="w-8 h-8 rounded-lg bg-stone-100/80 flex items-center justify-center flex-shrink-0 group-hover/item:bg-orange-600/10 transition-colors">
+                          <item.icon className="w-4 h-4 text-stone-500 group-hover/item:text-orange-600 transition-colors" />
                         </div>
                         <div>
-                          <h3 className="text-stone-800 font-medium text-[13px] group-hover/item:text-[#a64e2a] transition-colors">
+                          <h3 className="text-stone-800 font-medium text-[13px] group-hover/item:text-orange-600 transition-colors">
                             {item.title}
                           </h3>
                           <p className="text-stone-400 text-[11px] leading-snug">
@@ -649,11 +649,11 @@ export function Navbar() {
                         className="flex items-center gap-2.5 group/item hover:bg-stone-50 px-2 py-2 rounded-lg transition-colors"
                         onClick={() => setIsSolutionsOpen(false)}
                       >
-                        <div className="w-7 h-7 rounded-md bg-stone-100/80 flex items-center justify-center flex-shrink-0 group-hover/item:bg-[#a64e2a]/10 transition-colors">
-                          <item.icon className="w-3.5 h-3.5 text-stone-500 group-hover/item:text-[#a64e2a] transition-colors" />
+                        <div className="w-7 h-7 rounded-md bg-stone-100/80 flex items-center justify-center flex-shrink-0 group-hover/item:bg-orange-600/10 transition-colors">
+                          <item.icon className="w-3.5 h-3.5 text-stone-500 group-hover/item:text-orange-600 transition-colors" />
                         </div>
                         <div>
-                          <h3 className="text-stone-700 font-medium text-[13px] group-hover/item:text-[#a64e2a] transition-colors leading-tight">
+                          <h3 className="text-stone-700 font-medium text-[13px] group-hover/item:text-orange-600 transition-colors leading-tight">
                             {item.title}
                           </h3>
                         </div>
@@ -706,11 +706,11 @@ export function Navbar() {
                     className="flex items-center gap-3 group/item hover:bg-stone-50 px-3 py-3 rounded-xl transition-colors"
                     onClick={() => setIsResourcesOpen(false)}
                   >
-                    <div className="w-9 h-9 rounded-lg bg-stone-100/80 flex items-center justify-center flex-shrink-0 group-hover/item:bg-[#a64e2a]/10 transition-colors">
-                      <item.icon className="w-4 h-4 text-stone-500 group-hover/item:text-[#a64e2a] transition-colors" />
+                    <div className="w-9 h-9 rounded-lg bg-stone-100/80 flex items-center justify-center flex-shrink-0 group-hover/item:bg-orange-600/10 transition-colors">
+                      <item.icon className="w-4 h-4 text-stone-500 group-hover/item:text-orange-600 transition-colors" />
                     </div>
                     <div>
-                      <h3 className="text-stone-800 font-medium text-[13px] group-hover/item:text-[#a64e2a] transition-colors">
+                      <h3 className="text-stone-800 font-medium text-[13px] group-hover/item:text-orange-600 transition-colors">
                         {item.title}
                       </h3>
                       <p className="text-stone-400 text-[11px] leading-snug">
@@ -874,10 +874,10 @@ export function Navbar() {
                     {/* Featured: Google Business */}
                     <Link
                       href="/solutions/google-business"
-                      className="flex items-center gap-3 p-3 rounded-lg bg-[#F4E0D0]/30 border border-[#B5581A]/10"
+                      className="flex items-center gap-3 p-3 rounded-lg bg-orange-100/30 border border-orange-600/10"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
-                      <Globe className="w-5 h-5 text-[#B5581A]" />
+                      <Globe className="w-5 h-5 text-orange-600" />
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-gray-900">
@@ -905,7 +905,7 @@ export function Navbar() {
                             className="flex items-center gap-3 text-gray-700 hover:text-gray-900"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
-                            <item.icon className="w-4 h-4 text-[#B5581A]" />
+                            <item.icon className="w-4 h-4 text-orange-600" />
                             <span className="font-medium">{item.title}</span>
                           </Link>
                         ))}
@@ -924,7 +924,7 @@ export function Navbar() {
                             className="flex items-center gap-3 text-gray-700 hover:text-gray-900"
                             onClick={() => setIsMobileMenuOpen(false)}
                           >
-                            <item.icon className="w-4 h-4 text-[#B5581A]" />
+                            <item.icon className="w-4 h-4 text-orange-600" />
                             <span className="font-medium">{item.title}</span>
                           </Link>
                         ))}
@@ -964,7 +964,7 @@ export function Navbar() {
                         className="flex items-start gap-4 text-gray-700 hover:text-gray-900"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
-                        <item.icon className="w-5 h-5 mt-0.5 shrink-0 text-[#B5581A]" />
+                        <item.icon className="w-5 h-5 mt-0.5 shrink-0 text-orange-600" />
                         <div>
                           <div className="font-medium">{item.title}</div>
                           <div className="text-sm text-gray-500 leading-snug">

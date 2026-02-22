@@ -61,23 +61,23 @@ function GoogleSyncAnimationInner({ onComplete }: { onComplete: () => void }) {
                 key={step.label}
                 className={`flex items-center justify-between px-2 md:px-3 py-1.5 md:py-2.5 rounded-md md:rounded-lg transition-all duration-500 ${
                   done
-                    ? "bg-[#a64e2a]/10 border border-[#a64e2a]/30"
+                    ? "bg-orange-600/10 border border-orange-600/30"
                     : active
-                      ? "bg-[#a64e2a]/5 border border-[#a64e2a]/20"
+                      ? "bg-orange-600/5 border border-orange-600/20"
                       : "bg-stone-50 border border-stone-100"
                 }`}
               >
                 <div className="flex items-center gap-1.5 md:gap-2">
                   {done ? (
-                    <CheckIcon className="w-3 h-3 md:w-4 md:h-4 text-[#a64e2a]" />
+                    <CheckIcon className="w-3 h-3 md:w-4 md:h-4 text-orange-600" />
                   ) : active ? (
-                    <div className="w-3 h-3 md:w-4 md:h-4 border-2 border-[#a64e2a] border-t-transparent rounded-full animate-spin" />
+                    <div className="w-3 h-3 md:w-4 md:h-4 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <div className="w-3 h-3 md:w-4 md:h-4 rounded-full border border-stone-300" />
                   )}
                   <span
                     className={`text-[10px] md:text-xs font-medium ${
-                      done ? "text-[#a64e2a]" : active ? "text-[#a64e2a]/70" : "text-stone-400"
+                      done ? "text-orange-600" : active ? "text-orange-600/70" : "text-stone-400"
                     }`}
                   >
                     {step.label}
@@ -85,7 +85,7 @@ function GoogleSyncAnimationInner({ onComplete }: { onComplete: () => void }) {
                 </div>
                 <span
                   className={`text-[9px] md:text-[11px] ${
-                    done ? "text-[#a64e2a]" : "text-stone-300"
+                    done ? "text-orange-600" : "text-stone-300"
                   }`}
                 >
                   {done ? step.count : "pending"}
@@ -99,7 +99,7 @@ function GoogleSyncAnimationInner({ onComplete }: { onComplete: () => void }) {
       {/* Sync button */}
       <div className="w-full bg-[#fcfbf7] rounded-lg md:rounded-xl shadow-md border border-stone-200 px-3 md:px-5 py-2 md:py-3">
         <div className={`w-full flex items-center justify-center gap-1.5 md:gap-2 rounded-md md:rounded-lg py-1.5 md:py-2.5 px-3 md:px-4 transition-all duration-300 ${
-          completedSteps >= SYNC_STEPS.length ? "bg-[#a64e2a]" : "bg-[#a64e2a]"
+          completedSteps >= SYNC_STEPS.length ? "bg-orange-600" : "bg-orange-600"
         }`}>
           {completedSteps < SYNC_STEPS.length ? (
             <div className="w-3 h-3 md:w-4 md:h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

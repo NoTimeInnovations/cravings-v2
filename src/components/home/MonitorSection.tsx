@@ -129,7 +129,7 @@ function CardContent({
       <div className="mt-8">
         <Link
           href={href}
-          className="inline-flex items-center gap-2 text-sm font-medium text-[#B5581A] hover:text-[#9a4a15] transition-colors group"
+          className="inline-flex items-center gap-2 text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors group"
         >
           <span>{cta}</span>
           <svg

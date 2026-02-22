@@ -19,7 +19,7 @@ export default function OwnersPage() {
       {/* Hero Section */}
       <section className="flex items-center justify-center px-5 pb-16 pt-32 md:pt-40 bg-[#fcfbf7]">
         <div className="w-full max-w-2xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F4E0D0]/70 text-[#B5581A] text-xs font-medium mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100/70 text-orange-600 text-xs font-medium mb-6">
             {ownersData.hero.eyebrow}
           </div>
           <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-stone-900 tracking-tight">
@@ -55,8 +55,8 @@ export default function OwnersPage() {
                 key={index}
                 className="bg-white rounded-xl p-6 border border-stone-200"
               >
-                <div className="w-10 h-10 rounded-lg bg-[#F4E0D0]/70 flex items-center justify-center mb-4">
-                  <span className="text-[#B5581A] font-semibold text-sm">
+                <div className="w-10 h-10 rounded-lg bg-orange-100/70 flex items-center justify-center mb-4">
+                  <span className="text-orange-600 font-semibold text-sm">
                     {String(index + 1).padStart(2, "0")}
                   </span>
                 </div>

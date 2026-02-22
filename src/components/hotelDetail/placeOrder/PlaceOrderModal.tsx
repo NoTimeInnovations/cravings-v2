@@ -416,7 +416,7 @@ const AddressManagementModal = ({
           >
             <div className="p-4 border-b border-stone-200">
               <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-[#B5581A]" />
+                <MapPin className="h-5 w-5 text-orange-600" />
                 Select Location
               </h3>
               <p className="text-sm text-stone-600 mt-1">
@@ -442,7 +442,7 @@ const AddressManagementModal = ({
                           placeholder="Search for a location..."
                           value={searchValue}
                           onChange={(e) => setSearchValue(e.target.value)}
-                          className="pl-10 rounded-xl text-gray-900 placeholder:text-gray-400 border-stone-200 focus:border-[#B5581A] focus:ring-[#B5581A]"
+                          className="pl-10 rounded-xl text-gray-900 placeholder:text-gray-400 border-stone-200 focus:border-orange-600 focus:ring-orange-600"
                         />
                       </div>
                     </Autocomplete>
@@ -457,7 +457,7 @@ const AddressManagementModal = ({
                     </div>
                   ) : !isLoaded ? (
                     <div className="flex items-center justify-center h-full">
-                      <Loader2 className="h-8 w-8 animate-spin text-[#B5581A]" />
+                      <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
                     </div>
                   ) : (
                     <GoogleMap
@@ -512,7 +512,7 @@ const AddressManagementModal = ({
                       </button>
                       <button
                         onClick={() => setShowMap(false)}
-                        className="flex-1 px-4 py-2.5 bg-[#B5581A] text-white rounded-lg hover:bg-[#a64e2a] transition-colors text-sm font-medium"
+                        className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
                       >
                         Confirm
                       </button>
@@ -521,7 +521,7 @@ const AddressManagementModal = ({
                     <div className="space-y-2">
                       <button
                         onClick={getCurrentLocation}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#F4E0D0]/70 text-[#B5581A] rounded-lg hover:bg-[#B5581A] hover:text-white transition-all duration-300 text-sm font-medium border border-[#B5581A]/30"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-100/70 text-orange-600 rounded-lg hover:bg-orange-600 hover:text-white transition-all duration-300 text-sm font-medium border border-orange-600/30"
                       >
                         <LocateFixed className="h-4 w-4" />
                         Use My Current Location
@@ -537,7 +537,7 @@ const AddressManagementModal = ({
               <div className="p-6 space-y-3">
                 <button
                   onClick={getCurrentLocation}
-                  className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-[#F4E0D0]/70 text-[#B5581A] rounded-xl hover:bg-[#B5581A] hover:text-white transition-all duration-300 font-medium border border-[#B5581A]/30"
+                  className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-orange-100/70 text-orange-600 rounded-xl hover:bg-orange-600 hover:text-white transition-all duration-300 font-medium border border-orange-600/30"
                 >
                   <LocateFixed className="h-5 w-5" />
                   Use My Current Location
@@ -602,7 +602,7 @@ const AddressManagementModal = ({
                   onClick={() => setLabel(option.value)}
                   className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                     label === option.value
-                      ? "border-[#B5581A] bg-[#F4E0D0]/30 text-[#B5581A]"
+                      ? "border-orange-600 bg-orange-100/30 text-orange-600"
                       : "border-stone-200 hover:border-stone-300 text-stone-600"
                   }`}
                 >
@@ -749,7 +749,7 @@ const AddressManagementModal = ({
           <button
             onClick={handleSave}
             disabled={saving || !isFormValid()}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-[#B5581A] text-white rounded-xl hover:bg-[#a64e2a] transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#B5581A]/20"
+            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-orange-600 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-orange-600/20"
           >
             {saving ? (
               <>
@@ -944,7 +944,7 @@ const UnifiedAddressSection = ({
       <div className="p-5">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-[#B5581A]" />
+            <MapPin className="h-5 w-5 text-orange-600" />
             <h3 className="font-semibold text-gray-900 text-base">
               Delivery Address
             </h3>
@@ -954,7 +954,7 @@ const UnifiedAddressSection = ({
               setEditingAddress(null);
               setShowAddressModal(true);
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#B5581A] border border-[#B5581A]/30 rounded-lg hover:bg-[#F4E0D0]/30 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-orange-600 border border-orange-600/30 rounded-lg hover:bg-orange-100/30 transition-colors"
           >
             <Plus className="h-4 w-4" />
             Add New
@@ -1054,7 +1054,7 @@ const UnifiedAddressSection = ({
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="bg-gradient-to-br from-[#F4E0D0]/20 to-transparent rounded-xl p-4 border border-[#B5581A]/20"
+            className="bg-gradient-to-br from-orange-100/20 to-transparent rounded-xl p-4 border border-orange-600/20"
           >
             <div className="flex justify-between items-start gap-3">
               <div className="flex-1">
@@ -1066,7 +1066,7 @@ const UnifiedAddressSection = ({
                       : ""}
                   </span>
                   {selectedAddress.isDefault && (
-                    <span className="text-xs bg-[#B5581A] text-white px-2 py-0.5 rounded-full">
+                    <span className="text-xs bg-orange-600 text-white px-2 py-0.5 rounded-full">
                       Default
                     </span>
                   )}
@@ -1309,7 +1309,7 @@ const ItemsCard = ({
                   </span>
                   <button
                     onClick={() => increaseQuantity(item.id as string)}
-                    className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white transition-colors text-[#B5581A] font-semibold"
+                    className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white transition-colors text-orange-600 font-semibold"
                   >
                     +
                   </button>
@@ -1387,7 +1387,7 @@ const BillCard = ({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-[#F4E0D0]/20 to-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden"
+      className="bg-gradient-to-br from-orange-100/20 to-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden"
     >
       <div className="p-5">
         <h3 className="font-semibold text-gray-900 text-base mb-4">
@@ -1467,7 +1467,7 @@ const BillCard = ({
           <div className="border-t border-stone-200 pt-3 mt-3">
             <div className="flex justify-between items-center">
               <span className="font-semibold text-gray-900">Total Amount</span>
-              <span className="font-bold text-xl text-[#B5581A]">
+              <span className="font-bold text-xl text-orange-600">
                 {currency}
                 {grandTotal.toFixed(2)}
               </span>
@@ -1502,7 +1502,7 @@ const OrderTypeCard = ({
           onClick={() => setOrderType("takeaway")}
           className={`p-4 rounded-xl border-2 transition-all text-sm font-medium ${
             orderType === "takeaway"
-              ? "border-[#B5581A] bg-[#F4E0D0]/30 text-[#B5581A]"
+              ? "border-orange-600 bg-orange-100/30 text-orange-600"
               : "border-stone-200 hover:border-stone-300 text-stone-600"
           }`}
         >
@@ -1512,7 +1512,7 @@ const OrderTypeCard = ({
           onClick={() => setOrderType("delivery")}
           className={`p-4 rounded-xl border-2 transition-all text-sm font-medium ${
             orderType === "delivery"
-              ? "border-[#B5581A] bg-[#F4E0D0]/30 text-[#B5581A]"
+              ? "border-orange-600 bg-orange-100/30 text-orange-600"
               : "border-stone-200 hover:border-stone-300 text-stone-600"
           }`}
         >
@@ -1643,20 +1643,20 @@ const TableNumberCard = ({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-[#F4E0D0]/20 to-white rounded-2xl shadow-sm border border-stone-200 p-5"
+      className="bg-gradient-to-br from-orange-100/20 to-white rounded-2xl shadow-sm border border-stone-200 p-5"
     >
       <h3 className="font-semibold text-gray-900 text-base mb-3">
         {isRoom ? "Room" : "Table"} Information
       </h3>
       <div className="flex items-center gap-2">
         {tableName ? (
-          <span className="text-2xl font-bold text-[#B5581A]">{tableName}</span>
+          <span className="text-2xl font-bold text-orange-600">{tableName}</span>
         ) : (
           <>
             {!isRoom && (
               <span className="text-sm text-stone-600">Table Number:</span>
             )}
-            <span className="text-2xl font-bold text-[#B5581A]">
+            <span className="text-2xl font-bold text-orange-600">
               {tableNumber}
             </span>
           </>
@@ -1679,7 +1679,7 @@ const LoginCard = ({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-[#F4E0D0]/30 to-white rounded-2xl shadow-sm border border-[#B5581A]/30 p-6"
+      className="bg-gradient-to-br from-orange-100/30 to-white rounded-2xl shadow-sm border border-orange-600/30 p-6"
     >
       <h3 className="font-bold text-gray-900 text-lg mb-2">Almost there!</h3>
       <p className="text-stone-600 mb-4 text-sm">
@@ -1687,7 +1687,7 @@ const LoginCard = ({
       </p>
       <button
         onClick={() => setShowLoginDrawer(true)}
-        className="w-full px-6 py-3.5 bg-[#B5581A] text-white rounded-xl hover:bg-[#a64e2a] transition-all duration-300 font-semibold shadow-lg shadow-[#B5581A]/20"
+        className="w-full px-6 py-3.5 bg-orange-600 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 font-semibold shadow-lg shadow-orange-600/20"
       >
         Continue with Phone Number
       </button>
@@ -1810,7 +1810,7 @@ const LoginDrawer = ({
               )}
             </Label>
             <div className="flex gap-3">
-              <div className="flex items-center justify-center px-5 bg-[#F4E0D0]/30 rounded-2xl text-base font-bold text-[#B5581A] border border-[#B5581A]/20">
+              <div className="flex items-center justify-center px-5 bg-orange-100/30 rounded-2xl text-base font-bold text-orange-600 border border-orange-600/20">
                 {hotelData?.country_code || "+91"}
               </div>
               <Input
@@ -1826,7 +1826,7 @@ const LoginDrawer = ({
                   );
                 }}
                 placeholder="Enter your phone number"
-                className="flex-1 rounded-2xl text-gray-900 placeholder:text-gray-400 bg-white border-stone-200 focus:border-[#B5581A] focus:ring-2 focus:ring-[#B5581A]/20 h-14 text-base px-5 transition-all duration-200"
+                className="flex-1 rounded-2xl text-gray-900 placeholder:text-gray-400 bg-white border-stone-200 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20 h-14 text-base px-5 transition-all duration-200"
                 autoFocus
               />
             </div>
@@ -1842,7 +1842,7 @@ const LoginDrawer = ({
             <button
               onClick={handleLogin}
               disabled={isSubmitting || !phoneNumber}
-              className="w-full px-6 py-4 bg-[#F4E0D0]/70 text-[#B5581A] rounded-full hover:bg-[#B5581A] hover:text-white border border-[#B5581A]/30 hover:border-[#B5581A] transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              className="w-full px-6 py-4 bg-orange-100/70 text-orange-600 rounded-full hover:bg-orange-600 hover:text-white border border-orange-600/30 hover:border-orange-600 transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
             >
               {isSubmitting ? (
                 <span className="flex items-center justify-center gap-2">
@@ -1870,11 +1870,11 @@ const LoginDrawer = ({
             className="text-xs text-stone-500 text-center mt-6 leading-relaxed"
           >
             By continuing, you agree to our{" "}
-            <span className="text-[#B5581A] hover:underline cursor-pointer">
+            <span className="text-orange-600 hover:underline cursor-pointer">
               Terms of Service
             </span>{" "}
             and{" "}
-            <span className="text-[#B5581A] hover:underline cursor-pointer">
+            <span className="text-orange-600 hover:underline cursor-pointer">
               Privacy Policy
             </span>
           </motion.p>
@@ -2420,7 +2420,7 @@ const PlaceOrderModal = ({
                             orderType === "delivery" &&
                             (totalPrice ?? 0) < minimumOrderAmount)
                         }
-                        className="w-full px-6 py-4 bg-[#B5581A] text-white rounded-xl hover:bg-[#a64e2a] transition-all duration-300 font-semibold shadow-lg shadow-[#B5581A]/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                        className="w-full px-6 py-4 bg-orange-600 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 font-semibold shadow-lg shadow-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                       >
                         {orderStatus === "loading" ? (
                           <span className="flex items-center justify-center gap-2">
@@ -2444,7 +2444,7 @@ const PlaceOrderModal = ({
                                 orderType === "delivery" &&
                                 (totalPrice ?? 0) < minimumOrderAmount)
                             }
-                            className="w-full px-6 py-4 bg-[#B5581A] text-white rounded-xl hover:bg-[#a64e2a] transition-all duration-300 font-semibold shadow-lg shadow-[#B5581A]/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                            className="w-full px-6 py-4 bg-orange-600 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 font-semibold shadow-lg shadow-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                           >
                             {orderStatus === "loading" ? (
                               <span className="flex items-center justify-center gap-2">
@@ -2483,7 +2483,7 @@ const PlaceOrderModal = ({
                                   orderType === "delivery" &&
                                   (totalPrice ?? 0) < minimumOrderAmount)
                               }
-                              className="w-full px-6 py-4 bg-[#B5581A] text-white rounded-xl hover:bg-[#a64e2a] transition-all duration-300 font-semibold shadow-lg shadow-[#B5581A]/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                              className="w-full px-6 py-4 bg-orange-600 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 font-semibold shadow-lg shadow-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                             >
                               {orderStatus === "loading" ? (
                                 <span className="flex items-center justify-center gap-2">

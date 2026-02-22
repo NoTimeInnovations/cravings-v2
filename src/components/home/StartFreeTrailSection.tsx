@@ -2,10 +2,10 @@ import Link from "next/link";
 
 export default function StartFreeTrailSection() {
   return (
-    <section className="relative overflow-hidden bg-terracotta-600 py-16 md:py-24 border-t border-b border-stone-200">
-      <div className="bg-terracotta-400/20 w-full h-px" />
+    <section className="relative overflow-hidden bg-orange-600 py-16 md:py-24 border-t border-b border-stone-200">
+      <div className="bg-orange-400/20 w-full h-px" />
 
-      <div className="w-full h-full z-20 absolute top-0 left-1/2 -translate-x-1/2 sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] border-l border-r border-terracotta-400/20" />
+      <div className="w-full h-full z-20 absolute top-0 left-1/2 -translate-x-1/2 sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] border-l border-r border-orange-400/20 pointer-events-none" />
 
       <div className="sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] mx-auto grid md:grid-cols-2">
         <div className="max-w-xl p-6 md:p-12">
@@ -34,12 +34,12 @@ export default function StartFreeTrailSection() {
           </div>
         </div>
 
-        <div className="hidden md:block h-full w-full border-l border-terracotta-400/20 relative">
+        <div className="hidden md:block h-full w-full border-l border-orange-400/20 relative">
           <div className="relative h-full py-12 bg-[radial-gradient(circle,rgba(255,255,255,0.18)_1.5px,transparent_1.5px)] bg-[size:20px_20px]"></div>
         </div>
       </div>
 
-      <div className="bg-terracotta-400/20 w-full h-px" />
+      <div className="bg-orange-400/20 w-full h-px" />
     </section>
   );
 }

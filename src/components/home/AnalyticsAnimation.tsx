@@ -68,7 +68,7 @@ function AnimatedBar({
     <div className="flex flex-col items-center gap-0.5 md:gap-1 flex-1">
       <div className="w-full h-16 md:h-28 bg-stone-50 rounded-sm md:rounded relative overflow-hidden flex items-end">
         <div
-          className="w-full bg-[#a64e2a] rounded-t-sm md:rounded-t transition-all duration-1000 ease-out"
+          className="w-full bg-orange-600 rounded-t-sm md:rounded-t transition-all duration-1000 ease-out"
           style={{ height: `${height}%` }}
         />
       </div>

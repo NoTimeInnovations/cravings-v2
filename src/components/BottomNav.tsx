@@ -35,8 +35,8 @@ const BottomNav = () => {
       case "user":
         return [
           {
-            href: "/explore",
-            name: "Explore",
+            href: "/",
+            name: "Home",
             icon: <Telescope size={20} />,
             exactMatch: true,
           },
@@ -174,8 +174,8 @@ const BottomNav = () => {
         {items.map((item) => {
           // Special handling for explore route
           let isActive = false;
-          if (item.href === "/explore") {
-            isActive = pathname === "/explore";
+          if (item.href === "/") {
+            isActive = pathname === "/";
           } else if (item.href === "/") {
             isActive = pathname === "/";
           } else {

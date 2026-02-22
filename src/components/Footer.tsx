@@ -12,7 +12,7 @@ export default function Footer({
   appName?: string;
 }) {
   return (
-    <footer className="bg-terracotta-600 pt-16 pb-10 geist-font text-white relative overflow-hidden">
+    <footer className="bg-orange-600 pt-16 pb-10 geist-font text-white relative overflow-hidden">
       <div className="max-w-6xl mx-auto px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-10 mb-14">
           {/* Column 1: Brand */}
@@ -26,7 +26,7 @@ export default function Footer({
                 className="h-8 w-auto object-contain"
               />
             </Link>
-            <p className="text-sm text-white/70 max-w-xs leading-relaxed">
+            <p className="text-sm text-white/80 max-w-xs leading-relaxed">
               The all-in-one platform for restaurants to manage digital menus,
               orders, and grow their business online.
             </p>
@@ -39,7 +39,7 @@ export default function Footer({
               <li>
                 <Link
                   href="/solutions/google-business"
-                  className="text-sm text-white/70 hover:text-white transition-colors"
+                  className="text-sm text-white/80 hover:text-white transition-colors"
                 >
                   Google Business Sync
                 </Link>
@@ -47,7 +47,7 @@ export default function Footer({
               <li>
                 <Link
                   href="/solutions/owners"
-                  className="text-sm text-white/70 hover:text-white transition-colors"
+                  className="text-sm text-white/80 hover:text-white transition-colors"
                 >
                   Owners
                 </Link>
@@ -55,7 +55,7 @@ export default function Footer({
               <li>
                 <Link
                   href="/solutions/agencies"
-                  className="text-sm text-white/70 hover:text-white transition-colors"
+                  className="text-sm text-white/80 hover:text-white transition-colors"
                 >
                   Agencies
                 </Link>
@@ -63,7 +63,7 @@ export default function Footer({
               <li>
                 <Link
                   href="/solutions/restaurants"
-                  className="text-sm text-white/70 hover:text-white transition-colors"
+                  className="text-sm text-white/80 hover:text-white transition-colors"
                 >
                   Restaurants
                 </Link>
@@ -71,7 +71,7 @@ export default function Footer({
               <li>
                 <Link
                   href="/solutions/cafes"
-                  className="text-sm text-white/70 hover:text-white transition-colors"
+                  className="text-sm text-white/80 hover:text-white transition-colors"
                 >
                   Cafés
                 </Link>
@@ -86,7 +86,7 @@ export default function Footer({
               <li>
                 <Link
                   href="/help-center"
-                  className="text-sm text-white/70 hover:text-white transition-colors"
+                  className="text-sm text-white/80 hover:text-white transition-colors"
                 >
                   Help Center
                 </Link>
@@ -94,7 +94,7 @@ export default function Footer({
               <li>
                 <Link
                   href="/download-app"
-                  className="text-sm text-white/70 hover:text-white transition-colors"
+                  className="text-sm text-white/80 hover:text-white transition-colors"
                 >
                   Download App
                 </Link>
@@ -102,7 +102,7 @@ export default function Footer({
               <li>
                 <Link
                   href="/pricing"
-                  className="text-sm text-white/70 hover:text-white transition-colors"
+                  className="text-sm text-white/80 hover:text-white transition-colors"
                 >
                   Pricing
                 </Link>
@@ -110,7 +110,7 @@ export default function Footer({
               <li>
                 <Link
                   href="/get-started"
-                  className="text-sm text-white/70 hover:text-white transition-colors"
+                  className="text-sm text-white/80 hover:text-white transition-colors"
                 >
                   Get Started
                 </Link>
@@ -125,7 +125,7 @@ export default function Footer({
               <li>
                 <Link
                   href="/privacy-policy"
-                  className="text-sm text-white/70 hover:text-white transition-colors"
+                  className="text-sm text-white/80 hover:text-white transition-colors"
                 >
                   Privacy Policy
                 </Link>
@@ -133,7 +133,7 @@ export default function Footer({
               <li>
                 <Link
                   href="/terms-and-conditions"
-                  className="text-sm text-white/70 hover:text-white transition-colors"
+                  className="text-sm text-white/80 hover:text-white transition-colors"
                 >
                   Terms of Service
                 </Link>
@@ -141,7 +141,7 @@ export default function Footer({
               <li>
                 <Link
                   href="/refund-policy"
-                  className="text-sm text-white/70 hover:text-white transition-colors"
+                  className="text-sm text-white/80 hover:text-white transition-colors"
                 >
                   Refund Policy
                 </Link>
@@ -152,26 +152,26 @@ export default function Footer({
 
         {/* Bottom Bar */}
         <div className="pt-6 border-t border-white/20 flex flex-col md:flex-row justify-between items-center gap-4">
-          <span className="text-xs text-white/50">
+          <span className="text-xs text-white/80">
             &copy; 2026 Menuthere. All rights reserved.
           </span>
 
           <div className="flex items-center gap-4">
             <Link
               href="https://www.instagram.com/menu.there/"
-              className="text-white/50 hover:text-white transition-colors"
+              className="text-white/80 hover:text-white transition-colors"
             >
               <Instagram className="w-4 h-4" />
             </Link>
             <Link
               href="https://www.linkedin.com/company/Menuthere"
-              className="text-white/50 hover:text-white transition-colors"
+              className="text-white/80 hover:text-white transition-colors"
             >
               <Linkedin className="w-4 h-4" />
             </Link>
             <Link
               href="https://www.facebook.com/Menuthere"
-              className="text-white/50 hover:text-white transition-colors"
+              className="text-white/80 hover:text-white transition-colors"
             >
               <Facebook className="w-4 h-4" />
             </Link>
