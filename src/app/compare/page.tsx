@@ -6,12 +6,12 @@ import WhatsAppButton from "@/components/WhatsAppButton";
 import { ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Menuthere vs Competitors — Digital Menu Comparisons (2025)",
+  title: "Menuthere vs Competitors — Digital Menu Comparisons (2026)",
   description:
     "Compare Menuthere with other digital menu platforms. See how we stack up against MyDigiMenu, and more on pricing, features, and Google Business sync.",
   alternates: { canonical: "https://menuthere.com/compare" },
   openGraph: {
-    title: "Menuthere vs Competitors — Digital Menu Comparisons (2025)",
+    title: "Menuthere vs Competitors — Digital Menu Comparisons (2026)",
     description:
       "Side-by-side comparisons of Menuthere vs other QR menu platforms. Zero commissions, Google sync.",
     url: "https://menuthere.com/compare",

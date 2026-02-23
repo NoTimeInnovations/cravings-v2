@@ -67,7 +67,7 @@ export default function Home() {
     aggregateRating: {
       "@type": "AggregateRating",
       ratingValue: "4.8",
-      ratingCount: "600",
+      ratingCount: 600,
       bestRating: "5",
       worstRating: "1",
     },
@@ -103,8 +103,8 @@ export default function Home() {
     ],
     contactPoint: {
       "@type": "ContactPoint",
-      email: "menuthere@gmail.com",
-      contactType: "customer service",
+      email: "help@support.menuthere.com",
+      contactType: "customer support",
       availableLanguage: [
         { "@type": "Language", "name": "English" },
         { "@type": "Language", "name": "Hindi" },

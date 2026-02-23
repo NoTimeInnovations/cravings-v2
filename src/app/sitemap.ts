@@ -4,44 +4,32 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 const BASE_URL = "https://menuthere.com";
 
 // Slugs that indicate test/placeholder accounts — exclude from sitemap
-const TEST_SLUGS = new Set(["sample", "newtest", "test", "demo", "testhotel", "new"]);
+const TEST_SLUGS = new Set(["sample", "newtest", "test", "demo", "testhotel", "new", "testingonboarding"]);
 
-const getAllActivePartnersForSitemap = `
-  query GetAllActivePartnersForSitemap {
-    partners(where: {status: {_eq: "active"}}) {
-      id
-      store_name
+const getPartnersWithUsername = `
+  query GetPartnersWithUsername {
+    partners(where: {status: {_eq: "active"}, username: {_is_null: false, _neq: ""}}) {
+      username
     }
   }
 `;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Fetch all active partners for hotel pages
+  // Fetch active partners that have a username set
   let hotelEntries: MetadataRoute.Sitemap = [];
   try {
-    const data = await fetchFromHasura(getAllActivePartnersForSitemap);
-    const partners: { id: string; store_name: string }[] =
-      data?.partners || [];
+    const data = await fetchFromHasura(getPartnersWithUsername);
+    const partners: { username: string }[] = data?.partners || [];
 
     hotelEntries = partners
       .filter((partner) => {
-        // Quality gate: exclude test/placeholder accounts
-        const slug = partner.store_name.replace(/\s+/g, "-").toLowerCase().replace(/^-+|-+$/g, "");
-        if (TEST_SLUGS.has(slug) || partner.store_name.trim().length <= 1) return false;
-        // Exclude excessively long store names — URL length quality gate (max 80 chars for slug portion)
-        const encodedSlug = encodeURIComponent(partner.store_name.replace(/\s+/g, "-"));
-        const fullUrl = `${BASE_URL}/hotels/${encodedSlug}/${partner.id}`;
-        return fullUrl.length <= 120;
+        const slug = partner.username.toLowerCase().trim();
+        return !TEST_SLUGS.has(slug) && slug.length > 1;
       })
-      .map((partner) => {
-        const slug = encodeURIComponent(
-          partner.store_name.replace(/\s+/g, "-")
-        );
-        return {
-          url: `${BASE_URL}/hotels/${slug}/${partner.id}`,
-          lastModified: new Date("2026-02-22"),
-        };
-      });
+      .map((partner) => ({
+        url: `${BASE_URL}/${partner.username}`,
+        lastModified: new Date("2026-02-22"),
+      }));
   } catch (error) {
     console.error("Failed to fetch partners for sitemap:", error);
   }
@@ -78,7 +66,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Resources
     { url: `${BASE_URL}/help-center`, lastModified: staticDate },
     { url: `${BASE_URL}/download-app`, lastModified: staticDate },
-    // Hotel pages (dynamic, quality-gated)
+    // Restaurant pages — only partners with a username, served at /{username}
     ...hotelEntries,
   ];
 }

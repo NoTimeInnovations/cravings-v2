@@ -46,7 +46,7 @@ const SOLUTIONS_DATA: Record<string, SolutionData> = {
     title: "Digital Menus for Restaurants",
     metaTitle: "Restaurant Digital Menu Solution | QR Code Menus | Menuthere",
     metaDescription:
-      "Transform your restaurant with smart QR code menus. Real-time updates, stunning visuals, Google Business sync. Reduce printing costs by 90%. Trusted by 5000+ restaurants across India.",
+      "Transform your restaurant with smart QR code menus. Real-time updates, stunning visuals, Google Business sync. Reduce printing costs by 90%. Trusted by 600+ restaurants across India.",
     keywords:
       "restaurant digital menu, QR code menu restaurant, contactless dining, restaurant technology, menu management system, restaurant POS integration",
     icon: Utensils,

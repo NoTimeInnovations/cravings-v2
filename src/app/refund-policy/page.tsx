@@ -51,7 +51,7 @@ const RefundPolicyPage = () => {
                         <h2 className="text-2xl font-bold text-gray-900 mb-3">3. How to Request a Refund</h2>
                         <p className="mb-2">To request a refund:</p>
                         <p className="mb-2">
-                            Email us at <a href="mailto:menuthere@gmail.com" className="text-orange-600 hover:underline">menuthere@gmail.com</a>
+                            Email us at <a href="mailto:help@support.menuthere.com" className="text-orange-600 hover:underline">help@support.menuthere.com</a>
                         </p>
                         <p className="mb-2">Include:</p>
                         <ul className="list-disc pl-6 space-y-2">
@@ -101,7 +101,7 @@ const RefundPolicyPage = () => {
                             For questions or refund requests, contact:
                         </p>
                         <p className="mt-2 font-medium">
-                            📧 <a href="mailto:menuthere@gmail.com" className="text-orange-600 hover:underline">menuthere@gmail.com</a>
+                            📧 <a href="mailto:help@support.menuthere.com" className="text-orange-600 hover:underline">help@support.menuthere.com</a>
                         </p>
                     </section>
                 </div>
