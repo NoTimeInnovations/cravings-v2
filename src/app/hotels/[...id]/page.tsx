@@ -72,14 +72,27 @@ export async function generateMetadata({
   const seoDescription = hotel.description?.trim() ||
     `Explore the full menu of ${hotel.store_name}${hotel.location ? ` in ${hotel.location}` : ''}. Browse dishes, prices, and daily specials. Order online or scan QR code.`;
 
+  // Noindex test/placeholder accounts
+  const TEST_SLUGS = new Set(["sample", "newtest", "test", "demo", "testhotel", "new"]);
+  const nameSlug = (hotel.store_name || "").replace(/\s+/g, "-").toLowerCase().replace(/^-+|-+$/g, "");
+  const isTestAccount = TEST_SLUGS.has(nameSlug);
+
+  const slug = encodeURIComponent((hotel.store_name || "").replace(/\s+/g, "-"));
+  const canonicalUrl = `https://menuthere.com/hotels/${slug}/${hotelId}`;
+
   return {
     title: seoTitle,
     icons: [hotel.store_banner || "/hotelDetailsBanner.jpeg"],
     description: seoDescription,
+    alternates: { canonical: canonicalUrl },
+    robots: isTestAccount
+      ? { index: false, follow: false }
+      : { index: true, follow: true },
     openGraph: {
       images: [hotel.store_banner || "/hotelDetailsBanner.jpeg"],
       title: seoTitle,
       description: seoDescription,
+      url: canonicalUrl,
     },
   };
 }
@@ -431,8 +444,56 @@ const HotelPage = async ({
     }
   }
 
+  // Restaurant + Menu JSON-LD schema
+  const restaurantSchema: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Restaurant",
+    name: hoteldata?.store_name,
+    ...(hoteldata?.phone && { telephone: hoteldata.phone }),
+    ...(hoteldata?.location && {
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: hoteldata.location,
+        addressCountry: hoteldata?.country || "IN",
+      },
+    }),
+    ...(hoteldata?.store_banner && { image: hoteldata.store_banner }),
+    ...(hoteldata?.description && { description: hoteldata.description }),
+    url: `https://menuthere.com/hotels/${encodeURIComponent((hoteldata?.store_name || "").replace(/\s+/g, "-"))}/${hoteldata?.id}`,
+    ...(filteredMenus.length > 0 && {
+      hasMenu: {
+        "@type": "Menu",
+        hasMenuSection: Object.values(
+          filteredMenus.reduce((acc: Record<string, unknown[]>, item) => {
+            const cat = item.category?.name || "Menu";
+            if (!acc[cat]) acc[cat] = [];
+            (acc[cat] as unknown[]).push({
+              "@type": "MenuItem",
+              name: item.name,
+              ...(item.description && { description: item.description }),
+              offers: {
+                "@type": "Offer",
+                price: String(item.price || 0),
+                priceCurrency: hoteldata?.country === "IN" ? "INR" : "USD",
+              },
+            });
+            return acc;
+          }, {})
+        ).map((items, idx) => ({
+          "@type": "MenuSection",
+          name: filteredMenus.find((m) => m.category?.name)?.category?.name || `Section ${idx + 1}`,
+          hasMenuItem: items,
+        })),
+      },
+    }),
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(restaurantSchema) }}
+      />
       <HotelMenuPage
         socialLinks={socialLinks}
         offers={filteredOffers}

@@ -20,18 +20,24 @@ const MENUTHERE_CONFIG: DomainConfig = {
   title:
     "Menuthere | QR Code Digital Menu for Restaurants, Cafes & Hotels",
   description:
-    "Create your free QR code digital menu in minutes. Real-time updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants, cafes & hotels.",
+    "Create your QR code digital menu in minutes. Real-time updates, Google Business sync, dynamic offers & analytics",
   logo: "/menuthere-logo.png",
   icon: "/menuthere-logo.png",
   logowhite: "/menuthere-white.png",
   ogImage: "/og_image.png",
 };
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+const isStaging =
+  siteUrl.includes("staging") ||
+  siteUrl.includes("test.cravings") ||
+  siteUrl.includes("vercel.app");
+
 export const metadata: Metadata = {
   title:
     "Menuthere | QR Code Digital Menu for Restaurants, Cafes & Hotels",
   description:
-    "Create your free QR code digital menu in minutes. Real-time updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants, cafes & hotels.",
+    "Create your QR code digital menu in minutes. Real-time updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants, cafes & hotels.",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "32x32" },
@@ -42,22 +48,24 @@ export const metadata: Metadata = {
     apple: [{ url: "/icon-192x192.png" }],
   },
   metadataBase: new URL("https://menuthere.com"),
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
-  },
+  robots: isStaging
+    ? { index: false, follow: false }
+    : {
+        index: true,
+        follow: true,
+        googleBot: {
+          index: true,
+          follow: true,
+          "max-video-preview": -1,
+          "max-image-preview": "large",
+          "max-snippet": -1,
+        },
+      },
   openGraph: {
     title:
       "Menuthere | QR Code Digital Menu for Restaurants, Cafes & Hotels",
     description:
-      "Create your free QR code digital menu in minutes. Real-time updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants, cafes & hotels.",
+      "Create your QR code digital menu in minutes. Real-time updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants, cafes & hotels.",
     type: "website",
     images: ["/og_image.png"],
   },
@@ -99,6 +107,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="theme-color" content="#f97316" />
         {/* Preconnect to critical third-party origins */}
         <link rel="preconnect" href="https://us-assets.i.posthog.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="anonymous" />

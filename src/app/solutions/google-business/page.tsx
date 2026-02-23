@@ -32,12 +32,11 @@ import {
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: `Manage Your Google Business Menu | Menuthere`,
-    description: `Automatically sync your restaurant menu to Google Business Profile. Keep your Google Maps menu always up-to-date. One-click sync, real-time updates, better local SEO. Trusted by 500+ restaurants.`,
-    keywords:
-      "Google Business Profile menu, Google Maps menu sync, restaurant Google menu, GBP menu manager, Google My Business menu, local SEO restaurant, menu sync automation",
+    title: `Sync Restaurant Menu to Google Business | Menuthere`,
+    description: `Sync your restaurant menu to Google Business Profile automatically. One-click setup, real-time updates, better local SEO. Trusted by 600+ restaurants.`,
+    alternates: { canonical: "https://menuthere.com/solutions/google-business" },
     openGraph: {
-      title: `Manage Your Google Business Menu | Menuthere`,
+      title: `Sync Restaurant Menu to Google Business | Menuthere`,
       description:
         "Automatically sync your restaurant menu to Google Maps. Always up-to-date, zero manual effort.",
       type: "website",
@@ -175,19 +174,6 @@ const STATS = [
 export default async function GoogleBusinessPage() {
   const appName = "Menuthere";
 
-  const faqSchema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: FAQ.map((item) => ({
-      "@type": "Question",
-      name: item.question,
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: item.answer,
-      },
-    })),
-  };
-
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -215,7 +201,6 @@ export default async function GoogleBusinessPage() {
 
   return (
     <main className="min-h-screen bg-white relative">
-      <JsonLd data={faqSchema} />
       <JsonLd data={breadcrumbSchema} />
 
       {/* Grid Background */}

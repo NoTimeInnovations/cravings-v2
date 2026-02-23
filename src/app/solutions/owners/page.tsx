@@ -11,6 +11,13 @@ export const metadata: Metadata = {
   title: "Restaurant Owner Solutions | Menuthere",
   description:
     "Take back control of your restaurant with Menuthere. Manage menu, POS, captains, and inventory from a single dashboard. Zero commissions, maximum profit.",
+  alternates: { canonical: "https://menuthere.com/solutions/owners" },
+  openGraph: {
+    title: "Restaurant Owner Solutions | Menuthere",
+    description: "Take back control of your restaurant with Menuthere. Manage menu, POS, captains, and inventory from a single dashboard. Zero commissions, maximum profit.",
+    url: "https://menuthere.com/solutions/owners",
+    type: "website",
+  },
 };
 
 export default function OwnersPage() {

@@ -25,6 +25,14 @@ declare module 'next/server' {
 export async function proxy(request: NextRequest) {
   const authToken = request.cookies.get("new_auth_token")?.value;
   const pathname = request.nextUrl.pathname;
+
+  // Normalize hotel URL slugs to lowercase — prevents duplicate URL variants
+  // e.g. /hotels/Donut-Cafe/uuid → /hotels/donut-cafe/uuid
+  if (pathname.startsWith("/hotels/") && pathname !== pathname.toLowerCase()) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.toLowerCase();
+    return NextResponse.redirect(url, { status: 308 });
+  }
   const cookieStore = await cookies();
   const requestHeaders = new Headers(request.headers);
 

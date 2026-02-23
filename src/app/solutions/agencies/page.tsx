@@ -17,6 +17,13 @@ export const metadata: Metadata = {
   title: "Agency Partner Program | Earn Recurring Commissions | Menuthere",
   description:
     "Become an authorized partner for Menuthere. Earn up to 30% lifetime recurring commissions selling premium digital menu solutions to restaurants.",
+  alternates: { canonical: "https://menuthere.com/solutions/agencies" },
+  openGraph: {
+    title: "Agency Partner Program | Earn Recurring Commissions | Menuthere",
+    description: "Become an authorized partner for Menuthere. Earn up to 30% lifetime recurring commissions selling premium digital menu solutions to restaurants.",
+    url: "https://menuthere.com/solutions/agencies",
+    type: "website",
+  },
 };
 
 export default function AgenciesPage() {

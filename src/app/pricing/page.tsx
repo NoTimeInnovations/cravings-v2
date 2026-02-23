@@ -7,9 +7,17 @@ import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
 export const metadata: Metadata = {
-  title: "Pricing | Menuthere Digital Menu",
+  title: "Pricing | Menuthere — Plans for Restaurants",
   description:
-    "Choose the perfect plan for your restaurant. Simple, transparent pricing with no hidden fees.",
+    "Simple plans for restaurants. No credit card needed. Upgrade for Google Business sync, analytics, and more. No hidden fees.",
+  alternates: { canonical: "https://menuthere.com/pricing" },
+  openGraph: {
+    title: "Pricing | Menuthere — Plans for Restaurants",
+    description:
+      "Simple plans for restaurants. No credit card needed. Upgrade for Google Business sync, analytics, and more. No hidden fees.",
+    url: "https://menuthere.com/pricing",
+    type: "website",
+  },
 };
 
 export default async function PricingPage() {

@@ -2,7 +2,6 @@ import { Metadata } from "next";
 import HelpCenterFacebook from "./FacebookSupport";
 import HelpCenterContactForm from "./ContactForm";
 import HelpCenterWhatsApp from "./WhatsAppSupport";
-import { JsonLd } from "@/components/seo/JsonLd";
 import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
@@ -14,13 +13,15 @@ import {
 } from "@/components/ui/accordion";
 
 export const metadata: Metadata = {
-    title: "Help & Support | Menuthere",
+    title: "Help & Support | Menuthere Digital Menu",
     description:
-        "Get help with your Menuthere digital menu. FAQs, WhatsApp support, and email contact form. Quick answers to common questions about menu management, offers, and more.",
+        "Get help with your Menuthere digital menu. FAQs, WhatsApp support, and email contact. Quick answers on menu management, offers, and more.",
+    alternates: { canonical: "https://menuthere.com/help-center" },
     openGraph: {
-        title: "Help & Support | Menuthere",
+        title: "Help & Support | Menuthere Digital Menu",
         description:
-            "Get help with your Menuthere digital menu. FAQs, contact form, and WhatsApp support.",
+            "Get help with your Menuthere digital menu. FAQs, WhatsApp support, and email contact. Quick answers on menu management, offers, and more.",
+        url: "https://menuthere.com/help-center",
         type: "website",
     },
 };
@@ -73,22 +74,8 @@ const FAQS = [
 ];
 
 export default function HelpCenterPage() {
-    const faqSchema = {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        "mainEntity": FAQS.map(faq => ({
-            "@type": "Question",
-            "name": faq.question,
-            "acceptedAnswer": {
-                "@type": "Answer",
-                "text": faq.answer
-            }
-        }))
-    };
-
     return (
         <div className="min-h-screen w-full bg-white geist-font">
-            <JsonLd data={faqSchema} />
 
             {/* Hero Header */}
             <section className="flex items-center justify-center px-5 pb-16 pt-32 md:pt-40 bg-[#fcfbf7]">

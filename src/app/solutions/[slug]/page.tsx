@@ -1175,7 +1175,7 @@ export async function generateMetadata({
   return {
     title: solution.metaTitle,
     description: solution.metaDescription,
-    keywords: solution.keywords,
+    alternates: { canonical: `https://menuthere.com/solutions/${solution.slug}` },
     openGraph: {
       title: solution.metaTitle,
       description: solution.metaDescription,
@@ -1198,19 +1198,6 @@ export default async function SolutionPage({
   }
 
   const IconComponent = solution.icon;
-
-  const faqSchema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: solution.faq.map((item) => ({
-      "@type": "Question",
-      name: item.question,
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: item.answer,
-      },
-    })),
-  };
 
   const breadcrumbSchema = {
     "@context": "https://schema.org",
@@ -1239,7 +1226,6 @@ export default async function SolutionPage({
 
   return (
     <main className="min-h-screen w-full bg-white geist-font">
-      <JsonLd data={faqSchema} />
       <JsonLd data={breadcrumbSchema} />
 
       {/* Hero Section */}

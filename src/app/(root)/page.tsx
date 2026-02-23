@@ -22,29 +22,14 @@ const WhatsAppButton = dynamic(() => import("@/components/WhatsAppButton"));
 
 export const metadata: Metadata = {
   title:
-    "Menuthere | Free QR Code Digital Menu for Restaurants, Cafes & Hotels",
+    "Menuthere | QR Code Digital Menu for Restaurants, Cafes & Hotels",
   description:
-    "Create your restaurant's free QR code digital menu in minutes. Instant updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants, cafes & hotels. Start free today.",
-  keywords: [
-    "digital menu",
-    "QR code menu",
-    "restaurant menu app",
-    "contactless menu",
-    "QR menu creator",
-    "restaurant digital menu",
-    "online menu for restaurant",
-    "Google Business menu sync",
-    "restaurant technology",
-    "digital menu for cafes",
-    "digital menu for hotels",
-    "QR menu for restaurant",
-    "restaurant management software",
-  ],
+    "Create your restaurant's QR code digital menu in minutes. Instant updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants, cafes & hotels.",
   openGraph: {
     title:
-      "Menuthere | Free QR Code Digital Menu for Restaurants, Cafes & Hotels",
+      "Menuthere | QR Code Digital Menu for Restaurants, Cafes & Hotels",
     description:
-      "Create your restaurant's free QR code digital menu in minutes. Instant updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants.",
+      "Create your restaurant's QR code digital menu in minutes. Instant updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants.",
     images: ["/og_image.png"],
     type: "website",
     url: "https://menuthere.com",
@@ -52,9 +37,9 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title:
-      "Menuthere | Free QR Code Digital Menu for Restaurants, Cafes & Hotels",
+      "Menuthere | QR Code Digital Menu for Restaurants, Cafes & Hotels",
     description:
-      "Create your restaurant's free QR code digital menu in minutes. Instant updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants.",
+      "Create your restaurant's QR code digital menu in minutes. Instant updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants.",
     images: ["/og_image.png"],
   },
   alternates: {
@@ -68,7 +53,7 @@ export default function Home() {
     "@type": "SoftwareApplication",
     name: "Menuthere",
     applicationCategory: "BusinessApplication",
-    operatingSystem: "Web",
+    operatingSystem: ["Web", "iOS", "Android"],
     offers: {
       "@type": "Offer",
       price: "0",
@@ -78,11 +63,13 @@ export default function Home() {
     description:
       "Menuthere is the all-in-one digital menu platform for restaurants, cafes, and hotels. Create QR code menus, sync to Google Business Profile, run dynamic offers, and track analytics — all from one dashboard.",
     url: "https://menuthere.com",
+    screenshot: "https://menuthere.com/og_image.png",
     aggregateRating: {
       "@type": "AggregateRating",
       ratingValue: "4.8",
-      ratingCount: "500",
+      ratingCount: "600",
       bestRating: "5",
+      worstRating: "1",
     },
     featureList: [
       "QR Code Digital Menu",
@@ -101,7 +88,12 @@ export default function Home() {
     "@type": "Organization",
     name: "Menuthere",
     url: "https://menuthere.com",
-    logo: "https://menuthere.com/menuthere-logo.png",
+    logo: {
+      "@type": "ImageObject",
+      url: "https://menuthere.com/menuthere-logo.png",
+      width: 512,
+      height: 512,
+    },
     description:
       "The all-in-one platform for restaurants to manage digital menus, orders, and grow their business online.",
     sameAs: [
@@ -112,8 +104,28 @@ export default function Home() {
     contactPoint: {
       "@type": "ContactPoint",
       email: "menuthere@gmail.com",
-      contactType: "customer support",
-      availableLanguage: ["English", "Hindi", "Malayalam"],
+      contactType: "customer service",
+      availableLanguage: [
+        { "@type": "Language", "name": "English" },
+        { "@type": "Language", "name": "Hindi" },
+        { "@type": "Language", "name": "Malayalam" },
+      ],
+    },
+  };
+
+  const websiteSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Menuthere",
+    url: "https://menuthere.com",
+    description: "Free QR code digital menu platform for restaurants, cafes and hotels.",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: "https://menuthere.com/help-center?q={search_term_string}",
+      },
+      "query-input": "required name=search_term_string",
     },
   };
 
@@ -121,6 +133,7 @@ export default function Home() {
     <div className="min-h-screen w-full bg-white geist-font relative">
       <JsonLd data={softwareAppSchema} />
       <JsonLd data={organizationSchema} />
+      <JsonLd data={websiteSchema} />
 
       {/* HERO — headline, CTA, menu upload */}
       <Hero />
