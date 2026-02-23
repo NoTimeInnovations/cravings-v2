@@ -21,7 +21,7 @@ import { ButtonV2 } from "@/components/ui/ButtonV2";
 import RestaurantMarquee from "@/components/international/RestaurantMarquee";
 import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
 import Footer from "@/components/Footer";
-import Chatwoot from "@/components/Chatwoot";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 export const metadata: Metadata = {
   title: "Digital Menu Solutions for Every Food Business | Menuthere",
@@ -319,7 +319,7 @@ export default async function SolutionsPage() {
       <Footer appName="Menuthere" />
 
       {/* Chat */}
-      <Chatwoot />
+      <WhatsAppButton />
     </main>
   );
 }

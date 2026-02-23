@@ -18,7 +18,7 @@ const StartFreeTrailSection = dynamic(
 );
 const FAQ = dynamic(() => import("@/components/home/FAQ"));
 const Footer = dynamic(() => import("@/components/Footer"));
-const Chatwoot = dynamic(() => import("@/components/Chatwoot"));
+const WhatsAppButton = dynamic(() => import("@/components/WhatsAppButton"));
 
 export const metadata: Metadata = {
   title:
@@ -162,7 +162,7 @@ export default function Home() {
 
       {/* CHAT */}
       <Suspense>
-        <Chatwoot />
+        <WhatsAppButton />
       </Suspense>
     </div>
   );

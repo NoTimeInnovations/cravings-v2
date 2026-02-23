@@ -8,7 +8,7 @@ import { FAQSection, CTASection } from "@/components/product/PageSections";
 import { ClientReviewsSection } from "@/components/product/ClientReviewsSection";
 import Footer from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
-import Chatwoot from "@/components/Chatwoot";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 
 // Helper to get data for a specific slug
@@ -88,7 +88,7 @@ export default async function ProductPage({
       <Footer appName="Menuthere" />
 
       {/* Chatwoot Chat Bubble */}
-      <Chatwoot />
+      <WhatsAppButton />
     </div>
   );
 }

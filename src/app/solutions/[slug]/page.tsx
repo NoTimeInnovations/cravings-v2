@@ -5,7 +5,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { ButtonV2 } from "@/components/ui/ButtonV2";
 import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
 import Footer from "@/components/Footer";
-import Chatwoot from "@/components/Chatwoot";
+import WhatsAppButton from "@/components/WhatsAppButton";
 import {
   Accordion,
   AccordionContent,
@@ -1472,7 +1472,7 @@ export default async function SolutionPage({
       <Footer appName="Menuthere" />
 
       {/* Chat */}
-      <Chatwoot />
+      <WhatsAppButton />
     </main>
   );
 }

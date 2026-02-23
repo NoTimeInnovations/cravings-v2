@@ -5,7 +5,7 @@ import { Monitor } from "lucide-react";
 import RestaurantMarquee from "@/components/international/RestaurantMarquee";
 import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
 import Footer from "@/components/Footer";
-import Chatwoot from "@/components/Chatwoot";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 async function getWindowsDownloadUrl() {
     try {
@@ -112,7 +112,7 @@ export default async function DownloadAppPage() {
             <Footer appName="Menuthere" />
 
             {/* Chat */}
-            <Chatwoot />
+            <WhatsAppButton />
         </div>
     );
 }

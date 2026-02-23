@@ -51,7 +51,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { countryCodes } from "@/utils/countryCodes";
-import Chatwoot from "@/components/Chatwoot";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 // --- Types ---
 interface MenuItem {
@@ -1912,7 +1912,7 @@ export default function GetStartedClient({
       {renderEmailChangeForm()}
 
       {/* Chatwoot Chat Bubble */}
-      <Chatwoot />
+      <WhatsAppButton />
     </div>
   );
 }

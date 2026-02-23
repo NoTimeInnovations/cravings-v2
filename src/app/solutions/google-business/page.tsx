@@ -3,7 +3,7 @@ import Link from "next/link";
 import { JsonLd } from "@/components/seo/JsonLd";
 import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
 import Footer from "@/components/Footer";
-import Chatwoot from "@/components/Chatwoot";
+import WhatsAppButton from "@/components/WhatsAppButton";
 import Image from "next/image";
 import {
   ArrowRight,
@@ -781,7 +781,7 @@ export default async function GoogleBusinessPage() {
       <Footer appName="Menuthere" />
 
       {/* Chat */}
-      <Chatwoot />
+      <WhatsAppButton />
     </main>
   );
 }

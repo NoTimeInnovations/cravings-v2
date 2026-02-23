@@ -3,7 +3,7 @@ import Image from "next/image";
 import { ButtonV2 } from "@/components/ui/ButtonV2";
 import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
 import Footer from "@/components/Footer";
-import Chatwoot from "@/components/Chatwoot";
+import WhatsAppButton from "@/components/WhatsAppButton";
 import ownersData from "@/content/solutions/owners.json";
 import { Star, CheckCircle2 } from "lucide-react";
 
@@ -186,7 +186,7 @@ export default function OwnersPage() {
       <Footer appName="Menuthere" />
 
       {/* Chat */}
-      <Chatwoot />
+      <WhatsAppButton />
     </main>
   );
 }

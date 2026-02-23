@@ -4,7 +4,7 @@ import PricingSection from "@/components/international/PricingSection";
 import RestaurantMarquee from "@/components/international/RestaurantMarquee";
 import StartFreeTrailSection from "@/components/home/StartFreeTrailSection";
 import Footer from "@/components/Footer";
-import Chatwoot from "@/components/Chatwoot";
+import WhatsAppButton from "@/components/WhatsAppButton";
 
 export const metadata: Metadata = {
   title: "Pricing | Menuthere Digital Menu",
@@ -51,7 +51,7 @@ export default async function PricingPage() {
       <Footer appName="Menuthere" />
 
       {/* Chat */}
-      <Chatwoot />
+      <WhatsAppButton />
     </div>
   );
 }
