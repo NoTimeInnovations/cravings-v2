@@ -68,9 +68,18 @@ export async function generateMetadata({
     throw new Error("Hotel not found");
   }
 
-  const seoTitle = `Menu of ${hotel.store_name}${hotel.location ? ` - ${hotel.location}` : ''} | Powered by Menuthere`;
+  // Build a human-readable location label — prefer structured fields over the raw
+  // `location` field which may contain a Google Maps URL.
+  const locationLabel =
+    hotel.location_details?.trim() ||
+    [hotel.district, hotel.country]
+      .filter(Boolean)
+      .join(", ") ||
+    null;
+
+  const seoTitle = `Menu of ${hotel.store_name}${locationLabel ? ` - ${locationLabel}` : ''}`;
   const seoDescription = hotel.description?.trim() ||
-    `Explore the full menu of ${hotel.store_name}${hotel.location ? ` in ${hotel.location}` : ''}. Browse dishes, prices, and daily specials. Order online or scan QR code.`;
+    `Explore the full menu of ${hotel.store_name}${locationLabel ? ` in ${locationLabel}` : ''}. Browse dishes, prices, and daily specials. Order online or scan QR code.`;
 
   // Noindex test/placeholder accounts
   const TEST_SLUGS = new Set(["sample", "newtest", "test", "demo", "testhotel", "new"]);
