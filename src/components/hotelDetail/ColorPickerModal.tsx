@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { ThemeConfig } from "./ThemeChangeButton";
 import { History } from "lucide-react";
 import dynamic from "next/dynamic";
+
+const HEX_REGEX = /^#[0-9A-Fa-f]{6}$/;
 
 interface ColorPickerModalProps {
   open: boolean;
@@ -65,6 +67,8 @@ const ColorPickerModal = ({
   const [currentPicker, setCurrentPicker] =
     React.useState<keyof typeof colors>("text");
   const [showColorPicker, setShowColorPicker] = React.useState(false);
+  const [hexInput, setHexInput] = useState("");
+  const [hexError, setHexError] = useState(false);
 
   const handleReset = () => {
     setColors(DEFAULT_COLORS);
@@ -80,7 +84,19 @@ const ColorPickerModal = ({
 
   const handleColorButtonClick = (colorKey: keyof typeof colors) => {
     setCurrentPicker(colorKey);
+    setHexInput(colors[colorKey]);
+    setHexError(false);
     setShowColorPicker(true);
+  };
+
+  const handleHexInputChange = (value: string) => {
+    setHexInput(value);
+    if (HEX_REGEX.test(value)) {
+      setHexError(false);
+      setColors((prev) => ({ ...prev, [currentPicker]: value }));
+    } else {
+      setHexError(true);
+    }
   };
 
   return (
@@ -149,27 +165,55 @@ const ColorPickerModal = ({
 
       {/* Color picker dialog */}
       <Dialog open={showColorPicker} onOpenChange={setShowColorPicker}>
-        <DialogContent className="w-[90%] max-w-[425px] rounded-xl top-[50%] translate-y-[-50%] h-fit">
+        <DialogContent className="w-[90%] max-w-[425px] rounded-xl top-[50%] translate-y-[-50%] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="capitalize">
               Pick {currentPicker} color
             </DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col items-center gap-6 py-4">
+          <div className="flex flex-col items-center gap-5 py-4">
             <HexColorPicker
               color={colors[currentPicker]}
-              onChange={(color) =>
-                setColors({ ...colors, [currentPicker]: color })
-              }
+              onChange={(color) => {
+                setColors({ ...colors, [currentPicker]: color });
+                setHexInput(color);
+                setHexError(false);
+              }}
               style={{ width: "100%", height: "200px" }}
             />
-            <div className="flex items-center gap-4">
+
+            {/* Hex input row */}
+            <div className="w-full flex items-center gap-3">
               <div
-                className="w-12 h-12 rounded-full border"
-                style={{ backgroundColor: colors[currentPicker] }}
+                className="w-10 h-10 flex-shrink-0 rounded-lg border border-gray-200 shadow-sm"
+                style={{
+                  backgroundColor: HEX_REGEX.test(hexInput)
+                    ? hexInput
+                    : colors[currentPicker],
+                }}
               />
-              <div className="font-mono">{colors[currentPicker]}</div>
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={hexInput}
+                  onChange={(e) => handleHexInputChange(e.target.value)}
+                  placeholder="#000000"
+                  maxLength={7}
+                  className={`w-full font-mono text-sm px-3 py-2 rounded-lg border outline-none transition-colors ${
+                    hexError
+                      ? "border-red-400 bg-red-50 focus:border-red-500"
+                      : "border-gray-200 bg-gray-50 focus:border-gray-400"
+                  }`}
+                  spellCheck={false}
+                />
+                {hexError && (
+                  <p className="text-xs text-red-500 mt-1 pl-1">
+                    Enter a valid hex code (e.g. #FF5733)
+                  </p>
+                )}
+              </div>
             </div>
+
             <Button
               onClick={() => setShowColorPicker(false)}
               className="w-full"

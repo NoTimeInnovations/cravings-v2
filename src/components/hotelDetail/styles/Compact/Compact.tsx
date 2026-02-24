@@ -928,6 +928,29 @@ const Compact = ({
                         style={{ width: "100%", height: "160px" }}
                       />
                     </div>
+
+                    {/* Hex input */}
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-9 h-9 flex-shrink-0 rounded-lg border border-gray-200 shadow-sm"
+                        style={{ backgroundColor: localStyles[mobileTab] as string }}
+                      />
+                      <input
+                        type="text"
+                        value={localStyles[mobileTab] as string}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setLocalStyles((prev) => ({
+                            ...prev,
+                            [mobileTab]: val,
+                          }));
+                        }}
+                        placeholder="#000000"
+                        maxLength={7}
+                        spellCheck={false}
+                        className="flex-1 font-mono text-sm px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 focus:border-gray-400 outline-none text-black"
+                      />
+                    </div>
                   </div>
                 )}
 
