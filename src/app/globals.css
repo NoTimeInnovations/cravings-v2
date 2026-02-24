@@ -427,3 +427,37 @@ button[data-state="open"] h1 .left-marker {
 
 .prose-menuthere strong { font-weight: 600; }
 .prose-menuthere em { font-style: italic; }
+
+/* Responsive tables */
+.prose-menuthere table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.prose-menuthere thead {
+  background-color: #fafaf9;
+}
+.prose-menuthere th {
+  padding: 0.625rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #1c1917;
+  border: 1px solid #e7e5e4;
+  white-space: nowrap;
+}
+.prose-menuthere td {
+  padding: 0.625rem 1rem;
+  border: 1px solid #e7e5e4;
+  color: #44403c;
+  vertical-align: top;
+}
+.prose-menuthere tbody tr:nth-child(even) {
+  background-color: #fafaf9;
+}
+.prose-menuthere tbody tr:hover {
+  background-color: #fff7ed;
+}
