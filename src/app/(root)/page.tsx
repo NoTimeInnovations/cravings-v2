@@ -103,7 +103,7 @@ export default function Home() {
     ],
     contactPoint: {
       "@type": "ContactPoint",
-      email: "help@support.menuthere.com",
+      email: "help@mail.menuthere.com",
       contactType: "customer support",
       availableLanguage: [
         { "@type": "Language", "name": "English" },

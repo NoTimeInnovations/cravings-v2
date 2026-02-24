@@ -171,7 +171,7 @@ const RESOURCES = [
   // {
   //   title: "Blogs",
   //   description: "Read our latest articles and updates",
-  //   href: "/blogs",
+  //   href: "/blog",
   //   icon: BookOpen
   // },
   {
@@ -213,7 +213,7 @@ const HIDDEN_PATHS = [
 // Known top-level static routes — any single-segment path NOT in this list
 // is treated as a partner username route and the navbar is hidden.
 const KNOWN_STATIC_ROUTES = new Set([
-  "actions", "admin", "admin-v2", "api", "auth", "bill", "business",
+  "actions", "admin", "admin-v2", "api", "auth", "bill", "blog", "business",
   "captain", "captainlogin", "coupons", "create-offer-promotion", "demo",
   "download-app", "explore", "get-started", "help-center", "hotels",
   "join-community", "kot", "login", "my-earnings", "my-orders", "newlogin",
@@ -733,6 +733,16 @@ export function Navbar() {
             Pricing
           </Link>
         )}
+
+        {isUserOrGuest && (
+          <Link
+            href="/blog"
+            onMouseEnter={handleNavHover}
+            className="px-3 py-1.5 text-sm font-medium transition-colors hidden lg:inline-flex text-[#544b47] hover:text-gray-900"
+          >
+            Blog
+          </Link>
+        )}
       </>
     );
   };
@@ -984,6 +994,17 @@ export function Navbar() {
                     className="flex items-center justify-between w-full text-gray-900 font-medium text-lg py-3"
                   >
                     Pricing
+                  </Link>
+                </div>
+
+                {/* Blog Mobile Link */}
+                <div className="border-b border-stone-200 pb-2">
+                  <Link
+                    href="/blog"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center justify-between w-full text-gray-900 font-medium text-lg py-3"
+                  >
+                    Blog
                   </Link>
                 </div>
               </>

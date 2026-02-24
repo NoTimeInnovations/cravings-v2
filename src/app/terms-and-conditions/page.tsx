@@ -110,7 +110,7 @@ const TermsAndConditionsPage = () => {
                             We may update these Terms at any time. Continued use of the Service indicates acceptance.
                         </p>
                         <p className="mt-4 font-medium">
-                            For questions, contact: <a href="mailto:help@support.menuthere.com" className="text-orange-600 hover:underline">help@support.menuthere.com</a>
+                            For questions, contact: <a href="mailto:help@mail.menuthere.com" className="text-orange-600 hover:underline">help@mail.menuthere.com</a>
                         </p>
                     </section>
 

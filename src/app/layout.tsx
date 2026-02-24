@@ -13,7 +13,6 @@ import { DomainProvider } from "@/providers/DomainProvider";
 import type { DomainConfig } from "@/lib/domain-utils";
 
 const AuthInitializer = dynamic(() => import("@/providers/AuthInitializer"));
-const WhatsappGroupJoinAlertDialog = dynamic(() => import("@/components/WhatsappGroupJoinAlertDialog"));
 
 const MENUTHERE_CONFIG: DomainConfig = {
   name: "Menuthere",
@@ -172,8 +171,7 @@ document.head.appendChild(o)}initApollo();`,
         <PostHogProvider>
           <DomainProvider config={MENUTHERE_CONFIG}>
             <AuthInitializer />
-            <WhatsappGroupJoinAlertDialog />
-            <Toaster richColors closeButton position="top-center" />
+<Toaster richColors closeButton position="top-center" />
             <Navbar />
             <main id="main-content">
               {children}

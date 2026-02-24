@@ -98,7 +98,7 @@ const PrivacyPolicyPage = () => {
                             We may update this policy when needed. Changes will appear on this page.
                         </p>
                         <p className="mt-4 font-medium">
-                            Questions? Contact <a href="mailto:help@support.menuthere.com" className="text-orange-600 hover:underline">help@support.menuthere.com</a>
+                            Questions? Contact <a href="mailto:help@mail.menuthere.com" className="text-orange-600 hover:underline">help@mail.menuthere.com</a>
                         </p>
                     </section>
                 </div>

@@ -37,6 +37,28 @@ export const onBoardUserSignup = async (data: OnboardingData) => {
 
         const newPartnerId = partnerResponse.insert_partners_one.id;
 
+        // Notify Thrisha via n8n webhook
+        try {
+            const username = partnerPayload.username || "";
+            fetch("https://n8n.cravings.live/webhook/mail-to-thrisha", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: partnerPayload.name,
+                    store_name: partnerPayload.store_name,
+                    email: partnerPayload.email,
+                    phone: partnerPayload.phone,
+                    country: partnerPayload.country,
+                    district: partnerPayload.district,
+                    state: partnerPayload.state,
+                    location: partnerPayload.location,
+                    username,
+                    menu_link: username ? `https://menuthere.com/${username}` : null,
+                    partner_id: newPartnerId,
+                }),
+            }).catch(() => {}); // fire-and-forget, never block signup
+        } catch {}
+
         // Set Auth Cookie to log them in immediately
         // COMMENTED OUT: We don't want to auto-login. They should check email.
         /* await setAuthCookie({
