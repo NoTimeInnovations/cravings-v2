@@ -14,6 +14,15 @@ const getPartnersWithUsername = `
   }
 `;
 
+const getPublishedBlogPosts = `
+  query GetPublishedBlogPosts {
+    blog_posts(where: {status: {_eq: "published"}}, order_by: {published_at: desc}) {
+      slug
+      published_at
+    }
+  }
+`;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Fetch active partners that have a username set
   let hotelEntries: MetadataRoute.Sitemap = [];
@@ -32,6 +41,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }));
   } catch (error) {
     console.error("Failed to fetch partners for sitemap:", error);
+  }
+
+  // Fetch published blog posts
+  let blogEntries: MetadataRoute.Sitemap = [];
+  try {
+    const data = await fetchFromHasura(getPublishedBlogPosts);
+    const posts: { slug: string; published_at: string }[] = data?.blog_posts || [];
+
+    blogEntries = posts.map((post) => ({
+      url: `${BASE_URL}/blog/${post.slug}`,
+      lastModified: new Date(post.published_at),
+    }));
+  } catch (error) {
+    console.error("Failed to fetch blog posts for sitemap:", error);
   }
 
   const staticDate = new Date("2026-02-22");
@@ -66,6 +89,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Resources
     { url: `${BASE_URL}/help-center`, lastModified: staticDate },
     { url: `${BASE_URL}/download-app`, lastModified: staticDate },
+    // Blog
+    { url: `${BASE_URL}/blog`, lastModified: staticDate },
+    ...blogEntries,
     // Restaurant pages — only partners with a username, served at /{username}
     ...hotelEntries,
   ];
