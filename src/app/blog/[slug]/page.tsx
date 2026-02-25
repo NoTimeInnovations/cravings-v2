@@ -8,6 +8,7 @@ import { notFound } from "next/navigation";
 import dynamic from "next/dynamic";
 import { unstable_cache } from "next/cache";
 import { TableOfContents } from "@/components/blog/TableOfContents";
+import { BlogViewTracker } from "@/components/blog/BlogViewTracker";
 
 const Footer = dynamic(() => import("@/components/Footer"));
 
@@ -159,6 +160,7 @@ export default async function BlogPostPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-white geist-font">
+      <BlogViewTracker postId={post.id} />
       <article>
         {/* Top bar */}
         <div className="max-w-7xl mx-auto px-6 md:px-10 pt-24 pb-8">
