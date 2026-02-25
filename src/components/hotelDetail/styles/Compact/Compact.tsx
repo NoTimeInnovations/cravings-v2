@@ -387,7 +387,7 @@ const Compact = ({
 
             {/* social links */}
             {/* REMOVED: `hasOffers` check and the OffersList button from here */}
-            {(socialLinks || isOwner) && (
+            {(socialLinks || isOwner || hoteldata?.geo_location?.coordinates) && (
               <div
                 style={{
                   borderColor:
@@ -395,7 +395,10 @@ const Compact = ({
                 }}
                 className="flex overflow-x-auto scrollbar-hide gap-2 p-4 pt-2 border-b-[1px] z-20"
               >
-                <SocialLinks socialLinks={socialLinks} />
+                <SocialLinks
+                  socialLinks={socialLinks}
+                  geoLocationLink={hoteldata?.place_id ? `https://www.google.com/maps/place/?q=place_id:${hoteldata.place_id}` : hoteldata?.geo_location?.coordinates ? `https://www.google.com/maps?q=${hoteldata.geo_location.coordinates[1]},${hoteldata.geo_location.coordinates[0]}` : undefined}
+                />
                 {isOwner && (
                   <div
                     onClick={() =>

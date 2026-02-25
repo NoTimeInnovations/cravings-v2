@@ -223,19 +223,12 @@ const PrintOrderPage = () => {
         const gstPercentage = formattedOrder.partner?.gst_percentage || 0;
         const subtotal = foodSubtotal + chargesSubtotal;
 
-        const discounts = formattedOrder.discounts || [];
-        const discountAmount = discounts.reduce((total: number, discount: any) => {
-          if (discount.type === "flat") {
-            return total + discount.value;
-          } else {
-            return total + (subtotal * discount.value) / 100;
-          }
+        const calcGstAmount = orders_by_pk.gst_included ?? (foodSubtotal * gstPercentage) / 100;
+        const calcDiscounts = formattedOrder.discounts || [];
+        const calcDiscountAmount = calcDiscounts.reduce((total: number, discount: any) => {
+          return total + (discount.savings || 0);
         }, 0);
-
-        const discountedSubtotal = Math.max(0, subtotal - discountAmount);
-        const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
-        const gstAmount = (discountedFoodSubtotal * gstPercentage) / 100;
-        const grandTotal = discountedSubtotal + gstAmount;
+        const grandTotal = orders_by_pk.total_price;
 
         // Generate UPI payment QR code if enabled
         let upiString = null;
@@ -318,10 +311,10 @@ const PrintOrderPage = () => {
               calculations: {
                 food_subtotal: foodSubtotal,
                 charges_subtotal: chargesSubtotal,
-                discount_amount: discountAmount,
+                discount_amount: calcDiscountAmount,
                 subtotal: subtotal,
                 gst_percentage: gstPercentage,
-                gst_amount: gstAmount,
+                gst_amount: calcGstAmount,
                 grand_total: grandTotal,
               },
               currency: formattedOrder.partner?.currency || "$",
@@ -403,19 +396,14 @@ const PrintOrderPage = () => {
 
   const subtotal = foodSubtotal + chargesSubtotal;
 
+  const gstAmount = order.gst_included ?? (foodSubtotal * gstPercentage) / 100;
+
   const discounts = order.discounts || [];
   const discountAmount = discounts.reduce((total: number, discount: any) => {
-    if (discount.type === "flat") {
-      return total + discount.value;
-    } else {
-      return total + (subtotal * discount.value) / 100;
-    }
+    return total + (discount.savings || 0);
   }, 0);
 
-  const discountedSubtotal = Math.max(0, subtotal - discountAmount);
-  const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
-  const gstAmount = (discountedFoodSubtotal * gstPercentage) / 100;
-  const grandTotal = discountedSubtotal + gstAmount;
+  const grandTotal = order.total_price;
 
   return (
     <div className="">

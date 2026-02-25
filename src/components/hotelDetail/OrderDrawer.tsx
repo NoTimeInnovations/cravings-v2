@@ -297,7 +297,13 @@ const OrderDrawer = ({
     const gstAmount = hotelData?.gst_percentage
       ? getGstAmount(baseTotal, hotelData.gst_percentage)
       : 0;
-    const grandTotal = baseTotal + qrCharge + deliveryCharge + parcelCharge + gstAmount;
+    const currentOrderData = useOrderStore.getState().order;
+    const orderDiscounts = currentOrderData?.discounts || [];
+    const discountAmount = orderDiscounts.reduce((total: number, discount: any) => {
+      return total + (discount.savings || 0);
+    }, 0);
+
+    const grandTotal = Math.max(0, baseTotal + qrCharge + deliveryCharge + parcelCharge + gstAmount - discountAmount);
 
     const hasMultiWhatsapp = getFeatures(hotelData?.feature_flags || "")
       ?.multiwhatsapp?.enabled;
@@ -376,6 +382,11 @@ const OrderDrawer = ({
 
     ${parcelCharge > 0
         ? `*Parcel Charge:* ${hotelData.currency}${parcelCharge.toFixed(2)}`
+        : ""
+      }
+
+    ${discountAmount > 0
+        ? `*Discount:* -${hotelData.currency}${discountAmount.toFixed(2)}`
         : ""
       }
 

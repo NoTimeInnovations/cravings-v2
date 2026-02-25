@@ -7,6 +7,7 @@ import { LocationSettings } from "./settings/LocationSettings";
 import { DeliverySettings } from "./settings/DeliverySettings";
 import { PaymentLegalSettings } from "./settings/PaymentLegalSettings";
 import { FeatureSettings } from "./settings/FeatureSettings";
+import { DiscountCodeSettings } from "./settings/DiscountCodeSettings";
 
 import { Button } from "@/components/ui/button";
 import { LogOut, ExternalLink } from "lucide-react";
@@ -49,6 +50,7 @@ export function AdminV2Settings() {
     const router = useRouter();
 
     const showOrderRelatedSettings = features?.ordering?.access;
+    const showDiscountSettings = features?.ordering?.access || features?.delivery?.access;
 
     const firstQrCodeId = (userData as any)?.qr_codes?.[0]?.id;
     const hotelNameSlug = (userData as any)?.name?.replace(/ /g, "-");
@@ -90,6 +92,9 @@ export function AdminV2Settings() {
                             <TabsTrigger value="payment">Payment & Legal</TabsTrigger>
                         </>
                     )}
+                    {showDiscountSettings && (
+                        <TabsTrigger value="discounts">Discount Codes</TabsTrigger>
+                    )}
                     <TabsTrigger value="features">Features</TabsTrigger>
                 </TabsList>
 
@@ -111,6 +116,12 @@ export function AdminV2Settings() {
                             <PaymentLegalSettings />
                         </TabsContent>
                     </>
+                )}
+
+                {showDiscountSettings && (
+                    <TabsContent value="discounts" className="space-y-4">
+                        <DiscountCodeSettings />
+                    </TabsContent>
                 )}
 
                 <TabsContent value="features" className="space-y-4">

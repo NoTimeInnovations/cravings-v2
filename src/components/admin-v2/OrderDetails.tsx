@@ -142,19 +142,14 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
 
     const subtotal = foodSubtotal + chargesSubtotal;
 
+    const gstAmount = order.gstIncluded ?? (foodSubtotal * gstPercentage) / 100;
+
     const discounts = order.discounts || [];
     const discountAmount = discounts.reduce((total, discount) => {
-        if (discount.type === "flat") {
-            return total + discount.value;
-        } else {
-            return total + (subtotal * discount.value) / 100;
-        }
+        return total + ((discount as any).savings || 0);
     }, 0);
 
-    const discountedSubtotal = Math.max(0, subtotal - discountAmount);
-    const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
-    const gstAmount = (discountedFoodSubtotal * gstPercentage) / 100;
-    const grandTotal = discountedSubtotal + gstAmount;
+    const grandTotal = order.totalPrice;
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">

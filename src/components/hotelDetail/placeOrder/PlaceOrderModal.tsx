@@ -44,6 +44,8 @@ import {
   getPhoneValidationError,
 } from "@/lib/getUserCountry";
 import { getPhoneDigitsForCountry } from "@/lib/countryPhoneMap";
+import { validateDiscountCodeQuery, incrementDiscountUsageMutation } from "@/api/discountCodes";
+import { Tag } from "lucide-react";
 
 // Local types for user addresses (stored in users.addresses jsonb)
 type SavedAddress = {
@@ -1340,6 +1342,7 @@ interface BillCardProps {
   hotelData: HotelData;
   qrGroup: QrGroup | null;
   tableNumber: number;
+  discount?: { type: "percentage" | "flat"; value: number; max_discount_amount?: number } | null;
 }
 
 const BillCard = ({
@@ -1351,6 +1354,7 @@ const BillCard = ({
   hotelData,
   qrGroup,
   tableNumber,
+  discount,
 }: BillCardProps) => {
   const subtotal = items.reduce(
     (acc, item) => acc + item.price * item.quantity,
@@ -1381,7 +1385,17 @@ const BillCard = ({
       : 0;
 
   const gstAmount = (subtotal * (gstPercentage || 0)) / 100;
-  const grandTotal = subtotal + qrExtraCharges + deliveryCharges + parcelCharge + gstAmount;
+  let discountSavings = 0;
+  if (discount) {
+    if (discount.type === "percentage") {
+      discountSavings = (subtotal * discount.value) / 100;
+      if (discount.max_discount_amount) discountSavings = Math.min(discountSavings, discount.max_discount_amount);
+    } else {
+      discountSavings = discount.value;
+    }
+    discountSavings = Math.min(discountSavings, subtotal);
+  }
+  const grandTotal = Math.max(0, subtotal + qrExtraCharges + deliveryCharges + parcelCharge + gstAmount - discountSavings);
 
   return (
     <motion.div
@@ -1460,6 +1474,15 @@ const BillCard = ({
               <span className="font-medium text-gray-900">
                 {currency}
                 {parcelCharge.toFixed(2)}
+              </span>
+            </div>
+          )}
+
+          {discountSavings > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-green-600 font-medium">Discount</span>
+              <span className="font-medium text-green-600">
+                − {currency}{discountSavings.toFixed(2)}
               </span>
             </div>
           )}
@@ -1936,6 +1959,19 @@ const PlaceOrderModal = ({
     "idle" | "loading" | "success"
   >("idle");
 
+  // Discount code state
+  const [discountInput, setDiscountInput] = useState("");
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    id: string;
+    code: string;
+    type: "percentage" | "flat";
+    value: number;
+    max_discount_amount?: number;
+  } | null>(null);
+  const [discountError, setDiscountError] = useState("");
+  const [validatingCode, setValidatingCode] = useState(false);
+  const [hasActiveCodes, setHasActiveCodes] = useState(false);
+
   useEffect(() => {
     if (typeof navigator !== "undefined") {
       setIsAndroid(/Android/i.test(navigator.userAgent));
@@ -1946,6 +1982,33 @@ const PlaceOrderModal = ({
     tableNumber === 0 ? orderType === "delivery" : !tableNumber;
   const hasDelivery = hotelData?.geo_location;
   const isQrScan = qrId !== null && tableNumber !== 0;
+
+  const computeDiscountSavings = (disc: typeof appliedDiscount) => {
+    if (!disc) return 0;
+    const sub = items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
+    let savings = disc.type === "percentage" ? (sub * disc.value) / 100 : disc.value;
+    if (disc.type === "percentage" && disc.max_discount_amount) savings = Math.min(savings, disc.max_discount_amount);
+    return Math.min(savings, sub);
+  };
+
+  const hotelFeatures = getFeatures(hotelData?.feature_flags || "");
+  const showDiscountSection =
+    (isQrScan ? hotelFeatures?.ordering?.enabled : hotelFeatures?.delivery?.enabled);
+
+  // Fetch whether this partner has at least 1 active discount code
+  useEffect(() => {
+    if (!showDiscountSection || !hotelData?.id) return;
+    fetchFromHasura(
+      `query CheckActiveCodes($partner_id: uuid!) {
+        discount_codes_aggregate(where: { partner_id: { _eq: $partner_id }, is_active: { _eq: true }, _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }] }) {
+          aggregate { count }
+        }
+      }`,
+      { partner_id: hotelData.id }
+    ).then((res) => {
+      setHasActiveCodes((res?.discount_codes_aggregate?.aggregate?.count ?? 0) > 0);
+    }).catch(() => {});
+  }, [hotelData?.id, showDiscountSection]);
 
   useEffect(() => {
     if (open_place_order_modal && items?.length === 0) {
@@ -2088,6 +2151,45 @@ const PlaceOrderModal = ({
     }
   }, [selectedCoords, isDelivery, hasDelivery, isQrScan, orderType, hotelData]);
 
+  const handleApplyDiscount = async () => {
+    if (!discountInput.trim()) return;
+    setDiscountError("");
+    setValidatingCode(true);
+    try {
+      const subtotal = totalPrice || 0;
+      const res = await fetchFromHasura(validateDiscountCodeQuery, {
+        partner_id: hotelData.id,
+        code: discountInput.trim().toUpperCase(),
+      });
+      const code = res?.discount_codes?.[0];
+      if (!code) {
+        setDiscountError("Invalid or expired discount code.");
+        return;
+      }
+      if (code.usage_limit != null && code.used_count >= code.usage_limit) {
+        setDiscountError("This code has reached its usage limit.");
+        return;
+      }
+      if (code.min_order_value && subtotal < code.min_order_value) {
+        setDiscountError(`Minimum order of ${hotelData?.currency || "₹"}${code.min_order_value} required.`);
+        return;
+      }
+      const discountValue = Number(code.discount_value);
+      setAppliedDiscount({ id: code.id, code: code.code, type: code.discount_type, value: discountValue, max_discount_amount: code.max_discount_amount ? Number(code.max_discount_amount) : undefined });
+      setDiscountInput("");
+    } catch {
+      setDiscountError("Failed to validate code. Please try again.");
+    } finally {
+      setValidatingCode(false);
+    }
+  };
+
+  const handleRemoveDiscount = () => {
+    setAppliedDiscount(null);
+    setDiscountError("");
+    setDiscountInput("");
+  };
+
   const handlePlaceOrder = async (onSuccessCallback?: () => void) => {
     if (tableNumber === 0 && !orderType) {
       toast.error("Please select an order type");
@@ -2216,11 +2318,16 @@ const PlaceOrderModal = ({
         undefined,
         orderNote || "",
         tableName,
+        appliedDiscount ? { code: appliedDiscount.code, type: appliedDiscount.type, value: appliedDiscount.value, savings: computeDiscountSavings(appliedDiscount) } : null,
       );
 
       if (result) {
         if (result.id) {
           localStorage?.setItem("last-order-id", result.id);
+        }
+
+        if (appliedDiscount?.id) {
+          fetchFromHasura(incrementDiscountUsageMutation, { id: appliedDiscount.id }).catch(() => {});
         }
 
         if (onSuccessCallback) {
@@ -2341,6 +2448,55 @@ const PlaceOrderModal = ({
                 />
               ) : null}
 
+              {/* Discount Code — above bill summary */}
+              {showDiscountSection && hasActiveCodes && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white rounded-2xl shadow-sm border border-stone-200 p-5"
+                >
+                  <h3 className="font-semibold text-gray-900 text-base mb-3 flex items-center gap-2">
+                    <Tag className="h-4 w-4 text-orange-500" />
+                    Discount Code
+                  </h3>
+                  {appliedDiscount ? (
+                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                      <div>
+                        <p className="text-sm font-semibold text-green-700 font-mono">{appliedDiscount.code}</p>
+                        <p className="text-xs text-green-600">
+                          You save {hotelData?.currency || "₹"}{computeDiscountSavings(appliedDiscount).toFixed(2)}
+                        </p>
+                      </div>
+                      <button onClick={handleRemoveDiscount} className="p-1 rounded-full hover:bg-green-100">
+                        <X className="h-4 w-4 text-green-600" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Input
+                          value={discountInput}
+                          onChange={(e) => { setDiscountInput(e.target.value.toUpperCase()); setDiscountError(""); }}
+                          onKeyDown={(e) => e.key === "Enter" && handleApplyDiscount()}
+                          placeholder="Enter code"
+                          className="uppercase font-mono rounded-xl border-stone-200 text-black"
+                        />
+                        <button
+                          onClick={handleApplyDiscount}
+                          disabled={validatingCode || !discountInput.trim()}
+                          className="shrink-0 px-4 py-2 bg-orange-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
+                        >
+                          {validatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+                        </button>
+                      </div>
+                      {discountError && (
+                        <p className="text-xs text-red-500">{discountError}</p>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
               <BillCard
                 items={items || []}
                 currency={hotelData?.currency || "₹"}
@@ -2350,6 +2506,7 @@ const PlaceOrderModal = ({
                 qrGroup={qrGroup}
                 hotelData={hotelData}
                 tableNumber={tableNumber}
+                discount={appliedDiscount ? { type: appliedDiscount.type, value: appliedDiscount.value, max_discount_amount: appliedDiscount.max_discount_amount } : null}
               />
 
               {/* Order Note */}

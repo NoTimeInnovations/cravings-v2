@@ -194,6 +194,7 @@ interface OrderState {
     deliveryCharge?: number,
     notes?: string,
     tableName?: string,
+    discounts?: { code: string; type: string; value: number; savings: number } | null,
   ) => Promise<Order | null>;
   getCurrentOrder: () => HotelOrderState;
   fetchOrderOfPartner: (partnerId: string) => Promise<Order[] | null>;
@@ -943,7 +944,8 @@ const useOrderStore = create(
           | null,
         deliveryCharge?: number,
         notes?: string,
-        tableName?: string
+        tableName?: string,
+        discounts?: { code: string; type: string; value: number; savings: number } | null,
       ) => {
         try {
           const state = get();
@@ -1023,7 +1025,8 @@ const useOrderStore = create(
             0
           );
 
-          const grandTotal = subtotal + (gstIncluded || 0) + totalExtraCharges;
+          const discountSavings = discounts?.savings || 0;
+          const grandTotal = Math.max(0, subtotal + (gstIncluded || 0) + totalExtraCharges - discountSavings);
 
           const getNextDisplayOrderNumber = await getNextOrderNumber(
             hotelData.id
@@ -1093,7 +1096,7 @@ const useOrderStore = create(
               table_name: tableName || null,
               payment_method: "cash",
               petpooja_restaurant_id: hotelData.petpooja_restaurant_id,
-              discounts: [], // User app orders don't support discounts yet, sending empty array
+              discounts: discounts ? [discounts] : [],
               items: currentOrder.items.map((item) => ({
                 id: uuidv4(),
                 order_id: orderId,
@@ -1188,6 +1191,7 @@ const useOrderStore = create(
                   : null,
               notes: notes || null,
               display_id: getNextDisplayOrderNumber.toString(),
+              discounts: discounts ? [discounts] : null,
               orderItems: currentOrder.items.map((item) => ({
                 menu_id: item.id.split("|")[0],
                 quantity: item.quantity,
@@ -1224,6 +1228,7 @@ const useOrderStore = create(
             },
             gstIncluded,
             extraCharges: exCharges,
+            discounts: discounts ? [discounts] as any : [],
           };
 
           // Update state

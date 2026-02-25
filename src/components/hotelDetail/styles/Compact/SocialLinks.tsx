@@ -28,7 +28,7 @@ const LinkItem = ({
   );
 };
 
-const SocialLinks = ({ socialLinks }: { socialLinks: SocialLinks }) => {
+const SocialLinks = ({ socialLinks, geoLocationLink }: { socialLinks: SocialLinks; geoLocationLink?: string }) => {
   return (
     <>
       {socialLinks.phone && socialLinks.phone !== "" ? (
@@ -79,7 +79,7 @@ const SocialLinks = ({ socialLinks }: { socialLinks: SocialLinks }) => {
         </div>
       ) : null}
 
-      {socialLinks.location && socialLinks.location !== "" ? (
+      {(geoLocationLink || (socialLinks.location && socialLinks.location !== "")) ? (
         <div>
           <LinkItem
             styles={{
@@ -87,7 +87,7 @@ const SocialLinks = ({ socialLinks }: { socialLinks: SocialLinks }) => {
               color: "#2b7fff",
               backgroundColor: "#eff5ff",
             }}
-            href={socialLinks.location}
+            href={(geoLocationLink || socialLinks.location) as string}
             icon={<MapPin size={15} />}
             text="Location"
           />
