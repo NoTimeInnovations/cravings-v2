@@ -79,9 +79,10 @@ export const UpiPaymentScreen = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[8000] bg-white flex flex-col overflow-y-auto">
+    <div className="fixed inset-0 z-[8000] bg-black/40 flex items-start md:items-center justify-center overflow-y-auto">
+      <div className="relative bg-white w-full md:max-w-md md:rounded-2xl md:my-8 flex flex-col min-h-screen md:min-h-0 md:shadow-2xl">
       {/* Header */}
-      <div className="sticky top-0 bg-white border-b border-stone-200 shadow-sm z-10">
+      <div className="sticky top-0 bg-white border-b border-stone-200 shadow-sm z-10 md:rounded-t-2xl">
         <div className="flex items-center gap-3 p-4">
           <button
             onClick={onBack}
@@ -112,10 +113,10 @@ export const UpiPaymentScreen = ({
             <img
               src={qrDataUrl}
               alt="UPI Payment QR Code"
-              className="w-52 h-52 rounded-xl border-2 border-stone-200 p-2"
+              className="w-52 h-52 md:w-64 md:h-64 rounded-xl border-2 border-stone-200 p-2"
             />
           ) : (
-            <div className="w-52 h-52 rounded-xl border-2 border-stone-200 bg-stone-50 animate-pulse" />
+            <div className="w-52 h-52 md:w-64 md:h-64 rounded-xl border-2 border-stone-200 bg-stone-50 animate-pulse" />
           )}
           <p className="text-xs text-gray-500">Pay to: {upiId}</p>
         </div>
@@ -190,6 +191,7 @@ export const UpiPaymentScreen = ({
         <p className="text-xs text-gray-400 text-center pb-4">
           Order #{orderId?.slice(0, 8).toUpperCase() ?? ""} placed successfully
         </p>
+      </div>
       </div>
     </div>
   );
