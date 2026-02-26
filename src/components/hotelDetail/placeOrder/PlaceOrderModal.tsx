@@ -1967,6 +1967,7 @@ const PlaceOrderModal = ({
     type: "percentage" | "flat";
     value: number;
     max_discount_amount?: number;
+    min_order_value?: number;
   } | null>(null);
   const [discountError, setDiscountError] = useState("");
   const [validatingCode, setValidatingCode] = useState(false);
@@ -2175,7 +2176,7 @@ const PlaceOrderModal = ({
         return;
       }
       const discountValue = Number(code.discount_value);
-      setAppliedDiscount({ id: code.id, code: code.code, type: code.discount_type, value: discountValue, max_discount_amount: code.max_discount_amount ? Number(code.max_discount_amount) : undefined });
+      setAppliedDiscount({ id: code.id, code: code.code, type: code.discount_type, value: discountValue, max_discount_amount: code.max_discount_amount ? Number(code.max_discount_amount) : undefined, min_order_value: code.min_order_value ? Number(code.min_order_value) : undefined });
       setDiscountInput("");
     } catch {
       setDiscountError("Failed to validate code. Please try again.");
@@ -2183,6 +2184,17 @@ const PlaceOrderModal = ({
       setValidatingCode(false);
     }
   };
+
+  // Auto-remove discount if subtotal drops below min_order_value
+  useEffect(() => {
+    if (!appliedDiscount?.min_order_value) return;
+    const subtotal = items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
+    if (subtotal < appliedDiscount.min_order_value) {
+      setAppliedDiscount(null);
+      setDiscountError("");
+      toast.info("Discount removed: order below minimum amount.");
+    }
+  }, [items, appliedDiscount]);
 
   const handleRemoveDiscount = () => {
     setAppliedDiscount(null);

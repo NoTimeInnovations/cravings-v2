@@ -75,6 +75,7 @@ const ItemCard = ({
 
   const hasOrderingFeature =
     getFeatures(feature_flags || "")?.ordering.enabled &&
+    tableNumber !== 0 &&
     (hoteldata?.delivery_rules?.isDeliveryActive ?? true) &&
     isWithinDeliveryTime();
 
