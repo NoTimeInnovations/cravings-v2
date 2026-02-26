@@ -265,8 +265,6 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
         order.createdAt && isSameDay(parseISO(order.createdAt), new Date())
     ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    console.log("todaysOrders", todaysOrders);
-
     const hasPendingOrders = todaysOrders.some(order => order.status === 'pending');
 
     const getStatusColor = (status: string) => {
