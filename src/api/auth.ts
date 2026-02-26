@@ -36,6 +36,9 @@ export const partnerIdQuery = `
       status
       social_links
       upi_id
+      show_payment_qr
+      post_payment_message
+      fssai_licence_no
       feature_flags
       description
       phone
@@ -82,6 +85,9 @@ export const partnerLoginQuery = `
       status
       social_links
       upi_id
+      show_payment_qr
+      post_payment_message
+      fssai_licence_no
       feature_flags
       description
       phone
