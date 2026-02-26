@@ -159,7 +159,7 @@ const BottomNav = () => {
   })();
 
   // Don't show on /captain* routes, otherwise show if items exist
-  const shouldShow = items.length > 0 && !isUsernameRoute && !pathname.startsWith("/captain") && !pathname.startsWith("/kot") && !pathname.startsWith("/bill") && !pathname.startsWith("/whatsappQr") && !pathname.startsWith("/get-started") && !pathname.startsWith("/admin-v2") && !pathname.startsWith("/pricing") && !pathname.startsWith("/hotels") && !pathname.startsWith("/qrScan") && !pathname.startsWith("/business");
+  const shouldShow = items.length > 0 && !isUsernameRoute && !pathname.startsWith("/captain") && !pathname.startsWith("/kot") && !pathname.startsWith("/bill") && !pathname.startsWith("/whatsappQr") && !pathname.startsWith("/get-started") && !pathname.startsWith("/admin-v2") && !pathname.startsWith("/pricing") && !pathname.startsWith("/hotels") && !pathname.startsWith("/qrScan") && !pathname.startsWith("/business") && !pathname.startsWith("/order/");
 
   if (!shouldShow) return null;
 

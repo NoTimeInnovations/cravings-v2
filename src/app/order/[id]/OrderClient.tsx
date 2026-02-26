@@ -6,10 +6,12 @@ import { formatDate, getDateOnly } from "@/lib/formatDate";
 import { ExtraCharge } from "@/store/posStore";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { subscribeToHasura } from "@/lib/hasuraSubscription";
+import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Order, OrderItem } from "@/store/orderStore";
 import OfferLoadinPage from "@/components/OfferLoadinPage";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MessageCircle, CreditCard } from "lucide-react";
+import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 
 const GET_ORDER_QUERY = `
   subscription GetOrder($id: uuid!) {
@@ -62,6 +64,12 @@ const OrderClient = () => {
     const [order, setOrder] = useState<Order | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [showUpiScreen, setShowUpiScreen] = useState(false);
+    const [partnerPaymentInfo, setPartnerPaymentInfo] = useState<{
+        upi_id?: string;
+        show_payment_qr?: boolean;
+        phone?: string;
+    } | null>(null);
 
     useEffect(() => {
         if (!orderId) return;
@@ -118,6 +126,23 @@ const OrderClient = () => {
         };
     }, [orderId]);
 
+    useEffect(() => {
+        if (!order?.partnerId) return;
+        fetchFromHasura(`
+            query GetPartnerPaymentInfo($id: uuid!) {
+                partners_by_pk(id: $id) {
+                    upi_id
+                    show_payment_qr
+                    phone
+                }
+            }
+        `, { id: order.partnerId }).then((data) => {
+            if (data?.partners_by_pk) {
+                setPartnerPaymentInfo(data.partners_by_pk);
+            }
+        }).catch(() => {});
+    }, [order?.partnerId]);
+
     // Calculate order totals
     const foodTotal = order?.items?.reduce(
         (sum, orderItem) => sum + orderItem.price * orderItem.quantity,
@@ -142,10 +167,68 @@ const OrderClient = () => {
     const grandTotal = subtotal + gstAmount;
 
     const statusDisplay = getStatusDisplay(order as Order);
+    const isCompleted = order?.status === "completed" || order?.status === "cancelled";
+
+    const buildWhatsappLink = () => {
+        const rawPhone = partnerPaymentInfo?.phone;
+        const phone = rawPhone?.replace(/\D/g, "");
+        if (!phone) return null;
+        const currency = order?.partner?.currency || "₹";
+        const nowTime = new Intl.DateTimeFormat("en-GB", { hour: "numeric", minute: "numeric", hour12: true }).format(new Date(order?.createdAt || Date.now()));
+        const dateParts = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).formatToParts(new Date(order?.createdAt || Date.now()));
+        const day = dateParts.find(p => p.type === "day")?.value;
+        const month = dateParts.find(p => p.type === "month")?.value;
+        const shortId = (order?.display_id || order?.id?.slice(0, 4).toUpperCase() || "N/A");
+        const formattedOrderId = `${shortId}-${month} ${day}`;
+        const orderTypeStr = order?.type === "table_order" && order?.tableNumber
+            ? `*Table:* ${order.tableNumber}`
+            : `*Order Type:* ${order?.type?.replace("_", " ") || "Delivery"}`;
+        const deliveryLine = order?.type === "delivery" && order?.deliveryAddress
+            ? `\n*Delivery Address:* ${order.deliveryAddress}`
+            : "";
+        const customerPhone = order?.user?.phone || order?.phone;
+        const phoneLine = customerPhone ? `\n*Customer Phone:* ${customerPhone}\n` : "";
+        const itemsText = (order?.items || [])
+            .map((item, index) => `${index + 1}. ${item.name}\n   ➤ Qty: ${item.quantity} × ${currency}${item.price.toFixed(2)} = ${currency}${(item.price * item.quantity).toFixed(2)}`)
+            .join("\n\n");
+        const gstLine = gstPercentage > 0
+            ? `\n*${order?.partner?.country === "United Arab Emirates" ? "VAT" : "GST"} (${gstPercentage}%):* ${currency}${gstAmount.toFixed(2)}`
+            : "";
+        const msg = `*🍽️ Order Details 🍽️*
+
+*Order ID:* ${formattedOrderId}
+${orderTypeStr}${deliveryLine}${phoneLine}
+*Time:* ${nowTime}
+
+*📋 Order Items:*
+${itemsText}
+
+*Subtotal:* ${currency}${subtotal.toFixed(2)}${gstLine}
+
+*Total Price:* ${currency}${grandTotal.toFixed(2)}`;
+        return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+    };
+
+    const whatsappLink = buildWhatsappLink();
+    const hasUpiQr = partnerPaymentInfo?.show_payment_qr && !!partnerPaymentInfo?.upi_id;
 
     const router = useRouter();
 
     return (
+        <>
+        {showUpiScreen && order && hasUpiQr && (
+            <UpiPaymentScreen
+                upiId={partnerPaymentInfo!.upi_id!}
+                storeName={order.partner?.store_name || ""}
+                amount={grandTotal}
+                currency={order.partner?.currency || "₹"}
+                orderId={order.id}
+                postPaymentMessage={null}
+                whatsappLink={whatsappLink || ""}
+                onBack={() => setShowUpiScreen(false)}
+                onClose={() => setShowUpiScreen(false)}
+            />
+        )}
         <div className="bg-gray-50 min-h-screen pb-16">
             {/* Top Navbar */}
             <div className="bg-white border-b sticky top-0 z-50 px-4 py-3 flex items-center gap-3 shadow-sm">
@@ -314,9 +397,36 @@ const OrderClient = () => {
                         </div>
 
                     </div>
+
+                    {/* Action Buttons */}
+                    {!isCompleted && (
+                        <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                            {whatsappLink && (
+                                <a
+                                    href={whatsappLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-500 text-white rounded-xl font-medium text-sm hover:bg-green-600 transition-colors"
+                                >
+                                    <MessageCircle className="w-4 h-4" />
+                                    Send Order to WhatsApp
+                                </a>
+                            )}
+                            {hasUpiQr && (
+                                <button
+                                    onClick={() => setShowUpiScreen(true)}
+                                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-xl font-medium text-sm hover:bg-orange-600 transition-colors"
+                                >
+                                    <CreditCard className="w-4 h-4" />
+                                    Pay Now
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
         </div>
+        </>
     );
 };
 

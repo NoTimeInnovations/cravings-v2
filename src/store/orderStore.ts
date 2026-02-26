@@ -84,6 +84,9 @@ export interface Order {
     currency?: string;
     store_name?: string;
     country?: string;
+    whatsapp_number?: string;
+    upi_id?: string;
+    show_payment_qr?: boolean;
   };
   phone?: string | null;
   userId?: string;
