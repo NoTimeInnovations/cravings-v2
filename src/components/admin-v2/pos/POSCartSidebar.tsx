@@ -265,6 +265,8 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
         order.createdAt && isSameDay(parseISO(order.createdAt), new Date())
     ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+    console.log("todaysOrders", todaysOrders);
+
     const hasPendingOrders = todaysOrders.some(order => order.status === 'pending');
 
     const getStatusColor = (status: string) => {
@@ -321,8 +323,9 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     const activeOrderDataDiscountedTotal = Math.max(0, activeOrderDataTotal - activeOrderDataDiscountAmount);
     const activeOrderDataDiscountedFoodSubtotal = Math.max(0, activeOrderDataSubtotal - activeOrderDataDiscountAmount);
 
+    const activeOrderDataGstPercentage = partnerData?.gst_percentage || 0;
     const activeOrderDataGstAmount = activeOrderData
-        ? getGstAmount(activeOrderDataDiscountedFoodSubtotal, activeOrderData.gstIncluded || 0)
+        ? getGstAmount(activeOrderDataDiscountedFoodSubtotal, activeOrderDataGstPercentage)
         : 0;
 
 
@@ -847,9 +850,9 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                             <span>- {formatCurrency(activeOrderDataDiscountAmount)}</span>
                                         </div>
                                     )}
-                                    {(activeOrderData.gstIncluded || 0) > 0 && (
+                                    {activeOrderDataGstPercentage > 0 && (
                                         <div className="flex justify-between text-muted-foreground">
-                                            <span>GST ({activeOrderData.gstIncluded}%)</span>
+                                            <span>GST ({activeOrderDataGstPercentage}%)</span>
                                             <span>{formatCurrency(activeOrderDataGstAmount)}</span>
                                         </div>
                                     )}

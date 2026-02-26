@@ -713,13 +713,13 @@ export const usePOSStore = create<POSState>((set, get) => ({
         userId,
         isCaptainOrder,
         createdAt,
-        totalPrice: foodSubtotal,
+        totalPrice: grandTotal,
         type: orderTypeString,
         status: "accepted" as "accepted",
         tableNumber: get().tableNumber,
         extraCharges: allExtraCharges,
         discounts: discounts,
-        gstIncluded: gstPercentage,
+        gstIncluded: getGstAmount(discountedFoodSubtotal, gstPercentage),
         captainId: isCaptainOrder ? userId : null,
         orderNote: orderNote,
         paymentMethod
@@ -808,8 +808,8 @@ export const usePOSStore = create<POSState>((set, get) => ({
       // Create order in database
       const orderResponse = await fetchFromHasura(createOrderMutation, {
         id: orderId,
-        totalPrice: foodSubtotal,
-        gst_included: gstPercentage,
+        totalPrice: grandTotal,
+        gst_included: getGstAmount(discountedFoodSubtotal, gstPercentage),
         payment_method: paymentMethod || null,
         extra_charges: allExtraCharges.length > 0 ? allExtraCharges : null,
         discounts: discounts.length > 0 ? discounts : null,
@@ -835,14 +835,14 @@ export const usePOSStore = create<POSState>((set, get) => ({
           errors: orderResponse.errors,
           sentData: {
             id: orderId,
-            totalPrice: foodSubtotal,
+            totalPrice: grandTotal,
             partnerId,
             type: orderTypeString,
             status: "accepted" as "accepted",
             tableNumber: get().tableNumber,
             extraCharges: allExtraCharges,
             discounts: discounts,
-            gstIncluded: gstPercentage,
+            gstIncluded: getGstAmount(discountedFoodSubtotal, gstPercentage),
             captainId: isCaptainOrder ? userId : null
           }
         });

@@ -1421,7 +1421,6 @@ const useOrderStore = create(
 );
 
 function transformOrderFromHasura(order: any): Order {
-  console.log("Order recived for transformation", order)
   return {
     id: order.id,
     items: order.order_items.map((item: any) => ({
