@@ -2757,6 +2757,7 @@ const PlaceOrderModal = ({
           orderId={orderId as string}
           postPaymentMessage={postPaymentMessage}
           whatsappLink={getWhatsappLink(orderId as string)}
+          onBack={() => setShowUpiScreen(false)}
           onClose={handleCloseUpiScreen}
         />
       )}
