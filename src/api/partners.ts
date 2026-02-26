@@ -161,6 +161,9 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     delivery_rules
     delivery_rules
     hide_unavailable
+    upi_id
+    show_payment_qr
+    post_payment_message
     subscription_details
     menus(where: {
     deletion_status: {_eq: 0},
@@ -280,6 +283,7 @@ export const updatePartnerMutation = `
       delivery_status
       upi_id
       show_payment_qr
+      post_payment_message
       store_banner
       place_id
       theme

@@ -46,6 +46,7 @@ import {
 import { getPhoneDigitsForCountry } from "@/lib/countryPhoneMap";
 import { validateDiscountCodeQuery, incrementDiscountUsageMutation } from "@/api/discountCodes";
 import { Tag } from "lucide-react";
+import { UpiPaymentScreen } from "./UpiPaymentScreen";
 
 // Local types for user addresses (stored in users.addresses jsonb)
 type SavedAddress = {
@@ -1958,6 +1959,8 @@ const PlaceOrderModal = ({
   const [orderStatus, setOrderStatus] = useState<
     "idle" | "loading" | "success"
   >("idle");
+  const [showUpiScreen, setShowUpiScreen] = useState(false);
+  const [finalOrderAmount, setFinalOrderAmount] = useState(0);
 
   // Discount code state
   const [discountInput, setDiscountInput] = useState("");
@@ -2054,6 +2057,12 @@ const PlaceOrderModal = ({
   const hasMultiWhatsapp =
     getFeatures(hotelData?.feature_flags || "")?.multiwhatsapp?.enabled &&
     hotelData?.whatsapp_numbers?.length > 0;
+
+  const hasUpiQr =
+    hotelData?.show_payment_qr === true &&
+    !!hotelData?.upi_id;
+
+  const postPaymentMessage = hotelData?.post_payment_message ?? null;
 
   useEffect(() => {
     if (
@@ -2321,6 +2330,10 @@ const PlaceOrderModal = ({
         hotelData?.gst_percentage as number,
       );
 
+      const extraChargesTotal = extraCharges.reduce((acc, c) => acc + c.amount, 0);
+      const discountSavingsAmount = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
+      setFinalOrderAmount(Math.max(0, subtotal + extraChargesTotal + gstAmount - discountSavingsAmount));
+
       const result = await placeOrder(
         hotelData,
         tableNumber,
@@ -2330,7 +2343,7 @@ const PlaceOrderModal = ({
         undefined,
         orderNote || "",
         tableName,
-        appliedDiscount ? { code: appliedDiscount.code, type: appliedDiscount.type, value: appliedDiscount.value, savings: computeDiscountSavings(appliedDiscount) } : null,
+        appliedDiscount ? { code: appliedDiscount.code, type: appliedDiscount.type, value: appliedDiscount.value, savings: discountSavingsAmount } : null,
       );
 
       if (result) {
@@ -2368,6 +2381,15 @@ const PlaceOrderModal = ({
   };
 
   const handleCloseSuccessDialog = () => {
+    setAddress("");
+    setOrderNote("");
+    clearOrder();
+    setOpenPlaceOrderModal(false);
+    setOrderStatus("idle");
+  };
+
+  const handleCloseUpiScreen = () => {
+    setShowUpiScreen(false);
     setAddress("");
     setOrderNote("");
     clearOrder();
@@ -2573,7 +2595,9 @@ const PlaceOrderModal = ({
                       <button
                         onClick={() =>
                           handlePlaceOrder(() => {
-                            if (!hotelData.petpooja_restaurant_id) {
+                            if (hasUpiQr) {
+                              setShowUpiScreen(true);
+                            } else if (!hotelData.petpooja_restaurant_id) {
                               const whatsappLink = getWhatsappLink(
                                 orderId as string,
                               );
@@ -2605,6 +2629,28 @@ const PlaceOrderModal = ({
                         {hotelData.petpooja_restaurant_id ? (
                           <button
                             onClick={() => handlePlaceOrder()}
+                            disabled={
+                              isPlaceOrderDisabled ||
+                              !user ||
+                              items?.length === 0 ||
+                              (isDelivery &&
+                                orderType === "delivery" &&
+                                (totalPrice ?? 0) < minimumOrderAmount)
+                            }
+                            className="w-full px-6 py-4 bg-orange-600 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 font-semibold shadow-lg shadow-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                          >
+                            {orderStatus === "loading" ? (
+                              <span className="flex items-center justify-center gap-2">
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                                Placing Order...
+                              </span>
+                            ) : (
+                              "Place Order"
+                            )}
+                          </button>
+                        ) : hasUpiQr ? (
+                          <button
+                            onClick={() => handlePlaceOrder(() => setShowUpiScreen(true))}
                             disabled={
                               isPlaceOrderDisabled ||
                               !user ||
@@ -2697,10 +2743,24 @@ const PlaceOrderModal = ({
       </div>
 
       <OrderStatusDialog
-        status={orderStatus}
+        status={showUpiScreen ? "idle" : orderStatus}
         onClose={handleCloseSuccessDialog}
         partnerId={hotelData?.id}
       />
+
+      {showUpiScreen && (
+        <UpiPaymentScreen
+          upiId={hotelData.upi_id}
+          storeName={hotelData.store_name}
+          amount={finalOrderAmount}
+          currency={hotelData.currency || "₹"}
+          orderId={orderId as string}
+          postPaymentMessage={postPaymentMessage}
+          whatsappLink={getWhatsappLink(orderId as string)}
+          onBack={() => setShowUpiScreen(false)}
+          onClose={handleCloseUpiScreen}
+        />
+      )}
     </>
   );
 };
