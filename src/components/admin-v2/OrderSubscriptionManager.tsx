@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
 import useOrderStore, { Order } from "@/store/orderStore";
 import { Howl } from "howler";
 import { toast } from "sonner";
+
+/** Returns today's date as YYYY-MM-DD string */
+function getTodayKey() {
+    const now = new Date();
+    return `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+}
 
 export function OrderSubscriptionManager() {
     const { userData } = useAuthStore();
@@ -29,6 +35,28 @@ export function OrderSubscriptionManager() {
     const initialLoadCompleted = useRef<boolean>(false);
     const allSeenOrderIds = useRef<Set<string>>(new Set());
 
+    // Track the current date — when it changes, subscriptions re-initialize with fresh date filters
+    const [dateKey, setDateKey] = useState(getTodayKey);
+
+    // Detect midnight crossing and update dateKey
+    useEffect(() => {
+        function scheduleMidnightCheck() {
+            const now = new Date();
+            const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+            const msUntilMidnight = tomorrow.getTime() - now.getTime() + 1000; // +1s buffer
+
+            return setTimeout(() => {
+                setDateKey(getTodayKey());
+                // Reset initial load so new day's orders don't all trigger sound
+                initialLoadCompleted.current = false;
+                allSeenOrderIds.current.clear();
+            }, msUntilMidnight);
+        }
+
+        const timer = scheduleMidnightCheck();
+        return () => clearTimeout(timer);
+    }, [dateKey]);
+
     // Initialize sound
     useEffect(() => {
         soundRef.current = new Howl({
@@ -47,7 +75,7 @@ export function OrderSubscriptionManager() {
         return () => unsubscribe();
     }, [userData?.id, subscribeOrdersCount, setTotalCount]);
 
-    // Subscribe to orders
+    // Subscribe to orders — re-subscribes when dateKey changes (midnight crossing)
     useEffect(() => {
         if (!userData?.id) return;
 
@@ -92,7 +120,7 @@ export function OrderSubscriptionManager() {
         );
 
         return () => unsubscribe();
-    }, [userData?.id, currentPage, limit, subscribePaginatedOrders, setLoading, setOrders]);
+    }, [userData?.id, currentPage, limit, subscribePaginatedOrders, setLoading, setOrders, dateKey]);
 
     // Sync store orders (if partnerOrders changes from elsewhere, though subscription usually handles it)
     useEffect(() => {
