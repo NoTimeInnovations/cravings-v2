@@ -7,10 +7,9 @@ import useOrderStore, { Order } from "@/store/orderStore";
 import { Howl } from "howler";
 import { toast } from "sonner";
 
-/** Returns today's date as YYYY-MM-DD string */
-function getTodayKey() {
-    const now = new Date();
-    return `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+/** Returns a key that changes periodically to trigger re-subscription with fresh 24hr window */
+function getTimeWindowKey() {
+    return Date.now().toString();
 }
 
 export function OrderSubscriptionManager() {
@@ -35,27 +34,19 @@ export function OrderSubscriptionManager() {
     const initialLoadCompleted = useRef<boolean>(false);
     const allSeenOrderIds = useRef<Set<string>>(new Set());
 
-    // Track the current date — when it changes, subscriptions re-initialize with fresh date filters
-    const [dateKey, setDateKey] = useState(getTodayKey);
+    // Track time window — periodically refresh to keep the rolling 24hr window current
+    const [dateKey, setDateKey] = useState(getTimeWindowKey);
 
-    // Detect midnight crossing and update dateKey
+    // Refresh the 24hr window every minute so the subscription stays current
     useEffect(() => {
-        function scheduleMidnightCheck() {
-            const now = new Date();
-            const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-            const msUntilMidnight = tomorrow.getTime() - now.getTime() + 1000; // +1s buffer
+        const interval = setInterval(() => {
+            setDateKey(getTimeWindowKey());
+            initialLoadCompleted.current = false;
+            allSeenOrderIds.current.clear();
+        }, 60 * 1000); // every 1 minute
 
-            return setTimeout(() => {
-                setDateKey(getTodayKey());
-                // Reset initial load so new day's orders don't all trigger sound
-                initialLoadCompleted.current = false;
-                allSeenOrderIds.current.clear();
-            }, msUntilMidnight);
-        }
-
-        const timer = scheduleMidnightCheck();
-        return () => clearTimeout(timer);
-    }, [dateKey]);
+        return () => clearInterval(interval);
+    }, []);
 
     // Initialize sound
     useEffect(() => {

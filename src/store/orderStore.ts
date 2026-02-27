@@ -551,16 +551,8 @@ const useOrderStore = create(
         }
 
         const now = new Date();
-        const todayStart = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate()
-        );
-        const todayEnd = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate() + 1
-        );
+        const todayStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const todayEnd = now;
 
         return subscribeToHasura({
           query: paginatedOrdersSubscription,
