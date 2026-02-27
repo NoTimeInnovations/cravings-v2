@@ -281,6 +281,7 @@ subscription GetPartnerOrders($partner_id: uuid!, $today_start: timestamptz!, $t
     partner_id
     gst_included
     extra_charges
+    discounts
     phone
     user_id
     orderedby

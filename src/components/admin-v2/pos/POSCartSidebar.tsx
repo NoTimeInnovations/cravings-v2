@@ -127,7 +127,9 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                         totalPrice: order.total_price,
                         gstIncluded: order.gst_included,
                         tableName: order.table_name || order.qr_code?.table_name,
-                        deliveryAddress: order.delivery_address // Ensure deliveryAddress is mapped
+                        deliveryAddress: order.delivery_address,
+                        extraCharges: order.extra_charges || [],
+                        discounts: order.discounts || []
                     }));
                     usePOSStore.setState({ pastBills: mappedOrders });
                 }
@@ -304,7 +306,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
         }, 0)
         : 0;
 
-    const activeOrderDataExtraCharges = activeOrderData?.extraCharges || activeOrderData?.extra_charges || [];
+    const activeOrderDataExtraCharges = activeOrderData?.extraCharges || [];
     const activeOrderDataExtraChargesTotal = activeOrderDataExtraCharges.reduce((acc: number, curr: any) => acc + (curr.amount || 0), 0);
 
     const activeOrderDataTotal = activeOrderDataSubtotal + activeOrderDataExtraChargesTotal;
@@ -325,6 +327,8 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     const activeOrderDataGstAmount = activeOrderData
         ? getGstAmount(activeOrderDataDiscountedFoodSubtotal, activeOrderDataGstPercentage)
         : 0;
+
+    const activeOrderDataGrandTotal = activeOrderDataDiscountedTotal + activeOrderDataGstAmount;
 
 
 
@@ -836,17 +840,25 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                                     <span>{formatCurrency(charge.amount)}</span>
                                                 </div>
                                             ))}
-                                            <div className="flex justify-between text-muted-foreground">
-                                                <span>Extra Charges</span>
-                                                <span>{formatCurrency(activeOrderDataExtraChargesTotal)}</span>
-                                            </div>
                                         </>
                                     )}
                                     {activeOrderDataDiscountAmount > 0 && (
-                                        <div className="flex justify-between text-green-600 text-sm">
-                                            <span>Discount</span>
-                                            <span>- {formatCurrency(activeOrderDataDiscountAmount)}</span>
-                                        </div>
+                                        <>
+                                            {activeOrderDataDiscounts.map((discount: any, idx: number) => {
+                                                const discountValue = discount.type === "flat"
+                                                    ? discount.value
+                                                    : (activeOrderDataTotal * discount.value) / 100;
+                                                return (
+                                                    <div key={idx} className="flex justify-between text-green-600 text-xs pl-2 border-l-2 border-green-200">
+                                                        <span>
+                                                            {discount.type === "percentage" ? `${discount.value}% Off` : "Flat Discount"}
+                                                            {discount.reason && ` (${discount.reason})`}
+                                                        </span>
+                                                        <span>- {formatCurrency(discountValue)}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </>
                                     )}
                                     {activeOrderDataGstPercentage > 0 && (
                                         <div className="flex justify-between text-muted-foreground">
@@ -858,7 +870,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                 <Separator />
                                 <div className="flex justify-between font-bold text-base">
                                     <span>Total</span>
-                                    <span>{formatCurrency(activeOrderData.totalPrice)}</span>
+                                    <span>{formatCurrency(activeOrderDataGrandTotal)}</span>
                                 </div>
 
                                 {activeOrderData.notes && (
