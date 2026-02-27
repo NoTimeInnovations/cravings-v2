@@ -331,13 +331,12 @@ subscription GetPaginatedPartnerOrders(
   $limit: Int!
   $offset: Int!
   $today_start: timestamptz!
-  $today_end: timestamptz!
 ) {
   orders(
-    where: { 
+    where: {
       partner_id: { _eq: $partner_id },
 
-      created_at: { _gte: $today_start, _lte: $today_end }
+      created_at: { _gte: $today_start }
     }
     order_by: { created_at: desc }
     limit: $limit

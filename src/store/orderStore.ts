@@ -552,7 +552,6 @@ const useOrderStore = create(
 
         const now = new Date();
         const todayStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        const todayEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
         return subscribeToHasura({
           query: paginatedOrdersSubscription,
@@ -561,7 +560,6 @@ const useOrderStore = create(
             limit,
             offset,
             today_start: todayStart.toISOString(),
-            today_end: todayEnd.toISOString(),
           },
           onNext: (data) => {
             if (data?.data?.orders) {
