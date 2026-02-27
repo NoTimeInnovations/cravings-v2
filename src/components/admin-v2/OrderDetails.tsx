@@ -146,7 +146,13 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
 
     const discounts = order.discounts || [];
     const discountAmount = discounts.reduce((total, discount) => {
-        return total + ((discount as any).savings || 0);
+        const disc = discount as any;
+        if (disc.type === "flat") {
+            return total + (disc.value || 0);
+        } else if (disc.type === "percentage") {
+            return total + (subtotal * (disc.value || 0)) / 100;
+        }
+        return total;
     }, 0);
 
     const grandTotal = order.totalPrice;
@@ -352,16 +358,23 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                         </TableRow>
 
                         {/* Discounts */}
-                        {discountAmount > 0 && (
-                            <TableRow className="bg-muted/50 font-medium">
-                                <TableCell colSpan={3} className="text-right">
-                                    Discount
-                                </TableCell>
-                                <TableCell className="text-right text-red-600">
-                                    - {currency}{discountAmount.toFixed(2)}
-                                </TableCell>
-                            </TableRow>
-                        )}
+                        {discounts.map((discount, index) => {
+                            const disc = discount as any;
+                            const discountValue = disc.type === "flat"
+                                ? disc.value
+                                : (subtotal * disc.value) / 100;
+                            return (
+                                <TableRow key={`discount-${index}`} className="bg-muted/50 font-medium text-green-600">
+                                    <TableCell colSpan={3} className="text-right text-sm">
+                                        {disc.type === "percentage" ? `${disc.value}% Off` : "Flat Discount"}
+                                        {disc.reason && ` (${disc.reason})`}
+                                    </TableCell>
+                                    <TableCell className="text-right text-sm text-green-600">
+                                        - {currency}{discountValue.toFixed(2)}
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
 
 
                         {/* GST/VAT */}

@@ -728,16 +728,26 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                         <span>Subtotal</span>
                                         <span>{formatCurrency(totalAmount)}</span>
                                     </div>
-                                    <div className="flex justify-between text-muted-foreground">
-                                        <span>Extra Charges</span>
-                                        <span>{formatCurrency(extraChargesTotal)}</span>
-                                    </div>
-                                    {discountAmount > 0 && (
-                                        <div className="flex justify-between text-green-600 font-medium">
-                                            <span>Discount</span>
-                                            <span>- {formatCurrency(discountAmount)}</span>
+                                    {extraCharges.map((charge) => (
+                                        <div key={charge.id} className="flex justify-between text-muted-foreground text-xs pl-2 border-l-2 border-muted">
+                                            <span>{charge.name}</span>
+                                            <span>{formatCurrency(charge.amount)}</span>
                                         </div>
-                                    )}
+                                    ))}
+                                    {discounts.map((discount) => {
+                                        const discountValue = discount.type === "flat"
+                                            ? discount.value
+                                            : (subtotal * discount.value) / 100;
+                                        return (
+                                            <div key={discount.id} className="flex justify-between text-green-600 text-xs pl-2 border-l-2 border-green-200">
+                                                <span>
+                                                    {discount.type === "percentage" ? `${discount.value}% Off` : "Flat Discount"}
+                                                    {discount.reason && ` (${discount.reason})`}
+                                                </span>
+                                                <span>- {formatCurrency(discountValue)}</span>
+                                            </div>
+                                        );
+                                    })}
                                     {(partnerData?.gst_percentage || 0) > 0 && (
                                         <div className="flex justify-between text-muted-foreground">
                                             <span>GST ({partnerData?.gst_percentage}%)</span>

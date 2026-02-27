@@ -226,7 +226,12 @@ const PrintOrderPage = () => {
         const calcGstAmount = orders_by_pk.gst_included ?? (foodSubtotal * gstPercentage) / 100;
         const calcDiscounts = formattedOrder.discounts || [];
         const calcDiscountAmount = calcDiscounts.reduce((total: number, discount: any) => {
-          return total + (discount.savings || 0);
+          if (discount.type === "flat") {
+            return total + (discount.value || 0);
+          } else if (discount.type === "percentage") {
+            return total + (subtotal * (discount.value || 0)) / 100;
+          }
+          return total;
         }, 0);
         const grandTotal = orders_by_pk.total_price;
 
@@ -400,7 +405,12 @@ const PrintOrderPage = () => {
 
   const discounts = order.discounts || [];
   const discountAmount = discounts.reduce((total: number, discount: any) => {
-    return total + (discount.savings || 0);
+    if (discount.type === "flat") {
+      return total + (discount.value || 0);
+    } else if (discount.type === "percentage") {
+      return total + (subtotal * (discount.value || 0)) / 100;
+    }
+    return total;
   }, 0);
 
   const grandTotal = order.total_price;
@@ -594,6 +604,33 @@ const PrintOrderPage = () => {
           </>
         )}
 
+        {/* Discounts */}
+        {discounts.length > 0 && (
+          <>
+            <div className="border-t border-dashed border-gray-400 my-2"></div>
+            <h3 className="font-bold text-sm uppercase mb-1">Discounts</h3>
+            <ul className="space-y-1 text-sm">
+              {discounts.map((discount: any, index: number) => {
+                const discountValue = discount.type === "flat"
+                  ? discount.value
+                  : (subtotal * discount.value) / 100;
+                return (
+                  <li key={index} className="flex justify-between">
+                    <span>
+                      {discount.type === "percentage" ? `${discount.value}% Off` : "Flat Discount"}
+                      {discount.reason && ` (${discount.reason})`}
+                    </span>
+                    <span>
+                      - {currency}
+                      {discountValue.toFixed(2)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+
         {/* Totals */}
         <div className="border-t border-black my-2"></div>
         <div className="space-y-1 text-sm">
@@ -604,15 +641,6 @@ const PrintOrderPage = () => {
               {subtotal.toFixed(2)}
             </span>
           </div>
-          {discountAmount > 0 && (
-            <div className="flex justify-between">
-              <span>Discount:</span>
-              <span>
-                - {currency}
-                {discountAmount.toFixed(2)}
-              </span>
-            </div>
-          )}
           {gstPercentage > 0 && (
             <div className="flex justify-between">
               <span>
