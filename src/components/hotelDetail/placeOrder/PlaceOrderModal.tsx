@@ -1915,7 +1915,7 @@ const LoginDrawer = ({
 const PlaceOrderModal = ({
   hotelData,
   tableNumber,
-  getWhatsappLink,
+  getWhatsappLink: _getWhatsappLinkProp,
   qrId,
   qrGroup,
   tableName,
@@ -1961,6 +1961,7 @@ const PlaceOrderModal = ({
   >("idle");
   const [showUpiScreen, setShowUpiScreen] = useState(false);
   const [finalOrderAmount, setFinalOrderAmount] = useState(0);
+  const [generatedWhatsappLink, setGeneratedWhatsappLink] = useState<string>("");
 
   // Discount code state
   const [discountInput, setDiscountInput] = useState("");
@@ -2211,6 +2212,170 @@ const PlaceOrderModal = ({
     setDiscountInput("");
   };
 
+  // Complete WhatsApp link generation with all order details
+  const getWhatsappLink = (orderId?: string) => {
+    // Client timezone (used for formatting times in messages)
+    const tz = typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+
+    // First try to get order ID from function parameter, then from localStorage, then from order store
+    const finalOrderId = orderId || localStorage?.getItem('last-order-id') || useOrderStore.getState().orderId;
+    const savedAddress = address || "N/A";
+    const selectedWhatsAppNumber = localStorage?.getItem(
+      `hotel-${hotelData.id}-whatsapp-area`
+    );
+    const selectedArea = localStorage?.getItem(
+      `hotel-${hotelData.id}-selected-area`
+    );
+
+    const currentSelectedArea = selectedArea || "";
+
+    // Get location from localStorage or from the order store
+    let locationLink = "";
+    const userLocationData = localStorage?.getItem("user-location-store") ||
+      JSON.stringify({ state: { coords: selectedCoords } });
+
+    if (userLocationData) {
+      try {
+        const location = JSON.parse(userLocationData);
+        if (location?.state?.coords) {
+          const { lat, lng } = location.state.coords;
+          locationLink = `\n*📍 Location:* https://www.google.com/maps?q=${lat},${lng}`;
+        }
+      } catch (error) {
+        console.error("Error parsing location data:", error);
+      }
+    }
+
+    const baseTotal =
+      items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
+    const qrCharge = qrGroup?.extra_charge
+      ? getExtraCharge(
+        items || [],
+        qrGroup.extra_charge,
+        qrGroup.charge_type || "FLAT_FEE"
+      )
+      : 0;
+    const deliveryCharge =
+      !isQrScan &&
+        orderType === "delivery" &&
+        deliveryInfo?.cost &&
+        !deliveryInfo?.isOutOfRange
+        ? deliveryInfo.cost
+        : 0;
+    const parcelChargeType = hotelData?.delivery_rules?.parcel_charge_type || "fixed";
+    const parcelItemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+    const parcelCharge =
+      tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge
+        ? parcelChargeType === "variable"
+          ? parcelItemCount * hotelData.delivery_rules.parcel_charge
+          : hotelData.delivery_rules.parcel_charge
+        : 0;
+    const gstAmount = hotelData?.gst_percentage
+      ? getGstAmount(baseTotal, hotelData.gst_percentage)
+      : 0;
+
+    const discountSavingsAmount = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
+    const grandTotal = Math.max(0, baseTotal + qrCharge + deliveryCharge + parcelCharge + gstAmount - discountSavingsAmount);
+
+    const hasMultiWhatsapp = getFeatures(hotelData?.feature_flags || "")
+      ?.multiwhatsapp?.enabled;
+    const hasMultipleWhatsappNumbers = hotelData?.whatsapp_numbers?.length > 1;
+    const shouldShowHotelLocation =
+      (hasMultiWhatsapp || hasMultipleWhatsappNumbers) &&
+      currentSelectedArea &&
+      currentSelectedArea.trim() !== "";
+
+    const showTableLabel = hotelData?.id !== '33f5474e-4644-4e47-a327-94684c71b170'; // Krishnakripa Residency
+    const nowTime = new Intl.DateTimeFormat("en-GB", { hour: "numeric", minute: "numeric", hour12: true, timeZone: tz }).format(new Date());
+
+    const currentOrder = useOrderStore.getState().order;
+    const displayId = currentOrder?.id === finalOrderId ? currentOrder?.display_id : null;
+    const dateParts = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).formatToParts(new Date());
+    const day = dateParts.find(p => p.type === 'day')?.value;
+    const month = dateParts.find(p => p.type === 'month')?.value;
+
+    const shortId = displayId || (finalOrderId ? finalOrderId.slice(0, 4).toUpperCase() : 'N/A');
+    const formattedOrderId = `${shortId}-${month} ${day}`;
+
+    const whatsappMsg = `
+    ${hotelData?.id === '7eb04e2d-9c20-42ba-a6b6-fce8019cad5f' ? '*Order Details*' : '*🍽️ Order Details 🍽️*'}
+
+    *Order ID:* ${formattedOrderId}
+    ${(tableNumber ?? 0) > 0
+        ? `${showTableLabel ? "*Table:* " : ""}${qrData?.table_name || tableName || tableNumber}`
+        : `*Order Type:* ${orderType || "Delivery"}`
+      }
+    ${shouldShowHotelLocation
+        ? `\n*Hotel Location:* ${currentSelectedArea.toUpperCase()}`
+        : ""
+      }
+    ${orderType === "delivery"
+        ? `\n*Delivery Address:* ${savedAddress}${locationLink}`
+        : ""
+      }
+    ${(user as any)?.phone ? `\n*Customer Phone:* ${(user as any).phone} \n` : ""
+      }
+* Time:* ${nowTime}
+
+    *📋 Order Items:*
+    ${items
+        ?.map(
+          (item, index) =>
+            `${index + 1}. ${item.name} (${item.category.name})
+       ➤ Qty: ${item.quantity} × ${hotelData.currency}${item.price.toFixed(
+              2
+            )} = ${hotelData.currency}${(item.price * item.quantity).toFixed(2)}`
+        )
+        .join("\n\n")
+      }
+
+    * Subtotal:* ${hotelData.currency}${baseTotal.toFixed(2)}
+
+    ${hotelData?.gst_percentage
+        ? `*${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${hotelData.gst_percentage}%):* ${hotelData.currency
+        }${gstAmount.toFixed(2)}`
+        : ""
+      }
+
+    ${!isQrScan &&
+        orderType === "delivery" &&
+        deliveryInfo?.cost &&
+        !deliveryInfo?.isOutOfRange
+        ? `*Delivery Charge:* ${hotelData.currency}${deliveryInfo.cost.toFixed(
+          2
+        )}`
+        : ""
+      }
+
+    ${qrGroup?.extra_charge
+        ? `*${qrGroup.name}:* ${hotelData.currency}${qrCharge.toFixed(2)}`
+        : ""
+      }
+
+    ${parcelCharge > 0
+        ? `*Parcel Charge:* ${hotelData.currency}${parcelCharge.toFixed(2)}`
+        : ""
+      }
+
+    ${discountSavingsAmount > 0
+        ? `*Discount:* -${hotelData.currency}${discountSavingsAmount.toFixed(2)}`
+        : ""
+      }
+
+    * Total Price:* ${hotelData.currency}${grandTotal.toFixed(2)}
+    ${orderNote ? `\n*📝 Note:* ${orderNote}` : ""}
+  `;
+
+    const number =
+      selectedWhatsAppNumber ||
+      hotelData?.whatsapp_numbers?.[0]?.number ||
+      hotelData?.phone ||
+      "8590115462";
+
+    return `https://api.whatsapp.com/send?phone=${hotelData?.country_code || "+91"
+      }${number}&text=${encodeURIComponent(whatsappMsg)}`;
+  };
+
   const handlePlaceOrder = async (onSuccessCallback?: () => void) => {
     if (tableNumber === 0 && !orderType) {
       toast.error("Please select an order type");
@@ -2333,6 +2498,10 @@ const PlaceOrderModal = ({
       const extraChargesTotal = extraCharges.reduce((acc, c) => acc + c.amount, 0);
       const discountSavingsAmount = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
       setFinalOrderAmount(Math.max(0, subtotal + extraChargesTotal + gstAmount - discountSavingsAmount));
+
+      // Generate WhatsApp link BEFORE placing order to capture current state
+      const whatsappLink = getWhatsappLink(orderId as string);
+      setGeneratedWhatsappLink(whatsappLink);
 
       const result = await placeOrder(
         hotelData,
@@ -2598,10 +2767,7 @@ const PlaceOrderModal = ({
                             if (hasUpiQr) {
                               setShowUpiScreen(true);
                             } else if (!hotelData.petpooja_restaurant_id) {
-                              const whatsappLink = getWhatsappLink(
-                                orderId as string,
-                              );
-                              window.open(whatsappLink, "_blank");
+                              window.open(generatedWhatsappLink, "_blank");
                             }
                           })
                         }
@@ -2672,7 +2838,7 @@ const PlaceOrderModal = ({
                           </button>
                         ) : (
                           <Link
-                            href={getWhatsappLink(orderId as string)}
+                            href={generatedWhatsappLink || "#"}
                             target="_blank"
                             onClick={(e) => {
                               const isDisabled =
@@ -2756,7 +2922,7 @@ const PlaceOrderModal = ({
           currency={hotelData.currency || "₹"}
           orderId={orderId as string}
           postPaymentMessage={postPaymentMessage}
-          whatsappLink={getWhatsappLink(orderId as string)}
+          whatsappLink={generatedWhatsappLink}
           onBack={() => setShowUpiScreen(false)}
           onClose={handleCloseUpiScreen}
         />
