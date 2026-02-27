@@ -188,8 +188,8 @@ const PrintOrderPage = () => {
           qrCode: qrCodeUrl,
           notes: orders_by_pk.notes || "",
           address:
-            orders_by_pk.partner?.address ||
             orders_by_pk.partner?.location_details ||
+            orders_by_pk.partner?.address ||
             geoData?.features?.[0]?.properties?.place_formatted ||
             null,
           fssai_licence_no:
