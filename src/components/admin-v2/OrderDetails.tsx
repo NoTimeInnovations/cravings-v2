@@ -322,15 +322,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                             </TableRow>
                         ))}
 
-                        {/* Subtotal */}
-                        <TableRow className="bg-muted/50 font-medium border-t-2">
-                            <TableCell colSpan={3} className="text-right">
-                                Subtotal
-                            </TableCell>
-                            <TableCell className="text-right">
-                                {currency}{subtotal.toFixed(2)}
-                            </TableCell>
-                        </TableRow>
+                        
 
                         {/* Extra Charges */}
                         {(order.extraCharges || []).map((charge, index) => (
@@ -348,6 +340,16 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                 </TableCell>
                             </TableRow>
                         ))}
+
+                        {/* Subtotal */}
+                        <TableRow className="bg-muted/50 font-medium border-t-2">
+                            <TableCell colSpan={3} className="text-right">
+                                Subtotal
+                            </TableCell>
+                            <TableCell className="text-right">
+                                {currency}{subtotal.toFixed(2)}
+                            </TableCell>
+                        </TableRow>
 
                         {/* Discounts */}
                         {discountAmount > 0 && (
