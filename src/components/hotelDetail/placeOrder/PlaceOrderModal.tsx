@@ -2297,74 +2297,47 @@ const PlaceOrderModal = ({
     const shortId = displayId || (finalOrderId ? finalOrderId.slice(0, 4).toUpperCase() : 'N/A');
     const formattedOrderId = `${shortId}-${month} ${day}`;
 
-    const whatsappMsg = `
-    ${hotelData?.id === '7eb04e2d-9c20-42ba-a6b6-fce8019cad5f' ? '*Order Details*' : '*🍽️ Order Details 🍽️*'}
+    const headerLine = hotelData?.id === '7eb04e2d-9c20-42ba-a6b6-fce8019cad5f' ? '*Order Details*' : '*🍽️ Order Details 🍽️*';
+    const tableLine = (tableNumber ?? 0) > 0
+      ? `${showTableLabel ? "*Table:* " : ""}${qrData?.table_name || tableName || tableNumber}`
+      : `*Order Type:* ${orderType || "Delivery"}`;
+    const itemsList = items
+      ?.map(
+        (item, index) =>
+          `${index + 1}. ${item.name} (${item.category.name})\n   ➤ Qty: ${item.quantity} × ${hotelData.currency}${item.price.toFixed(2)} = ${hotelData.currency}${(item.price * item.quantity).toFixed(2)}`
+      )
+      .join("\n\n") || "";
 
-    *Order ID:* ${formattedOrderId}
-    ${(tableNumber ?? 0) > 0
-        ? `${showTableLabel ? "*Table:* " : ""}${qrData?.table_name || tableName || tableNumber}`
-        : `*Order Type:* ${orderType || "Delivery"}`
-      }
-    ${shouldShowHotelLocation
-        ? `\n*Hotel Location:* ${currentSelectedArea.toUpperCase()}`
-        : ""
-      }
-    ${orderType === "delivery"
-        ? `\n*Delivery Address:* ${savedAddress}${locationLink}`
-        : ""
-      }
-    ${(user as any)?.phone ? `\n*Customer Phone:* ${(user as any).phone} \n` : ""
-      }
-* Time:* ${nowTime}
+    const billingLines = [
+      `*Subtotal:* ${hotelData.currency}${baseTotal.toFixed(2)}`,
+      hotelData?.gst_percentage ? `*${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${hotelData.gst_percentage}%):* ${hotelData.currency}${gstAmount.toFixed(2)}` : "",
+      !isQrScan && orderType === "delivery" && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? `*Delivery Charge:* ${hotelData.currency}${deliveryInfo.cost.toFixed(2)}` : "",
+      qrGroup?.extra_charge ? `*${qrGroup.name}:* ${hotelData.currency}${qrCharge.toFixed(2)}` : "",
+      parcelCharge > 0 ? `*Parcel Charge:* ${hotelData.currency}${parcelCharge.toFixed(2)}` : "",
+      discountSavingsAmount > 0 ? `*Discount:* -${hotelData.currency}${discountSavingsAmount.toFixed(2)}` : "",
+      `*Total Price:* ${hotelData.currency}${grandTotal.toFixed(2)}`,
+    ].filter(Boolean).join("\n");
 
-    *📋 Order Items:*
-    ${items
-        ?.map(
-          (item, index) =>
-            `${index + 1}. ${item.name} (${item.category.name})
-       ➤ Qty: ${item.quantity} × ${hotelData.currency}${item.price.toFixed(
-              2
-            )} = ${hotelData.currency}${(item.price * item.quantity).toFixed(2)}`
-        )
-        .join("\n\n")
-      }
+    const infoLines = [
+      `*Order ID:* ${formattedOrderId}`,
+      tableLine,
+      shouldShowHotelLocation ? `*Hotel Location:* ${currentSelectedArea.toUpperCase()}` : "",
+      orderType === "delivery" ? `*Delivery Address:* ${savedAddress}${locationLink}` : "",
+      (user as any)?.phone ? `*Customer Phone:* ${(user as any).phone}` : "",
+      `*Time:* ${nowTime}`,
+    ].filter(Boolean).join("\n");
 
-    * Subtotal:* ${hotelData.currency}${baseTotal.toFixed(2)}
-
-    ${hotelData?.gst_percentage
-        ? `*${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${hotelData.gst_percentage}%):* ${hotelData.currency
-        }${gstAmount.toFixed(2)}`
-        : ""
-      }
-
-    ${!isQrScan &&
-        orderType === "delivery" &&
-        deliveryInfo?.cost &&
-        !deliveryInfo?.isOutOfRange
-        ? `*Delivery Charge:* ${hotelData.currency}${deliveryInfo.cost.toFixed(
-          2
-        )}`
-        : ""
-      }
-
-    ${qrGroup?.extra_charge
-        ? `*${qrGroup.name}:* ${hotelData.currency}${qrCharge.toFixed(2)}`
-        : ""
-      }
-
-    ${parcelCharge > 0
-        ? `*Parcel Charge:* ${hotelData.currency}${parcelCharge.toFixed(2)}`
-        : ""
-      }
-
-    ${discountSavingsAmount > 0
-        ? `*Discount:* -${hotelData.currency}${discountSavingsAmount.toFixed(2)}`
-        : ""
-      }
-
-    * Total Price:* ${hotelData.currency}${grandTotal.toFixed(2)}
-    ${orderNote ? `\n*📝 Note:* ${orderNote}` : ""}
-  `;
+    const whatsappMsg = [
+      headerLine,
+      "",
+      infoLines,
+      "",
+      "*📋 Order Items:*",
+      itemsList,
+      "",
+      billingLines,
+      orderNote ? `\n*📝 Note:* ${orderNote}` : "",
+    ].filter((line) => line !== undefined).join("\n");
 
     const number =
       selectedWhatsAppNumber ||
