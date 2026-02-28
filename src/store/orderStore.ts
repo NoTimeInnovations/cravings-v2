@@ -1061,6 +1061,7 @@ const useOrderStore = create(
 
             const payload = {
               id: orderId,
+              short_id: orderId?.slice(0, 8),
               total_price: grandTotal,
               created_at: createdAt,
               table_number: tableNumber || null,
@@ -1170,6 +1171,7 @@ const useOrderStore = create(
             createOrderWithItemsMutation,
             {
               id: orderId,
+              short_id: orderId?.slice(0, 8),
               totalPrice: grandTotal,
               gst_included: gstIncluded,
               extra_charges: exCharges.length > 0 ? exCharges : null,
