@@ -1068,6 +1068,10 @@ const useOrderStore = create(
               status: "pending",
               partner_id: hotelData.id,
               user_id: userData.id,
+              user: {
+                phone: userData.phone || "N/A",
+                full_name: customerName || (userData as any).full_name || null,
+              },
               type,
               delivery_address:
                 type === "delivery" && !isTakeaway ? state.userAddress : null,
