@@ -25,6 +25,8 @@ import { toast } from "sonner";
 import ExcelJS from "exceljs";
 import QRCode from "qrcode";
 import { useAuthStore } from "@/store/authStore";
+import { getPlanLimits, isFreePlan } from "@/lib/getPlanLimits";
+import { UpgradePrompt } from "./UpgradePrompt";
 import {
     Dialog,
     DialogContent,
@@ -109,6 +111,9 @@ const UPDATE_QR_DETAILS_MUTATION = `
 
 export function AdminV2QrCodes() {
     const { userData } = useAuthStore();
+    const planId = (userData as any)?.subscription_details?.plan?.id;
+    const planLimits = getPlanLimits(planId);
+    const isOnFreePlan = isFreePlan(planId);
     const [qrs, setQrs] = useState<QrCode[]>([]);
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
@@ -274,6 +279,23 @@ export function AdminV2QrCodes() {
             return;
         }
 
+        // Enforce QR code limit for free plan
+        if (planLimits.max_qr_codes !== Infinity && totalQrs >= planLimits.max_qr_codes) {
+            toast.error("You've reached your QR code limit. Upgrade your plan to create more.");
+            setIsCreateOpen(false);
+            return;
+        }
+
+        // Cap createCount to remaining allowed QRs
+        const remainingAllowed = planLimits.max_qr_codes === Infinity
+            ? createCount
+            : Math.min(createCount, planLimits.max_qr_codes - totalQrs);
+        if (remainingAllowed <= 0) {
+            toast.error("QR code limit reached. Upgrade to create more.");
+            setIsCreateOpen(false);
+            return;
+        }
+
         setIsCreating(true);
         try {
             // 1. Get current max table number
@@ -281,7 +303,7 @@ export function AdminV2QrCodes() {
             const currentMax = maxRes?.qr_codes?.[0]?.table_number || 0;
 
             // 2. Prepare objects
-            const newQrObjects = Array.from({ length: createCount }, (_, i) => ({
+            const newQrObjects = Array.from({ length: remainingAllowed }, (_, i) => ({
                 qr_number: currentMax + i + 1, // Just using table number sequence for qr_number too, or irrelevant
                 table_number: currentMax + i + 1,
                 partner_id: userData?.id,
@@ -289,7 +311,7 @@ export function AdminV2QrCodes() {
             }));
 
             await fetchFromHasura(INSERT_QR_CODES_MUTATION, { objects: newQrObjects });
-            toast.success(`${createCount} new QR codes created!`);
+            toast.success(`${remainingAllowed} new QR codes created!`);
             setIsCreateOpen(false);
             // Subscription will update the list
         } catch (error) {
@@ -445,10 +467,25 @@ export function AdminV2QrCodes() {
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">QR Codes</h1>
                     <p className="text-muted-foreground">Manage QR codes for your tables.</p>
                 </div>
-                <Button onClick={() => setIsCreateOpen(true)}>
+                <Button
+                    onClick={() => {
+                        if (isOnFreePlan && totalQrs >= planLimits.max_qr_codes) {
+                            toast.error("QR code limit reached. Upgrade to create more.");
+                            return;
+                        }
+                        setIsCreateOpen(true);
+                    }}
+                >
                     <Plus className="mr-2 h-4 w-4" /> Generate New QRs
                 </Button>
             </div>
+
+            {isOnFreePlan && (
+                <UpgradePrompt
+                    variant="inline"
+                    feature={`QR code limit: ${totalQrs}/${planLimits.max_qr_codes}`}
+                />
+            )}
 
             {/* Action Bar */}
             <div className="flex flex-col gap-4">

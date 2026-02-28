@@ -21,11 +21,16 @@ import { HotelData } from "@/app/hotels/[...id]/page";
 import { getSocialLinks } from "@/lib/getSocialLinks";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
+import { isFreePlan } from "@/lib/getPlanLimits";
+import { UpgradePrompt } from "@/components/admin-v2/UpgradePrompt";
+import { Lock } from "lucide-react";
 
 
 
 export function GeneralSettings() {
     const { userData, setState } = useAuthStore();
+    const planId = (userData as any)?.subscription_details?.plan?.id;
+    const isOnFreePlan = isFreePlan(planId);
     const [isSaving, setIsSaving] = useState(false);
     const [storeName, setStoreName] = useState("");
     const [description, setDescription] = useState("");
@@ -446,13 +451,22 @@ export function GeneralSettings() {
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="relative">
                     <CardHeader>
-                        <CardTitle>Google Business Profile</CardTitle>
+                        <div className="flex items-center gap-2">
+                            <CardTitle>Google Business Profile</CardTitle>
+                            {isOnFreePlan && <Lock className="h-4 w-4 text-orange-600" />}
+                        </div>
                         <CardDescription>Connect your Google Business Profile to sync your menu and orders.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {!googleConnected ? (
+                        {isOnFreePlan ? (
+                            <UpgradePrompt
+                                variant="card"
+                                feature="Google Business Sync"
+                                description="Upgrade to sync your menu with Google Business Profile."
+                            />
+                        ) : !googleConnected ? (
                             <div className="flex flex-col gap-4">
                                 <p className="text-sm text-muted-foreground">Link your Google account to allow Menuthere to manage your menu automatically.</p>
                                 <Button disabled={isGoogleLoading} onClick={handleGoogleLogin} className="w-full sm:w-auto">

@@ -39,16 +39,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, IndianRupee, ShoppingBag, Truck, TrendingUp, Download, QrCode, RefreshCcw } from "lucide-react";
+import { Loader2, IndianRupee, ShoppingBag, Truck, TrendingUp, Download, QrCode, RefreshCcw, Crown } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { downloadOrderReport } from "@/utils/downloadOrderReport";
 import { SubscriptionStatus } from "./SubscriptionStatus";
+import { isFreePlan } from "@/lib/getPlanLimits";
 
 const formatDate = (date: Date) => format(date, "yyyy-MM-dd");
 
 export function AdminV2Dashboard() {
   const { userData } = useAuthStore();
+  const planId = (userData as any)?.subscription_details?.plan?.id;
+  const isOnFreePlan = isFreePlan(planId);
 
   const [isMounted, setIsMounted] = useState(false);
   const [dateRange, setDateRange] = useState({
@@ -565,6 +568,11 @@ export function AdminV2Dashboard() {
           {isAnyOrderingEnabled && (
             <Button
               onClick={async () => {
+                if (isOnFreePlan) {
+                  const { toast } = await import("sonner");
+                  toast.error("Upgrade to download reports");
+                  return;
+                }
                 setIsDownloading(true);
                 const allOrders = await prepareAllOrdersData();
                 await downloadOrderReport(reportData, topItems, activeTab, dateRange, userData as Partner, allOrders);
@@ -573,6 +581,7 @@ export function AdminV2Dashboard() {
               disabled={loading || isDownloading}
               className="w-full sm:w-auto"
             >
+              {isOnFreePlan && <Crown className="mr-2 h-4 w-4 text-orange-500" />}
               <Download className="mr-2 h-4 w-4" />
               {isDownloading ? "Downloading..." : "Download Report"}
             </Button>

@@ -13,6 +13,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { useEffect } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import plansData from "@/data/plans.json";
+import { isFreePlan } from "@/lib/getPlanLimits";
 
 export function SubscriptionStatus() {
     const { userData } = useAuthStore();
@@ -23,12 +24,16 @@ export function SubscriptionStatus() {
     const [scansUsed, setScansUsed] = useState(0);
 
     const sub = userData?.role === "partner" ? userData.subscription_details : undefined;
-    const planName = sub?.plan?.name || "Free Trial";
+    const planId = sub?.plan?.id;
+    const isOnFreePlan = isFreePlan(planId);
+    const planName = sub?.plan?.name || "Free Menu";
 
-    // Date calculation
-    const expiry = sub?.expiryDate ? parseISO(sub.expiryDate) : null;
+    // Date calculation - free plan has no expiry
+    const periodDays = sub?.plan?.period_days;
+    const hasNoExpiry = periodDays === -1 || isOnFreePlan;
+    const expiry = !hasNoExpiry && sub?.expiryDate ? parseISO(sub.expiryDate) : null;
     const daysLeft = expiry ? Math.ceil((expiry.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0;
-    const isExpired = daysLeft < 0;
+    const isExpired = !hasNoExpiry && daysLeft < 0;
 
     // Status logic: if expired calculate locally, otherwise use DB status
     const dbStatus = sub?.status || "active";
@@ -144,7 +149,11 @@ export function SubscriptionStatus() {
                             </div>
                             <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                                 <Calendar className="w-4 h-4" />
-                                <span>Expires {expiry ? format(expiry, "PPP") : "Never"} ({isExpired ? 'Expired' : `${daysLeft} days left`})</span>
+                                {hasNoExpiry ? (
+                                    <span>Free Plan — No expiry</span>
+                                ) : (
+                                    <span>Expires {expiry ? format(expiry, "PPP") : "Never"} ({isExpired ? 'Expired' : `${daysLeft} days left`})</span>
+                                )}
                             </div>
                         </div>
 

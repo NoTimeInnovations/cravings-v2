@@ -1,6 +1,39 @@
 {
     "international": [
         {
+            "id": "int_free",
+            "name": "Free Menu",
+            "price": "Free",
+            "description": "Get your digital menu online for free",
+            "features": [
+                "Digital menu",
+                "Unlimited items & categories",
+                "1 QR code",
+                "Custom banner & logo",
+                "Basic scan analytics"
+            ],
+            "buttonText": "Get Free Menu",
+            "popular": false,
+            "period": "",
+            "period_days": -1,
+            "disabled": false,
+            "scan_limit": -1,
+            "limits": {
+                "max_qr_codes": 1,
+                "theme_customization": false,
+                "custom_banner": true,
+                "branding_removable": false,
+                "variants": true,
+                "ai_image_fetch": true,
+                "custom_username": true,
+                "google_business": "once",
+                "analytics": "basic",
+                "download_reports": false,
+                "offers": true,
+                "priority_support": false
+            }
+        },
+        {
             "id": "int_digital_monthly",
             "rz_plan_id": "plan_SIjWQgXZj9I2Vx",
             "name": "Digital Menu Monthly",
@@ -44,6 +77,39 @@
     ],
     "india": [
         {
+            "id": "in_free",
+            "name": "Free Menu",
+            "price": "Free",
+            "description": "Get your digital menu online for free",
+            "features": [
+                "Digital menu",
+                "Unlimited items & categories",
+                "1 QR code",
+                "Custom banner & logo",
+                "Basic scan analytics"
+            ],
+            "buttonText": "Get Free Menu",
+            "popular": false,
+            "period": "",
+            "period_days": -1,
+            "disabled": false,
+            "scan_limit": -1,
+            "limits": {
+                "max_qr_codes": 1,
+                "theme_customization": false,
+                "custom_banner": true,
+                "branding_removable": false,
+                "variants": true,
+                "ai_image_fetch": true,
+                "custom_username": true,
+                "google_business": "once",
+                "analytics": "basic",
+                "download_reports": false,
+                "offers": true,
+                "priority_support": false
+            }
+        },
+        {
             "id": "in_trial",
             "name": "Free Trial",
             "price": "Free",
@@ -56,7 +122,7 @@
             "popular": false,
             "period": "",
             "period_days": 20,
-            "disabled": false,
+            "disabled": true,
             "features_enabled": {
                 "ordering": true
             },
@@ -191,7 +257,7 @@
             "popular": false,
             "period": "/year",
             "period_days": 365,
-            "disabled": false,
+            "disabled": true,
             "scan_limit": -1
         }
     ]

@@ -10,6 +10,7 @@ import useOrderStore from "@/store/orderStore";
 import { useEffect, useMemo, useCallback, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getFeatures } from "@/lib/getFeatures";
+import { isFreePlan } from "@/lib/getPlanLimits";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { addToRecent } from "@/lib/addToRecent";
 import { getQrScanCookie, setQrScanCookie } from "@/app/auth/actions";
@@ -241,6 +242,9 @@ const HotelMenuPage = ({
     [router]
   );
 
+  const hotelPlanId = (hoteldata as any)?.subscription_details?.plan?.id;
+  const isHotelOnFreePlan = isFreePlan(hotelPlanId);
+
   const defaultProps = {
     offers,
     hoteldata,
@@ -257,6 +261,7 @@ const HotelMenuPage = ({
     topItems,
     open_place_order_modal: open_place_order_modal,
     pathname: pathname,
+    isOnFreePlan: isHotelOnFreePlan,
   };
 
   const renderPage = () => {
@@ -312,6 +317,19 @@ const HotelMenuPage = ({
           <DeliveryTimeCampain deliveryRules={hoteldata.delivery_rules} />
         )}
       {renderPage()}
+      {isHotelOnFreePlan && (
+        <div className="w-full py-3 text-center text-xs text-gray-400 border-t border-gray-100 bg-white">
+          Powered by{" "}
+          <a
+            href="https://menuthere.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-orange-500 hover:text-orange-600 font-medium"
+          >
+            Menuthere
+          </a>
+        </div>
+      )}
       {showOrderDrawer && (
         <section>
           <OrderDrawer

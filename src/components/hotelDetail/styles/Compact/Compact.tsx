@@ -62,6 +62,7 @@ const Compact = ({
   setSelectedCategory,
   qrGroup,
   qrId,
+  isOnFreePlan,
 }: DefaultHotelPageProps) => {
   const [activeCatIndex, setActiveCatIndex] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'food' | 'orders'>('food');
@@ -399,7 +400,7 @@ const Compact = ({
                   socialLinks={socialLinks}
                   geoLocationLink={hoteldata?.place_id ? `https://www.google.com/maps/place/?q=place_id:${hoteldata.place_id}` : hoteldata?.geo_location?.coordinates ? `https://www.google.com/maps?q=${hoteldata.geo_location.coordinates[1]},${hoteldata.geo_location.coordinates[0]}` : undefined}
                 />
-                {isOwner && (
+                {isOwner && !isOnFreePlan && (
                   <div
                     onClick={() =>
                       setShowThemeCustomizer(!showThemeCustomizer)

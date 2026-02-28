@@ -895,27 +895,29 @@ export default function GetStartedClient({
       };
 
       // --- PLAN SELECTION ---
-      // If country is India -> in_trial
-      // Else -> int_digital_monthly
+      // If country is India -> in_free
+      // Else -> int_free
       const isIndia = hotelDetails.country === "India";
-      const planId = isIndia ? "in_trial" : "int_digital_monthly";
+      const planId = isIndia ? "in_free" : "int_free";
       const planList = isIndia ? plansData.india : plansData.international;
       const selectedPlan =
         planList.find((p: any) => p.id === planId) || planList[0];
 
       // --- SUBSCRIPTION DETAILS ---
       const now = new Date();
-      const periodDays = selectedPlan.period_days || 30;
-      const expiryDate = new Date(
-        now.getTime() + periodDays * 24 * 60 * 60 * 1000,
-      );
+      const periodDays = selectedPlan.period_days;
+      // For free plan (period_days: -1), no expiry
+      const isFreePlanSelected = periodDays === -1;
+      const expiryDate = isFreePlanSelected
+        ? new Date("2099-12-31T23:59:59Z")
+        : new Date(now.getTime() + periodDays * 24 * 60 * 60 * 1000);
 
       const subscriptionDetails = {
         plan: selectedPlan,
         status: "active",
         startDate: now.toISOString(),
-        expiryDate: expiryDate.toISOString(),
-        isFreePlanUsed: true,
+        expiryDate: isFreePlanSelected ? null : expiryDate.toISOString(),
+        isFreePlanUsed: false,
       };
 
       // --- FEATURE FLAGS ---

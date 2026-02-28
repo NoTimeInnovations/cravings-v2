@@ -41,6 +41,7 @@ export interface DefaultHotelPageProps {
   setSelectedCategory: (category: string) => void;
   qrGroup?: QrGroup | null;
   qrId?: string | null;
+  isOnFreePlan?: boolean;
 }
 
 const Default = ({
@@ -59,6 +60,7 @@ const Default = ({
   setSelectedCategory,
   qrGroup,
   qrId,
+  isOnFreePlan,
 }: DefaultHotelPageProps) => {
 
   const [isThemeDialogOpen, setIsThemeDialogOpen] = React.useState(false);
@@ -173,7 +175,7 @@ const Default = ({
 
             {/* right top button  */}
             <div onClick={() => setIsThemeDialogOpen(true)} className="absolute right-[8%] top-[20px] flex flex-col items-center gap-3">
-              {hoteldata?.id === auth?.id && (
+              {hoteldata?.id === auth?.id && !isOnFreePlan && (
                 <ThemeChangeButton isOpen={isThemeDialogOpen} hotelData={hoteldata} theme={theme} />
               )}
               <SocialLinkList

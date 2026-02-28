@@ -16,22 +16,21 @@ mutation UpdatePartnerSubscription($id: uuid!, $subscription_details: jsonb!, $f
 export async function upgradePlan(partnerId: string, newPlan: any, isFreePlanUsed: boolean = false) {
     try {
         const now = new Date();
-        const periodDays = newPlan.period_days || 30; // Default 30?
-        // Logic: if period_days is missing check id or default.
-        // plans.json usually has period_days.
         const effectivePeriod = newPlan.period_days || 365;
+        const isFreePlanTarget = effectivePeriod === -1;
 
-        const expiryDate = new Date(now.getTime() + effectivePeriod * 24 * 60 * 60 * 1000);
+        const expiryDate = isFreePlanTarget
+            ? null
+            : new Date(now.getTime() + effectivePeriod * 24 * 60 * 60 * 1000);
 
         const subscriptionDetails = {
             plan: newPlan,
             status: "active",
             startDate: now.toISOString(),
-            expiryDate: expiryDate.toISOString(),
+            expiryDate: expiryDate ? expiryDate.toISOString() : null,
             isFreePlanUsed,
         };
 
-        // Generate feature flags
         // Generate feature flags
         let featureFlagsStr = "";
         if (newPlan.id === 'in_trial' || newPlan.id === 'in_ordering') {

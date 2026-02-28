@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Check, QrCode, Globe, Printer } from "lucide-react";
+import { Check, QrCode, Globe, Gift } from "lucide-react";
 import { ButtonV2 } from "@/components/ui/ButtonV2";
 import { useRouter } from "next/navigation";
 import { onBoardUserSignup } from "@/app/actions/onBoardUserSignup";
@@ -56,6 +56,32 @@ const PricingSection = ({
 
   // New India Plans Data
   const indiaPlans = {
+    free: {
+      id: "free",
+      title: "Free Menu",
+      tabLabel: "Free",
+      description: "Get your digital menu online for free, forever",
+      icon: Gift,
+      color: "text-green-600",
+      bg: "bg-green-100",
+      features: [
+        "Digital menu",
+        "Unlimited items & categories",
+        "1 QR code",
+        "Custom banner & logo",
+        "Basic scan analytics",
+      ],
+      variants: [
+        {
+          id: "in_free",
+          name: "Free Menu",
+          price: "0",
+          period: "forever",
+          billed: "No billing required",
+          type: "free" as const,
+        },
+      ],
+    },
     digital: {
       id: "digital",
       title: "Digital Menu",
@@ -130,33 +156,6 @@ const PricingSection = ({
         },
       ],
     },
-    billing: {
-      id: "billing",
-      title: "Billing",
-      tabLabel: "Billing",
-      description: "Advanced billing for efficient restaurant management.",
-      icon: Printer,
-      color: "text-orange-600",
-      bg: "bg-orange-100/70",
-      features: [
-        "Fully online and offline billing",
-        "Remote reports tracking",
-        "Multi-terminal billing",
-        "KOT and Bill printing with Bluetooth/USB",
-        "Real-time inventory sync",
-      ],
-      variants: [
-        {
-          id: "in_billing_yearly",
-          name: "Billing Yearly",
-          price: "4999",
-          period: "/year",
-          billed: "Billed annually",
-          type: "yearly",
-          rz_plan_id: "plan_S7EIQi5QLj73Wm",
-        },
-      ],
-    },
   };
 
   // International Plan Data
@@ -200,17 +199,18 @@ const PricingSection = ({
   const [selectedVariants, setSelectedVariants] = useState<
     Record<string, number>
   >({
+    free: 0,
     digital: 1, // Default to yearly (index 1)
     ordering: 1,
-    billing: 0,
   });
 
   const [selectedIntlVariant, setSelectedIntlVariant] = useState(1); // Default to yearly
 
   // Helper to check if plan is free
-  const isPlanFree = (pid: string) => pid === "in_trial";
+  const isPlanFree = (pid: string) => ["in_trial", "in_free", "int_free"].includes(pid);
   const isFreePlanUsed = (userData as any)?.subscription_details
     ?.isFreePlanUsed;
+  const currentPlanId = (userData as any)?.subscription_details?.plan?.id;
 
   const handlePayment = async (plan: any) => {
     setIsCreatingAccount(true);
@@ -377,19 +377,17 @@ const PricingSection = ({
         // --- INJECT PLAN DETAILS ---
         const now = new Date();
         const periodDays = plan.period_days || 365;
-        const expiryDate = new Date(
-          now.getTime() + periodDays * 24 * 60 * 60 * 1000,
-        );
-
-        // For new users, previous usage is false unless current selection is free
-        const signupIsFreeUsed = isPlanFree(plan.id);
+        const isFreePlanSignup = periodDays === -1;
+        const expiryDate = isFreePlanSignup
+          ? null
+          : new Date(now.getTime() + periodDays * 24 * 60 * 60 * 1000);
 
         const subscriptionDetails = {
           plan: plan,
           status: "active",
           startDate: now.toISOString(),
-          expiryDate: expiryDate.toISOString(),
-          isFreePlanUsed: signupIsFreeUsed,
+          expiryDate: expiryDate ? expiryDate.toISOString() : null,
+          isFreePlanUsed: false,
         };
 
         // Helper to generate feature flags string from plan
@@ -470,7 +468,7 @@ const PricingSection = ({
       name: category.title, // Use category title context
       description: category.description,
       // Ensure compatibility with existing logic
-      period_days: selectedVariant.type === "monthly" ? 30 : 365,
+      period_days: selectedVariant.type === "free" ? -1 : selectedVariant.type === "monthly" ? 30 : 365,
     });
   };
 
@@ -518,9 +516,16 @@ const PricingSection = ({
 
         {isIndia ? (
           <div className="bg-white rounded-3xl border border-stone-200 overflow-hidden max-w-4xl mx-auto">
-            <Tabs defaultValue="digital" className="w-full">
+            <Tabs defaultValue="free" className="w-full">
               <div className="bg-stone-50/50 p-2 border-b border-stone-200">
                 <TabsList className="grid w-full grid-cols-3 h-auto p-1 gap-2 bg-stone-100/50 rounded-xl">
+                  <TabsTrigger
+                    value="free"
+                    className="py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary font-medium rounded-lg transition-all"
+                  >
+                    <Gift className="w-4 h-4 mr-2" />
+                    {indiaPlans.free.tabLabel}
+                  </TabsTrigger>
                   <TabsTrigger
                     value="digital"
                     className="py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary font-medium rounded-lg transition-all"
@@ -534,13 +539,6 @@ const PricingSection = ({
                   >
                     <Globe className="w-4 h-4 mr-2" />
                     {indiaPlans.ordering.tabLabel}
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="billing"
-                    className="py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-red-600 data-[state=active]:text-primary font-medium rounded-lg transition-all"
-                  >
-                    <Printer className="w-4 h-4 mr-2" />
-                    {indiaPlans.billing.tabLabel}
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -598,13 +596,15 @@ const PricingSection = ({
                             )}
                           >
                             <h4 className="font-semibold text-stone-900 mb-1">
-                              {variant.type === "monthly"
+                              {variant.type === "free"
+                                ? "Forever"
+                                : variant.type === "monthly"
                                 ? "Monthly"
                                 : "Yearly"}
                             </h4>
                             <div className="flex items-baseline justify-center gap-1">
                               <span className="text-2xl font-semibold text-stone-900">
-                                ₹{variant.price}
+                                {variant.type === "free" ? "Free" : `₹${variant.price}`}
                               </span>
                               {/* <span className="text-xs text-stone-500">{variant.period}</span> */}
                             </div>
@@ -643,7 +643,11 @@ const PricingSection = ({
                       showArrow={false}
                       className="w-full max-w-md justify-center h-12"
                     >
-                      Get Started
+                      {currentPlanId === plan.variants[selectedVariants[key] || 0]?.id
+                        ? "Current Plan"
+                        : key === "free"
+                        ? "Get Free Menu"
+                        : "Get Started"}
                     </ButtonV2>
                   </div>
                 </TabsContent>
