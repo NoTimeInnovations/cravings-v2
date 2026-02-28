@@ -275,6 +275,7 @@ export function DeliverySettings() {
         delivery_time_allowed: null,
         isDeliveryActive: true,
         needDeliveryLocation: true,
+        need_user_name: false,
         parcel_charge: 0,
         parcel_charge_type: "fixed",
     });
@@ -301,6 +302,7 @@ export function DeliverySettings() {
                 delivery_time_allowed: userData.delivery_rules?.delivery_time_allowed || null,
                 isDeliveryActive: userData.delivery_rules?.isDeliveryActive ?? true,
                 needDeliveryLocation: userData.delivery_rules?.needDeliveryLocation ?? true,
+                need_user_name: userData.delivery_rules?.need_user_name ?? false,
                 parcel_charge: userData.delivery_rules?.parcel_charge || 0,
                 parcel_charge_type: userData.delivery_rules?.parcel_charge_type || "fixed",
             });
@@ -393,6 +395,7 @@ export function DeliverySettings() {
             delivery_time_allowed: data.delivery_rules?.delivery_time_allowed || null,
             isDeliveryActive: data.delivery_rules?.isDeliveryActive ?? true,
             needDeliveryLocation: data.delivery_rules?.needDeliveryLocation ?? true,
+            need_user_name: data.delivery_rules?.need_user_name ?? false,
             parcel_charge: data.delivery_rules?.parcel_charge || 0,
             parcel_charge_type: data.delivery_rules?.parcel_charge_type || "fixed",
         };
@@ -704,6 +707,30 @@ export function DeliverySettings() {
                                 : `${currencySymbol}${deliveryRules.parcel_charge || 0} per item — total charge = item count × per-item charge.`
                             }
                         </p>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Customer Name</CardTitle>
+                    <CardDescription>Ask customers for their name when ordering.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <Label>Ask for customer name</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Require customers to enter their name during login and order placement.
+                            </p>
+                        </div>
+                        <Switch
+                            checked={deliveryRules.need_user_name ?? false}
+                            onCheckedChange={(checked) => setDeliveryRules(prev => ({
+                                ...prev,
+                                need_user_name: checked
+                            }))}
+                        />
                     </div>
                 </CardContent>
             </Card>

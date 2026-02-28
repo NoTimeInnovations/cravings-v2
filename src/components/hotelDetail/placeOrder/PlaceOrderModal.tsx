@@ -17,6 +17,7 @@ import {
   Briefcase,
   X,
   Search,
+  MessageCircle,
 } from "lucide-react";
 import { useLocationStore } from "@/store/geolocationStore";
 import {
@@ -38,7 +39,7 @@ import DescriptionWithTextBreak from "@/components/DescriptionWithTextBreak";
 import { useQrDataStore } from "@/store/qrDataStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { updateUserAddressesMutation } from "@/api/auth";
+import { updateUserAddressesMutation, updateUserFullNameMutation } from "@/api/auth";
 import {
   validatePhoneNumber,
   getPhoneValidationError,
@@ -1146,10 +1147,16 @@ const OrderStatusDialog = ({
   status,
   onClose,
   partnerId,
+  whatsappLink,
+  isPetpooja,
+  hasUpiQr,
 }: {
   status: "idle" | "loading" | "success";
   onClose: () => void;
   partnerId?: string;
+  whatsappLink?: string;
+  isPetpooja?: boolean;
+  hasUpiQr?: boolean;
 }) => {
   const [loadingText, setLoadingText] = useState("Getting your items...");
 
@@ -1231,12 +1238,22 @@ const OrderStatusDialog = ({
                   Kindly make the payment using the WhatsApp QR code and share the payment confirmation screenshot to confirm your order.
                 </p>
               )}
-              <button
-                onClick={onClose}
-                className="mt-8 px-8 py-3 bg-white text-black rounded-xl hover:bg-gray-200 font-semibold transition-colors"
-              >
-                Close
-              </button>
+              <div className="w-full mt-8 px-4 space-y-3">
+                {whatsappLink && !isPetpooja && !hasUpiQr && (
+                  <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
+                    <button className="w-full flex items-center justify-center gap-2 px-6 py-2.5 bg-green-500 text-white rounded-xl font-medium text-sm shadow-lg shadow-green-500/30 hover:bg-green-600 transition-colors">
+                      <MessageCircle className="w-4 h-4 shrink-0" />
+                      Send Order to WhatsApp
+                    </button>
+                  </a>
+                )}
+                <button
+                  onClick={onClose}
+                  className="w-full px-6 py-2.5 border border-stone-300 text-white rounded-xl font-medium hover:bg-white/10 transition-colors"
+                >
+                  Back to Menu
+                </button>
+              </div>
             </motion.div>
           )}
         </motion.div>
@@ -1737,8 +1754,10 @@ const LoginDrawer = ({
   onLoginSuccess: () => void;
 }) => {
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [userName, setUserName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signInWithPhone } = useAuthStore();
+  const needUserName = hotelData?.delivery_rules?.need_user_name ?? false;
 
   const handleLogin = async () => {
     const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
@@ -1746,6 +1765,11 @@ const LoginDrawer = ({
 
     if (!phoneNumber || !validatePhoneNumber(phoneNumber, countryCode)) {
       toast.error(getPhoneValidationError(countryCode));
+      return;
+    }
+
+    if (needUserName && !userName.trim()) {
+      toast.error("Please enter your name");
       return;
     }
 
@@ -1758,6 +1782,18 @@ const LoginDrawer = ({
         phoneDigits,
       });
       if (result) {
+        // Update full_name if provided
+        if (userName.trim() && result.id) {
+          try {
+            await fetchFromHasura(updateUserFullNameMutation, {
+              id: result.id,
+              full_name: userName.trim(),
+            });
+            useAuthStore.setState({
+              userData: { ...result, full_name: userName.trim(), role: "user" } as any,
+            });
+          } catch {}
+        }
         toast.success("Logged in successfully");
         onLoginSuccess();
         setShowLoginDrawer(false);
@@ -1815,6 +1851,31 @@ const LoginDrawer = ({
             </motion.div>
           </div>
 
+          {/* Name Input */}
+          {needUserName && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="mb-4"
+            >
+              <Label
+                htmlFor="userName"
+                className="text-sm font-semibold text-gray-900 mb-3 block"
+              >
+                Your Name <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                type="text"
+                id="userName"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="Enter your name"
+                className="rounded-2xl text-gray-900 placeholder:text-gray-400 bg-white border-stone-200 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20 h-14 text-base px-5 transition-all duration-200"
+              />
+            </motion.div>
+          )}
+
           {/* Phone Input */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -1865,7 +1926,7 @@ const LoginDrawer = ({
           >
             <button
               onClick={handleLogin}
-              disabled={isSubmitting || !phoneNumber}
+              disabled={isSubmitting || !phoneNumber || (needUserName && !userName.trim())}
               className="w-full px-6 py-4 bg-orange-100/70 text-orange-600 rounded-full hover:bg-orange-600 hover:text-white border border-orange-600/30 hover:border-orange-600 transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
             >
               {isSubmitting ? (
@@ -1963,6 +2024,11 @@ const PlaceOrderModal = ({
   const [finalOrderAmount, setFinalOrderAmount] = useState(0);
   const [generatedWhatsappLink, setGeneratedWhatsappLink] = useState<string>("");
 
+  // Customer name state
+  const needUserName = hotelData?.delivery_rules?.need_user_name ?? false;
+  const [customerName, setCustomerName] = useState("");
+  const [customerNameSaved, setCustomerNameSaved] = useState(false);
+
   // Discount code state
   const [discountInput, setDiscountInput] = useState("");
   const [appliedDiscount, setAppliedDiscount] = useState<{
@@ -2014,6 +2080,17 @@ const PlaceOrderModal = ({
       setHasActiveCodes((res?.discount_codes_aggregate?.aggregate?.count ?? 0) > 0);
     }).catch(() => {});
   }, [hotelData?.id, showDiscountSection]);
+
+  // Prefill customer name from user data
+  useEffect(() => {
+    if (user && needUserName && !customerNameSaved) {
+      const fullName = (user as any)?.full_name || "";
+      // Only prefill if it's not a default generated name like "User12345"
+      if (fullName && !/^User\d+$/.test(fullName)) {
+        setCustomerName(fullName);
+      }
+    }
+  }, [user, needUserName, customerNameSaved]);
 
   useEffect(() => {
     if (open_place_order_modal && items?.length === 0) {
@@ -2324,6 +2401,7 @@ const PlaceOrderModal = ({
       shouldShowHotelLocation ? `*Hotel Location:* ${currentSelectedArea.toUpperCase()}` : "",
       orderType === "delivery" ? `*Delivery Address:* ${savedAddress}${locationLink}` : "",
       (user as any)?.phone ? `*Customer Phone:* ${(user as any).phone}` : "",
+      customerName?.trim() ? `*Customer Name:* ${customerName.trim()}` : "",
       `*Time:* ${nowTime}`,
     ].filter(Boolean).join("\n");
 
@@ -2352,6 +2430,11 @@ const PlaceOrderModal = ({
   const handlePlaceOrder = async (onSuccessCallback?: () => void) => {
     if (tableNumber === 0 && !orderType) {
       toast.error("Please select an order type");
+      return;
+    }
+
+    if (needUserName && !customerName.trim()) {
+      toast.error("Please enter your name");
       return;
     }
 
@@ -2486,6 +2569,7 @@ const PlaceOrderModal = ({
         orderNote || "",
         tableName,
         appliedDiscount ? { code: appliedDiscount.code, type: appliedDiscount.type, value: appliedDiscount.value, savings: discountSavingsAmount } : null,
+        needUserName ? customerName.trim() : undefined,
       );
 
       if (result) {
@@ -2707,6 +2791,43 @@ const PlaceOrderModal = ({
                 </div>
               </motion.div>
 
+              {/* Customer Name */}
+              {needUserName && user && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white rounded-2xl shadow-sm border border-stone-200 p-5"
+                >
+                  <h3 className="font-semibold text-gray-900 text-base mb-3">
+                    Your Name <span className="text-red-500">*</span>
+                  </h3>
+                  <Input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => {
+                      setCustomerName(e.target.value);
+                      setCustomerNameSaved(false);
+                    }}
+                    onBlur={async () => {
+                      if (customerName.trim() && user?.id && !customerNameSaved) {
+                        try {
+                          await fetchFromHasura(updateUserFullNameMutation, {
+                            id: user.id,
+                            full_name: customerName.trim(),
+                          });
+                          useAuthStore.setState({
+                            userData: { ...user, full_name: customerName.trim() } as any,
+                          });
+                          setCustomerNameSaved(true);
+                        } catch {}
+                      }
+                    }}
+                    placeholder="Enter your name"
+                    className="rounded-lg border-stone-200 text-gray-900 placeholder:text-gray-400"
+                  />
+                </motion.div>
+              )}
+
               {!user && <LoginCard setShowLoginDrawer={setShowLoginDrawer} />}
 
               {isDelivery &&
@@ -2732,127 +2853,33 @@ const PlaceOrderModal = ({
               {/* Action Buttons */}
               <div className="flex flex-col gap-3 mt-6">
                 {user?.role !== "partner" && user?.role !== "superadmin" ? (
-                  <>
-                    {isAndroid ? (
-                      <button
-                        onClick={() =>
-                          handlePlaceOrder(() => {
-                            if (hasUpiQr) {
-                              setShowUpiScreen(true);
-                            } else if (!hotelData.petpooja_restaurant_id) {
-                              window.open(generatedWhatsappLink, "_blank");
-                            }
-                          })
+                  <button
+                    onClick={() =>
+                      handlePlaceOrder(() => {
+                        if (hasUpiQr) {
+                          setShowUpiScreen(true);
                         }
-                        disabled={
-                          isPlaceOrderDisabled ||
-                          !user ||
-                          items?.length === 0 ||
-                          (isDelivery &&
-                            orderType === "delivery" &&
-                            (totalPrice ?? 0) < minimumOrderAmount)
-                        }
-                        className="w-full px-6 py-4 bg-orange-600 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 font-semibold shadow-lg shadow-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
-                      >
-                        {orderStatus === "loading" ? (
-                          <span className="flex items-center justify-center gap-2">
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                            Placing Order...
-                          </span>
-                        ) : (
-                          "Place Order"
-                        )}
-                      </button>
+                      })
+                    }
+                    disabled={
+                      isPlaceOrderDisabled ||
+                      !user ||
+                      items?.length === 0 ||
+                      (isDelivery &&
+                        orderType === "delivery" &&
+                        (totalPrice ?? 0) < minimumOrderAmount)
+                    }
+                    className="w-full px-6 py-4 bg-orange-600 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 font-semibold shadow-lg shadow-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                  >
+                    {orderStatus === "loading" ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        Placing Order...
+                      </span>
                     ) : (
-                      <>
-                        {hotelData.petpooja_restaurant_id ? (
-                          <button
-                            onClick={() => handlePlaceOrder()}
-                            disabled={
-                              isPlaceOrderDisabled ||
-                              !user ||
-                              items?.length === 0 ||
-                              (isDelivery &&
-                                orderType === "delivery" &&
-                                (totalPrice ?? 0) < minimumOrderAmount)
-                            }
-                            className="w-full px-6 py-4 bg-orange-600 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 font-semibold shadow-lg shadow-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
-                          >
-                            {orderStatus === "loading" ? (
-                              <span className="flex items-center justify-center gap-2">
-                                <Loader2 className="h-5 w-5 animate-spin" />
-                                Placing Order...
-                              </span>
-                            ) : (
-                              "Place Order"
-                            )}
-                          </button>
-                        ) : hasUpiQr ? (
-                          <button
-                            onClick={() => handlePlaceOrder(() => setShowUpiScreen(true))}
-                            disabled={
-                              isPlaceOrderDisabled ||
-                              !user ||
-                              items?.length === 0 ||
-                              (isDelivery &&
-                                orderType === "delivery" &&
-                                (totalPrice ?? 0) < minimumOrderAmount)
-                            }
-                            className="w-full px-6 py-4 bg-orange-600 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 font-semibold shadow-lg shadow-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
-                          >
-                            {orderStatus === "loading" ? (
-                              <span className="flex items-center justify-center gap-2">
-                                <Loader2 className="h-5 w-5 animate-spin" />
-                                Placing Order...
-                              </span>
-                            ) : (
-                              "Place Order"
-                            )}
-                          </button>
-                        ) : (
-                          <Link
-                            href={generatedWhatsappLink || "#"}
-                            target="_blank"
-                            onClick={(e) => {
-                              const isDisabled =
-                                isPlaceOrderDisabled ||
-                                !user ||
-                                items?.length === 0 ||
-                                (isDelivery &&
-                                  orderType === "delivery" &&
-                                  (totalPrice ?? 0) < minimumOrderAmount);
-
-                              if (isDisabled) {
-                                e.preventDefault();
-                              }
-                            }}
-                          >
-                            <button
-                              onClick={() => handlePlaceOrder()}
-                              disabled={
-                                isPlaceOrderDisabled ||
-                                !user ||
-                                items?.length === 0 ||
-                                (isDelivery &&
-                                  orderType === "delivery" &&
-                                  (totalPrice ?? 0) < minimumOrderAmount)
-                              }
-                              className="w-full px-6 py-4 bg-orange-600 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 font-semibold shadow-lg shadow-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
-                            >
-                              {orderStatus === "loading" ? (
-                                <span className="flex items-center justify-center gap-2">
-                                  <Loader2 className="h-5 w-5 animate-spin" />
-                                  Placing Order...
-                                </span>
-                              ) : (
-                                "Place Order"
-                              )}
-                            </button>
-                          </Link>
-                        )}
-                      </>
+                      "Place Order"
                     )}
-                  </>
+                  </button>
                 ) : (
                   <div className="text-red-600 text-center text-sm bg-red-50 py-3 rounded-xl border border-red-200">
                     Login as user to place orders
@@ -2885,6 +2912,9 @@ const PlaceOrderModal = ({
         status={showUpiScreen ? "idle" : orderStatus}
         onClose={handleCloseSuccessDialog}
         partnerId={hotelData?.id}
+        whatsappLink={generatedWhatsappLink}
+        isPetpooja={!!hotelData.petpooja_restaurant_id}
+        hasUpiQr={hasUpiQr}
       />
 
       {showUpiScreen && (

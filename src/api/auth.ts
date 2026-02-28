@@ -170,6 +170,15 @@ export const updateUserAddressesMutation = `
   }
 `;
 
+export const updateUserFullNameMutation = `
+  mutation UpdateUserFullName($id: uuid!, $full_name: String) {
+    update_users_by_pk(pk_columns: { id: $id }, _set: { full_name: $full_name }) {
+      id
+      full_name
+    }
+  }
+`;
+
 export const partnerMutation = `
   mutation InsertPartner($object: partners_insert_input!) {
   insert_partners_one(object: $object) {

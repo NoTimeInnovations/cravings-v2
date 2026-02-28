@@ -62,6 +62,7 @@ export interface DeliveryRules {
   } | null;
   isDeliveryActive: boolean;
   needDeliveryLocation: boolean;
+  need_user_name?: boolean;
   parcel_charge?: number;
   parcel_charge_type?: "fixed" | "variable"; // fixed = flat amount, variable = per item
 }
@@ -94,6 +95,7 @@ export interface Order {
     phone?: string;
     name?: string;
     email?: string;
+    full_name?: string | null;
   };
   type?: "table_order" | "delivery" | "pos";
   deliveryAddress?: string | null;
@@ -198,6 +200,7 @@ interface OrderState {
     notes?: string,
     tableName?: string,
     discounts?: { code: string; type: string; value: number; savings: number } | null,
+    customerName?: string,
   ) => Promise<Order | null>;
   getCurrentOrder: () => HotelOrderState;
   fetchOrderOfPartner: (partnerId: string) => Promise<Order[] | null>;
@@ -939,6 +942,7 @@ const useOrderStore = create(
         notes?: string,
         tableName?: string,
         discounts?: { code: string; type: string; value: number; savings: number } | null,
+        customerName?: string,
       ) => {
         try {
           const state = get();
@@ -1043,6 +1047,7 @@ const useOrderStore = create(
               userId: userData.id,
               user: {
                 phone: userData.phone || "N/A",
+                full_name: customerName || (userData as any).full_name || null,
               },
               gstIncluded,
               extraCharges: exCharges,
@@ -1063,10 +1068,15 @@ const useOrderStore = create(
               status: "pending",
               partner_id: hotelData.id,
               user_id: userData.id,
+              user: {
+                phone: userData.phone || "N/A",
+                full_name: customerName || (userData as any).full_name || null,
+              },
               type,
               delivery_address:
                 type === "delivery" && !isTakeaway ? state.userAddress : null,
               phone: userData.phone || null,
+              customer_name: customerName || (userData as any).full_name || null,
               notes: notes || null,
               payment_status: "pending",
               gst_included: gstIncluded || 0,
