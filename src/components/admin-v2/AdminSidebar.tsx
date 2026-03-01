@@ -36,7 +36,7 @@ const sidebarItems: SidebarItem[] = [
 ];
 
 // Items that are locked for free plan users
-const FREE_PLAN_LOCKED_IDS = ["offers", "captains", "pos", "inventory", "orders", "qrcodes"];
+const FREE_PLAN_LOCKED_IDS = ["captains", "pos", "inventory", "orders", "qrcodes"];
 
 interface AdminSidebarProps {
     activeView: string;

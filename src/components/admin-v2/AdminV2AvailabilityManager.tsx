@@ -64,7 +64,7 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
 
     const handleCategoryToggle = async (category: Category) => {
         if (isOnFreePlan && category.is_active) {
-            toast.error("You cannot change availability because this is a Freemium Feature.");
+            toast.error("You cannot change availability because this is a Premium Feature.");
             return;
         }
         try {
@@ -79,7 +79,7 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
 
     const handleItemToggle = async (item: MenuItem) => {
         if (isOnFreePlan && item.is_available) {
-            toast.error("You cannot change availability because this is a Freemium Feature.");
+            toast.error("You cannot change availability because this is a Premium Feature.");
             return;
         }
         try {
