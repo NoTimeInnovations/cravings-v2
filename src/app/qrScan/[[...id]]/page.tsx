@@ -280,7 +280,7 @@ const page = async ({
 
     // Check Scan Limits only for International Partners
     // For Indian partners, maybe we only track stats but don't block? 
-    // Wait, requirement said "restrict free plan 100 scans". int_free has 100, int_standard has unlimited (-1).
+    // Wait, requirement said "restrict free plan 100 scans". free_plan has 100, standard has unlimited (-1).
     // Let's implement strict checking for International.
 
     if (isInternational && sub) {

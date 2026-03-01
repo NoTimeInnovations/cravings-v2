@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, Search, Crown } from "lucide-react";
 import { toast } from "sonner";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore, Partner } from "@/store/authStore";
+import { isFreePlan } from "@/lib/getPlanLimits";
 import Img from "../Img";
 
 interface AdminV2AvailabilityManagerProps {
@@ -20,6 +21,8 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
     const { categories, fetchCategories, updateCategory } = useCategoryStore();
     const { items, fetchMenu, updateItem } = useMenuStore();
     const { userData } = useAuthStore();
+    const planId = (userData as Partner)?.subscription_details?.plan?.id;
+    const isOnFreePlan = isFreePlan(planId);
     const [searchQuery, setSearchQuery] = useState("");
     const [filteredData, setFilteredData] = useState<{ category: Category; items: MenuItem[] }[]>([]);
 
@@ -59,6 +62,10 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
     }, [categories, items, searchQuery]);
 
     const handleCategoryToggle = async (category: Category) => {
+        if (isOnFreePlan && category.is_active) {
+            toast.error("You cannot change availability because this is a Freemium Feature.");
+            return;
+        }
         try {
             const newStatus = !category.is_active;
             await updateCategory({ ...category, is_active: newStatus });
@@ -70,6 +77,10 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
     };
 
     const handleItemToggle = async (item: MenuItem) => {
+        if (isOnFreePlan && item.is_available) {
+            toast.error("You cannot change availability because this is a Freemium Feature.");
+            return;
+        }
         try {
             await updateItem(item.id!, { is_available: !item.is_available });
             toast.success(`Item ${!item.is_available ? 'available' : 'unavailable'}`);
@@ -81,6 +92,14 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            {isOnFreePlan && (
+                <div className="flex items-center gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3">
+                    <Crown className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+                    <p className="text-sm text-yellow-200">
+                        Turning off availability is a premium feature. <span className="font-semibold underline cursor-pointer">Upgrade your plan</span> to unlock full control.
+                    </p>
+                </div>
+            )}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
                 <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={onBack}>

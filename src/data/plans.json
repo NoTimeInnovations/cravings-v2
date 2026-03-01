@@ -1,7 +1,7 @@
 {
     "international": [
         {
-            "id": "int_free",
+            "id": "free_plan",
             "name": "Free Menu",
             "price": "Free",
             "description": "Get your digital menu online for free",
@@ -77,7 +77,7 @@
     ],
     "india": [
         {
-            "id": "in_free",
+            "id": "free_plan",
             "name": "Free Menu",
             "price": "Free",
             "description": "Get your digital menu online for free",

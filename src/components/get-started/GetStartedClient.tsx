@@ -895,10 +895,8 @@ export default function GetStartedClient({
       };
 
       // --- PLAN SELECTION ---
-      // If country is India -> in_free
-      // Else -> int_free
       const isIndia = hotelDetails.country === "India";
-      const planId = isIndia ? "in_free" : "int_free";
+      const planId = "free_plan";
       const planList = isIndia ? plansData.india : plansData.international;
       const selectedPlan =
         planList.find((p: any) => p.id === planId) || planList[0];

@@ -20,7 +20,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { Search, Edit, Plus, ChevronRight, ArrowUpDown, Power, Check, X, Trash2, ImagePlus, Loader2 } from "lucide-react";
+import { Search, Edit, Plus, ChevronRight, ArrowUpDown, Power, Check, X, Trash2, ImagePlus, Loader2, Crown } from "lucide-react";
 import Img from "../Img";
 import { formatPrice } from "@/lib/constants";
 import { AdminV2EditMenuItem } from "./AdminV2EditMenuItem";
@@ -30,9 +30,7 @@ import { AdminV2AvailabilityManager } from "./AdminV2AvailabilityManager";
 import { toast } from "sonner";
 import { formatDisplayName, useCategoryStore } from "@/store/categoryStore_hasura";
 import axios from "axios";
-
-// Free plan IDs that should not see the "Get all images" button
-const FREE_PLAN_IDS = ["in_trial"];
+import { isFreePlan as checkIsFreePlan } from "@/lib/getPlanLimits";
 
 export function AdminV2Menu() {
     const {
@@ -60,10 +58,9 @@ export function AdminV2Menu() {
     const [totalItemsToFetch, setTotalItemsToFetch] = useState(0);
     const [isGoogleLinked, setIsGoogleLinked] = useState(false);
 
-    // Check if user has a non-free plan
     const partner = userData as Partner;
     const planId = partner?.subscription_details?.plan?.id;
-    const isFreePlan = !planId || FREE_PLAN_IDS.includes(planId);
+    const isFreePlan = checkIsFreePlan(planId);
     const canUseAutoImages = !isFreePlan;
 
     // Check Google Link Status
@@ -262,11 +259,13 @@ export function AdminV2Menu() {
                             <Power className="h-4 w-4 sm:mr-2" />
                             <span className="hidden sm:inline">Manage Availability</span>
                             <span className="inline sm:hidden">Availability</span>
+                            {isFreePlan && <Crown className="h-3.5 w-3.5 ml-1 text-yellow-500" />}
                         </Button>
                         <Button variant="outline" onClick={() => setIsPriorityMode(true)} className="w-full sm:w-auto px-2 sm:px-4">
                             <ArrowUpDown className="h-4 w-4 sm:mr-2" />
                             <span className="hidden sm:inline">Change Priority</span>
                             <span className="inline sm:hidden">Priority</span>
+                            {isFreePlan && <Crown className="h-3.5 w-3.5 ml-1 text-yellow-500" />}
                         </Button>
                         <Button onClick={() => setIsAddingItem(true)} className="col-span-2 sm:col-span-1 w-full sm:w-auto">
                             <Plus className="h-4 w-4 mr-2" />

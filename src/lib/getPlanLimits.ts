@@ -13,7 +13,7 @@ export interface PlanLimits {
   priority_support: boolean;
 }
 
-const FREE_PLAN_IDS = ["in_free", "int_free"];
+const FREE_PLAN_IDS = ["free_plan"];
 
 const FREE_PLAN_LIMITS: PlanLimits = {
   max_qr_codes: 1,

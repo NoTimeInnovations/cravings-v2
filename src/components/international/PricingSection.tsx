@@ -73,7 +73,7 @@ const PricingSection = ({
       ],
       variants: [
         {
-          id: "in_free",
+          id: "free_plan",
           name: "Free Menu",
           price: "0",
           period: "forever",
@@ -207,7 +207,7 @@ const PricingSection = ({
   const [selectedIntlVariant, setSelectedIntlVariant] = useState(1); // Default to yearly
 
   // Helper to check if plan is free
-  const isPlanFree = (pid: string) => ["in_trial", "in_free", "int_free"].includes(pid);
+  const isPlanFree = (pid: string) => ["in_trial", "free_plan"].includes(pid);
   const isFreePlanUsed = (userData as any)?.subscription_details
     ?.isFreePlanUsed;
   const currentPlanId = (userData as any)?.subscription_details?.plan?.id;

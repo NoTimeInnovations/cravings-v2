@@ -9,9 +9,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, GripVertical, Save, ArrowRight } from "lucide-react";
+import { ArrowLeft, GripVertical, Save, ArrowRight, Crown } from "lucide-react";
 import { toast } from "sonner";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore, Partner } from "@/store/authStore";
+import { isFreePlan } from "@/lib/getPlanLimits";
 
 interface AdminV2PriorityChangerProps {
     onBack: () => void;
@@ -21,6 +22,8 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
     const { categories, fetchCategories } = useCategoryStore();
     const { items, fetchMenu, updateItemsAsBatch, updateCategoriesAsBatch } = useMenuStore();
     const { userData } = useAuthStore();
+    const planId = (userData as Partner)?.subscription_details?.plan?.id;
+    const isOnFreePlan = isFreePlan(planId);
 
     const [localCategories, setLocalCategories] = useState<Category[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -53,6 +56,10 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
 
     const onDragEnd = (result: DropResult) => {
         if (!result.destination) return;
+        if (isOnFreePlan) {
+            toast.error("Changing priority is a premium feature. Upgrade to unlock.");
+            return;
+        }
 
         if (selectedCategory) {
             // Reordering Items
@@ -86,6 +93,10 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
     };
 
     const handlePriorityChange = (id: string, newPriority: string) => {
+        if (isOnFreePlan) {
+            toast.error("Changing priority is a premium feature. Upgrade to unlock.");
+            return;
+        }
         // Allow empty string for typing
         if (newPriority === "") {
             if (selectedCategory) {
@@ -152,6 +163,14 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            {isOnFreePlan && (
+                <div className="flex items-center gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3">
+                    <Crown className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+                    <p className="text-sm text-yellow-200">
+                        Changing priority is a premium feature. <span className="font-semibold underline cursor-pointer">Upgrade your plan</span> to unlock full control.
+                    </p>
+                </div>
+            )}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b pb-4 gap-4">
                 <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={() => {
