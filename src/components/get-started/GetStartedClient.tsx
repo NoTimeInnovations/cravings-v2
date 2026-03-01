@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { ButtonV2 } from "@/components/ui/ButtonV2";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Loader2,
   Upload,
@@ -36,6 +37,7 @@ import axios from "axios";
 import { onBoardUserSignup } from "@/app/actions/onBoardUserSignup";
 import plansData from "@/data/plans.json";
 import { useAuthStore } from "@/store/authStore";
+import { FcGoogle } from "react-icons/fc";
 import FullScreenLoader from "@/components/ui/FullScreenLoader";
 import { HexColorPicker } from "react-colorful";
 import {
@@ -68,6 +70,7 @@ interface HotelDetails {
   name: string;
   banner?: string;
   phone: string;
+  phoneCode: string;
   country: string;
   state?: string;
   district?: string;
@@ -84,71 +87,13 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 const STORAGE_KEY = "cravings_onboarding_state";
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-const COUNTRY_META_DATA: Record<
-  string,
-  { code: string; currency: string; symbol: string }
-> = {
-  India: { code: "+91", currency: "INR", symbol: "₹" },
-  "United States": { code: "+1", currency: "USD", symbol: "$" },
-  "United Kingdom": { code: "+44", currency: "GBP", symbol: "£" },
-  Canada: { code: "+1", currency: "CAD", symbol: "$" },
-  Australia: { code: "+61", currency: "AUD", symbol: "$" },
-  "United Arab Emirates": { code: "+971", currency: "AED", symbol: "AED" },
-};
+import _COUNTRY_META_DATA from "@/data/countryMetaData.json";
+const COUNTRY_META_DATA = _COUNTRY_META_DATA as Record<string, { code: string; currency: string; symbol: string }>;
+import STATES from "@/data/states.json";
+import KERALA_DISTRICTS from "@/data/keralaDistricts.json";
+import CURRENCIES from "@/data/currencies.json";
 
 const COUNTRIES = Object.keys(COUNTRY_META_DATA);
-const STATES = [
-  "Andhra Pradesh",
-  "Arunachal Pradesh",
-  "Assam",
-  "Bihar",
-  "Chhattisgarh",
-  "Goa",
-  "Gujarat",
-  "Haryana",
-  "Himachal Pradesh",
-  "Jharkhand",
-  "Karnataka",
-  "Kerala",
-  "Madhya Pradesh",
-  "Maharashtra",
-  "Manipur",
-  "Meghalaya",
-  "Mizoram",
-  "Nagaland",
-  "Odisha",
-  "Punjab",
-  "Rajasthan",
-  "Sikkim",
-  "Tamil Nadu",
-  "Telangana",
-  "Tripura",
-  "Uttar Pradesh",
-  "Uttarakhand",
-  "West Bengal",
-  "Delhi",
-];
-const KERALA_DISTRICTS = [
-  "Alappuzha",
-  "Ernakulam",
-  "Idukki",
-  "Kannur",
-  "Kasaragod",
-  "Kollam",
-  "Kottayam",
-  "Kozhikode",
-  "Malappuram",
-  "Palakkad",
-  "Pathanamthitta",
-  "Thiruvananthapuram",
-  "Thrissur",
-  "Wayanad",
-];
-
-// --- Currencies for Selector ---
-const CURRENCIES = Array.from(
-  new Set(Object.values(COUNTRY_META_DATA).map((m) => m.symbol)),
-);
 
 const SAMPLE_MENU_ITEMS: MenuItem[] = [
   {
@@ -327,6 +272,24 @@ const SAMPLE_MENU_ITEMS: MenuItem[] = [
   },
 ];
 
+// --- Phone validation by country code ---
+import _PHONE_DIGITS_BY_CODE from "@/data/phoneDigitsByCode.json";
+const PHONE_DIGITS_BY_CODE = _PHONE_DIGITS_BY_CODE as Record<string, number>;
+
+const getPhoneDigits = (phone: string) => phone.replace(/\D/g, "");
+
+const validatePhone = (phone: string, phoneCode: string): { valid: boolean; message: string } => {
+  const digits = getPhoneDigits(phone);
+  if (!digits) return { valid: false, message: "" };
+  const expected = PHONE_DIGITS_BY_CODE[phoneCode];
+  if (!expected) {
+    if (digits.length < 7 || digits.length > 15) return { valid: false, message: "Invalid phone number" };
+    return { valid: true, message: "" };
+  }
+  if (digits.length !== expected) return { valid: false, message: "Invalid phone number" };
+  return { valid: true, message: "" };
+};
+
 // --- Helper Functions ---
 const sanitizePhone = (phone: string, countryCode: string): string => {
   let cleaned = phone.trim();
@@ -396,6 +359,11 @@ export default function GetStartedClient({
   const [isHydrated, setIsHydrated] = useState(false);
   const [menuFiles, setMenuFiles] = useState<File[]>([]);
 
+  const getDefaultPhoneCode = (country: string) => {
+    const entry = countryCodes.find((c) => c.country === country);
+    return entry?.code || "+1";
+  };
+
   // Determine default currency based on country
   const getDefaultCurrency = (country: string) => {
     if (!country) return "";
@@ -406,6 +374,7 @@ export default function GetStartedClient({
   const [hotelDetails, setHotelDetails] = useState<HotelDetails>({
     name: "",
     phone: "",
+    phoneCode: getDefaultPhoneCode(defaultCountry),
     country: defaultCountry,
     state: "",
     district: "",
@@ -451,6 +420,9 @@ export default function GetStartedClient({
   const [showEmailChangeForm, setShowEmailChangeForm] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
+  const [authModalEmail, setAuthModalEmail] = useState("");
+  const [pendingGooglePublish, setPendingGooglePublish] = useState(false);
+  const [signinMethod, setSigninMethod] = useState<"email" | "google">("email");
 
   // --- Persistence & Hydration ---
 
@@ -519,8 +491,37 @@ export default function GetStartedClient({
       setStep(initialStep);
     }
 
+    // Handle Google OAuth redirect — pick up email from URL params
+    const googleEmail = searchParams.get("google_email");
+    const googleError = searchParams.get("google_error");
+    if (googleEmail) {
+      setAuthCredentials((prev) => ({ ...prev, email: googleEmail }));
+      setShowAuthModal(false);
+      setSigninMethod("google");
+      toast.success("Signed in with Google!");
+      // Clean up URL params
+      const url = new URL(window.location.href);
+      url.searchParams.delete("google_email");
+      window.history.replaceState({}, "", url.toString());
+      // Flag to auto-trigger publish after state is committed
+      setPendingGooglePublish(true);
+    } else if (googleError) {
+      toast.error("Google sign-in failed. Please try again.");
+      const url = new URL(window.location.href);
+      url.searchParams.delete("google_error");
+      window.history.replaceState({}, "", url.toString());
+    }
+
     setIsHydrated(true);
   }, []);
+
+  // Auto-publish after Google sign-in once state is committed
+  useEffect(() => {
+    if (pendingGooglePublish && isHydrated && authCredentials.email && extractedItems.length > 0 && hotelDetails.name) {
+      setPendingGooglePublish(false);
+      handleFinalPublish(authCredentials.email);
+    }
+  }, [pendingGooglePublish, isHydrated, authCredentials.email, extractedItems, hotelDetails.name]);
 
   // Persist to localStorage and update URL
   useEffect(() => {
@@ -618,10 +619,12 @@ export default function GetStartedClient({
 
     if (name === "country") {
       const isIndia = value === "India";
+      const phoneCodeEntry = countryCodes.find((c) => c.country === value);
       setHotelDetails((prev) => ({
         ...prev,
         [name]: value,
         currency: isIndia ? "₹" : "$", // Auto-select currency symbol
+        phoneCode: phoneCodeEntry?.code || prev.phoneCode, // Update phone code
         state: "", // Clear state when country changes
         district: "", // Clear district when country changes
       }));
@@ -813,8 +816,14 @@ export default function GetStartedClient({
   };
 
   const handleNextToExtraction = async () => {
-    if (!hotelDetails.name || !hotelDetails.phone || !authCredentials.email) {
+    if (!hotelDetails.name || !hotelDetails.phone) {
       toast.error("Please fill in all details");
+      return;
+    }
+
+    const phoneValidation = validatePhone(hotelDetails.phone, hotelDetails.phoneCode);
+    if (!phoneValidation.valid) {
+      toast.error(phoneValidation.message || "Please enter a valid phone number");
       return;
     }
 
@@ -840,24 +849,38 @@ export default function GetStartedClient({
     }
   };
 
-  const handleFinalPublish = async () => {
-    if (!authCredentials.email) {
-      toast.error("Please enter your email");
+  const handleFinalPublish = async (emailOverride?: string) => {
+    const email = emailOverride || authCredentials.email;
+    if (!email) {
+      setShowAuthModal(true);
       return;
+    }
+
+    // Ensure state is in sync
+    if (emailOverride) {
+      setAuthCredentials((prev) => ({ ...prev, email: emailOverride }));
     }
 
     setIsPublishing(true);
     try {
       // Check email uniqueness
-      const { checkEmailUnique } = await import("@/app/actions/checkEmail");
-      const { isUnique } = await checkEmailUnique(authCredentials.email);
+      try {
+        const { checkEmailUnique } = await import("@/app/actions/checkEmail");
+        const { isUnique } = await checkEmailUnique(email);
 
-      if (!isUnique) {
-        toast.error(
-          "This email is already registered. Please login or use a different email.",
-        );
-        setIsPublishing(false);
-        return;
+        if (!isUnique) {
+          toast.error(
+            "This email is already registered. Please use a different email.",
+          );
+          setAuthCredentials((prev) => ({ ...prev, email: "" }));
+          setAuthModalEmail("");
+          setShowAuthModal(true);
+          setIsPublishing(false);
+          return;
+        }
+      } catch (emailCheckError) {
+        console.error("Email check failed:", emailCheckError);
+        // Continue with signup — the backend will reject duplicates anyway
       }
 
       // Check username availability
@@ -878,10 +901,7 @@ export default function GetStartedClient({
         hotelDetails.username = uniqueUsername;
       }
 
-      const countryEntry = countryCodes.find(
-        (c) => c.country === hotelDetails.country,
-      );
-      const countryCode = countryEntry ? countryEntry.code : "+91";
+      const countryCode = hotelDetails.phoneCode || "+1";
       let bannerUrl = "";
 
       // Handle Banner Upload
@@ -937,7 +957,7 @@ export default function GetStartedClient({
         role: "partner",
         name: hotelDetails.name,
         password: authCredentials.password || "123456", // Default password
-        email: authCredentials.email,
+        email,
         store_name: hotelDetails.name,
         phone: finalPhone,
         country: hotelDetails.country,
@@ -968,6 +988,7 @@ export default function GetStartedClient({
         subscription_details: subscriptionDetails,
         feature_flags: finalFlags.join(","),
         username: hotelDetails.username || undefined,
+        signin_method: signinMethod,
       };
 
       // Construct Categories Data
@@ -1046,16 +1067,93 @@ export default function GetStartedClient({
             }
             */
 
-      // 6. Show Success UI
-      setRegistrationSuccess(true);
-      setSignupResult(signupData);
+      // 6. Clear onboarding state and redirect to dashboard
+      localStorage.removeItem(STORAGE_KEY);
+      sessionStorage.clear();
       setIsPublishing(false);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      toast.success("Menu published! Redirecting to dashboard...");
+      window.location.href = "/admin-v2";
     } catch (error) {
       console.error("Signup finalization failed", error);
       toast.error("Failed to finalize signup. Please try again.");
       setIsPublishing(false);
     }
+  };
+
+  const handleGoogleSignIn = () => {
+    window.location.href = "/api/auth/google";
+  };
+
+  const handleEmailContinue = () => {
+    if (!authModalEmail || !authModalEmail.includes("@")) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+    setAuthCredentials((prev) => ({ ...prev, email: authModalEmail }));
+    setShowAuthModal(false);
+    setSigninMethod("email");
+    // Auto-trigger publish after setting email
+    setTimeout(() => {
+      handleFinalPublish();
+    }, 100);
+  };
+
+  const renderAuthModal = () => {
+    if (!showAuthModal) return null;
+    return (
+      <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-6">
+        <div className="bg-white w-full max-w-md rounded-2xl p-6 space-y-6 animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-stone-900">
+              Sign in to publish
+            </h2>
+            <button
+              onClick={() => setShowAuthModal(false)}
+              className="p-1.5 hover:bg-stone-100 rounded-full transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <p className="text-sm text-stone-500">
+            We'll send your dashboard login details to your email.
+          </p>
+
+          <button
+            onClick={handleGoogleSignIn}
+            className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors text-sm font-medium text-stone-700"
+          >
+            <FcGoogle size={20} />
+            Sign in with Google
+          </button>
+
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-stone-200" />
+            <span className="text-xs text-stone-400">or</span>
+            <div className="flex-1 h-px bg-stone-200" />
+          </div>
+
+          <div className="space-y-3">
+            <Input
+              type="email"
+              placeholder="you@example.com"
+              value={authModalEmail}
+              onChange={(e) => setAuthModalEmail(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleEmailContinue()}
+              className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
+              autoFocus
+            />
+            <ButtonV2
+              onClick={handleEmailContinue}
+              variant="primary"
+              className="w-full justify-center"
+            >
+              Continue with Email
+            </ButtonV2>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const handleBuyNow = () => {
@@ -1254,36 +1352,48 @@ export default function GetStartedClient({
           <Label htmlFor="phone" className="text-sm">
             Phone Number<span className="text-red-500">*</span>
           </Label>
-          <Input
-            id="phone"
-            name="phone"
-            type="tel"
-            placeholder="+91 98765 43210"
-            value={hotelDetails.phone}
-            onChange={handleDetailsChange}
-            className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50 text-sm md:text-base"
-          />
+          <div className="flex">
+            <Select
+              value={countryCodes.find((c) => c.code === hotelDetails.phoneCode)?.country || ""}
+              onValueChange={(country) => {
+                const entry = countryCodes.find((c) => c.country === country);
+                if (entry) setHotelDetails((prev) => ({ ...prev, phoneCode: entry.code }));
+              }}
+            >
+              <SelectTrigger className="w-24 shrink-0 h-10 md:h-11 min-h-[2.5rem] md:min-h-[2.75rem] rounded-l-xl rounded-r-none border border-r-0 border-stone-200 bg-stone-100 px-2 text-sm text-stone-600 shadow-none focus:ring-orange-600/30 focus:ring-offset-0" style={{ height: "auto" }}>
+                <SelectValue placeholder="Code">
+                  {hotelDetails.phoneCode}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="max-h-60">
+                {countryCodes.map((c) => (
+                  <SelectItem key={c.country} value={c.country}>
+                    {c.country} ({c.code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              id="phone"
+              name="phone"
+              type="tel"
+              placeholder={"X".repeat(PHONE_DIGITS_BY_CODE[hotelDetails.phoneCode] || 10)}
+              value={hotelDetails.phone}
+              onChange={handleDetailsChange}
+              className="h-10 md:h-11 rounded-l-none rounded-r-xl border border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50 text-sm md:text-base"
+            />
+          </div>
+          {hotelDetails.phone && (() => {
+            const { valid, message } = validatePhone(hotelDetails.phone, hotelDetails.phoneCode);
+            if (!message) return null;
+            return (
+              <p className={`text-xs ${valid ? "text-green-600" : "text-red-500"}`}>
+                {message}
+              </p>
+            );
+          })()}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="email" className="text-sm">
-            Email <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            placeholder="you@example.com"
-            value={authCredentials.email}
-            onChange={(e) =>
-              setAuthCredentials((prev) => ({ ...prev, email: e.target.value }))
-            }
-            className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50 text-sm md:text-base"
-          />
-          <p className="text-xs text-stone-500">
-            We'll send your dashboard login details here.
-          </p>
-        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
@@ -1291,22 +1401,23 @@ export default function GetStartedClient({
           <Label htmlFor="country" className="text-sm">
             Country <span className="text-red-500">*</span>
           </Label>
-          <select
-            id="country"
-            name="country"
+          <Select
             value={hotelDetails.country}
-            onChange={handleDetailsChange}
-            className="w-full h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-900 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
+            onValueChange={(value) =>
+              handleDetailsChange({ target: { name: "country", value } } as React.ChangeEvent<HTMLSelectElement>)
+            }
           >
-            <option value="" disabled>
-              Select Country
-            </option>
-            {countryCodes.map((c) => (
-              <option key={c.country} value={c.country}>
-                {c.country}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="w-full h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-3 text-sm text-stone-900 focus:ring-orange-600/30 focus:ring-offset-0">
+              <SelectValue placeholder="Select Country" />
+            </SelectTrigger>
+            <SelectContent>
+              {countryCodes.map((c) => (
+                <SelectItem key={c.country} value={c.country}>
+                  {c.country}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">
@@ -1314,22 +1425,23 @@ export default function GetStartedClient({
             State <span className="text-red-500">*</span>
           </Label>
           {hotelDetails.country === "India" ? (
-            <select
-              id="state"
-              name="state"
+            <Select
               value={hotelDetails.state}
-              onChange={handleDetailsChange}
-              className="w-full h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-900 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
+              onValueChange={(value) =>
+                handleDetailsChange({ target: { name: "state", value } } as React.ChangeEvent<HTMLSelectElement>)
+              }
             >
-              <option value="" disabled>
-                Select State
-              </option>
-              {STATES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-3 text-sm text-stone-900 focus:ring-orange-600/30 focus:ring-offset-0">
+                <SelectValue placeholder="Select State" />
+              </SelectTrigger>
+              <SelectContent>
+                {STATES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           ) : (
             <Input
               id="state"
@@ -1347,30 +1459,54 @@ export default function GetStartedClient({
             <Label htmlFor="district" className="text-sm">
               District <span className="text-red-500">*</span>
             </Label>
-            <select
-              id="district"
-              name="district"
+            <Select
               value={hotelDetails.district}
-              onChange={handleDetailsChange}
-              className="w-full h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-900 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
+              onValueChange={(value) =>
+                handleDetailsChange({ target: { name: "district", value } } as React.ChangeEvent<HTMLSelectElement>)
+              }
             >
-              <option value="" disabled>
-                Select District
-              </option>
-              {KERALA_DISTRICTS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-3 text-sm text-stone-900 focus:ring-orange-600/30 focus:ring-offset-0">
+                <SelectValue placeholder="Select District" />
+              </SelectTrigger>
+              <SelectContent>
+                {KERALA_DISTRICTS.map((d) => (
+                  <SelectItem key={d} value={d}>
+                    {d}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
+
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="currency" className="text-sm">
+            Currency <span className="text-red-500">*</span>
+          </Label>
+          <Select
+            value={hotelDetails.currency}
+            onValueChange={(value) =>
+              setHotelDetails((prev) => ({ ...prev, currency: value }))
+            }
+          >
+            <SelectTrigger className="w-full h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-3 text-sm text-stone-900 focus:ring-orange-600/30 focus:ring-offset-0">
+              <SelectValue placeholder="Select Currency" />
+            </SelectTrigger>
+            <SelectContent>
+              {CURRENCIES.map((c) => (
+                <SelectItem key={c.label} value={c.value}>
+                  {c.label} ({c.value})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <ButtonV2
         onClick={handleNextToExtraction}
         disabled={
-          !hotelDetails.name || !hotelDetails.phone || !hotelDetails.country || !authCredentials.email
+          !hotelDetails.name || !hotelDetails.phone || !hotelDetails.country
         }
         variant="primary"
         className="w-full justify-center"
@@ -1676,7 +1812,7 @@ export default function GetStartedClient({
                 </div>
 
                 <ButtonV2
-                  onClick={handleFinalPublish}
+                  onClick={() => handleFinalPublish()}
                   variant="primary"
                   className="w-full justify-center"
                 >
@@ -1776,7 +1912,7 @@ export default function GetStartedClient({
 
             {!isCustomMode && (
               <ButtonV2
-                onClick={handleFinalPublish}
+                onClick={() => handleFinalPublish()}
                 variant="primary"
                 className="w-full justify-center"
               >
@@ -1835,6 +1971,14 @@ export default function GetStartedClient({
       </div>
     );
   };
+
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-orange-600 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -1910,6 +2054,9 @@ export default function GetStartedClient({
 
       {/* Email Change Fullscreen Form */}
       {renderEmailChangeForm()}
+
+      {/* Auth Modal */}
+      {renderAuthModal()}
 
       {/* Chatwoot Chat Bubble */}
       <WhatsAppButton />

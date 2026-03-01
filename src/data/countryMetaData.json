@@ -1,0 +1,8 @@
+{
+  "India": { "code": "+91", "currency": "INR", "symbol": "₹" },
+  "United States": { "code": "+1", "currency": "USD", "symbol": "$" },
+  "United Kingdom": { "code": "+44", "currency": "GBP", "symbol": "£" },
+  "Canada": { "code": "+1", "currency": "CAD", "symbol": "$" },
+  "Australia": { "code": "+61", "currency": "AUD", "symbol": "$" },
+  "United Arab Emirates": { "code": "+971", "currency": "AED", "symbol": "AED" }
+}

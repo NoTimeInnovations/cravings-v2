@@ -17,6 +17,7 @@ import {
   UserCountryInfo,
 } from "@/lib/getUserCountry";
 import { useDomain } from "@/providers/DomainProvider";
+import { FcGoogle } from "react-icons/fc";
 
 type LoginMode = "user" | "partner";
 export default function Login() {
@@ -39,6 +40,30 @@ export default function Login() {
       setUserCountryInfo(info);
     });
   }, []);
+
+  // Handle Google OAuth errors/success from URL params
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const googleError = searchParams.get("google_error");
+    const email = searchParams.get("email");
+
+    if (googleError) {
+      if (googleError === "no_account" && email) {
+        toast.error(`No partner account found for ${email}`);
+      } else {
+        toast.error("Google sign-in failed. Please try again.");
+      }
+      // Clean up URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete("google_error");
+      url.searchParams.delete("email");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, []);
+
+  const handleGoogleSignIn = () => {
+    window.location.href = "/api/auth/google?context=login";
+  };
 
   const handleUserSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,48 +197,68 @@ export default function Login() {
             </ButtonV2>
           </form>
         ) : (
-          <form onSubmit={handlePartnerSignIn} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm text-stone-700">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={partnerData.email}
-                onChange={(e) =>
-                  setPartnerData({ ...partnerData, email: e.target.value })
-                }
-                required
-                className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm text-stone-700">
-                Password
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={partnerData.password}
-                onChange={(e) =>
-                  setPartnerData({ ...partnerData, password: e.target.value })
-                }
-                required
-                className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
-              />
-            </div>
-            <ButtonV2
-              type="submit"
-              variant="primary"
-              disabled={isLoading}
-              className="w-full justify-center"
+          <div className="space-y-4">
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-stone-200 bg-white px-4 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors"
             >
-              {isLoading ? "Please wait..." : "Sign In"}
-            </ButtonV2>
-          </form>
+              <FcGoogle className="text-xl" />
+              Sign in with Google
+            </button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-stone-200" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white px-3 text-stone-400">or</span>
+              </div>
+            </div>
+
+            <form onSubmit={handlePartnerSignIn} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm text-stone-700">
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={partnerData.email}
+                  onChange={(e) =>
+                    setPartnerData({ ...partnerData, email: e.target.value })
+                  }
+                  required
+                  className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-sm text-stone-700">
+                  Password
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  value={partnerData.password}
+                  onChange={(e) =>
+                    setPartnerData({ ...partnerData, password: e.target.value })
+                  }
+                  required
+                  className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
+                />
+              </div>
+              <ButtonV2
+                type="submit"
+                variant="primary"
+                disabled={isLoading}
+                className="w-full justify-center"
+              >
+                {isLoading ? "Please wait..." : "Sign In"}
+              </ButtonV2>
+            </form>
+          </div>
         )}
 
         {/* Owner login link */}

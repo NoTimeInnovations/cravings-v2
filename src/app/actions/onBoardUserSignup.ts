@@ -60,13 +60,12 @@ export const onBoardUserSignup = async (data: OnboardingData) => {
         } catch {}
 
         // Set Auth Cookie to log them in immediately
-        // COMMENTED OUT: We don't want to auto-login. They should check email.
-        /* await setAuthCookie({
+        await setAuthCookie({
             id: newPartnerId,
             role: "partner",
             feature_flags: "",
             status: "active",
-        }); */
+        });
 
         // 1.5 Create Default QR Code (Table 1)
         let firstQrCodeId = null;

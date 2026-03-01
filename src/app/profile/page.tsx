@@ -118,19 +118,7 @@ interface CaptainOrder {
 import { countryCodes } from "@/utils/countryCodes";
 import { FaInstagram } from "react-icons/fa";
 
-const Currencies = [
-  { label: "INR", value: "₹" },
-  { label: "USD", value: "$" },
-  { label: "SR", value: "SR" },
-  { label: "AED", value: "AED" },
-  { label: "EUR", value: "€" },
-  { label: "GBP", value: "£" },
-  { label: "KWD", value: "د.ك" },
-  { label: "BHD", value: "د.ب" },
-  { label: "QAR", value: "ر.ق" },
-  { label: "OMR", value: "ر.ع." },
-  { label: "None", value: " " },
-];
+import Currencies from "@/data/currencies.json";
 
 export default function ProfilePage() {
   const { userData, loading: authLoading, signOut, setState } = useAuthStore();
