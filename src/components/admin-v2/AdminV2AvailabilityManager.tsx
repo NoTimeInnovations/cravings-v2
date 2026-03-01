@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, Search, Crown } from "lucide-react";
+import { ArrowLeft, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { isFreePlan } from "@/lib/getPlanLimits";
+import { FreePlanBanner } from "./FreePlanBanner";
 import Img from "../Img";
 
 interface AdminV2AvailabilityManagerProps {
@@ -93,12 +94,7 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             {isOnFreePlan && (
-                <div className="flex items-center gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3">
-                    <Crown className="h-5 w-5 text-yellow-500 flex-shrink-0" />
-                    <p className="text-sm text-yellow-200">
-                        Turning off availability is a premium feature. <span className="font-semibold underline cursor-pointer">Upgrade your plan</span> to unlock full control.
-                    </p>
-                </div>
+                <FreePlanBanner message="Turning off availability is a premium feature." />
             )}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
                 <div className="flex items-center gap-4">

@@ -9,10 +9,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, GripVertical, Save, ArrowRight, Crown } from "lucide-react";
+import { ArrowLeft, GripVertical, Save, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { isFreePlan } from "@/lib/getPlanLimits";
+import { FreePlanBanner } from "./FreePlanBanner";
 
 interface AdminV2PriorityChangerProps {
     onBack: () => void;
@@ -164,12 +165,7 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             {isOnFreePlan && (
-                <div className="flex items-center gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3">
-                    <Crown className="h-5 w-5 text-yellow-500 flex-shrink-0" />
-                    <p className="text-sm text-yellow-200">
-                        Changing priority is a premium feature. <span className="font-semibold underline cursor-pointer">Upgrade your plan</span> to unlock full control.
-                    </p>
-                </div>
+                <FreePlanBanner message="Changing priority is a premium feature." />
             )}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b pb-4 gap-4">
                 <div className="flex items-center gap-4">

@@ -158,42 +158,71 @@ const PricingSection = ({
     },
   };
 
-  // International Plan Data
-  const internationalPlan = {
-    id: "digital",
-    title: "Digital Menu",
-    description: "Essential digital menu for your restaurant",
-    icon: QrCode,
-    color: "text-blue-600",
-    bg: "bg-blue-100",
-    features: [
-      "Digital menu",
-      "Unlimited items",
-      "QR code generation",
-      "Unlimited edits",
-      "Priority chat support",
-    ],
-    variants: [
-      {
-        id: "int_digital_monthly",
-        name: "Digital Menu Monthly",
-        price: "19",
-        period: "/month",
-        billed: "Billed monthly",
-        type: "monthly",
-        rz_plan_id: "plan_SIjWQgXZj9I2Vx",
-      },
-      {
-        id: "int_digital",
-        name: "Digital Menu Yearly",
-        price: "190",
-        period: "/year",
-        billed: "Billed annually",
-        type: "yearly",
-        savings: "Save $38",
-        rz_plan_id: "plan_SIjXPD8frrA8TZ",
-      },
-    ],
+  // International Plans Data (tabbed like India)
+  const internationalPlans = {
+    free: {
+      id: "free",
+      title: "Free Menu",
+      tabLabel: "Free",
+      description: "Get your digital menu online for free, forever",
+      icon: Gift,
+      color: "text-green-600",
+      bg: "bg-green-100",
+      features: [
+        "Digital menu",
+        "Unlimited items & categories",
+        "1 QR code",
+        "Custom banner & logo",
+        "Basic scan analytics",
+      ],
+      variants: [
+        {
+          id: "free_plan",
+          name: "Free Menu",
+          price: "0",
+          period: "forever",
+          billed: "No billing required",
+          type: "free" as const,
+        },
+      ],
+    },
+    digital: {
+      id: "digital",
+      title: "Digital Menu",
+      tabLabel: "QR Menu",
+      description: "Essential digital menu for your restaurant",
+      icon: QrCode,
+      color: "text-blue-600",
+      bg: "bg-blue-100",
+      features: [
+        "Digital menu",
+        "Unlimited items",
+        "QR code generation",
+        "Unlimited edits",
+        "Priority chat support",
+      ],
+      variants: [
+        {
+          id: "int_digital_monthly",
+          name: "Digital Menu Monthly",
+          price: "19",
+          period: "/month",
+          billed: "Billed monthly",
+          type: "monthly",
+          rz_plan_id: "plan_SIjWQgXZj9I2Vx",
+        },
+        {
+          id: "int_digital",
+          name: "Digital Menu Yearly",
+          price: "190",
+          period: "/year",
+          billed: "Billed annually",
+          type: "yearly",
+          savings: "Save $38",
+          rz_plan_id: "plan_SIjXPD8frrA8TZ",
+        },
+      ],
+    },
   };
 
   const [selectedVariants, setSelectedVariants] = useState<
@@ -204,7 +233,10 @@ const PricingSection = ({
     ordering: 1,
   });
 
-  const [selectedIntlVariant, setSelectedIntlVariant] = useState(1); // Default to yearly
+  const [selectedIntlVariants, setSelectedIntlVariants] = useState<Record<string, number>>({
+    free: 0,
+    digital: 1, // Default to yearly
+  });
 
   // Helper to check if plan is free
   const isPlanFree = (pid: string) => ["in_trial", "free_plan"].includes(pid);
@@ -472,13 +504,16 @@ const PricingSection = ({
     });
   };
 
-  const handleInternationalPlanClick = () => {
-    const selectedVariant = internationalPlan.variants[selectedIntlVariant];
+  const handleInternationalPlanClick = (categoryKey: string) => {
+    const category = internationalPlans[categoryKey as keyof typeof internationalPlans];
+    const variantIndex = selectedIntlVariants[categoryKey] || 0;
+    const selectedVariant = category.variants[variantIndex];
+
     handlePlanClick({
       ...selectedVariant,
-      name: internationalPlan.title,
-      description: internationalPlan.description,
-      period_days: selectedVariant.type === "monthly" ? 30 : 365,
+      name: category.title,
+      description: category.description,
+      period_days: selectedVariant.type === "free" ? -1 : selectedVariant.type === "monthly" ? 30 : 365,
     });
   };
 
@@ -655,83 +690,131 @@ const PricingSection = ({
             </Tabs>
           </div>
         ) : (
-          // International Layout - Single plan with monthly/yearly toggle
-          <div className="bg-white rounded-3xl border border-stone-200 overflow-hidden max-w-xl mx-auto">
-            <div className="p-6 md:p-10">
-              <div className="flex flex-col items-center">
-                <div
-                  className={`w-16 h-16 rounded-2xl ${internationalPlan.bg} ${internationalPlan.color} flex items-center justify-center mb-6`}
+          // International Layout - Tabbed like India
+          <div className="bg-white rounded-3xl border border-stone-200 overflow-hidden max-w-4xl mx-auto">
+            <Tabs defaultValue="free" className="w-full">
+              <div className="bg-stone-50/50 p-2 border-b border-stone-200">
+                <TabsList className="grid w-full grid-cols-2 h-auto p-1 gap-2 bg-stone-100/50 rounded-xl">
+                  <TabsTrigger
+                    value="free"
+                    className="py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary font-medium rounded-lg transition-all"
+                  >
+                    <Gift className="w-4 h-4 mr-2" />
+                    {internationalPlans.free.tabLabel}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="digital"
+                    className="py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary font-medium rounded-lg transition-all"
+                  >
+                    <QrCode className="w-4 h-4 mr-2" />
+                    {internationalPlans.digital.tabLabel}
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              {Object.entries(internationalPlans).map(([key, plan]) => (
+                <TabsContent
+                  key={key}
+                  value={key}
+                  className="p-6 md:p-10 outline-none mt-0"
                 >
-                  <internationalPlan.icon className="w-8 h-8" />
-                </div>
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={`w-16 h-16 rounded-2xl ${plan.bg} ${plan.color} flex items-center justify-center mb-6`}
+                    >
+                      <plan.icon className="w-8 h-8" />
+                    </div>
 
-                <h3 className="text-3xl font-semibold text-stone-900 mb-2">
-                  {internationalPlan.title}
-                </h3>
-                <p className="text-stone-500 mb-8">
-                  {internationalPlan.description}
-                </p>
+                    <h3 className="text-3xl font-semibold text-stone-900 mb-2">
+                      {plan.title}
+                    </h3>
+                    <p className="text-stone-500 mb-8">{plan.description}</p>
 
-                {/* Pricing Cards selection */}
-                <div className="grid gap-4 w-full mb-8 grid-cols-1 md:grid-cols-2 max-w-2xl">
-                  {internationalPlan.variants.map((variant, index) => {
-                    const isActuallySelected = selectedIntlVariant === index;
+                    {/* Pricing Cards selection */}
+                    <div
+                      className={cn(
+                        "grid gap-4 w-full mb-8",
+                        plan.variants.length === 1
+                          ? "grid-cols-1 max-w-sm"
+                          : "grid-cols-1 md:grid-cols-2 max-w-2xl",
+                      )}
+                    >
+                      {plan.variants.map((variant, index) => {
+                        const isActuallySelected =
+                          selectedIntlVariants[key] === index;
 
-                    return (
-                      <div
-                        key={index}
-                        onClick={() => setSelectedIntlVariant(index)}
-                        className={cn(
-                          "cursor-pointer rounded-xl p-6 border-2 transition-all relative",
-                          isActuallySelected
-                            ? "border-orange-600 bg-orange-100/30 ring-1 ring-orange-600/20"
-                            : "border-stone-200 hover:border-gray-200 bg-white",
-                        )}
-                      >
-                        <h4 className="font-semibold text-stone-900 mb-1">
-                          {variant.type === "monthly" ? "Monthly" : "Yearly"}
-                        </h4>
-                        <div className="flex items-baseline justify-center gap-1">
-                          <span className="text-2xl font-semibold text-stone-900">
-                            ${variant.price}
+                        return (
+                          <div
+                            key={index}
+                            onClick={() =>
+                              setSelectedIntlVariants((prev) => ({
+                                ...prev,
+                                [key]: index,
+                              }))
+                            }
+                            className={cn(
+                              "cursor-pointer rounded-xl p-6 border-2 transition-all relative",
+                              isActuallySelected
+                                ? "border-orange-600 bg-orange-100/30 ring-1 ring-orange-600/20"
+                                : "border-stone-200 hover:border-gray-200 bg-white",
+                            )}
+                          >
+                            <h4 className="font-semibold text-stone-900 mb-1">
+                              {variant.type === "free"
+                                ? "Forever"
+                                : variant.type === "monthly"
+                                ? "Monthly"
+                                : "Yearly"}
+                            </h4>
+                            <div className="flex items-baseline justify-center gap-1">
+                              <span className="text-2xl font-semibold text-stone-900">
+                                {variant.type === "free" ? "Free" : `$${variant.price}`}
+                              </span>
+                            </div>
+                            <p className="text-xs text-stone-400 mt-1">
+                              {variant.billed}
+                            </p>
+
+                            {(variant as any).savings && (
+                              <span className="absolute top-3 right-3 text-[10px] font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                                {(variant as any).savings}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Features */}
+                    <div className="flex flex-col gap-3 text-left max-w-md w-full mb-8">
+                      {plan.features.map((feature, i) => (
+                        <div key={i} className="flex items-start gap-3">
+                          <div className="mt-0.5 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                            <Check className="h-3 w-3 text-green-600" />
+                          </div>
+                          <span className="text-stone-700 text-sm">
+                            {feature}
                           </span>
                         </div>
-                        <p className="text-xs text-stone-400 mt-1">
-                          {variant.billed}
-                        </p>
-
-                        {(variant as any).savings && (
-                          <span className="absolute top-3 right-3 text-[10px] font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
-                            {(variant as any).savings}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Features */}
-                <div className="flex flex-col gap-3 text-left max-w-md w-full mb-8">
-                  {internationalPlan.features.map((feature, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className="mt-0.5 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                        <Check className="h-3 w-3 text-green-600" />
-                      </div>
-                      <span className="text-stone-700 text-sm">{feature}</span>
+                      ))}
                     </div>
-                  ))}
-                </div>
 
-                <ButtonV2
-                  onClick={() => handleInternationalPlanClick()}
-                  variant="primary"
-                  showArrow={false}
-                  className="w-full max-w-md justify-center h-12"
-                >
-                  Get Started
-                </ButtonV2>
-              </div>
-            </div>
+                    <ButtonV2
+                      onClick={() => handleInternationalPlanClick(key)}
+                      variant="primary"
+                      showArrow={false}
+                      className="w-full max-w-md justify-center h-12"
+                    >
+                      {currentPlanId === plan.variants[selectedIntlVariants[key] || 0]?.id
+                        ? "Current Plan"
+                        : key === "free"
+                        ? "Get Free Menu"
+                        : "Get Started"}
+                    </ButtonV2>
+                  </div>
+                </TabsContent>
+              ))}
+            </Tabs>
           </div>
         )}
 
