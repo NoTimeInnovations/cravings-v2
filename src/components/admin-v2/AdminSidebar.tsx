@@ -11,13 +11,11 @@ import {
     LifeBuoy,
     Percent,
     CreditCard,
-    Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/authStore";
 import { isFreePlan } from "@/lib/getPlanLimits";
-import { toast } from "sonner";
 
 interface SidebarItem {
     title: string;
@@ -38,7 +36,7 @@ const sidebarItems: SidebarItem[] = [
 ];
 
 // Items that are locked for free plan users
-const FREE_PLAN_LOCKED_IDS = ["offers", "captains", "pos", "inventory", "orders"];
+const FREE_PLAN_LOCKED_IDS = ["offers", "captains", "pos", "inventory", "orders", "qrcodes"];
 
 interface AdminSidebarProps {
     activeView: string;
@@ -54,7 +52,7 @@ export function AdminSidebar({ activeView, onNavigate, className }: AdminSidebar
     const getItemState = (item: SidebarItem): "visible" | "locked" | "hidden" => {
         if (isOnFreePlan) {
             if (FREE_PLAN_LOCKED_IDS.includes(item.id)) {
-                return "locked";
+                return "hidden";
             }
             return "visible";
         }
@@ -82,29 +80,18 @@ export function AdminSidebar({ activeView, onNavigate, className }: AdminSidebar
             <div className="px-3 py-2">
                 <div className="space-y-1">
                     {visibleItems.map((item) => {
-                        const state = getItemState(item);
-                        const isLocked = state === "locked";
-
                         return (
                             <Button
                                 key={item.id}
                                 variant={activeView === item.title ? "secondary" : "ghost"}
                                 className={cn(
                                     "w-full justify-start",
-                                    activeView === item.title && "bg-orange-100 text-orange-600 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/40 font-medium",
-                                    isLocked && "text-muted-foreground opacity-60"
+                                    activeView === item.title && "bg-orange-100 text-orange-600 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/40 font-medium"
                                 )}
-                                onClick={() => {
-                                    if (isLocked) {
-                                        toast.error(`${item.title} is available on paid plans. Upgrade to unlock.`);
-                                        return;
-                                    }
-                                    onNavigate(item.title);
-                                }}
+                                onClick={() => onNavigate(item.title)}
                             >
                                 <item.icon className={cn("mr-2 h-4 w-4", activeView === item.title && "text-orange-600 dark:text-orange-400")} />
                                 {item.title}
-                                {isLocked && <Lock className="ml-auto h-3 w-3 text-muted-foreground" />}
                             </Button>
                         );
                     })}
