@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Check, QrCode, Globe, Gift } from "lucide-react";
+import { Check, QrCode, Gift } from "lucide-react";
 import { ButtonV2 } from "@/components/ui/ButtonV2";
 import { useRouter } from "next/navigation";
 import { onBoardUserSignup } from "@/app/actions/onBoardUserSignup";
@@ -15,7 +15,6 @@ import {
   createSubscriptionAction,
   verifySubscriptionAction,
 } from "@/app/actions/razorpay_payments";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 declare global {
@@ -119,43 +118,6 @@ const PricingSection = ({
         },
       ],
     },
-    ordering: {
-      id: "ordering",
-      title: "Online Ordering",
-      tabLabel: "QR Ordering",
-      description: "Accept orders directly from customers",
-      icon: Globe,
-      color: "text-purple-600",
-      bg: "bg-purple-100",
-      features: [
-        "Everything in Digital Menu",
-        "Table ordering",
-        "KOT & Bill printing",
-        "WhatsApp integration",
-        "Unlimited offers",
-      ],
-      variants: [
-        {
-          id: "in_ordering_monthly",
-          name: "Ordering Monthly",
-          price: "499",
-          period: "/month + 2%",
-          billed: "Billed monthly",
-          type: "monthly",
-          rz_plan_id: "plan_S7EBl1jqt0cf2x",
-        },
-        {
-          id: "in_ordering",
-          name: "Ordering Yearly",
-          price: "4999",
-          period: "/year + 2%",
-          billed: "Billed annually",
-          type: "yearly",
-          savings: "Save ₹989",
-          rz_plan_id: "plan_S7EHKPEHb4ZNAX",
-        },
-      ],
-    },
   };
 
   // International Plans Data (tabbed like India)
@@ -230,13 +192,10 @@ const PricingSection = ({
   >({
     free: 0,
     digital: 1, // Default to yearly (index 1)
-    ordering: 1,
   });
 
-  const [selectedIntlVariants, setSelectedIntlVariants] = useState<Record<string, number>>({
-    free: 0,
-    digital: 1, // Default to yearly
-  });
+  const activePlans = isIndia ? indiaPlans : internationalPlans;
+  const currencySymbol = isIndia ? "₹" : "$";
 
   // Helper to check if plan is free
   const isPlanFree = (pid: string) => ["in_trial", "free_plan"].includes(pid);
@@ -506,7 +465,7 @@ const PricingSection = ({
 
   const handleInternationalPlanClick = (categoryKey: string) => {
     const category = internationalPlans[categoryKey as keyof typeof internationalPlans];
-    const variantIndex = selectedIntlVariants[categoryKey] || 0;
+    const variantIndex = selectedVariants[categoryKey] || 0;
     const selectedVariant = category.variants[variantIndex];
 
     handlePlanClick({
@@ -549,274 +508,111 @@ const PricingSection = ({
           </>
         )}
 
-        {isIndia ? (
-          <div className="bg-white rounded-3xl border border-stone-200 overflow-hidden max-w-4xl mx-auto">
-            <Tabs defaultValue="free" className="w-full">
-              <div className="bg-stone-50/50 p-2 border-b border-stone-200">
-                <TabsList className="grid w-full grid-cols-3 h-auto p-1 gap-2 bg-stone-100/50 rounded-xl">
-                  <TabsTrigger
-                    value="free"
-                    className="py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary font-medium rounded-lg transition-all"
-                  >
-                    <Gift className="w-4 h-4 mr-2" />
-                    {indiaPlans.free.tabLabel}
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="digital"
-                    className="py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary font-medium rounded-lg transition-all"
-                  >
-                    <QrCode className="w-4 h-4 mr-2" />
-                    {indiaPlans.digital.tabLabel}
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="ordering"
-                    className="py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary font-medium rounded-lg transition-all"
-                  >
-                    <Globe className="w-4 h-4 mr-2" />
-                    {indiaPlans.ordering.tabLabel}
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-
-              {Object.entries(indiaPlans).map(([key, plan]) => (
-                <TabsContent
-                  key={key}
-                  value={key}
-                  className="p-6 md:p-10 outline-none mt-0"
+        <div className="grid gap-6 max-w-4xl mx-auto grid-cols-1 md:grid-cols-2">
+          {Object.entries(activePlans).map(([key, plan]) => (
+            <div
+              key={key}
+              className="bg-white rounded-3xl border border-stone-200 overflow-hidden flex flex-col"
+            >
+              <div className="p-6 md:p-8 flex flex-col items-center flex-1">
+                <div
+                  className={`w-14 h-14 rounded-2xl ${plan.bg} ${plan.color} flex items-center justify-center mb-4`}
                 >
-                  <div className="flex flex-col items-center">
-                    <div
-                      className={`w-16 h-16 rounded-2xl ${plan.bg} ${plan.color} flex items-center justify-center mb-6`}
-                    >
-                      <plan.icon className="w-8 h-8" />
-                    </div>
+                  <plan.icon className="w-7 h-7" />
+                </div>
 
-                    <h3 className="text-3xl font-semibold text-stone-900 mb-2">
-                      {plan.title}
-                    </h3>
-                    <p className="text-stone-500 mb-8">{plan.description}</p>
+                <h3 className="text-2xl font-semibold text-stone-900 mb-1">
+                  {plan.title}
+                </h3>
+                <p className="text-stone-500 text-sm mb-6">{plan.description}</p>
 
-                    {/* Pricing Cards selection */}
-                    <div
-                      className={cn(
-                        "grid gap-4 w-full mb-8",
-                        plan.variants.length === 1
-                          ? "grid-cols-1 max-w-sm"
-                          : "grid-cols-1 md:grid-cols-2 max-w-2xl",
-                      )}
-                    >
-                      {plan.variants.map((variant, index) => {
-                        const isSelected =
-                          (selectedVariants[key] === undefined &&
-                            index === 0) ||
-                          selectedVariants[key] === index; // Logic: if undefined, select first? No, default checked above.
-                        // Actually handled by state default
-                        const isActuallySelected =
-                          selectedVariants[key] === index;
+                {/* Pricing variant selection */}
+                <div
+                  className={cn(
+                    "grid gap-3 w-full mb-6",
+                    plan.variants.length === 1
+                      ? "grid-cols-1"
+                      : "grid-cols-2",
+                  )}
+                >
+                  {plan.variants.map((variant, index) => {
+                    const isActuallySelected =
+                      selectedVariants[key] === index;
 
-                        return (
-                          <div
-                            key={index}
-                            onClick={() =>
-                              setSelectedVariants((prev) => ({
-                                ...prev,
-                                [key]: index,
-                              }))
-                            }
-                            className={cn(
-                              "cursor-pointer rounded-xl p-6 border-2 transition-all relative",
-                              isActuallySelected
-                                ? "border-orange-600 bg-orange-100/30/30 ring-1 ring-orange-600/20"
-                                : "border-stone-200 hover:border-gray-200 bg-white",
-                            )}
-                          >
-                            <h4 className="font-semibold text-stone-900 mb-1">
-                              {variant.type === "free"
-                                ? "Forever"
-                                : variant.type === "monthly"
-                                ? "Monthly"
-                                : "Yearly"}
-                            </h4>
-                            <div className="flex items-baseline justify-center gap-1">
-                              <span className="text-2xl font-semibold text-stone-900">
-                                {variant.type === "free" ? "Free" : `₹${variant.price}`}
-                              </span>
-                              {/* <span className="text-xs text-stone-500">{variant.period}</span> */}
-                            </div>
-                            {/* <p className="text-xs text-stone-500 mt-1">{variant.label}</p> */}
-                            <p className="text-xs text-stone-400 mt-1">
-                              {variant.billed}
-                            </p>
-
-                            {(variant as any).savings && (
-                              <span className="absolute top-3 right-3 text-[10px] font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
-                                {(variant as any).savings}
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Features */}
-                    <div className="flex flex-col gap-3 text-left max-w-md w-full mb-8">
-                      {plan.features.map((feature, i) => (
-                        <div key={i} className="flex items-start gap-3">
-                          <div className="mt-0.5 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                            <Check className="h-3 w-3 text-green-600" />
-                          </div>
-                          <span className="text-stone-700 text-sm">
-                            {feature}
+                    return (
+                      <div
+                        key={index}
+                        onClick={() =>
+                          setSelectedVariants((prev) => ({
+                            ...prev,
+                            [key]: index,
+                          }))
+                        }
+                        className={cn(
+                          "cursor-pointer rounded-xl p-4 border-2 transition-all relative",
+                          isActuallySelected
+                            ? "border-orange-600 bg-orange-100/30 ring-1 ring-orange-600/20"
+                            : "border-stone-200 hover:border-gray-200 bg-white",
+                        )}
+                      >
+                        <h4 className="font-semibold text-stone-900 text-sm mb-1">
+                          {variant.type === "free"
+                            ? "Forever"
+                            : variant.type === "monthly"
+                            ? "Monthly"
+                            : "Yearly"}
+                        </h4>
+                        <div className="flex items-baseline justify-center gap-1">
+                          <span className="text-xl font-semibold text-stone-900">
+                            {variant.type === "free" ? "Free" : `${currencySymbol}${variant.price}`}
                           </span>
                         </div>
-                      ))}
-                    </div>
+                        <p className="text-xs text-stone-400 mt-1">
+                          {variant.billed}
+                        </p>
 
-                    <ButtonV2
-                      onClick={() => handleIndiaPlanClick(key)}
-                      variant="primary"
-                      showArrow={false}
-                      className="w-full max-w-md justify-center h-12"
-                    >
-                      {currentPlanId === plan.variants[selectedVariants[key] || 0]?.id
-                        ? "Current Plan"
-                        : key === "free"
-                        ? "Get Free Menu"
-                        : "Get Started"}
-                    </ButtonV2>
-                  </div>
-                </TabsContent>
-              ))}
-            </Tabs>
-          </div>
-        ) : (
-          // International Layout - Tabbed like India
-          <div className="bg-white rounded-3xl border border-stone-200 overflow-hidden max-w-4xl mx-auto">
-            <Tabs defaultValue="free" className="w-full">
-              <div className="bg-stone-50/50 p-2 border-b border-stone-200">
-                <TabsList className="grid w-full grid-cols-2 h-auto p-1 gap-2 bg-stone-100/50 rounded-xl">
-                  <TabsTrigger
-                    value="free"
-                    className="py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary font-medium rounded-lg transition-all"
-                  >
-                    <Gift className="w-4 h-4 mr-2" />
-                    {internationalPlans.free.tabLabel}
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="digital"
-                    className="py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary font-medium rounded-lg transition-all"
-                  >
-                    <QrCode className="w-4 h-4 mr-2" />
-                    {internationalPlans.digital.tabLabel}
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-
-              {Object.entries(internationalPlans).map(([key, plan]) => (
-                <TabsContent
-                  key={key}
-                  value={key}
-                  className="p-6 md:p-10 outline-none mt-0"
-                >
-                  <div className="flex flex-col items-center">
-                    <div
-                      className={`w-16 h-16 rounded-2xl ${plan.bg} ${plan.color} flex items-center justify-center mb-6`}
-                    >
-                      <plan.icon className="w-8 h-8" />
-                    </div>
-
-                    <h3 className="text-3xl font-semibold text-stone-900 mb-2">
-                      {plan.title}
-                    </h3>
-                    <p className="text-stone-500 mb-8">{plan.description}</p>
-
-                    {/* Pricing Cards selection */}
-                    <div
-                      className={cn(
-                        "grid gap-4 w-full mb-8",
-                        plan.variants.length === 1
-                          ? "grid-cols-1 max-w-sm"
-                          : "grid-cols-1 md:grid-cols-2 max-w-2xl",
-                      )}
-                    >
-                      {plan.variants.map((variant, index) => {
-                        const isActuallySelected =
-                          selectedIntlVariants[key] === index;
-
-                        return (
-                          <div
-                            key={index}
-                            onClick={() =>
-                              setSelectedIntlVariants((prev) => ({
-                                ...prev,
-                                [key]: index,
-                              }))
-                            }
-                            className={cn(
-                              "cursor-pointer rounded-xl p-6 border-2 transition-all relative",
-                              isActuallySelected
-                                ? "border-orange-600 bg-orange-100/30 ring-1 ring-orange-600/20"
-                                : "border-stone-200 hover:border-gray-200 bg-white",
-                            )}
-                          >
-                            <h4 className="font-semibold text-stone-900 mb-1">
-                              {variant.type === "free"
-                                ? "Forever"
-                                : variant.type === "monthly"
-                                ? "Monthly"
-                                : "Yearly"}
-                            </h4>
-                            <div className="flex items-baseline justify-center gap-1">
-                              <span className="text-2xl font-semibold text-stone-900">
-                                {variant.type === "free" ? "Free" : `$${variant.price}`}
-                              </span>
-                            </div>
-                            <p className="text-xs text-stone-400 mt-1">
-                              {variant.billed}
-                            </p>
-
-                            {(variant as any).savings && (
-                              <span className="absolute top-3 right-3 text-[10px] font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
-                                {(variant as any).savings}
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Features */}
-                    <div className="flex flex-col gap-3 text-left max-w-md w-full mb-8">
-                      {plan.features.map((feature, i) => (
-                        <div key={i} className="flex items-start gap-3">
-                          <div className="mt-0.5 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                            <Check className="h-3 w-3 text-green-600" />
-                          </div>
-                          <span className="text-stone-700 text-sm">
-                            {feature}
+                        {(variant as any).savings && (
+                          <span className="absolute top-2 right-2 text-[10px] font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                            {(variant as any).savings}
                           </span>
-                        </div>
-                      ))}
-                    </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
 
-                    <ButtonV2
-                      onClick={() => handleInternationalPlanClick(key)}
-                      variant="primary"
-                      showArrow={false}
-                      className="w-full max-w-md justify-center h-12"
-                    >
-                      {currentPlanId === plan.variants[selectedIntlVariants[key] || 0]?.id
-                        ? "Current Plan"
-                        : key === "free"
-                        ? "Get Free Menu"
-                        : "Get Started"}
-                    </ButtonV2>
-                  </div>
-                </TabsContent>
-              ))}
-            </Tabs>
-          </div>
-        )}
+                {/* Features */}
+                <div className="flex flex-col gap-2.5 text-left w-full mb-6">
+                  {plan.features.map((feature, i) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <div className="mt-0.5 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                        <Check className="h-3 w-3 text-green-600" />
+                      </div>
+                      <span className="text-stone-700 text-sm">
+                        {feature}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-auto w-full">
+                  <ButtonV2
+                    onClick={() => isIndia ? handleIndiaPlanClick(key) : handleInternationalPlanClick(key)}
+                    variant="primary"
+                    showArrow={false}
+                    className="w-full justify-center h-12"
+                  >
+                    {currentPlanId === plan.variants[selectedVariants[key] || 0]?.id
+                      ? "Current Plan"
+                      : key === "free"
+                      ? "Get Free Menu"
+                      : "Get Started"}
+                  </ButtonV2>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
 
         <p className="mt-6 md:mt-8 text-xs md:text-sm text-stone-400">
           All plans include our core features. Cancel anytime.

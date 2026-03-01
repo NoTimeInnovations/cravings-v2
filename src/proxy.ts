@@ -48,7 +48,7 @@ export async function proxy(request: NextRequest) {
     console.error("Error sanitizing headers:", e);
   }
 
-  let country = request.headers.get('cf-ipcountry') || request.headers.get('x-vercel-ip-country') || "US";
+  let country = request.headers.get('cf-ipcountry') || request.headers.get('x-vercel-ip-country') || "IN";
 
   console.log("Country Found", JSON.stringify({
     country,

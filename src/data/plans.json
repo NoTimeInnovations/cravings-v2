@@ -208,7 +208,7 @@
             "popular": false,
             "period": "/month + 2%",
             "period_days": 30,
-            "disabled": false,
+            "disabled": true,
             "features_enabled": {
                 "ordering": true
             },
@@ -232,7 +232,7 @@
             "popular": true,
             "period": "/year + 2%",
             "period_days": 365,
-            "disabled": false,
+            "disabled": true,
             "features_enabled": {
                 "ordering": true
             },
