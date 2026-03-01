@@ -99,6 +99,7 @@ export const createOrderItemsMutation = `
 export const createOrderWithItemsMutation = `
   mutation CreateOrderWithItems(
     $id: uuid,
+    $short_id: String,
     $totalPrice: float8!,
     $createdAt: timestamptz!,
     $tableNumber: Int,
@@ -122,6 +123,7 @@ export const createOrderWithItemsMutation = `
   ) {
     insert_orders_one(object: {
       id: $id
+      short_id: $short_id
       total_price: $totalPrice
       created_at: $createdAt
       table_number: $tableNumber
@@ -147,6 +149,7 @@ export const createOrderWithItemsMutation = `
       }
     }) {
       id
+      short_id
       total_price
       created_at
       order_items {
