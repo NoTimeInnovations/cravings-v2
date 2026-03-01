@@ -557,8 +557,13 @@ export function AdminV2Dashboard() {
             <Button
               variant="outline"
               onClick={() => {
-                const hotelNameSlug = storeName?.replace(/ /g, "-");
-                window.open(`/qrScan/${hotelNameSlug}/${qrId}`, '_blank');
+                const partner = userData as Partner;
+                if (partner?.username) {
+                  window.open(`/${partner.username}`, '_blank');
+                } else {
+                  const hotelNameSlug = storeName?.replace(/ /g, "-");
+                  window.open(`/qrScan/${hotelNameSlug}/${qrId}`, '_blank');
+                }
               }}
               className="w-full sm:w-auto"
             >
