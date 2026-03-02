@@ -2,10 +2,12 @@ export const getDiscountCodesQuery = `
   query GetDiscountCodes($partner_id: uuid!) {
     discount_codes(
       where: { partner_id: { _eq: $partner_id } }
-      order_by: { created_at: desc }
+      order_by: [{ rank: asc_nulls_last }, { created_at: desc }]
     ) {
       id
       code
+      description
+      terms_conditions
       discount_type
       discount_value
       min_order_value
@@ -13,7 +15,17 @@ export const getDiscountCodesQuery = `
       usage_limit
       used_count
       is_active
+      starts_at
       expires_at
+      valid_days
+      valid_time_from
+      valid_time_to
+      discount_order_types
+      discount_on_total
+      has_coupon
+      applicable_on
+      category_item_ids
+      rank
       created_at
     }
   }
@@ -24,6 +36,8 @@ export const createDiscountCodeMutation = `
     insert_discount_codes_one(object: $object) {
       id
       code
+      description
+      terms_conditions
       discount_type
       discount_value
       min_order_value
@@ -31,7 +45,17 @@ export const createDiscountCodeMutation = `
       usage_limit
       used_count
       is_active
+      starts_at
       expires_at
+      valid_days
+      valid_time_from
+      valid_time_to
+      discount_order_types
+      discount_on_total
+      has_coupon
+      applicable_on
+      category_item_ids
+      rank
       created_at
     }
   }
@@ -70,12 +94,23 @@ export const validateDiscountCodeQuery = `
     ) {
       id
       code
+      description
+      terms_conditions
       discount_type
       discount_value
       min_order_value
       max_discount_amount
       usage_limit
       used_count
+      starts_at
+      valid_days
+      valid_time_from
+      valid_time_to
+      discount_order_types
+      discount_on_total
+      has_coupon
+      applicable_on
+      category_item_ids
     }
   }
 `;

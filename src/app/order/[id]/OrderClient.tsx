@@ -37,6 +37,7 @@ const GET_ORDER_QUERY = `
       }
       gst_included
       extra_charges
+      discounts
       phone
       user_id
         user {
@@ -99,7 +100,7 @@ const OrderClient = () => {
                         userId: order?.user_id,
                         gstIncluded: order?.gst_included,
                         extraCharges: order?.extra_charges || [],
-                        delivery_charge: order?.delivery_charge,
+                        discounts: order?.discounts || [],
                         user: order?.user,
                         items: order?.order_items.map((i: any) => ({
                             id: i.item.id,
@@ -143,12 +144,14 @@ const OrderClient = () => {
         }).catch(() => {});
     }, [order?.partnerId]);
 
-    // Calculate order totals
+    // Use total_price directly from DB
+    const grandTotal = order?.totalPrice || 0;
     const foodTotal = order?.items?.reduce(
         (sum, orderItem) => sum + orderItem.price * orderItem.quantity,
         0
     ) ?? 0;
-
+    const gstPercentage = order?.partner?.gst_percentage || 0;
+    const gstAmount = (foodTotal * gstPercentage) / 100;
     const extraChargesTotal =
         order?.extraCharges?.reduce(
             (sum, charge) =>
@@ -160,11 +163,9 @@ const OrderClient = () => {
                 ),
             0
         ) || 0;
-
     const subtotal = foodTotal + extraChargesTotal;
-    const gstPercentage = order?.partner?.gst_percentage || 0;
-    const gstAmount = (foodTotal * gstPercentage) / 100;
-    const grandTotal = subtotal + gstAmount;
+    const discountInfo = (order as any)?.discounts?.[0];
+    const discountSavings = discountInfo?.savings || 0;
 
     const statusDisplay = getStatusDisplay(order as Order);
     const isCompleted = order?.status === "completed" || order?.status === "cancelled";
@@ -203,7 +204,7 @@ ${orderTypeStr}${deliveryLine}${phoneLine}
 *📋 Order Items:*
 ${itemsText}
 
-*Subtotal:* ${currency}${subtotal.toFixed(2)}${gstLine}
+*Subtotal:* ${currency}${subtotal.toFixed(2)}${gstLine}${discountSavings > 0 ? `\n*Discount${discountInfo?.code ? ` (${discountInfo.code})` : ""}:* -${currency}${discountSavings.toFixed(2)}` : ""}
 
 *Total Price:* ${currency}${grandTotal.toFixed(2)}`;
         return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
@@ -383,6 +384,18 @@ ${itemsText}
                                                 {gstAmount.toFixed(2)}
                                             </p>
                                         </div>
+
+                                        {discountSavings > 0 && (
+                                            <div className="flex justify-between text-green-600">
+                                                <p className="text-sm">
+                                                    Discount {discountInfo?.code ? `(${discountInfo.code})` : ""}
+                                                </p>
+                                                <p className="text-sm">
+                                                    -{order?.partner?.currency || "₹"}
+                                                    {discountSavings.toFixed(2)}
+                                                </p>
+                                            </div>
+                                        )}
 
                                         <div className="flex justify-between font-bold border-t pt-2">
                                             <p>Grand Total</p>
