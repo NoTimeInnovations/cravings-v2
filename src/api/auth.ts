@@ -203,10 +203,10 @@ export const partnerMutation = `
 }`;
 
 export const updatePartnerBannerMutation = `
-  mutation UpdatePartnerBanner($id: uuid!, $store_banner: String!) {
+  mutation UpdatePartnerBanner($id: uuid!, $store_banner: String!, $updated_at: timestamptz!) {
     update_partners_by_pk(
       pk_columns: { id: $id }
-      _set: { store_banner: $store_banner }
+      _set: { store_banner: $store_banner, updated_at: $updated_at }
     ) {
       id
       store_banner

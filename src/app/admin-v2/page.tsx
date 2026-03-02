@@ -10,6 +10,9 @@ import { Loader2 } from "lucide-react";
 const AdminV2Dashboard = dynamic(() => import("@/components/admin-v2/AdminV2Dashboard").then(mod => mod.AdminV2Dashboard), {
     loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
 });
+const AdminV2Analytics = dynamic(() => import("@/components/admin-v2/AdminV2Analytics").then(mod => mod.AdminV2Analytics), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
 const AdminV2Orders = dynamic(() => import("@/components/admin-v2/AdminV2Orders").then(mod => mod.AdminV2Orders), {
     loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
 });
@@ -97,13 +100,18 @@ export default function AdminPage() {
 
                     {/* Main Content */}
                     <main className={`flex-1 overflow-y-auto ${activeView === "POS" ? "p-0 md:p-2" : "p-6"}`}>
-                        {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && activeView !== "POS" && activeView !== "Purchase & Inventory" && (
+                        {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && activeView !== "POS" && activeView !== "Purchase & Inventory" && activeView !== "Dashboard" && (
                             <h1 className="text-3xl font-bold mb-6">{activeView}</h1>
                         )}
 
                         {renderedViews.includes("Dashboard") && (
                             <div className={activeView === "Dashboard" ? "block" : "hidden"}>
                                 <AdminV2Dashboard />
+                            </div>
+                        )}
+                        {renderedViews.includes("Analytics") && (
+                            <div className={activeView === "Analytics" ? "block" : "hidden"}>
+                                <AdminV2Analytics />
                             </div>
                         )}
                         {renderedViews.includes("Orders") && (

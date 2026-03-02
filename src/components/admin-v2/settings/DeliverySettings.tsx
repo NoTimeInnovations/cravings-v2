@@ -9,8 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { toast } from "sonner";
-import { fetchFromHasura } from "@/lib/hasuraClient";
-import { updatePartnerMutation } from "@/api/partners";
+import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { Loader2, Save, Plus, Trash2, Clock, Keyboard } from "lucide-react";
 import { DeliveryRules, DeliveryRange } from "@/store/orderStore";
@@ -343,10 +342,7 @@ export function DeliverySettings() {
                 country_code: countryCode
             };
 
-            await fetchFromHasura(updatePartnerMutation, {
-                id: userData.id,
-                updates
-            });
+            await updatePartner(userData.id, updates);
 
             await revalidateTag(userData.id);
             await revalidateTag("hotel-data");

@@ -14,8 +14,7 @@ import { Paintbrush, LayoutGrid, Palette, Type } from "lucide-react";
 import ColorPickerModal from "./ColorPickerModal";
 import MenuStyleModal from "./MenuStyleModal";
 import { toast } from "sonner";
-import { fetchFromHasura } from "@/lib/hasuraClient";
-import { updatePartnerMutation } from "@/api/partners";
+import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { FontPickerModal } from "../FontPickerModal";
 
@@ -49,12 +48,7 @@ const ThemeChangeButton = ({
   const onSave = async (theme: ThemeConfig) => {
     try {
       toast.loading("Saving theme...");
-      await fetchFromHasura(updatePartnerMutation, {
-        id: hotelData.id,
-        updates: {
-          theme: JSON.stringify(theme),
-        },
-      });
+      await updatePartner(hotelData.id, { theme: JSON.stringify(theme) });
       toast.dismiss();
       toast.success("Theme saved successfully");
       revalidateTag(hotelData.id);

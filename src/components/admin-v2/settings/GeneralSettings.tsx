@@ -10,8 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
-import { fetchFromHasura } from "@/lib/hasuraClient";
-import { updatePartnerMutation } from "@/api/partners";
+import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { deleteFileFromS3, uploadFileToS3 } from "@/app/actions/aws-s3";
 import Img from "@/components/Img";
@@ -196,10 +195,7 @@ export function GeneralSettings() {
 
             };
 
-            await fetchFromHasura(updatePartnerMutation, {
-                id: userData.id,
-                updates
-            });
+            await updatePartner(userData.id, updates);
 
             revalidateTag(userData.id);
             setState(updates);
@@ -303,10 +299,7 @@ export function GeneralSettings() {
 
             if (!imgUrl) throw new Error("Upload failed");
 
-            await fetchFromHasura(updatePartnerMutation, {
-                id: userData.id,
-                updates: { store_banner: imgUrl }
-            });
+            await updatePartner(userData.id, { store_banner: imgUrl });
 
             revalidateTag(userData.id);
 
@@ -328,10 +321,7 @@ export function GeneralSettings() {
         setIsSaving(true);
 
         try {
-            await fetchFromHasura(updatePartnerMutation, {
-                id: userData.id,
-                updates: { is_shop_open: checked }
-            });
+            await updatePartner(userData.id, { is_shop_open: checked });
 
             revalidateTag(userData.id);
             // Update global state
@@ -593,10 +583,7 @@ export function GeneralSettings() {
 
                             setIsPasswordSaving(true);
                             try {
-                                await fetchFromHasura(updatePartnerMutation, {
-                                    id: userData?.id,
-                                    updates: { password: newPassword }
-                                });
+                                await updatePartner(userData?.id, { password: newPassword });
                                 toast.success("Password updated successfully");
                                 setNewPassword("");
                                 setConfirmPassword("");

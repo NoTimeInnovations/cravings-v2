@@ -41,7 +41,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { deleteFileFromS3, uploadFileToS3 } from "../actions/aws-s3";
 import { deleteUserMutation } from "@/api/auth";
-import { updatePartnerMutation } from "@/api/partners";
+import { updatePartner } from "@/api/partners";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import Link from "next/link";
 import { useClaimedOffersStore } from "@/store/claimedOfferStore_hasura";
@@ -643,12 +643,7 @@ export default function ProfilePage() {
       return { ...prev, upiId: true };
     });
     try {
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
-          upi_id: upiId,
-        },
-      });
+      await updatePartner(userData?.id, { upi_id: upiId });
       revalidateTag(userData?.id as string);
       setState({ upi_id: upiId });
       toast.success("UPI ID updated successfully!");
@@ -670,12 +665,9 @@ export default function ProfilePage() {
 
     setIsSaving((prev) => ({ ...prev, showPaymentQr: true }));
     try {
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           show_payment_qr: checked,
-        },
-      });
+        });
       revalidateTag(userData?.id as string);
       setState({ show_payment_qr: checked });
       setShowPaymentQr(checked);
@@ -781,12 +773,9 @@ export default function ProfilePage() {
         throw new Error("Failed to upload image to S3");
       }
 
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           store_banner: imgUrl,
-        },
-      });
+        });
       toast.dismiss();
       toast.success("Banner updated successfully!");
       revalidateTag(userData?.id as string);
@@ -816,12 +805,9 @@ export default function ProfilePage() {
       setIsSaving((prev) => {
         return { ...prev, placeId: true };
       });
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           place_id: placeId,
-        },
-      });
+        });
       revalidateTag(userData?.id as string);
       setState({ place_id: placeId });
       toast.dismiss();
@@ -859,12 +845,9 @@ export default function ProfilePage() {
       setIsSaving((prev) => {
         return { ...prev, currency: true };
       });
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           currency: currency.value,
-        },
-      });
+        });
       revalidateTag(userData?.id as string);
       setState({ currency: currency.value });
       toast.dismiss();
@@ -894,12 +877,9 @@ export default function ProfilePage() {
       setIsSaving((prev) => {
         return { ...prev, description: true };
       });
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           description,
-        },
-      });
+        });
       revalidateTag(userData?.id as string);
       setState({ description: description });
       toast.dismiss();
@@ -934,12 +914,9 @@ export default function ProfilePage() {
         currencyValue = Currencies[0].value;
       }
 
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           currency: currencyValue,
-        },
-      });
+        });
       revalidateTag(userData?.id as string);
       toast.dismiss();
       toast.success(
@@ -962,12 +939,9 @@ export default function ProfilePage() {
 
     try {
       toast.loading("Updating feature flags...");
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           feature_flags: stringedFeature,
-        },
-      });
+        });
       revalidateTag(userData?.id as string);
       updateAuthCookie({ feature_flags: stringedFeature });
       toast.dismiss();
@@ -992,17 +966,14 @@ export default function ProfilePage() {
       setIsSaving((prev) => {
         return { ...prev, whatsappNumber: true };
       });
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           whatsapp_numbers: [
             {
               number: whatsappNumber,
               area: "default",
             },
           ],
-        },
-      });
+        });
       revalidateTag(userData?.id as string);
       setState({
         whatsapp_numbers: [
@@ -1053,12 +1024,9 @@ export default function ProfilePage() {
 
       setIsSaving((prev) => ({ ...prev, whatsappNumber: true }));
 
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           whatsapp_numbers: whatsappNumbers,
-        },
-      });
+        });
 
       revalidateTag(userData?.id as string);
       setState({
@@ -1097,12 +1065,9 @@ export default function ProfilePage() {
       setIsSaving((prev) => {
         return { ...prev, footNote: true };
       });
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           footnote: footNote,
-        },
-      });
+        });
       revalidateTag(userData?.id as string);
       setState({ footnote: footNote });
       toast.dismiss("foot-note");
@@ -1148,12 +1113,9 @@ export default function ProfilePage() {
         instagram: instaLink,
       };
 
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           social_links: JSON.stringify(instaLinkData),
-        },
-      });
+        });
       revalidateTag(userData?.id as string);
       setState({ social_links: JSON.stringify(instaLinkData) });
       toast.dismiss("insta-link");
@@ -1207,13 +1169,10 @@ export default function ProfilePage() {
       setIsSaving((prev) => {
         return { ...prev, gst: true };
       });
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           gst_no: gst.gst_no,
           gst_percentage: gstPercent,
-        },
-      });
+        });
       revalidateTag(userData?.id as string);
       setState({ gst_no: gst.gst_no, gst_percentage: gstPercent });
       toast.dismiss("gst");
@@ -1265,12 +1224,9 @@ export default function ProfilePage() {
         return { ...prev, fssaiLicenceNo: true };
       });
 
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           fssai_licence_no: fssaiLicenceNo,
-        },
-      });
+        });
 
       revalidateTag(userData?.id as string);
       setState({ fssai_licence_no: fssaiLicenceNo });
@@ -1338,13 +1294,10 @@ export default function ProfilePage() {
 
       const rules = cleanedRules as DeliveryRules;
 
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           delivery_rate: deliveryRate,
           delivery_rules: rules,
-        },
-      });
+        });
 
       revalidateTag(userData?.id as string);
       setState({ delivery_rate: deliveryRate, delivery_rules: rules });
@@ -1376,12 +1329,9 @@ export default function ProfilePage() {
         id: "shop-status",
       });
 
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           is_shop_open: !isShopOpen,
-        },
-      });
+        });
       revalidateTag(userData?.id as string);
       setState({ is_shop_open: !isShopOpen });
       toast.dismiss("shop-status");
@@ -1609,13 +1559,10 @@ export default function ProfilePage() {
         throw new Error("Failed to extract coordinates from the link");
       }
 
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           location: location.trim(),
           geo_location: geoLoc,
-        },
-      });
+        });
 
       toast.success("Location updated successfully!");
       revalidateTag(userData?.id as string);
@@ -1636,10 +1583,7 @@ export default function ProfilePage() {
     if (!userData) return;
     setIsSaving((prev) => ({ ...prev, countryCode: true }));
     try {
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData.id,
-        updates: { country_code: countryCode },
-      });
+      await updatePartner(userData.id, { country_code: countryCode });
       revalidateTag(userData.id);
       setState({ country_code: countryCode });
       toast.success("Country code updated successfully!");
@@ -1656,12 +1600,9 @@ export default function ProfilePage() {
       setIsSaving((prev) => ({ ...prev, phone: true }));
       toast.loading("Updating phone number...");
 
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           phone: phone,
-        },
-      });
+        });
 
       revalidateTag(userData?.id as string);
       setState({ phone: phone });
@@ -1682,12 +1623,9 @@ export default function ProfilePage() {
       setIsSaving((prev) => ({ ...prev, locationDetails: true }));
       toast.loading("Updating location details...");
 
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           location_details: locationDetails,
-        },
-      });
+        });
 
       revalidateTag(userData?.id as string);
       setState({ location_details: locationDetails });
@@ -1712,12 +1650,9 @@ export default function ProfilePage() {
       toast.loading(`Setting unavailable items to ${checked ? "hidden" : "visible"}...`);
       setHideUnavailable(checked);
 
-      await fetchFromHasura(updatePartnerMutation, {
-        id: userData?.id,
-        updates: {
+      await updatePartner(userData?.id, {
           hide_unavailable: checked,
-        },
-      });
+        });
 
       revalidateTag(userData?.id as string);
       toast.dismiss();

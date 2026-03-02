@@ -295,10 +295,19 @@ export const updatePartnerMutation = `
       gst_percentage
       whatsapp_numbers
       hide_unavailable
+      updated_at
     }
   }
 `;
 
+
+export async function updatePartner(id: string, updates: Record<string, any>) {
+  const { fetchFromHasura } = await import("@/lib/hasuraClient");
+  return fetchFromHasura(updatePartnerMutation, {
+    id,
+    updates: { ...updates, updated_at: new Date().toISOString() },
+  });
+}
 
 export const getPartnerByEmailQuery = `
   query GetPartnerByEmail($email: String!) {

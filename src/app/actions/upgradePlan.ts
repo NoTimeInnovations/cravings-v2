@@ -4,8 +4,8 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sendUpgradeEmail } from "@/lib/email";
 
 const UPDATE_PARTNER_SUBSCRIPTION = `
-mutation UpdatePartnerSubscription($id: uuid!, $subscription_details: jsonb!, $feature_flags: String!) {
-  update_partners_by_pk(pk_columns: {id: $id}, _set: {subscription_details: $subscription_details, feature_flags: $feature_flags}) {
+mutation UpdatePartnerSubscription($id: uuid!, $subscription_details: jsonb!, $feature_flags: String!, $updated_at: timestamptz!) {
+  update_partners_by_pk(pk_columns: {id: $id}, _set: {subscription_details: $subscription_details, feature_flags: $feature_flags, updated_at: $updated_at}) {
     id
     name
     email
@@ -48,7 +48,8 @@ export async function upgradePlan(partnerId: string, newPlan: any, isFreePlanUse
         const response = await fetchFromHasura(UPDATE_PARTNER_SUBSCRIPTION, {
             id: partnerId,
             subscription_details: subscriptionDetails,
-            feature_flags: featureFlagsStr
+            feature_flags: featureFlagsStr,
+            updated_at: new Date().toISOString()
         });
 
         const updatedPartner = response?.update_partners_by_pk;

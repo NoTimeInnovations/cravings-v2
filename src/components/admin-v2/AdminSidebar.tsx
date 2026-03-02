@@ -4,7 +4,7 @@ import {
     LayoutDashboard,
     ShoppingBag,
     UtensilsCrossed,
-    FileBarChart,
+    BarChart3,
     Settings,
     UserCog,
     QrCode,
@@ -25,6 +25,7 @@ interface SidebarItem {
 
 const sidebarItems: SidebarItem[] = [
     { title: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
+    { title: "Analytics", icon: BarChart3, id: "analytics" },
     { title: "Orders", icon: ShoppingBag, id: "orders" },
     { title: "Menu", icon: UtensilsCrossed, id: "menu" },
     { title: "Offers", icon: Percent, id: "offers" },

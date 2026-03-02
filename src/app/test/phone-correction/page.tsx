@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { updatePartnerMutation } from "@/api/partners";
+import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -155,12 +155,9 @@ export default function PhoneCorrectionPage() {
     setSaving(true);
     try {
       // Only update phone, whatsapp_numbers, and country_code
-      await fetchFromHasura(updatePartnerMutation, {
-        id: editData.id,
-        updates: {
+      await updatePartner(editData.id, {
           phone: editData.phone,
           whatsapp_numbers: editData.whatsapp_numbers,
-        },
       });
       // Update country_code separately if changed
       if (editData.country_code) {

@@ -8,8 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useAuthStore, GeoLocation } from "@/store/authStore";
 import { toast } from "sonner";
-import { fetchFromHasura } from "@/lib/hasuraClient";
-import { updatePartnerMutation } from "@/api/partners";
+import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { Loader2, MapPin } from "lucide-react";
 import { GoogleMap, useLoadScript, Marker, Autocomplete } from "@react-google-maps/api";
@@ -107,10 +106,7 @@ export function LocationSettings() {
                 updates.geo_location = geographyFormat;
             }
 
-            await fetchFromHasura(updatePartnerMutation, {
-                id: userData.id,
-                updates
-            });
+            await updatePartner(userData.id, updates);
 
             revalidateTag(userData.id);
             setState(updates);

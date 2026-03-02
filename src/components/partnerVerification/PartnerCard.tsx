@@ -2,11 +2,10 @@
 
 import {
   Partner,
-  updatePartnerMutation,
   UpdatePartnerStatusResponse,
+  updatePartner,
 } from "@/api/partners";
 import { usePartnerStore } from "@/store/usePartnerStore";
-import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Button } from "@/components/ui/button";
 import { Phone } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,12 +15,7 @@ export default function PartnerCard({ partner }: { partner: Partner }) {
   const removePartner = usePartnerStore((state) => state.removePartner);
 
   const updateStatus = async (status: "active" | "rejected") => {
-    (await fetchFromHasura(updatePartnerMutation, {
-      id: partner.id,
-      updates: {
-        status: status,
-      },
-    })) as UpdatePartnerStatusResponse;
+    (await updatePartner(partner.id, { status })) as UpdatePartnerStatusResponse;
     removePartner(partner.id);
 
     revalidateTag(partner.id)

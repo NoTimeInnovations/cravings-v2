@@ -21,8 +21,7 @@ import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { fetchFromHasura } from "@/lib/hasuraClient";
-import { updatePartnerMutation } from "@/api/partners";
+import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { getFeatures } from "@/lib/getFeatures";
 import { get } from "http";
@@ -210,12 +209,7 @@ const Compact = ({
         }
       };
 
-      await fetchFromHasura(updatePartnerMutation, {
-        id: hoteldata.id,
-        updates: {
-          theme: JSON.stringify(updatedTheme),
-        },
-      });
+      await updatePartner(hoteldata.id, { theme: JSON.stringify(updatedTheme) });
 
       toast.success("Theme updated successfully!");
       await revalidateTag(hoteldata.id);

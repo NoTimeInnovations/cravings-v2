@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
-import { fetchFromHasura } from "@/lib/hasuraClient";
-import { updatePartnerMutation } from "@/api/partners";
+import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { getFeatures, revertFeatureToString } from "@/lib/getFeatures";
 import { useRouter } from "next/navigation";
@@ -76,10 +75,7 @@ export function FeatureSettings() {
             // Convert features object back to string format expected by DB
             const featureString = revertFeatureToString(updatedFeatures);
 
-            await fetchFromHasura(updatePartnerMutation, {
-                id: userData.id,
-                updates: { feature_flags: featureString }
-            });
+            await updatePartner(userData.id, { feature_flags: featureString });
 
             revalidateTag(userData.id);
             // Update local state with the object format for UI

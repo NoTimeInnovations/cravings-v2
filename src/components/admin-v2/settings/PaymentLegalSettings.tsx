@@ -9,8 +9,7 @@ import { Switch } from "@/components/ui/switch";
 
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
-import { fetchFromHasura } from "@/lib/hasuraClient";
-import { updatePartnerMutation } from "@/api/partners";
+import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { Loader2, Save } from "lucide-react";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
@@ -56,10 +55,7 @@ export function PaymentLegalSettings() {
                 gst_percentage: gstEnabled ? gstPercentage : 0
             };
 
-            await fetchFromHasura(updatePartnerMutation, {
-                id: userData.id,
-                updates
-            });
+            await updatePartner(userData.id, updates);
 
             revalidateTag(userData.id);
             setState(updates);

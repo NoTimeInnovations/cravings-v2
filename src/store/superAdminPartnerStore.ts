@@ -529,6 +529,7 @@ export const useSuperAdminPartnerStore = create<SuperAdminPartnerState>()(
           await fetchFromHasura(updatePartnerBannerMutation, {
             id: partnerId,
             store_banner: s3Url,
+            updated_at: new Date().toISOString(),
           });
 
           toast.success("Banner uploaded successfully!");

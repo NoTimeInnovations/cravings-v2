@@ -130,12 +130,13 @@ export async function verifySubscriptionAction(
 
 async function updatePartnerInDB(partnerId: string, data: any) {
     const mutation = `
-    mutation UpdatePartnerPlan($id: uuid!, $subscription_details: jsonb!, $feature_flags: String!) {
+    mutation UpdatePartnerPlan($id: uuid!, $subscription_details: jsonb!, $feature_flags: String!, $updated_at: timestamptz!) {
       update_partners_by_pk(
-        pk_columns: {id: $id}, 
+        pk_columns: {id: $id},
         _set: {
-          subscription_details: $subscription_details, 
-          feature_flags: $feature_flags
+          subscription_details: $subscription_details,
+          feature_flags: $feature_flags,
+          updated_at: $updated_at
         }
       ) {
         id
@@ -156,8 +157,8 @@ async function updatePartnerInDB(partnerId: string, data: any) {
             id: partnerId,
             subscription_details: data.subscription_details,
             feature_flags: data.feature_flags,
-        },
-        );
+            updated_at: new Date().toISOString(),
+        });
 
         await fetchFromHasura(paymentTableMutation, {
             partner_id: partnerId,
