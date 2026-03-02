@@ -6,6 +6,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { OrderNotification } from "./OrderNotification";
 import { getFeatures } from "@/lib/getFeatures";
+import { isFreePlan } from "@/lib/getPlanLimits";
 import { AdminAccountSwitcher } from "./AdminAccountSwitcher";
 
 interface AdminNavbarProps {
@@ -67,7 +68,9 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                     }
                     return null;
                 })()}
-                <OrderNotification />
+                {!isFreePlan((userData as Partner)?.subscription_details?.plan?.id) && (
+                    <OrderNotification />
+                )}
                 <ModeToggle />
                 {userData?.role === 'partner' && (
                     <AdminAccountSwitcher />

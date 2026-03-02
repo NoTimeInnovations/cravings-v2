@@ -598,7 +598,7 @@ export default function GetStartedClient({
       setUsernameStatus("idle");
       return;
     }
-    if (!/^[a-z0-9_]+$/.test(username)) {
+    if (!/^[a-z0-9]+$/.test(username)) {
       setUsernameStatus("idle");
       return;
     }
@@ -615,7 +615,7 @@ export default function GetStartedClient({
   };
 
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "");
+    const raw = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, "");
     setHotelDetails((prev) => ({ ...prev, username: raw }));
     setUsernameStatus("idle");
   };
@@ -647,10 +647,7 @@ export default function GetStartedClient({
       const autoUsername = value
         .toLowerCase()
         .trim()
-        .replace(/\s+/g, "_")
-        .replace(/[^a-z0-9_]/g, "")
-        .replace(/_+/g, "_")
-        .replace(/^_|_$/g, "");
+        .replace(/[^a-z0-9]/g, "");
       setHotelDetails((prev) => ({ ...prev, name: value, username: autoUsername }));
       setUsernameStatus("idle");
     } else {
