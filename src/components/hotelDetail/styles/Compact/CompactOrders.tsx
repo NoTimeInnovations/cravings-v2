@@ -117,7 +117,7 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
             {partnerOrders.map((order) => {
                 const grandTotal = order.totalPrice || 0;
                 const discounts = order.discounts || [];
-                const discountSavings = discounts[0]?.savings || 0;
+                const discountSavings = (discounts[0] as any)?.savings || 0;
                 const gstPercentage = (order.partner as Partner)?.gst_percentage || 0;
                 const foodTotal = (order.items || []).reduce((s: number, i: any) => s + i.price * i.quantity, 0);
                 const gstAmount = getGstAmount(foodTotal, gstPercentage);
@@ -194,7 +194,7 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                                 )}
                                 {discountSavings > 0 && (
                                     <div className="flex justify-between text-sm text-green-600">
-                                        <span>Discount {discounts[0]?.code ? `(${discounts[0].code})` : ""}</span>
+                                        <span>Discount {(discounts[0] as any)?.code ? `(${(discounts[0] as any).code})` : ""}</span>
                                         <span className="font-medium">
                                             -{currency}{discountSavings.toFixed(2)}
                                         </span>
