@@ -30,6 +30,11 @@ export interface ThemeConfig {
   fontFamily?: string;
 }
 
+export const DEFAULT_THEME: ThemeConfig = {
+  colors: { accent: "#E9701B", bg: "#ffffff", text: "#000000" },
+  menuStyle: "compact",
+};
+
 const ThemeChangeButton = ({
   hotelData,
   theme,

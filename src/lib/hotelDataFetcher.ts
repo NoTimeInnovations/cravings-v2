@@ -6,7 +6,7 @@ import { GET_QR_CODES_WITH_GROUPS_BY_PARTNER } from "@/api/qrcodes";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Offer } from "@/store/offerStore_hasura";
 import { unstable_cache } from "next/cache";
-import { ThemeConfig } from "@/components/hotelDetail/ThemeChangeButton";
+import { ThemeConfig, DEFAULT_THEME } from "@/components/hotelDetail/ThemeChangeButton";
 import { getSocialLinks } from "@/lib/getSocialLinks";
 import { filterOffersByType } from "@/lib/offerFilters";
 import { startOfMonth, endOfMonth } from "date-fns";
@@ -184,8 +184,8 @@ export async function processHotelPage(
   const theme = (
     typeof hoteldata?.theme === "string"
       ? JSON.parse(hoteldata?.theme)
-      : hoteldata?.theme || {}
-  ) as ThemeConfig;
+      : hoteldata?.theme || null
+  ) as ThemeConfig | null ?? DEFAULT_THEME;
 
   const socialLinks = getSocialLinks(hoteldata as HotelData);
 
