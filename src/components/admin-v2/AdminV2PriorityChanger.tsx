@@ -13,6 +13,7 @@ import { ArrowLeft, GripVertical, Save, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { isFreePlan } from "@/lib/getPlanLimits";
+import { UpgradePlanDialog } from "./UpgradePlanDialog";
 import { FreePlanBanner } from "./FreePlanBanner";
 
 interface AdminV2PriorityChangerProps {
@@ -32,6 +33,7 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
     const [hasChanges, setHasChanges] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isManualMode, setIsManualMode] = useState(false);
+    const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
     useEffect(() => {
         if (userData?.id) {
@@ -58,7 +60,7 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
     const onDragEnd = (result: DropResult) => {
         if (!result.destination) return;
         if (isOnFreePlan) {
-            toast.error("Changing priority is a premium feature. Upgrade to unlock.");
+            setShowUpgradeDialog(true);
             return;
         }
 
@@ -95,7 +97,7 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
 
     const handlePriorityChange = (id: string, newPriority: string) => {
         if (isOnFreePlan) {
-            toast.error("Changing priority is a premium feature. Upgrade to unlock.");
+            setShowUpgradeDialog(true);
             return;
         }
         // Allow empty string for typing
@@ -164,6 +166,11 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <UpgradePlanDialog
+                open={showUpgradeDialog}
+                onOpenChange={setShowUpgradeDialog}
+                featureName="Changing priority"
+            />
             {isOnFreePlan && (
                 <FreePlanBanner message="Changing priority is a premium feature." />
             )}

@@ -11,6 +11,7 @@ import { ArrowLeft, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { isFreePlan } from "@/lib/getPlanLimits";
+import { UpgradePlanDialog } from "./UpgradePlanDialog";
 import { FreePlanBanner } from "./FreePlanBanner";
 import Img from "../Img";
 
@@ -25,6 +26,7 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
     const planId = (userData as Partner)?.subscription_details?.plan?.id;
     const isOnFreePlan = isFreePlan(planId);
     const [searchQuery, setSearchQuery] = useState("");
+    const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
     const [filteredData, setFilteredData] = useState<{ category: Category; items: MenuItem[] }[]>([]);
 
     useEffect(() => {
@@ -64,7 +66,7 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
 
     const handleCategoryToggle = async (category: Category) => {
         if (isOnFreePlan && category.is_active) {
-            toast.error("You cannot change availability because this is a Premium Feature.");
+            setShowUpgradeDialog(true);
             return;
         }
         try {
@@ -79,7 +81,7 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
 
     const handleItemToggle = async (item: MenuItem) => {
         if (isOnFreePlan && item.is_available) {
-            toast.error("You cannot change availability because this is a Premium Feature.");
+            setShowUpgradeDialog(true);
             return;
         }
         try {
@@ -93,6 +95,11 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <UpgradePlanDialog
+                open={showUpgradeDialog}
+                onOpenChange={setShowUpgradeDialog}
+                featureName="Managing availability"
+            />
             {isOnFreePlan && (
                 <FreePlanBanner message="Turning off availability is a premium feature." />
             )}

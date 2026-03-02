@@ -2,9 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Check, QrCode, Gift } from "lucide-react";
-import { ButtonV2 } from "@/components/ui/ButtonV2";
 import { useRouter } from "next/navigation";
+import PricingCard, { PlanCard } from "@/components/international/PricingCard";
 import { onBoardUserSignup } from "@/app/actions/onBoardUserSignup";
 import FullScreenLoader from "@/components/ui/FullScreenLoader";
 import { getBannerFile, clearBannerFile } from "@/lib/bannerStorage";
@@ -39,11 +38,10 @@ const PricingSection = ({
   const [redirectLoadingText, setRedirectLoadingText] = useState<string | null>(
     null,
   );
+  const [isAnnual, setIsAnnual] = useState(false);
 
   const isIndia = propCountry === "IN";
-  // const isIndia = true;
 
-  // Select plans based on country
   const displayPlans = !isIndia ? plansData.international : plansData.india;
 
   useEffect(() => {
@@ -53,16 +51,11 @@ const PricingSection = ({
     document.body.appendChild(script);
   }, []);
 
-  // New India Plans Data
-  const indiaPlans = {
+  const indiaPlans: Record<string, PlanCard> = {
     free: {
       id: "free",
-      title: "Free Menu",
-      tabLabel: "Free",
+      title: "Free",
       description: "Get your digital menu online for free, forever",
-      icon: Gift,
-      color: "text-green-600",
-      bg: "bg-green-100",
       features: [
         "Digital menu",
         "Unlimited items & categories",
@@ -77,23 +70,23 @@ const PricingSection = ({
           price: "0",
           period: "forever",
           billed: "No billing required",
-          type: "free" as const,
+          type: "free",
         },
       ],
     },
     digital: {
       id: "digital",
-      title: "Digital Menu",
-      tabLabel: "QR Menu",
-      description: "Essential, contactless digital menu",
-      icon: QrCode,
-      color: "text-blue-600",
-      bg: "bg-blue-100",
+      title: "Standard",
+      description: "Essential, contactless digital menu for your restaurant",
+      popular: true,
       features: [
         "Digital menu",
         "Unlimited items",
         "QR code generation",
         "Unlimited edits",
+        "Manage availability",
+        "Manage priority",
+        "Google menu sync",
         "Chat support",
       ],
       variants: [
@@ -118,18 +111,46 @@ const PricingSection = ({
         },
       ],
     },
+    petpooja: {
+      id: "petpooja",
+      title: "With Petpooja Integration",
+      description: "Digital menu with Petpooja POS integration",
+      features: [
+        "Everything in Digital Menu",
+        "Petpooja POS integration",
+        "Auto menu sync from Petpooja",
+        "Real-time order push to Petpooja",
+        "Priority support",
+      ],
+      variants: [
+        {
+          id: "in_digital_petpooja_monthly",
+          name: "Digital Menu + Petpooja Monthly",
+          price: "999",
+          period: "/month",
+          billed: "Billed monthly",
+          type: "monthly",
+          rz_plan_id: "plan_SMFoIQL8elNn6D",
+        },
+        {
+          id: "in_digital_petpooja",
+          name: "Digital Menu + Petpooja Yearly",
+          price: "9999",
+          period: "/year",
+          billed: "Billed annually",
+          type: "yearly",
+          savings: "Save ₹1,989",
+          rz_plan_id: "plan_SMFpProjFxkC9H",
+        },
+      ],
+    },
   };
 
-  // International Plans Data (tabbed like India)
-  const internationalPlans = {
+  const internationalPlans: Record<string, PlanCard> = {
     free: {
       id: "free",
-      title: "Free Menu",
-      tabLabel: "Free",
+      title: "Free",
       description: "Get your digital menu online for free, forever",
-      icon: Gift,
-      color: "text-green-600",
-      bg: "bg-green-100",
       features: [
         "Digital menu",
         "Unlimited items & categories",
@@ -144,23 +165,23 @@ const PricingSection = ({
           price: "0",
           period: "forever",
           billed: "No billing required",
-          type: "free" as const,
+          type: "free",
         },
       ],
     },
     digital: {
       id: "digital",
-      title: "Digital Menu",
-      tabLabel: "QR Menu",
+      title: "Standard",
       description: "Essential digital menu for your restaurant",
-      icon: QrCode,
-      color: "text-blue-600",
-      bg: "bg-blue-100",
+      popular: true,
       features: [
         "Digital menu",
         "Unlimited items",
         "QR code generation",
         "Unlimited edits",
+        "Manage availability",
+        "Manage priority",
+        "Google menu sync",
         "Priority chat support",
       ],
       variants: [
@@ -187,28 +208,26 @@ const PricingSection = ({
     },
   };
 
-  const [selectedVariants, setSelectedVariants] = useState<
-    Record<string, number>
-  >({
-    free: 0,
-    digital: 1, // Default to yearly (index 1)
-  });
-
   const activePlans = isIndia ? indiaPlans : internationalPlans;
   const currencySymbol = isIndia ? "₹" : "$";
 
-  // Helper to check if plan is free
   const isPlanFree = (pid: string) => ["in_trial", "free_plan"].includes(pid);
-  const isFreePlanUsed = (userData as any)?.subscription_details
-    ?.isFreePlanUsed;
+  const isFreePlanUsed = (userData as any)?.subscription_details?.isFreePlanUsed;
   const currentPlanId = (userData as any)?.subscription_details?.plan?.id;
+
+  // Get the active variant based on toggle
+  const getActiveVariant = (plan: PlanCard) => {
+    if (plan.variants.length === 1) return plan.variants[0];
+    return isAnnual
+      ? plan.variants.find((v) => v.type === "yearly") || plan.variants[1]
+      : plan.variants.find((v) => v.type === "monthly") || plan.variants[0];
+  };
 
   const handlePayment = async (plan: any) => {
     setIsCreatingAccount(true);
     setRedirectLoadingText("Initializing Secure Payment...");
 
     try {
-      // 1. Create Subscription on Server
       const response = await createSubscriptionAction(
         plan.id,
         plan.rz_plan_id,
@@ -222,16 +241,14 @@ const PricingSection = ({
         return;
       }
 
-      // 2. Open Razorpay Modal
       const options = {
         key: response.key_id,
         subscription_id: response.subscription_id,
-        name: `$Menuthere App`,
+        name: `Menuthere App`,
         description: `Upgrade to ${plan.name}`,
         handler: async function (response: any) {
           setRedirectLoadingText("Verifying Payment...");
 
-          // 3. Verify on Server
           const verifyRes = await verifySubscriptionAction(
             response.razorpay_payment_id,
             response.razorpay_subscription_id,
@@ -254,7 +271,7 @@ const PricingSection = ({
           contact: (userData as any).phone || "",
         },
         theme: {
-          color: "#EA580C", // Orange-600 to match your UI
+          color: "#EA580C",
         },
       };
 
@@ -276,20 +293,15 @@ const PricingSection = ({
     const isTargetPlanFree = isPlanFree(plan.id);
 
     if (!isTargetPlanFree) {
-      // Logic for Non-Free Plans
       if (!userData) {
-        // If not logged in, redirect to get-started
-        // Requirement: "Starting free plan then u can upgrade" loaded text
         setRedirectLoadingText("Starting free plan, then you can upgrade...");
         setIsCreatingAccount(true);
-
         setTimeout(() => {
           router.push("/get-started");
         }, 2000);
         return;
       }
 
-      // If logged in
       setIsSubmittingContact(true);
       try {
         const { notifyPlanInterest } =
@@ -304,7 +316,6 @@ const PricingSection = ({
           return;
         }
 
-        // 1. Send Email Notification
         await notifyPlanInterest({
           partnerName,
           partnerEmail: userData.email || "",
@@ -315,7 +326,6 @@ const PricingSection = ({
           partnerId: userData.id,
         });
 
-        // 2. Open WhatsApp
         const currentPlan =
           (userData as any).subscription_details?.plan?.name || "Trial";
         const text = `Hi, im ${storeName} i would like to upgrade to ${plan.name} from ${currentPlan} my email is ${userData.email}`;
@@ -332,10 +342,8 @@ const PricingSection = ({
       return;
     }
 
-    // --- Logic for FREE Plans (Start Free / Trial) ---
     const nextIsFreePlanUsed = isFreePlanUsed || isPlanFree(plan.id);
 
-    // 1. If Logged In -> Upgrade/downgrade to free?
     if (userData) {
       setIsCreatingAccount(true);
       try {
@@ -357,7 +365,6 @@ const PricingSection = ({
       return;
     }
 
-    // 2. If Not Logged In -> Signup Flow
     const onboardingData = localStorage.getItem("onboarding_data");
 
     if (onboardingData) {
@@ -365,7 +372,6 @@ const PricingSection = ({
       try {
         const parsedData = JSON.parse(onboardingData);
 
-        // --- INJECT PLAN DETAILS ---
         const now = new Date();
         const periodDays = plan.period_days || 365;
         const isFreePlanSignup = periodDays === -1;
@@ -381,7 +387,6 @@ const PricingSection = ({
           isFreePlanUsed: false,
         };
 
-        // Helper to generate feature flags string from plan
         let finalFlags: string[] = [];
 
         if (plan.id === "in_trial" || plan.id === "in_ordering") {
@@ -404,9 +409,7 @@ const PricingSection = ({
 
         parsedData.partner.subscription_details = subscriptionDetails;
         parsedData.partner.feature_flags = finalFlags.join(",");
-        // ---------------------------
 
-        // Handle deferred banner upload
         if (
           parsedData.partner &&
           parsedData.partner.store_banner === "PENDING_UPLOAD"
@@ -449,38 +452,23 @@ const PricingSection = ({
     }
   };
 
-  const handleIndiaPlanClick = (categoryKey: string) => {
-    const category = indiaPlans[categoryKey as keyof typeof indiaPlans];
-    const variantIndex = selectedVariants[categoryKey] || 0;
-    const selectedVariant = category.variants[variantIndex];
+  const handleCardClick = (key: string) => {
+    const plan = activePlans[key];
+    const variant = getActiveVariant(plan);
 
     handlePlanClick({
-      ...selectedVariant,
-      name: category.title, // Use category title context
-      description: category.description,
-      // Ensure compatibility with existing logic
-      period_days: selectedVariant.type === "free" ? -1 : selectedVariant.type === "monthly" ? 30 : 365,
+      ...variant,
+      name: plan.title,
+      description: plan.description,
+      period_days:
+        variant.type === "free" ? -1 : variant.type === "monthly" ? 30 : 365,
     });
   };
 
-  const handleInternationalPlanClick = (categoryKey: string) => {
-    const category = internationalPlans[categoryKey as keyof typeof internationalPlans];
-    const variantIndex = selectedVariants[categoryKey] || 0;
-    const selectedVariant = category.variants[variantIndex];
-
-    handlePlanClick({
-      ...selectedVariant,
-      name: category.title,
-      description: category.description,
-      period_days: selectedVariant.type === "free" ? -1 : selectedVariant.type === "monthly" ? 30 : 365,
-    });
-  };
+  const planKeys = Object.keys(activePlans);
 
   return (
-    <section
-      className="py-6 md:py-24 bg-white"
-      id="pricing"
-    >
+    <section className="py-8 md:py-24 bg-[#fcfbf7]" id="pricing">
       <FullScreenLoader
         isLoading={isCreatingAccount}
         loadingTexts={
@@ -496,125 +484,80 @@ const PricingSection = ({
         }
       />
 
-      <div className="max-w-7xl mx-auto px-4 md:px-6 text-center">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
         {!hideHeader && (
-          <>
+          <div className="text-center mb-8 md:mb-14">
             <h2 className="text-lg md:text-4xl font-semibold text-stone-900 mb-2 md:mb-4 tracking-tight">
               Simple, Transparent Pricing
             </h2>
-            <p className="text-xs md:text-lg text-stone-500 mb-6 md:mb-12">
+            <p className="text-xs md:text-lg text-stone-500">
               Choose the plan that fits your growth.
             </p>
-          </>
+          </div>
         )}
 
-        <div className="grid gap-6 max-w-4xl mx-auto grid-cols-1 md:grid-cols-2">
-          {Object.entries(activePlans).map(([key, plan]) => (
-            <div
-              key={key}
-              className="bg-white rounded-3xl border border-stone-200 overflow-hidden flex flex-col"
-            >
-              <div className="p-6 md:p-8 flex flex-col items-center flex-1">
-                <div
-                  className={`w-14 h-14 rounded-2xl ${plan.bg} ${plan.color} flex items-center justify-center mb-4`}
-                >
-                  <plan.icon className="w-7 h-7" />
-                </div>
-
-                <h3 className="text-2xl font-semibold text-stone-900 mb-1">
-                  {plan.title}
-                </h3>
-                <p className="text-stone-500 text-sm mb-6">{plan.description}</p>
-
-                {/* Pricing variant selection */}
-                <div
-                  className={cn(
-                    "grid gap-3 w-full mb-6",
-                    plan.variants.length === 1
-                      ? "grid-cols-1"
-                      : "grid-cols-2",
-                  )}
-                >
-                  {plan.variants.map((variant, index) => {
-                    const isActuallySelected =
-                      selectedVariants[key] === index;
-
-                    return (
-                      <div
-                        key={index}
-                        onClick={() =>
-                          setSelectedVariants((prev) => ({
-                            ...prev,
-                            [key]: index,
-                          }))
-                        }
-                        className={cn(
-                          "cursor-pointer rounded-xl p-4 border-2 transition-all relative",
-                          isActuallySelected
-                            ? "border-orange-600 bg-orange-100/30 ring-1 ring-orange-600/20"
-                            : "border-stone-200 hover:border-gray-200 bg-white",
-                        )}
-                      >
-                        <h4 className="font-semibold text-stone-900 text-sm mb-1">
-                          {variant.type === "free"
-                            ? "Forever"
-                            : variant.type === "monthly"
-                            ? "Monthly"
-                            : "Yearly"}
-                        </h4>
-                        <div className="flex items-baseline justify-center gap-1">
-                          <span className="text-xl font-semibold text-stone-900">
-                            {variant.type === "free" ? "Free" : `${currencySymbol}${variant.price}`}
-                          </span>
-                        </div>
-                        <p className="text-xs text-stone-400 mt-1">
-                          {variant.billed}
-                        </p>
-
-                        {(variant as any).savings && (
-                          <span className="absolute top-2 right-2 text-[10px] font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
-                            {(variant as any).savings}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Features */}
-                <div className="flex flex-col gap-2.5 text-left w-full mb-6">
-                  {plan.features.map((feature, i) => (
-                    <div key={i} className="flex items-start gap-2.5">
-                      <div className="mt-0.5 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                        <Check className="h-3 w-3 text-green-600" />
-                      </div>
-                      <span className="text-stone-700 text-sm">
-                        {feature}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-auto w-full">
-                  <ButtonV2
-                    onClick={() => isIndia ? handleIndiaPlanClick(key) : handleInternationalPlanClick(key)}
-                    variant="primary"
-                    showArrow={false}
-                    className="w-full justify-center h-12"
-                  >
-                    {currentPlanId === plan.variants[selectedVariants[key] || 0]?.id
-                      ? "Current Plan"
-                      : key === "free"
-                      ? "Get Free Menu"
-                      : "Get Started"}
-                  </ButtonV2>
-                </div>
-              </div>
-            </div>
-          ))}
+        {/* Annual toggle */}
+        <div className="flex items-center justify-center gap-3 mb-8 md:mb-12">
+          <span
+            className={cn(
+              "text-sm font-medium transition-colors",
+              !isAnnual ? "text-stone-900" : "text-stone-400",
+            )}
+          >
+            Monthly
+          </span>
+          <button
+            onClick={() => setIsAnnual(!isAnnual)}
+            className={cn(
+              "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+              isAnnual ? "bg-orange-600" : "bg-stone-300",
+            )}
+          >
+            <span
+              className={cn(
+                "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                isAnnual ? "translate-x-6" : "translate-x-1",
+              )}
+            />
+          </button>
+          <span
+            className={cn(
+              "text-sm font-medium transition-colors",
+              isAnnual ? "text-stone-900" : "text-stone-400",
+            )}
+          >
+            Save with annual
+          </span>
         </div>
 
-        <p className="mt-6 md:mt-8 text-xs md:text-sm text-stone-400">
+        {/* Cards */}
+        <div
+          className={cn(
+            "grid gap-5 mx-auto",
+            planKeys.length === 3
+              ? "max-w-5xl grid-cols-1 md:grid-cols-3"
+              : "max-w-3xl grid-cols-1 md:grid-cols-2",
+          )}
+        >
+          {planKeys.map((key) => {
+            const plan = activePlans[key];
+            const variant = getActiveVariant(plan);
+
+            return (
+              <PricingCard
+                key={key}
+                plan={plan}
+                variant={variant}
+                currencySymbol={currencySymbol}
+                isAnnual={isAnnual}
+                isCurrent={currentPlanId === variant.id}
+                onSelect={() => handleCardClick(key)}
+              />
+            );
+          })}
+        </div>
+
+        <p className="mt-8 md:mt-10 text-center text-xs md:text-sm text-stone-400">
           All plans include our core features. Cancel anytime.
         </p>
       </div>

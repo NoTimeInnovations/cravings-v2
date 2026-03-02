@@ -4,9 +4,10 @@ import UpgradeEmail from '@/components/emails/UpgradeEmail';
 import CancelRequestEmail from '@/components/emails/CancelRequestEmail';
 import CancelConfirmationEmail from '@/components/emails/CancelConfirmationEmail';
 import SupportEmail from '@/components/emails/SupportEmail';
+import OtpEmail from '@/components/emails/OtpEmail';
 
 export const EMAIL_CONFIG = {
-    apiKey: process.env.RESEND_API_KEY_MENUTHERE,
+    apiKey: process.env.RESEND_API_KEY,
     appName: 'Menuthere',
     fromEmail: 'Menuthere <support@mail.menuthere.com>',
     logoUrl: 'https://menuthere.com/menuthere-logo.png',
@@ -93,6 +94,30 @@ export async function sendCancellationRequestEmail(props: { partnerName: string;
 
     } catch (error) {
         console.error('Failed to send cancellation emails', error);
+        throw error;
+    }
+}
+
+export async function sendOtpEmail(to: string, code: string) {
+    if (!EMAIL_CONFIG.apiKey) {
+        console.warn("Resend API key is missing. OTP email not sent.");
+        return;
+    }
+    const resend = new Resend(EMAIL_CONFIG.apiKey);
+
+    try {
+        await resend.emails.send({
+            from: EMAIL_CONFIG.fromEmail,
+            to,
+            subject: `Your verification code: ${code}`,
+            react: OtpEmail({
+                code,
+                appName: EMAIL_CONFIG.appName,
+                logoUrl: EMAIL_CONFIG.logoUrl,
+            }),
+        });
+    } catch (error) {
+        console.error('Failed to send OTP email', error);
         throw error;
     }
 }

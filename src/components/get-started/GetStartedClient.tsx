@@ -27,6 +27,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { GoogleGenerativeAI, Schema } from "@google/generative-ai";
+import { sendOtp, verifyOtp } from "@/app/actions/sendOtp";
 import { toast } from "sonner";
 import {
   CompactMenuPreview,
@@ -421,6 +422,13 @@ export default function GetStartedClient({
   const [newEmail, setNewEmail] = useState("");
   const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
   const [authModalEmail, setAuthModalEmail] = useState("");
+  const [authModalPassword, setAuthModalPassword] = useState("");
+  const [authModalConfirmPassword, setAuthModalConfirmPassword] = useState("");
+  const [authModalStep, setAuthModalStep] = useState<1 | 2 | 3>(1);
+  const [showPassword, setShowPassword] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
   const [pendingGooglePublish, setPendingGooglePublish] = useState(false);
   const [signinMethod, setSigninMethod] = useState<"email" | "google">("email");
 
@@ -849,7 +857,7 @@ export default function GetStartedClient({
     }
   };
 
-  const handleFinalPublish = async (emailOverride?: string) => {
+  const handleFinalPublish = async (emailOverride?: string, passwordOverride?: string) => {
     const email = emailOverride || authCredentials.email;
     if (!email) {
       setShowAuthModal(true);
@@ -956,7 +964,7 @@ export default function GetStartedClient({
       const partnerData = {
         role: "partner",
         name: hotelDetails.name,
-        password: authCredentials.password || "123456", // Default password
+        password: passwordOverride || authCredentials.password || "123456",
         email,
         store_name: hotelDetails.name,
         phone: finalPhone,
@@ -1089,68 +1097,230 @@ export default function GetStartedClient({
       toast.error("Please enter a valid email address");
       return;
     }
-    setAuthCredentials((prev) => ({ ...prev, email: authModalEmail }));
+    setAuthModalStep(2);
+  };
+
+  const handlePasswordContinue = async () => {
+    if (!authModalPassword || authModalPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    if (authModalPassword !== authModalConfirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    setOtpSending(true);
+    const result = await sendOtp(authModalEmail);
+    setOtpSending(false);
+    if (!result.success) {
+      toast.error(result.error || "Failed to send verification code");
+      return;
+    }
+    toast.success("Verification code sent to your email");
+    setAuthModalStep(3);
+  };
+
+  const handleOtpVerify = async () => {
+    if (otpCode.length !== 6) {
+      toast.error("Please enter the 6-digit code");
+      return;
+    }
+    setOtpVerifying(true);
+    const result = await verifyOtp(authModalEmail, otpCode);
+    setOtpVerifying(false);
+    if (!result.success) {
+      toast.error(result.error || "Verification failed");
+      return;
+    }
+    toast.success("Email verified!");
+    setAuthCredentials((prev) => ({ ...prev, email: authModalEmail, password: authModalPassword }));
     setShowAuthModal(false);
     setSigninMethod("email");
-    // Auto-trigger publish after setting email
+    // Pass email and password directly to avoid stale state
     setTimeout(() => {
-      handleFinalPublish();
+      handleFinalPublish(authModalEmail, authModalPassword);
     }, 100);
+  };
+
+  const handleResendOtp = async () => {
+    setOtpSending(true);
+    const result = await sendOtp(authModalEmail);
+    setOtpSending(false);
+    if (result.success) {
+      toast.success("New verification code sent");
+      setOtpCode("");
+    } else {
+      toast.error(result.error || "Failed to resend code");
+    }
   };
 
   const renderAuthModal = () => {
     if (!showAuthModal) return null;
     return (
-      <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-6">
-        <div className="bg-white w-full max-w-md rounded-2xl p-6 space-y-6 animate-in fade-in zoom-in-95 duration-200">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center md:bg-black/50 md:p-6">
+        <div className="bg-white w-full h-full md:h-auto md:max-w-md md:rounded-2xl p-6 pt-12 md:pt-6 space-y-6 animate-in fade-in md:zoom-in-95 duration-200 overflow-y-auto">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-stone-900">
-              Sign in to publish
-            </h2>
+            <div className="flex items-center gap-2">
+              {authModalStep > 1 && (
+                <button
+                  onClick={() => setAuthModalStep((prev) => (prev === 3 ? 2 : 1) as 1 | 2 | 3)}
+                  className="p-1.5 hover:bg-stone-100 rounded-full transition-colors"
+                >
+                  <ArrowLeft size={20} />
+                </button>
+              )}
+              <h2 className="text-xl font-semibold text-stone-900">
+                {authModalStep === 1 && "Sign in to publish"}
+                {authModalStep === 2 && "Create a password"}
+                {authModalStep === 3 && "Verify your email"}
+              </h2>
+            </div>
             <button
-              onClick={() => setShowAuthModal(false)}
+              onClick={() => {
+                setShowAuthModal(false);
+                setAuthModalStep(1);
+                setAuthModalPassword("");
+                setAuthModalConfirmPassword("");
+                setOtpCode("");
+              }}
               className="p-1.5 hover:bg-stone-100 rounded-full transition-colors"
             >
               <X size={20} />
             </button>
           </div>
 
-          <p className="text-sm text-stone-500">
-            We'll send your dashboard login details to your email.
-          </p>
+          {authModalStep === 1 && (
+            <>
+              <p className="text-sm text-stone-500 !mt-1">
+                We'll send your dashboard login details to your email.
+              </p>
 
-          <button
-            onClick={handleGoogleSignIn}
-            className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors text-sm font-medium text-stone-700"
-          >
-            <FcGoogle size={20} />
-            Sign in with Google
-          </button>
+              <button
+                onClick={handleGoogleSignIn}
+                className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors text-sm font-medium text-stone-700"
+              >
+                <FcGoogle size={20} />
+                Sign in with Google
+              </button>
 
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-stone-200" />
-            <span className="text-xs text-stone-400">or</span>
-            <div className="flex-1 h-px bg-stone-200" />
-          </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-stone-200" />
+                <span className="text-xs text-stone-400">or</span>
+                <div className="flex-1 h-px bg-stone-200" />
+              </div>
 
-          <div className="space-y-3">
-            <Input
-              type="email"
-              placeholder="you@example.com"
-              value={authModalEmail}
-              onChange={(e) => setAuthModalEmail(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleEmailContinue()}
-              className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
-              autoFocus
-            />
-            <ButtonV2
-              onClick={handleEmailContinue}
-              variant="primary"
-              className="w-full justify-center"
-            >
-              Continue with Email
-            </ButtonV2>
-          </div>
+              <div className="space-y-3">
+                <Input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={authModalEmail}
+                  onChange={(e) => setAuthModalEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleEmailContinue()}
+                  className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
+                  autoFocus
+                />
+                <ButtonV2
+                  onClick={handleEmailContinue}
+                  variant="primary"
+                  className="w-full justify-center"
+                >
+                  Continue with Email
+                </ButtonV2>
+              </div>
+            </>
+          )}
+
+          {authModalStep === 2 && (
+            <>
+              <p className="text-sm text-stone-500 !mt-1">
+                Set a password for your dashboard account.
+              </p>
+              <div className="space-y-3">
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Password (min 6 characters)"
+                    value={authModalPassword}
+                    onChange={(e) => setAuthModalPassword(e.target.value)}
+                    className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 pr-10 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Confirm password"
+                  value={authModalConfirmPassword}
+                  onChange={(e) => setAuthModalConfirmPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handlePasswordContinue()}
+                  className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
+                />
+                <ButtonV2
+                  onClick={handlePasswordContinue}
+                  variant="primary"
+                  className="w-full justify-center"
+                  disabled={otpSending}
+                >
+                  {otpSending ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin mr-2" />
+                      Sending code...
+                    </>
+                  ) : (
+                    "Continue"
+                  )}
+                </ButtonV2>
+              </div>
+            </>
+          )}
+
+          {authModalStep === 3 && (
+            <>
+              <p className="text-sm text-stone-500 !mt-1">
+                We've sent a 6-digit code to <strong>{authModalEmail}</strong>
+              </p>
+              <div className="space-y-3">
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Enter 6-digit code"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onKeyDown={(e) => e.key === "Enter" && handleOtpVerify()}
+                  className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 text-center text-lg tracking-widest placeholder:text-stone-400 placeholder:text-sm placeholder:tracking-normal focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
+                  autoFocus
+                />
+                <ButtonV2
+                  onClick={handleOtpVerify}
+                  variant="primary"
+                  className="w-full justify-center"
+                  disabled={otpVerifying}
+                >
+                  {otpVerifying ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin mr-2" />
+                      Verifying...
+                    </>
+                  ) : (
+                    "Verify & Publish"
+                  )}
+                </ButtonV2>
+                <button
+                  onClick={handleResendOtp}
+                  disabled={otpSending}
+                  className="w-full text-sm text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50"
+                >
+                  {otpSending ? "Sending..." : "Resend code"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
@@ -1729,86 +1899,59 @@ export default function GetStartedClient({
               </div>
 
               <div className="hidden md:block space-y-6">
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <h3 className="text-sm font-medium text-stone-700">
                     Choose a Theme
                   </h3>
-                  <div className="grid grid-cols-4 gap-3">
-                    {PRESETS.map((palette, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          setSelectedPalette(palette);
-                          setIsCustomMode(false);
-                        }}
-                        className={`h-16 rounded-xl border-2 flex items-center justify-center relative overflow-hidden transition-all ${
-                          !isCustomMode &&
-                          selectedPalette.background === palette.background &&
-                          selectedPalette.accent === palette.accent
-                            ? "border-orange-600 ring-2 ring-orange-100"
-                            : "border-stone-200 hover:border-stone-300"
-                        }`}
-                        style={{ backgroundColor: palette.background }}
-                      >
-                        <div className="flex flex-col items-center gap-1">
+                  <div className="grid grid-cols-3 gap-3">
+                    {PRESETS.map((palette, idx) => {
+                      const isSelected =
+                        selectedPalette.background === palette.background &&
+                        selectedPalette.accent === palette.accent;
+                      const labels = ["Classic", "Midnight", "Fresh"];
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setSelectedPalette(palette);
+                            setIsCustomMode(false);
+                          }}
+                          className={`group relative rounded-2xl border-2 p-4 flex flex-col items-center gap-2.5 transition-all duration-200 ${
+                            isSelected
+                              ? "border-orange-500 ring-2 ring-orange-100 shadow-md scale-[1.02]"
+                              : "border-stone-200 hover:border-stone-300 hover:shadow-sm"
+                          }`}
+                          style={{ backgroundColor: palette.background }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="text-base font-bold"
+                              style={{ color: palette.text }}
+                            >
+                              Aa
+                            </span>
+                            <div
+                              className="w-5 h-5 rounded-full ring-1 ring-black/5"
+                              style={{ backgroundColor: palette.accent }}
+                            />
+                          </div>
                           <span
-                            className="text-xs font-semibold"
-                            style={{ color: palette.text }}
+                            className="text-[11px] font-medium tracking-wide uppercase"
+                            style={{ color: palette.text, opacity: 0.6 }}
                           >
-                            Aa
+                            {labels[idx]}
                           </span>
-                          <div
-                            className="w-4 h-4 rounded-full"
-                            style={{ backgroundColor: palette.accent }}
-                          />
-                        </div>
-                      </button>
-                    ))}
-
-                    {/* Custom Rainbow Button */}
-                    <button
-                      onClick={() => setIsCustomMode(true)}
-                      className={`h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-1 relative overflow-hidden transition-all ${
-                        isCustomMode
-                          ? "border-orange-600 ring-2 ring-orange-100"
-                          : "border-stone-200 hover:border-stone-300"
-                      } bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100`}
-                    >
-                      <Palette size={20} className="text-stone-700" />
-                      <span className="text-[10px] font-semibold text-stone-600">
-                        Custom
-                      </span>
-                    </button>
+                          {isSelected && (
+                            <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center shadow-sm">
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
-
-                  {/* Custom Color Editor (slide down) */}
-                  {isCustomMode && (
-                    <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-4 animate-in slide-in-from-top-2">
-                      <div className="grid grid-cols-3 gap-3">
-                        <CustomColorPicker
-                          label="Background"
-                          color={selectedPalette.background}
-                          onChange={(c) =>
-                            setSelectedPalette((p) => ({ ...p, background: c }))
-                          }
-                        />
-                        <CustomColorPicker
-                          label="Text"
-                          color={selectedPalette.text}
-                          onChange={(c) =>
-                            setSelectedPalette((p) => ({ ...p, text: c }))
-                          }
-                        />
-                        <CustomColorPicker
-                          label="Accent"
-                          color={selectedPalette.accent}
-                          onChange={(c) =>
-                            setSelectedPalette((p) => ({ ...p, accent: c }))
-                          }
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <ButtonV2
@@ -1835,90 +1978,58 @@ export default function GetStartedClient({
         {/* Mobile Floating Bar */}
         {!registrationSuccess && (
           <div className="md:hidden fixed bottom-6 left-4 right-4 z-50 flex flex-col gap-3">
-            {!isCustomMode ? (
-              <div className="bg-white/80 backdrop-blur-xl p-3 rounded-2xl shadow-2xl border border-white/50 animate-in slide-in-from-bottom-5 fade-in duration-300">
-                <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide pb-1">
-                  {PRESETS.map((palette, idx) => (
+            <div className="bg-white/95 backdrop-blur-xl p-2.5 rounded-2xl shadow-2xl border border-stone-100 animate-in slide-in-from-bottom-5 fade-in duration-300">
+              <div className="flex items-center gap-2 justify-center">
+                {PRESETS.map((palette, idx) => {
+                  const isSelected =
+                    selectedPalette.background === palette.background &&
+                    selectedPalette.accent === palette.accent;
+                  const labels = ["Classic", "Midnight", "Fresh"];
+                  return (
                     <button
                       key={idx}
                       onClick={() => {
                         setSelectedPalette(palette);
                         setIsCustomMode(false);
                       }}
-                      className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${
-                        selectedPalette.background === palette.background &&
-                        selectedPalette.accent === palette.accent
-                          ? "border-orange-600 scale-110 ring-2 ring-orange-100"
-                          : "border-white/50"
+                      className={`flex-1 py-2.5 px-3 rounded-xl border-2 flex flex-col items-center gap-1.5 transition-all duration-200 ${
+                        isSelected
+                          ? "border-orange-500 shadow-md scale-[1.03]"
+                          : "border-stone-200"
                       }`}
                       style={{ backgroundColor: palette.background }}
                     >
-                      <div
-                        className="w-4 h-4 rounded-full shadow-sm"
-                        style={{ backgroundColor: palette.accent }}
-                      />
-                    </button>
-                  ))}
-
-                  <button
-                    onClick={() => setIsCustomMode(true)}
-                    className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${
-                      isCustomMode
-                        ? "border-orange-600 scale-110 ring-2 ring-orange-100"
-                        : "border-stone-200"
-                    } bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100`}
-                  >
-                    <Palette size={18} className="text-stone-700" />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white/95 backdrop-blur-xl p-4 rounded-3xl shadow-2xl border border-stone-100 animate-in slide-in-from-bottom-10 fade-in duration-300 space-y-4">
-                <div className="flex items-center justify-between">
-                  <button
-                    onClick={() => setIsCustomMode(false)}
-                    className="p-2 -ml-2 rounded-full hover:bg-stone-100 text-stone-500"
-                  >
-                    <ArrowLeft size={20} />
-                  </button>
-                  <div className="flex bg-stone-100 rounded-lg p-1">
-                    {(["background", "text", "accent"] as const).map((tab) => (
-                      <button
-                        key={tab}
-                        onClick={() => setMobileTab(tab)}
-                        className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all ${mobileTab === tab ? "bg-white shadow text-stone-900" : "text-stone-500 hover:text-stone-700"}`}
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="text-sm font-bold"
+                          style={{ color: palette.text }}
+                        >
+                          Aa
+                        </span>
+                        <div
+                          className="w-4 h-4 rounded-full ring-1 ring-black/5"
+                          style={{ backgroundColor: palette.accent }}
+                        />
+                      </div>
+                      <span
+                        className="text-[10px] font-medium tracking-wide uppercase"
+                        style={{ color: palette.text, opacity: 0.5 }}
                       >
-                        {tab}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="w-8" /> {/* Spacer */}
-                </div>
-
-                <div className="flex justify-center pb-2">
-                  <HexColorPicker
-                    color={selectedPalette[mobileTab]}
-                    onChange={(c) =>
-                      setSelectedPalette((prev) => ({
-                        ...prev,
-                        [mobileTab]: c,
-                      }))
-                    }
-                    style={{ width: "100%", height: "160px" }}
-                  />
-                </div>
+                        {labels[idx]}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-            )}
+            </div>
 
-            {!isCustomMode && (
-              <ButtonV2
-                onClick={() => handleFinalPublish()}
-                variant="primary"
-                className="w-full justify-center"
-              >
-                Publish Live
-              </ButtonV2>
-            )}
+            <ButtonV2
+              onClick={() => handleFinalPublish()}
+              variant="primary"
+              className="w-full justify-center !bg-orange-100"
+            >
+              Publish Live
+            </ButtonV2>
           </div>
         )}
 

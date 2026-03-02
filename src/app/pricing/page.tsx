@@ -26,7 +26,7 @@ export default async function PricingPage() {
   const country = headersList.get("x-user-country") || "IN";
 
   return (
-    <div className="min-h-screen w-full bg-white geist-font">
+    <div className="min-h-screen w-full bg-[#fcfbf7] geist-font">
       {/* Hero Header */}
       <section className="flex items-center justify-center px-5 pb-12 pt-32 md:pt-40 bg-[#fcfbf7]">
         <div className="w-full max-w-2xl mx-auto text-center">

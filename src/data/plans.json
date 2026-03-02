@@ -44,6 +44,9 @@
                 "Unlimited items",
                 "QR code generation",
                 "Unlimited edits",
+                "Manage availability",
+                "Manage priority",
+                "Google menu sync",
                 "Priority chat support"
             ],
             "buttonText": "Get Started",
@@ -64,6 +67,9 @@
                 "Unlimited items",
                 "QR code generation",
                 "Unlimited edits",
+                "Manage availability",
+                "Manage priority",
+                "Google menu sync",
                 "Priority chat support"
             ],
             "buttonText": "Get Started",
@@ -138,6 +144,9 @@
                 "Unlimited items",
                 "QR code generation",
                 "Unlimited edits",
+                "Manage availability",
+                "Manage priority",
+                "Google menu sync",
                 "Chat support"
             ],
             "buttonText": "Get Started",
@@ -159,6 +168,9 @@
                 "Unlimited items",
                 "QR code generation",
                 "Unlimited edits",
+                "Manage availability",
+                "Manage priority",
+                "Google menu sync",
                 "Chat support"
             ],
             "buttonText": "Get Started",
@@ -180,6 +192,9 @@
                 "Unlimited items",
                 "QR code generation",
                 "Unlimited edits",
+                "Manage availability",
+                "Manage priority",
+                "Google menu sync",
                 "Chat support"
             ],
             "buttonText": "Get Started",
@@ -189,6 +204,49 @@
             "disabled": false,
             "scan_limit": -1,
             "savings": "Save ₹589"
+        },
+        {
+            "id": "in_digital_petpooja_monthly",
+            "rz_plan_id": "plan_SMFoIQL8elNn6D",
+            "rz_plan_id_test": "",
+            "name": "Digital Menu + Petpooja Integration",
+            "price": "₹999",
+            "description": "Digital menu with Petpooja POS integration",
+            "features": [
+                "Everything in Digital Menu",
+                "Petpooja POS integration",
+                "Auto menu sync from Petpooja",
+                "Real-time order push to Petpooja",
+                "Priority support"
+            ],
+            "buttonText": "Get Started",
+            "popular": false,
+            "period": "/month",
+            "period_days": 30,
+            "disabled": false,
+            "scan_limit": -1
+        },
+        {
+            "id": "in_digital_petpooja",
+            "rz_plan_id": "plan_SMFpProjFxkC9H",
+            "rz_plan_id_test": "",
+            "name": "Digital Menu + Petpooja Integration",
+            "price": "₹9999",
+            "description": "Digital menu with Petpooja POS integration",
+            "features": [
+                "Everything in Digital Menu",
+                "Petpooja POS integration",
+                "Auto menu sync from Petpooja",
+                "Real-time order push to Petpooja",
+                "Priority support"
+            ],
+            "buttonText": "Get Started",
+            "popular": false,
+            "period": "/year",
+            "period_days": 365,
+            "disabled": false,
+            "scan_limit": -1,
+            "savings": "Save ₹1989"
         },
         {
             "id": "in_ordering_monthly",
