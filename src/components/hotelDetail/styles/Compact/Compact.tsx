@@ -27,6 +27,7 @@ import { getFeatures } from "@/lib/getFeatures";
 import { get } from "http";
 import { getDiscountsQuery } from "@/api/discounts";
 import { Tag, Clock, Copy, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
+import { fetchFromHasura } from "@/lib/hasuraClient";
 
 // Helper to check darkness for contrast
 const isColorDark = (hex: string) => {

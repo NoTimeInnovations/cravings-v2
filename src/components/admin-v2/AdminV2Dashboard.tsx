@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect } from "react";
 import { format, startOfMonth } from "date-fns";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   QrCode,
   UtensilsCrossed,
@@ -18,7 +20,10 @@ import {
   ExternalLink,
   Lightbulb,
   Loader2,
+  Download,
+  MessageCircle,
 } from "lucide-react";
+import QRCodeLib from "qrcode";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { useAdminStore } from "@/store/adminStore";
@@ -30,28 +35,45 @@ import { GET_QR_CODES_BY_PARTNER } from "@/api/qrcodes";
 const tutorialVideos = [
   {
     id: 1,
-    heading: "How to do restaurant login",
-    videoUrl: "https://www.youtube.com/embed/UGyePyi8hQU?si=rjglx2JlKMGDXJH7",
+    heading: "Menuthere Introduction",
+    en: "https://www.youtube.com/embed/sYe3nYvTfKg?si=Y6E5RDZXkS_QAJ0i",
+    ml: "https://www.youtube.com/embed/wQopuUXsinE?si=cUavmaoHl2yJdecw", // replace with Malayalam URL
   },
   {
     id: 2,
-    heading: "Advanced React Patterns",
-    videoUrl: "https://www.youtube.com/embed/UGyePyi8hQU?si=rjglx2JlKMGDXJH7",
+    heading: "How To Edit Your Menu",
+    en: "https://www.youtube.com/embed/ztXhzY0HHPc?si=WcJ3ygE5unHGP90p",
+    ml: "https://www.youtube.com/embed/5dEPMGvVkfs?si=TB48iafu3Qk_0PdL", // replace with Malayalam URL
+  },
+  {
+    id: 3,
+    heading: "Availability Management",
+    en: "https://www.youtube.com/embed/hrjoah9f8NA?si=BpiBnXTPwF0jZEW_",
+    ml: "https://www.youtube.com/embed/hrjoah9f8NA?si=BpiBnXTPwF0jZEW_", // replace with Malayalam URL
+  },
+  {
+    id: 4,
+    heading: "Reordering Of Menu Items",
+    en: "https://www.youtube.com/embed/J_Bfd1csfSk?si=SnYAxAgS_EfrIUZk",
+    ml: "https://www.youtube.com/embed/J_Bfd1csfSk?si=SnYAxAgS_EfrIUZk", // replace with Malayalam URL
   },
 ];
 
 const tips = [
   {
     title: "Set up your menu",
-    description: "Add your items and categories to start receiving orders from customers.",
+    description:
+      "Add your items and categories to start receiving orders from customers.",
   },
   {
     title: "Share your QR code",
-    description: "Print and place QR codes at your tables to let customers scan and order.",
+    description:
+      "Print and place QR codes at your tables to let customers scan and order.",
   },
   {
     title: "Enable delivery",
-    description: "Expand your reach by enabling delivery orders for your restaurant.",
+    description:
+      "Expand your reach by enabling delivery orders for your restaurant.",
   },
 ];
 
@@ -73,6 +95,12 @@ export function AdminV2Dashboard() {
   const [qrId, setQrId] = useState<string | null>(null);
   const [storeName, setStoreName] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [tutorialLang, setTutorialLang] = useState<"en" | "ml">("en");
+
+  // QR Dialog state
+  const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
+  const [qrImageUrl, setQrImageUrl] = useState<string>("");
+  const [qrLoading, setQrLoading] = useState(false);
 
   useEffect(() => {
     if (!userData?.id) return;
@@ -84,7 +112,9 @@ export function AdminV2Dashboard() {
         const start = format(startOfMonth(now), "yyyy-MM-dd'T'00:00:00'Z'");
         const end = format(now, "yyyy-MM-dd'T'23:59:59'Z'");
 
-        const qrCodesRes = await fetchFromHasura(GET_QR_CODES_BY_PARTNER, { partner_id: userData.id });
+        const qrCodesRes = await fetchFromHasura(GET_QR_CODES_BY_PARTNER, {
+          partner_id: userData.id,
+        });
         const qrCodes = qrCodesRes?.qr_codes || [];
 
         if (qrCodes.length > 0) {
@@ -112,21 +142,33 @@ export function AdminV2Dashboard() {
     fetchDashboardData();
   }, [userData?.id]);
 
-  const features = partner?.feature_flags ? getFeatures(partner.feature_flags || "") : null;
+  const features = partner?.feature_flags
+    ? getFeatures(partner.feature_flags || "")
+    : null;
 
   const allQuickActions: (QuickAction & { hidden?: boolean })[] = [
     ...(qrId
-      ? [{
-          title: "View Menu",
-          icon: ExternalLink,
-          href: partner?.username ? `/${partner.username}` : `/qrScan/${storeName?.replace(/ /g, "-")}/${qrId}`,
-        }]
+      ? [
+          {
+            title: "View Menu",
+            icon: ExternalLink,
+            href: partner?.username
+              ? `/${partner.username}`
+              : `/qrScan/${storeName?.replace(/ /g, "-")}/${qrId}`,
+          },
+        ]
       : []),
     {
       title: "Manage Orders",
       icon: ShoppingBag,
       view: "Orders",
-      hidden: isOnFreePlan || !(features?.ordering?.enabled || features?.delivery?.enabled || features?.pos?.enabled),
+      hidden:
+        isOnFreePlan ||
+        !(
+          features?.ordering?.enabled ||
+          features?.delivery?.enabled ||
+          features?.pos?.enabled
+        ),
     },
     { title: "Edit Menu", icon: UtensilsCrossed, view: "Menu" },
     {
@@ -149,73 +191,131 @@ export function AdminV2Dashboard() {
     }
   };
 
-  return (
-    <div className="space-y-8">
-      {/* Welcome Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          Welcome back, {partner?.store_name || "there"}!
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          {format(new Date(), "EEEE, MMMM d, yyyy")}
-        </p>
-      </div>
+  const handleShowQr = async () => {
+    if (!qrId) return;
+    setIsQrDialogOpen(true);
+    setQrLoading(true);
+    try {
+      const DOMAIN = "menuthere.com";
+      const username = (userData as any)?.username;
+      const url = username
+        ? `https://${DOMAIN}/${username}`
+        : `https://${DOMAIN}/qrScan/${storeName?.replace(/\s+/g, "-")}/${qrId}`;
+      const dataUrl = await QRCodeLib.toDataURL(url, { width: 512, margin: 2 });
+      setQrImageUrl(dataUrl);
+    } catch {
+      // silently fail
+    } finally {
+      setQrLoading(false);
+    }
+  };
 
-      {/* Monthly Scans Stat */}
-      <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveView("Analytics")}>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">This Month&apos;s Scans</CardTitle>
-          <QrCode className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <Loader2 className="h-6 w-6 animate-spin text-orange-600" />
-          ) : (
-            <div className="text-2xl font-bold">{monthlyScans}</div>
-          )}
-          <p className="text-xs text-muted-foreground mt-1">
-            Tap to view full analytics
+  return (
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Welcome Header + Monthly Scans */}
+      <div
+        className="rounded-xl border bg-muted/40 p-6 sm:p-8 flex items-center justify-between gap-4 cursor-pointer hover:shadow-md transition-shadow"
+        onClick={() => setActiveView("Analytics")}
+      >
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">
+            {format(new Date(), "EEEE, MMMM d, yyyy")}
           </p>
-        </CardContent>
-      </Card>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+            Hey, {partner?.store_name || "there"} 👋
+          </h1>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-xs text-muted-foreground mb-1">
+            This Month&apos;s Scans
+          </p>
+          {loading ? (
+            <Loader2 className="h-6 w-6 animate-spin text-orange-500 ml-auto" />
+          ) : (
+            <div className="text-3xl font-bold tracking-tight">
+              {monthlyScans}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <h2 className="text-base font-bold tracking-tight mb-3">
+          Quick Actions
+        </h2>
+        <div className=" grid grid-cols-4 sm:flex sm:flex-wrap gap-2">
           {quickActions.map((action) => (
-            <Card
+            <button
               key={action.title}
-              className="cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => handleQuickAction(action)}
+              className="flex flex-col items-center justify-center gap-1.5 w-20 h-20 rounded-xl border bg-background hover:bg-muted transition-colors text-xs font-medium"
             >
-              <CardContent className="flex flex-col items-center justify-center py-6 gap-2">
-                <action.icon className="h-6 w-6 text-orange-600" />
-                <span className="text-sm font-medium text-center">{action.title}</span>
-              </CardContent>
-            </Card>
+              <action.icon className="h-5 w-5 text-orange-600 shrink-0" />
+              <span className="text-center leading-tight">{action.title}</span>
+            </button>
           ))}
+          {qrId && (
+            <button
+              onClick={handleShowQr}
+              className="flex flex-col items-center justify-center gap-1.5 w-20 h-20 rounded-xl border bg-background hover:bg-muted transition-colors text-xs font-medium"
+            >
+              <QrCode className="h-5 w-5 text-orange-600 shrink-0" />
+              <span className="text-center leading-tight">View QR</span>
+            </button>
+          )}
+          <button
+            onClick={() => window.open("https://wa.me/918590115462", "_blank")}
+            className="flex flex-col items-center justify-center gap-1.5 w-20 h-20 rounded-xl border bg-background hover:bg-muted transition-colors text-xs font-medium"
+          >
+            <MessageCircle className="h-5 w-5 text-orange-600 shrink-0" />
+            <span className="text-center leading-tight">Contact Us</span>
+          </button>
         </div>
       </div>
 
       {/* Getting Started / Tutorials */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">Tutorials</h2>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-bold tracking-tight">Tutorials</h2>
+          <div className="flex items-center gap-1 rounded-lg border p-0.5 text-sm">
+            <button
+              onClick={() => setTutorialLang("en")}
+              className={`px-3 py-1 rounded-md font-medium transition-colors ${
+                tutorialLang === "en"
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              English
+            </button>
+            <button
+              onClick={() => setTutorialLang("ml")}
+              className={`px-3 py-1 rounded-md font-medium transition-colors ${
+                tutorialLang === "ml"
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              മലയാളം
+            </button>
+          </div>
+        </div>
+        <div className="grid gap-3 grid-cols-1 lg:grid-cols-4">
           {tutorialVideos.map((tutorial) => (
-            <Card key={tutorial.id} className="overflow-hidden">
+            <Card
+              key={tutorial.id}
+              className="overflow-hidden group transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+            >
               <div className="aspect-video">
                 <iframe
                   className="w-full h-full"
-                  src={tutorial.videoUrl}
+                  src={tutorial[tutorialLang]}
                   title={tutorial.heading}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
                 />
               </div>
-              <CardContent className="pt-3 pb-4">
-                <p className="font-medium text-sm">{tutorial.heading}</p>
-              </CardContent>
             </Card>
           ))}
         </div>
@@ -223,21 +323,59 @@ export function AdminV2Dashboard() {
 
       {/* Tips & Announcements */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">Tips</h2>
+        <h2 className="text-base font-bold tracking-tight mb-3">Tips</h2>
         <div className="grid gap-3 md:grid-cols-3">
           {tips.map((tip, index) => (
-            <Card key={index}>
-              <CardContent className="flex gap-3 py-4">
-                <Lightbulb className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
+            <Card key={index} className="transition-shadow hover:shadow-md">
+              <CardContent className="flex gap-3 py-5">
+                <div className="rounded-lg bg-muted p-2 shrink-0 h-fit">
+                  <Lightbulb className="h-4 w-4 text-orange-500" />
+                </div>
                 <div>
-                  <p className="font-medium text-sm">{tip.title}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{tip.description}</p>
+                  <p className="font-semibold text-sm">{tip.title}</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    {tip.description}
+                  </p>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       </div>
+
+      {/* View QR Dialog */}
+      <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Your QR Code</DialogTitle>
+            <DialogDescription>Scan this to view your menu.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-2">
+            {qrLoading ? (
+              <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
+            ) : qrImageUrl ? (
+              <>
+                <img
+                  src={qrImageUrl}
+                  alt="QR Code"
+                  className="w-56 h-56 rounded-lg border"
+                />
+                <a
+                  href={qrImageUrl}
+                  download={`${partner?.store_name || "menu"}-qr.png`}
+                  className="flex items-center gap-2 text-sm font-medium text-orange-600 hover:underline"
+                >
+                  <Download className="h-4 w-4" /> Download QR
+                </a>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Could not generate QR.
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
