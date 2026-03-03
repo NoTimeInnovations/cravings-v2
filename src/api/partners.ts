@@ -358,6 +358,10 @@ export interface Partner {
   district?: string;
   petpooja_restaurant_id?: string;
   username?: string;
+  geo_location?: {
+    type: string;
+    coordinates: [number, number];
+  };
 }
 
 export interface UpdatePartnerStatusResponse {
