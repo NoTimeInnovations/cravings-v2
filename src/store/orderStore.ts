@@ -199,7 +199,7 @@ interface OrderState {
     deliveryCharge?: number,
     notes?: string,
     tableName?: string,
-    discounts?: { code: string; type: string; value: number; savings: number } | null,
+    discounts?: { code: string; type: string; value: number; savings: number; pp_discount_id?: string; description?: string; terms_conditions?: string; max_discount_amount?: number; min_order_value?: number; discount_on_total?: boolean; discount_order_types?: string; valid_days?: string; applicable_on?: string; rank?: number } | null,
     customerName?: string,
   ) => Promise<Order | null>;
   getCurrentOrder: () => HotelOrderState;
@@ -941,7 +941,7 @@ const useOrderStore = create(
         deliveryCharge?: number,
         notes?: string,
         tableName?: string,
-        discounts?: { code: string; type: string; value: number; savings: number } | null,
+        discounts?: { code: string; type: string; value: number; savings: number; pp_discount_id?: string; description?: string; terms_conditions?: string; max_discount_amount?: number; min_order_value?: number; discount_on_total?: boolean; discount_order_types?: string; valid_days?: string; applicable_on?: string; rank?: number } | null,
         customerName?: string,
       ) => {
         try {
@@ -1100,7 +1100,22 @@ const useOrderStore = create(
               table_name: tableName || null,
               payment_method: "cash",
               petpooja_restaurant_id: hotelData.petpooja_restaurant_id,
-              discounts: discounts ? [discounts] : [],
+              discounts: discounts ? [{
+                code: discounts.code,
+                type: discounts.type,
+                value: discounts.value,
+                savings: discounts.savings,
+                pp_discount_id: discounts.pp_discount_id || null,
+                description: discounts.description || null,
+                terms_conditions: discounts.terms_conditions || null,
+                max_discount_amount: discounts.max_discount_amount || null,
+                min_order_value: discounts.min_order_value || null,
+                discount_on_total: discounts.discount_on_total ?? true,
+                discount_order_types: discounts.discount_order_types || null,
+                valid_days: discounts.valid_days || null,
+                applicable_on: discounts.applicable_on || null,
+                rank: discounts.rank || null,
+              }] : [],
               items: currentOrder.items.map((item) => ({
                 id: uuidv4(),
                 order_id: orderId,

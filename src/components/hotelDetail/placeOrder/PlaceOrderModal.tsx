@@ -45,7 +45,7 @@ import {
   getPhoneValidationError,
 } from "@/lib/getUserCountry";
 import { getPhoneDigitsForCountry } from "@/lib/countryPhoneMap";
-import { validateDiscountCodeQuery, incrementDiscountUsageMutation } from "@/api/discountCodes";
+import { validateDiscountQuery, incrementDiscountUsageMutation } from "@/api/discounts";
 import { Tag } from "lucide-react";
 import { UpiPaymentScreen } from "./UpiPaymentScreen";
 
@@ -2038,10 +2038,23 @@ const PlaceOrderModal = ({
     value: number;
     max_discount_amount?: number;
     min_order_value?: number;
+    description?: string;
+    terms_conditions?: string;
+    discount_on_total?: boolean;
+    discount_order_types?: string;
+    valid_days?: string;
+    valid_time_from?: string;
+    valid_time_to?: string;
+    applicable_on?: string;
+    category_item_ids?: string;
+    has_coupon?: boolean;
+    rank?: number;
+    pp_discount_id?: string;
   } | null>(null);
   const [discountError, setDiscountError] = useState("");
   const [validatingCode, setValidatingCode] = useState(false);
   const [hasActiveCodes, setHasActiveCodes] = useState(false);
+  const [availableDiscounts, setAvailableDiscounts] = useState<{ id: string; code: string; description: string | null; discount_type: string; discount_value: number; min_order_value: number | null; max_discount_amount: number | null; }[]>([]);
 
   useEffect(() => {
     if (typeof navigator !== "undefined") {
@@ -2066,18 +2079,20 @@ const PlaceOrderModal = ({
   const showDiscountSection =
     (isQrScan ? hotelFeatures?.ordering?.enabled : hotelFeatures?.delivery?.enabled);
 
-  // Fetch whether this partner has at least 1 active discount code
+  // Fetch active coupon discounts for this partner
   useEffect(() => {
     if (!showDiscountSection || !hotelData?.id) return;
     fetchFromHasura(
-      `query CheckActiveCodes($partner_id: uuid!) {
-        discount_codes_aggregate(where: { partner_id: { _eq: $partner_id }, is_active: { _eq: true }, _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }] }) {
-          aggregate { count }
+      `query GetActiveDiscounts($partner_id: uuid!) {
+        discounts(where: { partner_id: { _eq: $partner_id }, is_active: { _eq: true }, has_coupon: { _eq: true }, _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }] }, order_by: [{ rank: asc_nulls_last }], limit: 5) {
+          id code description discount_type discount_value min_order_value max_discount_amount
         }
       }`,
       { partner_id: hotelData.id }
     ).then((res) => {
-      setHasActiveCodes((res?.discount_codes_aggregate?.aggregate?.count ?? 0) > 0);
+      const discs = res?.discounts ?? [];
+      setAvailableDiscounts(discs);
+      setHasActiveCodes(discs.length > 0);
     }).catch(() => {});
   }, [hotelData?.id, showDiscountSection]);
 
@@ -2245,25 +2260,77 @@ const PlaceOrderModal = ({
     setValidatingCode(true);
     try {
       const subtotal = totalPrice || 0;
-      const res = await fetchFromHasura(validateDiscountCodeQuery, {
+      const res = await fetchFromHasura(validateDiscountQuery, {
         partner_id: hotelData.id,
         code: discountInput.trim().toUpperCase(),
       });
-      const code = res?.discount_codes?.[0];
-      if (!code) {
+      const disc = res?.discounts?.[0];
+      if (!disc) {
         setDiscountError("Invalid or expired discount code.");
         return;
       }
-      if (code.usage_limit != null && code.used_count >= code.usage_limit) {
+      if (disc.usage_limit != null && disc.used_count >= disc.usage_limit) {
         setDiscountError("This code has reached its usage limit.");
         return;
       }
-      if (code.min_order_value && subtotal < code.min_order_value) {
-        setDiscountError(`Minimum order of ${hotelData?.currency || "₹"}${code.min_order_value} required.`);
+      // Check start date
+      if (disc.starts_at && new Date(disc.starts_at) > new Date()) {
+        setDiscountError("This discount is not active yet.");
         return;
       }
-      const discountValue = Number(code.discount_value);
-      setAppliedDiscount({ id: code.id, code: code.code, type: code.discount_type, value: discountValue, max_discount_amount: code.max_discount_amount ? Number(code.max_discount_amount) : undefined, min_order_value: code.min_order_value ? Number(code.min_order_value) : undefined });
+      // Check valid days
+      if (disc.valid_days && disc.valid_days !== "All") {
+        const today = new Date().toLocaleDateString("en-US", { weekday: "short" });
+        const validDays = disc.valid_days.split(",").map((d: string) => d.trim());
+        if (!validDays.includes(today)) {
+          setDiscountError("This discount is not valid today.");
+          return;
+        }
+      }
+      // Check valid time window
+      if (disc.valid_time_from && disc.valid_time_to) {
+        const now = new Date();
+        const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+        if (currentTime < disc.valid_time_from || currentTime > disc.valid_time_to) {
+          setDiscountError(`This discount is valid only between ${disc.valid_time_from} and ${disc.valid_time_to}.`);
+          return;
+        }
+      }
+      // Check order type
+      if (disc.discount_order_types) {
+        const allowedTypes = disc.discount_order_types.split(",").map((t: string) => t.trim());
+        const currentOrderTypeMap: Record<string, string> = { delivery: "1", takeaway: "2" };
+        const currentTypeCode = isQrScan ? "3" : (currentOrderTypeMap[orderType || "delivery"] || "1");
+        if (!allowedTypes.includes(currentTypeCode)) {
+          setDiscountError("This discount is not valid for your order type.");
+          return;
+        }
+      }
+      if (disc.min_order_value && subtotal < Number(disc.min_order_value)) {
+        setDiscountError(`Minimum order of ${hotelData?.currency || "₹"}${disc.min_order_value} required.`);
+        return;
+      }
+      const discountValue = Number(disc.discount_value);
+      setAppliedDiscount({
+        id: disc.id,
+        code: disc.code,
+        type: disc.discount_type,
+        value: discountValue,
+        max_discount_amount: disc.max_discount_amount ? Number(disc.max_discount_amount) : undefined,
+        min_order_value: disc.min_order_value ? Number(disc.min_order_value) : undefined,
+        description: disc.description || undefined,
+        terms_conditions: disc.terms_conditions || undefined,
+        discount_on_total: disc.discount_on_total,
+        discount_order_types: disc.discount_order_types || undefined,
+        valid_days: disc.valid_days || undefined,
+        valid_time_from: disc.valid_time_from || undefined,
+        valid_time_to: disc.valid_time_to || undefined,
+        applicable_on: disc.applicable_on || undefined,
+        category_item_ids: disc.category_item_ids || undefined,
+        has_coupon: disc.has_coupon,
+        rank: disc.rank ? Number(disc.rank) : undefined,
+        pp_discount_id: disc.pp_discount_id || undefined,
+      });
       setDiscountInput("");
     } catch {
       setDiscountError("Failed to validate code. Please try again.");
@@ -2272,16 +2339,34 @@ const PlaceOrderModal = ({
     }
   };
 
-  // Auto-remove discount if subtotal drops below min_order_value
+  // Auto-revalidate discount when items or order type change
   useEffect(() => {
-    if (!appliedDiscount?.min_order_value) return;
-    const subtotal = items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
-    if (subtotal < appliedDiscount.min_order_value) {
+    if (!appliedDiscount) return;
+    // Skip revalidation if order was just placed (items cleared)
+    if (!items || items.length === 0) return;
+    const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
+
+    // Check min order value
+    if (appliedDiscount.min_order_value && subtotal < appliedDiscount.min_order_value) {
       setAppliedDiscount(null);
       setDiscountError("");
       toast.info("Discount removed: order below minimum amount.");
+      return;
     }
-  }, [items, appliedDiscount]);
+
+    // Check order type
+    if (appliedDiscount.discount_order_types) {
+      const allowedTypes = appliedDiscount.discount_order_types.split(",").map((t: string) => t.trim());
+      const currentOrderTypeMap: Record<string, string> = { delivery: "1", takeaway: "2" };
+      const currentTypeCode = isQrScan ? "3" : (currentOrderTypeMap[orderType || "delivery"] || "1");
+      if (!allowedTypes.includes(currentTypeCode)) {
+        setAppliedDiscount(null);
+        setDiscountError("");
+        toast.info("Discount removed: not valid for this order type.");
+        return;
+      }
+    }
+  }, [items, appliedDiscount, orderType, isQrScan]);
 
   const handleRemoveDiscount = () => {
     setAppliedDiscount(null);
@@ -2568,7 +2653,22 @@ const PlaceOrderModal = ({
         undefined,
         orderNote || "",
         tableName,
-        appliedDiscount ? { code: appliedDiscount.code, type: appliedDiscount.type, value: appliedDiscount.value, savings: discountSavingsAmount } : null,
+        appliedDiscount ? {
+          code: appliedDiscount.code,
+          type: appliedDiscount.type,
+          value: appliedDiscount.value,
+          savings: discountSavingsAmount,
+          pp_discount_id: appliedDiscount.pp_discount_id,
+          description: appliedDiscount.description,
+          terms_conditions: appliedDiscount.terms_conditions,
+          max_discount_amount: appliedDiscount.max_discount_amount,
+          min_order_value: appliedDiscount.min_order_value,
+          discount_on_total: appliedDiscount.discount_on_total,
+          discount_order_types: appliedDiscount.discount_order_types,
+          valid_days: appliedDiscount.valid_days,
+          applicable_on: appliedDiscount.applicable_on,
+          rank: appliedDiscount.rank,
+        } : null,
         needUserName ? customerName.trim() : undefined,
       );
 
@@ -2719,12 +2819,40 @@ const PlaceOrderModal = ({
                     <Tag className="h-4 w-4 text-orange-500" />
                     Discount Code
                   </h3>
+                  {/* Available discount banners */}
+                  {!appliedDiscount && availableDiscounts.length > 0 && (
+                    <div className="space-y-2 mb-3">
+                      {availableDiscounts.map((disc) => (
+                        <button
+                          key={disc.id}
+                          onClick={() => {
+                            setDiscountInput(disc.code);
+                            setDiscountError("");
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-dashed border-orange-300 bg-orange-50/50 hover:bg-orange-50 transition-colors active:scale-[0.99] text-left"
+                        >
+                          <Tag className="h-3.5 w-3.5 text-orange-500 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-xs font-bold font-mono text-orange-600 tracking-wider">{disc.code}</span>
+                            <span className="text-[10px] text-stone-500 block leading-tight">
+                              {disc.discount_type === "percentage"
+                                ? `${disc.discount_value}% off`
+                                : `${hotelData?.currency || "₹"}${disc.discount_value} off`}
+                              {disc.min_order_value ? ` above ${hotelData?.currency || "₹"}${disc.min_order_value}` : ""}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-semibold text-orange-500 shrink-0">TAP TO APPLY</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   {appliedDiscount ? (
                     <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-3">
                       <div>
                         <p className="text-sm font-semibold text-green-700 font-mono">{appliedDiscount.code}</p>
-                        <p className="text-xs text-green-600">
-                          You save {hotelData?.currency || "₹"}{computeDiscountSavings(appliedDiscount).toFixed(2)}
+                        <p className="text-xs text-green-600 mt-0.5">
+                          Offer Applied! You save {hotelData?.currency || "₹"}{computeDiscountSavings(appliedDiscount).toFixed(2)}
                         </p>
                       </div>
                       <button onClick={handleRemoveDiscount} className="p-1 rounded-full hover:bg-green-100">

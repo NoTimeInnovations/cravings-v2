@@ -5,7 +5,7 @@ import { useDemoPartnerStore, DemoPartner } from "@/store/demoPartnerStore_hasur
 import { useMenuStore } from "@/store/menuStore_hasura";
 import { useParams, useSearchParams } from "next/navigation";
 import HotelMenuPage from "@/screens/HotelMenuPage_v2";
-import { ThemeConfig } from "@/components/hotelDetail/ThemeChangeButton";
+import { ThemeConfig, DEFAULT_THEME } from "@/components/hotelDetail/ThemeChangeButton";
 import { getSocialLinks } from "@/lib/getSocialLinks";
 
 export default function DemoPartnerDetailPage() {
@@ -76,11 +76,12 @@ export default function DemoPartnerDetailPage() {
     password: "",
   };
 
-  let theme: ThemeConfig | null = null;
+  let theme: ThemeConfig = DEFAULT_THEME;
   try {
-    theme = typeof hoteldata.theme === "string" ? JSON.parse(hoteldata.theme) : hoteldata.theme;
+    const parsed = typeof hoteldata.theme === "string" ? JSON.parse(hoteldata.theme) : hoteldata.theme;
+    if (parsed) theme = parsed;
   } catch {
-    theme = null;
+    // keep default
   }
 
   const socialLinks = getSocialLinks(hoteldata as any);

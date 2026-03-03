@@ -4,8 +4,8 @@ import { format } from "date-fns";
 import { Loader2, ShoppingBag, ExternalLink, MessageCircle, CreditCard } from "lucide-react";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
-import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
 import Link from "next/link";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 import { fetchFromHasura } from "@/lib/hasuraClient";
@@ -86,17 +86,7 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
             <UpiPaymentScreen
                 upiId={partnerPaymentInfo.upi_id}
                 storeName={upiOrder.partner?.store_name || ""}
-                amount={(() => {
-                    const gstPercentage = (upiOrder.partner as Partner)?.gst_percentage || 0;
-                    const foodTotal = (upiOrder.items || []).reduce((s: number, i: any) => s + i.price * i.quantity, 0);
-                    const extraChargesTotal = (upiOrder.extraCharges || []).reduce((s: number, c: any) => s + getExtraCharge(upiOrder.items || [], c.amount, c.charge_type) || 0, 0) || 0;
-                    const subtotal = foodTotal + extraChargesTotal;
-                    const discounts = (upiOrder as any).discounts || [];
-                    const discountAmount = discounts.reduce((t: number, d: any) => d.type === "flat" ? t + d.value : t + (subtotal * d.value) / 100, 0);
-                    const discountedFoodTotal = Math.max(0, foodTotal - discountAmount);
-                    const discountedSubtotal = Math.max(0, subtotal - discountAmount);
-                    return discountedSubtotal + getGstAmount(discountedFoodTotal, gstPercentage);
-                })()}
+                amount={upiOrder.totalPrice || 0}
                 currency={upiOrder.partner?.currency || "₹"}
                 orderId={upiOrder.id}
                 postPaymentMessage={null}
@@ -105,23 +95,10 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                     const phone = rawPhone?.replace(/\D/g, "");
                     if (!phone) return "";
                     const cur = upiOrder.partner?.currency || "₹";
-                    const gstPct = (upiOrder.partner as Partner)?.gst_percentage || 0;
-                    const fTotal = (upiOrder.items || []).reduce((s: number, i: any) => s + i.price * i.quantity, 0);
-                    const extTotal = (upiOrder.extraCharges || []).reduce((s: number, c: any) => s + getExtraCharge(upiOrder.items || [], c.amount, c.charge_type) || 0, 0) || 0;
-                    const sub = fTotal + extTotal;
-                    const disc = ((upiOrder as any).discounts || []).reduce((t: number, d: any) => d.type === "flat" ? t + d.value : t + (sub * d.value) / 100, 0);
-                    const discFoodTotal = Math.max(0, fTotal - disc);
-                    const discSub = Math.max(0, sub - disc);
-                    const gst = getGstAmount(discFoodTotal, gstPct);
-                    const total = discSub + gst;
-                    const nowTime = new Intl.DateTimeFormat("en-GB", { hour: "numeric", minute: "numeric", hour12: true }).format(new Date(upiOrder.createdAt || Date.now()));
-                    const dp = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).formatToParts(new Date(upiOrder.createdAt || Date.now()));
-                    const d = dp.find(p => p.type === "day")?.value;
-                    const m = dp.find(p => p.type === "month")?.value;
+                    const total = upiOrder.totalPrice || 0;
                     const sid = ((upiOrder as any).display_id || upiOrder.id.slice(0, 4).toUpperCase());
                     const itemsText = (upiOrder.items || []).map((item: any, idx: number) => `${idx + 1}. ${item.name}\n   ➤ Qty: ${item.quantity} × ${cur}${item.price.toFixed(2)} = ${cur}${(item.price * item.quantity).toFixed(2)}`).join("\n\n");
-                    const gstLine = gstPct > 0 ? `\n*GST (${gstPct}%):* ${cur}${gst.toFixed(2)}` : "";
-                    const msg = `*🍽️ Order Details 🍽️*\n\n*Order ID:* ${sid}-${m} ${d}\n*Time:* ${nowTime}\n\n*📋 Order Items:*\n${itemsText}\n\n*Subtotal:* ${cur}${discSub.toFixed(2)}${gstLine}\n\n*Total Price:* ${cur}${total.toFixed(2)}`;
+                    const msg = `*🍽️ Order Details 🍽️*\n\n*Order ID:* ${sid}\n\n*📋 Order Items:*\n${itemsText}\n\n*Total Price:* ${cur}${total.toFixed(2)}`;
                     return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
                 })()}
                 onBack={() => setUpiOrder(null)}
@@ -138,67 +115,25 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
             </div>
 
             {partnerOrders.map((order) => {
-                const gstPercentage =
-                    (order.partner as Partner)?.gst_percentage || 0;
-                const foodTotal = (order.items || []).reduce(
-                    (sum: number, item: any) => sum + item.price * item.quantity,
-                    0
-                );
-
-                const extraChargesTotal =
-                    (order.extraCharges || []).reduce(
-                        (sum: number, charge: any) =>
-                            sum +
-                            getExtraCharge(
-                                order?.items || [],
-                                charge.amount,
-                                charge.charge_type
-                            ) || 0,
-                        0
-                    ) || 0;
-
-                const subtotal = foodTotal + extraChargesTotal;
-
+                const grandTotal = order.totalPrice || 0;
                 const discounts = order.discounts || [];
-                const discountAmount = discounts.reduce((total: number, discount: any) => {
-                    if (discount.type === "flat") {
-                        return total + discount.value;
-                    } else {
-                        return total + (subtotal * discount.value) / 100;
-                    }
-                }, 0);
-
-                const discountedSubtotal = Math.max(0, subtotal - discountAmount);
-                const discountedFoodTotal = Math.max(0, foodTotal - discountAmount);
-                const gstAmount = getGstAmount(discountedFoodTotal, gstPercentage);
-                const grandTotal = discountedSubtotal + gstAmount;
+                const discountSavings = (discounts[0] as any)?.savings || 0;
+                const gstPercentage = (order.partner as Partner)?.gst_percentage || 0;
+                const foodTotal = (order.items || []).reduce((s: number, i: any) => s + i.price * i.quantity, 0);
+                const gstAmount = getGstAmount(foodTotal, gstPercentage);
+                const extraCharges = order.extraCharges || [];
+                const isUAE = (order.partner as Partner)?.country === "United Arab Emirates";
                 const statusDisplay = getStatusDisplay(order);
                 const isCompleted = order.status === "completed" || order.status === "cancelled";
                 const hasUpiQr = partnerPaymentInfo?.show_payment_qr && !!partnerPaymentInfo?.upi_id;
                 const rawPhone = partnerPaymentInfo?.phone;
                 const whatsappPhone = rawPhone?.replace(/\D/g, "");
-                const currency = (order.partner as Partner)?.currency || "₹";
-                const nowTime = new Intl.DateTimeFormat("en-GB", { hour: "numeric", minute: "numeric", hour12: true }).format(new Date(order.createdAt || Date.now()));
-                const dateParts = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).formatToParts(new Date(order.createdAt || Date.now()));
-                const day = dateParts.find(p => p.type === "day")?.value;
-                const month = dateParts.find(p => p.type === "month")?.value;
+                const currency = order.partner?.currency || "₹";
                 const shortId = ((order as any).display_id || order.id.slice(0, 4).toUpperCase());
-                const formattedOrderId = `${shortId}-${month} ${day}`;
-                const orderTypeStr = order.type === "table_order" && order.tableNumber
-                    ? `*Table:* ${order.tableNumber}`
-                    : `*Order Type:* ${order.type?.replace("_", " ") || "Delivery"}`;
-                const deliveryLine = order.type === "delivery" && order.deliveryAddress
-                    ? `\n*Delivery Address:* ${order.deliveryAddress}`
-                    : "";
-                const customerPhone = (order as any).user?.phone || (order as any).phone;
-                const phoneLine = customerPhone ? `\n*Customer Phone:* ${customerPhone}\n` : "";
                 const itemsText = (order.items || [])
                     .map((item: any, index: number) => `${index + 1}. ${item.name}\n   ➤ Qty: ${item.quantity} × ${currency}${item.price.toFixed(2)} = ${currency}${(item.price * item.quantity).toFixed(2)}`)
                     .join("\n\n");
-                const gstLine = gstPercentage > 0
-                    ? `\n*${(order.partner as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"} (${gstPercentage}%):* ${currency}${gstAmount.toFixed(2)}`
-                    : "";
-                const whatsappMsg = `*🍽️ Order Details 🍽️*\n\n*Order ID:* ${formattedOrderId}\n${orderTypeStr}${deliveryLine}${phoneLine}\n*Time:* ${nowTime}\n\n*📋 Order Items:*\n${itemsText}\n\n*Subtotal:* ${currency}${(foodTotal + extraChargesTotal).toFixed(2)}${gstLine}\n\n*Total Price:* ${currency}${grandTotal.toFixed(2)}`;
+                const whatsappMsg = `*🍽️ Order Details 🍽️*\n\n*Order ID:* ${shortId}\n\n*📋 Order Items:*\n${itemsText}\n\n*Total Price:* ${currency}${grandTotal.toFixed(2)}`;
                 const whatsappLink = whatsappPhone
                     ? `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(whatsappMsg)}`
                     : null;
@@ -242,12 +177,26 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                                         </span>
                                     </div>
                                 ))}
-                                {discountAmount > 0 && (
+                                {extraCharges.map((charge: any, idx: number) => {
+                                    const chargeAmount = getExtraCharge(order.items || [], charge.amount, charge.charge_type);
+                                    return chargeAmount > 0 ? (
+                                        <div key={idx} className="flex justify-between text-sm text-gray-500">
+                                            <span>{charge.name}</span>
+                                            <span>{currency}{chargeAmount.toFixed(2)}</span>
+                                        </div>
+                                    ) : null;
+                                })}
+                                {gstAmount > 0 && (
+                                    <div className="flex justify-between text-sm text-gray-500">
+                                        <span>{isUAE ? "VAT" : "GST"} ({gstPercentage}%)</span>
+                                        <span>{currency}{gstAmount.toFixed(2)}</span>
+                                    </div>
+                                )}
+                                {discountSavings > 0 && (
                                     <div className="flex justify-between text-sm text-green-600">
-                                        <span>Discount</span>
+                                        <span>Discount {(discounts[0] as any)?.code ? `(${(discounts[0] as any).code})` : ""}</span>
                                         <span className="font-medium">
-                                            - {(order.partner as Partner)?.currency || "₹"}
-                                            {discountAmount.toFixed(2)}
+                                            -{currency}{discountSavings.toFixed(2)}
                                         </span>
                                     </div>
                                 )}

@@ -11,7 +11,7 @@ import { unstable_cache } from "next/cache";
 import React from "react";
 import { Partner } from "@/store/authStore";
 import { getAuthCookie } from "@/app/auth/actions";
-import { ThemeConfig } from "@/components/hotelDetail/ThemeChangeButton";
+import { ThemeConfig, DEFAULT_THEME } from "@/components/hotelDetail/ThemeChangeButton";
 import { Metadata } from "next";
 import { getSocialLinks } from "@/lib/getSocialLinks";
 import { usePartnerStore } from "@/store/usePartnerStore";
@@ -276,8 +276,8 @@ const HotelPage = async ({
   const theme = (
     typeof hoteldata?.theme === "string"
       ? JSON.parse(hoteldata?.theme)
-      : hoteldata?.theme || {}
-  ) as ThemeConfig;
+      : hoteldata?.theme || null
+  ) as ThemeConfig | null ?? DEFAULT_THEME;
 
   const socialLinks = getSocialLinks(hoteldata as HotelData);
 

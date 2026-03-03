@@ -11,7 +11,7 @@ import { GET_QR_TABLE } from "@/api/qrcodes";
 import { ScanTracker } from "@/components/ScanTracker";
 import { getAuthCookie } from "@/app/auth/actions";
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
-import { ThemeConfig } from "@/components/hotelDetail/ThemeChangeButton";
+import { ThemeConfig, DEFAULT_THEME } from "@/components/hotelDetail/ThemeChangeButton";
 import { getFeatures } from "@/lib/getFeatures";
 import { getSocialLinks } from "@/lib/getSocialLinks";
 import { fetchFromHasura } from "@/lib/hasuraClient";
@@ -238,8 +238,8 @@ const page = async ({
   const theme = (
     typeof hoteldata?.theme === "string"
       ? JSON.parse(hoteldata?.theme)
-      : hoteldata?.theme || {}
-  ) as ThemeConfig;
+      : hoteldata?.theme || null
+  ) as ThemeConfig | null ?? DEFAULT_THEME;
 
   const socialLinks = getSocialLinks(hoteldata as HotelData);
 

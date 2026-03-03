@@ -310,7 +310,7 @@ export function AdminV2Menu() {
                             Sync to Google
                         </Button>
                         )}
-                        {canUseAutoImages && (
+                        {(
                             <Button
                                 variant="outline"
                                 onClick={handleGetAllImages}
