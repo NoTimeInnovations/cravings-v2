@@ -70,6 +70,8 @@ const OrderClient = () => {
         upi_id?: string;
         show_payment_qr?: boolean;
         phone?: string;
+        whatsapp_numbers?: string[] | any;
+        country_code?: string;
     } | null>(null);
 
     useEffect(() => {
@@ -135,6 +137,8 @@ const OrderClient = () => {
                     upi_id
                     show_payment_qr
                     phone
+                    country_code
+                    whatsapp_numbers
                 }
             }
         `, { id: order.partnerId }).then((data) => {
@@ -171,9 +175,36 @@ const OrderClient = () => {
     const isCompleted = order?.status === "completed" || order?.status === "cancelled";
 
     const buildWhatsappLink = () => {
-        const rawPhone = partnerPaymentInfo?.phone;
-        const phone = rawPhone?.replace(/\D/g, "");
+        // Prefer whatsapp_number from whatsapp_numbers array
+        const whatsappNumbers = partnerPaymentInfo?.whatsapp_numbers;
+        let whatsappNum: string | undefined;
+
+        // Handle different possible structures of whatsapp_numbers
+        if (Array.isArray(whatsappNumbers) && whatsappNumbers.length > 0) {
+            // Could be array of strings or array of objects with 'number' field
+            whatsappNum = typeof whatsappNumbers[0] === 'string'
+                ? whatsappNumbers[0]
+                : whatsappNumbers[0]?.number;
+        }
+
+        const phoneNum = partnerPaymentInfo?.phone;
+        const countryCode = partnerPaymentInfo?.country_code;
+
+        let phone = whatsappNum || phoneNum;
         if (!phone) return null;
+
+        // Clean the number (remove non-digits)
+        phone = phone.replace(/\D/g, "");
+
+        // If country code exists and number doesn't start with it, prepend it
+        if (countryCode && !phone.startsWith(countryCode.replace(/\D/g, ""))) {
+            const cleanCountryCode = countryCode.replace(/\D/g, "");
+            phone = cleanCountryCode + phone;
+        }
+
+        // Add + prefix for international format
+        phone = phone.startsWith('+') ? phone : `+${phone}`;
+
         const currency = order?.partner?.currency || "₹";
         const nowTime = new Intl.DateTimeFormat("en-GB", { hour: "numeric", minute: "numeric", hour12: true }).format(new Date(order?.createdAt || Date.now()));
         const dateParts = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).formatToParts(new Date(order?.createdAt || Date.now()));

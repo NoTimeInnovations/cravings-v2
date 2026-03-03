@@ -2502,14 +2502,30 @@ const PlaceOrderModal = ({
       orderNote ? `\n*📝 Note:* ${orderNote}` : "",
     ].filter((line) => line !== undefined).join("\n");
 
-    const number =
+    // Get WhatsApp number (prefer whatsapp_numbers over phone)
+    let number =
       selectedWhatsAppNumber ||
       hotelData?.whatsapp_numbers?.[0]?.number ||
       hotelData?.phone ||
       "8590115462";
 
-    return `https://api.whatsapp.com/send?phone=${hotelData?.country_code || "+91"
-      }${number}&text=${encodeURIComponent(whatsappMsg)}`;
+    // Clean the number (remove non-digits)
+    number = number.replace(/\D/g, "");
+
+    // Get and clean country code
+    const countryCode = hotelData?.country_code;
+    if (countryCode) {
+      const cleanCountryCode = countryCode.replace(/\D/g, "");
+      // Only prepend country code if number doesn't already start with it
+      if (!number.startsWith(cleanCountryCode)) {
+        number = cleanCountryCode + number;
+      }
+    }
+
+    // Add + prefix for international format
+    const formattedNumber = number.startsWith('+') ? number : `+${number}`;
+
+    return `https://api.whatsapp.com/send?phone=${formattedNumber}&text=${encodeURIComponent(whatsappMsg)}`;
   };
 
   const handlePlaceOrder = async (onSuccessCallback?: () => void) => {
