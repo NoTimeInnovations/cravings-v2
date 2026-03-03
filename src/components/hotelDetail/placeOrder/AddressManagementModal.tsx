@@ -119,6 +119,7 @@ const AddressManagementModal = ({
   const [geocoding, setGeocoding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [showSelectBtn, setShowSelectBtn] = useState(true);
   const [manualAddress, setManualAddress] = useState("");
 
   const [hotelMarkerVisible, setHotelMarkerVisible] = useState(true);
@@ -132,7 +133,6 @@ const AddressManagementModal = ({
   );
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const lastGeocodedRef = useRef<string>("");
   const hotelMarkerRef = useRef<google.maps.Marker | null>(null);
 
   const { isLoaded, loadError } = useLoadScript({
@@ -184,7 +184,6 @@ const AddressManagementModal = ({
       setPredictions([]);
       setGeocodedInfo(null);
       setManualAddress("");
-      lastGeocodedRef.current = "";
       hotelMarkerRef.current?.setMap(null);
       hotelMarkerRef.current = null;
       setHotelMarkerVisible(true);
@@ -384,13 +383,7 @@ const AddressManagementModal = ({
     if (!center) return;
     const lat = center.lat();
     const lng = center.lng();
-    // Round to ~11m precision to avoid repeated geocoding for tiny drifts
-    const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
-    if (key !== lastGeocodedRef.current) {
-      lastGeocodedRef.current = key;
-      setMapCenter({ lat, lng });
-      reverseGeocode(lat, lng);
-    }
+    setMapCenter({ lat, lng });
 
     // Check if hotel marker is visible in bounds
     if (hotelCoords) {
@@ -401,14 +394,28 @@ const AddressManagementModal = ({
         setHotelDirection(null);
       } else {
         setHotelMarkerVisible(false);
-        // Calculate angle from map center to hotel
         const dLng = hotelCoords.lng - lng;
         const dLat = hotelCoords.lat - lat;
-        const angle = Math.atan2(dLng, dLat) * (180 / Math.PI); // 0=north, 90=east
+        const angle = Math.atan2(dLng, dLat) * (180 / Math.PI);
         setHotelDirection({ angle });
       }
     }
-  }, [reverseGeocode, hotelCoords]);
+  }, [hotelCoords]);
+
+  const handleSelectLocation = useCallback(() => {
+    if (!mapRef.current) return;
+    const center = mapRef.current.getCenter();
+    if (!center) return;
+    const lat = center.lat();
+    const lng = center.lng();
+    setMapCenter({ lat, lng });
+    setShowSelectBtn(false);
+    reverseGeocode(lat, lng);
+  }, [reverseGeocode]);
+
+  const handleMapDragStart = useCallback(() => {
+    setShowSelectBtn(true);
+  }, []);
 
   const handleConfirm = async () => {
     if (!geocodedInfo) {
@@ -686,7 +693,8 @@ const AddressManagementModal = ({
             zoom={17}
             onLoad={(map) => {
               mapRef.current = map;
-              // Initial reverse geocode
+              // Auto-select on first load
+              setShowSelectBtn(false);
               reverseGeocode(mapCenter.lat, mapCenter.lng);
               // Add hotel marker
               if (hotelCoords && !hotelMarkerRef.current) {
@@ -704,6 +712,7 @@ const AddressManagementModal = ({
               }
             }}
             onIdle={handleMapIdle}
+            onDragStart={handleMapDragStart}
             options={{
               zoomControl: false,
               streetViewControl: false,
@@ -734,6 +743,20 @@ const AddressManagementModal = ({
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-0.5 pointer-events-none z-10">
           <div className="w-3 h-1 bg-black/20 rounded-full" />
         </div>
+
+        {/* Select location pill button below pin */}
+        {showSelectBtn && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-3 z-10">
+            <button
+              onClick={handleSelectLocation}
+              className="flex items-center gap-1.5 px-4 py-2 text-white rounded-full shadow-lg text-sm font-semibold active:scale-95 transition-transform"
+              style={{ backgroundColor: "#EA580C" }}
+            >
+              <MapPin className="h-4 w-4" />
+              Click to select location
+            </button>
+          </div>
+        )}
 
         {/* Hotel direction indicator when marker is off-screen */}
         {!hotelMarkerVisible && hotelDirection && hotelCoords && (
@@ -821,9 +844,7 @@ const AddressManagementModal = ({
           {geocoding ? (
             <div className="flex items-center gap-3 mt-4">
               <Loader2 className="h-5 w-5 animate-spin text-orange-500" />
-              <span className="text-sm text-gray-400">
-                Finding address...
-              </span>
+              <span className="text-sm text-gray-400">Finding address...</span>
             </div>
           ) : geocodedInfo ? (
             <div className="flex items-start gap-2.5 mt-4">

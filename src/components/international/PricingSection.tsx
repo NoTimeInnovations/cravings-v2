@@ -66,7 +66,7 @@ const PricingSection = ({
       variants: [
         {
           id: "free_plan",
-          name: "Free Menu",
+          name: "Free",
           price: "0",
           period: "forever",
           billed: "No billing required",
@@ -161,7 +161,7 @@ const PricingSection = ({
       variants: [
         {
           id: "free_plan",
-          name: "Free Menu",
+          name: "Free",
           price: "0",
           period: "forever",
           billed: "No billing required",

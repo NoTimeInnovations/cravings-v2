@@ -26,7 +26,7 @@ export function SubscriptionStatus() {
     const sub = userData?.role === "partner" ? userData.subscription_details : undefined;
     const planId = sub?.plan?.id;
     const isOnFreePlan = isFreePlan(planId);
-    const planName = sub?.plan?.name || "Free Menu";
+    const planName = sub?.plan?.name || "Free";
 
     // Date calculation - free plan has no expiry
     const periodDays = sub?.plan?.period_days;

@@ -51,7 +51,7 @@ const tutorialVideos = [
   {
     id: 3,
     heading: "Availability Management",
-    en: "https://www.youtube.com/embed/hrjoah9f8NA?si=BpiBnXTPwF0jZEW_",
+    en: "https://www.youtube.com/embed/rG8nOXMNHg8?si=kbqj5fL4EOEaQO3q",
     ml: "https://www.youtube.com/embed/hrjoah9f8NA?si=BpiBnXTPwF0jZEW_", // replace with Malayalam URL
   },
   {
@@ -64,19 +64,19 @@ const tutorialVideos = [
 
 const tips = [
   {
-    title: "Set up your menu",
+    title: "Add photos to your menu items",
     description:
-      "Add your items and categories to start receiving orders from customers.",
+      "Items with images get up to 70% more orders. Upload clear, well-lit photos to grab attention.",
   },
   {
-    title: "Share your QR code",
+    title: "Keep your menu updated",
     description:
-      "Print and place QR codes at your tables to let customers scan and order.",
+      "Restaurants that update prices and availability weekly see 40% fewer order cancellations.",
   },
   {
-    title: "Enable delivery",
+    title: "Respond to orders quickly",
     description:
-      "Expand your reach by enabling delivery orders for your restaurant.",
+      "Accepting orders within 2 minutes boosts repeat customers by 35%. Speed builds trust.",
   },
 ];
 
@@ -152,7 +152,9 @@ export function AdminV2Dashboard() {
   useEffect(() => {
     if (!hasSeenDashboardTour && !loading) {
       const isMobile = window.innerWidth < 768;
-      const totalSteps = isMobile ? MOBILE_TOUR_STEPS.length : DESKTOP_TOUR_STEPS.length;
+      const totalSteps = isMobile
+        ? MOBILE_TOUR_STEPS.length
+        : DESKTOP_TOUR_STEPS.length;
 
       const timer = setTimeout(() => {
         startTour(totalSteps);
@@ -178,6 +180,7 @@ export function AdminV2Dashboard() {
           },
         ]
       : []),
+
     {
       title: "Manage Orders",
       icon: ShoppingBag,
@@ -191,12 +194,6 @@ export function AdminV2Dashboard() {
         ),
     },
     { title: "Edit Menu", icon: UtensilsCrossed, view: "Menu" },
-    {
-      title: "QR Codes",
-      icon: QrCode,
-      view: "QrCodes",
-      hidden: isOnFreePlan,
-    },
     { title: "Analytics", icon: BarChart3, view: "Analytics" },
     { title: "Settings", icon: Settings, view: "Settings" },
   ];
@@ -265,7 +262,19 @@ export function AdminV2Dashboard() {
         <h2 className="text-base font-bold tracking-tight mb-3">
           Quick Actions
         </h2>
-        <div className=" grid grid-cols-4 sm:flex sm:flex-wrap gap-2" data-tour="quick-actions">
+        <div
+          className=" grid grid-cols-4 sm:flex sm:flex-wrap gap-2"
+          data-tour="quick-actions"
+        >
+          {qrId && (
+            <button
+              onClick={handleShowQr}
+              className="flex flex-col items-center justify-center gap-1.5 w-20 h-20 rounded-xl border bg-background hover:bg-muted transition-colors text-xs font-medium"
+            >
+              <QrCode className="h-5 w-5 text-orange-600 shrink-0" />
+              <span className="text-center leading-tight">View QR</span>
+            </button>
+          )}
           {quickActions.map((action) => (
             <button
               key={action.title}
@@ -276,15 +285,7 @@ export function AdminV2Dashboard() {
               <span className="text-center leading-tight">{action.title}</span>
             </button>
           ))}
-          {qrId && (
-            <button
-              onClick={handleShowQr}
-              className="flex flex-col items-center justify-center gap-1.5 w-20 h-20 rounded-xl border bg-background hover:bg-muted transition-colors text-xs font-medium"
-            >
-              <QrCode className="h-5 w-5 text-orange-600 shrink-0" />
-              <span className="text-center leading-tight">View QR</span>
-            </button>
-          )}
+
           <button
             onClick={() => window.open("https://wa.me/918590115462", "_blank")}
             className="flex flex-col items-center justify-center gap-1.5 w-20 h-20 rounded-xl border bg-background hover:bg-muted transition-colors text-xs font-medium"
@@ -322,7 +323,10 @@ export function AdminV2Dashboard() {
             </button>
           </div>
         </div>
-        <div className="grid gap-3 grid-cols-1 lg:grid-cols-4" data-tour="tutorials">
+        <div
+          className="grid gap-3 grid-cols-1 lg:grid-cols-4"
+          data-tour="tutorials"
+        >
           {tutorialVideos.map((tutorial) => (
             <Card
               key={tutorial.id}

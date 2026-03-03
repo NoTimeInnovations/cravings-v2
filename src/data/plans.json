@@ -2,7 +2,7 @@
     "international": [
         {
             "id": "free_plan",
-            "name": "Free Menu",
+            "name": "Free",
             "price": "Free",
             "description": "Get your digital menu online for free",
             "features": [

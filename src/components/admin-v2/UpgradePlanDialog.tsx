@@ -1,20 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-} from "@/components/ui/dialog";
-import {
-    Drawer,
-    DrawerContent,
-    DrawerHeader,
-    DrawerTitle,
-    DrawerDescription,
-} from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { cn } from "@/lib/utils";
@@ -25,7 +11,7 @@ import {
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import FullScreenLoader from "@/components/ui/FullScreenLoader";
-import { Check, Crown } from "lucide-react";
+import { Check, Crown, X } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
 type UpgradePlanDialogProps = {
@@ -136,7 +122,7 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
     const [isAnnual, setIsAnnual] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [loadingText, setLoadingText] = useState<string | null>(null);
-    const isDesktop = useMediaQuery("(min-width: 640px)");
+
 
     const activeVariant = isAnnual ? plan.yearly : plan.monthly;
     const currentPlanId = partner?.subscription_details?.plan?.id;
@@ -209,93 +195,76 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
         ? `${featureName} is a premium feature. Upgrade to unlock it.`
         : "Upgrade to unlock premium features.";
 
-    const body = (
-        <div className="space-y-4 px-1">
-            {/* Toggle */}
-            <div className="flex items-center justify-center gap-3">
-                <span className={cn(
-                    "text-sm font-medium transition-colors",
-                    !isAnnual ? "text-foreground" : "text-muted-foreground",
-                )}>
-                    Monthly
-                </span>
-                <button
-                    onClick={() => setIsAnnual(!isAnnual)}
-                    className={cn(
-                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                        isAnnual ? "bg-orange-600" : "bg-muted-foreground/30",
-                    )}
-                >
-                    <span className={cn(
-                        "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                        isAnnual ? "translate-x-6" : "translate-x-1",
-                    )} />
-                </button>
-                <span className={cn(
-                    "text-sm font-medium transition-colors",
-                    isAnnual ? "text-foreground" : "text-muted-foreground",
-                )}>
-                    Annual
-                </span>
-            </div>
+    const isDesktop = useMediaQuery("(min-width: 640px)");
 
-            {/* Plan card */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-                {/* Header with calculated price */}
-                <div className="flex items-start justify-between">
-                    <div>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-3xl font-bold text-foreground">
-                                {currencySymbol}{activeVariant.price}
-                            </span>
-                            <span className="text-sm text-muted-foreground">
-                                {isAnnual ? "/year" : "/month"}
-                            </span>
-                        </div>
-                    </div>
-                    <span className="text-xs text-muted-foreground mt-1">
-                        {isAnnual
-                            ? `${currencySymbol}${Math.round(Number(activeVariant.price) / 12)}/mo`
-                            : `${currencySymbol}${Number(activeVariant.price) * 12}/yr`}
+    const toggle = (
+        <div className="flex items-center justify-center gap-3 mb-5">
+            <span className={cn("text-sm font-medium transition-colors", !isAnnual ? "text-foreground" : "text-muted-foreground")}>
+                Monthly
+            </span>
+            <button
+                onClick={() => setIsAnnual(!isAnnual)}
+                className={cn(
+                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200",
+                    isAnnual ? "bg-orange-600" : "bg-gray-300 dark:bg-gray-600",
+                )}
+            >
+                <span className={cn(
+                    "inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform duration-200",
+                    isAnnual ? "translate-x-[22px]" : "translate-x-[2px]",
+                )} />
+            </button>
+            <span className={cn("text-sm font-medium transition-colors", isAnnual ? "text-foreground" : "text-muted-foreground")}>
+                Annual
+            </span>
+        </div>
+    );
+
+    const planCard = (
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div className="flex items-start justify-between">
+                <div className="flex items-baseline gap-1">
+                    <span className="text-3xl font-bold text-foreground">
+                        {currencySymbol}{activeVariant.price}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                        {isAnnual ? "/year" : "/month"}
                     </span>
                 </div>
-                <div>
-                    {activeVariant.savings && (
-                        <span className="inline-block mt-1 text-xs font-semibold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                            {activeVariant.savings}
-                        </span>
-                    )}
-                    <p className="text-sm text-muted-foreground mt-2">
-                        {plan.description}
-                    </p>
-                </div>
-
-                {/* Features */}
-                <div className="space-y-2.5">
-                    {plan.features.map((feature, i) => (
-                        <div key={i} className="flex items-center gap-2.5">
-                            <div className="h-5 w-5 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0">
-                                <Check className="h-3 w-3 text-orange-600 dark:text-orange-400" />
-                            </div>
-                            <span className="text-sm text-foreground">{feature}</span>
-                        </div>
-                    ))}
-                </div>
-
-                {/* CTA */}
-                <Button
-                    onClick={handlePayment}
-                    disabled={isCurrent}
-                    className={cn(
-                        "w-full h-11 text-sm font-medium",
-                        isCurrent
-                            ? ""
-                            : "bg-orange-600 hover:bg-orange-700 text-white",
-                    )}
-                >
-                    {isCurrent ? "Current Plan" : "Upgrade Now"}
-                </Button>
+                <span className="text-xs text-muted-foreground mt-1">
+                    {isAnnual
+                        ? `${currencySymbol}${Math.round(Number(activeVariant.price) / 12)}/mo`
+                        : `${currencySymbol}${Number(activeVariant.price) * 12}/yr`}
+                </span>
             </div>
+            <div>
+                {activeVariant.savings && (
+                    <span className="inline-block text-xs font-semibold text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                        {activeVariant.savings}
+                    </span>
+                )}
+                <p className="text-sm text-muted-foreground mt-2">{plan.description}</p>
+            </div>
+            <div className="space-y-2.5">
+                {plan.features.map((feature, i) => (
+                    <div key={i} className="flex items-center gap-2.5">
+                        <div className="h-5 w-5 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0">
+                            <Check className="h-3 w-3 text-orange-600 dark:text-orange-400" />
+                        </div>
+                        <span className="text-sm text-foreground">{feature}</span>
+                    </div>
+                ))}
+            </div>
+            <Button
+                onClick={handlePayment}
+                disabled={isCurrent}
+                className={cn(
+                    "w-full h-12 text-sm font-semibold rounded-xl",
+                    isCurrent ? "" : "bg-orange-600 hover:bg-orange-700 text-white",
+                )}
+            >
+                {isCurrent ? "Current Plan" : "Upgrade Now"}
+            </Button>
         </div>
     );
 
@@ -305,35 +274,80 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
                 isLoading={isLoading}
                 loadingTexts={loadingText ? [loadingText] : ["Processing..."]}
             />
-            {isDesktop ? (
-                <Dialog open={open} onOpenChange={onOpenChange}>
-                    <DialogContent className="sm:max-w-md">
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2">
-                                <Crown className="h-5 w-5 text-yellow-500" />
-                                Upgrade to Standard
-                            </DialogTitle>
-                            <DialogDescription>{description}</DialogDescription>
-                        </DialogHeader>
-                        {body}
-                    </DialogContent>
-                </Dialog>
-            ) : (
-                <Drawer open={open} onOpenChange={onOpenChange}>
-                    <DrawerContent>
-                        <DrawerHeader>
-                            <DrawerTitle className="flex items-center justify-center gap-2">
-                                <Crown className="h-5 w-5 text-yellow-500" />
-                                Upgrade to Standard
-                            </DrawerTitle>
-                            <DrawerDescription className="text-center">{description}</DrawerDescription>
-                        </DrawerHeader>
-                        <div className="px-4 pb-6">
-                            {body}
+            {open && (
+                <div className="fixed inset-0 z-50">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/60 animate-[fadeIn_200ms_ease-out]"
+                        onClick={() => onOpenChange(false)}
+                    />
+
+                    {isDesktop ? (
+                        /* Desktop: centered dialog */
+                        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                            <div className="bg-background rounded-xl shadow-xl w-full max-w-md mx-4 p-6 pointer-events-auto animate-[scaleIn_200ms_ease-out]">
+                                <div className="flex items-center justify-between mb-1">
+                                    <h2 className="flex items-center gap-2 text-lg font-bold">
+                                        <Crown className="h-5 w-5 text-yellow-500" />
+                                        Upgrade to Standard
+                                    </h2>
+                                    <button
+                                        onClick={() => onOpenChange(false)}
+                                        className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                    >
+                                        <X className="h-5 w-5 text-gray-500" />
+                                    </button>
+                                </div>
+                                <p className="text-sm text-muted-foreground mb-5">{description}</p>
+                                {toggle}
+                                {planCard}
+                            </div>
                         </div>
-                    </DrawerContent>
-                </Drawer>
+                    ) : (
+                        /* Mobile: bottom sheet */
+                        <div className="absolute bottom-0 left-0 right-0 z-10 animate-[slideUp_300ms_ease-out]">
+                            <div className="bg-background rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] max-h-[90dvh] overflow-y-auto">
+                                <div className="flex justify-center pt-3 pb-1">
+                                    <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600" />
+                                </div>
+                                <div className="px-5 pb-6">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <h2 className="flex items-center gap-2 text-lg font-bold">
+                                            <Crown className="h-5 w-5 text-yellow-500" />
+                                            Upgrade to Standard
+                                        </h2>
+                                        <button
+                                            onClick={() => onOpenChange(false)}
+                                            className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                        >
+                                            <X className="h-5 w-5 text-gray-500" />
+                                        </button>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground mb-5">{description}</p>
+                                    {toggle}
+                                    {planCard}
+                                </div>
+                                <div className="h-safe-area-bottom" />
+                            </div>
+                        </div>
+                    )}
+                </div>
             )}
+
+            <style jsx>{`
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                @keyframes slideUp {
+                    from { transform: translateY(100%); }
+                    to { transform: translateY(0); }
+                }
+                @keyframes scaleIn {
+                    from { opacity: 0; transform: scale(0.95); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+            `}</style>
         </>
     );
 }
