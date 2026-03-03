@@ -41,7 +41,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { deleteFileFromS3, uploadFileToS3 } from "../actions/aws-s3";
 import { deleteUserMutation } from "@/api/auth";
-import { updatePartner } from "@/api/partners";
+import { updatePartner, updatePartnerMutation } from "@/api/partners";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import Link from "next/link";
 import { useClaimedOffersStore } from "@/store/claimedOfferStore_hasura";
@@ -877,7 +877,7 @@ export default function ProfilePage() {
       setIsSaving((prev) => {
         return { ...prev, description: true };
       });
-      await updatePartner(userData?.id, {
+      await updatePartner(userData?.id as string, {
           description,
         });
       revalidateTag(userData?.id as string);
@@ -914,7 +914,7 @@ export default function ProfilePage() {
         currencyValue = Currencies[0].value;
       }
 
-      await updatePartner(userData?.id, {
+      await updatePartner(userData?.id as  string, {
           currency: currencyValue,
         });
       revalidateTag(userData?.id as string);
@@ -939,7 +939,7 @@ export default function ProfilePage() {
 
     try {
       toast.loading("Updating feature flags...");
-      await updatePartner(userData?.id, {
+      await updatePartner(userData?.id as string, {
           feature_flags: stringedFeature,
         });
       revalidateTag(userData?.id as string);
@@ -966,7 +966,7 @@ export default function ProfilePage() {
       setIsSaving((prev) => {
         return { ...prev, whatsappNumber: true };
       });
-      await updatePartner(userData?.id, {
+      await updatePartner(userData?.id as string, {
           whatsapp_numbers: [
             {
               number: whatsappNumber,
@@ -1024,7 +1024,7 @@ export default function ProfilePage() {
 
       setIsSaving((prev) => ({ ...prev, whatsappNumber: true }));
 
-      await updatePartner(userData?.id, {
+      await updatePartner(userData?.id as string, {
           whatsapp_numbers: whatsappNumbers,
         });
 
@@ -1065,7 +1065,7 @@ export default function ProfilePage() {
       setIsSaving((prev) => {
         return { ...prev, footNote: true };
       });
-      await updatePartner(userData?.id, {
+      await updatePartner(userData?.id as string, {
           footnote: footNote,
         });
       revalidateTag(userData?.id as string);
@@ -1113,7 +1113,7 @@ export default function ProfilePage() {
         instagram: instaLink,
       };
 
-      await updatePartner(userData?.id, {
+      await updatePartner(userData?.id as string, {
           social_links: JSON.stringify(instaLinkData),
         });
       revalidateTag(userData?.id as string);
@@ -1169,7 +1169,7 @@ export default function ProfilePage() {
       setIsSaving((prev) => {
         return { ...prev, gst: true };
       });
-      await updatePartner(userData?.id, {
+      await updatePartner(userData?.id as string, {
           gst_no: gst.gst_no,
           gst_percentage: gstPercent,
         });
@@ -1224,7 +1224,7 @@ export default function ProfilePage() {
         return { ...prev, fssaiLicenceNo: true };
       });
 
-      await updatePartner(userData?.id, {
+      await updatePartner(userData?.id as string, {
           fssai_licence_no: fssaiLicenceNo,
         });
 
@@ -1559,7 +1559,7 @@ export default function ProfilePage() {
         throw new Error("Failed to extract coordinates from the link");
       }
 
-      await updatePartner(userData?.id, {
+      await updatePartner(userData?.id as string, {
           location: location.trim(),
           geo_location: geoLoc,
         });
@@ -1600,7 +1600,7 @@ export default function ProfilePage() {
       setIsSaving((prev) => ({ ...prev, phone: true }));
       toast.loading("Updating phone number...");
 
-      await updatePartner(userData?.id, {
+      await updatePartner(userData?.id as string, {
           phone: phone,
         });
 
@@ -1623,7 +1623,7 @@ export default function ProfilePage() {
       setIsSaving((prev) => ({ ...prev, locationDetails: true }));
       toast.loading("Updating location details...");
 
-      await updatePartner(userData?.id, {
+      await updatePartner(userData?.id as string, {
           location_details: locationDetails,
         });
 

@@ -583,7 +583,7 @@ export function GeneralSettings() {
 
                             setIsPasswordSaving(true);
                             try {
-                                await updatePartner(userData?.id, { password: newPassword });
+                                await updatePartner(userData?.id as string, { password: newPassword });
                                 toast.success("Password updated successfully");
                                 setNewPassword("");
                                 setConfirmPassword("");

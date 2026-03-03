@@ -292,16 +292,22 @@ export const updatePartnerMutation = `
       feature_flags
       gst_no
       gst_percentage
-      gst_percentage
       whatsapp_numbers
       hide_unavailable
       updated_at
+      fssai_licence_no
+      location_details
+      phone
+      location
+      geo_location
+      social_links
+      footnote
     }
   }
 `;
 
 
-export async function updatePartner(id: string, updates: Record<string, any>) {
+export async function updatePartner(id: string , updates: Record<string, any>) {
   const { fetchFromHasura } = await import("@/lib/hasuraClient");
   return fetchFromHasura(updatePartnerMutation, {
     id,
