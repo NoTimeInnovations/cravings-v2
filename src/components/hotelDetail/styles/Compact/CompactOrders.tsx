@@ -24,6 +24,8 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
         upi_id?: string;
         show_payment_qr?: boolean;
         phone?: string;
+        whatsapp_numbers?: string[] | any;
+        country_code?: string;
     } | null>(null);
 
     useEffect(() => {
@@ -45,6 +47,8 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                     upi_id
                     show_payment_qr
                     phone
+                    country_code
+                    whatsapp_numbers
                 }
             }
         `, { id: hotelId }).then((data) => {
@@ -57,6 +61,39 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
     const partnerOrders = userOrders
         .filter((order) => order.partnerId === hotelId)
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // Helper function to get WhatsApp number with country code
+    const getWhatsAppNumber = () => {
+        // Prefer whatsapp_number from whatsapp_numbers array
+        const whatsappNumbers = partnerPaymentInfo?.whatsapp_numbers;
+        let whatsappNum: string | undefined;
+
+        // Handle different possible structures of whatsapp_numbers
+        if (Array.isArray(whatsappNumbers) && whatsappNumbers.length > 0) {
+            // Could be array of strings or array of objects with 'number' field
+            whatsappNum = typeof whatsappNumbers[0] === 'string'
+                ? whatsappNumbers[0]
+                : whatsappNumbers[0]?.number;
+        }
+
+        const phoneNum = partnerPaymentInfo?.phone;
+        const countryCode = partnerPaymentInfo?.country_code;
+
+        let number = whatsappNum || phoneNum;
+        if (!number) return null;
+
+        // Clean the number (remove non-digits)
+        number = number.replace(/\D/g, "");
+
+        // If country code exists and number doesn't start with it, prepend it
+        if (countryCode && !number.startsWith(countryCode.replace(/\D/g, ""))) {
+            const cleanCountryCode = countryCode.replace(/\D/g, "");
+            number = cleanCountryCode + number;
+        }
+
+        // Add + prefix for international format
+        return number.startsWith('+') ? number : `+${number}`;
+    };
 
     if (loading && partnerOrders.length === 0) {
         return (
@@ -91,8 +128,7 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                 orderId={upiOrder.id}
                 postPaymentMessage={null}
                 whatsappLink={(() => {
-                    const rawPhone = partnerPaymentInfo?.phone;
-                    const phone = rawPhone?.replace(/\D/g, "");
+                    const phone = getWhatsAppNumber();
                     if (!phone) return "";
                     const cur = upiOrder.partner?.currency || "₹";
                     const total = upiOrder.totalPrice || 0;
@@ -126,8 +162,7 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                 const statusDisplay = getStatusDisplay(order);
                 const isCompleted = order.status === "completed" || order.status === "cancelled";
                 const hasUpiQr = partnerPaymentInfo?.show_payment_qr && !!partnerPaymentInfo?.upi_id;
-                const rawPhone = partnerPaymentInfo?.phone;
-                const whatsappPhone = rawPhone?.replace(/\D/g, "");
+                const whatsappPhone = getWhatsAppNumber();
                 const currency = order.partner?.currency || "₹";
                 const shortId = ((order as any).display_id || order.id.slice(0, 4).toUpperCase());
                 const itemsText = (order.items || [])
