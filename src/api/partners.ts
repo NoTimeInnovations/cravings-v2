@@ -376,7 +376,7 @@ export interface Partner {
   geo_location?: {
     type: string;
     coordinates: [number, number];
-  };
+  } | string;
 }
 
 export interface UpdatePartnerStatusResponse {

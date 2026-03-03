@@ -109,7 +109,7 @@ const AddressManagementModal = ({
     google.maps.places.AutocompletePrediction[]
   >([]);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
-  const initialCenter = hotelData?.geo_location?.coordinates
+  const initialCenter = hotelData?.geo_location && typeof hotelData.geo_location === "object" && "coordinates" in hotelData.geo_location
     ? { lat: hotelData.geo_location.coordinates[1], lng: hotelData.geo_location.coordinates[0] }
     : DEFAULT_CENTER;
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>(
@@ -141,7 +141,7 @@ const AddressManagementModal = ({
   });
 
   // Hotel coordinates from geo_location
-  const hotelCoords = hotelData?.geo_location?.coordinates
+  const hotelCoords = hotelData?.geo_location && typeof hotelData.geo_location === "object" && "coordinates" in hotelData.geo_location
     ? { lat: hotelData.geo_location.coordinates[1], lng: hotelData.geo_location.coordinates[0] }
     : null;
 
