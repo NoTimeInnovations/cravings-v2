@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Menu, Printer } from "lucide-react";
+import { Menu, Printer, Crown } from "lucide-react";
 
 import { SheetTrigger } from "@/components/ui/sheet";
 import { ModeToggle } from "@/components/mode-toggle";
@@ -12,21 +12,24 @@ import { AdminAccountSwitcher } from "./AdminAccountSwitcher";
 interface AdminNavbarProps {
     onToggleSidebar?: () => void;
     isSidebarOpen?: boolean;
+    onUpgrade?: () => void;
 }
 
-export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps) {
+export function AdminNavbar({ onToggleSidebar, isSidebarOpen, onUpgrade }: AdminNavbarProps) {
     const { userData } = useAuthStore();
+    const planId = (userData as any)?.subscription_details?.plan?.id;
+    const isOnFreePlan = isFreePlan(planId);
 
     return (
         <nav className="flex items-center justify-between px-4 py-3 bg-background border-b border-border">
             <div className="flex items-center gap-4">
                 <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="lg:hidden">
+                    <Button variant="ghost" size="icon" className="lg:hidden" data-tour="hamburger-menu">
                         <Menu className="h-6 w-6" />
                         <span className="sr-only">Toggle sidebar</span>
                     </Button>
                 </SheetTrigger>
-                <Button variant="ghost" size="icon" className="hidden lg:flex" onClick={onToggleSidebar}>
+                <Button variant="ghost" size="icon" className="hidden lg:flex" onClick={onToggleSidebar} data-tour="hamburger-menu">
                     <Menu className="h-6 w-6" />
                     <span className="sr-only">Toggle sidebar</span>
                 </Button>
@@ -35,10 +38,35 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                     <span className="text-xl font-bold text-orange-600 dark:text-orange-400">
                         {userData?.role === 'partner' ? (userData as Partner).store_name : "Menuthere"}
                     </span>
+                    {userData?.role === 'partner' && (() => {
+                        const planName = (userData as any)?.subscription_details?.plan?.name || "Free";
+                        const isOnFreePlan = isFreePlan((userData as Partner)?.subscription_details?.plan?.id);
+
+                        return (
+                            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                                isOnFreePlan
+                                    ? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                                    : "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                            }`}>
+                                {planName}
+                            </span>
+                        );
+                    })()}
                 </div>
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4">
+                {userData?.role === 'partner' && isOnFreePlan && onUpgrade && (
+                    <Button
+                        variant="default"
+                        size="sm"
+                        className="lg:hidden bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-full"
+                        onClick={onUpgrade}
+                    >
+                        <Crown className="h-4 w-4 mr-1.5" />
+                        Upgrade
+                    </Button>
+                )}
                 {userData?.role === 'partner' && !(userData as Partner).is_shop_open && (
                     <div className="hidden sm:flex items-center px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-semibold rounded-full border border-red-200 dark:border-red-800 animate-pulse">
                         <span className="relative flex h-2 w-2 mr-2">
@@ -69,11 +97,17 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen }: AdminNavbarProps
                     return null;
                 })()}
                 {!isFreePlan((userData as Partner)?.subscription_details?.plan?.id) && (
-                    <OrderNotification />
+                    <div data-tour="notifications">
+                        <OrderNotification />
+                    </div>
                 )}
-                <ModeToggle />
+                <div data-tour="dark-mode">
+                    <ModeToggle />
+                </div>
                 {userData?.role === 'partner' && (
-                    <AdminAccountSwitcher />
+                    <div data-tour="account-switcher">
+                        <AdminAccountSwitcher />
+                    </div>
                 )}
             </div>
         </nav>

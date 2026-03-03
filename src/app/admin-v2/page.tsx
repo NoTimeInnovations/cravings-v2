@@ -41,6 +41,7 @@ const AdminV2PurchaseInventory = dynamic(() => import("@/components/admin-v2/Adm
     loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
 });
 import { useAdminStore } from "@/store/adminStore";
+import { UpgradePlanDialog } from "@/components/admin-v2/UpgradePlanDialog";
 
 
 export default function AdminPage() {
@@ -48,6 +49,7 @@ export default function AdminPage() {
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [renderedViews, setRenderedViews] = useState<string[]>([]);
+    const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false);
 
     // Track visited views to keep them mounted
     if (!renderedViews.includes(activeView)) {
@@ -65,7 +67,11 @@ export default function AdminPage() {
     return (
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
             <div className="h-screen flex flex-col bg-orange-50 dark:bg-background">
-                <AdminNavbar onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
+                <AdminNavbar
+                    onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                    isSidebarOpen={isSidebarOpen}
+                    onUpgrade={() => setIsUpgradeDialogOpen(true)}
+                />
 
                 <div className="flex flex-1 overflow-hidden">
                     {/* Desktop Sidebar */}
@@ -77,6 +83,7 @@ export default function AdminPage() {
                             <AdminSidebar
                                 activeView={activeView}
                                 onNavigate={handleNavigate}
+                                onUpgrade={() => setIsUpgradeDialogOpen(true)}
                             />
                         </div>
                     </aside>
@@ -92,6 +99,10 @@ export default function AdminPage() {
                                 activeView={activeView}
                                 onNavigate={(view) => {
                                     handleNavigate(view);
+                                    setIsMobileOpen(false);
+                                }}
+                                onUpgrade={() => {
+                                    setIsUpgradeDialogOpen(true);
                                     setIsMobileOpen(false);
                                 }}
                             />
@@ -162,6 +173,10 @@ export default function AdminPage() {
                     </main>
                 </div>
             </div>
+            <UpgradePlanDialog
+                open={isUpgradeDialogOpen}
+                onOpenChange={setIsUpgradeDialogOpen}
+            />
         </Sheet>
     );
 }

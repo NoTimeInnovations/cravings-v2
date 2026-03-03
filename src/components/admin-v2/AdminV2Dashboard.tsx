@@ -31,6 +31,9 @@ import { isFreePlan } from "@/lib/getPlanLimits";
 import { getFeatures } from "@/lib/getFeatures";
 import { GET_SCAN_ANALYTICS } from "@/api/analytics";
 import { GET_QR_CODES_BY_PARTNER } from "@/api/qrcodes";
+import { useTourStore } from "@/store/tourStore";
+import { DashboardTour } from "./tour/DashboardTour";
+import { DESKTOP_TOUR_STEPS, MOBILE_TOUR_STEPS } from "./tour/tourSteps";
 
 const tutorialVideos = [
   {
@@ -102,6 +105,9 @@ export function AdminV2Dashboard() {
   const [qrImageUrl, setQrImageUrl] = useState<string>("");
   const [qrLoading, setQrLoading] = useState(false);
 
+  // Tour state
+  const { hasSeenDashboardTour, startTour } = useTourStore();
+
   useEffect(() => {
     if (!userData?.id) return;
 
@@ -141,6 +147,20 @@ export function AdminV2Dashboard() {
 
     fetchDashboardData();
   }, [userData?.id]);
+
+  // Start tour for first-time users
+  useEffect(() => {
+    if (!hasSeenDashboardTour && !loading) {
+      const isMobile = window.innerWidth < 768;
+      const totalSteps = isMobile ? MOBILE_TOUR_STEPS.length : DESKTOP_TOUR_STEPS.length;
+
+      const timer = setTimeout(() => {
+        startTour(totalSteps);
+      }, 800);
+
+      return () => clearTimeout(timer);
+    }
+  }, [hasSeenDashboardTour, loading, startTour]);
 
   const features = partner?.feature_flags
     ? getFeatures(partner.feature_flags || "")
@@ -212,6 +232,7 @@ export function AdminV2Dashboard() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
+      <DashboardTour />
       {/* Welcome Header + Monthly Scans */}
       <div
         className="rounded-xl border bg-muted/40 p-6 sm:p-8 flex items-center justify-between gap-4 cursor-pointer hover:shadow-md transition-shadow"
@@ -244,7 +265,7 @@ export function AdminV2Dashboard() {
         <h2 className="text-base font-bold tracking-tight mb-3">
           Quick Actions
         </h2>
-        <div className=" grid grid-cols-4 sm:flex sm:flex-wrap gap-2">
+        <div className=" grid grid-cols-4 sm:flex sm:flex-wrap gap-2" data-tour="quick-actions">
           {quickActions.map((action) => (
             <button
               key={action.title}
@@ -301,7 +322,7 @@ export function AdminV2Dashboard() {
             </button>
           </div>
         </div>
-        <div className="grid gap-3 grid-cols-1 lg:grid-cols-4">
+        <div className="grid gap-3 grid-cols-1 lg:grid-cols-4" data-tour="tutorials">
           {tutorialVideos.map((tutorial) => (
             <Card
               key={tutorial.id}

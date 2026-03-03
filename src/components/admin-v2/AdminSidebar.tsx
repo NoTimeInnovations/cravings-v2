@@ -11,6 +11,7 @@ import {
     LifeBuoy,
     Percent,
     CreditCard,
+    Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -42,10 +43,11 @@ const FREE_PLAN_LOCKED_IDS = ["captains", "pos", "inventory", "orders", "qrcodes
 interface AdminSidebarProps {
     activeView: string;
     onNavigate: (view: string) => void;
+    onUpgrade?: () => void;
     className?: string;
 }
 
-export function AdminSidebar({ activeView, onNavigate, className }: AdminSidebarProps) {
+export function AdminSidebar({ activeView, onNavigate, onUpgrade, className }: AdminSidebarProps) {
     const { features, userData } = useAuthStore();
     const planId = (userData as any)?.subscription_details?.plan?.id;
     const isOnFreePlan = isFreePlan(planId);
@@ -77,7 +79,7 @@ export function AdminSidebar({ activeView, onNavigate, className }: AdminSidebar
     const visibleItems = sidebarItems.filter((item) => getItemState(item) !== "hidden");
 
     return (
-        <div className={cn("flex flex-col h-full py-4", className)}>
+        <div className={cn("flex flex-col h-full py-4", className)} data-tour="sidebar">
             <div className="px-3 py-2">
                 <div className="space-y-1">
                     {visibleItems.map((item) => {
@@ -99,7 +101,17 @@ export function AdminSidebar({ activeView, onNavigate, className }: AdminSidebar
                 </div>
             </div>
 
-            <div className="mt-auto px-3 py-4 border-t border-border">
+            <div className="mt-auto px-3 py-4 border-t border-border space-y-1">
+                {isOnFreePlan && onUpgrade && (
+                    <Button
+                        variant="default"
+                        className="hidden lg:flex w-full justify-start bg-orange-600 hover:bg-orange-700 text-white font-medium"
+                        onClick={onUpgrade}
+                    >
+                        <Crown className="mr-2 h-4 w-4" />
+                        Upgrade Plan
+                    </Button>
+                )}
                 <Button
                     variant={activeView === "Help & Support" ? "secondary" : "ghost"}
                     className={cn(
