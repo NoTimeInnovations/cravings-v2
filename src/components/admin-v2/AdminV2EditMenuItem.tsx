@@ -24,6 +24,7 @@ interface AdminV2EditMenuItemProps {
 export interface Variant {
     name: string;
     price: number;
+    delivery_price?: number;
 }
 
 export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) {
@@ -37,15 +38,18 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
     const [editingItem, setEditingItem] = useState({
         ...item,
         price: item.price.toString(),
+        delivery_price: item.delivery_price != null ? item.delivery_price.toString() : "",
         tags: item.tags || [],
         is_price_as_per_size: item.is_price_as_per_size || false,
         is_top: item.is_top || false,
+        show_on_delivery: item.show_on_delivery !== false,
     });
 
     const [variants, setVariants] = useState<Variant[]>(item.variants || []);
-    const [newVariant, setNewVariant] = useState<Omit<Variant, "id">>({
+    const [newVariant, setNewVariant] = useState<Variant>({
         name: "",
         price: 0,
+        delivery_price: undefined,
     });
     const [editingVariantIndex, setEditingVariantIndex] = useState<number | null>(null);
     const [showVariantForm, setShowVariantForm] = useState(false);
@@ -73,6 +77,8 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
             await updateItem(item.id!, {
                 name: editingItem.name,
                 price: editingItem.is_price_as_per_size ? 0 : parseFloat(editingItem.price),
+                delivery_price: editingItem.delivery_price !== "" ? parseFloat(editingItem.delivery_price) : undefined,
+                show_on_delivery: editingItem.show_on_delivery,
                 image_url: editingItem.image_url,
                 description: editingItem.description,
                 category: editingItem.category,
@@ -114,7 +120,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
             return;
         }
         setVariants([...variants, { ...newVariant }]);
-        setNewVariant({ name: "", price: 0 });
+        setNewVariant({ name: "", price: 0, delivery_price: undefined });
         setShowVariantForm(false);
     };
 
@@ -129,7 +135,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
         const updatedVariants = [...variants];
         updatedVariants[editingVariantIndex] = { ...newVariant };
         setVariants(updatedVariants);
-        setNewVariant({ name: "", price: 0 });
+        setNewVariant({ name: "", price: 0, delivery_price: undefined });
         setEditingVariantIndex(null);
         setShowVariantForm(false);
     };
@@ -145,7 +151,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
     };
 
     const cancelVariantEdit = () => {
-        setNewVariant({ name: "", price: 0 });
+        setNewVariant({ name: "", price: 0, delivery_price: undefined });
         setEditingVariantIndex(null);
         setShowVariantForm(false);
     };
@@ -247,6 +253,22 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                                 </div>
                             </div>
 
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Delivery Price (₹)</label>
+                                    <Input
+                                        type="number"
+                                        placeholder="Same as base price"
+                                        value={editingItem.delivery_price}
+                                        onChange={(e) => setEditingItem({ ...editingItem, delivery_price: e.target.value })}
+                                        disabled={variants.length > 0}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        {variants.length > 0 ? "Set per variant below" : "Used for hotel/delivery orders. Leave blank to use base price."}
+                                    </p>
+                                </div>
+                            </div>
+
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Food Type</label>
                                 <div className="flex flex-col sm:flex-row gap-4">
@@ -305,6 +327,17 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                                         onCheckedChange={(checked) => setEditingItem({ ...editingItem, is_price_as_per_size: checked })}
                                     />
                                 </div>
+
+                                <div className="flex items-center justify-between border rounded-lg p-3">
+                                    <div className="space-y-0.5">
+                                        <label className="text-sm font-medium">Show on Delivery</label>
+                                        <p className="text-xs text-muted-foreground">Show this item on hotel/delivery pages</p>
+                                    </div>
+                                    <Switch
+                                        checked={editingItem.show_on_delivery}
+                                        onCheckedChange={(checked) => setEditingItem({ ...editingItem, show_on_delivery: checked })}
+                                    />
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -328,7 +361,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                         <CardContent className="space-y-4">
                             {showVariantForm && (
                                 <div className="p-4 border rounded-lg bg-muted/50 space-y-3">
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-3 gap-3">
                                         <Input
                                             placeholder="Option Name (e.g. Half)"
                                             value={newVariant.name}
@@ -336,9 +369,15 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                                         />
                                         <Input
                                             type="number"
-                                            placeholder="Price"
+                                            placeholder="Price (₹)"
                                             value={newVariant.price}
                                             onChange={(e) => setNewVariant({ ...newVariant, price: parseFloat(e.target.value) || 0 })}
+                                        />
+                                        <Input
+                                            type="number"
+                                            placeholder="Delivery Price (₹)"
+                                            value={newVariant.delivery_price ?? ""}
+                                            onChange={(e) => setNewVariant({ ...newVariant, delivery_price: e.target.value !== "" ? parseFloat(e.target.value) : undefined })}
                                         />
                                     </div>
                                     <div className="flex justify-end gap-2">
@@ -358,7 +397,12 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                                         <div key={index} className="flex items-center justify-between p-3 border rounded-lg bg-card">
                                             <div>
                                                 <p className="font-medium">{variant.name}</p>
-                                                <p className="text-sm text-muted-foreground">₹{variant.price}</p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    ₹{variant.price}
+                                                    {variant.delivery_price != null && (
+                                                        <span className="ml-2 text-blue-600">· Delivery: ₹{variant.delivery_price}</span>
+                                                    )}
+                                                </p>
                                             </div>
                                             <div className="flex gap-1">
                                                 <Button type="button" variant="ghost" size="icon" onClick={() => startEditingVariant(index)}>

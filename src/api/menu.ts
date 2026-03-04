@@ -26,6 +26,8 @@ export const getMenu = `
             is_veg
             tags
             pp_id
+            delivery_price
+            show_on_delivery
         }
     }
 `;
@@ -105,11 +107,14 @@ export const updateMenu = `
             image_source
             partner_id
             price
+            delivery_price
+            show_on_delivery
             description
             is_top
             is_available
             is_veg
             tags
+            variants
             }
         }
     }

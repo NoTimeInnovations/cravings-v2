@@ -322,28 +322,64 @@ const HotelPage = async ({
 
   const partnerPriceAdjustment = hoteldata?.price_adjustment || 0;
 
-  const menuItemWithOfferPrice = hoteldata?.menus?.map((item) => {
-    const basePrice = item.offers?.[0]?.offer_price || item.price;
-    return {
-      ...item,
-      price: Math.max(0, basePrice + partnerPriceAdjustment),
-      variants: item.variants?.map((v: any) => ({
-        ...v,
-        price: Math.max(0, (v.price || 0) + partnerPriceAdjustment),
-      })),
-    };
-  });
+  const menuItemWithOfferPrice = hoteldata?.menus
+    ?.filter((item: any) => item.show_on_delivery !== false)
+    .map((item: any) => {
+      const deliveryBase = item.delivery_price ?? item.price;
+      const offerPrice = item.offers?.[0]?.offer_price;
+      // If offer exists, apply the same discount amount to delivery base price
+      const finalPrice = offerPrice != null && item.price > 0
+        ? Math.max(0, deliveryBase - (item.price - offerPrice))
+        : deliveryBase;
+      return {
+        ...item,
+        price: Math.max(0, finalPrice + partnerPriceAdjustment),
+        variants: item.variants?.map((v: any) => ({
+          ...v,
+          price: Math.max(0, (v.delivery_price ?? v.price ?? 0) + partnerPriceAdjustment),
+        })),
+      };
+    });
 
-  // Also adjust offer prices so downstream components use adjusted prices
-  if (partnerPriceAdjustment !== 0) {
-    filteredOffers = filteredOffers.map((offer) => ({
-      ...offer,
-      offer_price: Math.max(0, (offer.offer_price || 0) + partnerPriceAdjustment),
-      menu: {
-        ...offer.menu,
-        price: Math.max(0, (offer.menu?.price || 0) + partnerPriceAdjustment),
-      },
-    }));
+  // Adjust offer prices for delivery_price and partner price adjustment
+  {
+    const deliveryPriceMap = new Map<string, number | undefined>();
+    hoteldata?.menus?.forEach((m: any) => {
+      if (m.id) deliveryPriceMap.set(m.id, m.delivery_price);
+    });
+
+    filteredOffers = filteredOffers.map((offer) => {
+      const menuId = offer.menu?.id;
+      const originalPrice = offer.menu?.price || 0;
+      const deliveryPrice = menuId ? deliveryPriceMap.get(menuId) : undefined;
+      const deliveryDelta = deliveryPrice != null ? deliveryPrice - originalPrice : 0;
+
+      const variantDeliveryDelta = offer.variant
+        ? (() => {
+            const menuItem = hoteldata?.menus?.find((m: any) => m.id === menuId);
+            const matchingVariant = menuItem?.variants?.find((v: any) => v.name === (offer.variant as any)?.name);
+            if (matchingVariant?.delivery_price != null) {
+              return matchingVariant.delivery_price - ((offer.variant as any)?.price || 0);
+            }
+            return deliveryDelta;
+          })()
+        : deliveryDelta;
+
+      return {
+        ...offer,
+        offer_price: Math.max(0, (offer.offer_price || 0) + variantDeliveryDelta + partnerPriceAdjustment),
+        menu: {
+          ...offer.menu,
+          price: Math.max(0, originalPrice + deliveryDelta + partnerPriceAdjustment),
+        },
+        ...(offer.variant ? {
+          variant: {
+            ...offer.variant,
+            price: ((offer.variant as any)?.price || 0) + variantDeliveryDelta,
+          },
+        } : {}),
+      };
+    });
   }
 
   let hotelDataWithOfferPrice = {
