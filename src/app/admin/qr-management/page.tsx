@@ -50,6 +50,7 @@ interface QrCode {
   id: string;
   table_number: string;
   qr_group: QrGroup | null;
+  price_adjustment: number | null;
 }
 
 interface HasuraQrGroup {
@@ -63,6 +64,7 @@ interface HasuraQrCode {
   id: string;
   table_number: string;
   qr_group: HasuraQrGroup | null;
+  price_adjustment: number | null;
 }
 
 const QrManagementPage = () => {
@@ -124,6 +126,7 @@ const QrManagementPage = () => {
           qr_codes(where: {partner_id: {_eq: $partner_id}}) {
             id
             table_number
+            price_adjustment
             qr_group {
               name
               extra_charge
@@ -396,6 +399,42 @@ const QrManagementPage = () => {
       console.error("Error updating QR code group:", error);
       toast.error("Failed to update QR code group");
       // Revert the optimistic update if the mutation fails
+      fetchQrCodes();
+    }
+  };
+
+  const handleUpdatePriceAdjustment = async (
+    qrCodeId: string,
+    value: number | null
+  ) => {
+    try {
+      const mutation = `
+        mutation UpdateQrCodePriceAdjustment($id: uuid!, $price_adjustment: Int) {
+          update_qr_codes_by_pk(
+            pk_columns: {id: $id},
+            _set: { price_adjustment: $price_adjustment }
+          ) {
+            id
+            price_adjustment
+          }
+        }
+      `;
+
+      await fetchFromHasura(mutation, {
+        id: qrCodeId,
+        price_adjustment: value,
+      });
+
+      setQrCodes((prevCodes) =>
+        prevCodes.map((qr) =>
+          qr.id === qrCodeId ? { ...qr, price_adjustment: value } : qr
+        )
+      );
+
+      toast.success("Price adjustment updated");
+    } catch (error) {
+      console.error("Error updating price adjustment:", error);
+      toast.error("Failed to update price adjustment");
       fetchQrCodes();
     }
   };
@@ -710,6 +749,7 @@ const QrManagementPage = () => {
           <TableHeader>
             <TableRow>
               <TableHead>Table Number</TableHead>
+              <TableHead>Price Adjustment</TableHead>
               <TableHead>Group Name</TableHead>
               <TableHead>Pricing Rules</TableHead>
               <TableHead>Charge Type</TableHead>
@@ -721,6 +761,26 @@ const QrManagementPage = () => {
               qrCodes.map((qrCode) => (
                 <TableRow key={qrCode.id}>
                   <TableCell>{qrCode.table_number}</TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      className="w-24 h-8"
+                      placeholder="0"
+                      value={qrCode.price_adjustment ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? null : parseInt(e.target.value);
+                        setQrCodes((prev) =>
+                          prev.map((qr) =>
+                            qr.id === qrCode.id ? { ...qr, price_adjustment: val } : qr
+                          )
+                        );
+                      }}
+                      onBlur={(e) => {
+                        const val = e.target.value === "" ? null : parseInt(e.target.value);
+                        handleUpdatePriceAdjustment(qrCode.id, val);
+                      }}
+                    />
+                  </TableCell>
                   <TableCell>
                     {qrCode.qr_group?.name || "No Group Assigned"}
                   </TableCell>
@@ -762,7 +822,7 @@ const QrManagementPage = () => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-4">
+                <TableCell colSpan={6} className="text-center py-4">
                   No QR codes found. QR codes will appear here once they&apos;re
                   created.
                 </TableCell>

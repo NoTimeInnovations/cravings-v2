@@ -243,12 +243,31 @@ const page = async ({
 
   const socialLinks = getSocialLinks(hoteldata as HotelData);
 
+  const priceAdjustment = qr_codes?.[0]?.price_adjustment || 0;
+
   const menuItemWithOfferPrice = hoteldata?.menus?.map((item) => {
+    const basePrice = item.offers?.[0]?.offer_price || item.price;
     return {
       ...item,
-      price: item.offers?.[0]?.offer_price || item.price,
+      price: Math.max(0, basePrice + priceAdjustment),
+      variants: item.variants?.map((v: any) => ({
+        ...v,
+        price: Math.max(0, (v.price || 0) + priceAdjustment),
+      })),
     };
   });
+
+  // Also adjust offer prices so downstream components use adjusted prices
+  if (priceAdjustment !== 0) {
+    filteredOffers = filteredOffers.map((offer) => ({
+      ...offer,
+      offer_price: Math.max(0, (offer.offer_price || 0) + priceAdjustment),
+      menu: {
+        ...offer.menu,
+        price: Math.max(0, (offer.menu?.price || 0) + priceAdjustment),
+      },
+    }));
+  }
 
   const hotelDataWithOfferPrice = {
     ...hoteldata,
@@ -355,9 +374,14 @@ const page = async ({
     }
 
     const menuItemWithOfferPrice = hoteldata?.menus?.map((item) => {
+      const basePrice = item.offers?.[0]?.offer_price || item.price;
       return {
         ...item,
-        price: item.offers?.[0]?.offer_price || item.price,
+        price: Math.max(0, basePrice + priceAdjustment),
+        variants: item.variants?.map((v: any) => ({
+          ...v,
+          price: Math.max(0, (v.price || 0) + priceAdjustment),
+        })),
       };
     });
 
@@ -377,7 +401,6 @@ const page = async ({
           if (!a.image_url.length && b.image_url.length) return 1;
           filteredMenus.push({
             ...a,
-            price: a.offers?.[0]?.offer_price || a.price,
           });
           return 0;
         });
@@ -392,7 +415,6 @@ const page = async ({
         sortedItems.sort(sortByCategoryPriority);
         filteredMenus = sortedItems.map((item) => ({
           ...item,
-          price: item.offers?.[0]?.offer_price || item.price,
         }));
       } else {
         const filteredItems = (hotelMenus ?? []).filter(
@@ -403,14 +425,12 @@ const page = async ({
           if (!a.image_url.length && b.image_url.length) return 1;
           filteredMenus.push({
             ...a,
-            price: a.offers?.[0]?.offer_price || a.price,
           });
           return 0;
         });
 
         filteredMenus = sortedItems.map((item) => ({
           ...item,
-          price: item.offers?.[0]?.offer_price || item.price,
         }));
 
       }
