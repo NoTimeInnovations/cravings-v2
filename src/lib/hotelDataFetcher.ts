@@ -181,6 +181,19 @@ export async function processHotelPage(
     filteredOffers = filterOffersByType(filteredOffers, "hotels");
   }
 
+  // Apply partner-level price adjustment to offers
+  const partnerAdj = hoteldata?.price_adjustment || 0;
+  if (partnerAdj !== 0) {
+    filteredOffers = filteredOffers.map((offer) => ({
+      ...offer,
+      offer_price: Math.max(0, (offer.offer_price || 0) + partnerAdj),
+      menu: {
+        ...offer.menu,
+        price: Math.max(0, (offer.menu?.price || 0) + partnerAdj),
+      },
+    }));
+  }
+
   const theme = (
     typeof hoteldata?.theme === "string"
       ? JSON.parse(hoteldata?.theme)
@@ -225,10 +238,19 @@ export async function processHotelPage(
     console.error("Error fetching QR codes:", error);
   }
 
-  const menuItemWithOfferPrice = hoteldata?.menus?.map((item) => ({
-    ...item,
-    price: item.offers?.[0]?.offer_price || item.price,
-  }));
+  const partnerPriceAdjustment = hoteldata?.price_adjustment || 0;
+
+  const menuItemWithOfferPrice = hoteldata?.menus?.map((item) => {
+    const basePrice = item.offers?.[0]?.offer_price || item.price;
+    return {
+      ...item,
+      price: Math.max(0, basePrice + partnerPriceAdjustment),
+      variants: item.variants?.map((v: any) => ({
+        ...v,
+        price: Math.max(0, (v.price || 0) + partnerPriceAdjustment),
+      })),
+    };
+  });
 
   let hotelDataWithOfferPrice = {
     ...hoteldata,
@@ -339,7 +361,6 @@ export async function processHotelPage(
       sortedItems.sort(sortByCategoryPriority);
       filteredMenus = sortedItems.map((item) => ({
         ...item,
-        price: item.offers?.[0]?.offer_price || item.price,
       }));
     } else {
       const filteredItems = (hotelMenus ?? []).filter(
@@ -352,7 +373,6 @@ export async function processHotelPage(
       });
       filteredMenus = sortedItems.map((item) => ({
         ...item,
-        price: item.offers?.[0]?.offer_price || item.price,
       }));
     }
   }

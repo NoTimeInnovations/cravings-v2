@@ -100,6 +100,7 @@ export interface Partner extends BaseUser {
   country_code?: string;
   distance_meters?: number;
   common_offers?: CommonOffer[];
+  price_adjustment?: number | null;
   hide_unavailable?: boolean;
   subscription_details?: {
     plan: any;

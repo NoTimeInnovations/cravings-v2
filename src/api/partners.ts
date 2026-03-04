@@ -164,6 +164,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     upi_id
     show_payment_qr
     post_payment_message
+    price_adjustment
     subscription_details
     menus(where: {
     deletion_status: {_eq: 0},
