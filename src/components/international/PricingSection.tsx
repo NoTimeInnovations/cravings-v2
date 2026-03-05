@@ -40,6 +40,14 @@ const PricingSection = ({
   );
   const [isAnnual, setIsAnnual] = useState(false);
 
+  // Sync partner country cookie for existing users who don't have it yet
+  useEffect(() => {
+    const partnerCountry = (userData as any)?.country;
+    if (partnerCountry && !document.cookie.includes("partner_country=")) {
+      document.cookie = `partner_country=${encodeURIComponent(partnerCountry)}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
+    }
+  }, [userData]);
+
   const isIndia = propCountry === "IN";
 
   const displayPlans = !isIndia ? plansData.international : plansData.india;

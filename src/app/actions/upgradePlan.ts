@@ -31,19 +31,23 @@ export async function upgradePlan(partnerId: string, newPlan: any, isFreePlanUse
             isFreePlanUsed,
         };
 
-        // Generate feature flags
-        let featureFlagsStr = "";
-        if (newPlan.id === 'in_trial' || newPlan.id === 'in_ordering') {
-            const defaultFlags = ["ordering-false"];
-
-            const enabledMap = newPlan.features_enabled || {};
-            const finalFlags = defaultFlags.map(flag => {
-                const [key] = flag.split("-");
-                if (enabledMap[key]) return `${key}-true`;
-                return flag;
-            });
-            featureFlagsStr = finalFlags.join(",");
-        }
+        // Generate feature flags based on plan's features_enabled map
+        const defaultFlags = [
+            "ordering-false",
+            "delivery-false",
+            "multiwhatsapp-false",
+            "pos-false",
+            "stockmanagement-false",
+            "captainordering-false",
+            "purchasemanagement-false",
+        ];
+        const enabledMap = newPlan.features_enabled || {};
+        const finalFlags = defaultFlags.map(flag => {
+            const [key] = flag.split("-");
+            if (enabledMap[key]) return `${key}-true`;
+            return flag;
+        });
+        const featureFlagsStr = finalFlags.join(",");
 
         const response = await fetchFromHasura(UPDATE_PARTNER_SUBSCRIPTION, {
             id: partnerId,

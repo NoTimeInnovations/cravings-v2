@@ -104,9 +104,15 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
     const { userData } = useAuthStore();
     const router = useRouter();
     const partner = userData as Partner;
+    // Use partner's country when available, fall back to localStorage (Cloudflare)
+    const partnerCountry = (partner as any)?.country;
     const [countryCode, setCountryCode] = useState("IN");
 
     useEffect(() => {
+        if (partnerCountry) {
+            setCountryCode(partnerCountry === "India" ? "IN" : "OTHER");
+            return;
+        }
         try {
             const stored = localStorage.getItem("user-country-info");
             if (stored) {
@@ -114,7 +120,7 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
                 if (parsed.countryCode) setCountryCode(parsed.countryCode);
             }
         } catch {}
-    }, []);
+    }, [partnerCountry]);
 
     const isIndia = countryCode === "IN";
     const plan = isIndia ? indiaPlan : internationalPlan;
@@ -160,7 +166,13 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
                         res.razorpay_subscription_id,
                         res.razorpay_signature,
                         userData.id,
-                        { id: activeVariant.id, name: activeVariant.name, rz_plan_id: activeVariant.rz_plan_id },
+                        {
+                            id: activeVariant.id,
+                            name: activeVariant.name,
+                            rz_plan_id: activeVariant.rz_plan_id,
+                            price: activeVariant.price,
+                            period_days: isAnnual ? 365 : 30,
+                        },
                     );
                     if (verifyRes.success) {
                         toast.success("Upgrade Successful! Welcome to " + activeVariant.name);

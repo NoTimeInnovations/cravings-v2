@@ -22,7 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { isFreePlan } from "@/lib/getPlanLimits";
 import { UpgradePrompt } from "@/components/admin-v2/UpgradePrompt";
-import { Lock } from "lucide-react";
+import { UpgradePlanDialog } from "@/components/admin-v2/UpgradePlanDialog";
+import { Lock, Crown } from "lucide-react";
 
 
 
@@ -44,6 +45,8 @@ export function GeneralSettings() {
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [isPasswordSaving, setIsPasswordSaving] = useState(false);
+
+    const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
     // Banner State
     const [bannerImage, setBannerImage] = useState<string | null>(null);
@@ -360,41 +363,56 @@ export function GeneralSettings() {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Store Banner</CardTitle>
-                        <CardDescription>This image will be displayed at the top of your store page.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border bg-muted">
-                            {bannerImage ? (
-                                <Img src={bannerImage} alt="Store Banner" className="h-full w-full object-cover" />
-                            ) : (
-                                <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                                    No banner image
-                                </div>
-                            )}
-                            {isBannerUploading && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-                                    <Loader2 className="h-6 w-6 animate-spin" />
-                                </div>
-                            )}
+                <div className="relative">
+                    {isOnFreePlan && (
+                        <div
+                            className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/60 backdrop-blur-[2px] cursor-pointer"
+                            onClick={() => setShowUpgradeDialog(true)}
+                        >
+                            <div className="flex items-center gap-2 rounded-full bg-orange-500/10 border border-orange-500/30 px-4 py-2">
+                                <Crown className="h-4 w-4 text-orange-500" />
+                                <span className="text-sm font-semibold text-orange-500">Premium Feature — Click to Upgrade</span>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <Button variant="outline" className="relative" disabled={isBannerUploading}>
-                                <Upload className="mr-2 h-4 w-4" />
-                                Upload New Banner
-                                <Input
-                                    type="file"
-                                    className="absolute inset-0 cursor-pointer opacity-0"
-                                    accept="image/*"
-                                    onChange={handleBannerChange}
-                                    disabled={isBannerUploading}
-                                />
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+                    )}
+                    <Card className={isOnFreePlan ? "opacity-60 pointer-events-none" : ""}>
+                        <CardHeader>
+                            <CardTitle>Store Banner</CardTitle>
+                            <CardDescription>This image will be displayed at the top of your store page.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border bg-muted">
+                                {bannerImage ? (
+                                    <Img src={bannerImage} alt="Store Banner" className="h-full w-full object-cover" />
+                                ) : (
+                                    <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                                        No banner image
+                                    </div>
+                                )}
+                                {isBannerUploading && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+                                        <Loader2 className="h-6 w-6 animate-spin" />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <Button variant="outline" className="relative" disabled={isBannerUploading}>
+                                    <Upload className="mr-2 h-4 w-4" />
+                                    Upload New Banner
+                                    <Input
+                                        type="file"
+                                        className="absolute inset-0 cursor-pointer opacity-0"
+                                        accept="image/*"
+                                        onChange={handleBannerChange}
+                                        disabled={isBannerUploading}
+                                    />
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <UpgradePlanDialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog} featureName="Store Banner" />
 
                 <Card>
                     <CardHeader>

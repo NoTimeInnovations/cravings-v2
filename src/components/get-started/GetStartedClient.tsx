@@ -451,6 +451,14 @@ export default function GetStartedClient({
   ) => {
     const { name, value } = e.target;
 
+    if (name === "phone") {
+      const digitsOnly = value.replace(/\D/g, "");
+      const maxDigits = PHONE_DIGITS_BY_CODE[hotelDetails.phoneCode] || 15;
+      const clamped = digitsOnly.slice(0, maxDigits);
+      setHotelDetails((prev) => ({ ...prev, phone: clamped }));
+      return;
+    }
+
     if (name === "country") {
       const isIndia = value === "India";
       const phoneCodeEntry = countryCodes.find((c) => c.country === value);
@@ -897,6 +905,11 @@ export default function GetStartedClient({
                 }).catch(err => console.error("Failed to trigger background image gen", err));
             }
             */
+
+      // Set partner country cookie for server-side pricing detection
+      if (hotelDetails.country) {
+        document.cookie = `partner_country=${encodeURIComponent(hotelDetails.country)}; path=/; max-age=${60 * 60 * 24 * 30}; samesite=lax`;
+      }
 
       // 6. Clear onboarding state and redirect to dashboard
       localStorage.removeItem(STORAGE_KEY);
@@ -1370,6 +1383,8 @@ export default function GetStartedClient({
               id="phone"
               name="phone"
               type="tel"
+              inputMode="numeric"
+              maxLength={PHONE_DIGITS_BY_CODE[hotelDetails.phoneCode] || 15}
               placeholder={"X".repeat(PHONE_DIGITS_BY_CODE[hotelDetails.phoneCode] || 10)}
               value={hotelDetails.phone}
               onChange={handleDetailsChange}

@@ -197,6 +197,24 @@ export const removeTempUserIdCookie = async () => {
   (await cookies()).delete("temp_user_id");
 };
 
+export const setPartnerCountryCookie = async (country: string) => {
+  (await cookies()).set("partner_country", country, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 30,
+    path: "/",
+    sameSite: "lax",
+  });
+};
+
+export const getPartnerCountryCookie = async () => {
+  return (await cookies()).get("partner_country")?.value || null;
+};
+
+export const removePartnerCountryCookie = async () => {
+  (await cookies()).delete("partner_country");
+};
+
 export const clearAllCookies = async () => {
   const cookieStore = await cookies();
   const allCookies = cookieStore.getAll();

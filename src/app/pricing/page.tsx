@@ -22,8 +22,13 @@ export const metadata: Metadata = {
 
 export default async function PricingPage() {
   const { headers } = await import("next/headers");
+  const { getPartnerCountryCookie } = await import("@/app/auth/actions");
   const headersList = await headers();
-  const country = headersList.get("x-user-country") || "IN";
+  const partnerCountry = await getPartnerCountryCookie();
+  // Use partner's stored country when signed in, fall back to Cloudflare header
+  const country = partnerCountry
+    ? (partnerCountry === "India" ? "IN" : "OTHER")
+    : (headersList.get("x-user-country") || "IN");
 
   return (
     <div className="min-h-screen w-full bg-[#fcfbf7] geist-font">

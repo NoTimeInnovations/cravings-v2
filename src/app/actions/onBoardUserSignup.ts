@@ -66,7 +66,6 @@ export const onBoardUserSignup = async (data: OnboardingData) => {
             feature_flags: "",
             status: "active",
         });
-
         // 1.5 Create Default QR Code (Table 1)
         let firstQrCodeId = null;
         try {

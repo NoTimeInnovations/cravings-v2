@@ -322,6 +322,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await Notification.token.remove();
     await removeAuthCookie();
     await removeLocationCookie();
+    // Clear partner country cookie (client-side, non-httpOnly)
+    document.cookie = "partner_country=; path=/; max-age=0";
     localStorage?.clear();
     if (fcmToken) localStorage?.setItem("fcmToken", fcmToken);
     if (isApp) localStorage?.setItem("isApp", isApp);

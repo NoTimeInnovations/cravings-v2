@@ -85,6 +85,7 @@ interface QuickAction {
   icon: React.ElementType;
   view?: string;
   href?: string;
+  onClick?: () => void;
 }
 
 export function AdminV2Dashboard() {
@@ -168,6 +169,35 @@ export function AdminV2Dashboard() {
     ? getFeatures(partner.feature_flags || "")
     : null;
 
+  const handleShowQr = async () => {
+    if (!qrId) return;
+    setIsQrDialogOpen(true);
+    setQrLoading(true);
+    try {
+      const DOMAIN = "menuthere.com";
+      const username = (userData as any)?.username;
+      const url = username
+        ? `https://${DOMAIN}/${username}`
+        : `https://${DOMAIN}/qrScan/${storeName?.replace(/\s+/g, "-")}/${qrId}`;
+      const dataUrl = await QRCodeLib.toDataURL(url, { width: 512, margin: 2 });
+      setQrImageUrl(dataUrl);
+    } catch {
+      // silently fail
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const handleQuickAction = async (action: QuickAction) => {
+    if (action.onClick) {
+      action.onClick();
+    } else if (action.href) {
+      window.open(action.href, "_blank");
+    } else if (action.view) {
+      setActiveView(action.view);
+    }
+  };
+
   const allQuickActions: (QuickAction & { hidden?: boolean })[] = [
     ...(qrId
       ? [
@@ -177,6 +207,11 @@ export function AdminV2Dashboard() {
             href: partner?.username
               ? `/${partner.username}`
               : `/qrScan/${storeName?.replace(/ /g, "-")}/${qrId}`,
+          },
+          {
+            title: "View QR",
+            icon: QrCode,
+            onClick: handleShowQr,
           },
         ]
       : []),
@@ -199,33 +234,6 @@ export function AdminV2Dashboard() {
   ];
 
   const quickActions = allQuickActions.filter((a) => !a.hidden);
-
-  const handleQuickAction = async (action: QuickAction) => {
-    if (action.href) {
-      window.open(action.href, "_blank");
-    } else if (action.view) {
-      setActiveView(action.view);
-    }
-  };
-
-  const handleShowQr = async () => {
-    if (!qrId) return;
-    setIsQrDialogOpen(true);
-    setQrLoading(true);
-    try {
-      const DOMAIN = "menuthere.com";
-      const username = (userData as any)?.username;
-      const url = username
-        ? `https://${DOMAIN}/${username}`
-        : `https://${DOMAIN}/qrScan/${storeName?.replace(/\s+/g, "-")}/${qrId}`;
-      const dataUrl = await QRCodeLib.toDataURL(url, { width: 512, margin: 2 });
-      setQrImageUrl(dataUrl);
-    } catch {
-      // silently fail
-    } finally {
-      setQrLoading(false);
-    }
-  };
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -266,15 +274,6 @@ export function AdminV2Dashboard() {
           className=" grid grid-cols-4 sm:flex sm:flex-wrap gap-2"
           data-tour="quick-actions"
         >
-          {qrId && (
-            <button
-              onClick={handleShowQr}
-              className="flex flex-col items-center justify-center gap-1.5 w-20 h-20 rounded-xl border bg-background hover:bg-muted transition-colors text-xs font-medium"
-            >
-              <QrCode className="h-5 w-5 text-orange-600 shrink-0" />
-              <span className="text-center leading-tight">View QR</span>
-            </button>
-          )}
           {quickActions.map((action) => (
             <button
               key={action.title}
