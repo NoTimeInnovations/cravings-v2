@@ -327,7 +327,7 @@ const QrPayment = () => {
         <div className="flex flex-col gap-2 flex-1">
           {/* logo  */}
           <div className="flex items-center gap-2">
-            <img src="/menuthere-logo.png" alt="Menuthere" width={40} height={40} className="w-10 h-10 object-contain" />
+            <img src="/menuthere-logo-v2.svg" alt="Menuthere" width={40} height={40} className="w-10 h-10 object-contain" />
             <h1 className="text-white text-xl font-bold">Menuthere</h1>
           </div>
 
@@ -463,7 +463,7 @@ const QrPayment = () => {
                       >
                         {hotelDetails ? (
                           <>
-                            <img src="/menuthere-logo.png" alt="" width={16} height={16} className="w-4 h-4 object-contain" />
+                            <img src="/menuthere-logo-v2.svg" alt="" width={16} height={16} className="w-4 h-4 object-contain" />
                             View Menu
                           </>
                         ) : null}

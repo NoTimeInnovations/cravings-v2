@@ -75,7 +75,7 @@ export default async function GetStartedPage() {
   return (
     <GetStartedClient
       appName="Menuthere"
-      logo="/menuthere-logo.png"
+      logo="/menuthere-logo-v2.svg"
       defaultCountry={validCountry}
     />
   );

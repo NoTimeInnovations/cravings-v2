@@ -34,7 +34,7 @@ export function AdminNavbar({ onToggleSidebar, isSidebarOpen, onUpgrade }: Admin
                     <span className="sr-only">Toggle sidebar</span>
                 </Button>
                 <div className="flex items-center gap-2 hidden lg:flex">
-                    <img src="/menuthere-logo.png" alt="Menuthere" width={24} height={24} className="h-6 w-6 object-contain" />
+                    <img src="/menuthere-logo-v2.svg" alt="Menuthere" width={24} height={24} className="h-6 w-6 object-contain" />
                     <span className="text-xl font-bold text-orange-600 dark:text-orange-400">
                         {userData?.role === 'partner' ? (userData as Partner).store_name : "Menuthere"}
                     </span>
