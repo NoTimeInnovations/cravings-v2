@@ -47,11 +47,14 @@ export interface MenuItem {
   variants?: {
     name: string;
     price: number;
+    delivery_price?: number;
   }[];
   is_price_as_per_size?: boolean;
   is_veg?: boolean;
   tags?: string[];
   pp_id?: string;
+  delivery_price?: number;
+  show_on_delivery?: boolean;
 }
 
 interface MenuItem_withOffer_price {
@@ -227,6 +230,8 @@ export const useMenuStore = create<MenuState>((set, get) => ({
           is_price_as_per_size: mi.is_price_as_per_size || false, // Ensure boolean value
           tags: mi.tags || [],
           pp_id: mi.pp_id,
+          delivery_price: mi.delivery_price ?? undefined,
+          show_on_delivery: mi.show_on_delivery,
         };
 
         // Add optional fields if they exist

@@ -164,6 +164,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     upi_id
     show_payment_qr
     post_payment_message
+    price_adjustment
     subscription_details
     menus(where: {
     deletion_status: {_eq: 0},
@@ -205,6 +206,8 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
         show_stock
       }
       pp_id
+      delivery_price
+      show_on_delivery
     }
     offers(where: {_and: [{ offer_type : { _in : $offer_types } } ,{end_time: {_gt: "now()"}}, {deletion_status: {_eq: 0}}]}) {
       end_time

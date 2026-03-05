@@ -50,7 +50,7 @@ type QrCode = {
     };
     created_at: string;
     no_of_scans: number;
-
+    price_adjustment: number | null;
 };
 
 // Query to get ONLY the current partner's QRs
@@ -63,6 +63,7 @@ const GET_PARTNER_QRS_QUERY = `
       table_name
       partner_id
       no_of_scans
+      price_adjustment
       partner {
         store_name
       }
@@ -102,8 +103,8 @@ const DELETE_QRS_MUTATION = `
 `;
 
 const UPDATE_QR_DETAILS_MUTATION = `
-  mutation UpdateQrDetails($qrId: uuid!, $tableNumber: Int, $tableName: String) {
-    update_qr_codes_by_pk(pk_columns: {id: $qrId}, _set: {table_number: $tableNumber, table_name: $tableName}) {
+  mutation UpdateQrDetails($qrId: uuid!, $tableNumber: Int, $tableName: String, $price_adjustment: Int) {
+    update_qr_codes_by_pk(pk_columns: {id: $qrId}, _set: {table_number: $tableNumber, table_name: $tableName, price_adjustment: $price_adjustment}) {
       id
     }
   }
@@ -138,7 +139,7 @@ export function AdminV2QrCodes() {
 
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [editingQr, setEditingQr] = useState<QrCode | null>(null);
-    const [editForm, setEditForm] = useState({ table_number: "", table_name: "" });
+    const [editForm, setEditForm] = useState({ table_number: "", table_name: "", price_adjustment: "" });
 
     const [isViewOpen, setIsViewOpen] = useState(false);
     const [viewingQr, setViewingQr] = useState<QrCode | null>(null);
@@ -189,6 +190,7 @@ export function AdminV2QrCodes() {
                         table_name
                         partner_id
                         no_of_scans
+                        price_adjustment
                         partner {
                             store_name
                         }
@@ -327,7 +329,8 @@ export function AdminV2QrCodes() {
         setEditingQr(qr);
         setEditForm({
             table_number: qr.table_number?.toString() || "",
-            table_name: qr.table_name || ""
+            table_name: qr.table_name || "",
+            price_adjustment: qr.price_adjustment?.toString() || ""
         });
         setIsEditOpen(true);
     };
@@ -340,7 +343,8 @@ export function AdminV2QrCodes() {
             await fetchFromHasura(UPDATE_QR_DETAILS_MUTATION, {
                 qrId: editingQr.id,
                 tableNumber: editForm.table_number ? parseInt(editForm.table_number) : null,
-                tableName: editForm.table_name || null
+                tableName: editForm.table_name || null,
+                price_adjustment: editForm.price_adjustment ? parseInt(editForm.price_adjustment) : null
             });
             toast.success("QR Code updated");
             setIsEditOpen(false);
@@ -349,7 +353,8 @@ export function AdminV2QrCodes() {
             setQrs(prev => prev.map(q => q.id === editingQr.id ? {
                 ...q,
                 table_number: editForm.table_number ? parseInt(editForm.table_number) : null,
-                table_name: editForm.table_name || null
+                table_name: editForm.table_name || null,
+                price_adjustment: editForm.price_adjustment ? parseInt(editForm.price_adjustment) : null
             } : q));
         } catch (error) {
             console.error(error);
@@ -529,7 +534,7 @@ export function AdminV2QrCodes() {
                             </TableHead>
                             <TableHead>Table No</TableHead>
                             <TableHead>Table Name</TableHead>
-
+                            <TableHead>Price Adj.</TableHead>
                             <TableHead>Scans</TableHead>
                             <TableHead>Actions</TableHead>
                         </TableRow>
@@ -537,11 +542,11 @@ export function AdminV2QrCodes() {
                     <TableBody>
                         {loading ? (
                             <TableRow>
-                                <TableCell colSpan={4} className="text-center py-8">Loading...</TableCell>
+                                <TableCell colSpan={6} className="text-center py-8">Loading...</TableCell>
                             </TableRow>
                         ) : qrs.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No QR codes found.</TableCell>
+                                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No QR codes found.</TableCell>
                             </TableRow>
                         ) : (
                             qrs.map((qr) => (
@@ -554,7 +559,7 @@ export function AdminV2QrCodes() {
                                     </TableCell>
                                     <TableCell className="font-medium">{qr.table_number || "-"}</TableCell>
                                     <TableCell>{qr.table_name || "-"}</TableCell>
-
+                                    <TableCell>{qr.price_adjustment ?? "-"}</TableCell>
                                     <TableCell>{qr.no_of_scans || 0}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
@@ -696,6 +701,19 @@ export function AdminV2QrCodes() {
                                 value={editForm.table_name}
                                 onChange={(e) => setEditForm({ ...editForm, table_name: e.target.value })}
                             />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="price_adj">Price Adjustment (per item)</Label>
+                            <Input
+                                id="price_adj"
+                                type="number"
+                                placeholder="e.g. 20 or -10"
+                                value={editForm.price_adjustment}
+                                onChange={(e) => setEditForm({ ...editForm, price_adjustment: e.target.value })}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Positive = increase price, Negative = decrease price. Hidden from customers.
+                            </p>
                         </div>
                     </div>
                     <DialogFooter>

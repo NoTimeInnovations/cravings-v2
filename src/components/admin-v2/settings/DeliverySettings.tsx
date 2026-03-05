@@ -265,6 +265,7 @@ export function DeliverySettings() {
     const [isSaving, setIsSaving] = useState(false);
 
     const [deliveryRate, setDeliveryRate] = useState(0);
+    const [priceAdjustment, setPriceAdjustment] = useState<number | null>(null);
     const [deliveryRules, setDeliveryRules] = useState<DeliveryRules>({
         delivery_radius: 5,
         delivery_ranges: [],
@@ -286,6 +287,7 @@ export function DeliverySettings() {
     useEffect(() => {
         if (userData?.role === "partner") {
             setDeliveryRate(userData.delivery_rate || 0);
+            setPriceAdjustment((userData as any).price_adjustment ?? null);
 
             const hasAdvancedRules = userData.delivery_rules?.delivery_ranges && userData.delivery_rules.delivery_ranges.length > 0;
             const hasLegacyRules = userData.delivery_rules?.first_km_range;
@@ -339,7 +341,8 @@ export function DeliverySettings() {
                 delivery_rate: deliveryRate,
                 delivery_rules: deliveryRules,
                 whatsapp_numbers: whatsappNumbers,
-                country_code: countryCode
+                country_code: countryCode,
+                price_adjustment: priceAdjustment
             };
 
             await updatePartner(userData.id, updates);
@@ -354,7 +357,7 @@ export function DeliverySettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, deliveryRate, deliveryRules, whatsappNumbers, countryCode, setState]);
+    }, [userData, deliveryRate, deliveryRules, whatsappNumbers, countryCode, priceAdjustment, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -401,11 +404,14 @@ export function DeliverySettings() {
             : [{ number: data.phone || "", area: "default" }];
         const initialCountryCode = data.country_code || "+91";
 
+        const initialPriceAdjustment = data.price_adjustment ?? null;
+
         const hasChanges =
             deliveryRate !== initialRate ||
             JSON.stringify(deliveryRules) !== JSON.stringify(initialRules) ||
             JSON.stringify(whatsappNumbers) !== JSON.stringify(initialWhatsapp) ||
-            countryCode !== initialCountryCode;
+            countryCode !== initialCountryCode ||
+            priceAdjustment !== initialPriceAdjustment;
 
         setHasChanges(hasChanges);
 
@@ -415,6 +421,7 @@ export function DeliverySettings() {
         deliveryRules,
         whatsappNumbers,
         countryCode,
+        priceAdjustment,
         setHasChanges
     ]);
 
@@ -702,6 +709,27 @@ export function DeliverySettings() {
                                 ? `Flat ${currencySymbol}${deliveryRules.parcel_charge || 0} charge added to delivery and takeaway orders.`
                                 : `${currencySymbol}${deliveryRules.parcel_charge || 0} per item — total charge = item count × per-item charge.`
                             }
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Price Adjustment</CardTitle>
+                    <CardDescription>Adjust all menu item prices for delivery/hotel links. Hidden from customers.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <div className="space-y-2">
+                        <Label>Adjustment per item ({currencySymbol})</Label>
+                        <Input
+                            type="number"
+                            placeholder="e.g. 20 or -10"
+                            value={priceAdjustment ?? ""}
+                            onChange={(e) => setPriceAdjustment(e.target.value === "" ? null : parseInt(e.target.value))}
+                        />
+                        <p className="text-sm text-muted-foreground">
+                            Positive = increase prices, Negative = decrease prices. Applies to all items on your /hotels/ page.
                         </p>
                     </div>
                 </CardContent>

@@ -4,6 +4,7 @@ query GetQrTable($id: uuid!) {
     table_number,
     table_name,
     partner_id
+    price_adjustment
     qr_group {
       extra_charge
       name
@@ -19,6 +20,7 @@ export const GET_QR_CODES_WITH_GROUPS_BY_PARTNER = `
       qr_number
       table_number
       no_of_scans
+      price_adjustment
       qr_group {
         id
         name
@@ -45,6 +47,7 @@ export const GET_QR_CODES_BY_PARTNER = `
       table_number
       table_name
       no_of_scans
+      price_adjustment
     }
   }
 `;
