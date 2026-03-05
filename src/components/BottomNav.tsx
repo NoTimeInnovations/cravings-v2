@@ -56,7 +56,7 @@ const BottomNav = () => {
       case "partner":
         const partnerItems = [
           {
-            href: "/admin",
+            href: "/admin-v2",
             name: "Dashboard",
             icon: <LayoutDashboard size={20} />,
             exactMatch: true,

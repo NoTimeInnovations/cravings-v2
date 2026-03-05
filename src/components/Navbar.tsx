@@ -439,7 +439,7 @@ export function Navbar() {
     const adminLinks = [
       ...(userData?.role === "partner"
         ? [
-            { href: "/admin", label: "Admin" },
+            { href: "/admin-v2", label: "Admin" },
             ...((features?.ordering.access || features?.delivery.access) &&
             userData.status === "active"
               ? [{ href: "/admin/orders", label: "Orders" }]

@@ -130,7 +130,7 @@ export function PartnerDialog() {
       toast.success("Account created successfully!");
       localStorage?.removeItem("partnerFormData");
       setTimeout(() => {
-        router.push("/admin");
+        router.push("/admin-v2");
       }, 1000);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "An unexpected error occurred";

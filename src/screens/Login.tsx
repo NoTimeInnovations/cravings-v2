@@ -104,17 +104,13 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const partner = await signInPartnerWithEmail(
+      await signInPartnerWithEmail(
         partnerData.email,
         partnerData.password,
       );
       await Notification.token.save();
 
-      if (partner && partner.subscription_details) {
-        navigate.push("/admin-v2");
-      } else {
-        navigate.push("/admin");
-      }
+      navigate.push("/admin-v2");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to sign in");
       console.error("Sign in error:", error);

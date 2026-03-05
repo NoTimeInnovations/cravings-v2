@@ -17,11 +17,7 @@ const AuthInitializer = () => {
     if (!loading && userData?.role === "partner") {
       const restrictedPaths = ["/", "/explore"];
       if (restrictedPaths.includes(pathname)) {
-        if ((userData as any).subscription_details) {
-          router.push("/admin-v2");
-        } else {
-          router.push("/admin");
-        }
+        router.push("/admin-v2");
       }
     }
 
