@@ -153,10 +153,9 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL("/superadmin", request.url));
       }
 
-      // Partner redirects to /admin or /admin-v2 based on subscription
+      // Partner always redirects to /admin-v2
       if (decrypted?.role === "partner") {
-        const redirectPath = decrypted?.hasSubscription ? "/admin-v2" : "/admin";
-        return NextResponse.redirect(new URL(redirectPath, request.url));
+        return NextResponse.redirect(new URL("/admin-v2", request.url));
       }
 
       // User stays on home page
@@ -307,8 +306,8 @@ export async function proxy(request: NextRequest) {
 
     const userRole = decrypted.role as keyof typeof roleAccessRules;
 
-    if (userRole === "partner" && pathname === "/admin" && country !== "IN") {
-      return NextResponse.rewrite(new URL("/admin", request.url), {
+    if (userRole === "partner" && (pathname === "/admin" || pathname === "/admin-v2") && country !== "IN") {
+      return NextResponse.rewrite(new URL("/admin-v2", request.url), {
         request: {
           headers: requestHeaders,
         },
@@ -327,11 +326,11 @@ export async function proxy(request: NextRequest) {
         pathname.startsWith("/admin/") ||
         (pathname === "/admin" && !isAllowedRoute)
       ) {
-        return NextResponse.redirect(new URL("/admin", request.url));
+        return NextResponse.redirect(new URL("/admin-v2", request.url));
       }
 
       if (!isAllowedRoute) {
-        return NextResponse.redirect(new URL("/admin", request.url));
+        return NextResponse.redirect(new URL("/admin-v2", request.url));
       }
     } else {
       // Normal role-based access check for active users

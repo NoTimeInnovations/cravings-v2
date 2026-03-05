@@ -83,8 +83,7 @@ export async function GET(request: NextRequest) {
         status: partner.status || "inactive",
         hasSubscription: !!partner.subscription_details,
       });
-      const redirectPath = partner.subscription_details ? "/admin-v2" : "/admin";
-      return NextResponse.redirect(new URL(redirectPath, request.url));
+      return NextResponse.redirect(new URL("/admin-v2", request.url));
     }
 
     // For signup context: redirect back to get-started with email

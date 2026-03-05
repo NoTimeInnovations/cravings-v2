@@ -1710,7 +1710,7 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Back Button */}
         <Button
-          onClick={() => router.push("/admin")}
+          onClick={() => router.push("/admin-v2")}
           variant="ghost"
           className="flex items-center gap-2 hover:bg-orange-100 text-gray-700"
         >

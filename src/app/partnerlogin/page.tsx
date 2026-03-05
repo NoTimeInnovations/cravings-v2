@@ -25,7 +25,7 @@ export default function PartnerLoginPage() {
     try {
       await signInPartnerWithEmail(partnerData.email, partnerData.password);
       await Notification.token.save();
-      navigate.push("/admin");
+      navigate.push("/admin-v2");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to sign in");
     } finally {
