@@ -39,14 +39,21 @@ interface CompactMenuPreviewProps {
     currency?: string;
 }
 
+const formatDisplayName = (name: string): string => {
+    return name.split(/[_-]/).map(word =>
+        word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+};
+
 export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
     items,
     hotelDetails,
-    colorPalette = { text: "#000000", background: "#ffffff", accent: "#ea580c" }, // Default to orange-600
+    colorPalette = { text: "#000000", background: "#ffffff", accent: "#ea580c" },
     currency = "$",
 }) => {
     const [activeCatIndex, setActiveCatIndex] = useState<number>(0);
     const [vegFilter, setVegFilter] = useState<"all" | "veg" | "non-veg">("all");
+    const [expandedVariants, setExpandedVariants] = useState<Set<number>>(new Set());
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const categoryRefs = useRef<(HTMLElement | null)[]>([]);
@@ -83,19 +90,16 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
 
         const container = scrollContainerRef.current;
         const containerRect = container.getBoundingClientRect();
-        const headerOffset = 130; // Height of sticky header + buffer
+        const headerOffset = 130;
 
         let currentActive = activeCatIndex;
 
-        // Find the section that is currently crossing the "header line"
         for (let i = 0; i < categories.length; i++) {
             const section = categoryRefs.current[i];
             if (!section) continue;
 
             const sectionRect = section.getBoundingClientRect();
 
-            // Check if section top is above or near the trigger point
-            // and section bottom is below the trigger point
             if (sectionRect.top <= containerRect.top + headerOffset &&
                 sectionRect.bottom > containerRect.top + headerOffset) {
                 currentActive = i;
@@ -114,12 +118,10 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
         const container = scrollContainerRef.current;
 
         if (section && container) {
-            // Calculate relative position manually to avoid offsetParent issues
             const sectionRect = section.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
             const currentScroll = container.scrollTop;
 
-            // Target position = Current Scroll + (Distance from section top to container top) - Sticky Header Offset
             const scrollTarget = currentScroll + (sectionRect.top - containerRect.top) - 80;
 
             container.scrollTo({
@@ -129,14 +131,28 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
         }
     };
 
+    const toggleVariants = (globalIndex: number) => {
+        setExpandedVariants(prev => {
+            const next = new Set(prev);
+            if (next.has(globalIndex)) {
+                next.delete(globalIndex);
+            } else {
+                next.add(globalIndex);
+            }
+            return next;
+        });
+    };
+
+    let globalItemIndex = 0;
+
     return (
         <div
             ref={scrollContainerRef}
             onScroll={handleScroll}
-            className="w-full overflow-x-hidden md:max-w-md md:mx-auto md:shadow-xl md:rounded-3xl overflow-y-auto scrollbar-hide md:border border-gray-200 min-h-[calc(100vh-4rem)] md:min-h-0 md:h-[600px] flex flex-col relative transition-colors duration-300 max-w-[100vw]"
+            className="w-full overflow-x-hidden md:max-w-md md:mx-auto md:shadow-xl md:rounded-3xl overflow-y-auto scrollbar-hide md:border border-gray-200 h-[calc(100vh-10rem)] md:h-[600px] relative transition-colors duration-300 max-w-[100vw]"
             style={{ backgroundColor: colorPalette.background, color: colorPalette.text }}
         >
-            {/* Header / Banner - matching Compact.tsx styling */}
+            {/* Header / Banner */}
             <div className="relative">
                 <div className="w-full h-48 relative overflow-hidden bg-gray-100">
                     {hotelDetails.banner ? (
@@ -146,7 +162,7 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                             className="w-full h-full object-cover"
                         />
                     ) : (
-                        <div className="w-full h-full bg-orange-600 flex items-center justify-center relative overflow-hidden"
+                        <div className="w-full h-full flex items-center justify-center relative overflow-hidden"
                             style={{ backgroundColor: colorPalette.accent }}>
                             <div className="absolute inset-0 opacity-10"
                                 style={{
@@ -177,8 +193,6 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
 
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 </div>
-
-
             </div>
 
             {/* Hotel details (Below Banner) */}
@@ -194,8 +208,8 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                 )}
             </div>
 
-            {/* Links  */}
-            <div className="p-4 sm:mt-4 flex items-center gap-2 max-w-full overflow-x-scroll scrollbar-hide">
+            {/* Links */}
+            <div className="p-4 sm:mt-4 flex items-center gap-2 max-w-full overflow-hidden">
                 <SocialLinks socialLinks={{
                     phone: hotelDetails.phone,
                     whatsapp: `https://wa.me/${hotelDetails.phone}`,
@@ -211,7 +225,7 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                         placeholder="Search for dishes..."
                         className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2"
                         style={{
-                            backgroundColor: `${colorPalette.text}0D`, // 5% opacity of text color
+                            backgroundColor: `${colorPalette.text}0D`,
                             color: colorPalette.text,
                             borderColor: `${colorPalette.text}20`
                         }}
@@ -225,7 +239,7 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                 <div className="px-4 flex gap-2 flex-wrap pb-2">
                     <button
                         onClick={() => setVegFilter("all")}
-                        className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1.5 transition-colors"
+                        className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 transition-colors"
                         style={{
                             backgroundColor: vegFilter === "all" ? colorPalette.accent : "transparent",
                             color: vegFilter === "all" ? "#ffffff" : colorPalette.text,
@@ -236,29 +250,29 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                     </button>
                     <button
                         onClick={() => setVegFilter("veg")}
-                        className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1.5 flex items-center gap-1.5 transition-colors"
+                        className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 flex items-center gap-1 transition-colors"
                         style={{
-                            backgroundColor: vegFilter === "veg" ? "#16a34a" : "transparent",
+                            backgroundColor: vegFilter === "veg" ? "#22c55e" : "transparent",
                             color: vegFilter === "veg" ? "#ffffff" : colorPalette.text,
-                            borderColor: vegFilter === "veg" ? "#16a34a" : `${colorPalette.text}30`
+                            borderColor: vegFilter === "veg" ? "#22c55e" : `${colorPalette.text}30`
                         }}
                     >
-                        <div className={`w-2.5 h-2.5 border-[1.5px] flex items-center justify-center`} style={{ borderColor: vegFilter === "veg" ? "#ffffff" : "#16a34a" }}>
-                            <div className={`w-1.5 h-1.5 rounded-full`} style={{ backgroundColor: vegFilter === "veg" ? "#ffffff" : "#16a34a" }}></div>
+                        <div className={`w-2.5 h-2.5 border-[1.5px] flex items-center justify-center`} style={{ borderColor: vegFilter === "veg" ? "#ffffff" : "#22c55e" }}>
+                            <div className={`w-1.5 h-1.5 rounded-full`} style={{ backgroundColor: vegFilter === "veg" ? "#ffffff" : "#22c55e" }}></div>
                         </div>
                         Veg
                     </button>
                     <button
                         onClick={() => setVegFilter("non-veg")}
-                        className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1.5 flex items-center gap-1.5 transition-colors"
+                        className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 flex items-center gap-1 transition-colors"
                         style={{
-                            backgroundColor: vegFilter === "non-veg" ? "#dc2626" : "transparent",
+                            backgroundColor: vegFilter === "non-veg" ? "#ef4444" : "transparent",
                             color: vegFilter === "non-veg" ? "#ffffff" : colorPalette.text,
-                            borderColor: vegFilter === "non-veg" ? "#dc2626" : `${colorPalette.text}30`
+                            borderColor: vegFilter === "non-veg" ? "#ef4444" : `${colorPalette.text}30`
                         }}
                     >
-                        <div className={`w-2.5 h-2.5 border-[1.5px] flex items-center justify-center`} style={{ borderColor: vegFilter === "non-veg" ? "#ffffff" : "#dc2626" }}>
-                            <div className={`w-1.5 h-1.5 rounded-full`} style={{ backgroundColor: vegFilter === "non-veg" ? "#ffffff" : "#dc2626" }}></div>
+                        <div className={`w-2.5 h-2.5 border-[1.5px] flex items-center justify-center`} style={{ borderColor: vegFilter === "non-veg" ? "#ffffff" : "#ef4444" }}>
+                            <div className={`w-1.5 h-1.5 rounded-full`} style={{ backgroundColor: vegFilter === "non-veg" ? "#ffffff" : "#ef4444" }}></div>
                         </div>
                         Non-Veg
                     </button>
@@ -268,7 +282,7 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
             {/* Categories Navigation - Sticky */}
             <div className="sticky top-0 z-10">
                 <div
-                    className="overflow-x-scroll w-full flex gap-2 p-2 shadow-md scrollbar-hide border-b relative transition-colors duration-300"
+                    className="overflow-x-scroll w-full flex gap-2 p-2 shadow-md scrollbar-hide border-[1px] relative transition-colors duration-300"
                     style={{
                         backgroundColor: colorPalette.background,
                         borderColor: `${colorPalette.text}10`
@@ -289,25 +303,21 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                             key={category}
                             ref={(el) => { navRefs.current[index] = el; }}
                             onClick={() => scrollToCategory(index)}
-                            className="p-3 text-nowrap cursor-pointer flex-shrink-0 transition-colors"
+                            className={`p-3 text-nowrap cursor-pointer flex-shrink-0 transition-colors ${activeCatIndex === index ? "font-semibold" : "font-medium"}`}
                             style={{
                                 color: activeCatIndex === index ? colorPalette.accent : colorPalette.text,
-                                fontWeight: activeCatIndex === index ? 600 : 500,
                                 opacity: activeCatIndex === index ? 1 : 0.7
                             }}
                         >
-                            {category}
+                            {formatDisplayName(category)}
                         </div>
                     ))}
                 </div>
             </div>
 
-            {/* Menu Content - matching Compact.tsx grid structure */}
-            <div
-                className="grid gap-4 p-4 pb-24 relative"
-            >
+            {/* Menu Content */}
+            <div className="grid gap-4 p-4 pb-24 relative">
                 {Object.entries(groupedItems).map(([category, categoryItems], index) => {
-                    // Filter items based on veg filter
                     const filteredItems = categoryItems.filter(item => {
                         if (vegFilter === "all" || !hasVegFilter) return true;
                         if (vegFilter === "veg") return item.is_veg === true;
@@ -323,69 +333,109 @@ export const CompactMenuPreview: React.FC<CompactMenuPreviewProps> = ({
                             ref={(el) => { categoryRefs.current[index] = el; }}
                             className="py-4"
                         >
-                            <h2 className="text-xl font-bold py-4" style={{ color: colorPalette.accent }}>
-                                {category}
+                            <h2
+                                className="text-xl font-bold sticky top-[64px] z-[9] py-4"
+                                style={{ color: colorPalette.accent, backgroundColor: colorPalette.background }}
+                            >
+                                {formatDisplayName(category)}
                             </h2>
-                            <div className="grid grid-cols-1 gap-4 divide-y-2" style={{ borderColor: `${colorPalette.text}10` }}>
-                                {filteredItems.map((item, index) => (
-                                    <div key={index} className="p-4 flex gap-3 relative" style={{ borderColor: `${colorPalette.text}10` }}>
-                                        {/* Item Details (Left) - matching reference image */}
-                                        <div className="flex-1 min-w-0 flex flex-col">
-                                            <div className="flex items-start gap-2">
-                                                {/* Veg/Non-Veg Indicator */}
-                                                {item.is_veg !== null && item.is_veg !== undefined && (
-                                                    <div className="flex-shrink-0 mt-0.5">
-                                                        {item.is_veg === false ? (
-                                                            <div className="w-4 h-4 border border-red-600 flex items-center justify-center">
-                                                                <div className="w-2 h-2 rounded-full bg-red-600"></div>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="w-4 h-4 border border-green-600 flex items-center justify-center">
-                                                                <div className="w-2 h-2 rounded-full bg-green-600"></div>
+                            <div className="grid grid-cols-1 gap-4 divide-y-2 divide-gray-200">
+                                {filteredItems.map((item) => {
+                                    const currentIndex = globalItemIndex++;
+                                    const hasVariants = item.variants && item.variants.length > 0;
+                                    const isExpanded = expandedVariants.has(currentIndex);
+                                    const basePrice = hasVariants
+                                        ? [...item.variants!].sort((a, b) => a.price - b.price)[0].price
+                                        : item.price;
+
+                                    return (
+                                        <React.Fragment key={currentIndex}>
+                                            <div className="p-4 flex justify-between relative">
+                                                {/* Item Details (Left) */}
+                                                <div className="flex-1 min-w-0 flex flex-col">
+                                                    <div className="flex items-center gap-2">
+                                                        {/* Veg/Non-Veg Indicator */}
+                                                        {item.is_veg !== null && item.is_veg !== undefined && (
+                                                            <div className="flex-shrink-0">
+                                                                {item.is_veg === false ? (
+                                                                    <div className="w-4 h-4 border-2 border-red-600 flex items-center justify-center">
+                                                                        <div className="w-2.5 h-2.5 rounded-full bg-red-600"></div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="w-4 h-4 border-2 border-green-600 flex items-center justify-center">
+                                                                        <div className="w-2.5 h-2.5 rounded-full bg-green-600"></div>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         )}
+                                                        <h3 className="capitalize text-lg font-semibold" style={{ color: colorPalette.text }}>
+                                                            {item.name}
+                                                        </h3>
                                                     </div>
-                                                )}
-                                                <h3 className="font-semibold text-base" style={{ color: colorPalette.text }}>
-                                                    {item.name}
-                                                </h3>
+
+                                                    <p className="text-sm opacity-50">
+                                                        {item.description}
+                                                    </p>
+
+                                                    {/* Price */}
+                                                    <div className="text-lg font-bold mt-1" style={{ color: colorPalette.accent }}>
+                                                        {basePrice > 0 ? (
+                                                            <>
+                                                                {hasVariants && <span className="text-sm">From </span>}
+                                                                {currency} {basePrice}
+                                                            </>
+                                                        ) : ""}
+                                                    </div>
+                                                </div>
+
+                                                {/* Item Image (Right) */}
+                                                <div className="relative">
+                                                    <div className="overflow-hidden aspect-square h-28 rounded-3xl relative">
+                                                        <img
+                                                            src={item.image || "/image_placeholder.png"}
+                                                            alt={item.name}
+                                                            className={`w-full h-full object-cover ${!item.image ? "invert opacity-50" : ""}`}
+                                                        />
+                                                    </div>
+                                                    {/* Show Options button */}
+                                                    {hasVariants && (
+                                                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
+                                                            <div
+                                                                onClick={() => toggleVariants(currentIndex)}
+                                                                style={{ backgroundColor: colorPalette.accent, color: "white" }}
+                                                                className="rounded-full px-4 py-1 font-medium text-sm whitespace-nowrap h-fit cursor-pointer"
+                                                            >
+                                                                {isExpanded ? "Hide Options" : "Show Options"}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
 
-                                            <p className="text-sm mt-1 line-clamp-2" style={{ color: colorPalette.text, opacity: 0.6 }}>
-                                                {item.description}
-                                            </p>
-
-                                            {/* Price on bottom left */}
-                                            <div className="mt-3 text-lg font-semibold" style={{ color: colorPalette.accent }}>
-                                                {item.variants && item.variants.length > 0 ? (
-                                                    <>{currency} {item.price}</>
-                                                ) : (
-                                                    <>{currency} {item.price}</>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Item Image (Right) - matching reference image */}
-                                        <div className="relative w-28 h-28 flex-shrink-0 rounded-2xl overflow-hidden bg-gray-100">
-                                            <img
-                                                src={item.image || "/image_placeholder.png"}
-                                                alt={item.name}
-                                                className={`w-full h-full object-cover ${!item.image ? "invert opacity-50" : ""}`}
-                                            />
-                                            {/* Show Options button overlay if has variants */}
-                                            {item.variants && item.variants.length > 0 && (
-                                                <div className="absolute bottom-2 right-2">
-                                                    <button
-                                                        className="text-xs font-semibold text-white rounded-full px-3 py-1.5 shadow-lg"
-                                                        style={{ backgroundColor: colorPalette.accent }}
-                                                    >
-                                                        Show Options
-                                                    </button>
+                                            {/* Variant List */}
+                                            {isExpanded && hasVariants && (
+                                                <div className="w-full mt-2 divide-y divide-gray-200/30 border-t border-gray-200/30">
+                                                    {item.variants!.map((variant) => (
+                                                        <div
+                                                            key={variant.name}
+                                                            className="py-2 px-4 rounded-lg flex justify-between items-center gap-5 w-full"
+                                                        >
+                                                            <span className="font-semibold">{variant.name}</span>
+                                                            <div
+                                                                className="text-lg font-bold"
+                                                                style={{ color: colorPalette.accent }}
+                                                            >
+                                                                {variant.price > 0
+                                                                    ? `${currency} ${variant.price}`
+                                                                    : ""}
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             )}
-                                        </div>
-                                    </div>
-                                ))}
+                                        </React.Fragment>
+                                    );
+                                })}
                             </div>
                         </section>
                     );

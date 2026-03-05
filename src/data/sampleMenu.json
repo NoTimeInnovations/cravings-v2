@@ -1,0 +1,365 @@
+[
+  {
+    "name": "Masala Alfaham Mandi",
+    "price": 290,
+    "description": "Special masala alfaham mandi, a flavorful delight.",
+    "category": "mandi",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Apparys_Special_Masala_Alfaham_Mandi_Mandi_1772049266451.webp",
+    "variants": [
+      {
+        "name": "Small",
+        "price": 290
+      },
+      {
+        "name": "Medium",
+        "price": 560
+      },
+      {
+        "name": "Large",
+        "price": 960
+      }
+    ]
+  },
+  {
+    "name": "Normal Alfaham Mandi",
+    "price": 250,
+    "description": "Traditional Mandi rice with tender alfaham.",
+    "category": "mandi",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Normal_Alfaham_Mandi_mandi_1771822592768.webp",
+    "variants": [
+      {
+        "name": "Small",
+        "price": 250
+      },
+      {
+        "name": "Medium",
+        "price": 490
+      },
+      {
+        "name": "Large",
+        "price": 870
+      }
+    ]
+  },
+  {
+    "name": "Peri Peri Alfaham Mandi",
+    "price": 280,
+    "description": "Mandi rice with peri-peri flavored alfaham.",
+    "category": "mandi",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Peri_Peri_Alfaham_Mandi_mandi_1771822717005.webp",
+    "variants": [
+      {
+        "name": "Small",
+        "price": 280
+      },
+      {
+        "name": "Medium",
+        "price": 550
+      },
+      {
+        "name": "Large",
+        "price": 950
+      }
+    ]
+  },
+  {
+    "name": "Honey Alfaham Mandi",
+    "price": 280,
+    "description": "Mandi rice with sweet honey-glazed alfaham.",
+    "category": "mandi",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Honey_Alfaham_Mandi_Mandi_1772048961745.webp",
+    "variants": [
+      {
+        "name": "Small",
+        "price": 280
+      },
+      {
+        "name": "Medium",
+        "price": 550
+      },
+      {
+        "name": "Large",
+        "price": 950
+      }
+    ]
+  },
+  {
+    "name": "Kanthari Alfaham Mandi",
+    "price": 280,
+    "description": "Mandi rice with spicy Kanthari alfaham.",
+    "category": "mandi",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Kanthari_Alfaham_Mandi_mandi_1771822786292.webp",
+    "variants": [
+      {
+        "name": "Small",
+        "price": 280
+      },
+      {
+        "name": "Medium",
+        "price": 550
+      },
+      {
+        "name": "Large",
+        "price": 950
+      }
+    ]
+  },
+  {
+    "name": "Dragon Alfaham Mandi",
+    "price": 280,
+    "description": "Mandi rice with spicy dragon alfaham.",
+    "category": "mandi",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Dragon_Alfaham_Mandi_mandi_1771822671359.webp",
+    "variants": [
+      {
+        "name": "Small",
+        "price": 280
+      },
+      {
+        "name": "Medium",
+        "price": 550
+      },
+      {
+        "name": "Large",
+        "price": 950
+      }
+    ]
+  },
+  {
+    "name": "Fresh Line Juice",
+    "price": 29,
+    "description": "Refreshing fresh lime juice, tangy and zesty for a revitalizing drink.",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Fresh_Line_Juice_Cold_Drinks_1772049960059.webp"
+  },
+  {
+    "name": "Grape Juice",
+    "price": 70,
+    "description": "Sweet and refreshing grape juice, bursting with natural fruity flavor.",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Grape_Juice_Cold_Drinks_1772050356904.webp"
+  },
+  {
+    "name": "Sprite",
+    "price": 45,
+    "description": "Cooldrinks",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Sprite__Cold_Drinks_1772050986543.webp"
+  },
+  {
+    "name": "Orange Juice",
+    "price": 70,
+    "description": "Freshly squeezed orange juice, tangy, sweet, and packed with vitamin C.",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Orange_Juice_Cold_Drinks_1772050487024.webp"
+  },
+  {
+    "name": "Pepsi",
+    "price": 45,
+    "description": "cooldrinks",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Pepsi_Cold_Drinks_1772051046476.webp"
+  },
+  {
+    "name": "Mineral Water",
+    "price": 20,
+    "description": "Pure and refreshing mineral water to quench your thirst and keep you hydrated.",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Mineral_Water_Cold_Drinks_1772050243637.webp"
+  },
+  {
+    "name": "Water melon Juice",
+    "price": 60,
+    "description": "Chilled watermelon juice, naturally sweet, refreshing, and hydrating.",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Water_melon_Juice_Cold_Drinks_1772050697409.webp"
+  },
+  {
+    "name": "Mosambi Juice",
+    "price": 70,
+    "description": "Fresh mosambi (sweet lime) juice, tangy, sweet, and refreshingly citrusy.",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Mosambi_Juice_Cold_Drinks_1772050789994.webp"
+  },
+  {
+    "name": "Pineapple juice",
+    "price": 70,
+    "description": "Refreshing pineapple juice, sweet, tangy, and tropical in every sip",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Pineapple_juice_Cold_Drinks_1772050599553.webp"
+  },
+  {
+    "name": "Ghee Dosa",
+    "price": 70,
+    "description": "Crispy dosa cooked with ghee.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Ghee_Dosa_Dosa_Specials_1772044447815.webp"
+  },
+  {
+    "name": "Plain Dosa",
+    "price": 55,
+    "description": "A simple and plain rice crepe.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Plain_Dosa_dosa_specials_1771823326213.webp"
+  },
+  {
+    "name": "Normal Dosa",
+    "price": 15,
+    "description": "Thin, crispy rice crepe.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Normal_Dosa_Single_Dosa_Specials_1772044199265.webp"
+  },
+  {
+    "name": "Onion Dosa",
+    "price": 90,
+    "description": "Crispy dosa topped with finely chopped onions and spices for a flavorful, crunchy bite.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Onion_Dosa_Dosa_Specials_1772045145463.webp"
+  },
+  {
+    "name": "Chicken Dosa",
+    "price": 170,
+    "description": "Crispy dosa filled with spicy, tender chicken masala for a hearty and flavorful treat.",
+    "category": "dosa-special",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Chicken_Dosa_Dosa_Specials_1772045386772.webp"
+  },
+  {
+    "name": "Beef Dosa",
+    "price": 170,
+    "description": "Crispy dosa stuffed with flavorful, spiced beef for a bold and satisfying bite.",
+    "category": "dosa-special",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Beef_Dosa_Dosa_Specials_1772045508148.webp"
+  },
+  {
+    "name": "Onion Uttapam",
+    "price": 70,
+    "description": "Soft and fluffy uttapam topped with fresh onions for a savory, flavorful bite.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Onion_Uttapam_Dosa_Specials_1772045764239.webp"
+  },
+  {
+    "name": "Podi Dosa",
+    "price": 80,
+    "description": "Crispy dosa topped with spicy podi and ghee for a bold, aromatic flavor.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Podi_Dosa_Dosa_Specials_1772044732525.webp"
+  },
+  {
+    "name": "Egg Dosa",
+    "price": 90,
+    "description": "Crispy dosa layered with seasoned egg for a rich and satisfying South Indian favorite.",
+    "category": "dosa-special",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Egg_Dosa_Dosa_Specials_1772044991974.webp"
+  },
+  {
+    "name": "Masala Dosa",
+    "price": 80,
+    "description": "Crispy dosa filled with spiced potato mixture.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Masala_Dosa_Dosa_Specials_1772044330032.webp"
+  },
+  {
+    "name": "Paneer Masala Dosa",
+    "price": 150,
+    "description": "Crispy dosa stuffed with spiced paneer masala for a rich and flavorful twist on a classic favorite.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Paneer_Masala_Dosa_Dosa_Specials_1772045304152.webp"
+  },
+  {
+    "name": "Mushroom Dosa",
+    "price": 140,
+    "description": "Crispy dosa filled with spiced mushrooms for a savory and delicious twist.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Mushroom_Dosa_Dosa_Specials_1772045602293.webp"
+  },
+  {
+    "name": "Egg Noodles",
+    "price": 160,
+    "description": "Noodles stir-fried with scrambled eggs.",
+    "category": "noodles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Egg_Noodles_Noodles_1771960463656.webp"
+  },
+  {
+    "name": "Chicken Noodles",
+    "price": 170,
+    "description": "Noodles stir-fried with tender chicken pieces.",
+    "category": "noodles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Chicken_Noodles_noodles_1771777696902.webp"
+  },
+  {
+    "name": "Beef Noodles",
+    "price": 180,
+    "description": "Noodles stir-fried with savory beef.",
+    "category": "noodles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Beef_Noodles_Noodles_1771960642480.webp"
+  },
+  {
+    "name": "Schezwan Chicken Noodles",
+    "price": 180,
+    "description": "Spicy Schezwan noodles tossed with juicy chicken, crunchy vegetables, and bold chili-garlic sauce for a fiery and satisfying meal.",
+    "category": "noodles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Schezwan_Chicken_Noodles_noodles_1771959658727.webp"
+  },
+  {
+    "name": "Mixed Noodles",
+    "price": 210,
+    "description": "Noodles with a mix of vegetables and meats.",
+    "category": "noodles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Mixed_Noodles_Noodles_1771960303563.webp"
+  },
+  {
+    "name": "Veg Noodles",
+    "price": 150,
+    "description": "Noodles stir-fried with fresh vegetables.",
+    "category": "noodles",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Veg_Noodles_noodles_1771959567577.webp"
+  },
+  {
+    "name": "Paneer Noodles",
+    "price": 160,
+    "description": "Noodles stir-fried with paneer and vegetables.",
+    "category": "noodles",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Paneer_Noodles_noodles_1771959706352.webp"
+  },
+  {
+    "name": "Schezwan Mixed Noodles",
+    "price": 220,
+    "description": "Fiery Schezwan noodles stir-fried with a mix of chicken, beef, egg, and fresh vegetables in a bold chili-garlic sauce for a flavor-packed delight.",
+    "category": "noodles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Schezwan_Mixed_Noodles_Noodles_1771960196270.webp"
+  },
+  {
+    "name": "Schezwan Beef Noodles",
+    "price": 190,
+    "description": "Spicy Schezwan noodles stir-fried with tender beef strips, crisp vegetables, and bold chili-garlic sauce for a fiery, flavor-packed bite.",
+    "category": "noodles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Schezwan_Beef_Noodles_noodles_1771959514844.webp"
+  }
+]
