@@ -45,7 +45,11 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
     useEffect(() => {
         if (categories.length > 0) {
             const sorted = [...categories].sort((a, b) => (a.priority || 0) - (b.priority || 0));
-            setLocalCategories(sorted);
+            const withDefaults = sorted.map((cat, index) => ({
+                ...cat,
+                priority: cat.priority != null ? cat.priority : index + 1,
+            }));
+            setLocalCategories(withDefaults);
         }
     }, [categories]);
 
@@ -53,7 +57,11 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
         if (selectedCategory && items.length > 0) {
             const categoryItems = items.filter(item => item.category.id === selectedCategory.id);
             const sorted = [...categoryItems].sort((a, b) => (a.priority || 0) - (b.priority || 0));
-            setLocalItems(sorted);
+            const withDefaults = sorted.map((item, index) => ({
+                ...item,
+                priority: item.priority != null ? item.priority : index + 1,
+            }));
+            setLocalItems(withDefaults);
         }
     }, [selectedCategory, items]);
 
@@ -111,6 +119,7 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
                     cat.id === id ? { ...cat, priority: 0 } : cat
                 ));
             }
+            setHasChanges(true);
             return;
         }
 
@@ -149,11 +158,11 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
                     priority: item.priority!
                 }));
                 await updateItemsAsBatch(updates);
-                toast.success("Item priorities updated");
             } else {
                 // Save Categories
                 await updateCategoriesAsBatch(localCategories);
-                toast.success("Category priorities updated");
+                // Update category store so UI stays in sync
+                useCategoryStore.setState({ categories: localCategories });
             }
             setHasChanges(false);
         } catch (error) {
@@ -228,7 +237,7 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
                                         <Input
                                             id={`priority-${item.id}`}
                                             type="number"
-                                            value={item.priority || ""}
+                                            value={item.priority ?? ""}
                                             onChange={(e) => handlePriorityChange(item.id!, e.target.value)}
                                             onKeyDown={(e) => {
                                                 if (e.key === "Enter") {
@@ -258,7 +267,7 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
                                             <Input
                                                 id={`priority-${category.id}`}
                                                 type="number"
-                                                value={category.priority || ""}
+                                                value={category.priority ?? ""}
                                                 onChange={(e) => handlePriorityChange(category.id, e.target.value)}
                                                 onKeyDown={(e) => {
                                                     if (e.key === "Enter") {
