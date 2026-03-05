@@ -20,7 +20,6 @@ import {
 import { Offer } from "@/store/offerStore_hasura";
 import { Category } from "@/store/categoryStore_hasura";
 import { QrGroup } from "@/app/admin/qr-management/page";
-import { useSearchParams } from "next/navigation";
 
 export interface DefaultHotelPageProps {
   styles: Styles;
@@ -39,6 +38,7 @@ export interface DefaultHotelPageProps {
   pathname: string;
   categories: Category[];
   setSelectedCategory: (category: string) => void;
+  selectedCategory?: string;
   qrGroup?: QrGroup | null;
   qrId?: string | null;
   isOnFreePlan?: boolean;
@@ -58,14 +58,14 @@ const Default = ({
   pathname,
   categories,
   setSelectedCategory,
+  selectedCategory: selectedCategoryProp,
   qrGroup,
   qrId,
   isOnFreePlan,
 }: DefaultHotelPageProps) => {
 
   const [isThemeDialogOpen, setIsThemeDialogOpen] = React.useState(false);
-  const searchParams = useSearchParams();
-  const selectedCategory = searchParams.get("cat") || "all";
+  const selectedCategory = selectedCategoryProp || "all";
 
   // Helper function to check if a menu item has an active offer
   const hasActiveOffer = (menuItemId: string) => {
@@ -230,6 +230,7 @@ const Default = ({
               hotelData={hoteldata}
               categories={categories}
               setSelectedCategory={setSelectedCategory}
+              selectedCategory={selectedCategory}
               tableNumber={tableNumber}
             />
           </section>

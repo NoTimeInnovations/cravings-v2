@@ -442,6 +442,7 @@ const OrderDrawer = ({
         hotelData={hotelData}
         tableNumber={tableNumber || 0}
         tableName={qrData?.table_name || undefined}
+        styles={styles}
       />
 
       {/* Bottom Drawer */}
@@ -452,7 +453,7 @@ const OrderDrawer = ({
           backgroundColor: styles.accent || "#ea580c",
           color: "#ffffff",
         }}
-        className={`fixed left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl flex items-center justify-between transition-all duration-300 cursor-pointer ${open_drawer_bottom ? "translate-y-0" : "translate-y-[200%]"
+        className={`fixed left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-xl flex items-center justify-between transition-all duration-300 cursor-pointer ${open_drawer_bottom ? "translate-y-0" : "translate-y-[200%]"
           } ${hasBottomNav ? "bottom-20" : "bottom-6"}`}
       >
         <div className="font-semibold text-lg">

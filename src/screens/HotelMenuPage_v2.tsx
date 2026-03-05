@@ -8,7 +8,7 @@ import OrderDrawer from "@/components/hotelDetail/OrderDrawer";
 import useOrderStore from "@/store/orderStore";
 // Import useMemo and useCallback
 import { useEffect, useMemo, useCallback, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { getFeatures } from "@/lib/getFeatures";
 import { isFreePlan } from "@/lib/getPlanLimits";
 import { QrGroup } from "@/app/admin/qr-management/page";
@@ -18,6 +18,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { INCREMENT_QR_CODE_SCAN_COUNT } from "@/api/qrcodes";
 import Default from "@/components/hotelDetail/styles/Default/Default";
 import Compact from "@/components/hotelDetail/styles/Compact/Compact";
+import Sidebar from "@/components/hotelDetail/styles/Sidebar/Sidebar";
 import { saveUserLocation } from "@/lib/saveUserLocLocal";
 import { QrCode, useQrDataStore } from "@/store/qrDataStore";
 import DeliveryTimeCampain from "@/components/hotelDetail/DeliveryTimeCampain";
@@ -69,7 +70,6 @@ const HotelMenuPage = ({
   qrId,
   selectedCategory: selectedCategoryProp,
 }: HotelMenuPageProps) => {
-  const router = useRouter();
   const pathname = usePathname();
   const { setHotelId, genOrderId, open_place_order_modal } = useOrderStore();
   const { setQrData } = useQrDataStore();
@@ -88,6 +88,20 @@ const HotelMenuPage = ({
   // useEffect(() => {
   //   saveUserLocation(false);
   // }, []);
+
+  // Save theme to localStorage so login/location screens can use it
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "hotelTheme",
+        JSON.stringify({
+          accent: styles.accent,
+          bg: styles.backgroundColor,
+          text: styles.color,
+        })
+      );
+    } catch {}
+  }, [styles.accent, styles.backgroundColor, styles.color]);
 
   useEffect(() => {
     setQrData(qrData || null);
@@ -182,7 +196,7 @@ const HotelMenuPage = ({
     return uniqueCategories;
   }, [hoteldata?.menus, offeredItems]);
 
-  const selectedCategory = selectedCategoryProp || "all";
+  const [selectedCategory, setSelectedCat] = useState(selectedCategoryProp || "all");
 
   // ✅ Memoize the filtered and sorted items for the selected category
   const items = useMemo(() => {
@@ -231,15 +245,17 @@ const HotelMenuPage = ({
   // ✅ Memoize the function passed as a prop to prevent child re-renders
   const setSelectedCategory = useCallback(
     (category: string) => {
+      setSelectedCat(category);
+      // Update URL without navigation for bookmarkability
       const url = new URL(window.location.href);
       if (category === "all") {
         url.searchParams.delete("cat");
       } else {
         url.searchParams.set("cat", category);
       }
-      router.push(url.toString(), { scroll: false });
+      window.history.replaceState(null, "", url.toString());
     },
-    [router]
+    []
   );
 
   const hotelPlanId = (hoteldata as any)?.subscription_details?.plan?.id;
@@ -257,6 +273,7 @@ const HotelMenuPage = ({
     qrId,
     categories,
     setSelectedCategory,
+    selectedCategory,
     items,
     topItems,
     open_place_order_modal: open_place_order_modal,
@@ -268,6 +285,8 @@ const HotelMenuPage = ({
     switch (theme?.menuStyle) {
       case "compact":
         return <Compact {...defaultProps} />;
+      case "sidebar":
+        return <Sidebar {...defaultProps} />;
       default:
         return <Default {...defaultProps} />;
     }

@@ -12,7 +12,8 @@ interface MenuStyleModalProps {
 
 export const MENUSTYLES = [
   { id: "default", name: "Default Style" },
-  { id: "compact", name: "Compact Style" }
+  { id: "compact", name: "Compact Style" },
+  { id: "sidebar", name: "Sidebar Style" }
 ];
 
 const MenuStyleModal = ({ open, onOpenChange, onSave , theme }: MenuStyleModalProps) => {

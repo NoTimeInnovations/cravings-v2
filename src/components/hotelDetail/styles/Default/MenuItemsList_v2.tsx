@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { Category, formatDisplayName } from "@/store/categoryStore_hasura";
 import ItemCard from "./ItemCard";
-import { useSearchParams } from "next/navigation";
 import { Offer } from "@/store/offerStore_hasura";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const MenuItemsList = ({
   styles,
@@ -14,6 +14,7 @@ const MenuItemsList = ({
   categories,
   hotelData,
   setSelectedCategory,
+  selectedCategory: selectedCategoryProp,
   currency,
   tableNumber,
 }: {
@@ -22,13 +23,93 @@ const MenuItemsList = ({
   categories: Category[];
   hotelData: HotelData;
   setSelectedCategory: (category: string) => void;
+  selectedCategory?: string;
   currency: string;
   tableNumber: number;
 }) => {
-  const serachParaams = useSearchParams();
-  const selectedCat = serachParaams.get("cat") || "all";
+  const selectedCat = selectedCategoryProp || "all";
   const isOfferCategory = selectedCat === "Offer";
   const [vegFilter, setVegFilter] = useState<"all" | "veg" | "non-veg">("all");
+
+  // Swipe navigation between categories
+  const touchStartX = useRef<number>(0);
+  const touchStartY = useRef<number>(0);
+  const isDragging = useRef(false);
+  const itemsRef = useRef<HTMLDivElement>(null);
+  const allCats = useMemo(() => ["all", ...categories.map(c => c.name)], [categories]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    isDragging.current = false;
+    if (itemsRef.current) {
+      itemsRef.current.style.transition = 'none';
+    }
+  }, []);
+
+  // Native touchmove with { passive: false } to allow preventDefault
+  useEffect(() => {
+    const el = itemsRef.current;
+    if (!el) return;
+    const onTouchMove = (e: TouchEvent) => {
+      const dx = e.touches[0].clientX - touchStartX.current;
+      const dy = e.touches[0].clientY - touchStartY.current;
+      if (!isDragging.current) {
+        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+          isDragging.current = true;
+        } else if (Math.abs(dy) > 10) return;
+      }
+      if (isDragging.current) {
+        e.preventDefault(); // Prevent browser overscroll/bounce
+        const damped = dx * 0.35;
+        el.style.transform = `translateX(${damped}px)`;
+        el.style.opacity = `${1 - Math.min(Math.abs(dx) / 600, 0.4)}`;
+      }
+    };
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    return () => el.removeEventListener('touchmove', onTouchMove);
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (!isDragging.current || !itemsRef.current) {
+      if (itemsRef.current) {
+        itemsRef.current.style.transform = '';
+        itemsRef.current.style.opacity = '';
+      }
+      return;
+    }
+    const currentIdx = allCats.indexOf(selectedCat);
+    const goNext = dx < -60 && currentIdx < allCats.length - 1;
+    const goPrev = dx > 60 && currentIdx > 0;
+
+    if (goNext || goPrev) {
+      itemsRef.current.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+      itemsRef.current.style.transform = `translateX(${dx < 0 ? '-100%' : '100%'})`;
+      itemsRef.current.style.opacity = '0';
+      setTimeout(() => {
+        if (goNext) setSelectedCategory(allCats[currentIdx + 1]);
+        else setSelectedCategory(allCats[currentIdx - 1]);
+        if (itemsRef.current) {
+          itemsRef.current.style.transition = 'none';
+          itemsRef.current.style.transform = `translateX(${dx < 0 ? '40%' : '-40%'})`;
+          itemsRef.current.style.opacity = '0';
+          requestAnimationFrame(() => {
+            if (itemsRef.current) {
+              itemsRef.current.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+              itemsRef.current.style.transform = 'translateX(0)';
+              itemsRef.current.style.opacity = '1';
+            }
+          });
+        }
+      }, 200);
+    } else {
+      itemsRef.current.style.transition = 'transform 0.25s ease-out, opacity 0.25s ease-out';
+      itemsRef.current.style.transform = 'translateX(0)';
+      itemsRef.current.style.opacity = '1';
+    }
+    isDragging.current = false;
+  }, [allCats, selectedCat, setSelectedCategory]);
 
   // Check if any menu items have is_veg set (not null)
   const hasVegFilter = useMemo(() => {
@@ -187,8 +268,19 @@ const MenuItemsList = ({
         </div>
       )}
 
+      {/* Swipe hint + item count */}
+      <div className="px-[8%] flex items-center justify-between">
+        <span className="text-[11px] font-medium opacity-50">{filteredItems?.length || 0} items</span>
+        <div className="flex items-center gap-1 text-[10px] font-medium opacity-40">
+          <ChevronLeft size={12} />
+          <span>Swipe for more</span>
+          <ChevronRight size={12} />
+        </div>
+      </div>
+
       {/* items  */}
-      <div id="menu-items" className="px-[8%] grid h-fit gap-3 rounded-3xl ">
+      <div className="overflow-hidden">
+      <div ref={itemsRef} id="menu-items" className="px-[8%] grid h-fit gap-3 rounded-3xl" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         {filteredItems
           ?.sort((a, b) => {
             // First, sort by priority
@@ -347,6 +439,7 @@ const MenuItemsList = ({
               />
             );
           })}
+      </div>
       </div>
     </div>
   );

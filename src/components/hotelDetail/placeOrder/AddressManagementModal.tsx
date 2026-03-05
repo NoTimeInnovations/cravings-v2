@@ -85,6 +85,8 @@ function saveRecentSearch(item: RecentSearch) {
   } catch {}
 }
 
+const DEFAULT_ACCENT = "#EA580C";
+
 const AddressManagementModal = ({
   open,
   onClose,
@@ -102,6 +104,34 @@ const AddressManagementModal = ({
   savedAddresses?: SavedAddress[];
   onDeleteAddress?: (addressId: string) => void;
 }) => {
+  // Read theme from localStorage
+  const [accent, setAccent] = useState(DEFAULT_ACCENT);
+  const [themeBg, setThemeBg] = useState("#F5F5F5");
+  const [themeText, setThemeText] = useState("#000000");
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("hotelTheme");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.accent) setAccent(parsed.accent);
+        if (parsed.bg) setThemeBg(parsed.bg);
+        if (parsed.text) setThemeText(parsed.text);
+      }
+    } catch {}
+  }, []);
+
+  // Glassmorphism card styles matching PlaceOrderModal
+  const isDark = (() => {
+    const c = themeText.replace("#", "");
+    const r = parseInt(c.substring(0, 2), 16) || 0;
+    const g = parseInt(c.substring(2, 4), 16) || 0;
+    const b = parseInt(c.substring(4, 6), 16) || 0;
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5;
+  })();
+  const cardBg = isDark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.04)";
+  const cardBorder = isDark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.08)";
+  const cardDivider = isDark ? "rgba(255,255,255,0.10)" : "rgba(0,0,0,0.06)";
+
   // Screen: "search" or "map"
   const [screen, setScreen] = useState<"search" | "map">("search");
   const [searchValue, setSearchValue] = useState("");
@@ -485,16 +515,23 @@ const AddressManagementModal = ({
     const hasSearch = searchValue.trim().length > 0;
 
     return (
-      <div className="fixed inset-0 z-[70] bg-white h-[100dvh] flex flex-col">
+      <div
+        className="fixed inset-0 z-[70] h-[100dvh] flex flex-col"
+        style={{
+          backgroundColor: themeBg,
+          backgroundImage: `linear-gradient(${themeText}0D 1px, transparent 1px), linear-gradient(90deg, ${themeText}0D 1px, transparent 1px)`,
+          backgroundSize: "40px 40px",
+        }}
+      >
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-4 shrink-0">
           <button
             onClick={onClose}
             className="p-1"
           >
-            <ArrowLeft className="h-6 w-6 text-gray-900" />
+            <ArrowLeft className="h-6 w-6" style={{ color: themeText }} />
           </button>
-          <h1 className="text-lg font-bold text-gray-900">
+          <h1 className="text-lg font-bold" style={{ color: themeText }}>
             Select Your Location
           </h1>
         </div>
@@ -508,7 +545,13 @@ const AddressManagementModal = ({
               placeholder="Search an area or address"
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
-              className="w-full h-12 pl-4 pr-12 bg-white text-gray-900 placeholder:text-gray-400 border border-gray-200 rounded-xl outline-none focus:border-gray-400 transition-colors text-[15px]"
+              className="w-full h-12 pl-4 pr-12 rounded-xl outline-none transition-colors text-[15px]"
+              style={{
+                backgroundColor: cardBg,
+                backdropFilter: "blur(12px)",
+                color: themeText,
+                border: `1px solid ${cardBorder}`,
+              }}
               autoFocus
             />
             {hasSearch ? (
@@ -520,10 +563,10 @@ const AddressManagementModal = ({
                 }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1"
               >
-                <X className="h-5 w-5 text-gray-400" />
+                <X className="h-5 w-5" style={{ color: `${themeText}66` }} />
               </button>
             ) : (
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: `${themeText}66` }} />
             )}
           </div>
         </div>
@@ -534,12 +577,13 @@ const AddressManagementModal = ({
             <button
               onClick={handleUseCurrentLocation}
               disabled={locating}
-              className="w-full flex items-center justify-center gap-2.5 h-12 border border-gray-200 rounded-xl text-[15px] font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2.5 h-12 rounded-xl text-[15px] font-medium transition-colors disabled:opacity-50"
+              style={{ backgroundColor: cardBg, backdropFilter: "blur(12px)", border: `1px solid ${cardBorder}`, color: themeText }}
             >
               {locating ? (
-                <Loader2 className="h-5 w-5 animate-spin text-orange-500" />
+                <Loader2 className="h-5 w-5 animate-spin" style={{ color: accent }} />
               ) : (
-                <LocateFixed className="h-5 w-5 text-orange-500" />
+                <LocateFixed className="h-5 w-5" style={{ color: accent }} />
               )}
               Use Current Location
             </button>
@@ -551,16 +595,16 @@ const AddressManagementModal = ({
           {hasSearch ? (
             <>
               <div className="px-4 pt-2 pb-2">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: `${themeText}66` }}>
                   Search Results
                 </p>
               </div>
               {predictions.length === 0 && (
-                <div className="px-4 py-8 text-center text-sm text-gray-400">
+                <div className="px-4 py-8 text-center text-sm" style={{ color: `${themeText}66` }}>
                   {isLoaded ? "No results found" : "Loading..."}
                 </div>
               )}
-              <div className="bg-white mx-4 rounded-xl overflow-hidden">
+              <div className="mx-4 rounded-xl overflow-hidden" style={{ backgroundColor: cardBg, backdropFilter: "blur(12px)", border: `1px solid ${cardBorder}` }}>
                 {predictions.map((prediction, idx) => {
                   const isRecent = recentSearches.some(
                     (r) => r.placeId === prediction.place_id,
@@ -570,24 +614,21 @@ const AddressManagementModal = ({
                     <button
                       key={prediction.place_id}
                       onClick={() => handleSelectPrediction(prediction)}
-                      className={`w-full flex items-center gap-3.5 px-4 py-3.5 text-left hover:bg-gray-50 transition-colors ${
-                        idx < predictions.length - 1
-                          ? "border-b border-gray-100"
-                          : ""
-                      }`}
+                      className="w-full flex items-center gap-3.5 px-4 py-3.5 text-left transition-colors"
+                      style={idx < predictions.length - 1 ? { borderBottom: `1px solid ${cardDivider}` } : undefined}
                     >
-                      <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${themeText}0A` }}>
                         {isRecent ? (
-                          <Clock className="h-4 w-4 text-gray-500" />
+                          <Clock className="h-4 w-4" style={{ color: `${themeText}80` }} />
                         ) : (
-                          <Search className="h-4 w-4 text-gray-500" />
+                          <Search className="h-4 w-4" style={{ color: `${themeText}80` }} />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[15px] font-semibold text-gray-900 truncate">
+                        <p className="text-[15px] font-semibold truncate" style={{ color: themeText }}>
                           {prediction.structured_formatting.main_text}
                         </p>
-                        <p className="text-xs text-gray-500 truncate mt-0.5">
+                        <p className="text-xs truncate mt-0.5" style={{ color: `${themeText}80` }}>
                           {prediction.structured_formatting.secondary_text}
                         </p>
                       </div>
@@ -602,19 +643,16 @@ const AddressManagementModal = ({
               {savedAddresses.length > 0 && (
                 <>
                   <div className="px-4 pt-2 pb-2">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: `${themeText}66` }}>
                       Saved Addresses
                     </p>
                   </div>
-                  <div className="bg-white mx-4 rounded-xl overflow-hidden mb-3">
+                  <div className="mx-4 rounded-xl overflow-hidden mb-3" style={{ backgroundColor: cardBg, backdropFilter: "blur(12px)", border: `1px solid ${cardBorder}` }}>
                     {savedAddresses.map((addr, idx) => (
                         <div
                           key={addr.id}
-                          className={`flex items-center gap-3.5 px-4 py-3.5 hover:bg-gray-50 transition-colors ${
-                            idx < savedAddresses.length - 1
-                              ? "border-b border-gray-100"
-                              : ""
-                          }`}
+                          className="flex items-center gap-3.5 px-4 py-3.5 transition-colors"
+                          style={idx < savedAddresses.length - 1 ? { borderBottom: `1px solid ${cardDivider}` } : undefined}
                         >
                           <button
                             onClick={() => {
@@ -628,14 +666,14 @@ const AddressManagementModal = ({
                             }}
                             className="flex items-center gap-3.5 flex-1 min-w-0 text-left"
                           >
-                            <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
-                              <MapPin className="h-4 w-4 text-orange-500" />
+                            <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${accent}15` }}>
+                              <MapPin className="h-4 w-4" style={{ color: accent }} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-[14px] font-semibold text-gray-900 truncate">
+                              <p className="text-[14px] font-semibold truncate" style={{ color: themeText }}>
                                 {addr.label}
                               </p>
-                              <p className="text-xs text-gray-500 truncate mt-0.5">
+                              <p className="text-xs truncate mt-0.5" style={{ color: `${themeText}80` }}>
                                 {addr.address ||
                                   [addr.flat_no, addr.house_no, addr.area, addr.city]
                                     .filter(Boolean)
@@ -660,29 +698,26 @@ const AddressManagementModal = ({
               {recentSearches.length > 0 && (
                 <>
                   <div className="px-4 pt-2 pb-2">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: `${themeText}66` }}>
                       Recently Searched
                     </p>
                   </div>
-                  <div className="bg-white mx-4 rounded-xl overflow-hidden">
+                  <div className="mx-4 rounded-xl overflow-hidden" style={{ backgroundColor: cardBg, backdropFilter: "blur(12px)", border: `1px solid ${cardBorder}` }}>
                     {recentSearches.map((recent, idx) => (
                         <button
                           key={recent.placeId}
                           onClick={() => handleSelectRecent(recent)}
-                          className={`w-full flex items-center gap-3.5 px-4 py-3.5 text-left hover:bg-gray-50 transition-colors ${
-                            idx < recentSearches.length - 1
-                              ? "border-b border-gray-100"
-                              : ""
-                          }`}
+                          className="w-full flex items-center gap-3.5 px-4 py-3.5 text-left transition-colors"
+                          style={idx < recentSearches.length - 1 ? { borderBottom: `1px solid ${cardDivider}` } : undefined}
                         >
-                          <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                            <Clock className="h-4 w-4 text-gray-500" />
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${themeText}0A` }}>
+                            <Clock className="h-4 w-4" style={{ color: `${themeText}80` }} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[15px] font-semibold text-gray-900 truncate">
+                            <p className="text-[15px] font-semibold truncate" style={{ color: themeText }}>
                               {recent.name}
                             </p>
-                            <p className="text-xs text-gray-500 truncate mt-0.5">
+                            <p className="text-xs truncate mt-0.5" style={{ color: `${themeText}80` }}>
                               {recent.address}
                             </p>
                           </div>
@@ -709,7 +744,7 @@ const AddressManagementModal = ({
           </div>
         ) : !isLoaded ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+            <Loader2 className="h-8 w-8 animate-spin" style={{ color: accent }} />
           </div>
         ) : (
           <GoogleMap
@@ -758,7 +793,7 @@ const AddressManagementModal = ({
           >
             <path
               d="M20 0C9 0 0 9 0 20c0 15 20 30 20 30s20-15 20-30C40 9 31 0 20 0z"
-              fill="#EA580C"
+              fill={accent}
             />
             <circle cx="20" cy="18" r="7" fill="white" />
           </svg>
@@ -796,15 +831,15 @@ const AddressManagementModal = ({
         )}
 
         {/* Top overlay: back + title + search */}
-        <div className="absolute top-0 left-0 right-0 z-20 bg-white safe-area-top shadow-sm">
+        <div className="absolute top-0 left-0 right-0 z-20 safe-area-top shadow-sm" style={{ backgroundColor: themeBg }}>
           <div className="px-4 py-4 flex items-center gap-3">
             <button
               onClick={() => setScreen("search")}
               className="p-1"
             >
-              <ArrowLeft className="h-6 w-6 text-gray-900" />
+              <ArrowLeft className="h-6 w-6" style={{ color: themeText }} />
             </button>
-            <h1 className="text-lg font-bold text-gray-900">
+            <h1 className="text-lg font-bold" style={{ color: themeText }}>
               Confirm Location
             </h1>
           </div>
@@ -817,9 +852,10 @@ const AddressManagementModal = ({
                 type="text"
                 placeholder="Search an area or address"
                 readOnly
-                className="w-full h-12 pl-4 pr-12 bg-white text-gray-900 placeholder:text-gray-400 border border-gray-200 rounded-xl text-[15px] cursor-pointer"
+                className="w-full h-12 pl-4 pr-12 rounded-xl text-[15px] cursor-pointer"
+                style={{ backgroundColor: cardBg, backdropFilter: "blur(12px)", color: themeText, border: `1px solid ${cardBorder}` }}
               />
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Search className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: `${themeText}66` }} />
             </button>
           </div>
         </div>
@@ -829,12 +865,13 @@ const AddressManagementModal = ({
           <button
             onClick={handleUseCurrentLocation}
             disabled={locating}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white rounded-full shadow-lg text-sm font-medium text-gray-700 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white rounded-full shadow-lg text-sm font-medium disabled:opacity-50"
+            style={{ color: themeText }}
           >
             {locating ? (
-              <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+              <Loader2 className="h-4 w-4 animate-spin" style={{ color: accent }} />
             ) : (
-              <LocateFixed className="h-4 w-4 text-orange-500" />
+              <LocateFixed className="h-4 w-4" style={{ color: accent }} />
             )}
             Current location
           </button>
@@ -842,31 +879,31 @@ const AddressManagementModal = ({
       </div>
 
       {/* Bottom sheet */}
-      <div className="bg-white rounded-t-3xl -mt-6 relative z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+      <div className="rounded-t-3xl -mt-6 relative z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]" style={{ backgroundColor: themeBg }}>
         <div className="px-5 pt-5 pb-4">
-          <p className="text-[15px] font-semibold text-gray-900">
+          <p className="text-[15px] font-semibold" style={{ color: themeText }}>
             Order will be delivered here
           </p>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-xs mt-0.5" style={{ color: `${themeText}66` }}>
             Place the pin or exact delivery location
           </p>
 
           {mapMoving || geocoding ? (
             <div className="flex items-start gap-2.5 mt-4 animate-pulse">
-              <div className="w-5 h-5 bg-gray-200 rounded-full shrink-0 mt-0.5" />
+              <div className="w-5 h-5 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: `${themeText}1D` }} />
               <div className="flex-1 min-w-0">
-                <div className="h-4 bg-gray-200 rounded w-2/3" />
-                <div className="h-3 bg-gray-100 rounded w-full mt-2" />
+                <div className="h-4 rounded w-2/3" style={{ backgroundColor: `${themeText}1D` }} />
+                <div className="h-3 rounded w-full mt-2" style={{ backgroundColor: `${themeText}0D` }} />
               </div>
             </div>
           ) : geocodedInfo ? (
             <div className="flex items-start gap-2.5 mt-4">
-              <MapPin className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
+              <MapPin className="h-5 w-5 shrink-0 mt-0.5" style={{ color: accent }} />
               <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-bold text-gray-900">
+                <p className="text-[15px] font-bold" style={{ color: themeText }}>
                   {geocodedInfo.name}
                 </p>
-                <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+                <p className="text-xs mt-0.5 line-clamp-2" style={{ color: `${themeText}80` }}>
                   {geocodedInfo.address}
                 </p>
               </div>
@@ -878,13 +915,15 @@ const AddressManagementModal = ({
             value={manualAddress}
             onChange={(e) => setManualAddress(e.target.value)}
             rows={2}
-            className="w-full mt-4 p-3 bg-white text-gray-900 placeholder:text-gray-400 border border-gray-200 rounded-xl outline-none focus:border-gray-400 transition-colors text-[14px] resize-none"
+            className="w-full mt-4 p-3 rounded-xl outline-none transition-colors text-[14px] resize-none"
+            style={{ backgroundColor: cardBg, backdropFilter: "blur(12px)", color: themeText, border: `1px solid ${cardBorder}` }}
           />
 
           <button
             onClick={handleConfirm}
             disabled={saving || geocoding || mapMoving || !geocodedInfo}
-            className="w-full mt-5 h-14 bg-orange-500 text-white rounded-2xl font-bold text-[16px] disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-transform"
+            className="w-full mt-5 h-14 text-white rounded-2xl font-bold text-[16px] disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-transform"
+            style={{ backgroundColor: accent }}
           >
             {saving ? (
               <span className="flex items-center justify-center gap-2">
