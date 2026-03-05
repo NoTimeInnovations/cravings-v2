@@ -18,13 +18,10 @@ export default function Footer({
           {/* Column 1: Brand */}
           <div className="col-span-2">
             <Link href="/" className="inline-block mb-3">
-              <Image
-                src="/menuthere_logo_full_white.svg"
-                alt="Menuthere"
-                width={201}
-                height={46}
-                className="h-8 w-auto object-contain"
-              />
+              <div className="flex items-center gap-2">
+                <Image src="/menuthere-logo-v2.svg" alt="Menuthere" width={32} height={32} className="h-8 w-auto object-contain" />
+                <span className="text-xl font-bold text-white">Menuthere</span>
+              </div>
             </Link>
             <p className="text-sm text-white/80 max-w-xs leading-relaxed">
               The all-in-one platform for restaurants to manage digital menus,

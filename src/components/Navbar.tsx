@@ -399,13 +399,10 @@ export function Navbar() {
       href="/"
       className="flex items-center cursor-pointer"
     >
-      <Image
-        src="/menuthere_logo_full.svg"
-        alt="Menuthere"
-        width={171}
-        height={46}
-        className="h-8 w-auto object-contain"
-      />
+      <div className="flex items-center gap-2">
+        <Image src="/menuthere-logo-v2.svg" alt="Menuthere" width={32} height={32} className="h-8 w-auto object-contain" />
+        <span className="text-xl font-bold text-stone-900">Menuthere</span>
+      </div>
     </Link>
   );
 
