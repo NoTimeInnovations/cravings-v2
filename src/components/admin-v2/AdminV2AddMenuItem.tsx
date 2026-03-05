@@ -191,7 +191,18 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
                                     <label className="text-sm font-medium">Category</label>
                                     <CategoryDropdown
                                         value={newItem.category?.name || ""}
-                                        onChange={(value) => {
+                                        onChange={(value, category) => {
+                                            if (category) {
+                                                setNewItem({
+                                                    ...newItem,
+                                                    category: {
+                                                        ...category,
+                                                        is_active: category.is_active ?? true,
+                                                        priority: category.priority ?? 0,
+                                                    },
+                                                });
+                                                return;
+                                            }
                                             const selectedCategory = categories.find(
                                                 (c) => formatDisplayName(c.name) === formatDisplayName(value)
                                             );

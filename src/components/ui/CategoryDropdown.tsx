@@ -135,7 +135,7 @@ export const CategoryDropdown = ({
               onChange={(e) => setNewCategory(e.target.value)}
               placeholder="Enter new category name"
               autoFocus
-              className="h-12 text-base"
+              className="h-9 text-sm"
             />
           </div>
         </div>
@@ -144,7 +144,7 @@ export const CategoryDropdown = ({
             variant="outline"
             type="button"
             onClick={handleCancel}
-            className="flex items-center gap-1 h-12 px-4"
+            className="flex items-center gap-1 h-9 px-4"
           >
             <ChevronLeft className="h-4 w-4" /> Back
           </Button>
@@ -152,7 +152,7 @@ export const CategoryDropdown = ({
             type="button"
             disabled={!newCategory.trim() || isLoading}
             onClick={handleCreateCategory}
-            className="h-12 px-4"
+            className="h-9 px-4"
           >
             {isLoading ? "Creating..." : "Create Category"}
           </Button>
@@ -163,7 +163,7 @@ export const CategoryDropdown = ({
 
   return (
     <Select value={value} onValueChange={handleSelectChange}>
-      <SelectTrigger className="capitalize h-12 text-base text-foreground bg-background">
+      <SelectTrigger className="capitalize h-9 text-sm text-foreground bg-background">
         <SelectValue placeholder="Select category" />
       </SelectTrigger>
       <SelectContent className="max-w-[95vw]">
