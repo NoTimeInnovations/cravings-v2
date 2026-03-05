@@ -47,8 +47,10 @@ export async function addPaymentV2(params: AddPaymentParams) {
   }
 }
 
-export async function updateSubscriptionV2(partnerId: string, subscriptionDetails: any, featureFlags: string = "") {
-  const mutation = `
+export async function updateSubscriptionV2(partnerId: string, subscriptionDetails: any, featureFlags: string | null = null) {
+  // If featureFlags is null, only update subscription_details (don't touch feature_flags)
+  const mutation = featureFlags !== null
+    ? `
     mutation UpdateSubscriptionV2($id: uuid!, $subscription_details: jsonb!, $feature_flags: String!, $updated_at: timestamptz!) {
       update_partners_by_pk(pk_columns: {id: $id}, _set: {subscription_details: $subscription_details, feature_flags: $feature_flags, updated_at: $updated_at}) {
         id
@@ -56,15 +58,28 @@ export async function updateSubscriptionV2(partnerId: string, subscriptionDetail
         feature_flags
       }
     }
+  `
+    : `
+    mutation UpdateSubscriptionV2($id: uuid!, $subscription_details: jsonb!, $updated_at: timestamptz!) {
+      update_partners_by_pk(pk_columns: {id: $id}, _set: {subscription_details: $subscription_details, updated_at: $updated_at}) {
+        id
+        subscription_details
+        feature_flags
+      }
+    }
   `;
 
+  const variables: any = {
+    id: partnerId,
+    subscription_details: subscriptionDetails,
+    updated_at: new Date().toISOString(),
+  };
+  if (featureFlags !== null) {
+    variables.feature_flags = featureFlags;
+  }
+
   try {
-    const result = await fetchFromHasura(mutation, {
-      id: partnerId,
-      subscription_details: subscriptionDetails,
-      feature_flags: featureFlags,
-      updated_at: new Date().toISOString(),
-    });
+    const result = await fetchFromHasura(mutation, variables);
 
     if (result.errors) {
       throw new Error(result.errors[0].message);
