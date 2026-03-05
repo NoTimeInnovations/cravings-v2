@@ -47,7 +47,7 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
             const sorted = [...categories].sort((a, b) => (a.priority || 0) - (b.priority || 0));
             const withDefaults = sorted.map((cat, index) => ({
                 ...cat,
-                priority: cat.priority != null ? cat.priority : index + 1,
+                priority: cat.priority || (index + 1),
             }));
             setLocalCategories(withDefaults);
         }
@@ -59,7 +59,7 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
             const sorted = [...categoryItems].sort((a, b) => (a.priority || 0) - (b.priority || 0));
             const withDefaults = sorted.map((item, index) => ({
                 ...item,
-                priority: item.priority != null ? item.priority : index + 1,
+                priority: item.priority || (index + 1),
             }));
             setLocalItems(withDefaults);
         }
@@ -186,9 +186,12 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b pb-4 gap-4">
                 <div className="flex items-center gap-4">
                     <Button variant="ghost" size="icon" onClick={() => {
+                        if (hasChanges) {
+                            if (!confirm("You have unsaved changes. Discard them?")) return;
+                            setHasChanges(false);
+                        }
                         if (selectedCategory) {
                             setSelectedCategory(null);
-                            setHasChanges(false);
                         } else {
                             onBack();
                         }
@@ -214,10 +217,26 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
                         <Label htmlFor="mode-toggle">Manual Input</Label>
                     </div>
                     {hasChanges && (
-                        <Button onClick={handleSave} disabled={isSaving}>
-                            <Save className="h-4 w-4 mr-2" />
-                            {isSaving ? "Saving..." : "Save Changes"}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => {
+                                setHasChanges(false);
+                                // Reset from store
+                                if (selectedCategory) {
+                                    const categoryItems = items.filter(item => item.category.id === selectedCategory.id);
+                                    const sorted = [...categoryItems].sort((a, b) => (a.priority || 0) - (b.priority || 0));
+                                    setLocalItems(sorted.map((item, index) => ({ ...item, priority: item.priority || (index + 1) })));
+                                } else {
+                                    const sorted = [...categories].sort((a, b) => (a.priority || 0) - (b.priority || 0));
+                                    setLocalCategories(sorted.map((cat, index) => ({ ...cat, priority: cat.priority || (index + 1) })));
+                                }
+                            }}>
+                                Discard
+                            </Button>
+                            <Button onClick={handleSave} disabled={isSaving}>
+                                <Save className="h-4 w-4 mr-2" />
+                                {isSaving ? "Saving..." : "Save"}
+                            </Button>
+                        </div>
                     )}
                 </div>
             </div>
@@ -281,6 +300,7 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
                                         <Button
                                             variant="ghost"
                                             size="sm"
+                                            disabled={hasChanges}
                                             onClick={() => setSelectedCategory(category)}
                                             className="px-2 sm:px-3"
                                         >
@@ -349,6 +369,7 @@ export function AdminV2PriorityChanger({ onBack }: AdminV2PriorityChangerProps) 
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
+                                                            disabled={hasChanges}
                                                             onClick={() => setSelectedCategory(category)}
                                                             className="px-2 sm:px-3"
                                                         >
