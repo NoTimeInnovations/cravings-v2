@@ -112,28 +112,37 @@ const AddressManagementModal = ({
   const initialCenter = hotelData?.geo_location && typeof hotelData.geo_location === "object" && "coordinates" in hotelData.geo_location
     ? { lat: hotelData.geo_location.coordinates[1], lng: hotelData.geo_location.coordinates[0] }
     : DEFAULT_CENTER;
-  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>(
+  const [mapCenter, _setMapCenter] = useState<{ lat: number; lng: number }>(
     initialCenter,
   );
+  const updateMapCenter = useCallback((c: { lat: number; lng: number }) => {
+    _setMapCenter(c);
+    mapCenterRef.current = c;
+  }, []);
   const [geocodedInfo, setGeocodedInfo] = useState<GeocodedInfo | null>(null);
   const [geocoding, setGeocoding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
-  const [showSelectBtn, setShowSelectBtn] = useState(true);
   const [manualAddress, setManualAddress] = useState("");
+  const [mapMoving, setMapMoving] = useState(false);
 
   const [hotelMarkerVisible, setHotelMarkerVisible] = useState(true);
   const [hotelDirection, setHotelDirection] = useState<{ angle: number } | null>(null);
 
   const mapRef = useRef<google.maps.Map | null>(null);
+  const mapCenterRef = useRef<{ lat: number; lng: number }>(mapCenter);
   const autocompleteServiceRef =
     useRef<google.maps.places.AutocompleteService | null>(null);
   const placesServiceRef = useRef<google.maps.places.PlacesService | null>(
     null,
   );
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const hotelMarkerRef = useRef<google.maps.Marker | null>(null);
+  const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
+  const mapInitializedRef = useRef(false);
+  const mapDraggedRef = useRef(false);
 
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -184,6 +193,11 @@ const AddressManagementModal = ({
       setPredictions([]);
       setGeocodedInfo(null);
       setManualAddress("");
+      setMapMoving(false);
+      mapInitializedRef.current = false;
+      if (isLoaded) {
+        sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
+      }
       hotelMarkerRef.current?.setMap(null);
       hotelMarkerRef.current = null;
       setHotelMarkerVisible(true);
@@ -194,12 +208,12 @@ const AddressManagementModal = ({
           lat: editAddress.latitude,
           lng: editAddress.longitude,
         };
-        setMapCenter(center);
+        updateMapCenter(center);
         setScreen("map");
       } else {
         // Default map center to hotel location
         if (hotelCoords) {
-          setMapCenter(hotelCoords);
+          updateMapCenter(hotelCoords);
         }
         setScreen("search");
       }
@@ -220,9 +234,7 @@ const AddressManagementModal = ({
       autocompleteServiceRef.current!.getPlacePredictions(
         {
           input: searchValue,
-          componentRestrictions: hotelData?.country_code
-            ? undefined
-            : undefined,
+          sessionToken: sessionTokenRef.current || undefined,
         },
         (results, status) => {
           if (
@@ -314,7 +326,7 @@ const AddressManagementModal = ({
     }
 
     placesServiceRef.current.getDetails(
-      { placeId: prediction.place_id, fields: ["geometry", "name"] },
+      { placeId: prediction.place_id, fields: ["geometry", "name"], sessionToken: sessionTokenRef.current || undefined },
       (place, status) => {
         if (
           status === google.maps.places.PlacesServiceStatus.OK &&
@@ -336,7 +348,10 @@ const AddressManagementModal = ({
             timestamp: Date.now(),
           });
 
-          setMapCenter(center);
+          // Reset session token after place details fetch (completes the billing session)
+          sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
+
+          updateMapCenter(center);
           setScreen("map");
           setSearchValue("");
           setPredictions([]);
@@ -348,7 +363,7 @@ const AddressManagementModal = ({
   const handleSelectRecent = (recent: RecentSearch) => {
     const center = { lat: recent.lat, lng: recent.lng };
     saveRecentSearch({ ...recent, timestamp: Date.now() });
-    setMapCenter(center);
+    updateMapCenter(center);
     setScreen("map");
   };
 
@@ -360,7 +375,7 @@ const AddressManagementModal = ({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
         };
-        setMapCenter(center);
+        updateMapCenter(center);
         setLocating(false);
 
         if (screen === "search") {
@@ -383,7 +398,13 @@ const AddressManagementModal = ({
     if (!center) return;
     const lat = center.lat();
     const lng = center.lng();
-    setMapCenter({ lat, lng });
+    mapCenterRef.current = { lat, lng };
+
+    // Mark initialized after first idle (skip geocode timer during init)
+    if (!mapInitializedRef.current) {
+      console.log("[Map] Initialized");
+      mapInitializedRef.current = true;
+    }
 
     // Check if hotel marker is visible in bounds
     if (hotelCoords) {
@@ -400,21 +421,25 @@ const AddressManagementModal = ({
         setHotelDirection({ angle });
       }
     }
-  }, [hotelCoords]);
 
-  const handleSelectLocation = useCallback(() => {
-    if (!mapRef.current) return;
-    const center = mapRef.current.getCenter();
-    if (!center) return;
-    const lat = center.lat();
-    const lng = center.lng();
-    setMapCenter({ lat, lng });
-    setShowSelectBtn(false);
-    reverseGeocode(lat, lng);
-  }, [reverseGeocode]);
+    // Auto reverse-geocode after 1.2s only if user dragged/zoomed
+    if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
+    if (mapDraggedRef.current) {
+      geocodeTimerRef.current = setTimeout(() => {
+        mapDraggedRef.current = false;
+        console.log("[Map] Idle — fetching address");
+        setMapMoving(false);
+        reverseGeocode(lat, lng);
+      }, 1200);
+    }
+  }, [hotelCoords, reverseGeocode]);
 
   const handleMapDragStart = useCallback(() => {
-    setShowSelectBtn(true);
+    if (!mapInitializedRef.current) return;
+    mapDraggedRef.current = true;
+    setMapMoving(true);
+    setGeocodedInfo(null);
+    if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
   }, []);
 
   const handleConfirm = async () => {
@@ -434,8 +459,8 @@ const AddressManagementModal = ({
         city: geocodedInfo.city,
         district: geocodedInfo.district,
         pincode: geocodedInfo.pincode,
-        latitude: mapCenter.lat,
-        longitude: mapCenter.lng,
+        latitude: mapCenterRef.current.lat,
+        longitude: mapCenterRef.current.lng,
         isDefault: false,
       };
 
@@ -594,7 +619,7 @@ const AddressManagementModal = ({
                           <button
                             onClick={() => {
                               if (addr.latitude && addr.longitude) {
-                                setMapCenter({
+                                updateMapCenter({
                                   lat: addr.latitude,
                                   lng: addr.longitude,
                                 });
@@ -693,8 +718,7 @@ const AddressManagementModal = ({
             zoom={17}
             onLoad={(map) => {
               mapRef.current = map;
-              // Auto-select on first load
-              setShowSelectBtn(false);
+              // Auto-geocode on first load
               reverseGeocode(mapCenter.lat, mapCenter.lng);
               // Add hotel marker
               if (hotelCoords && !hotelMarkerRef.current) {
@@ -743,20 +767,6 @@ const AddressManagementModal = ({
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-0.5 pointer-events-none z-10">
           <div className="w-3 h-1 bg-black/20 rounded-full" />
         </div>
-
-        {/* Select location pill button below pin */}
-        {showSelectBtn && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-3 z-10">
-            <button
-              onClick={handleSelectLocation}
-              className="flex items-center gap-1.5 px-4 py-2 text-white rounded-full shadow-lg text-sm font-semibold active:scale-95 transition-transform"
-              style={{ backgroundColor: "#EA580C" }}
-            >
-              <MapPin className="h-4 w-4" />
-              Click to select location
-            </button>
-          </div>
-        )}
 
         {/* Hotel direction indicator when marker is off-screen */}
         {!hotelMarkerVisible && hotelDirection && hotelCoords && (
@@ -841,10 +851,13 @@ const AddressManagementModal = ({
             Place the pin or exact delivery location
           </p>
 
-          {geocoding ? (
-            <div className="flex items-center gap-3 mt-4">
-              <Loader2 className="h-5 w-5 animate-spin text-orange-500" />
-              <span className="text-sm text-gray-400">Finding address...</span>
+          {mapMoving || geocoding ? (
+            <div className="flex items-start gap-2.5 mt-4 animate-pulse">
+              <div className="w-5 h-5 bg-gray-200 rounded-full shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="h-4 bg-gray-200 rounded w-2/3" />
+                <div className="h-3 bg-gray-100 rounded w-full mt-2" />
+              </div>
             </div>
           ) : geocodedInfo ? (
             <div className="flex items-start gap-2.5 mt-4">
@@ -870,7 +883,7 @@ const AddressManagementModal = ({
 
           <button
             onClick={handleConfirm}
-            disabled={saving || geocoding || !geocodedInfo}
+            disabled={saving || geocoding || mapMoving || !geocodedInfo}
             className="w-full mt-5 h-14 bg-orange-500 text-white rounded-2xl font-bold text-[16px] disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-transform"
           >
             {saving ? (
