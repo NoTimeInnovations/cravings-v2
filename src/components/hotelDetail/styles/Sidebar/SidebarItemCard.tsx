@@ -44,6 +44,7 @@ const SidebarItemCard = ({
   isOfferCategory,
   isUpcomingOffer = false,
   activeOffers = [],
+  isPartner = false,
 }: {
   item: HotelDataMenus;
   styles: Styles;
@@ -61,6 +62,7 @@ const SidebarItemCard = ({
   isOfferCategory?: boolean;
   isUpcomingOffer?: boolean;
   activeOffers?: any[];
+  isPartner?: boolean;
 }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
@@ -235,6 +237,7 @@ const SidebarItemCard = ({
   const isOrderable = item.is_available && !isOutOfStock;
   const showAddButton =
     isOrderable &&
+    !isPartner &&
     (hasOrderingFeature || hasDeliveryFeature) &&
     !item.is_price_as_per_size;
 
@@ -680,6 +683,9 @@ const SidebarItemCard = ({
               )}
             </div>
           </div>
+
+          {/* Bottom padding when no add button */}
+          {!showAddButton && <div className="pb-10" />}
 
           {/* Sticky bottom bar - always visible */}
           {showAddButton && (

@@ -295,7 +295,7 @@ export function AdminV2Dashboard() {
         </div>
       </div>
 
-      {/* Getting Started / Tutorials */}
+      {/* Getting Started / Tutorials — temporarily commented out
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold tracking-tight">Tutorials</h2>
@@ -344,6 +344,7 @@ export function AdminV2Dashboard() {
           ))}
         </div>
       </div>
+      */}
 
       {/* Tips & Announcements */}
       <div>

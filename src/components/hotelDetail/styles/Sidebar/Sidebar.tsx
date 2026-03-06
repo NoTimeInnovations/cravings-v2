@@ -420,7 +420,29 @@ const Sidebar = ({
           />
 
           {/* Offers Banner */}
-          {offers.length > 0 && (
+          {offers.length > 0 && (() => {
+            const isWithinDeliveryTime = () => {
+              if (!hoteldata?.delivery_rules?.delivery_time_allowed) return true;
+              const convertTimeToMinutes = (timeStr: string) => {
+                const [hours, minutes] = timeStr.split(":").map(Number);
+                return hours * 60 + minutes;
+              };
+              const now = new Date();
+              const currentTime = now.getHours() * 60 + now.getMinutes();
+              const startTime = convertTimeToMinutes(hoteldata.delivery_rules.delivery_time_allowed.from ?? "00:00");
+              const endTime = convertTimeToMinutes(hoteldata.delivery_rules.delivery_time_allowed.to ?? "23:59");
+              if (startTime > endTime) return currentTime >= startTime || currentTime <= endTime;
+              return currentTime >= startTime && currentTime <= endTime;
+            };
+            const features = getFeatures(hoteldata?.feature_flags || "");
+            const isDeliveryActive = hoteldata?.delivery_rules?.isDeliveryActive ?? true;
+            const canOrder =
+              auth?.role !== "partner" &&
+              isDeliveryActive &&
+              isWithinDeliveryTime() &&
+              ((tableNumber !== 0 && features?.ordering.enabled) ||
+                (tableNumber === 0 && features?.delivery.enabled));
+            return (
             <section className="px-4 py-3">
               <div className="flex overflow-x-auto scrollbar-hide gap-3 snap-x snap-mandatory">
                 {offers.map((offer) => {
@@ -530,44 +552,46 @@ const Sidebar = ({
                             </p>
                           </div>
 
-                          {/* Add / Quantity controls */}
-                          {qty === 0 ? (
-                            <button
-                              onClick={handleAdd}
-                              className="mt-2 self-start px-4 py-1.5 rounded-xl text-[11px] font-bold tracking-wide active:scale-95 transition-transform"
-                              style={{
-                                backgroundColor: styles.accent,
-                                color: "white",
-                              }}
-                            >
-                              Add
-                            </button>
-                          ) : (
-                            <div
-                              className="mt-2 self-start inline-flex items-center rounded-xl overflow-hidden"
-                              style={{ border: `1px solid ${styles.accent}40` }}
-                            >
-                              <button
-                                onClick={handleRemove}
-                                className="px-2.5 py-1.5 active:scale-95 transition-transform"
-                                style={{ color: styles.accent }}
-                              >
-                                <Minus size={13} strokeWidth={2.5} />
-                              </button>
-                              <span
-                                className="px-2 text-[12px] font-bold min-w-[20px] text-center"
-                                style={{ color: styles.accent }}
-                              >
-                                {qty}
-                              </span>
+                          {/* Add / Quantity controls — hidden when ordering is off */}
+                          {canOrder && (
+                            qty === 0 ? (
                               <button
                                 onClick={handleAdd}
-                                className="px-2.5 py-1.5 active:scale-95 transition-transform"
-                                style={{ color: styles.accent }}
+                                className="mt-2 self-start px-4 py-1.5 rounded-xl text-[11px] font-bold tracking-wide active:scale-95 transition-transform"
+                                style={{
+                                  backgroundColor: styles.accent,
+                                  color: "white",
+                                }}
                               >
-                                <Plus size={13} strokeWidth={2.5} />
+                                Add
                               </button>
-                            </div>
+                            ) : (
+                              <div
+                                className="mt-2 self-start inline-flex items-center rounded-xl overflow-hidden"
+                                style={{ border: `1px solid ${styles.accent}40` }}
+                              >
+                                <button
+                                  onClick={handleRemove}
+                                  className="px-2.5 py-1.5 active:scale-95 transition-transform"
+                                  style={{ color: styles.accent }}
+                                >
+                                  <Minus size={13} strokeWidth={2.5} />
+                                </button>
+                                <span
+                                  className="px-2 text-[12px] font-bold min-w-[20px] text-center"
+                                  style={{ color: styles.accent }}
+                                >
+                                  {qty}
+                                </span>
+                                <button
+                                  onClick={handleAdd}
+                                  className="px-2.5 py-1.5 active:scale-95 transition-transform"
+                                  style={{ color: styles.accent }}
+                                >
+                                  <Plus size={13} strokeWidth={2.5} />
+                                </button>
+                              </div>
+                            )
                           )}
                         </div>
 
@@ -587,7 +611,8 @@ const Sidebar = ({
                 })}
               </div>
             </section>
-          )}
+            );
+          })()}
 
           {/* Main: Category sidebar + Items grid */}
           <section className="flex relative">
@@ -952,6 +977,7 @@ const Sidebar = ({
                         activeOffers={
                           isUpcomingOffer ? upcomingOffers : activeOffers
                         }
+                        isPartner={auth?.role === "partner"}
                       />
                     );
                   })}
@@ -983,7 +1009,11 @@ const Sidebar = ({
     </main>
 
       {/* Partner login banner — outside main to avoid overflow-x-clip */}
-      {auth?.role === "partner" && (
+      {auth?.role === "partner" &&
+        ((tableNumber !== 0 &&
+          getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled) ||
+          (tableNumber === 0 &&
+            getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled)) && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl bg-black text-white text-center font-semibold shadow-xl">
           Login as user to place order
         </div>

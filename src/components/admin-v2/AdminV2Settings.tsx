@@ -53,13 +53,15 @@ export function AdminV2Settings() {
     const showOrderRelatedSettings = features?.ordering?.access || features?.delivery?.access;
     const showDiscountSettings = features?.ordering?.access || features?.delivery?.access;
 
+    const username = (userData as any)?.username;
     const firstQrCodeId = (userData as any)?.qr_codes?.[0]?.id;
     const hotelNameSlug = (userData as any)?.name?.replace(/ /g, "-");
 
     const handleViewMenu = () => {
-        if (hotelNameSlug && firstQrCodeId) {
-            const url = `https://menuthere.com/qrScan/${hotelNameSlug}/${firstQrCodeId}`;
-            window.open(url, "_blank");
+        if (username) {
+            window.open(`https://menuthere.com/${username}`, "_blank");
+        } else if (hotelNameSlug && firstQrCodeId) {
+            window.open(`https://menuthere.com/qrScan/${hotelNameSlug}/${firstQrCodeId}`, "_blank");
         }
     };
 
