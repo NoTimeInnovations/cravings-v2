@@ -8,12 +8,7 @@ import {
   ArrowLeft,
   MapPin,
   CheckCircle2,
-  Edit,
-  Trash2,
-  Plus,
   ChevronDown,
-  Home,
-  Briefcase,
   X,
   MessageCircle,
 } from "lucide-react";
@@ -22,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { HotelData } from "@/app/hotels/[...id]/page";
+import { Styles } from "@/screens/HotelMenuPage_v2";
 import { getGstAmount, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
@@ -40,6 +36,16 @@ import { validateDiscountQuery, incrementDiscountUsageMutation } from "@/api/dis
 import { Tag } from "lucide-react";
 import { UpiPaymentScreen } from "./UpiPaymentScreen";
 import AddressManagementModal, { type SavedAddress } from "./AddressManagementModal";
+
+// Helper: detect if a hex color is dark
+function isDarkColor(hex: string): boolean {
+  const c = hex.replace("#", "");
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance < 0.5;
+}
 
 // Add type for deliveryInfo
 interface DeliveryInfo {
@@ -215,69 +221,43 @@ const UnifiedAddressSection = ({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl overflow-hidden border-stone-200 border"
+      className="overflow-hidden"
     >
-      <div className="px-4 py-4">
+      <div>
         {/* Header */}
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="font-bold text-gray-900 text-[15px]">
-            Deliver to
-          </h3>
+        <div className="flex justify-between items-center mb-2">
+          <span className="font-semibold text-sm" style={{ color: "var(--pom-text-muted)" }}>Deliver to</span>
           <button
-            onClick={() => {
-              setEditingAddress(null);
-              setShowAddressModal(true);
-            }}
-            className="text-sm font-semibold text-orange-500"
+            onClick={() => { setEditingAddress(null); setShowAddressModal(true); }}
+            className="text-xs font-semibold text-[var(--pom-accent,#ea580c)]"
           >
-            Change Location
+            Change
           </button>
         </div>
 
         {selectedAddress ? (() => {
-          const IconComp =
-            selectedAddress.label === "Home" ? Home : selectedAddress.label === "Work" ? Briefcase : MapPin;
           const addressText =
             selectedAddress.address ||
             [selectedAddress.flat_no, selectedAddress.house_no, selectedAddress.area, selectedAddress.city]
               .filter(Boolean)
               .join(", ");
-
           return (
-            <div className="p-3.5 rounded-xl border border-gray-200 bg-gray-50/50">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center shrink-0 mt-0.5">
-                  <MapPin className="h-4 w-4 text-orange-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-semibold text-gray-900 truncate">
-                    {selectedAddress.label}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate mt-0.5">
-                    {addressText}
-                  </p>
-                </div>
+            <div className="flex items-center gap-2.5">
+              <MapPin className="h-4 w-4 shrink-0 text-[var(--pom-accent,#ea580c)]" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-inherit truncate">{selectedAddress.label}</p>
+                <p className="text-xs truncate" style={{ color: "var(--pom-text-muted)" }}>{addressText}</p>
               </div>
             </div>
           );
         })() : (
-          <div
-            onClick={() => {
-              setEditingAddress(null);
-              setShowAddressModal(true);
-            }}
-            className="flex items-center gap-3 p-4 border border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-orange-400 hover:bg-orange-50/30 transition-colors"
+          <button
+            onClick={() => { setEditingAddress(null); setShowAddressModal(true); }}
+            className="flex items-center gap-2.5 w-full text-left"
           >
-            <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
-              <MapPin className="h-5 w-5 text-orange-500" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">Add delivery address</p>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Tap to add your first address
-              </p>
-            </div>
-          </div>
+            <MapPin className="h-4 w-4 shrink-0 text-[var(--pom-accent,#ea580c)]" />
+            <span className="text-sm text-[var(--pom-accent,#ea580c)] font-medium">Add delivery address</span>
+          </button>
         )}
       </div>
 
@@ -408,7 +388,8 @@ const OrderStatusDialog = ({
                 )}
                 <button
                   onClick={onClose}
-                  className="w-full px-6 py-2.5 border border-stone-300 text-white rounded-xl font-medium hover:bg-white/10 transition-colors"
+                  className="w-full px-6 py-2.5 border rounded-xl font-medium hover:opacity-80 transition-colors"
+                  style={{ borderColor: "var(--pom-card-border, #d6d3d1)" }}
                 >
                   Back to Menu
                 </button>
@@ -431,78 +412,75 @@ const ItemsCard = ({
   decreaseQuantity,
   removeItem,
   currency,
+  onAddMore,
 }: {
   items: OrderItem[];
   increaseQuantity: (id: string) => void;
   decreaseQuantity: (id: string) => void;
   removeItem: (id: string) => void;
   currency: string;
+  onAddMore?: () => void;
 }) => {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden"
-    >
-      <div className="p-5">
-        <h3 className="font-semibold text-gray-900 text-base mb-4">
-          Your Order
-        </h3>
-        <div className="space-y-3">
-          {items.map((item, index) => (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="flex justify-between items-center py-3 border-b border-stone-100 last:border-b-0"
+    <div>
+      {items.map((item, index) => (
+        <div
+          key={item.id}
+          className={`flex items-start justify-between py-3.5 ${index !== items.length - 1 ? "border-b" : ""}`}
+          style={{ borderColor: "var(--pom-card-border, #e7e5e4)" }}
+        >
+          {/* Left: Name + Price stacked */}
+          <div className="flex-1 min-w-0 pr-4">
+            <DescriptionWithTextBreak
+              spanClassName="text-[14px] font-semibold text-inherit leading-tight"
+              accent="black"
+              maxChars={35}
             >
-              <div className="flex-1">
-                <DescriptionWithTextBreak
-                  spanClassName="text-sm font-medium text-gray-900"
-                  accent="black"
-                  maxChars={25}
-                >
-                  {item.name}
-                </DescriptionWithTextBreak>
-                <p className="text-xs text-stone-500 mt-0.5">
-                  {item.category.name}
-                </p>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 bg-stone-50 rounded-lg p-1">
-                  <button
-                    onClick={() => {
-                      if (item.quantity > 1) {
-                        decreaseQuantity(item.id as string);
-                      } else {
-                        removeItem(item.id as string);
-                      }
-                    }}
-                    className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white transition-colors text-stone-600 font-semibold"
-                  >
-                    −
-                  </button>
-                  <span className="text-sm font-semibold text-gray-900 w-8 text-center">
-                    {item.quantity}
-                  </span>
-                  <button
-                    onClick={() => increaseQuantity(item.id as string)}
-                    className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white transition-colors text-orange-600 font-semibold"
-                  >
-                    +
-                  </button>
-                </div>
-                <span className="font-semibold text-gray-900 min-w-[70px] text-right">
-                  {currency}
-                  {(item.price * item.quantity).toFixed(2)}
-                </span>
-              </div>
-            </motion.div>
-          ))}
+              {item.name}
+            </DescriptionWithTextBreak>
+            <p className="text-[13px] mt-1 font-medium" style={{ color: "var(--pom-text-muted)" }}>
+              {currency}{(item.price * item.quantity).toFixed(2)}
+            </p>
+          </div>
+          {/* Right: Quantity control */}
+          <div className="shrink-0 flex items-center rounded-lg overflow-hidden" style={{ backgroundColor: "var(--pom-accent, #ea580c)" }}>
+            <button
+              onClick={() => {
+                if (item.quantity > 1) {
+                  decreaseQuantity(item.id as string);
+                } else {
+                  removeItem(item.id as string);
+                }
+              }}
+              className="w-9 h-9 flex items-center justify-center text-white font-bold text-lg active:brightness-90"
+            >
+              −
+            </button>
+            <span className="text-sm font-bold w-5 text-center text-white">
+              {item.quantity}
+            </span>
+            <button
+              onClick={() => increaseQuantity(item.id as string)}
+              className="w-9 h-9 flex items-center justify-center text-white font-bold text-lg active:brightness-90"
+            >
+              +
+            </button>
+          </div>
         </div>
-      </div>
-    </motion.div>
+      ))}
+
+      {/* Add more items */}
+      {onAddMore && (
+        <button
+          onClick={onAddMore}
+          className="flex items-center gap-1.5 mt-3 text-[13px] font-semibold active:opacity-70"
+          style={{ color: "var(--pom-accent, #ea580c)" }}
+        >
+          <span className="text-base leading-none">+</span>
+          Add more items
+        </button>
+      )}
+    </div>
   );
 };
 
@@ -540,10 +518,10 @@ const BillCard = ({
 
   const qrExtraCharges = qrGroup?.extra_charge
     ? getExtraCharge(
-        items,
-        qrGroup.extra_charge,
-        qrGroup.charge_type || "FLAT_FEE",
-      )
+      items,
+      qrGroup.extra_charge,
+      qrGroup.charge_type || "FLAT_FEE",
+    )
     : 0;
 
   const deliveryCharges =
@@ -575,107 +553,72 @@ const BillCard = ({
   const grandTotal = Math.max(0, subtotal + qrExtraCharges + deliveryCharges + parcelCharge + gstAmount - discountSavings);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-orange-100/20 to-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden"
-    >
-      <div className="p-5">
-        <h3 className="font-semibold text-gray-900 text-base mb-4">
-          Bill Summary
-        </h3>
-        <div className="space-y-3">
+    <div>
+      <h3 className="font-bold text-inherit text-[15px] mb-3">Bill Details</h3>
+      <div className="space-y-2.5">
+        <div className="flex justify-between text-sm">
+          <span style={{ color: "var(--pom-text-muted)" }}>Item Total</span>
+          <span className="text-inherit">{currency}{subtotal.toFixed(2)}</span>
+        </div>
+
+        {qrGroup && qrExtraCharges > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-stone-600">Item Total</span>
-            <span className="font-medium text-gray-900">
-              {currency}
-              {subtotal.toFixed(2)}
+            <span style={{ color: "var(--pom-text-muted)" }}>
+              {qrGroup.name || "Service Charge"}
+              {qrGroup.charge_type === "PER_ITEM" && <span className="text-xs ml-1">(Per item)</span>}
             </span>
+            <span className="text-inherit">{currency}{qrExtraCharges.toFixed(2)}</span>
           </div>
+        )}
 
-          {qrGroup && qrExtraCharges > 0 && (
+        {isDelivery && (deliveryInfo?.cost ?? 0) > 0 && !deliveryInfo?.isOutOfRange && (
+          <div className="flex justify-between text-sm">
+            <span style={{ color: "var(--pom-text-muted)" }}>
+              Delivery Fee | {deliveryInfo?.distance?.toFixed(1)} kms
+            </span>
+            <span className="text-inherit">{currency}{deliveryInfo?.cost?.toFixed(2)}</span>
+          </div>
+        )}
+
+        {parcelCharge > 0 && (
+          <div className="flex justify-between text-sm">
+            <span style={{ color: "var(--pom-text-muted)" }}>
+              Parcel Charge
+              {parcelChargeType === "variable" && <span className="text-xs ml-1">({totalItemCount} items)</span>}
+            </span>
+            <span className="text-inherit">{currency}{parcelCharge.toFixed(2)}</span>
+          </div>
+        )}
+
+        {gstPercentage ? (
+          <>
+            <div className="border-t my-2" style={{ borderColor: "var(--pom-card-border, #e7e5e4)" }} />
             <div className="flex justify-between text-sm">
-              <div>
-                <span className="text-stone-600">
-                  {qrGroup.name || "Service Charge"}
-                </span>
-                <p className="text-xs text-stone-500">
-                  {qrGroup.charge_type === "PER_ITEM" ? "Per item" : "Fixed"}
-                </p>
-              </div>
-              <span className="font-medium text-gray-900">
-                {currency}
-                {qrExtraCharges.toFixed(2)}
+              <span style={{ color: "var(--pom-text-muted)" }}>
+                {hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} &amp; Other Charges ({gstPercentage}%)
               </span>
+              <span className="text-inherit">{currency}{gstAmount.toFixed(2)}</span>
             </div>
-          )}
+          </>
+        ) : null}
 
-          {gstPercentage ? (
-            <div className="flex justify-between text-sm">
-              <span className="text-stone-600">
-                {hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"}{" "}
-                ({gstPercentage}%)
-              </span>
-              <span className="font-medium text-gray-900">
-                {currency}
-                {gstAmount.toFixed(2)}
-              </span>
-            </div>
-          ) : null}
+        {discountSavings > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-green-600 font-medium">Discount</span>
+            <span className="text-green-600">-{currency}{discountSavings.toFixed(2)}</span>
+          </div>
+        )}
 
-          {isDelivery && (deliveryInfo?.cost ?? 0) > 0 && !deliveryInfo?.isOutOfRange && (
-            <div className="flex justify-between text-sm">
-              <div>
-                <span className="text-stone-600">Delivery Charge</span>
-                <p className="text-xs text-stone-500">
-                  {deliveryInfo?.distance?.toFixed(1)} km
-                </p>
-              </div>
-              <span className="font-medium text-gray-900">
-                {currency}
-                {deliveryInfo?.cost?.toFixed(2)}
-              </span>
-            </div>
-          )}
-
-          {parcelCharge > 0 && (
-            <div className="flex justify-between text-sm">
-              <div>
-                <span className="text-stone-600">Parcel Charge</span>
-                {parcelChargeType === "variable" && (
-                  <p className="text-xs text-stone-500">
-                    {totalItemCount} items × {currency}{parcelChargeValue.toFixed(2)}
-                  </p>
-                )}
-              </div>
-              <span className="font-medium text-gray-900">
-                {currency}
-                {parcelCharge.toFixed(2)}
-              </span>
-            </div>
-          )}
-
-          {discountSavings > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-green-600 font-medium">Discount</span>
-              <span className="font-medium text-green-600">
-                − {currency}{discountSavings.toFixed(2)}
-              </span>
-            </div>
-          )}
-
-          <div className="border-t border-stone-200 pt-3 mt-3">
-            <div className="flex justify-between items-center">
-              <span className="font-semibold text-gray-900">Total Amount</span>
-              <span className="font-bold text-xl text-orange-600">
-                {currency}
-                {grandTotal.toFixed(2)}
-              </span>
-            </div>
+        <div className="border-t pt-3 mt-1" style={{ borderColor: "var(--pom-card-border, #e7e5e4)" }}>
+          <div className="flex justify-between items-center">
+            <span className="font-extrabold text-inherit text-[15px]">Grand Total</span>
+            <span className="font-extrabold text-inherit text-lg">
+              {currency}{grandTotal.toFixed(2)}
+            </span>
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
@@ -691,35 +634,24 @@ const OrderTypeCard = ({
   setOrderType: (type: "takeaway" | "delivery") => void;
 }) => {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl shadow-sm border border-stone-200 p-5"
-    >
-      <h3 className="font-semibold text-gray-900 text-base mb-4">Order Type</h3>
-      <div className="grid grid-cols-2 gap-3">
+    <div className="flex gap-2">
+      {(["delivery", "takeaway"] as const).map((type) => (
         <button
-          onClick={() => setOrderType("takeaway")}
-          className={`p-4 rounded-xl border-2 transition-all text-sm font-medium ${
-            orderType === "takeaway"
-              ? "border-orange-600 bg-orange-100/30 text-orange-600"
-              : "border-stone-200 hover:border-stone-300 text-stone-600"
-          }`}
+          key={type}
+          onClick={() => setOrderType(type)}
+          className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${orderType === type
+            ? "text-white"
+            : ""
+            }`}
+          style={orderType === type
+            ? { backgroundColor: "var(--pom-accent, #ea580c)" }
+            : { backgroundColor: "color-mix(in srgb, var(--pom-accent, #ea580c) 12%, transparent)", color: "var(--pom-text-muted)" }
+          }
         >
-          Takeaway
+          {type.charAt(0).toUpperCase() + type.slice(1)}
         </button>
-        <button
-          onClick={() => setOrderType("delivery")}
-          className={`p-4 rounded-xl border-2 transition-all text-sm font-medium ${
-            orderType === "delivery"
-              ? "border-orange-600 bg-orange-100/30 text-orange-600"
-              : "border-stone-200 hover:border-stone-300 text-stone-600"
-          }`}
-        >
-          Delivery
-        </button>
-      </div>
-    </motion.div>
+      ))}
+    </div>
   );
 };
 
@@ -760,28 +692,22 @@ const MultiWhatsappCard = ({
   }, []);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl shadow-sm border border-stone-200 p-5"
-      ref={dropdownRef}
-    >
-      <h3 className="font-semibold text-gray-900 text-base mb-4">
-        Hotel Location
-      </h3>
+    <div className="rounded-xl p-4" ref={dropdownRef} style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
       <div className="relative">
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="w-full p-4 border border-stone-200 rounded-xl bg-stone-50 text-left flex justify-between items-center hover:bg-stone-100 transition-colors"
+          className="w-full py-3 px-4 border rounded-lg text-left flex justify-between items-center transition-colors"
+          style={{ borderColor: "var(--pom-card-border, #d6d3d1)" }}
         >
-          <span className="text-sm font-medium text-gray-900">
-            {selectedLocation ? selectedLocation.toUpperCase() : "Select Area"}
-          </span>
+          <div>
+            <span className="text-xs block" style={{ color: "var(--pom-text-muted)" }}>Hotel Location</span>
+            <span className="text-sm font-medium text-inherit">
+              {selectedLocation ? selectedLocation.toUpperCase() : "Select Area"}
+            </span>
+          </div>
           <ChevronDown
-            className={`h-4 w-4 text-stone-600 transition-transform ${
-              isOpen ? "rotate-180" : ""
-            }`}
+            className={`h-4 w-4 opacity-50 transition-transform ${isOpen ? "rotate-180" : ""}`}
           />
         </button>
 
@@ -791,36 +717,30 @@ const MultiWhatsappCard = ({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="absolute top-full left-0 right-0 mt-2 bg-white border border-stone-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto"
+              className="absolute top-full left-0 right-0 mt-1 border rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto"
+              style={{ borderColor: "var(--pom-card-border, #d6d3d1)", backgroundColor: "var(--pom-modal-bg, white)", backdropFilter: "blur(24px)" }}
             >
               <div
-                className="p-3 hover:bg-stone-50 cursor-pointer transition-colors"
-                onClick={() => {
-                  setSelectedLocation("");
-                  setIsOpen(false);
-                }}
+                className="p-3 cursor-pointer transition-colors hover:opacity-70"
+                onClick={() => { setSelectedLocation(""); setIsOpen(false); }}
               >
-                <span className="text-sm text-stone-600">Select Area</span>
+                <span className="text-sm" style={{ color: "var(--pom-text-muted)" }}>Select Area</span>
               </div>
               {hotelData.whatsapp_numbers.map((item) => (
                 <div
                   key={item.area}
-                  className="p-3 hover:bg-stone-50 cursor-pointer border-t border-stone-100 transition-colors"
-                  onClick={() => {
-                    setSelectedLocation(item.area);
-                    setIsOpen(false);
-                  }}
+                  className="p-3 cursor-pointer border-t transition-colors hover:opacity-70"
+                  style={{ borderColor: "var(--pom-card-border, #e7e5e4)" }}
+                  onClick={() => { setSelectedLocation(item.area); setIsOpen(false); }}
                 >
-                  <span className="text-sm font-medium text-gray-900">
-                    {item.area.toUpperCase()}
-                  </span>
+                  <span className="text-sm font-medium text-inherit">{item.area.toUpperCase()}</span>
                 </div>
               ))}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
@@ -840,29 +760,12 @@ const TableNumberCard = ({
   const isRoom = hotelData?.id === "33f5474e-4644-4e47-a327-94684c71b170";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-orange-100/20 to-white rounded-2xl shadow-sm border border-stone-200 p-5"
-    >
-      <h3 className="font-semibold text-gray-900 text-base mb-3">
-        {isRoom ? "Room" : "Table"} Information
-      </h3>
-      <div className="flex items-center gap-2">
-        {tableName ? (
-          <span className="text-2xl font-bold text-orange-600">{tableName}</span>
-        ) : (
-          <>
-            {!isRoom && (
-              <span className="text-sm text-stone-600">Table Number:</span>
-            )}
-            <span className="text-2xl font-bold text-orange-600">
-              {tableNumber}
-            </span>
-          </>
-        )}
-      </div>
-    </motion.div>
+    <div className="flex items-center justify-between py-1">
+      <span className="text-sm" style={{ color: "var(--pom-text-muted)" }}>{isRoom ? "Room" : "Table"}</span>
+      <span className="text-sm font-semibold text-inherit">
+        {tableName || tableNumber}
+      </span>
+    </div>
   );
 };
 
@@ -876,22 +779,16 @@ const LoginCard = ({
   setShowLoginDrawer: (show: boolean) => void;
 }) => {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-orange-100/30 to-white rounded-2xl shadow-sm border border-orange-600/30 p-6"
-    >
-      <h3 className="font-bold text-gray-900 text-lg mb-2">Almost there!</h3>
-      <p className="text-stone-600 mb-4 text-sm">
-        Login or create account to place your order
-      </p>
+    <div className="py-2 text-center">
+      <p className="text-sm mb-3" style={{ color: "var(--pom-text-muted)" }}>Login to place your order</p>
       <button
         onClick={() => setShowLoginDrawer(true)}
-        className="w-full px-6 py-3.5 bg-orange-600 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 font-semibold shadow-lg shadow-orange-600/20"
+        className="w-full py-3.5 rounded-xl text-white font-bold text-sm transition-all active:scale-[0.98]"
+        style={{ backgroundColor: "var(--pom-accent, #ea580c)", boxShadow: "0 4px 14px color-mix(in srgb, var(--pom-accent, #ea580c) 40%, transparent)" }}
       >
         Continue with Phone Number
       </button>
-    </motion.div>
+    </div>
   );
 };
 
@@ -951,7 +848,7 @@ const LoginDrawer = ({
             useAuthStore.setState({
               userData: { ...result, full_name: userName.trim(), role: "user" } as any,
             });
-          } catch {}
+          } catch { }
         }
         toast.success("Logged in successfully");
         onLoginSuccess();
@@ -982,16 +879,17 @@ const LoginDrawer = ({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 30 }}
           transition={{ type: "spring", duration: 0.4, bounce: 0.3 }}
-          className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl relative border border-stone-100"
+          className="rounded-3xl p-8 w-full max-w-md shadow-2xl relative"
+          style={{ backgroundColor: "var(--pom-modal-bg, white)", backdropFilter: "blur(24px) saturate(180%)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Close button */}
           <button
             onClick={() => setShowLoginDrawer(false)}
-            className="absolute top-5 right-5 p-2 rounded-full hover:bg-stone-100 transition-all duration-200 group"
+            className="absolute top-5 right-5 p-2 rounded-full hover:opacity-80 transition-all duration-200 group"
             aria-label="Close"
           >
-            <X className="h-5 w-5 text-stone-500 group-hover:text-stone-700" />
+            <X className="h-5 w-5 opacity-60 group-hover:opacity-80" />
           </button>
 
           {/* Header */}
@@ -1001,10 +899,10 @@ const LoginDrawer = ({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <h2 className="text-3xl font-bold text-gray-900 mb-3">
+              <h2 className="text-3xl font-bold text-inherit mb-3">
                 Welcome Back
               </h2>
-              <p className="text-stone-600 text-[15px] leading-relaxed">
+              <p className="opacity-70 text-[15px] leading-relaxed">
                 Please enter your phone number to review your order
               </p>
             </motion.div>
@@ -1020,7 +918,7 @@ const LoginDrawer = ({
             >
               <Label
                 htmlFor="userName"
-                className="text-sm font-semibold text-gray-900 mb-3 block"
+                className="text-sm font-semibold text-inherit mb-3 block"
               >
                 Your Name <span className="text-red-500">*</span>
               </Label>
@@ -1030,7 +928,7 @@ const LoginDrawer = ({
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
                 placeholder="Enter your name"
-                className="rounded-2xl text-gray-900 placeholder:text-gray-400 bg-white border-stone-200 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20 h-14 text-base px-5 transition-all duration-200"
+                className="rounded-xl text-inherit placeholder:opacity-70 bg-transparent border-[var(--pom-card-border,#e7e5e4)] focus:border-[var(--pom-accent,#ea580c)] focus:ring-2 focus:ring-[var(--pom-accent,#ea580c)]/20 h-14 text-base px-5 transition-all duration-200"
               />
             </motion.div>
           )}
@@ -1044,17 +942,17 @@ const LoginDrawer = ({
           >
             <Label
               htmlFor="phone"
-              className="text-sm font-semibold text-gray-900 mb-3 block"
+              className="text-sm font-semibold text-inherit mb-3 block"
             >
               Phone Number
               {hotelData?.country && (
-                <span className="text-stone-500 font-normal ml-2 text-xs">
+                <span className="opacity-60 font-normal ml-2 text-xs">
                   ({hotelData.country})
                 </span>
               )}
             </Label>
             <div className="flex gap-3">
-              <div className="flex items-center justify-center px-5 bg-orange-100/30 rounded-2xl text-base font-bold text-orange-600 border border-orange-600/20">
+              <div className="flex items-center justify-center px-5 rounded-xl text-base font-bold text-[var(--pom-accent,#ea580c)] border border-[var(--pom-card-border,#e7e5e4)]" style={{ backgroundColor: "color-mix(in srgb, var(--pom-accent, #ea580c) 10%, transparent)" }}>
                 {hotelData?.country_code || "+91"}
               </div>
               <Input
@@ -1070,7 +968,7 @@ const LoginDrawer = ({
                   );
                 }}
                 placeholder="Enter your phone number"
-                className="flex-1 rounded-2xl text-gray-900 placeholder:text-gray-400 bg-white border-stone-200 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20 h-14 text-base px-5 transition-all duration-200"
+                className="flex-1 rounded-xl text-inherit placeholder:opacity-70 bg-transparent border-[var(--pom-card-border,#e7e5e4)] focus:border-[var(--pom-accent,#ea580c)] focus:ring-2 focus:ring-[var(--pom-accent,#ea580c)]/20 h-14 text-base px-5 transition-all duration-200"
                 autoFocus
               />
             </div>
@@ -1086,7 +984,10 @@ const LoginDrawer = ({
             <button
               onClick={handleLogin}
               disabled={isSubmitting || !phoneNumber || (needUserName && !userName.trim())}
-              className="w-full px-6 py-4 bg-orange-100/70 text-orange-600 rounded-full hover:bg-orange-600 hover:text-white border border-orange-600/30 hover:border-orange-600 transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              className="w-full px-6 py-4 text-[var(--pom-accent,#ea580c)] rounded-full hover:text-white border border-[var(--pom-accent,#ea580c)] transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              style={{ backgroundColor: "color-mix(in srgb, var(--pom-accent, #ea580c) 15%, transparent)" }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--pom-accent, #ea580c)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "color-mix(in srgb, var(--pom-accent, #ea580c) 15%, transparent)"; }}
             >
               {isSubmitting ? (
                 <span className="flex items-center justify-center gap-2">
@@ -1100,7 +1001,8 @@ const LoginDrawer = ({
 
             <button
               onClick={() => setShowLoginDrawer(false)}
-              className="w-full px-6 py-3.5 rounded-full border border-stone-300 bg-transparent text-stone-800 hover:bg-stone-100 hover:text-stone-900 hover:border-stone-500 transition-all duration-200 font-medium text-base"
+              className="w-full px-6 py-3.5 rounded-full border bg-transparent hover:opacity-80 transition-all duration-200 font-medium text-base"
+              style={{ borderColor: "var(--pom-card-border, #d6d3d1)" }}
             >
               Cancel
             </button>
@@ -1111,14 +1013,14 @@ const LoginDrawer = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="text-xs text-stone-500 text-center mt-6 leading-relaxed"
+            className="text-xs opacity-60 text-center mt-6 leading-relaxed"
           >
             By continuing, you agree to our{" "}
-            <span className="text-orange-600 hover:underline cursor-pointer">
+            <span className="text-[var(--pom-accent,#ea580c)] hover:underline cursor-pointer">
               Terms of Service
             </span>{" "}
             and{" "}
-            <span className="text-orange-600 hover:underline cursor-pointer">
+            <span className="text-[var(--pom-accent,#ea580c)] hover:underline cursor-pointer">
               Privacy Policy
             </span>
           </motion.p>
@@ -1139,6 +1041,7 @@ const PlaceOrderModal = ({
   qrId,
   qrGroup,
   tableName,
+  styles: themeStyles,
 }: {
   hotelData: HotelData;
   tableNumber: number;
@@ -1146,6 +1049,7 @@ const PlaceOrderModal = ({
   qrId: string | null;
   qrGroup: QrGroup | null;
   tableName?: string;
+  styles?: Styles;
 }) => {
   const {
     open_place_order_modal,
@@ -1175,6 +1079,8 @@ const PlaceOrderModal = ({
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
+
+  const showGrid = themeStyles?.showGrid === true;
 
   const [orderStatus, setOrderStatus] = useState<
     "idle" | "loading" | "success"
@@ -1252,7 +1158,7 @@ const PlaceOrderModal = ({
       const discs = res?.discounts ?? [];
       setAvailableDiscounts(discs);
       setHasActiveCodes(discs.length > 0);
-    }).catch(() => {});
+    }).catch(() => { });
   }, [hotelData?.id, showDiscountSection]);
 
   // Prefill customer name from user data
@@ -1853,7 +1759,7 @@ const PlaceOrderModal = ({
         }
 
         if (appliedDiscount?.id) {
-          fetchFromHasura(incrementDiscountUsageMutation, { id: appliedDiscount.id }).catch(() => {});
+          fetchFromHasura(incrementDiscountUsageMutation, { id: appliedDiscount.id }).catch(() => { });
         }
 
         if (onSuccessCallback) {
@@ -1914,124 +1820,203 @@ const PlaceOrderModal = ({
 
   const { qrData } = useQrDataStore();
 
+  // Compute grand total for sticky bar
+  const _barSubtotal = items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
+  const _barQrCharge = qrGroup?.extra_charge ? getExtraCharge(items || [], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE") : 0;
+  const _barDeliveryCharge = !isQrScan && orderType === "delivery" && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0;
+  const _barTotalItemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+  const _barParcelCharge = tableNumber === 0 && (hotelData?.delivery_rules?.parcel_charge || 0) > 0
+    ? (hotelData?.delivery_rules?.parcel_charge_type === "variable" ? _barTotalItemCount * (hotelData?.delivery_rules?.parcel_charge || 0) : (hotelData?.delivery_rules?.parcel_charge || 0))
+    : 0;
+  const _barGst = (_barSubtotal * (hotelData?.gst_percentage || 0)) / 100;
+  const _barDiscountSavings = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
+  const _barGrandTotal = Math.max(0, _barSubtotal + _barQrCharge + _barDeliveryCharge + _barParcelCharge + _barGst - _barDiscountSavings);
+
   return (
     <>
       <div
-        className={`fixed inset-0 z-[1000] bg-stone-50 ${
-          open_place_order_modal ? "block" : "hidden"
-        }`}
+        className={`fixed inset-0 z-[1000] flex flex-col ${open_place_order_modal ? "flex" : "hidden"
+          }`}
+        style={(() => {
+          const bgColor = themeStyles?.backgroundColor || "#fafaf9";
+          const dark = themeStyles ? isDarkColor(bgColor) : false;
+          return {
+            backgroundColor: bgColor,
+            color: themeStyles?.color || undefined,
+            ...(themeStyles && showGrid ? {
+              backgroundImage: `linear-gradient(${themeStyles.color}08 1px, transparent 1px), linear-gradient(90deg, ${themeStyles.color}08 1px, transparent 1px)`,
+              backgroundSize: "40px 40px",
+            } : {}),
+            "--pom-card-bg": dark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.04)",
+            "--pom-card-border": dark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.08)",
+            "--pom-accent": themeStyles?.accent || "#ea580c",
+            "--pom-card-shadow": dark ? "0 4px 16px rgba(0,0,0,0.25)" : "0 1px 4px rgba(0,0,0,0.06)",
+            "--pom-text-muted": dark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.55)",
+            "--pom-modal-bg": dark ? "rgba(255,255,255,0.18)" : (themeStyles?.backgroundColor || "white"),
+          } as React.CSSProperties;
+        })()}
       >
-        {/* Modern Header */}
-        <div className="sticky top-0 bg-white border-b border-stone-200 shadow-sm z-10">
-          <div className="flex items-center gap-4 p-4">
+        {/* Header */}
+        <div
+          className="shrink-0 z-10"
+          style={{
+            backgroundColor: themeStyles?.backgroundColor || "white",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+          }}
+        >
+          <div className="flex items-center gap-3 px-4 py-4 max-w-2xl mx-auto">
             <button
               onClick={() => {
                 setOpenPlaceOrderModal(false);
                 setOpenDrawerBottom(true);
               }}
-              className="p-2 rounded-full hover:bg-stone-100 transition-colors"
+              className="p-1 active:opacity-70 transition-opacity"
             >
-              <ArrowLeft size={20} className="text-stone-700" />
+              <ArrowLeft className="h-6 w-6" />
             </button>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">
-                Review Your Order
-              </h1>
-              <p className="text-xs text-stone-500 mt-0.5">
-                {items?.length || 0} item{(items?.length || 0) !== 1 ? "s" : ""}
-              </p>
-            </div>
+            <h1 className="text-lg font-bold">Checkout</h1>
           </div>
         </div>
 
-        <div className="p-4 pb-32 overflow-y-auto max-h-[calc(100vh-80px)]">
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto">
           {(items?.length ?? 0) > 0 && (
-            <div className="space-y-4 max-w-2xl mx-auto">
-              <ItemsCard
-                items={items || []}
-                increaseQuantity={increaseQuantity}
-                decreaseQuantity={decreaseQuantity}
-                removeItem={removeItem}
-                currency={hotelData?.currency || "₹"}
-              />
+            <div className="max-w-2xl mx-auto px-4 py-4 space-y-3">
+              {/* Restaurant / Hotel Name + Order Type */}
+              <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
+                <h2 className="font-bold text-base">{hotelData?.store_name || hotelData?.name}</h2>
+                {hotelData?.location && (
+                  <p className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>{hotelData.location}</p>
+                )}
+                {tableNumber === 0 && (
+                  <div className="mt-3">
+                    <OrderTypeCard orderType={orderType} setOrderType={setOrderType} />
+                  </div>
+                )}
+              </div>
 
-              {tableNumber === 0 && (
-                <OrderTypeCard
-                  orderType={orderType}
-                  setOrderType={setOrderType}
+              {/* Items Card */}
+              <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
+                <h3 className="font-bold text-[15px] mb-1">Your Order</h3>
+                <ItemsCard
+                  items={items || []}
+                  increaseQuantity={increaseQuantity}
+                  decreaseQuantity={decreaseQuantity}
+                  removeItem={removeItem}
+                  currency={hotelData?.currency || "₹"}
+                  onAddMore={() => {
+                    setOpenPlaceOrderModal(false);
+                    setOpenDrawerBottom(true);
+                  }}
                 />
+
+                {/* Note for restaurant — pill style */}
+                <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--pom-card-border, #e7e5e4)" }}>
+                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border" style={{ borderColor: "var(--pom-card-border, #e7e5e4)" }}>
+                    <MessageCircle className="w-4 h-4 shrink-0" style={{ color: "var(--pom-text-muted)" }} />
+                    <Textarea
+                      placeholder="Add a note for the restaurant..."
+                      value={orderNote ?? ""}
+                      onChange={(e) => setOrderNote(e.target.value)}
+                      className="resize-none border-0 p-0 text-[13px] text-inherit placeholder:text-inherit placeholder:opacity-70 focus-visible:ring-0 shadow-none min-h-0 bg-transparent"
+                      rows={1}
+                      maxLength={500}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Table / QR Info */}
+              {isQrScan && (
+                <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
+                  <TableNumberCard
+                    hotelData={hotelData}
+                    tableNumber={tableNumber}
+                    tableName={qrData?.table_name || undefined}
+                  />
+                </div>
               )}
 
+              {/* Multi WhatsApp Location */}
               <MultiWhatsappCard
                 hotelData={hotelData}
                 selectedLocation={selectedLocation}
                 setSelectedLocation={handleSelectHotelLocation}
               />
 
-              {isQrScan ? (
-                <TableNumberCard
-                  hotelData={hotelData}
-                  tableNumber={tableNumber}
-                  tableName={qrData?.table_name || undefined}
-                />
-              ) : isDelivery && orderType === "delivery" ? (
-                <UnifiedAddressSection
-                  address={address || ""}
-                  setAddress={setAddress}
-                  deliveryInfo={deliveryInfo}
-                  hotelData={hotelData}
-                />
-              ) : null}
+              {/* Delivery Address */}
+              {!isQrScan && isDelivery && orderType === "delivery" && (
+                <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
+                  <UnifiedAddressSection
+                    address={address || ""}
+                    setAddress={setAddress}
+                    deliveryInfo={deliveryInfo}
+                    hotelData={hotelData}
+                  />
+                </div>
+              )}
 
-              {/* Discount Code — above bill summary */}
+              {/* Customer Name */}
+              {needUserName && user && (
+                <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
+                  <label className="text-sm font-semibold block mb-1" style={{ color: "var(--pom-text-muted)" }}>Your Name *</label>
+                  <Input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => { setCustomerName(e.target.value); setCustomerNameSaved(false); }}
+                    onBlur={async () => {
+                      if (customerName.trim() && user?.id && !customerNameSaved) {
+                        try {
+                          await fetchFromHasura(updateUserFullNameMutation, { id: user.id, full_name: customerName.trim() });
+                          useAuthStore.setState({ userData: { ...user, full_name: customerName.trim() } as any });
+                          setCustomerNameSaved(true);
+                        } catch { }
+                      }
+                    }}
+                    placeholder="Enter your name"
+                    className="border-0 p-0 text-sm text-inherit placeholder:opacity-40 focus-visible:ring-0 shadow-none h-auto"
+                  />
+                </div>
+              )}
+
+              {/* Discount Code */}
               {showDiscountSection && hasActiveCodes && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-2xl shadow-sm border border-stone-200 p-5"
-                >
-                  <h3 className="font-semibold text-gray-900 text-base mb-3 flex items-center gap-2">
-                    <Tag className="h-4 w-4 text-orange-500" />
-                    Discount Code
-                  </h3>
-                  {/* Available discount banners */}
+                <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
                   {!appliedDiscount && availableDiscounts.length > 0 && (
                     <div className="space-y-2 mb-3">
                       {availableDiscounts.map((disc) => (
                         <button
                           key={disc.id}
-                          onClick={() => {
-                            setDiscountInput(disc.code);
-                            setDiscountError("");
-                          }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-dashed border-orange-300 bg-orange-50/50 hover:bg-orange-50 transition-colors active:scale-[0.99] text-left"
+                          onClick={() => { setDiscountInput(disc.code); setDiscountError(""); }}
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg border border-dashed text-left transition-colors active:scale-[0.99]"
+                          style={{ borderColor: "var(--pom-accent, #ea580c)" }}
                         >
-                          <Tag className="h-3.5 w-3.5 text-orange-500 shrink-0" />
+                          <Tag className="h-3.5 w-3.5 text-[var(--pom-accent,#ea580c)] shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <span className="text-xs font-bold font-mono text-orange-600 tracking-wider">{disc.code}</span>
-                            <span className="text-[10px] text-stone-500 block leading-tight">
+                            <span className="text-xs font-bold font-mono text-[var(--pom-accent,#ea580c)] tracking-wider">{disc.code}</span>
+                            <span className="text-[10px] block leading-tight" style={{ color: "var(--pom-text-muted)" }}>
                               {disc.discount_type === "percentage"
                                 ? `${disc.discount_value}% off`
                                 : `${hotelData?.currency || "₹"}${disc.discount_value} off`}
                               {disc.min_order_value ? ` above ${hotelData?.currency || "₹"}${disc.min_order_value}` : ""}
                             </span>
                           </div>
-                          <span className="text-[10px] font-semibold text-orange-500 shrink-0">TAP TO APPLY</span>
+                          <span className="text-[10px] font-semibold text-[var(--pom-accent,#ea580c)] shrink-0">APPLY</span>
                         </button>
                       ))}
                     </div>
                   )}
 
                   {appliedDiscount ? (
-                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                    <div className="flex items-center justify-between rounded-lg px-3 py-2.5" style={{ backgroundColor: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)" }}>
                       <div>
-                        <p className="text-sm font-semibold text-green-700 font-mono">{appliedDiscount.code}</p>
-                        <p className="text-xs text-green-600 mt-0.5">
-                          Offer Applied! You save {hotelData?.currency || "₹"}{computeDiscountSavings(appliedDiscount).toFixed(2)}
+                        <p className="text-sm font-semibold font-mono" style={{ color: "#4ade80" }}>{appliedDiscount.code}</p>
+                        <p className="text-xs mt-0.5" style={{ color: "#86efac" }}>
+                          You save {hotelData?.currency || "₹"}{computeDiscountSavings(appliedDiscount).toFixed(2)}
                         </p>
                       </div>
-                      <button onClick={handleRemoveDiscount} className="p-1 rounded-full hover:bg-green-100">
-                        <X className="h-4 w-4 text-green-600" />
+                      <button onClick={handleRemoveDiscount} className="p-1 rounded-full" style={{ color: "#4ade80" }}>
+                        <X className="h-4 w-4" />
                       </button>
                     </div>
                   ) : (
@@ -2041,166 +2026,120 @@ const PlaceOrderModal = ({
                           value={discountInput}
                           onChange={(e) => { setDiscountInput(e.target.value.toUpperCase()); setDiscountError(""); }}
                           onKeyDown={(e) => e.key === "Enter" && handleApplyDiscount()}
-                          placeholder="Enter code"
-                          className="uppercase font-mono rounded-xl border-stone-200 text-black"
+                          placeholder="Enter discount code"
+                          className="uppercase font-mono rounded-lg text-sm border-[var(--pom-card-border,#e7e5e4)] text-inherit"
                         />
                         <button
                           onClick={handleApplyDiscount}
                           disabled={validatingCode || !discountInput.trim()}
-                          className="shrink-0 px-4 py-2 bg-orange-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
+                          className="shrink-0 px-4 py-2 text-white rounded-lg text-sm font-semibold disabled:opacity-50"
+                          style={{ backgroundColor: "var(--pom-accent, #ea580c)" }}
                         >
                           {validatingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
                         </button>
                       </div>
-                      {discountError && (
-                        <p className="text-xs text-red-500">{discountError}</p>
-                      )}
+                      {discountError && <p className="text-xs text-red-500">{discountError}</p>}
                     </div>
                   )}
-                </motion.div>
+                </div>
               )}
 
-              <BillCard
-                items={items || []}
-                currency={hotelData?.currency || "₹"}
-                gstPercentage={hotelData?.gst_percentage}
-                deliveryInfo={deliveryInfo}
-                isDelivery={isDelivery && !isQrScan && orderType === "delivery"}
-                qrGroup={qrGroup}
-                hotelData={hotelData}
-                tableNumber={tableNumber}
-                discount={appliedDiscount ? { type: appliedDiscount.type, value: appliedDiscount.value, max_discount_amount: appliedDiscount.max_discount_amount } : null}
-              />
-
-              {/* Order Note */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-2xl shadow-sm border border-stone-200 p-5"
-              >
-                <h3 className="font-semibold text-gray-900 text-base mb-3">
-                  Special Instructions
-                </h3>
-                <Textarea
-                  placeholder="Add cooking instructions, allergies, or delivery notes..."
-                  value={orderNote ?? ""}
-                  onChange={(e) => setOrderNote(e.target.value)}
-                  className="resize-none rounded-lg border-stone-200 text-gray-900 placeholder:text-gray-400"
-                  rows={3}
-                  maxLength={500}
+              {/* Bill Details */}
+              <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
+                <BillCard
+                  items={items || []}
+                  currency={hotelData?.currency || "₹"}
+                  gstPercentage={hotelData?.gst_percentage}
+                  deliveryInfo={deliveryInfo}
+                  isDelivery={isDelivery && !isQrScan && orderType === "delivery"}
+                  qrGroup={qrGroup}
+                  hotelData={hotelData}
+                  tableNumber={tableNumber}
+                  discount={appliedDiscount ? { type: appliedDiscount.type, value: appliedDiscount.value, max_discount_amount: appliedDiscount.max_discount_amount } : null}
                 />
-                <div className="text-xs text-stone-500 mt-2 text-right">
-                  {(orderNote ?? "").length}/500 characters
-                </div>
-              </motion.div>
-
-              {/* Customer Name */}
-              {needUserName && user && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-2xl shadow-sm border border-stone-200 p-5"
-                >
-                  <h3 className="font-semibold text-gray-900 text-base mb-3">
-                    Your Name <span className="text-red-500">*</span>
-                  </h3>
-                  <Input
-                    type="text"
-                    value={customerName}
-                    onChange={(e) => {
-                      setCustomerName(e.target.value);
-                      setCustomerNameSaved(false);
-                    }}
-                    onBlur={async () => {
-                      if (customerName.trim() && user?.id && !customerNameSaved) {
-                        try {
-                          await fetchFromHasura(updateUserFullNameMutation, {
-                            id: user.id,
-                            full_name: customerName.trim(),
-                          });
-                          useAuthStore.setState({
-                            userData: { ...user, full_name: customerName.trim() } as any,
-                          });
-                          setCustomerNameSaved(true);
-                        } catch {}
-                      }
-                    }}
-                    placeholder="Enter your name"
-                    className="rounded-lg border-stone-200 text-gray-900 placeholder:text-gray-400"
-                  />
-                </motion.div>
-              )}
-
-              {!user && <LoginCard setShowLoginDrawer={setShowLoginDrawer} />}
-
-              {isDelivery &&
-                !isQrScan &&
-                orderType === "delivery" &&
-                deliveryInfo?.isOutOfRange && (
-                  <div className="text-sm text-red-600 p-4 bg-red-50 rounded-xl text-center border border-red-200">
-                    ⚠️ Delivery is not available to your selected location
-                  </div>
-                )}
-
-              {(items?.length === 0 ||
-                (isDelivery &&
-                  orderType === "delivery" &&
-                  (totalPrice ?? 0) < minimumOrderAmount)) && (
-                <div className="text-sm text-amber-700 p-4 bg-amber-50 rounded-xl text-center border border-amber-200">
-                  ⚠️ Minimum order amount for delivery is{" "}
-                  {hotelData?.currency || "₹"}
-                  {deliveryInfo?.minimumOrderAmount.toFixed(2)}
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex flex-col gap-3 mt-6">
-                {user?.role !== "partner" && user?.role !== "superadmin" ? (
-                  <button
-                    onClick={() =>
-                      handlePlaceOrder(() => {
-                        if (hasUpiQr) {
-                          setShowUpiScreen(true);
-                        }
-                      })
-                    }
-                    disabled={
-                      isPlaceOrderDisabled ||
-                      !user ||
-                      items?.length === 0 ||
-                      (isDelivery &&
-                        orderType === "delivery" &&
-                        (totalPrice ?? 0) < minimumOrderAmount)
-                    }
-                    className="w-full px-6 py-4 bg-orange-600 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 font-semibold shadow-lg shadow-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
-                  >
-                    {orderStatus === "loading" ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        Placing Order...
-                      </span>
-                    ) : (
-                      "Place Order"
-                    )}
-                  </button>
-                ) : (
-                  <div className="text-red-600 text-center text-sm bg-red-50 py-3 rounded-xl border border-red-200">
-                    Login as user to place orders
-                  </div>
-                )}
               </div>
+
+              {/* Login prompt */}
+              {!user && (
+                <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
+                  <LoginCard setShowLoginDrawer={setShowLoginDrawer} />
+                </div>
+              )}
+
+              {/* Warnings */}
+              {isDelivery && !isQrScan && orderType === "delivery" && deliveryInfo?.isOutOfRange && (
+                <div className="text-sm p-3 rounded-xl text-center" style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#fca5a5" }}>
+                  Delivery is not available to your selected location
+                </div>
+              )}
+
+              {(items?.length === 0 || (isDelivery && orderType === "delivery" && (totalPrice ?? 0) < minimumOrderAmount)) && (
+                <div className="text-sm p-3 rounded-xl text-center" style={{ backgroundColor: "rgba(245,158,11,0.15)", color: "#fcd34d" }}>
+                  Minimum order amount: {hotelData?.currency || "₹"}{deliveryInfo?.minimumOrderAmount.toFixed(2)}
+                </div>
+              )}
+
+              {/* Bottom spacer for sticky bar */}
+              <div className="h-20" />
             </div>
           )}
         </div>
 
-        <div
-          className="fixed bottom-0 left-0 right-0 bg-white border-t h-4"
-          style={{
-            bottom: keyboardOpen
-              ? `${window.visualViewport?.offsetTop || 0}px`
-              : "0",
-          }}
-        />
+        {/* Sticky Bottom Bar — Place Order */}
+        {(items?.length ?? 0) > 0 && (
+          <div
+            className="shrink-0 px-4 py-3 z-10"
+            style={{
+              backgroundColor: "var(--pom-card-bg, white)",
+              boxShadow: "0 -4px 20px rgba(0,0,0,0.12)",
+              borderTop: "1px solid var(--pom-card-border, #e7e5e4)",
+              bottom: keyboardOpen ? `${window.visualViewport?.offsetTop || 0}px` : "0",
+            }}
+          >
+            <div className="max-w-2xl mx-auto">
+              {user?.role !== "partner" && user?.role !== "superadmin" ? (
+                <button
+                  onClick={() =>
+                    handlePlaceOrder(() => {
+                      if (hasUpiQr) setShowUpiScreen(true);
+                    })
+                  }
+                  disabled={
+                    isPlaceOrderDisabled ||
+                    !user ||
+                    items?.length === 0 ||
+                    (isDelivery && orderType === "delivery" && (totalPrice ?? 0) < minimumOrderAmount)
+                  }
+                  className="w-full py-4 rounded-xl text-white font-bold text-[15px] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between px-6 active:scale-[0.98]"
+                  style={{ backgroundColor: "var(--pom-accent, #ea580c)" }}
+                >
+                  <span>
+                    {orderStatus === "loading" ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        Placing...
+                      </span>
+                    ) : (
+                      `${hotelData?.currency || "₹"}${_barGrandTotal.toFixed(2)}`
+                    )}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    PLACE ORDER
+                    <ArrowLeft size={15} className="rotate-180" />
+                  </span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowLoginDrawer(true)}
+                  className="w-full py-4 rounded-xl text-white font-bold text-[15px] transition-all active:scale-[0.98]"
+                  style={{ backgroundColor: "var(--pom-accent, #ea580c)" }}
+                >
+                  Login to Place Order
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         <LoginDrawer
           showLoginDrawer={showLoginDrawer}

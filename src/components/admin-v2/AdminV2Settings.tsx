@@ -8,6 +8,7 @@ import { DeliverySettings } from "./settings/DeliverySettings";
 import { PaymentLegalSettings } from "./settings/PaymentLegalSettings";
 import { FeatureSettings } from "./settings/FeatureSettings";
 import { DiscountCodeSettings } from "./settings/DiscountCodeSettings";
+import { ThemeSettings } from "./settings/ThemeSettings";
 
 import { Button } from "@/components/ui/button";
 import { LogOut, ExternalLink } from "lucide-react";
@@ -63,7 +64,7 @@ export function AdminV2Settings() {
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+        <div className="space-y-6 animate-in fade-in duration-500 pb-20 w-full lg:max-w-[80%] mx-auto px-4 lg:px-0">
             <div className="flex items-center justify-between gap-5">
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
@@ -95,6 +96,7 @@ export function AdminV2Settings() {
                     {showDiscountSettings && (
                         <TabsTrigger value="discounts">Discount Codes</TabsTrigger>
                     )}
+                    <TabsTrigger value="theme">Theme</TabsTrigger>
                     <TabsTrigger value="features">Features</TabsTrigger>
                 </TabsList>
 
@@ -123,6 +125,10 @@ export function AdminV2Settings() {
                         <DiscountCodeSettings />
                     </TabsContent>
                 )}
+
+                <TabsContent value="theme" className="space-y-4">
+                    <ThemeSettings />
+                </TabsContent>
 
                 <TabsContent value="features" className="space-y-4">
                     <FeatureSettings />

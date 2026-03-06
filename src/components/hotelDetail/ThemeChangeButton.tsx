@@ -27,6 +27,7 @@ export interface ThemeConfig {
   menuStyle: string;
   infoAlignment?: string;
   fontFamily?: string;
+  showGrid?: boolean;
 }
 
 export const DEFAULT_THEME: ThemeConfig = {
