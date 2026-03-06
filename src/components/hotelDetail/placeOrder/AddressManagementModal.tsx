@@ -739,7 +739,7 @@ const AddressManagementModal = ({
 
   // ============ MAP SCREEN ============
   return (
-    <div className="fixed inset-0 z-[70] bg-white h-[100dvh] flex flex-col">
+    <div className="fixed inset-0 z-[70] h-[100dvh] flex flex-col" style={{ backgroundColor: themeBg }}>
       {/* Map fills the screen */}
       <div className="flex-1 relative">
         {loadError ? (
@@ -824,8 +824,8 @@ const AddressManagementModal = ({
                 <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
                   <path d="M14 4L8 16h12L14 4z" fill="#16a34a" stroke="#fff" strokeWidth="1.5" />
                 </svg>
-                <span className="text-[10px] font-bold text-green-600 bg-white/90 rounded px-1.5 py-0.5 mt-0.5 shadow-sm whitespace-nowrap"
-                  style={{ transform: `rotate(${-hotelDirection.angle}deg)` }}
+                <span className="text-[10px] font-bold rounded px-1.5 py-0.5 mt-0.5 shadow-sm whitespace-nowrap"
+                  style={{ transform: `rotate(${-hotelDirection.angle}deg)`, color: "#16a34a", backgroundColor: `${themeBg}E6` }}
                 >
                   {hotelData?.store_name || "Restaurant"}
                 </span>
@@ -869,8 +869,8 @@ const AddressManagementModal = ({
           <button
             onClick={handleUseCurrentLocation}
             disabled={locating}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white rounded-full shadow-lg text-sm font-medium disabled:opacity-50"
-            style={{ color: themeText }}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg text-sm font-medium disabled:opacity-50"
+            style={{ color: themeText, backgroundColor: themeBg }}
           >
             {locating ? (
               <Loader2 className="h-4 w-4 animate-spin" style={{ color: accent }} />

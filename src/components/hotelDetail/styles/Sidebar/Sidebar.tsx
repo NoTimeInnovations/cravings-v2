@@ -67,6 +67,7 @@ const Sidebar = ({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { addItem, removeItem, items: cartItems, setOpenPlaceOrderModal } = useOrderStore();
   const selectedCategory = selectedCategoryProp || "all";
+  const categorySidebarRef = useRef<HTMLDivElement>(null);
 
   // Reset persisted open_place_order_modal on mount (for partners who don't render OrderDrawer)
   useEffect(() => {
@@ -94,6 +95,22 @@ const Sidebar = ({
       setSelectedCategory(allCats[0]);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-scroll category sidebar to keep active category visible (skip initial load)
+  const hasInitialScrolled = useRef(false);
+  useEffect(() => {
+    if (!hasInitialScrolled.current) {
+      hasInitialScrolled.current = true;
+      return;
+    }
+    if (!categorySidebarRef.current) return;
+    const activeBtn = categorySidebarRef.current.querySelector(
+      `[data-category="${CSS.escape(selectedCategory)}"]`
+    ) as HTMLElement | null;
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [selectedCategory]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -252,6 +269,7 @@ const Sidebar = ({
   }, [selectedCategory, categories, items.length, hoteldata?.menus?.length]);
 
   return (
+    <>
     <main
       style={{
         backgroundColor: styles.backgroundColor,
@@ -575,12 +593,14 @@ const Sidebar = ({
           <section className="flex relative">
             {/* Category sidebar */}
             <div
+              ref={categorySidebarRef}
               className="w-[80px] flex-shrink-0 overflow-y-auto scrollbar-hidden sticky top-0 self-start max-h-[100dvh] py-2"
               style={{ backgroundColor: styles.backgroundColor }}
             >
               {/* Must Try */}
               {topItems.length > 0 && (
                 <button
+                  data-category="Must Try"
                   onClick={() => setSelectedCategory("Must Try")}
                   className="w-full flex flex-col items-center gap-1 py-2.5 px-1 transition-all relative"
                 >
@@ -623,6 +643,7 @@ const Sidebar = ({
                 return (
                   <button
                     key={category.id}
+                    data-category={category.name}
                     onClick={() => setSelectedCategory(category.name)}
                     className="w-full flex flex-col items-center gap-1 py-2.5 px-1 transition-all relative"
                   >
@@ -678,6 +699,7 @@ const Sidebar = ({
 
               {/* All - at bottom */}
               <button
+                data-category="all"
                 onClick={() => setSelectedCategory("all")}
                 className="w-full flex flex-col items-center gap-1 py-2.5 px-1 transition-all relative"
               >
@@ -958,18 +980,16 @@ const Sidebar = ({
         </section>
       )}
 
-      {/* Partner login banner */}
-      {auth?.role === "partner" &&
-        ((tableNumber !== 0 &&
-          getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled) ||
-          (tableNumber === 0 &&
-            getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled)) && (
+    </main>
+
+      {/* Partner login banner — outside main to avoid overflow-x-clip */}
+      {auth?.role === "partner" && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl bg-black text-white text-center font-semibold shadow-xl">
           Login as user to place order
         </div>
       )}
 
-      {/* OrderDrawer - always rendered to handle PlaceOrderModal and state reset */}
+      {/* OrderDrawer — outside main to avoid overflow-x-clip clipping fixed elements */}
       {auth?.role !== "partner" && (
         <OrderDrawer
           styles={styles}
@@ -979,7 +999,7 @@ const Sidebar = ({
           qrGroup={qrGroup}
         />
       )}
-    </main>
+    </>
   );
 };
 
