@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
+import { ButtonV2 } from "@/components/ui/ButtonV2";
+
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -17,8 +19,6 @@ import {
 import { useDomain } from "@/providers/DomainProvider";
 import { FcGoogle } from "react-icons/fc";
 
-const DEFAULT_THEME = { accent: "#EA580C", bg: "#F5F5F5", text: "#000000" };
-
 type LoginMode = "user" | "partner";
 export default function Login() {
   const appName = "Menuthere";
@@ -33,19 +33,6 @@ export default function Login() {
     email: "",
     password: "",
   });
-
-  const [theme, setTheme] = useState(DEFAULT_THEME);
-
-  // Read stored hotel theme from localStorage
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("hotelTheme");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.accent) setTheme({ ...DEFAULT_THEME, ...parsed });
-      }
-    } catch {}
-  }, []);
 
   // Fetch user country info on mount
   useEffect(() => {
@@ -133,63 +120,46 @@ export default function Login() {
   };
 
   return (
-    <div
-      className="min-h-[calc(100dvh-4rem)] flex items-center justify-center px-4 py-8 sm:px-6"
-      style={{
-        backgroundColor: theme.bg,
-        backgroundImage: `linear-gradient(${theme.text}0D 1px, transparent 1px), linear-gradient(90deg, ${theme.text}0D 1px, transparent 1px)`,
-        backgroundSize: "40px 40px",
-      }}
-    >
-      <div className="w-full max-w-sm sm:max-w-md bg-white rounded-2xl p-5 sm:p-8 shadow-lg border border-black/5">
+    <div className="min-h-[calc(100dvh-4rem)] flex items-center justify-center px-4 py-8 sm:px-6">
+      <div className="w-full max-w-sm sm:max-w-md bg-white rounded-xl p-5 sm:p-8">
         <div className="flex flex-col items-center mb-6 sm:mb-8">
           <img
             src="/menuthere_logo_full.svg"
             alt="Menuthere"
             width={171}
             height={46}
-            className="h-12 sm:h-10 w-auto object-contain mb-1"
+            className="h-12 sm:h-10 w-auto object-contain mb-3"
           />
-          <p className="text-xs mt-1" style={{ color: `${theme.text}66` }}>Digital menu for restaurants</p>
         </div>
 
-        <div className="flex gap-2 mb-6 p-1 rounded-full" style={{ backgroundColor: `${theme.text}0A` }}>
-          <button
+        <div className="flex gap-2 mb-6">
+          <ButtonV2
+            variant={mode === "partner" ? "primary" : "secondary"}
             onClick={() => setMode("partner")}
-            className="flex-1 py-2 text-sm font-medium rounded-full transition-all duration-200"
-            style={
-              mode === "partner"
-                ? { backgroundColor: theme.accent, color: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }
-                : { color: `${theme.text}80` }
-            }
+            showArrow={false}
+            className="flex-1 justify-center"
           >
             Partner
-          </button>
-          <button
+          </ButtonV2>
+          <ButtonV2
+            variant={mode === "user" ? "primary" : "secondary"}
             onClick={() => setMode("user")}
-            className="flex-1 py-2 text-sm font-medium rounded-full transition-all duration-200"
-            style={
-              mode === "user"
-                ? { backgroundColor: theme.accent, color: "#fff", boxShadow: "0 1px 2px rgba(0,0,0,0.1)" }
-                : { color: `${theme.text}80` }
-            }
+            showArrow={false}
+            className="flex-1 justify-center"
           >
             User
-          </button>
+          </ButtonV2>
         </div>
 
         {mode === "user" ? (
           <form onSubmit={handleUserSignIn} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="phone" className="text-sm font-medium" style={{ color: `${theme.text}99` }}>
+              <Label htmlFor="phone" className="text-sm text-stone-700">
                 Phone Number
               </Label>
               <div className="flex gap-2">
                 {userCountryInfo && (
-                  <div
-                    className="flex items-center px-4 rounded-xl text-sm font-semibold shrink-0 border"
-                    style={{ backgroundColor: `${theme.accent}15`, color: theme.accent, borderColor: `${theme.accent}30` }}
-                  >
+                  <div className="flex items-center px-4 bg-stone-50 rounded-xl text-sm font-medium text-stone-600 shrink-0 border border-stone-200">
                     {userCountryInfo.callingCode}
                   </div>
                 )}
@@ -209,26 +179,25 @@ export default function Login() {
                     );
                   }}
                   required
-                  className="flex-1 min-w-0 h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400"
-                  style={{ outline: "none" }}
+                  className="flex-1 min-w-0 h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
                 />
               </div>
             </div>
-            <button
+            <ButtonV2
               type="submit"
+              variant="primary"
               disabled={isLoading}
-              className="w-full h-11 rounded-xl text-white text-sm font-semibold active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: theme.accent }}
+              className="w-full justify-center"
             >
               {isLoading ? "Please wait..." : "Continue"}
-            </button>
+            </ButtonV2>
           </form>
         ) : (
           <div className="space-y-4">
             <button
               type="button"
               onClick={handleGoogleSignIn}
-              className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-stone-200 bg-white px-4 text-sm font-medium text-stone-700 hover:bg-stone-50 hover:border-stone-300 active:scale-[0.98] transition-all duration-200"
+              className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-stone-200 bg-white px-4 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors"
             >
               <FcGoogle className="text-xl" />
               Sign in with Google
@@ -245,7 +214,7 @@ export default function Login() {
 
             <form onSubmit={handlePartnerSignIn} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium" style={{ color: `${theme.text}99` }}>
+                <Label htmlFor="email" className="text-sm text-stone-700">
                   Email
                 </Label>
                 <Input
@@ -257,11 +226,11 @@ export default function Login() {
                     setPartnerData({ ...partnerData, email: e.target.value })
                   }
                   required
-                  className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400"
+                  className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium" style={{ color: `${theme.text}99` }}>
+                <Label htmlFor="password" className="text-sm text-stone-700">
                   Password
                 </Label>
                 <Input
@@ -273,17 +242,17 @@ export default function Login() {
                     setPartnerData({ ...partnerData, password: e.target.value })
                   }
                   required
-                  className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400"
+                  className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
                 />
               </div>
-              <button
+              <ButtonV2
                 type="submit"
+                variant="primary"
                 disabled={isLoading}
-                className="w-full h-11 rounded-xl text-white text-sm font-semibold active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ backgroundColor: theme.accent }}
+                className="w-full justify-center"
               >
                 {isLoading ? "Please wait..." : "Sign In"}
-              </button>
+              </ButtonV2>
             </form>
           </div>
         )}
@@ -292,8 +261,7 @@ export default function Login() {
         <div className="mt-5 text-center">
           <Link
             href="/pricing"
-            className="text-sm font-medium transition-colors"
-            style={{ color: `${theme.accent}B3` }}
+            className="text-sm text-stone-500 hover:text-stone-900 transition-colors"
           >
             Are you an owner?
           </Link>
