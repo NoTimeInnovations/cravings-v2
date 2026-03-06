@@ -790,7 +790,7 @@ const Sidebar = ({
 
               {/* Items grid */}
               <div className="overflow-hidden">
-              <div ref={itemsRef} className="px-2 pt-2.5 pb-10 grid grid-cols-3 gap-2" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+              <div ref={itemsRef} className="px-2 pt-2.5 pb-10 grid grid-cols-3 gap-2 content-start min-h-[90vh]" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
                 {items
                   ?.sort((a, b) => {
                     const priorityDiff =
