@@ -107,7 +107,14 @@ export function AdminV2Dashboard() {
   const [qrLoading, setQrLoading] = useState(false);
 
   // Tour state
-  const { hasSeenDashboardTour, startTour } = useTourStore();
+  const { hasSeenDashboardTour, startTour, initFromDb } = useTourStore();
+
+  // Initialize tour state from DB
+  useEffect(() => {
+    if (partner?.id) {
+      initFromDb(partner.id, !!partner.has_seen_tour);
+    }
+  }, [partner?.id, partner?.has_seen_tour, initFromDb]);
 
   useEffect(() => {
     if (!userData?.id) return;

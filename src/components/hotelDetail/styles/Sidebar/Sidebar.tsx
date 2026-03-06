@@ -122,6 +122,7 @@ const Sidebar = ({
   }, []);
 
   // Native touchmove with { passive: false } to allow preventDefault
+  // Re-run when open_place_order_modal changes because the DOM element gets unmounted/remounted
   useEffect(() => {
     const el = itemsRef.current;
     if (!el) return;
@@ -142,7 +143,7 @@ const Sidebar = ({
     };
     el.addEventListener('touchmove', onTouchMove, { passive: false });
     return () => el.removeEventListener('touchmove', onTouchMove);
-  }, []);
+  }, [open_place_order_modal]);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     const dx = e.changedTouches[0].clientX - touchStartX.current;
@@ -275,6 +276,7 @@ const Sidebar = ({
         backgroundColor: styles.backgroundColor,
         color: styles.color,
         fontFamily: theme?.fontFamily || "Poppins, sans-serif",
+        WebkitTapHighlightColor: "transparent",
         ...(theme?.showGrid === true && {
           backgroundImage: `linear-gradient(${styles.color}08 1px, transparent 1px), linear-gradient(90deg, ${styles.color}08 1px, transparent 1px)`,
           backgroundSize: "40px 40px",
@@ -322,36 +324,16 @@ const Sidebar = ({
                   background: `linear-gradient(to top, ${styles.backgroundColor}, transparent)`,
                 }}
               />
-            </div>
 
-            {/* Store info + action icons */}
-            <div
-              className="flex items-start justify-between px-5 pb-3 -mt-4 relative z-10"
-              style={{ borderBottom: `1px solid ${styles.border.borderColor}` }}
-            >
-              <div className="flex flex-col gap-1">
-                <h1 className="text-xl font-bold tracking-tight">
-                  {hoteldata?.store_name}
-                </h1>
-                {(hoteldata?.location_details || hoteldata?.district || hoteldata?.country) && (
-                  <div className="inline-flex items-center gap-1.5 text-xs opacity-60">
-                    <MapPin size={12} />
-                    <span>
-                      {hoteldata.location_details || hoteldata.district || hoteldata.country}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Action icons */}
-              <div className="flex items-center gap-2 mt-1">
+              {/* Action icons — vertical, top-right of banner */}
+              <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5">
                 {socialLinks.phone && socialLinks.phone !== "" && (
                   <a
                     href={`tel:${socialLinks.phone}`}
-                    className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
-                    style={{ backgroundColor: `${styles.color}10`, color: styles.color }}
+                    className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm"
+                    style={{ backgroundColor: "rgba(0,0,0,0.35)", color: "white" }}
                   >
-                    <Phone size={16} />
+                    <Phone size={14} />
                   </a>
                 )}
                 {socialLinks.whatsapp && socialLinks.whatsapp !== "" && (
@@ -359,10 +341,10 @@ const Sidebar = ({
                     href={socialLinks.whatsapp}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
-                    style={{ backgroundColor: `${styles.color}10`, color: styles.color }}
+                    className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm"
+                    style={{ backgroundColor: "rgba(0,0,0,0.35)", color: "white" }}
                   >
-                    <FaWhatsapp size={16} />
+                    <FaWhatsapp size={14} />
                   </a>
                 )}
                 {socialLinks.instagram && socialLinks.instagram !== "" && (
@@ -374,10 +356,10 @@ const Sidebar = ({
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
-                    style={{ backgroundColor: `${styles.color}10`, color: styles.color }}
+                    className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm"
+                    style={{ backgroundColor: "rgba(0,0,0,0.35)", color: "white" }}
                   >
-                    <FaInstagram size={16} />
+                    <FaInstagram size={14} />
                   </a>
                 )}
                 {(hoteldata?.place_id || hoteldata?.geo_location?.coordinates || (socialLinks.location && socialLinks.location !== "")) && (
@@ -391,20 +373,40 @@ const Sidebar = ({
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
-                    style={{ backgroundColor: `${styles.color}10`, color: styles.color }}
+                    className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm"
+                    style={{ backgroundColor: "rgba(0,0,0,0.35)", color: "white" }}
                   >
-                    <MapPin size={16} />
+                    <MapPin size={14} />
                   </a>
                 )}
-                <button
-                  onClick={() => setIsSearchOpen(true)}
-                  className="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
-                  style={{ backgroundColor: `${styles.color}10`, color: styles.color }}
-                >
-                  <Search size={16} />
-                </button>
               </div>
+            </div>
+
+            {/* Store info + search */}
+            <div
+              className="flex items-start justify-between px-5 pb-3 -mt-4 relative z-10"
+              style={{ borderBottom: `1px solid ${styles.border.borderColor}` }}
+            >
+              <div>
+                <h1 className="text-xl font-bold tracking-tight">
+                  {hoteldata?.store_name}
+                </h1>
+                {(hoteldata?.location_details || hoteldata?.district || hoteldata?.country) && (
+                  <div className="inline-flex items-center gap-1.5 text-xs opacity-60 mt-1">
+                    <MapPin size={12} />
+                    <span>
+                      {hoteldata.location_details || hoteldata.district || hoteldata.country}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setIsSearchOpen(true)}
+                className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors"
+                style={{ backgroundColor: `${styles.color}10`, color: styles.color }}
+              >
+                <Search size={16} />
+              </button>
             </div>
 
           </section>
@@ -627,7 +629,7 @@ const Sidebar = ({
                 <button
                   data-category="Must Try"
                   onClick={() => setSelectedCategory("Must Try")}
-                  className="w-full flex flex-col items-center gap-1 py-2.5 px-1 transition-all relative"
+                  className="w-full flex flex-col items-center gap-1 py-2.5 px-1 transition-all relative outline-none"
                 >
                   {selectedCategory === "Must Try" && (
                     <div
@@ -670,7 +672,7 @@ const Sidebar = ({
                     key={category.id}
                     data-category={category.name}
                     onClick={() => setSelectedCategory(category.name)}
-                    className="w-full flex flex-col items-center gap-1 py-2.5 px-1 transition-all relative"
+                    className="w-full flex flex-col items-center gap-1 py-2.5 px-1 transition-all relative outline-none"
                   >
                     {isSelected && (
                       <div
@@ -726,7 +728,7 @@ const Sidebar = ({
               <button
                 data-category="all"
                 onClick={() => setSelectedCategory("all")}
-                className="w-full flex flex-col items-center gap-1 py-2.5 px-1 transition-all relative"
+                className="w-full flex flex-col items-center gap-1 py-2.5 px-1 transition-all relative outline-none"
               >
                 {selectedCategory === "all" && (
                   <div

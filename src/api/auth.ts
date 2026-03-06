@@ -60,6 +60,7 @@ export const partnerIdQuery = `
       hide_unavailable
       subscription_details
       username
+      has_seen_tour
       qr_codes(limit: 1) {
         id
       }
@@ -106,6 +107,7 @@ export const partnerLoginQuery = `
       hide_unavailable
       subscription_details
       username
+      has_seen_tour
       qr_codes(limit: 1) {
         id
       }

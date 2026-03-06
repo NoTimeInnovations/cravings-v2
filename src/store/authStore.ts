@@ -110,6 +110,7 @@ export interface Partner extends BaseUser {
   };
   petpooja_restaurant_id?: string;
   username?: string;
+  has_seen_tour?: boolean;
 }
 
 export interface SuperAdmin extends BaseUser {
