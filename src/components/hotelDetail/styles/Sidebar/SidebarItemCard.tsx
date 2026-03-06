@@ -6,8 +6,26 @@ import { useEffect, useState } from "react";
 import useOrderStore from "@/store/orderStore";
 import { getFeatures } from "@/lib/getFeatures";
 import { formatPrice } from "@/lib/constants";
-import { Minus, Plus, Star } from "lucide-react";
+import { Minus, Plus, Star, UtensilsCrossed } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+
+/** Blend a foreground hex onto a background hex at a given opacity (0-1). Returns a solid opaque hex. */
+function blendHex(fg: string, bg: string, opacity: number): string {
+  const parse = (hex: string) => {
+    const h = hex.replace("#", "");
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  };
+  try {
+    const [fr, fg2, fb] = parse(fg);
+    const [br, bg2, bb] = parse(bg);
+    const r = Math.round(fr * opacity + br * (1 - opacity));
+    const g = Math.round(fg2 * opacity + bg2 * (1 - opacity));
+    const b = Math.round(fb * opacity + bb * (1 - opacity));
+    return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+  } catch {
+    return bg;
+  }
+}
 
 const SidebarItemCard = ({
   item,
@@ -255,13 +273,25 @@ const SidebarItemCard = ({
       {/* === CLEAN CARD FRONT === */}
       <div
         onClick={() => setIsDrawerOpen(true)}
-        className="cursor-pointer rounded-xl overflow-hidden bg-white shadow-sm relative"
+        className="cursor-pointer rounded-2xl overflow-hidden shadow-sm relative p-1 backdrop-blur-md"
         style={{
+          backgroundColor: `${styles.color}19`,
           border: `1px solid ${styles.border.borderColor || "#f0f0f0"}`,
+          overflow: "visible",
         }}
       >
+        {/* Cart badge - positioned above card */}
+        {itemQuantity > 0 && (
+          <div
+            className="absolute -top-2 -right-2 w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shadow-md z-10"
+            style={{ backgroundColor: styles.accent }}
+          >
+            {itemQuantity}
+          </div>
+        )}
+
         {/* Image */}
-        <div className="relative">
+        <div className="relative overflow-hidden rounded-xl">
           {hasImage ? (
             <div className="w-full aspect-square overflow-hidden">
               <img
@@ -276,15 +306,14 @@ const SidebarItemCard = ({
             <div
               className="w-full aspect-square flex items-center justify-center"
               style={{
-                background: `linear-gradient(135deg, ${styles.accent}08, ${styles.accent}15)`,
+                backgroundColor: blendHex(styles.accent, styles.backgroundColor, 0.12),
               }}
             >
-              <span
-                className="text-3xl font-bold opacity-20"
-                style={{ color: styles.accent }}
-              >
-                {item.name.charAt(0).toUpperCase()}
-              </span>
+              <UtensilsCrossed
+                size={28}
+                strokeWidth={1.5}
+                style={{ color: styles.accent, opacity: 0.4 }}
+              />
             </div>
           )}
 
@@ -328,20 +357,11 @@ const SidebarItemCard = ({
             </div>
           )}
 
-          {/* Cart badge on card */}
-          {itemQuantity > 0 && (
-            <div
-              className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shadow-md z-10"
-              style={{ backgroundColor: styles.accent }}
-            >
-              {itemQuantity}
-            </div>
-          )}
         </div>
 
         {/* Info - minimal */}
         <div className="px-1.5 py-1.5">
-          <p className="font-medium text-[10px] capitalize line-clamp-2 leading-tight text-gray-800">
+          <p className="font-medium text-[11px] capitalize line-clamp-2 leading-tight" style={{ color: styles.color }}>
             {displayName || item.name}
           </p>
 
@@ -351,19 +371,19 @@ const SidebarItemCard = ({
               style={{ color: !isOrderable ? "#999" : styles.accent }}
             >
               {item.is_price_as_per_size ? (
-                <span className="text-[9px] font-normal text-gray-400">
+                <span className="text-[9px] font-normal" style={{ opacity: 0.5 }}>
                   As per size
                 </span>
-              ) : isOfferItem && offerPrice ? (
+              ) : isOfferItem && offerPrice != null ? (
                 <span className="flex items-center gap-1 flex-wrap">
                   {!hasMultipleVariantsOnOffer && (
-                    <span className="line-through text-gray-300 text-[10px] font-normal">
+                    <span className="line-through text-[10px] font-normal" style={{ opacity: 0.35 }}>
                       {currency}
                       {parseInt(String(oldPrice ?? item.price))}
                     </span>
                   )}
                   {hasMultipleVariantsOnOffer && (
-                    <span className="text-[9px] font-normal text-gray-400">
+                    <span className="text-[9px] font-normal" style={{ opacity: 0.5 }}>
                       From{" "}
                     </span>
                   )}
@@ -372,7 +392,7 @@ const SidebarItemCard = ({
                 </span>
               ) : hasVariants ? (
                 <span>
-                  <span className="text-[9px] font-normal text-gray-400">
+                  <span className="text-[9px] font-normal" style={{ opacity: 0.5 }}>
                     From{" "}
                   </span>
                   {currency}
@@ -398,7 +418,7 @@ const SidebarItemCard = ({
         <SheetContent
           side="bottom"
           overlayStyle={{ zIndex: 9999 }}
-          className="rounded-t-3xl p-0 max-h-[85vh] overflow-hidden flex flex-col"
+          className="rounded-t-3xl p-0 h-auto max-h-[85vh] overflow-hidden flex flex-col gap-0 border-t-[1px] border-white/8 0"
           style={{
             backgroundColor: styles.backgroundColor,
             color: styles.color,
@@ -406,14 +426,14 @@ const SidebarItemCard = ({
           }}
         >
           {/* Drag handle */}
-          <div className="flex justify-center pt-3 pb-1">
+          {/* <div className="flex justify-center">
             <div className="w-10 h-1 rounded-full bg-gray-300" />
-          </div>
+          </div> */}
 
           <div className="overflow-y-auto flex-1 pb-4">
             {/* Image */}
             {hasImage && (
-              <div className="w-full h-36 overflow-hidden">
+              <div className="w-full h-48 overflow-hidden">
                 <img
                   src={item.image_url.replace("+", "%2B")}
                   alt={item.name}
@@ -449,7 +469,7 @@ const SidebarItemCard = ({
 
                   {/* Description */}
                   {item.description && (
-                    <p className="text-xs mt-1 line-clamp-2">
+                    <p className="text-xs mt-1 line-clamp-2 opacity-70">
                       {item.description}
                     </p>
                   )}
@@ -477,7 +497,7 @@ const SidebarItemCard = ({
                       <span className="text-xs">
                         As per size
                       </span>
-                    ) : isOfferItem && offerPrice ? (
+                    ) : isOfferItem && offerPrice != null ? (
                       <div>
                         {!hasMultipleVariantsOnOffer && (
                           <div className="line-through text-xs">

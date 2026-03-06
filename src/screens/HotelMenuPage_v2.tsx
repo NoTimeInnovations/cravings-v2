@@ -35,6 +35,7 @@ export type Styles = {
   backgroundColor: string;
   color: string;
   accent: string;
+  showGrid?: boolean;
   border: {
     borderColor: string;
     borderWidth: string;
@@ -78,6 +79,7 @@ const HotelMenuPage = ({
     backgroundColor: theme?.colors?.bg || "#F5F5F5",
     color: theme?.colors?.text || "#000",
     accent: theme?.colors?.accent || "#EA580C",
+    showGrid: theme?.showGrid === true,
     border: {
       borderColor: theme?.colors?.text ? `${theme.colors.text}1D` : "#0000001D",
       borderWidth: "1px",
@@ -98,10 +100,11 @@ const HotelMenuPage = ({
           accent: styles.accent,
           bg: styles.backgroundColor,
           text: styles.color,
+          showGrid: theme?.showGrid,
         })
       );
     } catch {}
-  }, [styles.accent, styles.backgroundColor, styles.color]);
+  }, [styles.accent, styles.backgroundColor, styles.color, theme?.showGrid]);
 
   useEffect(() => {
     setQrData(qrData || null);
@@ -246,14 +249,6 @@ const HotelMenuPage = ({
   const setSelectedCategory = useCallback(
     (category: string) => {
       setSelectedCat(category);
-      // Update URL without navigation for bookmarkability
-      const url = new URL(window.location.href);
-      if (category === "all") {
-        url.searchParams.delete("cat");
-      } else {
-        url.searchParams.set("cat", category);
-      }
-      window.history.replaceState(null, "", url.toString());
     },
     []
   );
@@ -323,6 +318,7 @@ const HotelMenuPage = ({
 
   const showOrderDrawer =
     theme?.menuStyle !== "compact" &&
+    theme?.menuStyle !== "sidebar" &&
     ((pathname.includes("qrScan") && features?.ordering.enabled) ||
       (!pathname.includes("qrScan") &&
         features?.delivery.enabled &&

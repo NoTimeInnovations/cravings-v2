@@ -9,10 +9,11 @@ import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { ThemeConfig, DEFAULT_THEME } from "@/components/hotelDetail/ThemeChangeButton";
 import { MENUSTYLES } from "@/components/hotelDetail/MenuStyleModal";
-import { fontOptions } from "@/components/FontPickerModal";
-import { Paintbrush, LayoutGrid, Type, Check } from "lucide-react";
+import { Paintbrush, LayoutGrid, Check, Grid3X3, Crown } from "lucide-react";
 import dynamic from "next/dynamic";
-import { FontSelect } from "@/components/FontSelect";
+import { MobilePreview } from "./MobilePreview";
+import { isFreePlan } from "@/lib/getPlanLimits";
+import { UpgradePlanDialog } from "../UpgradePlanDialog";
 
 const HexColorPicker = dynamic(
     () => import("react-colorful").then(mod => ({ default: mod.HexColorPicker })),
@@ -29,6 +30,10 @@ const COLOR_PRESETS = [
 export function ThemeSettings() {
     const { userData } = useAuthStore();
     const [isSaving, setIsSaving] = useState(false);
+    const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+
+    const planId = (userData as any)?.subscription_details?.plan?.id;
+    const onFreePlan = isFreePlan(planId);
 
     // Parse current theme
     const userTheme = (userData as any)?.theme;
@@ -39,6 +44,7 @@ export function ThemeSettings() {
     const [menuStyle, setMenuStyle] = useState(currentTheme.menuStyle || "default");
     const [fontFamily, setFontFamily] = useState(currentTheme.fontFamily || "sans-serif");
     const [colors, setColors] = useState(currentTheme.colors || { text: "#000000", bg: "#F5F5F5", accent: "#EA580C" });
+    const [showGrid, setShowGrid] = useState(currentTheme.showGrid ?? false);
     const [activeColorPicker, setActiveColorPicker] = useState<"text" | "bg" | "accent" | null>(null);
 
     useEffect(() => {
@@ -47,6 +53,7 @@ export function ThemeSettings() {
             setMenuStyle(parsed.menuStyle || "default");
             setFontFamily(parsed.fontFamily || "sans-serif");
             setColors(parsed.colors || { text: "#000000", bg: "#F5F5F5", accent: "#EA580C" });
+            setShowGrid(parsed.showGrid ?? false);
         }
     }, [userTheme]);
 
@@ -57,6 +64,7 @@ export function ThemeSettings() {
                 colors,
                 menuStyle,
                 fontFamily,
+                showGrid,
                 infoAlignment: currentTheme.infoAlignment,
             };
             toast.loading("Saving theme...");
@@ -73,7 +81,19 @@ export function ThemeSettings() {
     };
 
     return (
-        <div className="space-y-4">
+        <div className="flex flex-col lg:flex-row gap-6">
+            {/* Mobile preview - shown above settings on small screens */}
+            <div className="lg:hidden flex justify-center">
+                <MobilePreview
+                    menuStyle={menuStyle}
+                    colors={colors}
+                    fontFamily={fontFamily}
+                    showGrid={showGrid}
+                />
+            </div>
+
+            {/* Left column: settings controls */}
+            <div className="flex-1 min-w-0 space-y-4">
             {/* Menu Style */}
             <Card>
                 <CardHeader>
@@ -91,8 +111,8 @@ export function ThemeSettings() {
                                 onClick={() => setMenuStyle(style.id)}
                                 className={`relative rounded-xl border-2 p-4 text-center transition-all ${
                                     menuStyle === style.id
-                                        ? "border-orange-500 bg-orange-50"
-                                        : "border-gray-200 hover:border-gray-300"
+                                        ? "border-orange-500 bg-orange-50 dark:bg-orange-500/10"
+                                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                                 }`}
                             >
                                 {menuStyle === style.id && (
@@ -128,12 +148,12 @@ export function ThemeSettings() {
                                     className={`rounded-xl border-2 p-2 flex gap-1 transition-all ${
                                         colors.text === preset.text && colors.bg === preset.bg && colors.accent === preset.accent
                                             ? "border-orange-500"
-                                            : "border-gray-200 hover:border-gray-300"
+                                            : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                                     }`}
                                 >
-                                    <div className="w-5 h-5 rounded-full" style={{ backgroundColor: preset.bg }} />
-                                    <div className="w-5 h-5 rounded-full" style={{ backgroundColor: preset.accent }} />
-                                    <div className="w-5 h-5 rounded-full" style={{ backgroundColor: preset.text }} />
+                                    <div className="w-5 h-5 rounded-full border border-gray-200 dark:border-gray-600" style={{ backgroundColor: preset.bg }} />
+                                    <div className="w-5 h-5 rounded-full border border-gray-200 dark:border-gray-600" style={{ backgroundColor: preset.accent }} />
+                                    <div className="w-5 h-5 rounded-full border border-gray-200 dark:border-gray-600" style={{ backgroundColor: preset.text }} />
                                 </button>
                             ))}
                         </div>
@@ -149,7 +169,7 @@ export function ThemeSettings() {
                                 <button
                                     onClick={() => setActiveColorPicker(activeColorPicker === key ? null : key)}
                                     className={`w-full h-10 rounded-lg border-2 transition-all ${
-                                        activeColorPicker === key ? "border-orange-500" : "border-gray-200"
+                                        activeColorPicker === key ? "border-orange-500" : "border-gray-200 dark:border-gray-700"
                                     }`}
                                     style={{ backgroundColor: colors[key] }}
                                 />
@@ -168,7 +188,7 @@ export function ThemeSettings() {
                                                     setColors({ ...colors, [key]: val });
                                                 }
                                             }}
-                                            className="mt-2 w-full text-sm border rounded-lg px-3 py-1.5"
+                                            className="mt-2 w-full text-sm border rounded-lg px-3 py-1.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-700"
                                             placeholder="#000000"
                                         />
                                     </div>
@@ -179,32 +199,81 @@ export function ThemeSettings() {
                 </CardContent>
             </Card>
 
-            {/* Font */}
-            <Card>
+            {/* Grid Background - only for sidebar layout */}
+            {menuStyle === "sidebar" && <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <Type className="h-5 w-5" />
-                        Font
+                        <Grid3X3 className="h-5 w-5" />
+                        Grid Background
                     </CardTitle>
-                    <CardDescription>Choose the font family for your menu.</CardDescription>
+                    <CardDescription>Toggle the subtle grid pattern on the menu background.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <FontSelect
-                        options={fontOptions}
-                        value={fontFamily}
-                        onChange={setFontFamily}
-                    />
+                    <div className="flex items-center justify-between">
+                        <div className="flex gap-3">
+                            {[
+                                { label: "With Grid", value: true },
+                                { label: "Without Grid", value: false },
+                            ].map((option) => (
+                                <button
+                                    key={String(option.value)}
+                                    onClick={() => setShowGrid(option.value)}
+                                    className={`relative rounded-xl border-2 px-5 py-3 text-center transition-all ${
+                                        showGrid === option.value
+                                            ? "border-orange-500 bg-orange-50 dark:bg-orange-500/10"
+                                            : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                                    }`}
+                                >
+                                    {showGrid === option.value && (
+                                        <div className="absolute top-1.5 right-1.5 bg-orange-500 text-white rounded-full p-0.5">
+                                            <Check className="h-3 w-3" />
+                                        </div>
+                                    )}
+                                    <div className="text-sm font-semibold">{option.label}</div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </CardContent>
-            </Card>
+            </Card>}
 
             {/* Save Button */}
-            <Button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-            >
-                {isSaving ? "Saving..." : "Save Theme"}
-            </Button>
+            {onFreePlan ? (
+                <Button
+                    onClick={() => setShowUpgradeDialog(true)}
+                    className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                    <Crown className="h-4 w-4 mr-2" />
+                    Upgrade to Save Theme
+                </Button>
+            ) : (
+                <Button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                    {isSaving ? "Saving..." : "Save Theme"}
+                </Button>
+            )}
+
+            <UpgradePlanDialog
+                open={showUpgradeDialog}
+                onOpenChange={setShowUpgradeDialog}
+                featureName="Theme Customization"
+            />
+            </div>
+
+            {/* Right column: mobile preview */}
+            <div className="hidden lg:block w-[320px] flex-shrink-0">
+                <div className="sticky top-6">
+                    <MobilePreview
+                        menuStyle={menuStyle}
+                        colors={colors}
+                        fontFamily={fontFamily}
+                        showGrid={showGrid}
+                    />
+                </div>
+            </div>
         </div>
     );
 }

@@ -108,6 +108,7 @@ const AddressManagementModal = ({
   const [accent, setAccent] = useState(DEFAULT_ACCENT);
   const [themeBg, setThemeBg] = useState("#F5F5F5");
   const [themeText, setThemeText] = useState("#000000");
+  const [showGrid, setShowGrid] = useState(false);
   useEffect(() => {
     try {
       const stored = localStorage.getItem("hotelTheme");
@@ -116,6 +117,7 @@ const AddressManagementModal = ({
         if (parsed.accent) setAccent(parsed.accent);
         if (parsed.bg) setThemeBg(parsed.bg);
         if (parsed.text) setThemeText(parsed.text);
+        setShowGrid(parsed.showGrid === true);
       }
     } catch {}
   }, []);
@@ -519,8 +521,10 @@ const AddressManagementModal = ({
         className="fixed inset-0 z-[70] h-[100dvh] flex flex-col"
         style={{
           backgroundColor: themeBg,
-          backgroundImage: `linear-gradient(${themeText}0D 1px, transparent 1px), linear-gradient(90deg, ${themeText}0D 1px, transparent 1px)`,
-          backgroundSize: "40px 40px",
+          ...(showGrid && {
+            backgroundImage: `linear-gradient(${themeText}0D 1px, transparent 1px), linear-gradient(90deg, ${themeText}0D 1px, transparent 1px)`,
+            backgroundSize: "40px 40px",
+          }),
         }}
       >
         {/* Header */}

@@ -226,7 +226,7 @@ const UnifiedAddressSection = ({
       <div>
         {/* Header */}
         <div className="flex justify-between items-center mb-2">
-          <span className="text-xs" style={{ color: "var(--pom-text-muted)" }}>Deliver to</span>
+          <span className="font-semibold text-sm" style={{ color: "var(--pom-text-muted)" }}>Deliver to</span>
           <button
             onClick={() => { setEditingAddress(null); setShowAddressModal(true); }}
             className="text-xs font-semibold text-[var(--pom-accent,#ea580c)]"
@@ -1080,6 +1080,8 @@ const PlaceOrderModal = ({
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
 
+  const showGrid = themeStyles?.showGrid === true;
+
   const [orderStatus, setOrderStatus] = useState<
     "idle" | "loading" | "success"
   >("idle");
@@ -1841,8 +1843,10 @@ const PlaceOrderModal = ({
           return {
             backgroundColor: bgColor,
             color: themeStyles?.color || undefined,
-            backgroundImage: themeStyles ? `linear-gradient(${themeStyles.color}08 1px, transparent 1px), linear-gradient(90deg, ${themeStyles.color}08 1px, transparent 1px)` : undefined,
-            backgroundSize: "40px 40px",
+            ...(themeStyles && showGrid ? {
+              backgroundImage: `linear-gradient(${themeStyles.color}08 1px, transparent 1px), linear-gradient(90deg, ${themeStyles.color}08 1px, transparent 1px)`,
+              backgroundSize: "40px 40px",
+            } : {}),
             "--pom-card-bg": dark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.04)",
             "--pom-card-border": dark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.08)",
             "--pom-accent": themeStyles?.accent || "#ea580c",
@@ -1860,16 +1864,15 @@ const PlaceOrderModal = ({
             boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
           }}
         >
-          <div className="flex items-center gap-3 px-4 py-3.5 max-w-2xl mx-auto">
+          <div className="flex items-center gap-3 px-4 py-4 max-w-2xl mx-auto">
             <button
               onClick={() => {
                 setOpenPlaceOrderModal(false);
                 setOpenDrawerBottom(true);
               }}
-              className="p-1.5 rounded-full active:opacity-70 transition-opacity"
-              style={{ backgroundColor: "var(--pom-card-bg, transparent)" }}
+              className="p-1 active:opacity-70 transition-opacity"
             >
-              <ArrowLeft size={20} />
+              <ArrowLeft className="h-6 w-6" />
             </button>
             <h1 className="text-lg font-bold">Checkout</h1>
           </div>
@@ -1956,7 +1959,7 @@ const PlaceOrderModal = ({
               {/* Customer Name */}
               {needUserName && user && (
                 <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
-                  <label className="text-xs block mb-1" style={{ color: "var(--pom-text-muted)" }}>Your Name *</label>
+                  <label className="text-sm font-semibold block mb-1" style={{ color: "var(--pom-text-muted)" }}>Your Name *</label>
                   <Input
                     type="text"
                     value={customerName}

@@ -24,6 +24,17 @@ const SearchMenu = ({
   externalOpen?: boolean;
   onExternalClose?: () => void;
 }) => {
+  const [showGrid, setShowGrid] = useState(false);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("hotelTheme");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setShowGrid(parsed.showGrid === true);
+      }
+    } catch {}
+  }, []);
+
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const isOpen = externalOpen !== undefined ? externalOpen : isSearchOpen;
   const handleClose = () => {
@@ -177,8 +188,10 @@ const SearchMenu = ({
           style={{
             backgroundColor: styles.backgroundColor,
             color: styles.color,
-            backgroundImage: `linear-gradient(${styles.color}08 1px, transparent 1px), linear-gradient(90deg, ${styles.color}08 1px, transparent 1px)`,
-            backgroundSize: "40px 40px",
+            ...(showGrid && {
+              backgroundImage: `linear-gradient(${styles.color}08 1px, transparent 1px), linear-gradient(90deg, ${styles.color}08 1px, transparent 1px)`,
+              backgroundSize: "40px 40px",
+            }),
           }}
         >
           {/* Header */}

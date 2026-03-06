@@ -4,7 +4,7 @@ import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import ThemeChangeButton, { ThemeConfig } from "../../ThemeChangeButton";
 import SearchMenu from "../../SearchMenu";
-import { MapPin, LayoutGrid, Phone, Search, Zap, ChevronLeft, ChevronRight } from "lucide-react";
+import { MapPin, LayoutGrid, Phone, Search, Zap, ChevronLeft, ChevronRight, Star, Minus, Plus } from "lucide-react";
 import { FaInstagram, FaWhatsapp } from "react-icons/fa";
 import PopularItemsList from "../Default/PopularItemsList";
 
@@ -19,6 +19,8 @@ import { Category, formatDisplayName } from "@/store/categoryStore_hasura";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import SidebarItemCard from "./SidebarItemCard";
 import useOrderStore from "@/store/orderStore";
+import OrderDrawer from "../../OrderDrawer";
+import { getFeatures } from "@/lib/getFeatures";
 
 export interface SidebarHotelPageProps {
   styles: Styles;
@@ -63,15 +65,35 @@ const Sidebar = ({
   isOnFreePlan,
 }: SidebarHotelPageProps) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const { addItem, items: cartItems } = useOrderStore();
+  const { addItem, removeItem, items: cartItems, setOpenPlaceOrderModal } = useOrderStore();
   const selectedCategory = selectedCategoryProp || "all";
+
+  // Reset persisted open_place_order_modal on mount (for partners who don't render OrderDrawer)
+  useEffect(() => {
+    if (auth?.role === "partner") {
+      setOpenPlaceOrderModal(false);
+    }
+  }, [auth?.role, setOpenPlaceOrderModal]);
 
   // Swipe navigation between categories
   const touchStartX = useRef<number>(0);
   const touchStartY = useRef<number>(0);
   const isDragging = useRef(false);
   const itemsRef = useRef<HTMLDivElement>(null);
-  const allCats = useMemo(() => ["all", ...categories.filter(c => c.name !== "Offer").map(c => c.name)], [categories]);
+  const allCats = useMemo(() => {
+    const cats = categories.filter(c => c.name !== "Offer").map(c => c.name);
+    if (topItems.length > 0) {
+      return ["Must Try", ...cats, "all"];
+    }
+    return [...cats, "all"];
+  }, [categories, topItems.length]);
+
+  // Set first category as default on mount
+  useEffect(() => {
+    if (allCats.length > 0 && (!selectedCategoryProp || selectedCategoryProp === "all")) {
+      setSelectedCategory(allCats[0]);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -119,7 +141,7 @@ const Sidebar = ({
     const goPrev = dx > 60 && currentIdx > 0;
 
     if (goNext || goPrev) {
-      itemsRef.current.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+      itemsRef.current.style.transition = 'transform 0.15s ease-out, opacity 0.15s ease-out';
       itemsRef.current.style.transform = `translateX(${dx < 0 ? '-100%' : '100%'})`;
       itemsRef.current.style.opacity = '0';
       setTimeout(() => {
@@ -129,15 +151,13 @@ const Sidebar = ({
           itemsRef.current.style.transition = 'none';
           itemsRef.current.style.transform = `translateX(${dx < 0 ? '40%' : '-40%'})`;
           itemsRef.current.style.opacity = '0';
-          requestAnimationFrame(() => {
-            if (itemsRef.current) {
-              itemsRef.current.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
-              itemsRef.current.style.transform = 'translateX(0)';
-              itemsRef.current.style.opacity = '1';
-            }
-          });
+          // Force reflow so the browser registers the initial position
+          void itemsRef.current.offsetHeight;
+          itemsRef.current.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+          itemsRef.current.style.transform = 'translateX(0)';
+          itemsRef.current.style.opacity = '1';
         }
-      }, 200);
+      }, 150);
     } else {
       itemsRef.current.style.transition = 'transform 0.25s ease-out, opacity 0.25s ease-out';
       itemsRef.current.style.transform = 'translateX(0)';
@@ -151,6 +171,12 @@ const Sidebar = ({
   };
 
   const getCategoryItems = (selectedCategory: string) => {
+    if (selectedCategory === "Must Try") {
+      return topItems.filter(
+        (item) => !hoteldata.hide_unavailable || item.is_available
+      );
+    }
+
     if (selectedCategory === "all") {
       return (
         hoteldata?.menus?.filter(
@@ -215,6 +241,9 @@ const Sidebar = ({
     if (selectedCategory === "all") {
       return { name: "All Items", count: hoteldata?.menus?.length || 0 };
     }
+    if (selectedCategory === "Must Try") {
+      return { name: "Must Try", count: items.length };
+    }
     const cat = categories.find((c) => c.name === selectedCategory);
     return {
       name: formatDisplayName(cat?.name || selectedCategory),
@@ -228,8 +257,10 @@ const Sidebar = ({
         backgroundColor: styles.backgroundColor,
         color: styles.color,
         fontFamily: theme?.fontFamily || "Poppins, sans-serif",
-        backgroundImage: `linear-gradient(${styles.color}08 1px, transparent 1px), linear-gradient(90deg, ${styles.color}08 1px, transparent 1px)`,
-        backgroundSize: "40px 40px",
+        ...(theme?.showGrid === true && {
+          backgroundImage: `linear-gradient(${styles.color}08 1px, transparent 1px), linear-gradient(90deg, ${styles.color}08 1px, transparent 1px)`,
+          backgroundSize: "40px 40px",
+        }),
       }}
       className={`overflow-x-clip relative min-h-screen flex flex-col lg:px-[20%] ${(cartItems?.length ?? 0) > 0 ? "pb-24" : ""}`}
     >
@@ -268,7 +299,7 @@ const Sidebar = ({
               )}
               {/* Gradient overlay at bottom of banner */}
               <div
-                className="absolute bottom-0 left-0 right-0 h-16"
+                className="absolute bottom-0 left-0 right-0 h-28"
                 style={{
                   background: `linear-gradient(to top, ${styles.backgroundColor}, transparent)`,
                 }}
@@ -387,7 +418,13 @@ const Sidebar = ({
                   const now = new Date();
                   const hoursLeft = Math.max(0, Math.round((endTime.getTime() - now.getTime()) / (1000 * 60 * 60)));
 
-                  const handleOrderNow = (e: React.MouseEvent) => {
+                  const cartItemId = offer.variant
+                    ? `${offer.menu?.id}|${offer.variant.name}`
+                    : offer.menu?.id || "";
+                  const cartItem = cartItems?.find((i) => i.id === cartItemId);
+                  const qty = cartItem?.quantity || 0;
+
+                  const handleAdd = (e: React.MouseEvent) => {
                     e.stopPropagation();
                     if (!offer.menu) return;
                     const menuItem = hoteldata?.menus?.find((m) => m.id === offer.menu?.id);
@@ -412,6 +449,11 @@ const Sidebar = ({
                         variantSelections: [],
                       });
                     }
+                  };
+
+                  const handleRemove = (e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    if (cartItemId) removeItem(cartItemId);
                   };
 
                   return (
@@ -452,23 +494,63 @@ const Sidebar = ({
                               {itemName}
                             </p>
 
+                            {/* Prices */}
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {originalPrice > 0 && offer.offer_price != null && originalPrice !== offer.offer_price && (
+                                <span className="text-[11px] line-through opacity-40">
+                                  {hoteldata?.currency}{originalPrice}
+                                </span>
+                              )}
+                              <span className="text-[12px] font-bold" style={{ color: styles.accent }}>
+                                {hoteldata?.currency}{offer.offer_price ?? originalPrice}
+                              </span>
+                            </div>
+
                             {/* Timer */}
-                            <p className="text-[10px] opacity-50 font-medium">
+                            <p className="text-[10px] opacity-50 font-medium mt-0.5">
                               {hoursLeft > 0 ? `Ends in ${hoursLeft}h` : "Limited time"}
                             </p>
                           </div>
 
-                          {/* Order button */}
-                          <button
-                            onClick={handleOrderNow}
-                            className="mt-2 self-start px-4 py-1.5 rounded-xl text-[11px] font-bold tracking-wide active:scale-95 transition-transform"
-                            style={{
-                              backgroundColor: styles.accent,
-                              color: "white",
-                            }}
-                          >
-                            Order Now
-                          </button>
+                          {/* Add / Quantity controls */}
+                          {qty === 0 ? (
+                            <button
+                              onClick={handleAdd}
+                              className="mt-2 self-start px-4 py-1.5 rounded-xl text-[11px] font-bold tracking-wide active:scale-95 transition-transform"
+                              style={{
+                                backgroundColor: styles.accent,
+                                color: "white",
+                              }}
+                            >
+                              Add
+                            </button>
+                          ) : (
+                            <div
+                              className="mt-2 self-start inline-flex items-center rounded-xl overflow-hidden"
+                              style={{ border: `1px solid ${styles.accent}40` }}
+                            >
+                              <button
+                                onClick={handleRemove}
+                                className="px-2.5 py-1.5 active:scale-95 transition-transform"
+                                style={{ color: styles.accent }}
+                              >
+                                <Minus size={13} strokeWidth={2.5} />
+                              </button>
+                              <span
+                                className="px-2 text-[12px] font-bold min-w-[20px] text-center"
+                                style={{ color: styles.accent }}
+                              >
+                                {qty}
+                              </span>
+                              <button
+                                onClick={handleAdd}
+                                className="px-2.5 py-1.5 active:scale-95 transition-transform"
+                                style={{ color: styles.accent }}
+                              >
+                                <Plus size={13} strokeWidth={2.5} />
+                              </button>
+                            </div>
+                          )}
                         </div>
 
                         {/* Item image */}
@@ -489,19 +571,6 @@ const Sidebar = ({
             </section>
           )}
 
-          {/* Must Try */}
-          {topItems.length > 0 && (
-            <section>
-              <PopularItemsList
-                hotelData={hoteldata}
-                currency={hoteldata?.currency}
-                items={topItems}
-                styles={styles}
-                tableNumber={tableNumber}
-              />
-            </section>
-          )}
-
           {/* Main: Category sidebar + Items grid */}
           <section className="flex relative">
             {/* Category sidebar */}
@@ -509,42 +578,44 @@ const Sidebar = ({
               className="w-[80px] flex-shrink-0 overflow-y-auto scrollbar-hidden sticky top-0 self-start max-h-[100dvh] py-2"
               style={{ backgroundColor: styles.backgroundColor }}
             >
-              {/* All */}
-              <button
-                onClick={() => setSelectedCategory("all")}
-                className="w-full flex flex-col items-center gap-1 py-2.5 px-1 transition-all relative"
-              >
-                {selectedCategory === "all" && (
+              {/* Must Try */}
+              {topItems.length > 0 && (
+                <button
+                  onClick={() => setSelectedCategory("Must Try")}
+                  className="w-full flex flex-col items-center gap-1 py-2.5 px-1 transition-all relative"
+                >
+                  {selectedCategory === "Must Try" && (
+                    <div
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full"
+                      style={{ backgroundColor: styles.accent }}
+                    />
+                  )}
                   <div
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full"
-                    style={{ backgroundColor: styles.accent }}
-                  />
-                )}
-                <div
-                  className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center transition-all"
-                  style={{
-                    backgroundColor:
-                      selectedCategory === "all"
-                        ? styles.accent
-                        : `${styles.accent}10`,
-                    color: selectedCategory === "all" ? "white" : styles.accent,
-                    boxShadow:
-                      selectedCategory === "all"
-                        ? `0 4px 12px ${styles.accent}40`
-                        : "none",
-                  }}
-                >
-                  <LayoutGrid size={18} strokeWidth={2} />
-                </div>
-                <span
-                  className="text-[10px] font-semibold text-center leading-tight"
-                  style={{
-                    color: selectedCategory === "all" ? styles.accent : `${styles.color}99`,
-                  }}
-                >
-                  All
-                </span>
-              </button>
+                    className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center transition-all"
+                    style={{
+                      backgroundColor:
+                        selectedCategory === "Must Try"
+                          ? styles.accent
+                          : `${styles.accent}10`,
+                      color: selectedCategory === "Must Try" ? "white" : styles.accent,
+                      boxShadow:
+                        selectedCategory === "Must Try"
+                          ? `0 4px 12px ${styles.accent}40`
+                          : "none",
+                    }}
+                  >
+                    <Star size={18} strokeWidth={2} />
+                  </div>
+                  <span
+                    className="text-[10px] font-semibold text-center leading-tight"
+                    style={{
+                      color: selectedCategory === "Must Try" ? styles.accent : `${styles.color}99`,
+                    }}
+                  >
+                    Must Try
+                  </span>
+                </button>
+              )}
 
               {categories.filter((c) => c.name !== "Offer").map((category) => {
                 const isSelected = selectedCategory === category.name;
@@ -604,6 +675,43 @@ const Sidebar = ({
                   </button>
                 );
               })}
+
+              {/* All - at bottom */}
+              <button
+                onClick={() => setSelectedCategory("all")}
+                className="w-full flex flex-col items-center gap-1 py-2.5 px-1 transition-all relative"
+              >
+                {selectedCategory === "all" && (
+                  <div
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full"
+                    style={{ backgroundColor: styles.accent }}
+                  />
+                )}
+                <div
+                  className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center transition-all"
+                  style={{
+                    backgroundColor:
+                      selectedCategory === "all"
+                        ? styles.accent
+                        : `${styles.accent}10`,
+                    color: selectedCategory === "all" ? "white" : styles.accent,
+                    boxShadow:
+                      selectedCategory === "all"
+                        ? `0 4px 12px ${styles.accent}40`
+                        : "none",
+                  }}
+                >
+                  <LayoutGrid size={18} strokeWidth={2} />
+                </div>
+                <span
+                  className="text-[10px] font-semibold text-center leading-tight"
+                  style={{
+                    color: selectedCategory === "all" ? styles.accent : `${styles.color}99`,
+                  }}
+                >
+                  All
+                </span>
+              </button>
             </div>
 
             {/* Thin divider */}
@@ -625,7 +733,7 @@ const Sidebar = ({
                     <span>Swipe</span>
                     <ChevronRight size={10} />
                   </div>
-                  <span className="text-[10px] text-gray-400 font-medium">
+                  <span className="text-[10px] font-medium" style={{ opacity: 0.4 }}>
                     {selectedCategoryData.count} items
                   </span>
                 </div>
@@ -633,7 +741,7 @@ const Sidebar = ({
 
               {/* Items grid */}
               <div className="overflow-hidden">
-              <div ref={itemsRef} className="px-2 pb-10 grid grid-cols-3 gap-2" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+              <div ref={itemsRef} className="px-2 pt-2.5 pb-10 grid grid-cols-3 gap-2" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
                 {items
                   ?.sort((a, b) => {
                     const priorityDiff =
@@ -848,6 +956,28 @@ const Sidebar = ({
             {hoteldata?.footnote}
           </div>
         </section>
+      )}
+
+      {/* Partner login banner */}
+      {auth?.role === "partner" &&
+        ((tableNumber !== 0 &&
+          getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled) ||
+          (tableNumber === 0 &&
+            getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled)) && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl bg-black text-white text-center font-semibold shadow-xl">
+          Login as user to place order
+        </div>
+      )}
+
+      {/* OrderDrawer - always rendered to handle PlaceOrderModal and state reset */}
+      {auth?.role !== "partner" && (
+        <OrderDrawer
+          styles={styles}
+          hotelData={hoteldata}
+          tableNumber={tableNumber}
+          qrId={qrId || undefined}
+          qrGroup={qrGroup}
+        />
       )}
     </main>
   );

@@ -467,23 +467,30 @@ const OrderDrawer = ({
 
       {/* Full-Screen Login Modal - Mobile First */}
       {showLoginModal && (
-        <div className="fixed inset-0 z-[70] bg-white flex flex-col">
+        <div
+          className="fixed inset-0 z-[70] flex flex-col"
+          style={{ backgroundColor: styles.backgroundColor || "#fff", color: styles.color || "#000" }}
+        >
           {/* Header Bar */}
-          <div className="border-b border-stone-200 bg-white sticky top-0 z-10">
+          <div
+            className="sticky top-0 z-10"
+            style={{ backgroundColor: styles.backgroundColor || "#fff", borderBottom: `1px solid ${styles.color}15` }}
+          >
             <div className="flex items-center justify-between px-4 pt-4">
               <button
                 onClick={() => setShowLoginModal(false)}
-                className="p-2 -ml-2 rounded-full hover:bg-stone-100 transition-all duration-200"
+                className="p-2 -ml-2 rounded-full transition-all duration-200"
+                style={{ color: styles.color }}
                 aria-label="Close"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-stone-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-              <h2 className="text-base font-semibold text-gray-900">Login to Continue</h2>
+              <h2 className="text-base font-semibold" style={{ color: styles.color }}>Login to Continue</h2>
               <div className="w-9" />
             </div>
-            <p className="text-stone-500 text-xs text-center pb-3 px-4">
+            <p className="text-xs text-center pb-3 px-4" style={{ color: `${styles.color}80` }}>
               Please enter your phone number to review your order
             </p>
           </div>
@@ -493,16 +500,19 @@ const OrderDrawer = ({
             <div className="max-w-md mx-auto px-6 py-8 space-y-8">
               {/* Phone Input */}
               <div className="space-y-3">
-                <Label htmlFor="phone" className="text-sm font-semibold text-gray-900 block">
+                <Label htmlFor="phone" className="text-sm font-semibold block" style={{ color: styles.color }}>
                   Phone Number
                   {hotelData?.country && (
-                    <span className="text-stone-500 font-normal ml-2 text-xs">
+                    <span className="font-normal ml-2 text-xs" style={{ color: `${styles.color}80` }}>
                       ({hotelData.country})
                     </span>
                   )}
                 </Label>
                 <div className="flex gap-3">
-                  <div className="flex items-center justify-center px-4 sm:px-5 bg-orange-100/30 rounded-2xl text-base font-bold text-orange-600 border border-orange-600/20">
+                  <div
+                    className="flex items-center justify-center px-4 sm:px-5 rounded-2xl text-base font-bold border"
+                    style={{ backgroundColor: `${styles.accent}15`, color: styles.accent, borderColor: `${styles.accent}30` }}
+                  >
                     {hotelData?.country_code || '+91'}
                   </div>
                   <Input
@@ -516,7 +526,13 @@ const OrderDrawer = ({
                       setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, maxDigits));
                     }}
                     autoFocus
-                    className="flex-1 rounded-2xl text-gray-900 placeholder:text-gray-400 bg-white border-stone-200 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20 h-14 text-base px-4 sm:px-5 transition-all duration-200"
+                    className="flex-1 rounded-2xl h-14 text-base px-4 sm:px-5 transition-all duration-200"
+                    style={{
+                      backgroundColor: styles.backgroundColor,
+                      color: styles.color,
+                      borderColor: `${styles.color}20`,
+                      outline: "none",
+                    }}
                   />
                 </div>
               </div>
@@ -526,7 +542,12 @@ const OrderDrawer = ({
                 <button
                   onClick={handleLoginAndProceed}
                   disabled={isSubmitting || !phoneNumber}
-                  className="w-full px-6 py-4 bg-orange-100/70 text-orange-600 rounded-full hover:bg-orange-600 hover:text-white border border-orange-600/30 hover:border-orange-600 transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                  className="w-full px-6 py-4 rounded-full transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                  style={{
+                    backgroundColor: `${styles.accent}18`,
+                    color: styles.accent,
+                    border: `1px solid ${styles.accent}30`,
+                  }}
                 >
                   {isSubmitting ? (
                     <span className="flex items-center justify-center gap-2">
@@ -540,20 +561,24 @@ const OrderDrawer = ({
 
                 <button
                   onClick={() => setShowLoginModal(false)}
-                  className="w-full px-6 py-3.5 rounded-full border border-stone-300 bg-transparent text-stone-800 hover:bg-stone-100 hover:text-stone-900 hover:border-stone-500 transition-all duration-200 font-medium text-base"
+                  className="w-full px-6 py-3.5 rounded-full bg-transparent transition-all duration-200 font-medium text-base"
+                  style={{
+                    color: styles.color,
+                    border: `1px solid ${styles.color}30`,
+                  }}
                 >
                   Cancel
                 </button>
               </div>
 
               {/* Privacy Note */}
-              <p className="text-xs text-stone-500 text-center leading-relaxed pt-2">
+              <p className="text-xs text-center leading-relaxed pt-2" style={{ color: `${styles.color}80` }}>
                 By continuing, you agree to our{" "}
-                <span className="text-orange-600 hover:underline cursor-pointer">
+                <span className="hover:underline cursor-pointer" style={{ color: styles.accent }}>
                   Terms of Service
                 </span>{" "}
                 and{" "}
-                <span className="text-orange-600 hover:underline cursor-pointer">
+                <span className="hover:underline cursor-pointer" style={{ color: styles.accent }}>
                   Privacy Policy
                 </span>
               </p>
