@@ -777,14 +777,12 @@ const Sidebar = ({
                   {selectedCategoryData.name}
                 </h2>
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-0.5 text-[9px] font-medium opacity-40">
+                  <div className="flex items-center gap-0.5 text-[14px] font-medium opacity-70">
                     <ChevronLeft size={10} />
                     <span>Swipe</span>
                     <ChevronRight size={10} />
                   </div>
-                  <span className="text-[10px] font-medium" style={{ opacity: 0.4 }}>
-                    {selectedCategoryData.count} items
-                  </span>
+                  
                 </div>
               </div>
 
