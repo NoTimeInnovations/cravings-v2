@@ -326,7 +326,7 @@ const Sidebar = ({
               />
 
               {/* Action icons — vertical, top-right of banner */}
-              <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5">
+              <div className="absolute top-3 right-5 z-20 flex flex-col gap-1.5">
                 {socialLinks.phone && socialLinks.phone !== "" && (
                   <a
                     href={`tel:${socialLinks.phone}`}
@@ -402,10 +402,10 @@ const Sidebar = ({
               </div>
               <button
                 onClick={() => setIsSearchOpen(true)}
-                className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors"
+                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors outline-none"
                 style={{ backgroundColor: `${styles.color}10`, color: styles.color }}
               >
-                <Search size={16} />
+                <Search size={14} />
               </button>
             </div>
 
