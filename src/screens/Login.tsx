@@ -110,7 +110,7 @@ export default function Login() {
       );
       await Notification.token.save();
 
-      navigate.push("/admin-v2");
+      navigate.replace("/admin-v2");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to sign in");
       console.error("Sign in error:", error);

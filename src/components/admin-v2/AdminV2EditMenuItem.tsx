@@ -422,8 +422,20 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
 
                 <div className="space-y-6">
                     <Card>
-                        <CardHeader>
+                        <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle>Item Image</CardTitle>
+                            {editingItem.image_url && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => setEditingItem((prev) => ({ ...prev, image_url: "" }))}
+                                >
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Remove
+                                </Button>
+                            )}
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">

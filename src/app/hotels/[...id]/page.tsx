@@ -135,10 +135,15 @@ export interface HotelData extends Partner {
 
 export interface SocialLinks {
   instagram?: string;
+  facebook?: string;
   whatsapp?: string;
   googleReview?: string;
   location?: string;
   phone?: string;
+  zomato?: string;
+  uberEats?: string;
+  talabat?: string;
+  doordash?: string;
 }
 
 const HotelPage = async ({

@@ -13,7 +13,7 @@ import { revalidateTag } from "@/app/actions/revalidate";
 import { Loader2, MapPin } from "lucide-react";
 import { GoogleMap, useLoadScript, Marker, Autocomplete } from "@react-google-maps/api";
 import { useLocationStore } from "@/store/geolocationStore";
-import { useAdminSettingsStore } from "@/store/adminSettingsStore";
+import { Save } from "lucide-react";
 
 // Google Maps libraries
 const libraries: ("places" | "geometry" | "drawing" | "visualization")[] = ["places"];
@@ -125,19 +125,7 @@ export function LocationSettings() {
         }
     }, [userData, location, locationDetails, placeId, selectedLocation, setState]);
     
-    const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
-
-    useEffect(() => {
-        setSaveAction(handleSaveLocation);
-        return () => {
-            setSaveAction(null);
-            setHasChanges(false);
-        };
-    }, [handleSaveLocation, setSaveAction, setHasChanges]);
-
-    useEffect(() => {
-        setGlobalIsSaving(isSaving);
-    }, [isSaving, setGlobalIsSaving]);
+    const [hasChanges, setHasChanges] = useState(false);
 
     // Check for changes
     useEffect(() => {
@@ -148,20 +136,18 @@ export function LocationSettings() {
         const initialDetails = data.location_details || "";
         const initialPlaceId = data.place_id || "";
 
-        const hasChanges =
+        setHasChanges(
             location !== initialLocation ||
             locationDetails !== initialDetails ||
             placeId !== initialPlaceId ||
-            selectedLocation !== null;
-
-        setHasChanges(hasChanges);
+            selectedLocation !== null
+        );
     }, [
         location,
         locationDetails,
         placeId,
         selectedLocation,
         userData,
-        setHasChanges
     ]);
 
     const handleGetCurrentLocation = async () => {
@@ -241,6 +227,17 @@ export function LocationSettings() {
                             </div>
                         </div>
                     </div>
+
+                    {hasChanges && (
+                        <Button
+                            onClick={handleSaveLocation}
+                            disabled={isSaving}
+                            className="bg-orange-600 hover:bg-orange-700 text-white"
+                        >
+                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                            Save Location
+                        </Button>
+                    )}
                 </CardContent>
             </Card>
 

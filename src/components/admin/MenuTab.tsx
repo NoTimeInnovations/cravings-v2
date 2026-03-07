@@ -138,8 +138,10 @@ export function MenuTab() {
 
       if (filteredCategoryItems.length > 0) {
         filtered[category] = filteredCategoryItems;
-        // Preserve existing open state or default to false
-        newOpenCategories[category] = openCategories[category] ?? false;
+        // Auto-expand when searching, otherwise preserve existing state
+        newOpenCategories[category] = searchQuery.trim()
+          ? true
+          : (openCategories[category] ?? false);
       }
     });
 

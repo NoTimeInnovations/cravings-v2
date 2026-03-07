@@ -1,10 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useMenuStore, MenuItem } from "@/store/menuStore_hasura";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+    Select,
+    SelectContent,
+    SelectItem as SelectOption,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import {
     Accordion,
     AccordionContent,
@@ -27,6 +34,7 @@ import { AdminV2EditMenuItem } from "./AdminV2EditMenuItem";
 import { AdminV2AddMenuItem } from "./AdminV2AddMenuItem";
 import { AdminV2PriorityChanger } from "./AdminV2PriorityChanger";
 import { AdminV2AvailabilityManager } from "./AdminV2AvailabilityManager";
+import { AdminV2AddCategory } from "./AdminV2AddCategory";
 import { toast } from "sonner";
 import { formatDisplayName, useCategoryStore } from "@/store/categoryStore_hasura";
 import axios from "axios";
@@ -38,17 +46,19 @@ export function AdminV2Menu() {
         fetchMenu,
         updateItem,
         groupedItems,
+        groupItems,
         deleteCategoryAndItems,
     } = useMenuStore();
     const { userData } = useAuthStore();
     const [searchQuery, setSearchQuery] = useState("");
+    const [availabilityFilter, setAvailabilityFilter] = useState<"all" | "available" | "unavailable">("all");
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [lastEditedItemId, setLastEditedItemId] = useState<string | null>(null);
     const [isPriorityMode, setIsPriorityMode] = useState(false);
     const [isAvailabilityMode, setIsAvailabilityMode] = useState(false);
     const [isAddingItem, setIsAddingItem] = useState(false);
-    const [filteredGroupedItems, setFilteredGroupedItems] = useState<Record<string, MenuItem[]>>({});
-    const { updateCategory } = useCategoryStore();
+    const [isAddingCategory, setIsAddingCategory] = useState(false);
+    const { updateCategory, categories, fetchCategories } = useCategoryStore();
     const [editingCategory, setEditingCategory] = useState<{ id: string, name: string } | null>(null);
     const [activeAccordionItems, setActiveAccordionItems] = useState<string[]>([]);
 
@@ -80,24 +90,62 @@ export function AdminV2Menu() {
     useEffect(() => {
         if (userData?.id) {
             fetchMenu();
+            fetchCategories(userData.id);
         }
-    }, [userData, fetchMenu]);
+    }, [userData, fetchMenu, fetchCategories]);
 
-    useEffect(() => {
-        if (!groupedItems) return;
+    const filteredGroupedItems = useMemo(() => {
+        if (!groupedItems) return {};
 
         const filtered: Record<string, MenuItem[]> = {};
+        const query = searchQuery.toLowerCase();
         Object.entries(groupedItems).forEach(([category, items]) => {
-            const filteredCategoryItems = items.filter((item) =>
-                item.name.toLowerCase().includes(searchQuery.toLowerCase())
-            );
+            const categoryMatchesSearch = category.toLowerCase().includes(query);
+            const categoryId = items[0]?.category?.id;
+            const categoryFromStore = categories.find(c => c.id === categoryId);
+            const isCategoryActive = categoryFromStore
+                ? categoryFromStore.is_active !== false
+                : items[0]?.category?.is_active !== false;
 
-            if (filteredCategoryItems.length > 0) {
+            // Inactive category: show with all items when filter is "all" or "unavailable"
+            if (!isCategoryActive) {
+                if (availabilityFilter === "available") return;
+                const matchingItems = items.filter((item) =>
+                    categoryMatchesSearch || item.name.toLowerCase().includes(query)
+                );
+                const categoryMatchesQuery = !searchQuery.trim() || categoryMatchesSearch || matchingItems.length > 0;
+                if (categoryMatchesQuery) {
+                    filtered[category] = searchQuery.trim() ? matchingItems : items;
+                }
+                return;
+            }
+
+            // Active category: filter items by individual availability
+            const filteredCategoryItems = items.filter((item) => {
+                const matchesSearch = categoryMatchesSearch || item.name.toLowerCase().includes(query);
+                const matchesAvailability =
+                    availabilityFilter === "all" ||
+                    (availabilityFilter === "available" && item.is_available) ||
+                    (availabilityFilter === "unavailable" && !item.is_available);
+                return matchesSearch && matchesAvailability;
+            });
+
+            if (availabilityFilter !== "all" && filteredCategoryItems.length === 0) return;
+
+            const categoryMatchesQuery = !searchQuery.trim() || categoryMatchesSearch || filteredCategoryItems.length > 0;
+            if (categoryMatchesQuery) {
                 filtered[category] = filteredCategoryItems;
             }
         });
-        setFilteredGroupedItems(filtered);
-    }, [groupedItems, searchQuery]);
+        return filtered;
+    }, [groupedItems, searchQuery, availabilityFilter, categories]);
+
+    // Auto-expand matching accordion sections when searching
+    useEffect(() => {
+        if (searchQuery.trim()) {
+            setActiveAccordionItems(Object.keys(filteredGroupedItems));
+        }
+    }, [searchQuery, filteredGroupedItems]);
 
     useEffect(() => {
         if (lastEditedItemId) {
@@ -215,11 +263,15 @@ export function AdminV2Menu() {
     }
 
     if (isAvailabilityMode) {
-        return <AdminV2AvailabilityManager onBack={() => setIsAvailabilityMode(false)} />;
+        return <AdminV2AvailabilityManager onBack={() => { groupItems(); setIsAvailabilityMode(false); }} />;
     }
 
     if (isAddingItem) {
         return <AdminV2AddMenuItem onBack={() => setIsAddingItem(false)} />;
+    }
+
+    if (isAddingCategory) {
+        return <AdminV2AddCategory onBack={() => setIsAddingCategory(false)} />;
     }
 
     if (editingItemId) {
@@ -244,15 +296,27 @@ export function AdminV2Menu() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Menu Management</h1>
                 <div className="flex flex-col gap-3 w-full sm:flex-row sm:items-center sm:w-auto">
-                    <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            type="search"
-                            placeholder="Search items..."
-                            className="pl-8"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
+                    <div className="flex gap-2 w-full sm:w-auto">
+                        <div className="relative flex-1 sm:w-64">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Search items..."
+                                className="pl-8"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        <Select value={availabilityFilter} onValueChange={(value: "all" | "available" | "unavailable") => setAvailabilityFilter(value)}>
+                            <SelectTrigger className="w-[140px]">
+                                <SelectValue placeholder="Availability" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectOption value="all">All</SelectOption>
+                                <SelectOption value="available">Available</SelectOption>
+                                <SelectOption value="unavailable">Unavailable</SelectOption>
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto">
                         <Button variant="outline" onClick={() => setIsAvailabilityMode(true)} className="w-full sm:w-auto px-2 sm:px-4">
@@ -270,6 +334,10 @@ export function AdminV2Menu() {
                         <Button onClick={() => setIsAddingItem(true)} className="col-span-2 sm:col-span-1 w-full sm:w-auto">
                             <Plus className="h-4 w-4 mr-2" />
                             Add Item
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsAddingCategory(true)} className="col-span-2 sm:col-span-1 w-full sm:w-auto">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Category
                         </Button>
                         {isGoogleLinked && (
                         <Button 
@@ -346,7 +414,9 @@ export function AdminV2Menu() {
                         value={activeAccordionItems}
                         onValueChange={setActiveAccordionItems}
                     >
-                        {Object.entries(filteredGroupedItems).map(([category, items]) => (
+                        {Object.entries(filteredGroupedItems).map(([category, items]) => {
+                            const categoryId = groupedItems[category]?.[0]?.category?.id;
+                            return (
                             <AccordionItem
                                 key={category}
                                 value={category}
@@ -354,7 +424,7 @@ export function AdminV2Menu() {
                             >
                                 <AccordionTrigger className="hover:no-underline py-4 group">
                                     <div className="flex items-center gap-3 overflow-hidden flex-1">
-                                        {editingCategory?.id === items[0].category.id ? (
+                                        {editingCategory?.id === categoryId ? (
                                             <div className="flex items-center gap-2 flex-1" onClick={(e) => e.stopPropagation()}>
                                                 <Input
                                                     value={editingCategory.name}
@@ -402,7 +472,7 @@ export function AdminV2Menu() {
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             setEditingCategory({
-                                                                id: items[0].category.id,
+                                                                id: categoryId!,
                                                                 name: formatDisplayName(category)
                                                             });
                                                         }}
@@ -416,7 +486,7 @@ export function AdminV2Menu() {
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             if (confirm("Are you sure you want to delete this category and all its items?")) {
-                                                                deleteCategoryAndItems(items[0].category.id);
+                                                                deleteCategoryAndItems(categoryId!);
                                                             }
                                                         }}
                                                     >
@@ -431,6 +501,11 @@ export function AdminV2Menu() {
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent className="pt-2 pb-4">
+                                    {items.length === 0 ? (
+                                        <div className="text-center py-6 text-sm text-muted-foreground">
+                                            No {availabilityFilter !== "all" ? availabilityFilter : ""} items in this category.
+                                        </div>
+                                    ) : (
                                     <div className="rounded-md border">
                                         <Table>
                                             <TableHeader>
@@ -500,9 +575,11 @@ export function AdminV2Menu() {
                                             </TableBody>
                                         </Table>
                                     </div>
+                                    )}
                                 </AccordionContent>
                             </AccordionItem>
-                        ))}
+                        );
+                        })}
                     </Accordion>
                 )}
             </div>

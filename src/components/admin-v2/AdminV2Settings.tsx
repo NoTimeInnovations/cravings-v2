@@ -3,7 +3,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GeneralSettings } from "./settings/GeneralSettings";
-import { LocationSettings } from "./settings/LocationSettings";
+
 import { DeliverySettings } from "./settings/DeliverySettings";
 import { PaymentLegalSettings } from "./settings/PaymentLegalSettings";
 import { FeatureSettings } from "./settings/FeatureSettings";
@@ -88,7 +88,6 @@ export function AdminV2Settings() {
             <Tabs defaultValue="general" className="space-y-4">
                 <TabsList className="flex w-full sm:w-auto overflow-x-auto justify-start">
                     <TabsTrigger value="general">General</TabsTrigger>
-                    <TabsTrigger value="location">Location</TabsTrigger>
                     {showOrderRelatedSettings && (
                         <>
                             <TabsTrigger value="delivery">Delivery</TabsTrigger>
@@ -104,10 +103,6 @@ export function AdminV2Settings() {
 
                 <TabsContent value="general" className="space-y-4">
                     <GeneralSettings />
-                </TabsContent>
-
-                <TabsContent value="location" className="space-y-4">
-                    <LocationSettings />
                 </TabsContent>
 
                 {showOrderRelatedSettings && (

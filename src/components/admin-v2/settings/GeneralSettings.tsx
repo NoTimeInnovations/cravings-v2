@@ -14,7 +14,7 @@ import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { deleteFileFromS3, uploadFileToS3 } from "@/app/actions/aws-s3";
 import Img from "@/components/Img";
-import { Loader2, Upload, Save, Power, LogOut } from "lucide-react";
+import { Loader2, Upload, Save, Power, LogOut, Eye, EyeOff, KeyRound } from "lucide-react";
 import ImageCropper from "@/components/ImageCropper";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { getSocialLinks } from "@/lib/getSocialLinks";
@@ -24,6 +24,7 @@ import { isFreePlan } from "@/lib/getPlanLimits";
 import { UpgradePrompt } from "@/components/admin-v2/UpgradePrompt";
 import { UpgradePlanDialog } from "@/components/admin-v2/UpgradePlanDialog";
 import { Lock, Crown } from "lucide-react";
+import { LocationSettings } from "./LocationSettings";
 
 
 
@@ -38,10 +39,17 @@ export function GeneralSettings() {
     const [whatsappNumber, setWhatsappNumber] = useState("");
     const [footNote, setFootNote] = useState("");
     const [instaLink, setInstaLink] = useState("");
+    const [facebookLink, setFacebookLink] = useState("");
+    const [zomatoLink, setZomatoLink] = useState("");
+    const [uberEatsLink, setUberEatsLink] = useState("");
+    const [talabatLink, setTalabatLink] = useState("");
+    const [doordashLink, setDoordashLink] = useState("");
     const [isShopOpen, setIsShopOpen] = useState(true);
 
 
     // Password State
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [isResettingPassword, setIsResettingPassword] = useState(false);
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [isPasswordSaving, setIsPasswordSaving] = useState(false);
@@ -78,6 +86,11 @@ export function GeneralSettings() {
 
             const socialLinks = getSocialLinks(userData as HotelData);
             setInstaLink(socialLinks.instagram || "");
+            setFacebookLink(socialLinks.facebook || "");
+            setZomatoLink(socialLinks.zomato || "");
+            setUberEatsLink(socialLinks.uberEats || "");
+            setTalabatLink(socialLinks.talabat || "");
+            setDoordashLink(socialLinks.doordash || "");
         }
     }, [userData]);
 
@@ -194,7 +207,14 @@ export function GeneralSettings() {
                 footnote: footNote,
                 is_shop_open: isShopOpen,
                 whatsapp_numbers: [{ number: whatsappNumber, area: "default" }],
-                social_links: { instagram: instaLink },
+                social_links: {
+                    instagram: instaLink,
+                    facebook: facebookLink,
+                    zomato: zomatoLink,
+                    uberEats: uberEatsLink,
+                    talabat: talabatLink,
+                    doordash: doordashLink,
+                },
 
             };
 
@@ -209,7 +229,7 @@ export function GeneralSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, storeName, description, phone, footNote, isShopOpen, whatsappNumber, instaLink, setState]);
+    }, [userData, storeName, description, phone, footNote, isShopOpen, whatsappNumber, instaLink, facebookLink, zomatoLink, uberEatsLink, talabatLink, doordashLink, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -237,7 +257,13 @@ export function GeneralSettings() {
         const initialWhatsapp = data.whatsapp_numbers?.[0]?.number || data.phone || "";
         const initialFootnote = data.footnote || "";
         const initialIsShopOpen = data.is_shop_open;
-        const initialInsta = getSocialLinks(userData as HotelData).instagram || "";
+        const socialLinks = getSocialLinks(userData as HotelData);
+        const initialInsta = socialLinks.instagram || "";
+        const initialFacebook = socialLinks.facebook || "";
+        const initialZomato = socialLinks.zomato || "";
+        const initialUberEats = socialLinks.uberEats || "";
+        const initialTalabat = socialLinks.talabat || "";
+        const initialDoordash = socialLinks.doordash || "";
 
         const hasChanges =
             storeName !== initialStoreName ||
@@ -246,7 +272,12 @@ export function GeneralSettings() {
             whatsappNumber !== initialWhatsapp ||
             footNote !== initialFootnote ||
             isShopOpen !== initialIsShopOpen ||
-            instaLink !== initialInsta;
+            instaLink !== initialInsta ||
+            facebookLink !== initialFacebook ||
+            zomatoLink !== initialZomato ||
+            uberEatsLink !== initialUberEats ||
+            talabatLink !== initialTalabat ||
+            doordashLink !== initialDoordash;
 
         setHasChanges(hasChanges);
 
@@ -258,6 +289,11 @@ export function GeneralSettings() {
         footNote,
         isShopOpen,
         instaLink,
+        facebookLink,
+        zomatoLink,
+        uberEatsLink,
+        talabatLink,
+        doordashLink,
         userData,
         setHasChanges
     ]);
@@ -447,15 +483,78 @@ export function GeneralSettings() {
                                 />
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Instagram Link</Label>
-                            <Input
-                                value={instaLink}
-                                onChange={(e) => setInstaLink(e.target.value)}
-                                placeholder="https://instagram.com/..."
-                            />
-                        </div>
+                    </CardContent>
+                </Card>
 
+                <LocationSettings />
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Social Links</CardTitle>
+                        <CardDescription>Add your social media profiles so customers can find you.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label>Instagram</Label>
+                                <Input
+                                    value={instaLink}
+                                    onChange={(e) => setInstaLink(e.target.value)}
+                                    placeholder="https://instagram.com/..."
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Facebook</Label>
+                                <Input
+                                    value={facebookLink}
+                                    onChange={(e) => setFacebookLink(e.target.value)}
+                                    placeholder="https://facebook.com/..."
+                                />
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Delivery Platforms</CardTitle>
+                        <CardDescription>Add links to your delivery partner pages so customers can order from their preferred platform.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label>Zomato</Label>
+                                <Input
+                                    value={zomatoLink}
+                                    onChange={(e) => setZomatoLink(e.target.value)}
+                                    placeholder="https://zomato.com/..."
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Uber Eats</Label>
+                                <Input
+                                    value={uberEatsLink}
+                                    onChange={(e) => setUberEatsLink(e.target.value)}
+                                    placeholder="https://ubereats.com/..."
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Talabat</Label>
+                                <Input
+                                    value={talabatLink}
+                                    onChange={(e) => setTalabatLink(e.target.value)}
+                                    placeholder="https://talabat.com/..."
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>DoorDash</Label>
+                                <Input
+                                    value={doordashLink}
+                                    onChange={(e) => setDoordashLink(e.target.value)}
+                                    placeholder="https://doordash.com/..."
+                                />
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -550,7 +649,7 @@ export function GeneralSettings() {
             <Card>
                 <CardHeader>
                     <CardTitle>Security</CardTitle>
-                    <CardDescription>Update your password to keep your account secure.</CardDescription>
+                    <CardDescription>Manage your account credentials.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
@@ -562,63 +661,106 @@ export function GeneralSettings() {
                             className="bg-muted"
                         />
                     </div>
-                    <div className="space-y-2">
-                        <Label>New Password</Label>
-                        <Input
-                            type="password"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="••••••••"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Confirm Password</Label>
-                        <Input
-                            type="password"
-                            pattern=".{6,}"
-                            title="Password must be at least 6 characters long"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            placeholder="••••••••"
-                        />
-                    </div>
-                </CardContent>
-                <div className="flex justify-end p-6 pt-0">
-                    <Button
-                        onClick={async () => {
-                            if (!newPassword || !confirmPassword) {
-                                toast.error("Please fill in all fields");
-                                return;
-                            }
-                            if (newPassword !== confirmPassword) {
-                                toast.error("Passwords do not match");
-                                return;
-                            }
-                            if (newPassword.length < 6) {
-                                toast.error("Password must be at least 6 characters");
-                                return;
-                            }
 
-                            setIsPasswordSaving(true);
-                            try {
-                                await updatePartner(userData?.id as string, { password: newPassword });
-                                toast.success("Password updated successfully");
-                                setNewPassword("");
-                                setConfirmPassword("");
-                            } catch (error) {
-                                console.error("Error updating password:", error);
-                                toast.error("Failed to update password");
-                            } finally {
-                                setIsPasswordSaving(false);
-                            }
-                        }}
-                        disabled={isPasswordSaving || !newPassword}
-                        variant="outline"
-                        className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
-                    >
-                        {isPasswordSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <>Update <Save className="ml-2 h-4 w-4" /></>}
-                    </Button>
-                </div>
+                    <div className="space-y-2">
+                        <Label>Current Password</Label>
+                        <div className="relative">
+                            <Input
+                                type={showCurrentPassword ? "text" : "password"}
+                                value={(userData as any)?.password || ""}
+                                readOnly
+                                disabled
+                                className="bg-muted pr-10"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                                {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                        </div>
+                    </div>
+
+                    {!isResettingPassword ? (
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsResettingPassword(true)}
+                            className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
+                        >
+                            <KeyRound className="mr-2 h-4 w-4" />
+                            Reset Password
+                        </Button>
+                    ) : (
+                        <div className="space-y-4 rounded-lg border p-4">
+                            <div className="space-y-2">
+                                <Label>New Password</Label>
+                                <Input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    placeholder="Min. 6 characters"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Confirm Password</Label>
+                                <Input
+                                    type="password"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    placeholder="Re-enter new password"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    onClick={async () => {
+                                        if (!newPassword || !confirmPassword) {
+                                            toast.error("Please fill in all fields");
+                                            return;
+                                        }
+                                        if (newPassword !== confirmPassword) {
+                                            toast.error("Passwords do not match");
+                                            return;
+                                        }
+                                        if (newPassword.length < 6) {
+                                            toast.error("Password must be at least 6 characters");
+                                            return;
+                                        }
+
+                                        setIsPasswordSaving(true);
+                                        try {
+                                            await updatePartner(userData?.id as string, { password: newPassword });
+                                            toast.success("Password updated successfully");
+                                            setNewPassword("");
+                                            setConfirmPassword("");
+                                            setIsResettingPassword(false);
+                                        } catch (error) {
+                                            console.error("Error updating password:", error);
+                                            toast.error("Failed to update password");
+                                        } finally {
+                                            setIsPasswordSaving(false);
+                                        }
+                                    }}
+                                    disabled={isPasswordSaving || !newPassword}
+                                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                                >
+                                    {isPasswordSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                    Save Password
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => {
+                                        setIsResettingPassword(false);
+                                        setNewPassword("");
+                                        setConfirmPassword("");
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
             </Card>
 
             <div className="flex justify-start pt-6 border-t">

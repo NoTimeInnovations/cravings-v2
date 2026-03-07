@@ -17,7 +17,7 @@ const AuthInitializer = () => {
     if (!loading && userData?.role === "partner") {
       const restrictedPaths = ["/", "/explore"];
       if (restrictedPaths.includes(pathname)) {
-        router.push("/admin-v2");
+        router.replace("/admin-v2");
       }
     }
 

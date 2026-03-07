@@ -4,8 +4,8 @@ import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import ThemeChangeButton, { ThemeConfig } from "../../ThemeChangeButton";
 import SearchMenu from "../../SearchMenu";
-import { MapPin, LayoutGrid, Phone, Search, Zap, ChevronLeft, ChevronRight, Star, Minus, Plus } from "lucide-react";
-import { FaInstagram, FaWhatsapp } from "react-icons/fa";
+import { ExternalLink, MapPin, LayoutGrid, Phone, Search, Zap, ChevronLeft, ChevronRight, Star, Minus, Plus } from "lucide-react";
+import { FaFacebook, FaInstagram, FaWhatsapp } from "react-icons/fa";
 import PopularItemsList from "../Default/PopularItemsList";
 
 import { Styles } from "@/screens/HotelMenuPage_v2";
@@ -326,7 +326,7 @@ const Sidebar = ({
               />
 
               {/* Action icons — vertical, top-right of banner */}
-              <div className="absolute top-3 right-5 z-20 flex flex-col gap-1.5">
+              <div className="absolute top-3 right-5 z-20 grid grid-flow-col grid-rows-4 gap-1.5">
                 {socialLinks.phone && socialLinks.phone !== "" && (
                   <a
                     href={`tel:${socialLinks.phone}`}
@@ -360,6 +360,65 @@ const Sidebar = ({
                     style={{ backgroundColor: "rgba(0,0,0,0.35)", color: "white" }}
                   >
                     <FaInstagram size={14} />
+                  </a>
+                )}
+                {socialLinks.facebook && socialLinks.facebook !== "" && (
+                  <a
+                    href={
+                      socialLinks.facebook.startsWith("http")
+                        ? socialLinks.facebook
+                        : `https://facebook.com/${socialLinks.facebook}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm"
+                    style={{ backgroundColor: "rgba(0,0,0,0.35)", color: "white" }}
+                  >
+                    <FaFacebook size={14} />
+                  </a>
+                )}
+                {socialLinks.zomato && socialLinks.zomato !== "" && (
+                  <a
+                    href={socialLinks.zomato}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm text-[9px] font-bold"
+                    style={{ backgroundColor: "rgba(0,0,0,0.35)", color: "white" }}
+                  >
+                    <ExternalLink size={14} />
+                  </a>
+                )}
+                {socialLinks.uberEats && socialLinks.uberEats !== "" && (
+                  <a
+                    href={socialLinks.uberEats}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm"
+                    style={{ backgroundColor: "rgba(0,0,0,0.35)", color: "white" }}
+                  >
+                    <ExternalLink size={14} />
+                  </a>
+                )}
+                {socialLinks.talabat && socialLinks.talabat !== "" && (
+                  <a
+                    href={socialLinks.talabat}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm"
+                    style={{ backgroundColor: "rgba(0,0,0,0.35)", color: "white" }}
+                  >
+                    <ExternalLink size={14} />
+                  </a>
+                )}
+                {socialLinks.doordash && socialLinks.doordash !== "" && (
+                  <a
+                    href={socialLinks.doordash}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-sm"
+                    style={{ backgroundColor: "rgba(0,0,0,0.35)", color: "white" }}
+                  >
+                    <ExternalLink size={14} />
                   </a>
                 )}
                 {(hoteldata?.place_id || hoteldata?.geo_location?.coordinates || (socialLinks.location && socialLinks.location !== "")) && (
