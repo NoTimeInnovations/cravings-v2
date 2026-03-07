@@ -24,17 +24,22 @@ const getMessage = (
       body: body || "You have a new message",
     },
     android: {
+      priority: "high" as const,
       notification: {
         icon: "ic_stat_logo",
+        channelId: data?.channel_id || "cravings_channel_1",
+        sound: soundAndroid || "custom_sound",
       },
     },
     apns: {
+      headers: {
+        "apns-priority": "10",
+      },
       payload: {
         aps: {
-          sound: "custom_sound.caf",
+          sound: soundIOS || "custom_sound.caf",
           contentAvailable: true,
         },
-
       },
     },
     data: data || {},
