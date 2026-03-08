@@ -401,7 +401,8 @@ const useOrderStore = create(
             }
           }
 
-          if (newStatus === "cancelled") {
+          // Send order status notification to user (fire-and-forget, never block order)
+          try {
             const order = orders.find((o) => o.id === orderId);
             if (order) {
               await Notification.user.sendOrderStatusNotification(
@@ -409,6 +410,8 @@ const useOrderStore = create(
                 newStatus
               );
             }
+          } catch (notifError) {
+            console.error("Notification failed (order still updated):", notifError);
           }
 
           const updatedOrders = orders.map((order) =>
@@ -1270,7 +1273,13 @@ const useOrderStore = create(
             totalPrice: 0,
           }));
 
-          if (!hotelData.petpooja_restaurant_id) await Notification.partner.sendOrderNotification(newOrder);
+          if (!hotelData.petpooja_restaurant_id) {
+            try {
+              await Notification.partner.sendOrderNotification(newOrder);
+            } catch (notifError) {
+              console.error("Partner notification failed (order still placed):", notifError);
+            }
+          }
           return newOrder;
         } catch (error) {
           console.error("Order placement error:", error);
