@@ -61,7 +61,6 @@ export function AdminV2Menu() {
     const partner = userData as Partner;
     const planId = partner?.subscription_details?.plan?.id;
     const isFreePlan = checkIsFreePlan(planId);
-    const canUseAutoImages = !isFreePlan;
 
     // Check Google Link Status
     useEffect(() => {
