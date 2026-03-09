@@ -25,7 +25,6 @@ import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { getFeatures } from "@/lib/getFeatures";
 import { ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
-import DiscountBanner from "../../DiscountBanner";
 
 // Helper to check darkness for contrast
 const isColorDark = (hex: string) => {
@@ -522,14 +521,6 @@ const Compact = ({
                 </button>
               </div>
             )}
-
-
-              {/* Discount Banner */}
-            <DiscountBanner
-              partnerId={hoteldata?.id || ""}
-              currency={hoteldata?.currency || "₹"}
-              accent={localStyles?.accent || "#ea580c"}
-            />
 
             {/* Categories Navigation */}
             <div

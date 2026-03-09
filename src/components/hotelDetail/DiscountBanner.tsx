@@ -3,26 +3,19 @@
 import { useState, useEffect, useRef } from "react";
 import { Tag, Clock, Copy, Check } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { getDiscountsQuery } from "@/api/discounts";
 
 type DiscountData = {
   id: string;
   code: string;
-  description: string | null;
-  terms_conditions: string | null;
   discount_type: "percentage" | "flat";
   discount_value: number;
   min_order_value: number | null;
   max_discount_amount: number | null;
   starts_at: string | null;
   expires_at: string | null;
-  valid_days: string | null;
   valid_time_from: string | null;
   valid_time_to: string | null;
-  discount_order_types: string | null;
   has_coupon: boolean;
-  is_active: boolean;
-  rank: number | null;
 };
 
 const DiscountBanner = ({
@@ -40,18 +33,35 @@ const DiscountBanner = ({
 
   useEffect(() => {
     if (!partnerId) return;
-    fetchFromHasura(getDiscountsQuery, { partner_id: partnerId })
+    fetchFromHasura(
+      `query GetBannerDiscounts($partner_id: uuid!) {
+        discounts(
+          where: {
+            partner_id: { _eq: $partner_id }
+            is_active: { _eq: true }
+            _or: [
+              { expires_at: { _is_null: true } }
+              { expires_at: { _gt: "now()" } }
+            ]
+          }
+          order_by: [{ rank: asc_nulls_last }, { created_at: desc }]
+        ) {
+          id code discount_type discount_value min_order_value
+          max_discount_amount starts_at expires_at valid_time_from
+          valid_time_to has_coupon
+        }
+      }`,
+      { partner_id: partnerId }
+    )
       .then((res) => {
         const now = new Date();
         const active = (res?.discounts ?? []).filter((d: DiscountData) => {
-          if (!d.is_active) return false;
           if (d.starts_at && new Date(d.starts_at) > now) return false;
-          if (d.expires_at && new Date(d.expires_at) < now) return false;
           return true;
         });
         setDiscounts(active);
       })
-      .catch(() => {});
+      .catch((err) => console.error("DiscountBanner fetch failed:", err));
   }, [partnerId]);
 
   if (discounts.length === 0) return null;
