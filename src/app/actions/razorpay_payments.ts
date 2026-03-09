@@ -4,6 +4,7 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { revalidateTag } from "./revalidate";
+import plansData from "@/data/plans.json";
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -75,7 +76,11 @@ export async function verifySubscriptionAction(
         const expiryDate = new Date(now.getTime() + periodDays * 24 * 60 * 60 * 1000);
 
         // B. Generate Feature Flags
-        // Replicating client-side logic to ensure consistency
+        // Look up features_enabled from plans.json (server-side source of truth)
+        const allPlans = [...plansData.india, ...plansData.international] as any[];
+        const canonicalPlan = allPlans.find((p) => p.id === planData.id);
+        const enabledMap = canonicalPlan?.features_enabled || planData.features_enabled || {};
+
         const defaultFlags = [
             "ordering-false",
             "delivery-false",
@@ -86,11 +91,8 @@ export async function verifySubscriptionAction(
             "purchasemanagement-false",
         ];
 
-        const enabledMap = planData.features_enabled || {};
-
         const finalFlags = defaultFlags.map((flag) => {
             const [key] = flag.split("-");
-            // If the plan has this feature enabled, set it to true
             if (enabledMap[key]) {
                 return `${key}-true`;
             }
@@ -119,7 +121,7 @@ export async function verifySubscriptionAction(
 
         console.log(`User ${userId} upgraded to ${planData.name}`);
 
-        return { success: true };
+        return { success: true, feature_flags: featureFlagsString, subscription_details: subscriptionDetails };
     } catch (error) {
         console.error("Verification Error:", error);
         return { success: false, error: "Payment verification failed" };

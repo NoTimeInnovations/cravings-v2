@@ -52,6 +52,11 @@ const PricingSection = ({
 
   const displayPlans = !isIndia ? plansData.international : plansData.india;
 
+  // Lookup rz_plan_id from plans.json (single source of truth)
+  const allPlans = [...plansData.india, ...plansData.international] as any[];
+  const getRzPlanId = (planId: string): string =>
+    allPlans.find((p: any) => p.id === planId)?.rz_plan_id || "";
+
   useEffect(() => {
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
@@ -105,7 +110,7 @@ const PricingSection = ({
           period: "/month",
           billed: "Billed monthly",
           type: "monthly",
-          rz_plan_id: "plan_S7E5JO7kPtwGnA",
+          rz_plan_id: getRzPlanId("in_digital_monthly"),
         },
         {
           id: "in_digital",
@@ -115,7 +120,7 @@ const PricingSection = ({
           billed: "Billed annually",
           type: "yearly",
           savings: "Save ₹589",
-          rz_plan_id: "plan_S7EEdzZoy456iP",
+          rz_plan_id: getRzPlanId("in_digital"),
         },
       ],
     },
@@ -138,7 +143,7 @@ const PricingSection = ({
           period: "/month",
           billed: "Billed monthly",
           type: "monthly",
-          rz_plan_id: "plan_SMFoIQL8elNn6D",
+          rz_plan_id: getRzPlanId("in_digital_petpooja_monthly"),
         },
         {
           id: "in_digital_petpooja",
@@ -148,7 +153,7 @@ const PricingSection = ({
           billed: "Billed annually",
           type: "yearly",
           savings: "Save ₹1,989",
-          rz_plan_id: "plan_SMFpProjFxkC9H",
+          rz_plan_id: getRzPlanId("in_digital_petpooja"),
         },
       ],
     },
@@ -200,7 +205,7 @@ const PricingSection = ({
           period: "/month",
           billed: "Billed monthly",
           type: "monthly",
-          rz_plan_id: "plan_SIjWQgXZj9I2Vx",
+          rz_plan_id: getRzPlanId("int_digital_monthly"),
         },
         {
           id: "int_digital",
@@ -210,7 +215,7 @@ const PricingSection = ({
           billed: "Billed annually",
           type: "yearly",
           savings: "Save $38",
-          rz_plan_id: "plan_SIjXPD8frrA8TZ",
+          rz_plan_id: getRzPlanId("int_digital"),
         },
       ],
     },
@@ -266,6 +271,15 @@ const PricingSection = ({
           );
 
           if (verifyRes.success) {
+            if (verifyRes.feature_flags || verifyRes.subscription_details) {
+              useAuthStore.setState({
+                userData: {
+                  ...userData,
+                  feature_flags: verifyRes.feature_flags || (userData as any).feature_flags,
+                  subscription_details: verifyRes.subscription_details || (userData as any).subscription_details,
+                } as any,
+              });
+            }
             toast.success("Upgrade Successful! Welcome to " + plan.name);
             router.push("/admin-v2");
           } else {
@@ -282,6 +296,12 @@ const PricingSection = ({
           color: "#EA580C",
         },
       };
+
+      if (!window.Razorpay) {
+        toast.error("Payment gateway is loading. Please try again.");
+        setIsCreatingAccount(false);
+        return;
+      }
 
       const rzp = new window.Razorpay(options);
       rzp.on("payment.failed", function (response: any) {

@@ -875,30 +875,28 @@ const LoginDrawer = ({
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-md p-4"
-        onClick={() => setShowLoginDrawer(false)}
+        initial={{ opacity: 0, y: "100%" }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: "100%" }}
+        transition={{ type: "spring", duration: 0.4, bounce: 0.15 }}
+        className="fixed inset-0 z-[70] flex flex-col"
+        style={{ backgroundColor: "var(--pom-modal-bg, white)" }}
       >
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0, y: 30 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.9, opacity: 0, y: 30 }}
-          transition={{ type: "spring", duration: 0.4, bounce: 0.3 }}
-          className="rounded-3xl p-8 w-full max-w-md shadow-2xl relative"
-          style={{ backgroundColor: "var(--pom-modal-bg, white)", backdropFilter: "blur(24px) saturate(180%)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Close button */}
+        {/* Top bar with close */}
+        <div className="shrink-0 flex items-center justify-between px-4 py-4">
           <button
             onClick={() => setShowLoginDrawer(false)}
-            className="absolute top-5 right-5 p-2 rounded-full hover:opacity-80 transition-all duration-200 group"
+            className="p-1.5 rounded-full hover:opacity-80 transition-all duration-200"
             aria-label="Close"
           >
-            <X className="h-5 w-5 opacity-60 group-hover:opacity-80" />
+            <ArrowLeft className="h-6 w-6" />
           </button>
+          <span className="text-base font-bold">Login</span>
+          <div className="w-9" />
+        </div>
 
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-6 flex flex-col justify-center max-w-md mx-auto w-full">
           {/* Header */}
           <div className="mb-8 text-center">
             <motion.div
@@ -1031,7 +1029,7 @@ const LoginDrawer = ({
               Privacy Policy
             </span>
           </motion.p>
-        </motion.div>
+        </div>
       </motion.div>
     </AnimatePresence>
   );
