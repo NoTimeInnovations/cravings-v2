@@ -35,6 +35,7 @@ interface Partner {
     store_name: string;
     phone: string;
     status: string;
+    country: string;
     subscription_details: {
         plan: {
             id: string;
@@ -104,6 +105,7 @@ const SubscriptionManagementV2 = () => {
           store_name
           phone
           status
+          country
           subscription_details
         }
       }
@@ -318,19 +320,6 @@ const SubscriptionManagementV2 = () => {
         return "";
     };
 
-    const getFilteredPlans = () => {
-        const currentPlanId = selectedPartner?.subscription_details?.plan?.id;
-        const isInternational = plansData.international.some(p => p.id === currentPlanId);
-        const isIndia = plansData.india.some(p => p.id === currentPlanId);
-
-        if (isInternational) return { india: [], international: plansData.international };
-        if (isIndia) return { india: plansData.india, international: [] };
-
-        return { india: plansData.india, international: plansData.international };
-    };
-
-    const filteredPlans = getFilteredPlans();
-
     const getSubscriptionStatus = (partner: Partner) => {
         if (!partner.subscription_details) return "Inactive";
         if (partner.subscription_details.expiryDate) {
@@ -373,10 +362,10 @@ const SubscriptionManagementV2 = () => {
                                 <SelectValue placeholder="Select a plan" />
                             </SelectTrigger>
                             <SelectContent>
-                                {filteredPlans.india.length > 0 && filteredPlans.india.map(plan => (
+                                {plansData.india.map(plan => (
                                     <SelectItem key={plan.id} value={plan.id}>{plan.name} - {plan.price}</SelectItem>
                                 ))}
-                                {filteredPlans.international.length > 0 && filteredPlans.international.map(plan => (
+                                {plansData.international.map(plan => (
                                     <SelectItem key={plan.id} value={plan.id}>{plan.name} (Intl) - {plan.price}</SelectItem>
                                 ))}
                             </SelectContent>
@@ -425,10 +414,10 @@ const SubscriptionManagementV2 = () => {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="none">-- No Plan Change --</SelectItem>
-                                {filteredPlans.india.length > 0 && filteredPlans.india.map(plan => (
+                                {plansData.india.map(plan => (
                                     <SelectItem key={plan.id} value={plan.id}>{plan.name} - {plan.price}</SelectItem>
                                 ))}
-                                {filteredPlans.international.length > 0 && filteredPlans.international.map(plan => (
+                                {plansData.international.map(plan => (
                                     <SelectItem key={plan.id} value={plan.id}>{plan.name} (Intl) - {plan.price}</SelectItem>
                                 ))}
                             </SelectContent>

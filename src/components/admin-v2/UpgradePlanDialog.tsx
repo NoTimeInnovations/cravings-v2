@@ -110,7 +110,7 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
 
     useEffect(() => {
         if (partnerCountry) {
-            setCountryCode(partnerCountry === "India" ? "IN" : "OTHER");
+            setCountryCode((partnerCountry === "India" || partnerCountry === "IN") ? "IN" : "OTHER");
             return;
         }
         try {

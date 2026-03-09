@@ -307,7 +307,7 @@ export async function processHotelPage(
   const sub =
     freshSubscription?.subscription_details ||
     hoteldata?.subscription_details;
-  const isInternational = hoteldata?.country !== "IN";
+  const isInternational = hoteldata?.country !== "India" && hoteldata?.country !== "IN";
   const subPlan = sub?.plan;
 
   if (isInternational && sub && hoteldata) {

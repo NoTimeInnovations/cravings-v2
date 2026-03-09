@@ -398,7 +398,7 @@ const HotelPage = async ({
 
   // --- Subscription & Scan Limit Logic ---
   const sub = freshSubscription?.subscription_details || hoteldata?.subscription_details;
-  const isInternational = hoteldata?.country !== "IN";
+  const isInternational = hoteldata?.country !== "India" && hoteldata?.country !== "IN";
   const subPlan = sub?.plan;
 
   if (isInternational && sub && hoteldata) {
@@ -550,7 +550,7 @@ const HotelPage = async ({
               offers: {
                 "@type": "Offer",
                 price: String(item.price || 0),
-                priceCurrency: hoteldata?.country === "IN" ? "INR" : "USD",
+                priceCurrency: (hoteldata?.country === "India" || hoteldata?.country === "IN") ? "INR" : "USD",
               },
             });
             return acc;

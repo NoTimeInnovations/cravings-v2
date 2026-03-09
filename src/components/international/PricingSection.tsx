@@ -48,7 +48,7 @@ const PricingSection = ({
     }
   }, [userData]);
 
-  const isIndia = propCountry === "IN";
+  const isIndia = propCountry === "IN" || propCountry === "India";
 
   const displayPlans = !isIndia ? plansData.international : plansData.india;
 

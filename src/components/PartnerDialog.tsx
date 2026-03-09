@@ -54,7 +54,7 @@ export function PartnerDialog() {
       !formData.hotelName ||
       !formData.phone ||
       !formData.country ||
-      (formData.country === "India" && (!formData.state || !formData.area))
+      ((formData.country === "India" || formData.country === "IN") && (!formData.state || !formData.area))
     ) {
       setError("Please fill in all required fields");
       setIsSubmitting(false);
