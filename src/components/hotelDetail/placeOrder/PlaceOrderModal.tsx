@@ -1974,7 +1974,8 @@ const PlaceOrderModal = ({
                       }
                     }}
                     placeholder="Enter your name"
-                    className="border-0 p-0 text-sm text-inherit placeholder:opacity-40 focus-visible:ring-0 shadow-none h-auto"
+                    className="rounded-lg text-sm text-inherit placeholder:text-inherit placeholder:opacity-40 focus-visible:ring-0 shadow-none"
+                    style={{ borderColor: "var(--pom-card-border, #e7e5e4)" }}
                   />
                 </div>
               )}
@@ -2027,7 +2028,8 @@ const PlaceOrderModal = ({
                           onChange={(e) => { setDiscountInput(e.target.value.toUpperCase()); setDiscountError(""); }}
                           onKeyDown={(e) => e.key === "Enter" && handleApplyDiscount()}
                           placeholder="Enter discount code"
-                          className="uppercase font-mono rounded-lg text-sm border-[var(--pom-card-border,#e7e5e4)] text-inherit"
+                          className="uppercase font-mono rounded-lg text-sm text-inherit placeholder:text-inherit placeholder:opacity-50"
+                          style={{ borderColor: "var(--pom-card-border, #e7e5e4)" }}
                         />
                         <button
                           onClick={handleApplyDiscount}

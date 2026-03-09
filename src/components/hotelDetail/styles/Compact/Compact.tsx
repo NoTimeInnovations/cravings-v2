@@ -41,6 +41,8 @@ const isColorDark = (hex: string) => {
 };
 
 const SfcSuperFriedChicken = "eeb5a578-faf8-43ac-ab9a-aea343422d11";
+const MuseAndMocha = "cf47bde2-8282-44a1-8fbc-d8fa3cf66ec7";
+const defaultShowOptionsPartners = [SfcSuperFriedChicken, MuseAndMocha];
 
 const PRESETS = [
   { background: "#ffffff", text: "#000000", accent: "#ea580c" }, // Classic Orange
@@ -992,7 +994,7 @@ const Compact = ({
                                   : activeOffers
                               }
                               auth={auth}
-                              defaultShowOptions={hoteldata?.id === SfcSuperFriedChicken}
+                              defaultShowOptions={defaultShowOptionsPartners.includes(hoteldata?.id ?? "")}
                             />
                           );
                         })}
