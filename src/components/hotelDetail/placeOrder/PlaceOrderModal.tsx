@@ -186,6 +186,13 @@ const UnifiedAddressSection = ({
     const existing = [...savedAddresses];
     const index = existing.findIndex((a) => a.id === addr.id);
 
+    // If address already exists and hasn't changed, just select it without re-saving
+    if (index >= 0 && JSON.stringify(existing[index]) === JSON.stringify(addr)) {
+      setEditingAddress(null);
+      handleAddressSelect(addr);
+      return;
+    }
+
     if (index >= 0) {
       existing[index] = addr;
     } else {

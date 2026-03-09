@@ -660,13 +660,8 @@ const AddressManagementModal = ({
                         >
                           <button
                             onClick={() => {
-                              if (addr.latitude && addr.longitude) {
-                                updateMapCenter({
-                                  lat: addr.latitude,
-                                  lng: addr.longitude,
-                                });
-                                setScreen("map");
-                              }
+                              onSaved(addr);
+                              onClose();
                             }}
                             className="flex items-center gap-3.5 flex-1 min-w-0 text-left"
                           >
