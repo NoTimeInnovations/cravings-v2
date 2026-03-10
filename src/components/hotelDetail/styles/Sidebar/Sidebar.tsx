@@ -496,6 +496,8 @@ const Sidebar = ({
             menu={hoteldata.menus}
             externalOpen={isSearchOpen}
             onExternalClose={() => setIsSearchOpen(false)}
+            tableNumber={tableNumber}
+            auth={auth}
           />
 
           {/* Offers Banner */}

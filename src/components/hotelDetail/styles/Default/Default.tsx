@@ -193,6 +193,8 @@ const Default = ({
               currency={hoteldata?.currency}
               styles={styles}
               menu={hoteldata.menus}
+              tableNumber={tableNumber}
+              auth={auth}
             />
           </section>
 

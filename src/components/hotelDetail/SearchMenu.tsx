@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import ItemDetailsModal from "./styles/Default/ItemDetailsModal";
 import { getFeatures } from "@/lib/getFeatures";
 
+
 const SearchMenu = ({
   hotelData,
   menu,
@@ -16,6 +17,8 @@ const SearchMenu = ({
   styles,
   externalOpen,
   onExternalClose,
+  tableNumber = 0,
+  auth = null,
 }: {
   menu: HotelDataMenus[];
   styles: Styles;
@@ -23,6 +26,8 @@ const SearchMenu = ({
   hotelData: HotelData;
   externalOpen?: boolean;
   onExternalClose?: () => void;
+  tableNumber?: number;
+  auth?: { id: string; role: string } | null;
 }) => {
   const [showGrid, setShowGrid] = useState(false);
   useEffect(() => {
@@ -231,7 +236,30 @@ const SearchMenu = ({
                   const quantity = getItemQuantity(item.id);
                   const hasVariants = item.variants && item.variants.length > 0;
                   const isExpanded = expandedVariantItemId === item.id;
-                  const orderingEnabled = getFeatures(hotelData.feature_flags || "")?.ordering?.enabled;
+
+                  // Same conditions as SidebarItemCard's showAddButton
+                  const features = getFeatures(hotelData.feature_flags || "");
+                  const isWithinDeliveryTime = () => {
+                    if (!hotelData?.delivery_rules?.delivery_time_allowed) return true;
+                    const convertTimeToMinutes = (timeStr: string) => {
+                      const [hours, minutes] = timeStr.split(":").map(Number);
+                      return hours * 60 + minutes;
+                    };
+                    const now = new Date();
+                    const currentTime = now.getHours() * 60 + now.getMinutes();
+                    const startTime = convertTimeToMinutes(hotelData.delivery_rules.delivery_time_allowed.from ?? "00:00");
+                    const endTime = convertTimeToMinutes(hotelData.delivery_rules.delivery_time_allowed.to ?? "23:59");
+                    if (startTime > endTime) return currentTime >= startTime || currentTime <= endTime;
+                    return currentTime >= startTime && currentTime <= endTime;
+                  };
+                  const hasOrderingFeature = features?.ordering?.enabled && (hotelData?.delivery_rules?.isDeliveryActive ?? true) && isWithinDeliveryTime();
+                  const hasDeliveryFeature = features?.delivery?.enabled && tableNumber === 0 && (hotelData?.delivery_rules?.isDeliveryActive ?? true) && isWithinDeliveryTime();
+                  const hasStockFeature = features?.stockmanagement?.enabled;
+                  const isOutOfStock = hasStockFeature && ((item as any).stocks?.length ?? 0) > 0 && ((item as any).stocks?.[0]?.stock_quantity ?? 1) <= 0;
+                  const isPartner = auth?.id === hotelData?.id;
+                  const isOrderable = item.is_available && !isOutOfStock;
+                  const showAddButton = isOrderable && !isPartner && (hasOrderingFeature || hasDeliveryFeature) && !item.is_price_as_per_size;
+
                   return (
                     <div
                       key={item.id}
@@ -264,9 +292,7 @@ const SearchMenu = ({
                               <h3 className="text-sm font-bold capitalize mb-1 line-clamp-2" style={{ color: styles.color }}>
                                 {item.name}
                               </h3>
-                              {orderingEnabled && (
-                                <span className="block text-base font-black mb-1" style={{ color: styles.accent }}>{currency}{item.price}</span>
-                              )}
+                              <span className="block text-base font-black mb-1" style={{ color: styles.accent }}>{currency}{item.price}</span>
                               {item.description && (
                                 <p className="text-sm line-clamp-2 opacity-50">
                                   {item.description}
@@ -274,42 +300,36 @@ const SearchMenu = ({
                               )}
                             </div>
 
-                            {/* Price and Add Button */}
+                            {/* Add Button */}
+                            {showAddButton && (
                             <div className="flex flex-col items-end gap-2">
-                              {!orderingEnabled && (
-                                <span className="text-base font-black mr-3" style={{ color: styles.accent }}>{currency}{item.price}</span>
-                              )}
                               {!hasVariants ? (
-                                orderingEnabled ? (
-                                  quantity === 0 ? (
-                                    <button
-                                      onClick={() => handleAddItem(item)}
-                                      className="px-3 py-1.5 text-white text-xs font-bold rounded-lg active:scale-95 transition-transform"
-                                      style={{ backgroundColor: styles.accent }}
-                                    >
-                                      Add
-                                    </button>
-                                  ) : (
-                                    <div className="flex items-center gap-1.5 text-white rounded-lg px-2 py-1.5" style={{ backgroundColor: styles.accent }}>
-                                      <button
-                                        onClick={() => handleDecreaseQuantity(item)}
-                                        className="w-5 h-5 flex items-center justify-center rounded-full active:opacity-70"
-                                      >
-                                        <Minus size={12} />
-                                      </button>
-                                      <span className="text-xs font-bold min-w-[18px] text-center">
-                                        {quantity}
-                                      </span>
-                                      <button
-                                        onClick={() => handleIncreaseQuantity(item)}
-                                        className="w-5 h-5 flex items-center justify-center rounded-full active:opacity-70"
-                                      >
-                                        <Plus size={12} />
-                                      </button>
-                                    </div>
-                                  )
+                                quantity === 0 ? (
+                                  <button
+                                    onClick={() => handleAddItem(item)}
+                                    className="px-3 py-1.5 text-white text-xs font-bold rounded-lg active:scale-95 transition-transform"
+                                    style={{ backgroundColor: styles.accent }}
+                                  >
+                                    Add
+                                  </button>
                                 ) : (
-                                  null
+                                  <div className="flex items-center gap-1.5 text-white rounded-lg px-2 py-1.5" style={{ backgroundColor: styles.accent }}>
+                                    <button
+                                      onClick={() => handleDecreaseQuantity(item)}
+                                      className="w-5 h-5 flex items-center justify-center rounded-full active:opacity-70"
+                                    >
+                                      <Minus size={12} />
+                                    </button>
+                                    <span className="text-xs font-bold min-w-[18px] text-center">
+                                      {quantity}
+                                    </span>
+                                    <button
+                                      onClick={() => handleIncreaseQuantity(item)}
+                                      className="w-5 h-5 flex items-center justify-center rounded-full active:opacity-70"
+                                    >
+                                      <Plus size={12} />
+                                    </button>
+                                  </div>
                                 )
                               ) : (
                                 <button
@@ -321,6 +341,7 @@ const SearchMenu = ({
                                 </button>
                               )}
                             </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -334,14 +355,9 @@ const SearchMenu = ({
                               <div key={variant.name} className="flex items-center justify-between p-2.5 rounded-lg transition-colors" style={{ border: `1px solid ${styles.border.borderColor}` }}>
                                 <div className="flex-1 flex flex-col">
                                   <div className="text-sm font-semibold" style={{ color: styles.color }}>{variant.name}</div>
-                                  {orderingEnabled ? (
-                                    <span className="block text-sm font-black" style={{ color: styles.accent }}>{currency}{variant.price}</span>
-                                  ) : null}
+                                      <span className="block text-sm font-black" style={{ color: styles.accent }}>{currency}{variant.price}</span>
                                 </div>
-                                {!orderingEnabled && (
-                                  <span className="text-sm font-black mr-2" style={{ color: styles.accent }}>{currency}{variant.price}</span>
-                                )}
-                                {orderingEnabled ? (
+                                {showAddButton && (
                                   getVariantQuantity(item, variant.name) > 0 ? (
                                     <div className="flex items-center gap-1.5 text-white rounded-lg px-2 py-1.5" style={{ backgroundColor: styles.accent }}>
                                       <button
@@ -369,7 +385,7 @@ const SearchMenu = ({
                                       Add
                                     </button>
                                   )
-                                ) : null}
+                                )}
                               </div>
                             ))}
                           </div>
