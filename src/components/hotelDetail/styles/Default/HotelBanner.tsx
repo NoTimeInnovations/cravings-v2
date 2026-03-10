@@ -2,7 +2,7 @@
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import React from "react";
-import { isVideoUrl } from "@/lib/mediaUtils";
+import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 
 import {
   Dialog,
@@ -16,6 +16,7 @@ import { X } from "lucide-react";
 const HotelBanner = ({ styles, hoteldata }: { styles: Styles; hoteldata: HotelData }) => {
   const bannerSrc = hoteldata?.store_banner || "/image_placeholder.png";
   const isVideo = isVideoUrl(bannerSrc);
+  const posterSrc = isVideo ? getVideoThumbnailUrl(bannerSrc) : undefined;
 
   return (
     <Dialog>
@@ -27,6 +28,7 @@ const HotelBanner = ({ styles, hoteldata }: { styles: Styles; hoteldata: HotelDa
           {isVideo ? (
             <video
               src={bannerSrc}
+              poster={posterSrc}
               autoPlay muted loop playsInline
               className="object-cover"
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
@@ -55,6 +57,7 @@ const HotelBanner = ({ styles, hoteldata }: { styles: Styles; hoteldata: HotelDa
           {isVideo ? (
             <video
               src={bannerSrc}
+              poster={posterSrc}
               autoPlay muted loop playsInline controls
               className="object-contain"
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}

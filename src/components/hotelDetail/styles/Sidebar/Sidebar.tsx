@@ -19,7 +19,7 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import SidebarItemCard from "./SidebarItemCard";
 import useOrderStore from "@/store/orderStore";
 import OrderDrawer from "../../OrderDrawer";
-import { isVideoUrl } from "@/lib/mediaUtils";
+import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 import CompactOrders from "../Compact/CompactOrders";
 import { getFeatures } from "@/lib/getFeatures";
 import DiscountBanner from "../../DiscountBanner";
@@ -306,6 +306,7 @@ const Sidebar = ({
                 isVideoUrl(hoteldata.store_banner) ? (
                   <video
                     src={hoteldata.store_banner}
+                    poster={getVideoThumbnailUrl(hoteldata.store_banner)}
                     autoPlay muted loop playsInline
                     className="w-full h-full object-cover"
                   />

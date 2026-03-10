@@ -16,6 +16,7 @@ import { deleteFileFromS3, uploadFileToS3 } from "@/app/actions/aws-s3";
 import Img from "@/components/Img";
 import { Loader2, Upload, Save, Power, LogOut, Eye, EyeOff, KeyRound } from "lucide-react";
 import BannerEditor from "@/components/BannerEditor";
+import dynamic from "next/dynamic";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { getSocialLinks } from "@/lib/getSocialLinks";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,6 +27,8 @@ import { UpgradePlanDialog } from "@/components/admin-v2/UpgradePlanDialog";
 import { Lock, Crown } from "lucide-react";
 import { LocationSettings } from "./LocationSettings";
 import { isVideoUrl } from "@/lib/mediaUtils";
+
+const VideoEditor = dynamic(() => import("@/components/VideoEditor"), { ssr: false });
 
 
 
@@ -63,6 +66,8 @@ export function GeneralSettings() {
     const [isCropperOpen, setIsCropperOpen] = useState(false);
     const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
     const [selectedImageUrl, setSelectedImageUrl] = useState<string>("");
+    const [isVideoEditorOpen, setIsVideoEditorOpen] = useState(false);
+    const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
 
     // Google Business State
     const [googleConnected, setGoogleConnected] = useState(false);
@@ -304,16 +309,11 @@ export function GeneralSettings() {
         if (!files || !files[0]) return;
         const file = files[0];
 
-        // Video upload: enforce 1MB limit and skip cropper
+        // Video upload: open VideoEditor for trimming/optimization
         if (file.type.startsWith("video/")) {
-            if (file.size > 1 * 1024 * 1024) {
-                toast.error("Video must be under 1MB");
-                e.target.value = "";
-                return;
-            }
-            const blobUrl = URL.createObjectURL(file);
-            setBannerImage(blobUrl);
-            handleBannerUpload(blobUrl);
+            setSelectedVideoFile(file);
+            setIsVideoEditorOpen(true);
+            e.target.value = "";
             return;
         }
 
@@ -363,6 +363,52 @@ export function GeneralSettings() {
         } catch (error) {
             console.error("Banner upload error:", error);
             toast.error("Failed to upload banner");
+        } finally {
+            setBannerUploading(false);
+        }
+    };
+
+    const handleVideoComplete = async (processedVideoBlob: Blob, thumbnailBlob: Blob) => {
+        if (!userData) return;
+        setIsVideoEditorOpen(false);
+        setSelectedVideoFile(null);
+        setBannerUploading(true);
+
+        try {
+            // Delete old banner files if they exist
+            if ((userData as any).store_banner?.includes("cravingsbucket")) {
+                await deleteFileFromS3((userData as any).store_banner);
+                // Also try to delete old thumbnail
+                try {
+                    const oldBanner = (userData as any).store_banner;
+                    const lastDot = oldBanner.lastIndexOf(".");
+                    if (lastDot !== -1) {
+                        await deleteFileFromS3(oldBanner.substring(0, lastDot) + "_thumb.jpg");
+                    }
+                } catch { /* old thumbnail may not exist */ }
+            }
+
+            const timestamp = Date.now();
+            const videoKey = `hotel_banners/${userData.id}_v${timestamp}.mp4`;
+            const thumbKey = `hotel_banners/${userData.id}_v${timestamp}_thumb.jpg`;
+
+            // Upload video and thumbnail in parallel
+            const [videoUrl, _thumbUrl] = await Promise.all([
+                uploadFileToS3(processedVideoBlob, videoKey),
+                uploadFileToS3(thumbnailBlob, thumbKey),
+            ]);
+
+            if (!videoUrl) throw new Error("Video upload failed");
+
+            await updatePartner(userData.id, { store_banner: videoUrl });
+            revalidateTag(userData.id);
+
+            setState({ store_banner: videoUrl });
+            setBannerImage(videoUrl);
+            toast.success("Video banner updated successfully");
+        } catch (error) {
+            console.error("Video upload error:", error);
+            toast.error("Failed to upload video banner");
         } finally {
             setBannerUploading(false);
         }
@@ -662,8 +708,19 @@ export function GeneralSettings() {
                     onComplete={(url) => handleCropComplete(url)}
                     onClose={() => setIsCropperOpen(false)}
                 />
-            )
-            }
+            )}
+
+            {isVideoEditorOpen && selectedVideoFile && (
+                <VideoEditor
+                    isOpen={isVideoEditorOpen}
+                    videoFile={selectedVideoFile}
+                    onComplete={handleVideoComplete}
+                    onClose={() => {
+                        setIsVideoEditorOpen(false);
+                        setSelectedVideoFile(null);
+                    }}
+                />
+            )}
 
             <Card>
                 <CardHeader>

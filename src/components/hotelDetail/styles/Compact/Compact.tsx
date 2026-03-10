@@ -26,7 +26,7 @@ import { revalidateTag } from "@/app/actions/revalidate";
 import { getFeatures } from "@/lib/getFeatures";
 import { ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
 import DiscountBanner from "../../DiscountBanner";
-import { isVideoUrl } from "@/lib/mediaUtils";
+import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 
 // Helper to check darkness for contrast
 const isColorDark = (hex: string) => {
@@ -324,6 +324,7 @@ const Compact = ({
                   isVideoUrl(hoteldata.store_banner) ? (
                     <video
                       src={hoteldata.store_banner}
+                      poster={getVideoThumbnailUrl(hoteldata.store_banner)}
                       autoPlay muted loop playsInline
                       className="object-cover"
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}

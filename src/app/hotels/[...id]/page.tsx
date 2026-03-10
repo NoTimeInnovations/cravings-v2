@@ -29,6 +29,7 @@ import {
 
 import { headers } from "next/headers";
 import { getDomainConfig } from "@/lib/domain-utils";
+import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 
 export async function generateMetadata({
   params,
@@ -89,16 +90,22 @@ export async function generateMetadata({
   const slug = encodeURIComponent((hotel.store_name || "").replace(/\s+/g, "-"));
   const canonicalUrl = `https://menuthere.com/hotels/${slug}/${hotelId}`;
 
+  // For video banners, use the thumbnail for meta images/icons
+  const bannerUrl = hotel.store_banner || "/hotelDetailsBanner.jpeg";
+  const metaImage = isVideoUrl(bannerUrl)
+    ? getVideoThumbnailUrl(bannerUrl)
+    : bannerUrl;
+
   return {
     title: seoTitle,
-    icons: [hotel.store_banner || "/hotelDetailsBanner.jpeg"],
+    icons: [metaImage],
     description: seoDescription,
     alternates: { canonical: canonicalUrl },
     robots: isTestAccount
       ? { index: false, follow: false }
       : { index: true, follow: true },
     openGraph: {
-      images: [hotel.store_banner || "/hotelDetailsBanner.jpeg"],
+      images: [metaImage],
       title: seoTitle,
       description: seoDescription,
       url: canonicalUrl,
