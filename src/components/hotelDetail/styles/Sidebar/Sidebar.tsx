@@ -307,6 +307,7 @@ const Sidebar = ({
                   <video
                     src={hoteldata.store_banner}
                     poster={getVideoThumbnailUrl(hoteldata.store_banner)}
+                    preload="metadata"
                     autoPlay muted loop playsInline
                     className="w-full h-full object-cover"
                   />

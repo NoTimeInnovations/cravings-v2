@@ -29,6 +29,7 @@ const HotelBanner = ({ styles, hoteldata }: { styles: Styles; hoteldata: HotelDa
             <video
               src={bannerSrc}
               poster={posterSrc}
+              preload="metadata"
               autoPlay muted loop playsInline
               className="object-cover"
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
@@ -58,6 +59,7 @@ const HotelBanner = ({ styles, hoteldata }: { styles: Styles; hoteldata: HotelDa
             <video
               src={bannerSrc}
               poster={posterSrc}
+              preload="metadata"
               autoPlay muted loop playsInline controls
               className="object-contain"
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}
