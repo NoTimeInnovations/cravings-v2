@@ -87,6 +87,13 @@ function saveRecentSearch(item: RecentSearch) {
 
 const DEFAULT_ACCENT = "#EA580C";
 
+export type AddressModalTheme = {
+  accent?: string;
+  bg?: string;
+  text?: string;
+  showGrid?: boolean;
+};
+
 const AddressManagementModal = ({
   open,
   onClose,
@@ -95,6 +102,7 @@ const AddressManagementModal = ({
   hotelData,
   savedAddresses = [],
   onDeleteAddress,
+  theme: themeProp,
 }: {
   open: boolean;
   onClose: () => void;
@@ -103,13 +111,23 @@ const AddressManagementModal = ({
   hotelData: HotelData;
   savedAddresses?: SavedAddress[];
   onDeleteAddress?: (addressId: string) => void;
+  theme?: AddressModalTheme;
 }) => {
-  // Read theme from localStorage
-  const [accent, setAccent] = useState(DEFAULT_ACCENT);
-  const [themeBg, setThemeBg] = useState("#F5F5F5");
-  const [themeText, setThemeText] = useState("#000000");
-  const [showGrid, setShowGrid] = useState(false);
+  // Use theme from props first, then localStorage fallback
+  const [accent, setAccent] = useState(themeProp?.accent || DEFAULT_ACCENT);
+  const [themeBg, setThemeBg] = useState(themeProp?.bg || "#F5F5F5");
+  const [themeText, setThemeText] = useState(themeProp?.text || "#000000");
+  const [showGrid, setShowGrid] = useState(themeProp?.showGrid === true);
   useEffect(() => {
+    // If theme prop is provided, use it directly
+    if (themeProp) {
+      if (themeProp.accent) setAccent(themeProp.accent);
+      if (themeProp.bg) setThemeBg(themeProp.bg);
+      if (themeProp.text) setThemeText(themeProp.text);
+      setShowGrid(themeProp.showGrid === true);
+      return;
+    }
+    // Fallback to localStorage
     try {
       const stored = localStorage.getItem("hotelTheme");
       if (stored) {
@@ -120,7 +138,7 @@ const AddressManagementModal = ({
         setShowGrid(parsed.showGrid === true);
       }
     } catch {}
-  }, []);
+  }, [themeProp]);
 
   // Glassmorphism card styles matching PlaceOrderModal
   const isDark = (() => {

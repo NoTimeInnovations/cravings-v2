@@ -35,7 +35,7 @@ import { getPhoneDigitsForCountry } from "@/lib/countryPhoneMap";
 import { validateDiscountQuery, incrementDiscountUsageMutation } from "@/api/discounts";
 import { Tag } from "lucide-react";
 import { UpiPaymentScreen } from "./UpiPaymentScreen";
-import AddressManagementModal, { type SavedAddress } from "./AddressManagementModal";
+import AddressManagementModal, { type SavedAddress, type AddressModalTheme } from "./AddressManagementModal";
 
 // Helper: detect if a hex color is dark
 function isDarkColor(hex: string): boolean {
@@ -63,11 +63,13 @@ interface DeliveryInfo {
 const UnifiedAddressSection = ({
   setAddress,
   hotelData,
+  theme,
 }: {
   address: string;
   setAddress: (addr: string) => void;
   deliveryInfo: DeliveryInfo | null;
   hotelData: HotelData;
+  theme?: AddressModalTheme;
 }) => {
   const { userData: user } = useAuthStore();
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
@@ -280,6 +282,7 @@ const UnifiedAddressSection = ({
         hotelData={hotelData}
         savedAddresses={savedAddresses}
         onDeleteAddress={handleDeleteAddress}
+        theme={theme}
       />
     </motion.div>
   );
@@ -2047,6 +2050,12 @@ const PlaceOrderModal = ({
                     setAddress={setAddress}
                     deliveryInfo={deliveryInfo}
                     hotelData={hotelData}
+                    theme={themeStyles ? {
+                      accent: themeStyles.accent,
+                      bg: themeStyles.backgroundColor,
+                      text: themeStyles.color,
+                      showGrid: themeStyles.showGrid,
+                    } : undefined}
                   />
                 </div>
               )}
