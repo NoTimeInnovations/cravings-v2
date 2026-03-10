@@ -439,7 +439,8 @@ const ItemsCard = ({
           {/* Left: Name + Price stacked */}
           <div className="flex-1 min-w-0 pr-4">
             <DescriptionWithTextBreak
-              spanClassName="text-[14px] font-semibold text-inherit leading-tight"
+              spanClassName="text-[14px] font-semibold leading-tight !opacity-100"
+              style={{ color: "inherit" }}
               accent="black"
               maxChars={35}
             >
