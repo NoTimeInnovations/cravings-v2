@@ -50,7 +50,7 @@ export default function VideoEditor({ isOpen, onClose, videoFile, onComplete }: 
     const [trimRange, setTrimRange] = useState<[number, number]>([0, 0]);
     const [quality, setQuality] = useState("medium");
     const [estimatedSize, setEstimatedSize] = useState<number | null>(null);
-    const [currentPreview, setCurrentPreview] = useState(0);
+    const [, setCurrentPreview] = useState(0);
 
     // Load FFmpeg
     useEffect(() => {
@@ -202,7 +202,8 @@ export default function VideoEditor({ isOpen, onClose, videoFile, onComplete }: 
             await ffmpeg.exec(args);
 
             const outputData = await ffmpeg.readFile("output.mp4");
-            const outputBlob = new Blob([outputData], { type: "video/mp4" });
+            const rawBytes = outputData instanceof Uint8Array ? outputData : new TextEncoder().encode(outputData);
+            const outputBlob = new Blob([rawBytes as BlobPart], { type: "video/mp4" });
 
             if (outputBlob.size > MAX_OUTPUT_SIZE) {
                 setProgress("");
