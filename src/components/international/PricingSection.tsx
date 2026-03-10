@@ -15,6 +15,7 @@ import {
   verifySubscriptionAction,
 } from "@/app/actions/razorpay_payments";
 import { cn } from "@/lib/utils";
+import { UpgradeSuccessModal } from "@/components/admin-v2/UpgradeSuccessModal";
 
 declare global {
   interface Window {
@@ -39,6 +40,9 @@ const PricingSection = ({
     null,
   );
   const [isAnnual, setIsAnnual] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [upgradedPlanName, setUpgradedPlanName] = useState("");
+  const [upgradedPlanFeatures, setUpgradedPlanFeatures] = useState<string[]>([]);
 
   // Sync partner country cookie for existing users who don't have it yet
   useEffect(() => {
@@ -292,8 +296,14 @@ const PricingSection = ({
                 } as any,
               });
             }
-            toast.success("Upgrade Successful! Welcome to " + plan.name);
-            router.push("/admin-v2");
+            setIsCreatingAccount(false);
+            setUpgradedPlanName(plan.name);
+            setUpgradedPlanFeatures(
+              Object.values(activePlans).find((p) =>
+                p.variants.some((v) => v.id === plan.id)
+              )?.features || []
+            );
+            setShowSuccess(true);
           } else {
             toast.error("Payment verification failed. Please contact support.");
             setIsCreatingAccount(false);
@@ -516,6 +526,16 @@ const PricingSection = ({
   const planKeys = Object.keys(activePlans);
 
   return (
+    <>
+    <UpgradeSuccessModal
+      open={showSuccess}
+      onClose={() => {
+        setShowSuccess(false);
+        router.push("/admin-v2");
+      }}
+      planName={upgradedPlanName}
+      features={upgradedPlanFeatures}
+    />
     <section className="py-8 md:py-24 bg-[#fcfbf7]" id="pricing">
       <FullScreenLoader
         isLoading={isCreatingAccount}
@@ -610,6 +630,7 @@ const PricingSection = ({
         </p>
       </div>
     </section>
+    </>
   );
 };
 

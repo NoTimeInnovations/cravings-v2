@@ -14,6 +14,7 @@ import FullScreenLoader from "@/components/ui/FullScreenLoader";
 import { Check, Crown, X } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import plansData from "@/data/plans.json";
+import { UpgradeSuccessModal } from "@/components/admin-v2/UpgradeSuccessModal";
 
 type UpgradePlanDialogProps = {
     open: boolean;
@@ -108,7 +109,8 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
     const [isAnnual, setIsAnnual] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [loadingText, setLoadingText] = useState<string | null>(null);
-
+    const [showSuccess, setShowSuccess] = useState(false);
+    const [upgradedPlanName, setUpgradedPlanName] = useState("");
 
     const activeVariant = isAnnual ? plan.yearly : plan.monthly;
     const currentPlanId = partner?.subscription_details?.plan?.id;
@@ -165,8 +167,9 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
                                 } as any,
                             });
                         }
-                        toast.success("Upgrade Successful! Welcome to " + activeVariant.name);
-                        router.push("/admin-v2");
+                        setIsLoading(false);
+                        setUpgradedPlanName(activeVariant.name);
+                        setShowSuccess(true);
                     } else {
                         toast.error("Payment verification failed. Please contact support.");
                         setIsLoading(false);
@@ -278,6 +281,16 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
 
     return (
         <>
+            <UpgradeSuccessModal
+                open={showSuccess}
+                onClose={() => {
+                    setShowSuccess(false);
+                    onOpenChange(false);
+                    router.push("/admin-v2");
+                }}
+                planName={upgradedPlanName}
+                features={plan.features}
+            />
             <FullScreenLoader
                 isLoading={isLoading}
                 loadingTexts={loadingText ? [loadingText] : ["Processing..."]}
