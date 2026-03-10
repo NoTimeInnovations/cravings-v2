@@ -186,6 +186,13 @@ const UnifiedAddressSection = ({
     const existing = [...savedAddresses];
     const index = existing.findIndex((a) => a.id === addr.id);
 
+    // If address already exists and hasn't changed, just select it without re-saving
+    if (index >= 0 && JSON.stringify(existing[index]) === JSON.stringify(addr)) {
+      setEditingAddress(null);
+      handleAddressSelect(addr);
+      return;
+    }
+
     if (index >= 0) {
       existing[index] = addr;
     } else {
@@ -432,7 +439,8 @@ const ItemsCard = ({
           {/* Left: Name + Price stacked */}
           <div className="flex-1 min-w-0 pr-4">
             <DescriptionWithTextBreak
-              spanClassName="text-[14px] font-semibold text-inherit leading-tight"
+              spanClassName="text-[14px] font-semibold leading-tight !opacity-100"
+              style={{ color: "inherit" }}
               accent="black"
               maxChars={35}
             >
@@ -868,30 +876,28 @@ const LoginDrawer = ({
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-md p-4"
-        onClick={() => setShowLoginDrawer(false)}
+        initial={{ opacity: 0, y: "100%" }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: "100%" }}
+        transition={{ type: "spring", duration: 0.4, bounce: 0.15 }}
+        className="fixed inset-0 z-[70] flex flex-col"
+        style={{ backgroundColor: "var(--pom-modal-bg, white)" }}
       >
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0, y: 30 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.9, opacity: 0, y: 30 }}
-          transition={{ type: "spring", duration: 0.4, bounce: 0.3 }}
-          className="rounded-3xl p-8 w-full max-w-md shadow-2xl relative"
-          style={{ backgroundColor: "var(--pom-modal-bg, white)", backdropFilter: "blur(24px) saturate(180%)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Close button */}
+        {/* Top bar with close */}
+        <div className="shrink-0 flex items-center justify-between px-4 py-4">
           <button
             onClick={() => setShowLoginDrawer(false)}
-            className="absolute top-5 right-5 p-2 rounded-full hover:opacity-80 transition-all duration-200 group"
+            className="p-1.5 rounded-full hover:opacity-80 transition-all duration-200"
             aria-label="Close"
           >
-            <X className="h-5 w-5 opacity-60 group-hover:opacity-80" />
+            <ArrowLeft className="h-6 w-6" />
           </button>
+          <span className="text-base font-bold">Login</span>
+          <div className="w-9" />
+        </div>
 
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-6 flex flex-col justify-center max-w-md mx-auto w-full">
           {/* Header */}
           <div className="mb-8 text-center">
             <motion.div
@@ -1024,7 +1030,7 @@ const LoginDrawer = ({
               Privacy Policy
             </span>
           </motion.p>
-        </motion.div>
+        </div>
       </motion.div>
     </AnimatePresence>
   );
@@ -1851,7 +1857,7 @@ const PlaceOrderModal = ({
             "--pom-card-border": dark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.08)",
             "--pom-accent": themeStyles?.accent || "#ea580c",
             "--pom-card-shadow": dark ? "0 4px 16px rgba(0,0,0,0.25)" : "0 1px 4px rgba(0,0,0,0.06)",
-            "--pom-text-muted": dark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.55)",
+            "--pom-text-muted": dark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.75)",
             "--pom-modal-bg": dark ? "rgba(255,255,255,0.18)" : (themeStyles?.backgroundColor || "white"),
           } as React.CSSProperties;
         })()}
@@ -1974,7 +1980,8 @@ const PlaceOrderModal = ({
                       }
                     }}
                     placeholder="Enter your name"
-                    className="border-0 p-0 text-sm text-inherit placeholder:opacity-40 focus-visible:ring-0 shadow-none h-auto"
+                    className="rounded-lg text-sm text-inherit placeholder:text-inherit placeholder:opacity-40 focus-visible:ring-0 shadow-none"
+                    style={{ borderColor: "var(--pom-card-border, #e7e5e4)" }}
                   />
                 </div>
               )}
@@ -2027,7 +2034,8 @@ const PlaceOrderModal = ({
                           onChange={(e) => { setDiscountInput(e.target.value.toUpperCase()); setDiscountError(""); }}
                           onKeyDown={(e) => e.key === "Enter" && handleApplyDiscount()}
                           placeholder="Enter discount code"
-                          className="uppercase font-mono rounded-lg text-sm border-[var(--pom-card-border,#e7e5e4)] text-inherit"
+                          className="uppercase font-mono rounded-lg text-sm text-inherit placeholder:text-inherit placeholder:opacity-50"
+                          style={{ borderColor: "var(--pom-card-border, #e7e5e4)" }}
                         />
                         <button
                           onClick={handleApplyDiscount}

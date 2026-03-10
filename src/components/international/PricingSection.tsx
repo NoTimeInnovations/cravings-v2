@@ -15,6 +15,7 @@ import {
   verifySubscriptionAction,
 } from "@/app/actions/razorpay_payments";
 import { cn } from "@/lib/utils";
+import { UpgradeSuccessModal } from "@/components/admin-v2/UpgradeSuccessModal";
 
 declare global {
   interface Window {
@@ -39,6 +40,9 @@ const PricingSection = ({
     null,
   );
   const [isAnnual, setIsAnnual] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [upgradedPlanName, setUpgradedPlanName] = useState("");
+  const [upgradedPlanFeatures, setUpgradedPlanFeatures] = useState<string[]>([]);
 
   // Sync partner country cookie for existing users who don't have it yet
   useEffect(() => {
@@ -48,9 +52,25 @@ const PricingSection = ({
     }
   }, [userData]);
 
-  const isIndia = propCountry === "IN";
+  // Scroll to hash fragment (e.g. #plan-petpooja) after mount
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash) {
+      setTimeout(() => {
+        const el = document.querySelector(hash);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 300);
+    }
+  }, []);
+
+  const isIndia = propCountry === "IN" || propCountry === "India";
 
   const displayPlans = !isIndia ? plansData.international : plansData.india;
+
+  // Lookup rz_plan_id from plans.json (single source of truth)
+  const allPlans = [...plansData.india, ...plansData.international] as any[];
+  const getRzPlanId = (planId: string): string =>
+    allPlans.find((p: any) => p.id === planId)?.rz_plan_id || "";
 
   useEffect(() => {
     const script = document.createElement("script");
@@ -105,7 +125,7 @@ const PricingSection = ({
           period: "/month",
           billed: "Billed monthly",
           type: "monthly",
-          rz_plan_id: "plan_S7E5JO7kPtwGnA",
+          rz_plan_id: getRzPlanId("in_digital_monthly"),
         },
         {
           id: "in_digital",
@@ -115,7 +135,7 @@ const PricingSection = ({
           billed: "Billed annually",
           type: "yearly",
           savings: "Save ₹589",
-          rz_plan_id: "plan_S7EEdzZoy456iP",
+          rz_plan_id: getRzPlanId("in_digital"),
         },
       ],
     },
@@ -123,6 +143,7 @@ const PricingSection = ({
       id: "petpooja",
       title: "With Petpooja Integration",
       description: "Digital menu with Petpooja POS integration",
+      contactSales: true,
       features: [
         "Everything in Digital Menu",
         "Petpooja POS integration",
@@ -138,7 +159,7 @@ const PricingSection = ({
           period: "/month",
           billed: "Billed monthly",
           type: "monthly",
-          rz_plan_id: "plan_SMFoIQL8elNn6D",
+          rz_plan_id: getRzPlanId("in_digital_petpooja_monthly"),
         },
         {
           id: "in_digital_petpooja",
@@ -148,7 +169,7 @@ const PricingSection = ({
           billed: "Billed annually",
           type: "yearly",
           savings: "Save ₹1,989",
-          rz_plan_id: "plan_SMFpProjFxkC9H",
+          rz_plan_id: getRzPlanId("in_digital_petpooja"),
         },
       ],
     },
@@ -200,7 +221,7 @@ const PricingSection = ({
           period: "/month",
           billed: "Billed monthly",
           type: "monthly",
-          rz_plan_id: "plan_SIjWQgXZj9I2Vx",
+          rz_plan_id: getRzPlanId("int_digital_monthly"),
         },
         {
           id: "int_digital",
@@ -210,7 +231,7 @@ const PricingSection = ({
           billed: "Billed annually",
           type: "yearly",
           savings: "Save $38",
-          rz_plan_id: "plan_SIjXPD8frrA8TZ",
+          rz_plan_id: getRzPlanId("int_digital"),
         },
       ],
     },
@@ -266,8 +287,23 @@ const PricingSection = ({
           );
 
           if (verifyRes.success) {
-            toast.success("Upgrade Successful! Welcome to " + plan.name);
-            router.push("/admin-v2");
+            if (verifyRes.feature_flags || verifyRes.subscription_details) {
+              useAuthStore.setState({
+                userData: {
+                  ...userData,
+                  feature_flags: verifyRes.feature_flags || (userData as any).feature_flags,
+                  subscription_details: verifyRes.subscription_details || (userData as any).subscription_details,
+                } as any,
+              });
+            }
+            setIsCreatingAccount(false);
+            setUpgradedPlanName(plan.name);
+            setUpgradedPlanFeatures(
+              Object.values(activePlans).find((p) =>
+                p.variants.some((v) => v.id === plan.id)
+              )?.features || []
+            );
+            setShowSuccess(true);
           } else {
             toast.error("Payment verification failed. Please contact support.");
             setIsCreatingAccount(false);
@@ -282,6 +318,12 @@ const PricingSection = ({
           color: "#EA580C",
         },
       };
+
+      if (!window.Razorpay) {
+        toast.error("Payment gateway is loading. Please try again.");
+        setIsCreatingAccount(false);
+        return;
+      }
 
       const rzp = new window.Razorpay(options);
       rzp.on("payment.failed", function (response: any) {
@@ -464,6 +506,14 @@ const PricingSection = ({
     const plan = activePlans[key];
     const variant = getActiveVariant(plan);
 
+    if (plan.contactSales) {
+      const storeName = (userData as any)?.store_name || "Store";
+      const email = (userData as any)?.email || "";
+      const text = `Hi, I'm interested in the ${plan.title} plan for ${storeName}. My email is ${email}`;
+      window.open(`https://wa.me/918590115462?text=${encodeURIComponent(text)}`, "_blank");
+      return;
+    }
+
     handlePlanClick({
       ...variant,
       name: plan.title,
@@ -476,6 +526,16 @@ const PricingSection = ({
   const planKeys = Object.keys(activePlans);
 
   return (
+    <>
+    <UpgradeSuccessModal
+      open={showSuccess}
+      onClose={() => {
+        setShowSuccess(false);
+        router.push("/admin-v2");
+      }}
+      planName={upgradedPlanName}
+      features={upgradedPlanFeatures}
+    />
     <section className="py-8 md:py-24 bg-[#fcfbf7]" id="pricing">
       <FullScreenLoader
         isLoading={isCreatingAccount}
@@ -570,6 +630,7 @@ const PricingSection = ({
         </p>
       </div>
     </section>
+    </>
   );
 };
 

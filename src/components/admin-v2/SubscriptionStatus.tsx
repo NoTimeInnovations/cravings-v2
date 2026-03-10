@@ -60,7 +60,7 @@ export function SubscriptionStatus() {
         toast.info("Cancellation request sent to support.");
     };
 
-    const isInternational = userData?.role === "partner" && userData.country !== "IN";
+    const isInternational = userData?.role === "partner" && userData.country !== "India" && userData.country !== "IN";
     const isInternationalPlan = userData?.role === "partner" && userData?.subscription_details?.plan?.id?.startsWith("int_");
 
     useEffect(() => {

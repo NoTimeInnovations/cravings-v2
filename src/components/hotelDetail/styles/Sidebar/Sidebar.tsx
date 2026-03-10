@@ -4,10 +4,8 @@ import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import ThemeChangeButton, { ThemeConfig } from "../../ThemeChangeButton";
 import SearchMenu from "../../SearchMenu";
-import { ExternalLink, MapPin, LayoutGrid, Phone, Search, Zap, ChevronLeft, ChevronRight, Star, Minus, Plus } from "lucide-react";
+import { MapPin, LayoutGrid, Phone, Search, Zap, ChevronLeft, ChevronRight, Star, Minus, Plus, Utensils, ShoppingBag, ExternalLink } from "lucide-react";
 import { FaFacebook, FaInstagram, FaWhatsapp } from "react-icons/fa";
-import PopularItemsList from "../Default/PopularItemsList";
-
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import {
   HotelData,
@@ -20,7 +18,9 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import SidebarItemCard from "./SidebarItemCard";
 import useOrderStore from "@/store/orderStore";
 import OrderDrawer from "../../OrderDrawer";
+import CompactOrders from "../Compact/CompactOrders";
 import { getFeatures } from "@/lib/getFeatures";
+import DiscountBanner from "../../DiscountBanner";
 
 export interface SidebarHotelPageProps {
   styles: Styles;
@@ -65,8 +65,14 @@ const Sidebar = ({
   isOnFreePlan,
 }: SidebarHotelPageProps) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"food" | "orders">("food");
   const { addItem, removeItem, items: cartItems, setOpenPlaceOrderModal } = useOrderStore();
   const selectedCategory = selectedCategoryProp || "all";
+
+  const showBottomNav =
+    auth?.role === "user" &&
+    (getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled == true ||
+      getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled == true);
   const categorySidebarRef = useRef<HTMLDivElement>(null);
 
   // Reset persisted open_place_order_modal on mount (for partners who don't render OrderDrawer)
@@ -282,7 +288,7 @@ const Sidebar = ({
           backgroundSize: "40px 40px",
         }),
       }}
-      className={`overflow-x-clip relative min-h-screen flex flex-col lg:px-[20%] ${(cartItems?.length ?? 0) > 0 ? "pb-24" : ""}`}
+      className={`overflow-x-clip relative min-h-screen flex flex-col lg:px-[20%] ${(cartItems?.length ?? 0) > 0 ? "pb-24" : ""} ${activeTab !== "food" ? "hidden" : ""}`}
     >
       {!open_place_order_modal ? (
         <>
@@ -674,6 +680,13 @@ const Sidebar = ({
             </section>
             );
           })()}
+
+          {/* Discount Banner */}
+          <DiscountBanner
+            partnerId={hoteldata?.id || ""}
+            currency={hoteldata?.currency || "₹"}
+            accent={styles?.accent || "#ea580c"}
+          />
 
           {/* Main: Category sidebar + Items grid */}
           <section className="flex relative">
@@ -1067,26 +1080,61 @@ const Sidebar = ({
 
     </main>
 
-      {/* Partner login banner — outside main to avoid overflow-x-clip */}
-      {auth?.role === "partner" &&
-        ((tableNumber !== 0 &&
-          getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled) ||
-          (tableNumber === 0 &&
-            getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled)) && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl bg-black text-white text-center font-semibold shadow-xl">
-          Login as user to place order
-        </div>
+      {activeTab === "food" ? (
+        <>
+          {/* Partner login banner */}
+          {auth?.role === "partner" &&
+            ((tableNumber !== 0 &&
+              getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled) ||
+              (tableNumber === 0 &&
+                getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled)) && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl bg-black text-white text-center font-semibold shadow-xl">
+              Login as user to place order
+            </div>
+          )}
+
+          {/* OrderDrawer */}
+          {auth?.role !== "partner" && (
+            <OrderDrawer
+              styles={styles}
+              hotelData={hoteldata}
+              tableNumber={tableNumber}
+              qrId={qrId || undefined}
+              qrGroup={qrGroup}
+              hasBottomNav={showBottomNav}
+            />
+          )}
+        </>
+      ) : (
+        <CompactOrders hotelId={hoteldata?.id} styles={styles} />
       )}
 
-      {/* OrderDrawer — outside main to avoid overflow-x-clip clipping fixed elements */}
-      {auth?.role !== "partner" && (
-        <OrderDrawer
-          styles={styles}
-          hotelData={hoteldata}
-          tableNumber={tableNumber}
-          qrId={qrId || undefined}
-          qrGroup={qrGroup}
-        />
+      {/* Bottom Navigation for Mobile Logged-in Users */}
+      {showBottomNav && (
+        <div
+          className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[999] px-4 py-2 flex justify-around items-center max-w-xl mx-auto"
+          style={{
+            backgroundColor: styles.backgroundColor || "#fff",
+            borderColor: styles.border?.borderColor || "#e5e7eb",
+          }}
+        >
+          <button
+            onClick={() => setActiveTab("food")}
+            className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === "food" ? "opacity-100" : "opacity-50"}`}
+            style={{ color: activeTab === "food" ? styles.accent : styles.color }}
+          >
+            <Utensils size={20} />
+            <span className="text-xs font-medium">Food</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("orders")}
+            className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === "orders" ? "opacity-100" : "opacity-50"}`}
+            style={{ color: activeTab === "orders" ? styles.accent : styles.color }}
+          >
+            <ShoppingBag size={20} />
+            <span className="text-xs font-medium">Orders</span>
+          </button>
+        </div>
       )}
     </>
   );

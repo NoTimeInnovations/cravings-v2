@@ -294,7 +294,7 @@ const page = async ({
     // --- Subscription & Scan Limit Logic ---
     // Use fresh subscription details
     const sub = freshSubscription?.subscription_details || hoteldata.subscription_details;
-    const isInternational = hoteldata.country !== "IN";
+    const isInternational = hoteldata.country !== "India" && hoteldata.country !== "IN";
     const subPlan = sub?.plan;
 
     // Check Scan Limits only for International Partners

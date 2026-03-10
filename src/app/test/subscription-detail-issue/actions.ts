@@ -20,7 +20,7 @@ export async function fixPartnerSubscription(partnerId: string) {
 
     if (!partner) throw new Error("Partner not found");
 
-    const isIndia = partner.country === "IN";
+    const isIndia = partner.country === "India" || partner.country === "IN";
     const defaultPlan = isIndia
       ? plans.india.find((p) => p.id === "in_trial")
       : plans.international.find((p) => p.id === "int_digital_monthly");

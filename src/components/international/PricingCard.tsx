@@ -18,6 +18,7 @@ export type PlanCard = {
   description: string;
   features: string[];
   popular?: boolean;
+  contactSales?: boolean;
   variants: PlanVariant[];
 };
 
@@ -43,6 +44,7 @@ export default function PricingCard({
 
   return (
     <div
+      id={`plan-${plan.id}`}
       className={cn(
         "bg-white rounded-2xl flex flex-col p-6 md:p-7 transition-all",
         isPopular
@@ -124,9 +126,11 @@ export default function PricingCard({
       >
         {isCurrent
           ? "Current Plan"
-          : isFree
-            ? "Get Free Menu"
-            : "Get started"}
+          : plan.contactSales
+            ? "Contact Sales"
+            : isFree
+              ? "Get Free Menu"
+              : "Get started"}
       </button>
     </div>
   );
