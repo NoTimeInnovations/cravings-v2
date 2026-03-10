@@ -7,13 +7,12 @@ import {
   LayoutDashboard,
   Package,
   Shield,
-  Home,
   CreditCard,
   ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 const BottomNav = () => {
   const { userData } = useAuthStore();
@@ -60,9 +59,9 @@ const BottomNav = () => {
       case "user":
         return [
           {
-            href: "/hotels",
-            name: "Hotels",
-            icon: <Home size={20} />,
+            href: "/my-orders",
+            name: "Orders",
+            icon: <ShoppingBag size={20} />,
             exactMatch: false,
           },
           {
