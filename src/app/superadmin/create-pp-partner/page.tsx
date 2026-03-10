@@ -387,12 +387,6 @@ const CreatePartnerPage = () => {
 
                 {/* Email Body */}
                 <div className="p-4 bg-white">
-                  <div className="bg-gray-50 px-3 py-2 rounded mb-3">
-                    <p className="text-sm text-blue-700 font-medium">
-                      {emailSubject}
-                    </p>
-                  </div>
-                  <hr className="my-3" />
                   <div className="space-y-3 text-sm text-gray-700 leading-relaxed">
                     <p>Dear Petpooja Team,</p>
                     <p>
