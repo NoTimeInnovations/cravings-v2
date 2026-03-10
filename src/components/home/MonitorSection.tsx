@@ -8,8 +8,26 @@ const AnalyticsAnimation = dynamic(() => import("./AnalyticsAnimation"));
 const ReviewsAnimation = dynamic(() => import("./ReviewsAnimation"));
 const GoogleSyncAnimation = dynamic(() => import("./GoogleSyncAnimation"));
 const SmartQRAnimation = dynamic(() => import("./SmartQRAnimation"));
+const AggregatorAnimation = dynamic(() => import("./AggregatorAnimation"));
+const PetpoojaAnimation = dynamic(() => import("./PetpoojaAnimation"));
 
 const FEATURES = [
+  {
+    title: "Save 30% vs Aggregators",
+    description:
+      "Aggregators charge 20-33% commission + hidden fees, totaling up to 45% of every order. With Menuthere, get your own ordering website with just 1% commission and PetPooja POS integration. Own your customer data, control your pricing, and build brand loyalty.",
+    href: "/solutions/petpooja",
+    cta: "See full comparison & savings calculator",
+    image: "/features/smartqr-v2.webp",
+  },
+  {
+    title: "Petpooja POS Integration",
+    description:
+      "Connect your Menuthere menu directly to Petpooja POS. Menu items, prices, and categories sync automatically. Every online order is pushed to your POS in real-time — no manual entry, no missed orders, no double handling.",
+    href: "/solutions/petpooja",
+    cta: "Learn about Petpooja integration",
+    image: "/features/smartqr-v2.webp",
+  },
   {
     title: "Smart QR Menu",
     description:
@@ -85,19 +103,23 @@ export default function MonitorSection() {
           image={feature.image}
           align={index % 2 === 0 ? "left" : "right"}
           customPanel={
-            feature.title === "Real-Time Menu Updates"
-              ? "realtime"
-              : feature.title === "Dynamic Offers & Promotions"
-                ? "offers"
-                : feature.title === "Analytics & Insights"
-                  ? "analytics"
-                  : feature.title === "Google Reviews Booster"
-                    ? "reviews"
-                    : feature.title === "Google Business Menu Sync"
-                      ? "googlesync"
-                      : feature.title === "Smart QR Menu"
-                        ? "smartqr"
-                        : undefined
+            feature.title === "Save 30% vs Aggregators"
+              ? "aggregator"
+              : feature.title === "Petpooja POS Integration"
+                ? "petpooja"
+                : feature.title === "Real-Time Menu Updates"
+                ? "realtime"
+                : feature.title === "Dynamic Offers & Promotions"
+                  ? "offers"
+                  : feature.title === "Analytics & Insights"
+                    ? "analytics"
+                    : feature.title === "Google Reviews Booster"
+                      ? "reviews"
+                      : feature.title === "Google Business Menu Sync"
+                        ? "googlesync"
+                        : feature.title === "Smart QR Menu"
+                          ? "smartqr"
+                          : undefined
           }
         />
       ))}
@@ -182,10 +204,14 @@ function MonitorSectionCard({
   cta: string;
   image: string;
   align: "left" | "right";
-  customPanel?: "realtime" | "offers" | "analytics" | "reviews" | "googlesync" | "smartqr";
+  customPanel?: "realtime" | "offers" | "analytics" | "reviews" | "googlesync" | "smartqr" | "aggregator" | "petpooja";
 }) {
   const panel =
-    customPanel === "realtime" ? (
+    customPanel === "aggregator" ? (
+      <AggregatorAnimation />
+    ) : customPanel === "petpooja" ? (
+      <PetpoojaAnimation />
+    ) : customPanel === "realtime" ? (
       <RealTimeMenuAnimation />
     ) : customPanel === "offers" ? (
       <OffersAnimation />

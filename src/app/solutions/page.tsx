@@ -16,6 +16,7 @@ import {
   Clock,
   CheckCircle2,
   Briefcase,
+  ShieldAlert,
 } from "lucide-react";
 import { ButtonV2 } from "@/components/ui/ButtonV2";
 import RestaurantMarquee from "@/components/international/RestaurantMarquee";
@@ -98,6 +99,12 @@ const SOLUTIONS = [
     title: "Agencies & Consultants",
     shortDesc: "Manage multiple client accounts with ease",
     icon: Briefcase,
+  },
+  {
+    slug: "petpooja",
+    title: "Direct Ordering & PetPooja",
+    shortDesc: "Zero commission alternative to Swiggy & Zomato",
+    icon: ShieldAlert,
   },
 ];
 

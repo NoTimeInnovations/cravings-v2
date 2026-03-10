@@ -1856,7 +1856,7 @@ const PlaceOrderModal = ({
             "--pom-card-border": dark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.08)",
             "--pom-accent": themeStyles?.accent || "#ea580c",
             "--pom-card-shadow": dark ? "0 4px 16px rgba(0,0,0,0.25)" : "0 1px 4px rgba(0,0,0,0.06)",
-            "--pom-text-muted": dark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.55)",
+            "--pom-text-muted": dark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.75)",
             "--pom-modal-bg": dark ? "rgba(255,255,255,0.18)" : (themeStyles?.backgroundColor || "white"),
           } as React.CSSProperties;
         })()}

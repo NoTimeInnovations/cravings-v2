@@ -83,6 +83,15 @@ const PRODUCTS = [
   */
 ];
 
+const SOLUTIONS_FEATURES = [
+  {
+    title: "Google Business Sync",
+    description: "Sync menu to Google Maps",
+    href: "/solutions/google-business",
+    icon: Globe,
+  },
+];
+
 const SOLUTIONS_ROLES = [
   {
     title: "Owners",
@@ -572,33 +581,27 @@ export function Navbar() {
               )}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Featured: Google Business */}
-              <div className="px-5 pt-5 pb-4">
+              {/* Featured Links */}
+              <div className="px-5 pt-5 pb-4 space-y-2.5">
                 <Link
-                  href="/solutions/google-business"
-                  className="flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r from-orange-600/8 to-orange-600/4 border border-orange-600/10 hover:border-orange-600/25 hover:from-orange-600/12 hover:to-orange-600/6 transition-all duration-200 group/gbp"
+                  href="/solutions/petpooja"
+                  className="flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r from-orange-600/8 to-orange-600/4 border border-orange-600/10 hover:border-orange-600/25 hover:from-orange-600/12 hover:to-orange-600/6 transition-all duration-200 group/pp"
                   onClick={() => setIsSolutionsOpen(false)}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm overflow-hidden ring-1 ring-stone-100">
-                    <Image
-                      src="/google_business_logo.png"
-                      alt="Google Business"
-                      width={36}
-                      height={36}
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm ring-1 ring-stone-100">
+                    <ShoppingCart className="w-5 h-5 text-orange-600" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-stone-900 font-semibold text-sm group-hover/gbp:text-orange-600 transition-colors">
-                        Google Business Profile Sync
+                      <h3 className="text-stone-900 font-semibold text-sm group-hover/pp:text-orange-600 transition-colors">
+                        PetPooja Integration
                       </h3>
                       <span className="px-1.5 py-0.5 bg-orange-600 text-white text-[9px] font-bold rounded-md uppercase leading-none tracking-wide">
                         New
                       </span>
                     </div>
                     <p className="text-stone-500 text-xs mt-0.5">
-                      Sync your menu to Google Maps automatically
+                      Just 1% commission with PetPooja POS integration
                     </p>
                   </div>
                 </Link>
@@ -606,9 +609,38 @@ export function Navbar() {
 
               <div className="h-px bg-stone-100 mx-5" />
 
-              <div className="grid grid-cols-[1fr_2fr] gap-0 p-5">
-                {/* Roles Column */}
+              <div className="grid grid-cols-[1fr_1fr_2fr] gap-0 p-5">
+                {/* Features Column */}
                 <div className="pr-5 border-r border-stone-100">
+                  <h4 className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider mb-3 px-2">
+                    Features
+                  </h4>
+                  <div className="space-y-0.5">
+                    {SOLUTIONS_FEATURES.map((item) => (
+                      <Link
+                        key={item.title}
+                        href={item.href}
+                        className="flex items-center gap-3 group/item hover:bg-stone-50 px-2 py-2.5 rounded-lg transition-colors"
+                        onClick={() => setIsSolutionsOpen(false)}
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-stone-100/80 flex items-center justify-center flex-shrink-0 group-hover/item:bg-orange-600/10 transition-colors">
+                          <item.icon className="w-4 h-4 text-stone-500 group-hover/item:text-orange-600 transition-colors" />
+                        </div>
+                        <div>
+                          <h3 className="text-stone-800 font-medium text-[13px] group-hover/item:text-orange-600 transition-colors">
+                            {item.title}
+                          </h3>
+                          <p className="text-stone-400 text-[11px] leading-snug">
+                            {item.description}
+                          </p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Roles Column */}
+                <div className="px-5 border-r border-stone-100">
                   <h4 className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider mb-3 px-2">
                     By Role
                   </h4>
@@ -881,27 +913,46 @@ export function Navbar() {
                         : "max-h-0 opacity-0",
                     )}
                   >
-                    {/* Featured: Google Business */}
+                    {/* Featured Links */}
                     <Link
-                      href="/solutions/google-business"
+                      href="/solutions/petpooja"
                       className="flex items-center gap-3 p-3 rounded-lg bg-orange-100/30 border border-orange-600/10"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
-                      <Globe className="w-5 h-5 text-orange-600" />
+                      <ShoppingCart className="w-5 h-5 text-orange-600" />
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-gray-900">
-                            Google Business Sync
+                            PetPooja Integration
                           </span>
                           <span className="px-1.5 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded uppercase leading-none">
                             New
                           </span>
                         </div>
                         <span className="text-gray-500 text-xs">
-                          Sync menu to Google Maps
+                          1% commission, PetPooja POS integration
                         </span>
                       </div>
                     </Link>
+                    {/* Features */}
+                    <div>
+                      <h4 className="text-gray-400 text-xs font-bold mb-3 uppercase tracking-wider">
+                        Features
+                      </h4>
+                      <div className="space-y-3">
+                        {SOLUTIONS_FEATURES.map((item) => (
+                          <Link
+                            key={item.title}
+                            href={item.href}
+                            className="flex items-center gap-3 text-gray-700 hover:text-gray-900"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <item.icon className="w-4 h-4 text-orange-600" />
+                            <span className="font-medium">{item.title}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
                     {/* Roles */}
                     <div>
                       <h4 className="text-gray-400 text-xs font-bold mb-3 uppercase tracking-wider">

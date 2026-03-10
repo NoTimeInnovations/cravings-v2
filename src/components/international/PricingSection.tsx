@@ -48,6 +48,17 @@ const PricingSection = ({
     }
   }, [userData]);
 
+  // Scroll to hash fragment (e.g. #plan-petpooja) after mount
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash) {
+      setTimeout(() => {
+        const el = document.querySelector(hash);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 300);
+    }
+  }, []);
+
   const isIndia = propCountry === "IN" || propCountry === "India";
 
   const displayPlans = !isIndia ? plansData.international : plansData.india;
@@ -128,6 +139,7 @@ const PricingSection = ({
       id: "petpooja",
       title: "With Petpooja Integration",
       description: "Digital menu with Petpooja POS integration",
+      contactSales: true,
       features: [
         "Everything in Digital Menu",
         "Petpooja POS integration",
@@ -483,6 +495,14 @@ const PricingSection = ({
   const handleCardClick = (key: string) => {
     const plan = activePlans[key];
     const variant = getActiveVariant(plan);
+
+    if (plan.contactSales) {
+      const storeName = (userData as any)?.store_name || "Store";
+      const email = (userData as any)?.email || "";
+      const text = `Hi, I'm interested in the ${plan.title} plan for ${storeName}. My email is ${email}`;
+      window.open(`https://wa.me/918590115462?text=${encodeURIComponent(text)}`, "_blank");
+      return;
+    }
 
     handlePlanClick({
       ...variant,

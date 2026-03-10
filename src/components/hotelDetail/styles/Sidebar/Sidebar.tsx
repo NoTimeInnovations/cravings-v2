@@ -22,6 +22,7 @@ import useOrderStore from "@/store/orderStore";
 import OrderDrawer from "../../OrderDrawer";
 import CompactOrders from "../Compact/CompactOrders";
 import { getFeatures } from "@/lib/getFeatures";
+import DiscountBanner from "../../DiscountBanner";
 
 export interface SidebarHotelPageProps {
   styles: Styles;
@@ -622,6 +623,13 @@ const Sidebar = ({
             </section>
             );
           })()}
+
+          {/* Discount Banner */}
+          <DiscountBanner
+            partnerId={hoteldata?.id || ""}
+            currency={hoteldata?.currency || "₹"}
+            accent={styles?.accent || "#ea580c"}
+          />
 
           {/* Main: Category sidebar + Items grid */}
           <section className="flex relative">
