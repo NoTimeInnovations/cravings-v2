@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { AdminNavbar } from "@/components/admin-v2/AdminNavbar";
 import { AdminSidebar } from "@/components/admin-v2/AdminSidebar";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -49,10 +50,19 @@ import { UpgradePlanDialog } from "@/components/admin-v2/UpgradePlanDialog";
 
 export default function AdminPage() {
     const { activeView, setActiveView } = useAdminStore();
+    const searchParams = useSearchParams();
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [renderedViews, setRenderedViews] = useState<string[]>([]);
     const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false);
+
+    // Handle view query param (e.g., from Google OAuth redirect)
+    useEffect(() => {
+        const view = searchParams.get("view");
+        if (view) {
+            setActiveView(view);
+        }
+    }, [searchParams, setActiveView]);
 
     // Track visited views to keep them mounted
     if (!renderedViews.includes(activeView)) {

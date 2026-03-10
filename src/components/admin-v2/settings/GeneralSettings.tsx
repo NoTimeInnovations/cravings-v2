@@ -133,7 +133,7 @@ export function GeneralSettings() {
     const handleGoogleLogin = () => {
         if (!userData) return;
         // Redirect to auth with return url back to settings
-        const redirect = encodeURIComponent(window.location.pathname);
+        const redirect = encodeURIComponent(`${window.location.pathname}?view=Settings`);
         window.location.href = `/api/google-business/auth/login?partnerId=${userData.id}&redirect=${redirect}`;
     };
 
