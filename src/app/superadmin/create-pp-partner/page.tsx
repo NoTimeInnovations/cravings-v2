@@ -20,9 +20,9 @@ import {
 import { sendPetpoojaOnboardingEmailAction } from "@/app/actions/sendPetpoojaOnboardingEmail";
 
 const DEFAULT_CC_EMAILS = [
-  "malvi@petpooja.com",
-  "jatan@petpooja.com",
-  "rohan@petpooja.com",
+  "malvi.vaghela@petpooja.com",
+  "jatan.vala@petpooja.com",
+  "rohan.sakhrani@petpooja.com",
   "siddharth.patel@petpooja.com",
 ];
 
