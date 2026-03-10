@@ -29,6 +29,7 @@ import {
   Truck,
   Wine,
   PartyPopper,
+  UserCircle,
 } from "lucide-react";
 
 
@@ -230,7 +231,7 @@ const KNOWN_STATIC_ROUTES = new Set([
   "privacy-policy", "product", "profile", "qrScan", "reel-analytics",
   "refund-policy", "sentry-example-page", "solutions", "superadmin",
   "superLogin", "terms-and-conditions", "test", "tutorials", "user-map",
-  "whatsappQr",
+  "user-profile", "whatsappQr",
 ]);
 
 import { Partner, useAuthStore } from "@/store/authStore";
@@ -812,7 +813,15 @@ export function Navbar() {
 
             {/* Mobile Menu Toggle */}
             <div className="lg:hidden flex justify-end">
-              {userData?.role !== "user" ? (
+              {userData?.role === "user" ? (
+                <Link
+                  href="/user-profile"
+                  className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+                  aria-label="Profile"
+                >
+                  <UserCircle className="h-6 w-6" />
+                </Link>
+              ) : (
                 <button
                   onClick={() => setIsMobileMenuOpen(true)}
                   className="p-2 text-gray-900"
@@ -820,8 +829,6 @@ export function Navbar() {
                 >
                   <Menu className="w-6 h-6" />
                 </button>
-              ) : (
-                renderUserProfile()
               )}
             </div>
 

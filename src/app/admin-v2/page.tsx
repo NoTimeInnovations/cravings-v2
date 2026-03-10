@@ -40,6 +40,9 @@ const AdminV2POS = dynamic(() => import("@/components/admin-v2/AdminV2POS").then
 const AdminV2PurchaseInventory = dynamic(() => import("@/components/admin-v2/AdminV2PurchaseInventory").then(mod => mod.AdminV2PurchaseInventory), {
     loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
 });
+const AdminV2Billing = dynamic(() => import("@/components/admin-v2/AdminV2Billing").then(mod => mod.AdminV2Billing), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
 import { useAdminStore } from "@/store/adminStore";
 import { UpgradePlanDialog } from "@/components/admin-v2/UpgradePlanDialog";
 
@@ -111,7 +114,7 @@ export default function AdminPage() {
 
                     {/* Main Content */}
                     <main className={`flex-1 overflow-y-auto ${activeView === "POS" ? "p-0 md:p-2" : "p-6"}`}>
-                        {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && activeView !== "POS" && activeView !== "Purchase & Inventory" && activeView !== "Dashboard" && (
+                        {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && activeView !== "POS" && activeView !== "Purchase & Inventory" && activeView !== "Dashboard" && activeView !== "Billing" && (
                             <h1 className="text-3xl font-bold mb-6">{activeView}</h1>
                         )}
 
@@ -168,6 +171,11 @@ export default function AdminPage() {
                         {renderedViews.includes("Purchase & Inventory") && (
                             <div className={activeView === "Purchase & Inventory" ? "block" : "hidden"}>
                                 <AdminV2PurchaseInventory />
+                            </div>
+                        )}
+                        {renderedViews.includes("Billing") && (
+                            <div className={activeView === "Billing" ? "block" : "hidden"}>
+                                <AdminV2Billing />
                             </div>
                         )}
                     </main>

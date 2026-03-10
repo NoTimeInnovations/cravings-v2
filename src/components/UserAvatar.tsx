@@ -147,7 +147,7 @@ const UserAvatar = ({ userData, align = "right", label, className }: { userData:
           {/* Account Management */}
           <div className="py-1">
             <Link
-              href={"/profile"}
+              href={userData?.role === "user" ? "/user-profile" : "/profile"}
               onClick={() => setIsOpen(false)}
               className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
             >

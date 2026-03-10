@@ -53,6 +53,7 @@ export async function generateMetadata({
     title: seoTitle,
     icons: [hotel.store_banner || "/hotelDetailsBanner.jpeg"],
     description: seoDescription,
+    manifest: `/api/manifest/${username}`,
     openGraph: {
       images: [hotel.store_banner || "/hotelDetailsBanner.jpeg"],
       title: seoTitle,

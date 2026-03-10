@@ -4,7 +4,7 @@ import { MyOrdersButton } from "./MyOrdersButton";
 import Link from "next/link";
 
 import CompactOrders from "./CompactOrders";
-import { Utensils, ShoppingBag } from "lucide-react";
+import { Utensils, ShoppingBag, User } from "lucide-react";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { formatDisplayName } from "@/store/categoryStore_hasura";
 import ItemCard from "./ItemCard";
@@ -26,6 +26,7 @@ import { revalidateTag } from "@/app/actions/revalidate";
 import { getFeatures } from "@/lib/getFeatures";
 import { ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
 import DiscountBanner from "../../DiscountBanner";
+import { isVideoUrl } from "@/lib/mediaUtils";
 
 // Helper to check darkness for contrast
 const isColorDark = (hex: string) => {
@@ -320,13 +321,22 @@ const Compact = ({
                 {hoteldata?.store_banner &&
                   hoteldata?.store_banner !== "" &&
                   !bannerError ? (
-                  <img
-                    src={hoteldata?.store_banner}
-                    alt="Hotel Logo"
-                    className="object-cover"
-                    onError={() => setBannerError(true)}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
+                  isVideoUrl(hoteldata.store_banner) ? (
+                    <video
+                      src={hoteldata.store_banner}
+                      autoPlay muted loop playsInline
+                      className="object-cover"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <img
+                      src={hoteldata?.store_banner}
+                      alt="Hotel Logo"
+                      className="object-cover"
+                      onError={() => setBannerError(true)}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  )
                 ) : (
                   <div
                     className="w-full h-full flex items-center justify-center relative overflow-hidden"
@@ -1048,6 +1058,14 @@ const Compact = ({
               <ShoppingBag size={20} />
               <span className="text-xs font-medium">Orders</span>
             </button>
+            <Link
+              href="/user-profile"
+              className="flex flex-col items-center gap-1 p-2 rounded-lg transition-colors opacity-50"
+              style={{ color: localStyles?.color }}
+            >
+              <User size={20} />
+              <span className="text-xs font-medium">Profile</span>
+            </Link>
           </div>
         )}
 

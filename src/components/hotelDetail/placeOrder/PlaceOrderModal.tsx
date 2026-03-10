@@ -26,7 +26,7 @@ import DescriptionWithTextBreak from "@/components/DescriptionWithTextBreak";
 import { useQrDataStore } from "@/store/qrDataStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { updateUserAddressesMutation, updateUserFullNameMutation } from "@/api/auth";
+import { updateUserAddressesMutation, updateUserFullNameMutation, updateUserPhoneMutation } from "@/api/auth";
 import {
   validatePhoneNumber,
   getPhoneValidationError,
@@ -1037,6 +1037,95 @@ const LoginDrawer = ({
 };
 
 // =================================================================
+// Phone Number Card with inline editing
+// =================================================================
+
+const PhoneNumberCard = ({
+  user,
+  hotelData,
+}: {
+  user: any;
+  hotelData: HotelData;
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [newPhone, setNewPhone] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
+  const maxDigits = getPhoneDigitsForCountry(countryCode);
+
+  const handleSave = async () => {
+    if (!newPhone || !validatePhoneNumber(newPhone, countryCode)) {
+      toast.error(getPhoneValidationError(countryCode));
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const fullPhone = `${hotelData?.country_code || "+91"}${newPhone}`;
+      await fetchFromHasura(updateUserPhoneMutation, { id: user.id, phone: fullPhone });
+      useAuthStore.setState({ userData: { ...user, phone: fullPhone } as any });
+      toast.success("Phone number updated");
+      setIsEditing(false);
+      setNewPhone("");
+    } catch {
+      toast.error("Failed to update phone number");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
+      <label className="text-sm font-semibold block mb-1" style={{ color: "var(--pom-text-muted)" }}>Phone Number</label>
+      {isEditing ? (
+        <div className="flex gap-2 items-center">
+          <div className="flex items-center justify-center px-3 rounded-lg text-sm font-bold border" style={{ borderColor: "var(--pom-card-border, #e7e5e4)", color: "var(--pom-accent, #ea580c)" }}>
+            {hotelData?.country_code || "+91"}
+          </div>
+          <Input
+            type="tel"
+            value={newPhone}
+            onChange={(e) => setNewPhone(e.target.value.replace(/\D/g, "").slice(0, maxDigits))}
+            placeholder="New phone number"
+            className="flex-1 rounded-lg text-sm text-inherit placeholder:text-inherit placeholder:opacity-40 focus-visible:ring-0 shadow-none"
+            style={{ borderColor: "var(--pom-card-border, #e7e5e4)" }}
+            autoFocus
+          />
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
+            style={{ backgroundColor: "var(--pom-accent, #ea580c)" }}
+          >
+            {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setIsEditing(false); setNewPhone(""); }}
+            className="text-xs font-semibold px-2 py-1.5 rounded-lg"
+            style={{ color: "var(--pom-text-muted)" }}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-inherit">{user.phone}</span>
+          <button
+            type="button"
+            onClick={() => setIsEditing(true)}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+            style={{ color: "var(--pom-accent, #ea580c)", backgroundColor: "color-mix(in srgb, var(--pom-accent, #ea580c) 10%, transparent)" }}
+          >
+            Change
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// =================================================================
 // Main PlaceOrderModal Component
 // =================================================================
 
@@ -1984,6 +2073,11 @@ const PlaceOrderModal = ({
                     style={{ borderColor: "var(--pom-card-border, #e7e5e4)" }}
                   />
                 </div>
+              )}
+
+              {/* Phone Number */}
+              {user && (user as any)?.phone && (
+                <PhoneNumberCard user={user} hotelData={hotelData} />
               )}
 
               {/* Discount Code */}

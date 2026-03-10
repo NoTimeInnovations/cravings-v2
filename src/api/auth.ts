@@ -181,6 +181,15 @@ export const updateUserFullNameMutation = `
   }
 `;
 
+export const updateUserPhoneMutation = `
+  mutation UpdateUserPhone($id: uuid!, $phone: String) {
+    update_users_by_pk(pk_columns: { id: $id }, _set: { phone: $phone }) {
+      id
+      phone
+    }
+  }
+`;
+
 export const partnerMutation = `
   mutation InsertPartner($object: partners_insert_input!) {
   insert_partners_one(object: $object) {

@@ -15,7 +15,7 @@ import { revalidateTag } from "@/app/actions/revalidate";
 import { deleteFileFromS3, uploadFileToS3 } from "@/app/actions/aws-s3";
 import Img from "@/components/Img";
 import { Loader2, Upload, Save, Power, LogOut, Eye, EyeOff, KeyRound } from "lucide-react";
-import ImageCropper from "@/components/ImageCropper";
+import BannerEditor from "@/components/BannerEditor";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { getSocialLinks } from "@/lib/getSocialLinks";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,6 +25,7 @@ import { UpgradePrompt } from "@/components/admin-v2/UpgradePrompt";
 import { UpgradePlanDialog } from "@/components/admin-v2/UpgradePlanDialog";
 import { Lock, Crown } from "lucide-react";
 import { LocationSettings } from "./LocationSettings";
+import { isVideoUrl } from "@/lib/mediaUtils";
 
 
 
@@ -302,6 +303,20 @@ export function GeneralSettings() {
         const files = e.target.files;
         if (!files || !files[0]) return;
         const file = files[0];
+
+        // Video upload: enforce 1MB limit and skip cropper
+        if (file.type.startsWith("video/")) {
+            if (file.size > 1 * 1024 * 1024) {
+                toast.error("Video must be under 1MB");
+                e.target.value = "";
+                return;
+            }
+            const blobUrl = URL.createObjectURL(file);
+            setBannerImage(blobUrl);
+            handleBannerUpload(blobUrl);
+            return;
+        }
+
         const blobUrl = URL.createObjectURL(file);
         setSelectedImageFile(file);
         setSelectedImageUrl(blobUrl);
@@ -419,7 +434,11 @@ export function GeneralSettings() {
                         <CardContent className="space-y-4">
                             <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border bg-muted">
                                 {bannerImage ? (
-                                    <Img src={bannerImage} alt="Store Banner" className="h-full w-full object-cover" />
+                                    isVideoUrl(bannerImage) ? (
+                                        <video src={bannerImage} autoPlay muted loop playsInline className="h-full w-full object-cover" />
+                                    ) : (
+                                        <Img src={bannerImage} alt="Store Banner" className="h-full w-full object-cover" />
+                                    )
                                 ) : (
                                     <div className="flex h-full w-full items-center justify-center text-muted-foreground">
                                         No banner image
@@ -438,7 +457,7 @@ export function GeneralSettings() {
                                     <Input
                                         type="file"
                                         className="absolute inset-0 cursor-pointer opacity-0"
-                                        accept="image/*"
+                                        accept="image/*,video/mp4,video/webm"
                                         onChange={handleBannerChange}
                                         disabled={isBannerUploading}
                                     />
@@ -637,10 +656,10 @@ export function GeneralSettings() {
             </div >
 
             {isCropperOpen && selectedImageUrl && (
-                <ImageCropper
+                <BannerEditor
                     isOpen={isCropperOpen}
                     imageUrl={selectedImageUrl}
-                    onCropComplete={(url) => handleCropComplete(url)}
+                    onComplete={(url) => handleCropComplete(url)}
                     onClose={() => setIsCropperOpen(false)}
                 />
             )

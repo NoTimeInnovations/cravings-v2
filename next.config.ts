@@ -1,6 +1,22 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
+  webpack: (config) => {
+    // Prevent @imgly/background-removal from trying to import Node-only modules
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'sharp$': false,
+      'onnxruntime-node$': false,
+    };
+    return config;
+  },
+  turbopack: {
+    resolveAlias: {
+      'onnxruntime-node': path.resolve(__dirname, 'src/lib/emptyModule.ts'),
+      'sharp': path.resolve(__dirname, 'src/lib/emptyModule.ts'),
+    },
+  },
   experimental: {
     staleTimes: {
       dynamic: 30,

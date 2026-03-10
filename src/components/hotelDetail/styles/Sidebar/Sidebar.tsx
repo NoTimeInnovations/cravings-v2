@@ -4,8 +4,9 @@ import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import ThemeChangeButton, { ThemeConfig } from "../../ThemeChangeButton";
 import SearchMenu from "../../SearchMenu";
-import { MapPin, LayoutGrid, Phone, Search, Zap, ChevronLeft, ChevronRight, Star, Minus, Plus, Utensils, ShoppingBag, ExternalLink } from "lucide-react";
+import { MapPin, LayoutGrid, Phone, Search, Zap, ChevronLeft, ChevronRight, Star, Minus, Plus, Utensils, ShoppingBag, ExternalLink, User } from "lucide-react";
 import { FaFacebook, FaInstagram, FaWhatsapp } from "react-icons/fa";
+import Link from "next/link";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import {
   HotelData,
@@ -18,6 +19,7 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import SidebarItemCard from "./SidebarItemCard";
 import useOrderStore from "@/store/orderStore";
 import OrderDrawer from "../../OrderDrawer";
+import { isVideoUrl } from "@/lib/mediaUtils";
 import CompactOrders from "../Compact/CompactOrders";
 import { getFeatures } from "@/lib/getFeatures";
 import DiscountBanner from "../../DiscountBanner";
@@ -301,11 +303,19 @@ const Sidebar = ({
           <section className="relative">
             <div className="w-full h-[28vh] relative overflow-hidden">
               {hoteldata?.store_banner && hoteldata?.store_banner !== "" ? (
-                <img
-                  src={hoteldata.store_banner}
-                  alt={hoteldata?.store_name}
-                  className="w-full h-full object-cover"
-                />
+                isVideoUrl(hoteldata.store_banner) ? (
+                  <video
+                    src={hoteldata.store_banner}
+                    autoPlay muted loop playsInline
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <img
+                    src={hoteldata.store_banner}
+                    alt={hoteldata?.store_name}
+                    className="w-full h-full object-cover"
+                  />
+                )
               ) : (
                 <div
                   className="w-full h-full flex items-center justify-center relative overflow-hidden"
@@ -1134,6 +1144,14 @@ const Sidebar = ({
             <ShoppingBag size={20} />
             <span className="text-xs font-medium">Orders</span>
           </button>
+          <Link
+            href="/user-profile"
+            className="flex flex-col items-center gap-1 p-2 rounded-lg transition-colors opacity-50"
+            style={{ color: styles.color }}
+          >
+            <User size={20} />
+            <span className="text-xs font-medium">Profile</span>
+          </Link>
         </div>
       )}
     </>

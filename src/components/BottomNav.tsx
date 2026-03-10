@@ -2,8 +2,6 @@
 import { getFeatures } from "@/lib/getFeatures";
 import { Partner, useAuthStore } from "@/store/authStore";
 import {
-  BadgePercent,
-  Telescope,
   ShoppingBag,
   User,
   LayoutDashboard,
@@ -11,16 +9,43 @@ import {
   Shield,
   Home,
   CreditCard,
+  ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
 const BottomNav = () => {
   const { userData } = useAuthStore();
   const pathname = usePathname();
+  const router = useRouter();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+
+  // Check if current path is a username route
+  const isUsernameRoute = (() => {
+    const segments = pathname.split("/").filter(Boolean);
+    if (segments.length !== 1) return false;
+    const knownRoutes = new Set([
+      "actions", "admin", "admin-v2", "api", "auth", "bill", "business",
+      "captain", "captainlogin", "coupons", "create-offer-promotion", "demo",
+      "download-app", "explore", "get-started", "help-center", "hotels",
+      "join-community", "kot", "login", "my-earnings", "my-orders", "newlogin",
+      "offers", "onboard", "order", "partner", "partnerlogin", "pricing",
+      "privacy-policy", "product", "profile", "qrScan", "reel-analytics",
+      "refund-policy", "sentry-example-page", "solutions", "superadmin",
+      "superLogin", "terms-and-conditions", "test", "tutorials", "user-map",
+      "user-profile",
+      "whatsappQr",
+    ]);
+    return !knownRoutes.has(segments[0]);
+  })();
+
+  // Show back button for users when NOT on username routes, /hotels, or /qrScan
+  const showBackButton =
+    userData?.role === "user" &&
+    !isUsernameRoute &&
+    !pathname.startsWith("/qrScan");
 
   // Define navigation items based on user role
   const getNavItems = () => {
@@ -35,22 +60,16 @@ const BottomNav = () => {
       case "user":
         return [
           {
-            href: "/",
-            name: "Home",
-            icon: <Telescope size={20} />,
-            exactMatch: true,
-          },
-          {
-            href: "/offers",
-            name: "Offers",
-            icon: <BadgePercent size={20} />,
-            exactMatch: false,
-          },
-          {
             href: "/hotels",
             name: "Hotels",
             icon: <Home size={20} />,
             exactMatch: false,
+          },
+          {
+            href: "/user-profile",
+            name: "Profile",
+            icon: <User size={20} />,
+            exactMatch: true,
           },
         ];
       case "partner":
@@ -140,26 +159,9 @@ const BottomNav = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
 
-  // Hide on partner username routes (single-segment paths that aren't known static routes)
-  const isUsernameRoute = (() => {
-    const segments = pathname.split("/").filter(Boolean);
-    if (segments.length !== 1) return false;
-    const knownRoutes = new Set([
-      "actions", "admin", "admin-v2", "api", "auth", "bill", "business",
-      "captain", "captainlogin", "coupons", "create-offer-promotion", "demo",
-      "download-app", "explore", "get-started", "help-center", "hotels",
-      "join-community", "kot", "login", "my-earnings", "my-orders", "newlogin",
-      "offers", "onboard", "order", "partner", "partnerlogin", "pricing",
-      "privacy-policy", "product", "profile", "qrScan", "reel-analytics",
-      "refund-policy", "sentry-example-page", "solutions", "superadmin",
-      "superLogin", "terms-and-conditions", "test", "tutorials", "user-map",
-      "whatsappQr",
-    ]);
-    return !knownRoutes.has(segments[0]);
-  })();
-
-  // Don't show on /captain* routes, otherwise show if items exist
-  const shouldShow = items.length > 0 && !isUsernameRoute && !pathname.startsWith("/captain") && !pathname.startsWith("/kot") && !pathname.startsWith("/bill") && !pathname.startsWith("/whatsappQr") && !pathname.startsWith("/get-started") && !pathname.startsWith("/admin-v2") && !pathname.startsWith("/pricing") && !pathname.startsWith("/hotels") && !pathname.startsWith("/qrScan") && !pathname.startsWith("/business") && !pathname.startsWith("/order/");
+  // Don't show on certain routes (allow /hotels but not /hotels/*)
+  const isHotelSubRoute = pathname.startsWith("/hotels/");
+  const shouldShow = items.length > 0 && !isUsernameRoute && !isHotelSubRoute && !pathname.startsWith("/captain") && !pathname.startsWith("/kot") && !pathname.startsWith("/bill") && !pathname.startsWith("/whatsappQr") && !pathname.startsWith("/get-started") && !pathname.startsWith("/admin-v2") && !pathname.startsWith("/pricing") && !pathname.startsWith("/business") && !pathname.startsWith("/order/");
 
   if (!shouldShow) return null;
 
@@ -171,12 +173,20 @@ const BottomNav = () => {
         className={`fixed bottom-0 left-0 w-full bg-white px-4 py-3 flex justify-around z-[500] border-t border-gray-200 transition-transform duration-300 ${isVisible ? "translate-y-0" : "translate-y-full"
           }`}
       >
+        {showBackButton && (
+          <button
+            onClick={() => router.back()}
+            className="text-center flex-1 min-w-[60px]"
+          >
+            <div className="flex flex-col items-center text-sm font-medium text-gray-600">
+              <div className="mb-1"><ArrowLeft size={20} /></div>
+              <span className="text-xs">Back</span>
+            </div>
+          </button>
+        )}
         {items.map((item) => {
-          // Special handling for explore route
           let isActive = false;
           if (item.href === "/") {
-            isActive = pathname === "/";
-          } else if (item.href === "/") {
             isActive = pathname === "/";
           } else {
             isActive = item.exactMatch
