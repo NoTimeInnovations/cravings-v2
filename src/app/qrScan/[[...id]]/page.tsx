@@ -24,6 +24,7 @@ import { cookies } from "next/headers";
 import { Metadata } from "next";
 import React from "react";
 import { filterOffersByType } from "@/lib/offerFilters";
+import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 import { startOfMonth, endOfMonth } from "date-fns";
 
 const isUUID = (str: string) =>
@@ -77,15 +78,16 @@ export async function generateMetadata({
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://menuthere.com';
   const defaultBanner = `${baseUrl}/image_placeholder.webp`;
   const storeBanner = hotel.store_banner ? (hotel.store_banner.startsWith('http') ? hotel.store_banner : `${baseUrl}${hotel.store_banner}`) : defaultBanner;
+  const metaImage = isVideoUrl(storeBanner) ? getVideoThumbnailUrl(storeBanner) : storeBanner;
 
   return {
     title: hotel.store_name,
-    icons: [storeBanner],
+    icons: [metaImage],
     description:
       hotel.description ||
       `View the digital menu of ${hotel.store_name}, browse items, and place orders.`,
     openGraph: {
-      images: [storeBanner],
+      images: [metaImage],
       title: hotel.store_name,
       description:
         hotel.description ||
