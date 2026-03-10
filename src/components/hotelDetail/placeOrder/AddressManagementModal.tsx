@@ -567,7 +567,7 @@ const AddressManagementModal = ({
               placeholder="Search an area or address"
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
-              className="w-full h-12 pl-4 pr-12 rounded-xl outline-none transition-colors text-[15px]"
+              className="w-full h-12 pl-4 pr-12 rounded-xl outline-none transition-colors text-[15px] placeholder:text-inherit placeholder:opacity-40"
               style={{
                 backgroundColor: cardBg,
                 backdropFilter: "blur(12px)",
@@ -869,7 +869,7 @@ const AddressManagementModal = ({
                 type="text"
                 placeholder="Search an area or address"
                 readOnly
-                className="w-full h-12 pl-4 pr-12 rounded-xl text-[15px] cursor-pointer"
+                className="w-full h-12 pl-4 pr-12 rounded-xl text-[15px] cursor-pointer placeholder:text-inherit placeholder:opacity-40"
                 style={{ backgroundColor: cardBg, backdropFilter: "blur(12px)", color: themeText, border: `1px solid ${cardBorder}` }}
               />
               <Search className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: `${themeText}66` }} />
@@ -932,7 +932,7 @@ const AddressManagementModal = ({
             value={manualAddress}
             onChange={(e) => setManualAddress(e.target.value)}
             rows={2}
-            className="w-full mt-4 p-3 rounded-xl outline-none transition-colors text-[14px] resize-none"
+            className="w-full mt-4 p-3 rounded-xl outline-none transition-colors text-[14px] resize-none placeholder:text-inherit placeholder:opacity-40"
             style={{ backgroundColor: cardBg, backdropFilter: "blur(12px)", color: themeText, border: `1px solid ${cardBorder}` }}
           />
 

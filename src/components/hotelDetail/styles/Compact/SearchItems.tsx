@@ -93,7 +93,8 @@ const SearchItems = ({
               <Input
                 ref={inputRef}
                 placeholder="Search for dishes..."
-                className="text-base border-0 shadow-none focus-visible:ring-0"
+                className="text-base border-0 shadow-none focus-visible:ring-0 placeholder:text-inherit placeholder:opacity-40"
+                style={{ color: styles?.color }}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />

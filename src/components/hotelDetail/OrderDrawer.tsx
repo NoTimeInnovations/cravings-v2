@@ -526,7 +526,7 @@ const OrderDrawer = ({
                       setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, maxDigits));
                     }}
                     autoFocus
-                    className="flex-1 rounded-2xl h-14 text-base px-4 sm:px-5 transition-all duration-200"
+                    className="flex-1 rounded-2xl h-14 text-base px-4 sm:px-5 transition-all duration-200 placeholder:text-inherit placeholder:opacity-40"
                     style={{
                       backgroundColor: styles.backgroundColor,
                       color: styles.color,
