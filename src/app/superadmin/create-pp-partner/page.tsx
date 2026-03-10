@@ -420,6 +420,9 @@ const CreatePartnerPage = () => {
                         <strong>[{menuMapping}]</strong> menu version for the
                         Cravings configuration.
                       </li>
+                      <li>
+                        Also <strong>enable backward tax</strong> for this partner.
+                      </li>
                     </ul>
                     <p>
                       Petpooja Team, once we have the merchant&apos;s

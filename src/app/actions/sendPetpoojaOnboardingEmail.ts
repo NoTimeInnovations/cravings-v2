@@ -65,6 +65,7 @@ Integration Details:
   • Platform Name: Cravings
   • Restaurant ID: ${props.restaurantId}
   • Menu Mapping: Please use the [${props.menuMapping}] menu version for the Cravings configuration.
+  • Also enable backward tax for this partner.
 
 Petpooja Team, once we have the merchant's confirmation, please provide the necessary mapping codes so we can proceed with the technical setup.
 
