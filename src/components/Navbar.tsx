@@ -218,6 +218,7 @@ const HIDDEN_PATHS = [
   "/my-orders",
   "/onboard",
   "/onboard/.*",
+  "/delivery-app/download",
 ];
 
 // Known top-level static routes — any single-segment path NOT in this list
@@ -225,7 +226,7 @@ const HIDDEN_PATHS = [
 const KNOWN_STATIC_ROUTES = new Set([
   "actions", "admin", "admin-v2", "api", "auth", "bill", "blog", "business",
   "captain", "captainlogin", "coupons", "create-offer-promotion", "demo",
-  "download-app", "explore", "get-started", "help-center", "hotels",
+  "delivery-app", "download-app", "explore", "get-started", "help-center", "hotels",
   "join-community", "kot", "login", "my-earnings", "my-orders", "newlogin",
   "offers", "onboard", "order", "partner", "partnerlogin", "pricing",
   "privacy-policy", "product", "profile", "qrScan", "reel-analytics",

@@ -15,9 +15,17 @@ import {
     deleteDeliveryBoyMutation,
     updateDeliveryBoyMutation,
 } from "@/api/deliveryBoys";
-import { Loader2, Plus, Trash2, Truck, ArrowLeft, Pencil } from "lucide-react";
+import { Loader2, Plus, Trash2, Truck, ArrowLeft, Pencil, Download, Copy, Share2, Smartphone } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { getFeatures } from "@/lib/getFeatures";
 import { Switch } from "@/components/ui/switch";
+
+const DOWNLOAD_PAGE_URL = "/delivery-app/download";
 
 interface DeliveryBoy {
     id: string;
@@ -250,10 +258,40 @@ export function AdminV2DeliveryBoys() {
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Delivery Boy Management</h1>
                     <p className="text-muted-foreground">Manage your delivery boys.</p>
                 </div>
-                <Button onClick={() => setIsAddingDeliveryBoy(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Delivery Boy
-                </Button>
+                <div className="flex gap-2">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline">
+                                <Smartphone className="mr-2 h-4 w-4" />
+                                Download App
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => {
+                                window.open(`${DOWNLOAD_PAGE_URL}?action=download`, "_blank");
+                            }}>
+                                <Download className="mr-2 h-4 w-4" />
+                                Download APK
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                                window.open(`${DOWNLOAD_PAGE_URL}?action=copy`, "_blank");
+                            }}>
+                                <Copy className="mr-2 h-4 w-4" />
+                                Copy Link
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                                window.open(`${DOWNLOAD_PAGE_URL}?action=share`, "_blank");
+                            }}>
+                                <Share2 className="mr-2 h-4 w-4" />
+                                Share Link
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button onClick={() => setIsAddingDeliveryBoy(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Delivery Boy
+                    </Button>
+                </div>
             </div>
 
             <Card>

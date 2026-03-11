@@ -172,7 +172,7 @@ const BottomNav = () => {
 
   // Don't show on certain routes (allow /hotels but not /hotels/*)
   const isHotelSubRoute = pathname.startsWith("/hotels/");
-  const shouldShow = items.length > 0 && !isUsernameRoute && !isHotelSubRoute && !pathname.startsWith("/captain") && !pathname.startsWith("/kot") && !pathname.startsWith("/bill") && !pathname.startsWith("/whatsappQr") && !pathname.startsWith("/get-started") && !pathname.startsWith("/admin-v2") && !pathname.startsWith("/pricing") && !pathname.startsWith("/business") && !pathname.startsWith("/order/") && pathname !== "/user-profile";
+  const shouldShow = items.length > 0 && !isUsernameRoute && !isHotelSubRoute && !pathname.startsWith("/captain") && !pathname.startsWith("/kot") && !pathname.startsWith("/bill") && !pathname.startsWith("/whatsappQr") && !pathname.startsWith("/get-started") && !pathname.startsWith("/admin-v2") && !pathname.startsWith("/pricing") && !pathname.startsWith("/business") && !pathname.startsWith("/order/") && !pathname.startsWith("/delivery-app/download") && pathname !== "/user-profile";
 
   if (!shouldShow) return null;
 
