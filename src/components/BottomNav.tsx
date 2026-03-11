@@ -9,6 +9,7 @@ import {
   Shield,
   CreditCard,
   ArrowLeft,
+  UtensilsCrossed,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -20,6 +21,17 @@ const BottomNav = () => {
   const router = useRouter();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [lastStorePath, setLastStorePath] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("hotelTheme");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.storePath) setLastStorePath(parsed.storePath);
+      }
+    } catch {}
+  }, []);
 
   // Check if current path is a username route
   const isUsernameRoute = (() => {
@@ -160,7 +172,7 @@ const BottomNav = () => {
 
   // Don't show on certain routes (allow /hotels but not /hotels/*)
   const isHotelSubRoute = pathname.startsWith("/hotels/");
-  const shouldShow = items.length > 0 && !isUsernameRoute && !isHotelSubRoute && !pathname.startsWith("/captain") && !pathname.startsWith("/kot") && !pathname.startsWith("/bill") && !pathname.startsWith("/whatsappQr") && !pathname.startsWith("/get-started") && !pathname.startsWith("/admin-v2") && !pathname.startsWith("/pricing") && !pathname.startsWith("/business") && !pathname.startsWith("/order/");
+  const shouldShow = items.length > 0 && !isUsernameRoute && !isHotelSubRoute && !pathname.startsWith("/captain") && !pathname.startsWith("/kot") && !pathname.startsWith("/bill") && !pathname.startsWith("/whatsappQr") && !pathname.startsWith("/get-started") && !pathname.startsWith("/admin-v2") && !pathname.startsWith("/pricing") && !pathname.startsWith("/business") && !pathname.startsWith("/order/") && pathname !== "/user-profile";
 
   if (!shouldShow) return null;
 
@@ -173,15 +185,27 @@ const BottomNav = () => {
           }`}
       >
         {showBackButton && (
-          <button
-            onClick={() => router.back()}
-            className="text-center flex-1 min-w-[60px]"
-          >
-            <div className="flex flex-col items-center text-sm font-medium text-gray-600">
-              <div className="mb-1"><ArrowLeft size={20} /></div>
-              <span className="text-xs">Back</span>
-            </div>
-          </button>
+          lastStorePath ? (
+            <Link
+              href={lastStorePath}
+              className="text-center flex-1 min-w-[60px]"
+            >
+              <div className="flex flex-col items-center text-sm font-medium text-gray-600">
+                <div className="mb-1"><UtensilsCrossed size={20} /></div>
+                <span className="text-xs">Food</span>
+              </div>
+            </Link>
+          ) : (
+            <button
+              onClick={() => router.back()}
+              className="text-center flex-1 min-w-[60px]"
+            >
+              <div className="flex flex-col items-center text-sm font-medium text-gray-600">
+                <div className="mb-1"><ArrowLeft size={20} /></div>
+                <span className="text-xs">Back</span>
+              </div>
+            </button>
+          )
         )}
         {items.map((item) => {
           let isActive = false;

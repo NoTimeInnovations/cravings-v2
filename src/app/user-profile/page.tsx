@@ -9,7 +9,6 @@ import { updateUserFullNameMutation, updateUserPhoneMutation } from "@/api/auth"
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
-  ArrowLeft,
   LogOut,
   Loader2,
   User as UserIcon,
@@ -19,20 +18,39 @@ import {
   Edit,
   Check,
   X,
-  ExternalLink,
+  UtensilsCrossed,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
-import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
+
+type StoredTheme = {
+  accent?: string;
+  bg?: string;
+  text?: string;
+  storeName?: string;
+  storePath?: string;
+};
 
 export default function UserProfilePage() {
   const { userData, signOut, loading: authLoading } = useAuthStore();
   const { userOrders, subscribeUserOrders } = useOrderStore();
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  // Theme
+  const [theme, setTheme] = useState<StoredTheme>({});
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("hotelTheme");
+      if (stored) setTheme(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  const accent = theme.accent || "#EA580C";
+  const bg = theme.bg || "#F5F5F5";
+  const text = theme.text || "#000000";
 
   // Edit states
   const [editingName, setEditingName] = useState(false);
@@ -99,50 +117,61 @@ export default function UserProfilePage() {
 
   if (authLoading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: bg }}>
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: accent }} />
       </div>
     );
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className="min-h-screen" style={{ backgroundColor: bg }}>
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-50 px-4 py-3 flex items-center gap-3 shadow-sm">
-        <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-          <ArrowLeft size={20} />
-        </button>
-        <h1 className="font-semibold text-lg">My Profile</h1>
+      <div className="border-b sticky top-0 z-50 px-4 py-3 flex items-center gap-3 shadow-sm" style={{ backgroundColor: bg, borderColor: `${text}15` }}>
+        {theme.storePath ? (
+          <Link
+            href={theme.storePath}
+            className="flex items-center gap-2 p-2 rounded-full transition-colors"
+            style={{ color: accent }}
+          >
+            <UtensilsCrossed size={20} />
+          </Link>
+        ) : (
+          <button onClick={() => router.back()} className="p-2 rounded-full transition-colors" style={{ color: text }}>
+            <UtensilsCrossed size={20} />
+          </button>
+        )}
+        <h1 className="font-semibold text-lg" style={{ color: text }}>My Profile</h1>
       </div>
 
       <div className="container mx-auto px-4 pb-8 pt-4 max-w-lg">
         {/* Profile Card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6 shadow-sm">
+        <div className="rounded-xl p-5 mb-6 shadow-sm" style={{ backgroundColor: `${text}06`, border: `1px solid ${text}12` }}>
           {/* Avatar */}
           <div className="flex items-center gap-4 mb-5">
-            <div className="h-14 w-14 rounded-full bg-orange-100 flex items-center justify-center">
-              <UserIcon className="h-7 w-7 text-orange-600" />
+            <div className="h-14 w-14 rounded-full flex items-center justify-center" style={{ backgroundColor: `${accent}15` }}>
+              <UserIcon className="h-7 w-7" style={{ color: accent }} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-lg font-semibold truncate">{user.full_name || "User"}</p>
-              <p className="text-sm text-gray-500">{user.phone}</p>
+              <p className="text-lg font-semibold truncate" style={{ color: text }}>{user.full_name || "User"}</p>
+              <p className="text-sm" style={{ color: `${text}66` }}>{user.phone}</p>
             </div>
           </div>
 
           {/* Name */}
-          <div className="border-t pt-4 space-y-4">
+          <div className="border-t pt-4 space-y-4" style={{ borderColor: `${text}15` }}>
             <div>
-              <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Name</label>
+              <label className="text-xs font-medium uppercase tracking-wider" style={{ color: `${text}66` }}>Name</label>
               {editingName ? (
                 <div className="flex items-center gap-2 mt-1">
                   <Input
                     value={nameValue}
                     onChange={(e) => setNameValue(e.target.value)}
-                    className="flex-1"
+                    className="flex-1 placeholder:text-inherit placeholder:opacity-40"
+                    style={{ backgroundColor: `${text}06`, color: text, borderColor: `${text}20` }}
                     autoFocus
                   />
                   <Button size="icon" variant="ghost" onClick={handleSaveName} disabled={savingName}>
-                    {savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 text-green-600" />}
+                    {savingName ? <Loader2 className="h-4 w-4 animate-spin" style={{ color: accent }} /> : <Check className="h-4 w-4 text-green-600" />}
                   </Button>
                   <Button size="icon" variant="ghost" onClick={() => { setEditingName(false); setNameValue(user.full_name || ""); }}>
                     <X className="h-4 w-4 text-red-500" />
@@ -150,9 +179,9 @@ export default function UserProfilePage() {
                 </div>
               ) : (
                 <div className="flex items-center justify-between mt-1">
-                  <p className="text-sm font-medium">{user.full_name || "Not set"}</p>
+                  <p className="text-sm font-medium" style={{ color: text }}>{user.full_name || "Not set"}</p>
                   <Button size="icon" variant="ghost" onClick={() => setEditingName(true)}>
-                    <Edit className="h-4 w-4 text-gray-400" />
+                    <Edit className="h-4 w-4" style={{ color: `${text}66` }} />
                   </Button>
                 </div>
               )}
@@ -160,16 +189,17 @@ export default function UserProfilePage() {
 
             {/* Phone */}
             <div>
-              <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</label>
+              <label className="text-xs font-medium uppercase tracking-wider" style={{ color: `${text}66` }}>Phone</label>
               <div className="flex items-center justify-between mt-1">
                 <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-gray-400" />
-                  <p className="text-sm font-medium">{user.phone}</p>
+                  <Phone className="h-4 w-4" style={{ color: `${text}66` }} />
+                  <p className="text-sm font-medium" style={{ color: text }}>{user.phone}</p>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
                   className="text-xs"
+                  style={{ borderColor: `${text}20`, color: text }}
                   onClick={async () => {
                     await signOut();
                     router.replace("/login");
@@ -194,29 +224,29 @@ export default function UserProfilePage() {
 
         {/* Orders by Store */}
         <div>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2" style={{ color: text }}>
             <ShoppingBag className="h-5 w-5" />
             My Orders
           </h2>
 
           {loading ? (
             <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin" />
+              <Loader2 className="h-8 w-8 animate-spin" style={{ color: accent }} />
             </div>
           ) : Object.keys(ordersByStore).length === 0 ? (
-            <div className="text-center py-12 text-gray-500 bg-white rounded-xl border">
+            <div className="text-center py-12 rounded-xl" style={{ color: `${text}66`, backgroundColor: `${text}06`, border: `1px solid ${text}12` }}>
               No orders yet
             </div>
           ) : (
             <div className="space-y-4">
               {Object.entries(ordersByStore).map(([partnerId, { storeName, currency, orders }]) => (
-                <div key={partnerId} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                  <div className="px-4 py-3 bg-gray-50 border-b flex items-center justify-between">
-                    <h3 className="font-semibold text-sm">{storeName}</h3>
-                    <span className="text-xs text-gray-500">{orders.length} order{orders.length !== 1 ? "s" : ""}</span>
+                <div key={partnerId} className="rounded-xl overflow-hidden shadow-sm" style={{ backgroundColor: `${text}06`, border: `1px solid ${text}12` }}>
+                  <div className="px-4 py-3 border-b flex items-center justify-between" style={{ backgroundColor: `${text}06`, borderColor: `${text}10` }}>
+                    <h3 className="font-semibold text-sm" style={{ color: text }}>{storeName}</h3>
+                    <span className="text-xs" style={{ color: `${text}66` }}>{orders.length} order{orders.length !== 1 ? "s" : ""}</span>
                   </div>
-                  <div className="divide-y">
-                    {orders.slice(0, 5).map((order) => {
+                  <div>
+                    {orders.slice(0, 5).map((order, idx) => {
                       const statusDisplay = getStatusDisplay(order);
                       const foodTotal = (order.items || []).reduce(
                         (sum: number, item: any) => sum + item.price * item.quantity, 0
@@ -225,28 +255,33 @@ export default function UserProfilePage() {
                         <Link
                           key={order.id}
                           href={`/order/${order.id}`}
-                          className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                          className="px-4 py-3 flex items-center justify-between transition-colors"
+                          style={idx < Math.min(orders.length, 5) - 1 ? { borderBottom: `1px solid ${text}10` } : undefined}
                         >
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">#{order.id.slice(0, 8)}</span>
+                              <span className="text-sm font-medium" style={{ color: text }}>#{order.id.slice(0, 8)}</span>
                               <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${statusDisplay.className}`}>
                                 {statusDisplay.text}
                               </span>
                             </div>
-                            <p className="text-xs text-gray-500 mt-0.5">
+                            <p className="text-xs mt-0.5" style={{ color: `${text}66` }}>
                               {format(new Date(order.createdAt), "MMM d, h:mm a")} - {order.items?.length || 0} items
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold">{currency}{foodTotal.toFixed(2)}</span>
-                            <ChevronRight className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm font-semibold" style={{ color: text }}>{currency}{foodTotal.toFixed(2)}</span>
+                            <ChevronRight className="h-4 w-4" style={{ color: `${text}40` }} />
                           </div>
                         </Link>
                       );
                     })}
                     {orders.length > 5 && (
-                      <Link href="/my-orders" className="px-4 py-3 text-center text-sm text-orange-600 font-medium hover:bg-orange-50 transition-colors block">
+                      <Link
+                        href="/my-orders"
+                        className="px-4 py-3 text-center text-sm font-medium transition-colors block"
+                        style={{ color: accent, borderTop: `1px solid ${text}10` }}
+                      >
                         View all orders
                       </Link>
                     )}

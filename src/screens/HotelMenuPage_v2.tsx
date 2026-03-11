@@ -91,7 +91,7 @@ const HotelMenuPage = ({
   //   saveUserLocation(false);
   // }, []);
 
-  // Save theme to localStorage so login/location screens can use it
+  // Save theme + last visited store to localStorage so other screens can use it
   useEffect(() => {
     try {
       localStorage.setItem(
@@ -101,10 +101,12 @@ const HotelMenuPage = ({
           bg: styles.backgroundColor,
           text: styles.color,
           showGrid: theme?.showGrid,
+          storeName: hoteldata?.store_name,
+          storePath: pathname,
         })
       );
     } catch {}
-  }, [styles.accent, styles.backgroundColor, styles.color, theme?.showGrid]);
+  }, [styles.accent, styles.backgroundColor, styles.color, theme?.showGrid, hoteldata?.store_name, pathname]);
 
   useEffect(() => {
     setQrData(qrData || null);
