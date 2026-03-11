@@ -13,6 +13,7 @@ import {
     CreditCard,
     Crown,
     Receipt,
+    Truck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,13 +35,14 @@ const sidebarItems: SidebarItem[] = [
     { title: "Purchase & Inventory", icon: ShoppingBag, id: "inventory" },
     { title: "QrCodes", icon: QrCode, id: "qrcodes" },
     { title: "Captains", icon: UserCog, id: "captains" },
+    { title: "Delivery Boys", icon: Truck, id: "deliveryboys" },
     { title: "POS", icon: CreditCard, id: "pos" },
     { title: "Settings", icon: Settings, id: "settings" },
     { title: "Billing", icon: Receipt, id: "billing" },
 ];
 
 // Items that are locked for free plan users
-const FREE_PLAN_LOCKED_IDS = ["captains", "pos", "inventory", "orders", "qrcodes"];
+const FREE_PLAN_LOCKED_IDS = ["captains", "pos", "inventory", "orders", "qrcodes", "deliveryboys"];
 
 interface AdminSidebarProps {
     activeView: string;
@@ -65,6 +67,9 @@ export function AdminSidebar({ activeView, onNavigate, onUpgrade, className }: A
         // Original feature flag filtering for paid plans
         if (item.id === "captains") {
             return features?.captainordering?.enabled ? "visible" : "hidden";
+        }
+        if (item.id === "deliveryboys") {
+            return features?.delivery?.enabled ? "visible" : "hidden";
         }
         if (item.id === "orders") {
             return (features?.ordering?.enabled || features?.delivery?.enabled || features?.pos?.enabled) ? "visible" : "hidden";

@@ -302,7 +302,7 @@ class PartnerNotification {
 }
 
 class UserNotification {
-  async sendOrderStatusNotification(order: Order, status: string) {
+  async sendOrderStatusNotification(order: Order, status: string, storeName?: string) {
     try {
       const user = order.userId;
 
@@ -327,9 +327,10 @@ class UserNotification {
         return;
       }
 
+      const name = order.partner?.store_name || storeName || "the restaurant";
       const message = getMessage(
-        `Order ${status} `,
-        `Your order has been ${status} by ${order.partner?.store_name}`,
+        `Order ${status}`,
+        `Your order has been ${status} by ${name}`,
         tokens,
         {
           url: `https://menuthere.com/order/${order.id}`,
@@ -357,8 +358,67 @@ class UserNotification {
   }
 }
 
+class DeliveryBoyNotification {
+  async sendAssignmentNotification(
+    deliveryBoyId: string,
+    orderId: string,
+    orderDisplayId: string,
+    deliveryAddress: string
+  ) {
+    try {
+      // Fetch delivery boy's device tokens from device_tokens table
+      const { device_tokens } = await fetchFromHasura(
+        `
+        query GetDeliveryBoyDeviceTokens($deliveryBoyId: String!) {
+          device_tokens(where: {user_id: {_eq: $deliveryBoyId}}) {
+            device_token
+          }
+        }
+      `,
+        { deliveryBoyId }
+      );
+
+      const tokens = device_tokens?.map(
+        (token: { device_token: string }) => token.device_token
+      ) || [];
+
+      if (tokens.length === 0) {
+        console.log("No device tokens found for delivery boy:", deliveryBoyId);
+        return;
+      }
+
+      const message = getMessage(
+        "New Delivery Assignment",
+        `Order #${orderDisplayId} - ${deliveryAddress}`,
+        tokens,
+        {
+          order_id: orderId,
+          type: "delivery_assignment",
+          channel_id: "cravings_channel_1",
+          sound: "custom_sound",
+        }
+      );
+
+      const response = await fetch(`${BASE_URL}/api/notifications/send`, {
+        method: "POST",
+        body: JSON.stringify({ message }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        console.error("Failed to send delivery boy notification");
+      }
+    } catch (error) {
+      console.error("Error sending delivery boy notification:", error);
+    }
+  }
+}
+
 export const Notification = {
   partner: new PartnerNotification(),
   user: new UserNotification(),
+  deliveryBoy: new DeliveryBoyNotification(),
   token: new Token(),
 };

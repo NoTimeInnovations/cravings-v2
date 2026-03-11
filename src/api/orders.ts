@@ -296,6 +296,17 @@ subscription GetPartnerOrders($partner_id: uuid!, $today_start: timestamptz!, $t
       name
       email
     }
+    delivery_boy_id
+    assigned_at
+    delivered_at
+    delivery_boy {
+      id
+      name
+      phone
+      current_lat
+      current_lng
+      location_updated_at
+    }
     user {
       full_name
       phone
@@ -374,6 +385,17 @@ subscription GetPaginatedPartnerOrders(
       id
       name
       email
+    }
+    delivery_boy_id
+    assigned_at
+    delivered_at
+    delivery_boy {
+      id
+      name
+      phone
+      current_lat
+      current_lng
+      location_updated_at
     }
     user {
       full_name
@@ -457,6 +479,17 @@ subscription GetUserOrders($user_id: uuid!) {
     discounts
     phone
     user_id
+    delivery_boy_id
+    assigned_at
+    delivered_at
+    delivery_boy {
+      id
+      name
+      phone
+      current_lat
+      current_lng
+      location_updated_at
+    }
     user {
       full_name
       phone
