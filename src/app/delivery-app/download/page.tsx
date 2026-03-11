@@ -60,7 +60,7 @@ function DownloadContent() {
             const reader = res.body?.getReader();
             if (!reader) throw new Error("Stream not supported");
 
-            const chunks: Uint8Array[] = [];
+            const chunks: BlobPart[] = [];
             let received = 0;
 
             while (true) {
