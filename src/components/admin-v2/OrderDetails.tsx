@@ -294,7 +294,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 </div>
 
                 {/* Delivery Boy Assignment */}
-                {order.type === "delivery" && order.deliveryAddress && order.status !== "completed" && order.status !== "cancelled" && (
+                {order.type === "delivery" && order.deliveryAddress && (
                     <DeliveryBoyAssignment order={order} />
                 )}
             </div>

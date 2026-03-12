@@ -35,6 +35,7 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
     const [selectedId, setSelectedId] = useState<string>("");
     const [isLoading, setIsLoading] = useState(true);
     const [isAssigning, setIsAssigning] = useState(false);
+    const [isReassigning, setIsReassigning] = useState(false);
 
     useEffect(() => {
         if (userData?.id) {
@@ -99,6 +100,8 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
             setOrders(updatedOrders);
 
             toast.success("Delivery boy assigned successfully");
+            setIsReassigning(false);
+            setSelectedId("");
         } catch (error) {
             console.error("Error assigning delivery boy:", error);
             toast.error("Failed to assign delivery boy");
@@ -107,13 +110,25 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
         }
     };
 
-    // Already assigned - show delivery boy info
+    // Already assigned - show delivery boy info with reassign option
     if (order.delivery_boy_id && order.delivery_boy) {
         return (
             <div className="p-4 border rounded-lg bg-purple-50 dark:bg-purple-900/10">
-                <div className="flex items-center gap-2 mb-2">
-                    <Truck className="h-4 w-4 text-purple-600" />
-                    <h3 className="font-semibold text-purple-900 dark:text-purple-300">Delivery Boy Assigned</h3>
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                        <Truck className="h-4 w-4 text-purple-600" />
+                        <h3 className="font-semibold text-purple-900 dark:text-purple-300">Delivery Boy Assigned</h3>
+                    </div>
+                    {order.status !== "completed" && order.status !== "cancelled" && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => setIsReassigning(!isReassigning)}
+                        >
+                            {isReassigning ? "Cancel" : "Reassign"}
+                        </Button>
+                    )}
                 </div>
                 <div className="text-sm space-y-1">
                     <p className="font-medium">{order.delivery_boy.name}</p>
@@ -125,6 +140,38 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
                         {order.delivery_boy.phone}
                     </a>
                 </div>
+                {isReassigning && (
+                    <div className="mt-3 pt-3 border-t border-purple-200 dark:border-purple-800">
+                        <p className="text-xs text-muted-foreground mb-2">Select a new delivery boy:</p>
+                        {isLoading ? (
+                            <div className="flex justify-center py-2">
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            </div>
+                        ) : deliveryBoys.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No active delivery boys available.</p>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <Select value={selectedId} onValueChange={setSelectedId}>
+                                    <SelectTrigger className="flex-1">
+                                        <SelectValue placeholder="Select delivery boy" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {deliveryBoys
+                                            .filter((boy) => boy.id !== order.delivery_boy_id)
+                                            .map((boy) => (
+                                                <SelectItem key={boy.id} value={boy.id}>
+                                                    {boy.name} ({boy.phone})
+                                                </SelectItem>
+                                            ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button onClick={handleAssign} disabled={isAssigning || !selectedId} size="sm">
+                                    {isAssigning ? <Loader2 className="h-4 w-4 animate-spin" /> : "Assign"}
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         );
     }
