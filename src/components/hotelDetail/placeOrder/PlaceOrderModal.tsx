@@ -36,6 +36,7 @@ import { validateDiscountQuery, incrementDiscountUsageMutation } from "@/api/dis
 import { Tag } from "lucide-react";
 import { UpiPaymentScreen } from "./UpiPaymentScreen";
 import AddressManagementModal, { type SavedAddress, type AddressModalTheme } from "./AddressManagementModal";
+import { Notification } from "@/app/actions/notification";
 
 // Helper: detect if a hex color is dark
 function isDarkColor(hex: string): boolean {
@@ -862,6 +863,7 @@ const LoginDrawer = ({
           } catch { }
         }
         toast.success("Logged in successfully");
+        Notification.token.save();
         onLoginSuccess();
         setShowLoginDrawer(false);
       } else {

@@ -275,7 +275,7 @@ class PartnerNotification {
         ).toLocaleDateString()}`,
         tokens,
         {
-          url: `https://menuthere.com/offers/${offer?.id || ""}`,
+          url: "https://menuthere.com",
           channel_id: "cravings_channel_2",
           sound: "default_sound"
         }
@@ -327,10 +327,21 @@ class UserNotification {
         return;
       }
 
-      const name = order.partner?.store_name || storeName || "the restaurant";
+      // Fetch store name if not available on the order (admin subscriptions don't include partner data)
+      let storeName = order.partner?.store_name;
+      if (!storeName && order.partnerId) {
+        const { partners_by_pk } = await fetchFromHasura(
+          `query GetPartnerName($partnerId: uuid!) {
+            partners_by_pk(id: $partnerId) { store_name }
+          }`,
+          { partnerId: order.partnerId }
+        );
+        storeName = partners_by_pk?.store_name;
+      }
+
       const message = getMessage(
-        `Order ${status}`,
-        `Your order has been ${status} by ${name}`,
+        `Order ${status} `,
+        `Your order has been ${status}${storeName ? ` by ${storeName}` : ""}`,
         tokens,
         {
           url: `https://menuthere.com/order/${order.id}`,
