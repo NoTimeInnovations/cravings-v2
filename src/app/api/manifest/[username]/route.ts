@@ -25,9 +25,9 @@ export async function GET(
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
-        const theme = partner.theme || {};
-        const bgColor = theme.bg || "#ffffff";
-        const accentColor = theme.accent || "#000000";
+        const rawTheme = typeof partner.theme === "string" ? JSON.parse(partner.theme) : (partner.theme || {});
+        const bgColor = rawTheme.colors?.bg || "#ffffff";
+        const accentColor = rawTheme.colors?.accent || "#000000";
 
         const manifest = {
             name: partner.store_name || "Menuthere",
@@ -36,7 +36,7 @@ export async function GET(
             start_url: `/${username}`,
             display: "standalone" as const,
             background_color: bgColor,
-            theme_color: accentColor,
+            theme_color: bgColor,
             icons: [
                 ...(partner.store_banner
                     ? [{ src: partner.store_banner, sizes: "512x512", type: "image/png" }]

@@ -32,7 +32,6 @@ import {
   UserCircle,
 } from "lucide-react";
 
-
 import { getFeatures } from "@/lib/getFeatures";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -219,20 +218,60 @@ const HIDDEN_PATHS = [
   "/onboard",
   "/onboard/.*",
   "/delivery-app/download",
+  "/profile",
+  "/user-profile",
 ];
 
 // Known top-level static routes — any single-segment path NOT in this list
 // is treated as a partner username route and the navbar is hidden.
 const KNOWN_STATIC_ROUTES = new Set([
-  "actions", "admin", "admin-v2", "api", "auth", "bill", "blog", "business",
-  "captain", "captainlogin", "coupons", "create-offer-promotion", "demo",
-  "delivery-app", "download-app", "explore", "get-started", "help-center", "hotels",
-  "join-community", "kot", "login", "my-earnings", "my-orders", "newlogin",
-  "offers", "onboard", "order", "partner", "partnerlogin", "pricing",
-  "privacy-policy", "product", "profile", "qrScan", "reel-analytics",
-  "refund-policy", "sentry-example-page", "solutions", "superadmin",
-  "superLogin", "terms-and-conditions", "test", "tutorials", "user-map",
-  "user-profile", "whatsappQr",
+  "actions",
+  "admin",
+  "admin-v2",
+  "api",
+  "auth",
+  "bill",
+  "blog",
+  "business",
+  "captain",
+  "captainlogin",
+  "coupons",
+  "create-offer-promotion",
+  "demo",
+  "delivery-app",
+  "download-app",
+  "explore",
+  "get-started",
+  "help-center",
+  "hotels",
+  "join-community",
+  "kot",
+  "login",
+  "my-earnings",
+  "my-orders",
+  "newlogin",
+  "offers",
+  "onboard",
+  "order",
+  "partner",
+  "partnerlogin",
+  "pricing",
+  "privacy-policy",
+  "product",
+  "profile",
+  "qrScan",
+  "reel-analytics",
+  "refund-policy",
+  "sentry-example-page",
+  "solutions",
+  "superadmin",
+  "superLogin",
+  "terms-and-conditions",
+  "test",
+  "tutorials",
+  "user-map",
+  "user-profile",
+  "whatsappQr",
 ]);
 
 import { Partner, useAuthStore } from "@/store/authStore";
@@ -309,8 +348,10 @@ export function Navbar() {
 
   useEffect(() => {
     const handleResize = () => {
-      if (isSolutionsOpen) clampDropdownToViewport(solutionsDropdownRef.current);
-      if (isResourcesOpen) clampDropdownToViewport(resourcesDropdownRef.current);
+      if (isSolutionsOpen)
+        clampDropdownToViewport(solutionsDropdownRef.current);
+      if (isResourcesOpen)
+        clampDropdownToViewport(resourcesDropdownRef.current);
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -389,15 +430,17 @@ export function Navbar() {
     }
   };
 
-  const shouldHideNavbar = HIDDEN_PATHS.some((path) => {
-    const pattern = path.replace(/\[.*?\]/g, "[^/]+");
-    const regex = new RegExp(`^${pattern}$`);
-    return regex.test(currentPath);
-  }) || (() => {
-    // Hide navbar for partner username routes (single-segment paths like /burger_joint)
-    const segments = currentPath.split("/").filter(Boolean);
-    return segments.length === 1 && !KNOWN_STATIC_ROUTES.has(segments[0]);
-  })();
+  const shouldHideNavbar =
+    HIDDEN_PATHS.some((path) => {
+      const pattern = path.replace(/\[.*?\]/g, "[^/]+");
+      const regex = new RegExp(`^${pattern}$`);
+      return regex.test(currentPath);
+    }) ||
+    (() => {
+      // Hide navbar for partner username routes (single-segment paths like /burger_joint)
+      const segments = currentPath.split("/").filter(Boolean);
+      return segments.length === 1 && !KNOWN_STATIC_ROUTES.has(segments[0]);
+    })();
 
   if (shouldHideNavbar) {
     return null;
@@ -406,10 +449,7 @@ export function Navbar() {
   const isHomePage = ["/offers", "/"].includes(pathname);
 
   const renderBranding = () => (
-    <Link
-      href="/"
-      className="flex items-center cursor-pointer"
-    >
+    <Link href="/" className="flex items-center cursor-pointer">
       <Image
         src="/menuthere_logo_full.svg"
         alt="Menuthere"
@@ -579,7 +619,9 @@ export function Navbar() {
               ref={solutionsDropdownRef}
               className={cn(
                 "absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[820px] max-w-[calc(100vw-2rem)] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_12px_60px_-10px_rgba(0,0,0,0.2)] transition-all duration-300 ease-out z-[70] border border-stone-200/60 before:absolute before:-top-3 before:left-0 before:right-0 before:h-4 before:bg-transparent cursor-default",
-                isSolutionsOpen ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2",
+                isSolutionsOpen
+                  ? "opacity-100 visible translate-y-0"
+                  : "opacity-0 invisible -translate-y-2",
               )}
               onClick={(e) => e.stopPropagation()}
             >
@@ -728,7 +770,9 @@ export function Navbar() {
               ref={resourcesDropdownRef}
               className={cn(
                 "absolute top-full left-1/2 -translate-x-1/2 mt-3 w-[320px] max-w-[calc(100vw-2rem)] bg-white/95 backdrop-blur-xl rounded-2xl shadow-[0_12px_60px_-10px_rgba(0,0,0,0.2)] transition-all duration-300 ease-out z-[70] border border-stone-200/60 before:absolute before:-top-3 before:left-0 before:right-0 before:h-4 before:bg-transparent cursor-default",
-                isResourcesOpen ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2",
+                isResourcesOpen
+                  ? "opacity-100 visible translate-y-0"
+                  : "opacity-0 invisible -translate-y-2",
               )}
               onClick={(e) => e.stopPropagation()}
             >

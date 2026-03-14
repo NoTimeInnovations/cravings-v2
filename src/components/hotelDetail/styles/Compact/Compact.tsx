@@ -8,7 +8,15 @@ import { Utensils, ShoppingBag, User } from "lucide-react";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { formatDisplayName } from "@/store/categoryStore_hasura";
 import ItemCard from "./ItemCard";
-import { MapPin, Palette, Check, X, ChevronRight, Loader2, ArrowLeft } from "lucide-react";
+import {
+  MapPin,
+  Palette,
+  Check,
+  X,
+  ChevronRight,
+  Loader2,
+  ArrowLeft,
+} from "lucide-react";
 import SocialLinks from "./SocialLinks";
 import OrderDrawer from "../../OrderDrawer";
 import RateUs from "./RateUs";
@@ -30,11 +38,11 @@ import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 
 // Helper to check darkness for contrast
 const isColorDark = (hex: string) => {
-  const c = hex.substring(1);      // strip #
-  const rgb = parseInt(c, 16);   // convert rrggbb to decimal
-  const r = (rgb >> 16) & 0xff;  // extract red
-  const g = (rgb >> 8) & 0xff;  // extract green
-  const b = (rgb >> 0) & 0xff;  // extract blue
+  const c = hex.substring(1); // strip #
+  const rgb = parseInt(c, 16); // convert rrggbb to decimal
+  const r = (rgb >> 16) & 0xff; // extract red
+  const g = (rgb >> 8) & 0xff; // extract green
+  const b = (rgb >> 0) & 0xff; // extract blue
   const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b; // per ITU-R BT.709
   return luma < 128;
 };
@@ -72,13 +80,17 @@ const Compact = ({
   isOnFreePlan,
 }: DefaultHotelPageProps) => {
   const [activeCatIndex, setActiveCatIndex] = useState<number>(0);
-  const [activeTab, setActiveTab] = useState<'food' | 'orders'>('food');
+  const [activeTab, setActiveTab] = useState<"food" | "orders">("food");
 
   // Custom Theme State
   const [showThemeCustomizer, setShowThemeCustomizer] = useState(false);
   const [isCustomMode, setIsCustomMode] = useState(false);
-  const [localStyles, setLocalStyles] = useState(styles || { color: "#000", backgroundColor: "#fff", accent: "#ea580c" });
-  const [mobileTab, setMobileTab] = useState<'backgroundColor' | 'color' | 'accent'>('accent');
+  const [localStyles, setLocalStyles] = useState(
+    styles || { color: "#000", backgroundColor: "#fff", accent: "#ea580c" },
+  );
+  const [mobileTab, setMobileTab] = useState<
+    "backgroundColor" | "color" | "accent"
+  >("accent");
   const [isSavingTheme, setIsSavingTheme] = useState(false);
 
   const categoryHeadersRef = useRef<(HTMLHeadingElement | null)[]>([]);
@@ -105,7 +117,7 @@ const Compact = ({
   // Check if any menu items have is_veg set (not null)
   const hasVegFilter = useMemo(() => {
     return hoteldata?.menus?.some(
-      (item) => item.is_veg !== null && item.is_veg !== undefined
+      (item) => item.is_veg !== null && item.is_veg !== undefined,
     );
   }, [hoteldata?.menus]);
 
@@ -214,10 +226,12 @@ const Compact = ({
           text: localStyles.color,
           bg: localStyles.backgroundColor,
           accent: localStyles.accent,
-        }
+        },
       };
 
-      await updatePartner(hoteldata.id, { theme: JSON.stringify(updatedTheme) });
+      await updatePartner(hoteldata.id, {
+        theme: JSON.stringify(updatedTheme),
+      });
 
       toast.success("Theme updated successfully!");
       await revalidateTag(hoteldata.id);
@@ -231,7 +245,6 @@ const Compact = ({
     }
   };
 
-
   // Memoize the category list to prevent re-creation on every render
   const allCategories = useMemo(() => {
     let cats = [...categories];
@@ -239,9 +252,9 @@ const Compact = ({
     if (hasOffers) {
       // If we have dynamic offers, remove any manual "Offer/Offers" category to avoid duplicates
       // We prioritize the dynamic one because it contains the actual discounted items logic.
-      cats = cats.filter(c => {
+      cats = cats.filter((c) => {
         const name = c.name.toLowerCase().trim();
-        return name !== 'offer' && name !== 'offers';
+        return name !== "offer" && name !== "offers";
       });
 
       cats.push({
@@ -265,20 +278,22 @@ const Compact = ({
   // Calculate if bottom nav should be shown
   const showBottomNav =
     auth?.role === "user" &&
-    (getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled == true ||
-      getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled == true);
+    (getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled ==
+      true ||
+      getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled ==
+        true);
 
   return (
     <div
       style={{
-        backgroundColor: activeTab === "orders" ? "#f9fafb" : (localStyles?.backgroundColor || "#fff"),
+        backgroundColor: localStyles?.backgroundColor || "#fff",
       }}
       className="min-h-screen"
     >
       <main
         style={{
-          color: activeTab === "orders" ? "#000" : (localStyles?.color || "#000"),
-          backgroundColor: activeTab === "orders" ? "#f9fafb" : (localStyles?.backgroundColor || "#fff"),
+          color: localStyles?.color || "#000",
+          backgroundColor: localStyles?.backgroundColor || "#fff",
         }}
         className="max-w-3xl mx-auto relative pb-40 "
       >
@@ -319,16 +334,23 @@ const Compact = ({
               {/* image */}
               <div className="w-full h-[30vh] relative overflow-hidden">
                 {hoteldata?.store_banner &&
-                  hoteldata?.store_banner !== "" &&
-                  !bannerError ? (
+                hoteldata?.store_banner !== "" &&
+                !bannerError ? (
                   isVideoUrl(hoteldata.store_banner) ? (
                     <video
                       src={hoteldata.store_banner}
                       poster={getVideoThumbnailUrl(hoteldata.store_banner)}
                       preload="metadata"
-                      autoPlay muted loop playsInline
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
                       className="object-cover"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
                     />
                   ) : (
                     <img
@@ -336,7 +358,11 @@ const Compact = ({
                       alt="Hotel Logo"
                       className="object-cover"
                       onError={() => setBannerError(true)}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
                     />
                   )
                 ) : (
@@ -362,71 +388,73 @@ const Compact = ({
               {(!hoteldata?.store_banner ||
                 hoteldata?.store_banner === "" ||
                 bannerError) && (
-                  <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none p-4">
-                    <h1
-                      className={`font-handwriting text-white drop-shadow-md text-center font-bold break-words w-full ${(hoteldata?.store_name?.length || 0) > 35
+                <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none p-4">
+                  <h1
+                    className={`font-handwriting text-white drop-shadow-md text-center font-bold break-words w-full ${
+                      (hoteldata?.store_name?.length || 0) > 35
                         ? "text-2xl"
                         : (hoteldata?.store_name?.length || 0) > 25
                           ? "text-3xl"
                           : (hoteldata?.store_name?.length || 0) > 15
                             ? "text-4xl"
                             : "text-5xl"
-                        }`}
-                    >
-                      {hoteldata?.store_name}
-                    </h1>
-                  </div>
-                )}
+                    }`}
+                  >
+                    {hoteldata?.store_name}
+                  </h1>
+                </div>
+              )}
             </div>
 
             {/* hotel details (Below Banner) */}
             <div className="flex flex-col gap-2 p-5 pb-2 items-start justify-center">
-              <h1 className="text-xl font-semibold">
-                {hoteldata?.store_name}
-              </h1>
+              <h1 className="text-xl font-semibold">{hoteldata?.store_name}</h1>
               {((hoteldata?.district && hoteldata.district !== "") ||
                 (hoteldata?.country && hoteldata.country !== "") ||
                 (hoteldata?.location_details &&
                   hoteldata.location_details !== "")) && (
-                  <div className="inline-flex gap-2 text-sm opacity-80">
-                    <MapPin size={15} />
-                    <span>
-                      {hoteldata.location_details ||
-                        hoteldata.district ||
-                        hoteldata.country}
-                    </span>
-                  </div>
-                )}
+                <div className="inline-flex gap-2 text-sm opacity-80">
+                  <MapPin size={15} />
+                  <span>
+                    {hoteldata.location_details ||
+                      hoteldata.district ||
+                      hoteldata.country}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* social links */}
             {/* REMOVED: `hasOffers` check and the OffersList button from here */}
-            {(socialLinks || isOwner || hoteldata?.geo_location?.coordinates) && (
+            {(socialLinks ||
+              isOwner ||
+              hoteldata?.geo_location?.coordinates) && (
               <div
                 style={{
-                  borderColor:
-                    localStyles?.border?.borderColor || "#0000001D",
+                  borderColor: localStyles?.border?.borderColor || "#0000001D",
                 }}
                 className="flex overflow-x-auto scrollbar-hide gap-2 p-4 pt-2 border-b-[1px] z-20"
               >
                 <SocialLinks
                   socialLinks={socialLinks}
-                  geoLocationLink={hoteldata?.place_id ? `https://www.google.com/maps/place/?q=place_id:${hoteldata.place_id}` : hoteldata?.geo_location?.coordinates ? `https://www.google.com/maps?q=${hoteldata.geo_location.coordinates[1]},${hoteldata.geo_location.coordinates[0]}` : undefined}
+                  geoLocationLink={
+                    hoteldata?.place_id
+                      ? `https://www.google.com/maps/place/?q=place_id:${hoteldata.place_id}`
+                      : hoteldata?.geo_location?.coordinates
+                        ? `https://www.google.com/maps?q=${hoteldata.geo_location.coordinates[1]},${hoteldata.geo_location.coordinates[0]}`
+                        : undefined
+                  }
                 />
                 {isOwner && !isOnFreePlan && (
                   <div
-                    onClick={() =>
-                      setShowThemeCustomizer(!showThemeCustomizer)
-                    }
+                    onClick={() => setShowThemeCustomizer(!showThemeCustomizer)}
                     className="flex items-center gap-2 border-[1px] border-gray-300 p-2 rounded-md bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
                     role="button"
                     aria-label="Customize Theme"
                   >
                     <Palette size={15} style={{ color: "#000" }} />
                     <span className="text-xs text-nowrap text-gray-500 font-medium">
-                      {showThemeCustomizer
-                        ? "Close Editor"
-                        : "Change Theme"}
+                      {showThemeCustomizer ? "Close Editor" : "Change Theme"}
                     </span>
                   </div>
                 )}
@@ -444,8 +472,6 @@ const Compact = ({
                 auth={auth}
               />
             </div>
-
-          
 
             {/* Veg/Non-Veg Filter - only show if menu has items with is_veg set */}
             {hasVegFilter && (
@@ -487,14 +513,14 @@ const Compact = ({
                   className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 flex items-center gap-1 transition-colors"
                 >
                   <div
-                    className={`w-2.5 h-2.5 border-[1.5px] ${vegFilter === "veg"
-                      ? "border-white"
-                      : "border-green-600"
-                      } flex items-center justify-center`}
+                    className={`w-2.5 h-2.5 border-[1.5px] ${
+                      vegFilter === "veg" ? "border-white" : "border-green-600"
+                    } flex items-center justify-center`}
                   >
                     <div
-                      className={`w-1.5 h-1.5 rounded-full ${vegFilter === "veg" ? "bg-white" : "bg-green-600"
-                        }`}
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        vegFilter === "veg" ? "bg-white" : "bg-green-600"
+                      }`}
                     ></div>
                   </div>
                   Veg
@@ -518,16 +544,16 @@ const Compact = ({
                   className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 flex items-center gap-1 transition-colors"
                 >
                   <div
-                    className={`w-2.5 h-2.5 border-[1.5px] ${vegFilter === "non-veg"
-                      ? "border-white"
-                      : "border-red-600"
-                      } flex items-center justify-center`}
+                    className={`w-2.5 h-2.5 border-[1.5px] ${
+                      vegFilter === "non-veg"
+                        ? "border-white"
+                        : "border-red-600"
+                    } flex items-center justify-center`}
                   >
                     <div
-                      className={`w-1.5 h-1.5 rounded-full ${vegFilter === "non-veg"
-                        ? "bg-white"
-                        : "bg-red-600"
-                        }`}
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        vegFilter === "non-veg" ? "bg-white" : "bg-red-600"
+                      }`}
                     ></div>
                   </div>
                   Non-Veg
@@ -535,7 +561,7 @@ const Compact = ({
               </div>
             )}
 
-              {/* Discount Banner */}
+            {/* Discount Banner */}
             <DiscountBanner
               partnerId={hoteldata?.id || ""}
               currency={hoteldata?.currency || "₹"}
@@ -547,8 +573,7 @@ const Compact = ({
               style={{
                 backgroundColor: localStyles?.backgroundColor || "#fff",
                 color: localStyles?.color || "#000",
-                borderColor:
-                  localStyles?.border?.borderColor || "#0000001D",
+                borderColor: localStyles?.border?.borderColor || "#0000001D",
               }}
               ref={categoriesContainerRef}
               className="overflow-x-auto w-full flex gap-2 p-2 sticky top-0 z-10 shadow-md scrollbar-hide border-[1px] "
@@ -577,10 +602,9 @@ const Compact = ({
                   }}
                   onClick={() => handleCategoryClick(index, category)}
                   key={category.id}
-                  className={`p-3 text-nowrap cursor-pointer ${activeCatIndex === index
-                    ? "font-semibold"
-                    : "font-medium"
-                    } flex-shrink-0`}
+                  className={`p-3 text-nowrap cursor-pointer ${
+                    activeCatIndex === index ? "font-semibold" : "font-medium"
+                  } flex-shrink-0`}
                 >
                   {formatDisplayName(category.name)}
                 </div>
@@ -599,71 +623,50 @@ const Compact = ({
                     case "offers":
                       // Create a Set of menu IDs for faster lookups.
                       const offerMenuIdSet = new Set(
-                        offers.map((offer) => offer.menu.id)
+                        offers.map((offer) => offer.menu.id),
                       );
                       // Filter 'hoteldata.menus' by checking for the item's ID in the Set.
-                      itemsToDisplay = hoteldata?.menus.filter(
-                        (item) => {
-                          const matchesOffer = offerMenuIdSet.has(
-                            item.id as string
-                          );
-                          if (
-                            hoteldata.hide_unavailable &&
-                            !item.is_available
-                          )
-                            return false;
-                          if (vegFilter === "all" || !hasVegFilter)
-                            return matchesOffer;
-                          if (vegFilter === "veg")
-                            return matchesOffer && item.is_veg === true;
-                          if (vegFilter === "non-veg")
-                            return (
-                              matchesOffer && item.is_veg === false
-                            );
+                      itemsToDisplay = hoteldata?.menus.filter((item) => {
+                        const matchesOffer = offerMenuIdSet.has(
+                          item.id as string,
+                        );
+                        if (hoteldata.hide_unavailable && !item.is_available)
+                          return false;
+                        if (vegFilter === "all" || !hasVegFilter)
                           return matchesOffer;
-                        }
-                      );
+                        if (vegFilter === "veg")
+                          return matchesOffer && item.is_veg === true;
+                        if (vegFilter === "non-veg")
+                          return matchesOffer && item.is_veg === false;
+                        return matchesOffer;
+                      });
                       break;
                     case "must-try":
                       // If the category is "must_try", display the top items.
                       itemsToDisplay = topItems.filter((item) => {
-                        if (
-                          hoteldata.hide_unavailable &&
-                          !item.is_available
-                        )
+                        if (hoteldata.hide_unavailable && !item.is_available)
                           return false;
-                        if (vegFilter === "all" || !hasVegFilter)
-                          return true;
-                        if (vegFilter === "veg")
-                          return item.is_veg === true;
+                        if (vegFilter === "all" || !hasVegFilter) return true;
+                        if (vegFilter === "veg") return item.is_veg === true;
                         if (vegFilter === "non-veg")
                           return item.is_veg === false;
                         return true;
                       });
                       break;
                     default:
-                      itemsToDisplay = hoteldata?.menus.filter(
-                        (item) => {
-                          const matchesCategory =
-                            item.category.id === category.id;
-                          if (
-                            hoteldata.hide_unavailable &&
-                            !item.is_available
-                          )
-                            return false;
-                          if (vegFilter === "all" || !hasVegFilter)
-                            return matchesCategory;
-                          if (vegFilter === "veg")
-                            return (
-                              matchesCategory && item.is_veg === true
-                            );
-                          if (vegFilter === "non-veg")
-                            return (
-                              matchesCategory && item.is_veg === false
-                            );
+                      itemsToDisplay = hoteldata?.menus.filter((item) => {
+                        const matchesCategory =
+                          item.category.id === category.id;
+                        if (hoteldata.hide_unavailable && !item.is_available)
+                          return false;
+                        if (vegFilter === "all" || !hasVegFilter)
                           return matchesCategory;
-                        }
-                      );
+                        if (vegFilter === "veg")
+                          return matchesCategory && item.is_veg === true;
+                        if (vegFilter === "non-veg")
+                          return matchesCategory && item.is_veg === false;
+                        return matchesCategory;
+                      });
                   }
 
                   // Do not render the category section if there are no items to display.
@@ -699,7 +702,7 @@ const Compact = ({
                           // Find all offers for this item
                           const itemOffers =
                             offers?.filter(
-                              (offer) => offer.menu.id === item.id
+                              (offer) => offer.menu.id === item.id,
                             ) || [];
 
                           let offerData = undefined;
@@ -712,12 +715,10 @@ const Compact = ({
                             // Check for upcoming offers (start_time > current time)
                             const now = new Date();
                             upcomingOffers = itemOffers.filter(
-                              (offer) =>
-                                new Date(offer.start_time) > now
+                              (offer) => new Date(offer.start_time) > now,
                             );
                             activeOffers = itemOffers.filter(
-                              (offer) =>
-                                new Date(offer.start_time) <= now
+                              (offer) => new Date(offer.start_time) <= now,
                             );
 
                             // If there are upcoming offers, mark as upcoming
@@ -732,15 +733,15 @@ const Compact = ({
                                 hasMultipleVariantsOnOffer = true;
                                 const lowestOfferPrice = Math.min(
                                   ...upcomingOffers.map(
-                                    (o) => o.offer_price || 0
-                                  )
+                                    (o) => o.offer_price || 0,
+                                  ),
                                 );
                                 const lowestOriginalPrice = Math.min(
                                   ...upcomingOffers.map((o) =>
                                     o.variant
                                       ? o.variant.price
-                                      : o.menu?.price || 0
-                                  )
+                                      : o.menu?.price || 0,
+                                  ),
                                 );
 
                                 // For upcoming offers: show original price as main, offer price as strikethrough
@@ -757,11 +758,9 @@ const Compact = ({
                                 const offer = upcomingOffers[0];
                                 const originalPrice = offer?.variant
                                   ? offer.variant.price
-                                  : offer?.menu?.price ||
-                                  item.price;
+                                  : offer?.menu?.price || item.price;
                                 const futureOfferPrice =
-                                  typeof offer?.offer_price ===
-                                    "number"
+                                  typeof offer?.offer_price === "number"
                                     ? offer.offer_price
                                     : item.price;
 
@@ -783,18 +782,14 @@ const Compact = ({
                                 // Multiple variants on offer - calculate lowest offer price
                                 hasMultipleVariantsOnOffer = true;
                                 const lowestOfferPrice = Math.min(
-                                  ...offersToUse.map(
-                                    (o) => o.offer_price || 0
-                                  )
+                                  ...offersToUse.map((o) => o.offer_price || 0),
                                 );
                                 // Create a mock offer data with the lowest price for display
                                 offerData = {
                                   ...offersToUse[0],
                                   offer_price: lowestOfferPrice,
                                 };
-                              } else if (
-                                offersToUse.length === 1
-                              ) {
+                              } else if (offersToUse.length === 1) {
                                 // Single variant on offer
                                 offerData = offersToUse[0];
                               }
@@ -804,9 +799,7 @@ const Compact = ({
                           return (
                             <ItemCard
                               tableNumber={tableNumber}
-                              feature_flags={
-                                hoteldata?.feature_flags
-                              }
+                              feature_flags={hoteldata?.feature_flags}
                               hoteldata={hoteldata}
                               item={item}
                               offerData={offerData}
@@ -821,17 +814,15 @@ const Compact = ({
                                   : undefined
                               }
                               currentCategory={category.id}
-                              isOfferCategory={
-                                category.id === "offers"
-                              }
+                              isOfferCategory={category.id === "offers"}
                               isUpcomingOffer={isUpcomingOffer}
                               activeOffers={
-                                isUpcomingOffer
-                                  ? upcomingOffers
-                                  : activeOffers
+                                isUpcomingOffer ? upcomingOffers : activeOffers
                               }
                               auth={auth}
-                              defaultShowOptions={defaultShowOptionsPartners.includes(hoteldata?.id ?? "")}
+                              defaultShowOptions={defaultShowOptionsPartners.includes(
+                                hoteldata?.id ?? "",
+                              )}
                             />
                           );
                         })}
@@ -868,12 +859,13 @@ const Compact = ({
                               accent: palette.accent,
                             }));
                           }}
-                          className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${localStyles.backgroundColor ===
-                            palette.background &&
+                          className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${
+                            localStyles.backgroundColor ===
+                              palette.background &&
                             localStyles.accent === palette.accent
-                            ? "border-orange-600 scale-110 ring-2 ring-orange-100"
-                            : "border-white/50"
-                            }`}
+                              ? "border-orange-600 scale-110 ring-2 ring-orange-100"
+                              : "border-white/50"
+                          }`}
                           style={{
                             backgroundColor: palette.background,
                           }}
@@ -889,15 +881,13 @@ const Compact = ({
 
                       <button
                         onClick={() => setIsCustomMode(true)}
-                        className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${isCustomMode
-                          ? "border-orange-600 scale-110 ring-2 ring-orange-100"
-                          : "border-gray-200"
-                          } bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100`}
+                        className={`w-12 h-12 flex-shrink-0 rounded-full border-2 flex items-center justify-center relative overflow-hidden transition-all shadow-sm ${
+                          isCustomMode
+                            ? "border-orange-600 scale-110 ring-2 ring-orange-100"
+                            : "border-gray-200"
+                        } bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100`}
                       >
-                        <Palette
-                          size={18}
-                          className="text-gray-700"
-                        />
+                        <Palette size={18} className="text-gray-700" />
                       </button>
                     </div>
                   </div>
@@ -911,32 +901,29 @@ const Compact = ({
                         <ArrowLeft size={20} />
                       </button>
                       <div className="flex bg-gray-100 rounded-lg p-1">
-                        {(
-                          [
-                            "backgroundColor",
-                            "color",
-                            "accent",
-                          ] as const
-                        ).map((tab) => {
-                          const label =
-                            tab === "backgroundColor"
-                              ? "Background"
-                              : tab === "color"
-                                ? "Text"
-                                : "Accent";
-                          return (
-                            <button
-                              key={tab}
-                              onClick={() => setMobileTab(tab)}
-                              className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all ${mobileTab === tab
-                                ? "bg-white shadow text-gray-900"
-                                : "text-gray-500 hover:text-gray-700"
+                        {(["backgroundColor", "color", "accent"] as const).map(
+                          (tab) => {
+                            const label =
+                              tab === "backgroundColor"
+                                ? "Background"
+                                : tab === "color"
+                                  ? "Text"
+                                  : "Accent";
+                            return (
+                              <button
+                                key={tab}
+                                onClick={() => setMobileTab(tab)}
+                                className={`px-3 py-1.5 rounded-md text-xs font-medium capitalize transition-all ${
+                                  mobileTab === tab
+                                    ? "bg-white shadow text-gray-900"
+                                    : "text-gray-500 hover:text-gray-700"
                                 }`}
-                            >
-                              {label}
-                            </button>
-                          );
-                        })}
+                              >
+                                {label}
+                              </button>
+                            );
+                          },
+                        )}
                       </div>
                       <div className="w-8" /> {/* Spacer */}
                     </div>
@@ -959,7 +946,9 @@ const Compact = ({
                     <div className="flex items-center gap-3">
                       <div
                         className="w-9 h-9 flex-shrink-0 rounded-lg border border-gray-200 shadow-sm"
-                        style={{ backgroundColor: localStyles[mobileTab] as string }}
+                        style={{
+                          backgroundColor: localStyles[mobileTab] as string,
+                        }}
                       />
                       <input
                         type="text"
@@ -997,13 +986,12 @@ const Compact = ({
 
             {/* Only show 'Login as user' if theme customizer is NOT open */}
             {auth?.role === "partner" &&
-              !showThemeCustomizer &&
-              ((tableNumber !== 0 &&
-                getFeatures(hoteldata?.feature_flags || "")
-                  ?.ordering.enabled) ||
-                (tableNumber === 0 &&
-                  getFeatures(hoteldata?.feature_flags || "")
-                    ?.delivery.enabled)) ? (
+            !showThemeCustomizer &&
+            ((tableNumber !== 0 &&
+              getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled) ||
+              (tableNumber === 0 &&
+                getFeatures(hoteldata?.feature_flags || "")?.delivery
+                  .enabled)) ? (
               <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl bg-black text-white text-center font-semibold shadow-xl">
                 Login as user to place order
               </div>
@@ -1028,14 +1016,14 @@ const Compact = ({
             className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[999] px-4 py-2 flex justify-around items-center max-w-xl mx-auto"
             style={{
               backgroundColor: localStyles?.backgroundColor || "#fff",
-              borderColor:
-                localStyles?.border?.borderColor || "#e5e7eb",
+              borderColor: localStyles?.border?.borderColor || "#e5e7eb",
             }}
           >
             <button
               onClick={() => setActiveTab("food")}
-              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === "food" ? "opacity-100" : "opacity-50"
-                }`}
+              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
+                activeTab === "food" ? "opacity-100" : "opacity-50"
+              }`}
               style={{
                 color:
                   activeTab === "food"
@@ -1048,8 +1036,9 @@ const Compact = ({
             </button>
             <button
               onClick={() => setActiveTab("orders")}
-              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === "orders" ? "opacity-100" : "opacity-50"
-                }`}
+              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
+                activeTab === "orders" ? "opacity-100" : "opacity-50"
+              }`}
               style={{
                 color:
                   activeTab === "orders"
@@ -1070,7 +1059,6 @@ const Compact = ({
             </Link>
           </div>
         )}
-
       </main>
     </div>
   );

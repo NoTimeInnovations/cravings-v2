@@ -22,6 +22,11 @@ const BottomNav = () => {
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [lastStorePath, setLastStorePath] = useState<string | null>(null);
+  const [themeColors, setThemeColors] = useState<{
+    accent: string;
+    bg: string;
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     try {
@@ -29,6 +34,13 @@ const BottomNav = () => {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed.storePath) setLastStorePath(parsed.storePath);
+        if (parsed.accent || parsed.bg || parsed.text) {
+          setThemeColors({
+            accent: parsed.accent || "#ea580c",
+            bg: parsed.bg || "#ffffff",
+            text: parsed.text || "#000000",
+          });
+        }
       }
     } catch {}
   }, []);
@@ -38,14 +50,49 @@ const BottomNav = () => {
     const segments = pathname.split("/").filter(Boolean);
     if (segments.length !== 1) return false;
     const knownRoutes = new Set([
-      "actions", "admin", "admin-v2", "api", "auth", "bill", "business",
-      "captain", "captainlogin", "coupons", "create-offer-promotion", "demo",
-      "download-app", "explore", "get-started", "help-center", "hotels",
-      "join-community", "kot", "login", "my-earnings", "my-orders", "newlogin",
-      "offers", "onboard", "order", "partner", "partnerlogin", "pricing",
-      "privacy-policy", "product", "profile", "qrScan", "reel-analytics",
-      "refund-policy", "sentry-example-page", "solutions", "superadmin",
-      "superLogin", "terms-and-conditions", "test", "tutorials", "user-map",
+      "actions",
+      "admin",
+      "admin-v2",
+      "api",
+      "auth",
+      "bill",
+      "business",
+      "captain",
+      "captainlogin",
+      "coupons",
+      "create-offer-promotion",
+      "demo",
+      "download-app",
+      "explore",
+      "get-started",
+      "help-center",
+      "hotels",
+      "join-community",
+      "kot",
+      "login",
+      "my-earnings",
+      "my-orders",
+      "newlogin",
+      "offers",
+      "onboard",
+      "order",
+      "partner",
+      "partnerlogin",
+      "pricing",
+      "privacy-policy",
+      "product",
+      "profile",
+      "qrScan",
+      "reel-analytics",
+      "refund-policy",
+      "sentry-example-page",
+      "solutions",
+      "superadmin",
+      "superLogin",
+      "terms-and-conditions",
+      "test",
+      "tutorials",
+      "user-map",
       "user-profile",
       "whatsappQr",
     ]);
@@ -94,7 +141,11 @@ const BottomNav = () => {
         ];
 
         // Add Orders if ordering is enabled
-        if (features?.ordering?.enabled || features?.delivery?.enabled || features?.pos?.enabled) {
+        if (
+          features?.ordering?.enabled ||
+          features?.delivery?.enabled ||
+          features?.pos?.enabled
+        ) {
           partnerItems.push({
             href: "/admin/orders",
             name: "Orders",
@@ -123,7 +174,6 @@ const BottomNav = () => {
           });
         }
 
-
         if (features?.purchasemanagement?.enabled) {
           partnerItems.push({
             href: "/admin/purchase-management",
@@ -133,7 +183,6 @@ const BottomNav = () => {
           });
         }
 
-
         return partnerItems;
       case "superadmin":
         return [
@@ -142,7 +191,7 @@ const BottomNav = () => {
             name: "Admin",
             icon: <Shield size={20} />,
             exactMatch: false,
-          }
+          },
         ];
       default:
         return [];
@@ -172,26 +221,54 @@ const BottomNav = () => {
 
   // Don't show on certain routes (allow /hotels but not /hotels/*)
   const isHotelSubRoute = pathname.startsWith("/hotels/");
-  const shouldShow = items.length > 0 && !isUsernameRoute && !isHotelSubRoute && !pathname.startsWith("/captain") && !pathname.startsWith("/kot") && !pathname.startsWith("/bill") && !pathname.startsWith("/whatsappQr") && !pathname.startsWith("/get-started") && !pathname.startsWith("/admin-v2") && !pathname.startsWith("/pricing") && !pathname.startsWith("/business") && !pathname.startsWith("/order/") && !pathname.startsWith("/delivery-app/download") && pathname !== "/user-profile";
+  const shouldShow =
+    items.length > 0 &&
+    !isUsernameRoute &&
+    !isHotelSubRoute &&
+    !pathname.startsWith("/captain") &&
+    !pathname.startsWith("/kot") &&
+    !pathname.startsWith("/bill") &&
+    !pathname.startsWith("/whatsappQr") &&
+    !pathname.startsWith("/get-started") &&
+    !pathname.startsWith("/admin-v2") &&
+    !pathname.startsWith("/pricing") &&
+    !pathname.startsWith("/business") &&
+    !pathname.startsWith("/order/") &&
+    !pathname.startsWith("/delivery-app/download");
 
   if (!shouldShow) return null;
+
+  const navBg = themeColors?.bg || "#ffffff";
+  const navText = themeColors?.text || "#000000";
+  const navAccent = themeColors?.accent || "#ea580c";
+  const navBorder = themeColors?.text ? `${themeColors.text}20` : "#e5e7eb";
 
   return (
     <section className={`lg:hidden`}>
       {/* Bottom Navigation Bar */}
       <nav
         aria-label="Bottom navigation"
-        className={`fixed bottom-0 left-0 w-full bg-white px-4 py-3 flex justify-around z-[500] border-t border-gray-200 transition-transform duration-300 ${isVisible ? "translate-y-0" : "translate-y-full"
-          }`}
+        className={`fixed bottom-0 left-0 w-full px-4 py-3 flex justify-around z-[500] border-t transition-transform duration-300 ${
+          isVisible ? "translate-y-0" : "translate-y-full"
+        }`}
+        style={{
+          backgroundColor: navBg,
+          borderColor: navBorder,
+        }}
       >
-        {showBackButton && (
-          lastStorePath ? (
+        {showBackButton &&
+          (lastStorePath ? (
             <Link
               href={lastStorePath}
               className="text-center flex-1 min-w-[60px]"
             >
-              <div className="flex flex-col items-center text-sm font-medium text-gray-600">
-                <div className="mb-1"><UtensilsCrossed size={20} /></div>
+              <div
+                className="flex flex-col items-center text-sm font-medium"
+                style={{ color: `${navText}99` }}
+              >
+                <div className="mb-1">
+                  <UtensilsCrossed size={20} />
+                </div>
                 <span className="text-xs">Food</span>
               </div>
             </Link>
@@ -200,13 +277,17 @@ const BottomNav = () => {
               onClick={() => router.back()}
               className="text-center flex-1 min-w-[60px]"
             >
-              <div className="flex flex-col items-center text-sm font-medium text-gray-600">
-                <div className="mb-1"><ArrowLeft size={20} /></div>
+              <div
+                className="flex flex-col items-center text-sm font-medium"
+                style={{ color: `${navText}99` }}
+              >
+                <div className="mb-1">
+                  <ArrowLeft size={20} />
+                </div>
                 <span className="text-xs">Back</span>
               </div>
             </button>
-          )
-        )}
+          ))}
         {items.map((item) => {
           let isActive = false;
           if (item.href === "/") {
@@ -224,8 +305,10 @@ const BottomNav = () => {
               className="text-center flex-1 min-w-[60px]"
             >
               <div
-                className={`flex flex-col items-center text-sm font-medium ${isActive ? "text-orange-600" : "text-gray-600"
-                  }`}
+                className="flex flex-col items-center text-sm font-medium"
+                style={{
+                  color: isActive ? navAccent : `${navText}99`,
+                }}
               >
                 <div className="mb-1">{item.icon}</div>
                 <span className="text-xs">{item.name}</span>

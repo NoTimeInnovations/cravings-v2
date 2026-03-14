@@ -3,7 +3,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { processHotelPage, fetchHotelMetadata } from "@/lib/hotelDataFetcher";
 import HotelMenuPage from "@/screens/HotelMenuPage_v2";
 import { getAuthCookie } from "@/app/auth/actions";
-import { Metadata } from "next";
+import { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 import {
@@ -64,6 +64,24 @@ export async function generateMetadata({
       description: seoDescription,
     },
   };
+}
+
+export async function generateViewport({
+  params,
+}: {
+  params: Promise<{ username: string }>;
+}): Promise<Viewport> {
+  const { username } = await params;
+  const partnerId = await getPartnerIdByUsername(username);
+
+  if (!partnerId) return { themeColor: "#ffffff" };
+
+  const hotel = await fetchHotelMetadata(partnerId);
+  const theme = typeof (hotel as any)?.theme === "string"
+    ? JSON.parse((hotel as any).theme)
+    : (hotel as any)?.theme || null;
+
+  return { themeColor: theme?.colors?.bg || "#ffffff" };
 }
 
 const UsernamePage = async ({

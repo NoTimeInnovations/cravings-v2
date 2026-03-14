@@ -507,9 +507,7 @@ const PricingSection = ({
     const variant = getActiveVariant(plan);
 
     if (plan.contactSales) {
-      const storeName = (userData as any)?.store_name || "Store";
-      const email = (userData as any)?.email || "";
-      const text = `Hi, I'm interested in the ${plan.title} plan for ${storeName}. My email is ${email}`;
+      const text = `Hi, I'm interested in PetPooja + Menuthere`;
       window.open(`https://wa.me/918590115462?text=${encodeURIComponent(text)}`, "_blank");
       return;
     }

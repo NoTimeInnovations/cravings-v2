@@ -12,7 +12,7 @@ import React from "react";
 import { Partner } from "@/store/authStore";
 import { getAuthCookie } from "@/app/auth/actions";
 import { ThemeConfig, DEFAULT_THEME } from "@/components/hotelDetail/ThemeChangeButton";
-import { Metadata } from "next";
+import { Metadata, Viewport } from "next";
 import { getSocialLinks } from "@/lib/getSocialLinks";
 import { usePartnerStore } from "@/store/usePartnerStore";
 import { filterOffersByType } from "@/lib/offerFilters";
@@ -111,6 +111,29 @@ export async function generateMetadata({
       url: canonicalUrl,
     },
   };
+}
+
+export async function generateViewport({
+  params,
+}: {
+  params: Promise<{ id: string[] }>;
+}): Promise<Viewport> {
+  const { id: hotelIds } = await params;
+  const hotelId = isUUID(hotelIds?.[0] || "") ? hotelIds?.[0] : hotelIds?.[1];
+
+  try {
+    const partnerData = await fetchFromHasura(getPartnerAndOffersQuery, {
+      id: hotelId,
+      offer_types: ["delivery", "all"]
+    });
+    const hotel = partnerData?.partners?.[0];
+    const hotelTheme: ThemeConfig | null = typeof hotel?.theme === "string"
+      ? JSON.parse(hotel.theme)
+      : hotel?.theme || null;
+    return { themeColor: hotelTheme?.colors?.bg || "#ffffff" };
+  } catch {
+    return { themeColor: "#ffffff" };
+  }
 }
 
 export interface HotelDataMenus extends Omit<MenuItem, "category"> {
