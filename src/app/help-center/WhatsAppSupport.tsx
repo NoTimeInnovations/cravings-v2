@@ -11,7 +11,7 @@ export default function HelpCenterWhatsApp() {
 
   const handleWhatsAppChat = () => {
     const supportNumber = "918590115462";
-    const message = `Hi! I need help with $Menuthere.`;
+    const message = `Hi! I need help with Menuthere.`;
     const whatsappUrl = `https://wa.me/${supportNumber}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank");
   };

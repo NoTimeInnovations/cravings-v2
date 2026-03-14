@@ -509,7 +509,11 @@ export default function MenuUploadForm({
                         <img
                           src={imagePreview}
                           alt="Preview"
-                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "contain",
+                          }}
                           className="object-contain p-1"
                         />
                         <button
@@ -599,7 +603,11 @@ export default function MenuUploadForm({
                             <img
                               src={item.image}
                               alt={item.name}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
                               className="object-cover"
                             />
                           ) : (
@@ -674,7 +682,11 @@ export default function MenuUploadForm({
                   <img
                     src="/phone_frame.png"
                     alt="Phone frame"
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                    }}
                     className="object-contain"
                   />
 
@@ -691,8 +703,12 @@ export default function MenuUploadForm({
                             <div className="relative w-6 h-6">
                               <img
                                 src="/icon-64x64.png"
-                                alt={`$Menuthere Logo`}
-                                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                alt={`Menuthere Logo`}
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "contain",
+                                }}
                                 className="object-contain"
                               />
                             </div>
@@ -711,7 +727,11 @@ export default function MenuUploadForm({
                               <img
                                 src={businessData.logo}
                                 alt={businessData.businessName}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                }}
                                 className="object-cover"
                               />
                             ) : (
@@ -755,7 +775,11 @@ export default function MenuUploadForm({
                                       <img
                                         src={item.image}
                                         alt={item.name}
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        style={{
+                                          width: "100%",
+                                          height: "100%",
+                                          objectFit: "cover",
+                                        }}
                                         className="object-cover"
                                       />
                                     ) : (
