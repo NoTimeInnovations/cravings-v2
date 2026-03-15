@@ -90,7 +90,7 @@ export default function Home() {
     url: "https://menuthere.com",
     logo: {
       "@type": "ImageObject",
-      url: "https://menuthere.com/menuthere-logo-v2.svg",
+      url: "https://menuthere.com/menuthere-logo-new.png",
       width: 512,
       height: 512,
     },

@@ -124,7 +124,7 @@ export default function Login() {
       <div className="w-full max-w-sm sm:max-w-md bg-white rounded-xl p-5 sm:p-8">
         <div className="flex flex-col items-center mb-6 sm:mb-8">
           <div className="flex items-center gap-2 mb-3">
-            <img src="/menuthere-logo-v2.svg" alt="Menuthere" width={40} height={40} className="h-10 sm:h-8 w-auto object-contain" />
+            <img src="/menuthere-logo-new.png" alt="Menuthere" width={40} height={40} className="h-10 sm:h-8 w-auto object-contain" />
             <span className="text-2xl sm:text-xl font-bold text-stone-900">Menuthere</span>
           </div>
         </div>
