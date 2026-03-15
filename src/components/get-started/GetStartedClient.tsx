@@ -460,7 +460,7 @@ export default function GetStartedClient({
     }
 
     if (name === "country") {
-      const isIndia = value === "India";
+      const isIndia = value === "India" || value === "IN";
       const phoneCodeEntry = countryCodes.find((c) => c.country === value);
       setHotelDetails((prev) => ({
         ...prev,
@@ -754,7 +754,7 @@ export default function GetStartedClient({
       };
 
       // --- PLAN SELECTION ---
-      const isIndia = hotelDetails.country === "India";
+      const isIndia = hotelDetails.country === "India" || hotelDetails.country === "IN";
       const planId = "free_plan";
       const planList = isIndia ? plansData.india : plansData.international;
       const selectedPlan =
@@ -1432,7 +1432,7 @@ export default function GetStartedClient({
           <Label htmlFor="state" className="text-sm">
             State <span className="text-red-500">*</span>
           </Label>
-          {hotelDetails.country === "India" ? (
+          {(hotelDetails.country === "India" || hotelDetails.country === "IN") ? (
             <Select
               value={hotelDetails.state}
               onValueChange={(value) =>

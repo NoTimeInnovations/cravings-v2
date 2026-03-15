@@ -1,7 +1,7 @@
 import type { SocialLinks } from "@/app/hotels/[...id]/page";
-import { MapPin, Phone } from "lucide-react";
+import { ExternalLink, MapPin, Phone } from "lucide-react";
 import React from "react";
-import { FaInstagram, FaWhatsapp } from "react-icons/fa";
+import { FaFacebook, FaInstagram, FaWhatsapp } from "react-icons/fa";
 
 const LinkItem = ({
   href,
@@ -75,6 +75,85 @@ const SocialLinks = ({ socialLinks, geoLocationLink }: { socialLinks: SocialLink
             }
             icon={<FaInstagram size={15} />}
             text="Instagram"
+          />
+        </div>
+      ) : null}
+
+      {socialLinks.facebook && socialLinks.facebook !== "" ? (
+        <div>
+          <LinkItem
+            styles={{
+              borderColor: "#c8deff",
+              color: "#1877F2",
+              backgroundColor: "#f0f5ff",
+            }}
+            href={
+              socialLinks.facebook.startsWith("http")
+                ? socialLinks.facebook
+                : `https://facebook.com/${socialLinks.facebook}`
+            }
+            icon={<FaFacebook size={15} />}
+            text="Facebook"
+          />
+        </div>
+      ) : null}
+
+      {socialLinks.zomato && socialLinks.zomato !== "" ? (
+        <div>
+          <LinkItem
+            styles={{
+              borderColor: "#fde0e0",
+              color: "#e23744",
+              backgroundColor: "#fff5f5",
+            }}
+            href={socialLinks.zomato}
+            icon={<ExternalLink size={15} />}
+            text="Zomato"
+          />
+        </div>
+      ) : null}
+
+      {socialLinks.uberEats && socialLinks.uberEats !== "" ? (
+        <div>
+          <LinkItem
+            styles={{
+              borderColor: "#d4edda",
+              color: "#06C167",
+              backgroundColor: "#f4faf6",
+            }}
+            href={socialLinks.uberEats}
+            icon={<ExternalLink size={15} />}
+            text="Uber Eats"
+          />
+        </div>
+      ) : null}
+
+      {socialLinks.talabat && socialLinks.talabat !== "" ? (
+        <div>
+          <LinkItem
+            styles={{
+              borderColor: "#ffe4cc",
+              color: "#ff5a00",
+              backgroundColor: "#fff8f2",
+            }}
+            href={socialLinks.talabat}
+            icon={<ExternalLink size={15} />}
+            text="Talabat"
+          />
+        </div>
+      ) : null}
+
+      {socialLinks.doordash && socialLinks.doordash !== "" ? (
+        <div>
+          <LinkItem
+            styles={{
+              borderColor: "#fde0e0",
+              color: "#FF3008",
+              backgroundColor: "#fff5f3",
+            }}
+            href={socialLinks.doordash}
+            icon={<ExternalLink size={15} />}
+            text="DoorDash"
           />
         </div>
       ) : null}

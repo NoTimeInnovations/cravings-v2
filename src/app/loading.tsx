@@ -10,7 +10,7 @@ const Loading = () => {
     <FullScreenLoader
       isLoading={true}
       loadingTexts={[
-        `Loading $Menuthere...`,
+        `Loading Menuthere...`,
         "Preparing deliciousness...",
         "Almost there...",
       ]}

@@ -6,6 +6,7 @@ import CancelConfirmationEmail from '@/components/emails/CancelConfirmationEmail
 import SupportEmail from '@/components/emails/SupportEmail';
 import OtpEmail from '@/components/emails/OtpEmail';
 
+
 export const EMAIL_CONFIG = {
     apiKey: process.env.RESEND_API_KEY,
     appName: 'Menuthere',

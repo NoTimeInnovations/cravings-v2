@@ -3,11 +3,12 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GeneralSettings } from "./settings/GeneralSettings";
-import { LocationSettings } from "./settings/LocationSettings";
+
 import { DeliverySettings } from "./settings/DeliverySettings";
 import { PaymentLegalSettings } from "./settings/PaymentLegalSettings";
 import { FeatureSettings } from "./settings/FeatureSettings";
 import { DiscountCodeSettings } from "./settings/DiscountCodeSettings";
+import { ThemeSettings } from "./settings/ThemeSettings";
 
 import { Button } from "@/components/ui/button";
 import { LogOut, ExternalLink } from "lucide-react";
@@ -52,18 +53,20 @@ export function AdminV2Settings() {
     const showOrderRelatedSettings = features?.ordering?.access || features?.delivery?.access;
     const showDiscountSettings = features?.ordering?.access || features?.delivery?.access;
 
+    const username = (userData as any)?.username;
     const firstQrCodeId = (userData as any)?.qr_codes?.[0]?.id;
     const hotelNameSlug = (userData as any)?.name?.replace(/ /g, "-");
 
     const handleViewMenu = () => {
-        if (hotelNameSlug && firstQrCodeId) {
-            const url = `https://menuthere.com/qrScan/${hotelNameSlug}/${firstQrCodeId}`;
-            window.open(url, "_blank");
+        if (username) {
+            window.open(`https://menuthere.com/${username}`, "_blank");
+        } else if (hotelNameSlug && firstQrCodeId) {
+            window.open(`https://menuthere.com/qrScan/${hotelNameSlug}/${firstQrCodeId}`, "_blank");
         }
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+        <div className="space-y-6 animate-in fade-in duration-500 pb-20 w-full lg:max-w-[80%] mx-auto px-4 lg:px-0">
             <div className="flex items-center justify-between gap-5">
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
@@ -85,7 +88,6 @@ export function AdminV2Settings() {
             <Tabs defaultValue="general" className="space-y-4">
                 <TabsList className="flex w-full sm:w-auto overflow-x-auto justify-start">
                     <TabsTrigger value="general">General</TabsTrigger>
-                    <TabsTrigger value="location">Location</TabsTrigger>
                     {showOrderRelatedSettings && (
                         <>
                             <TabsTrigger value="delivery">Delivery</TabsTrigger>
@@ -95,15 +97,12 @@ export function AdminV2Settings() {
                     {showDiscountSettings && (
                         <TabsTrigger value="discounts">Discount Codes</TabsTrigger>
                     )}
+                    <TabsTrigger value="theme">Theme</TabsTrigger>
                     <TabsTrigger value="features">Features</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="general" className="space-y-4">
                     <GeneralSettings />
-                </TabsContent>
-
-                <TabsContent value="location" className="space-y-4">
-                    <LocationSettings />
                 </TabsContent>
 
                 {showOrderRelatedSettings && (
@@ -123,6 +122,10 @@ export function AdminV2Settings() {
                         <DiscountCodeSettings />
                     </TabsContent>
                 )}
+
+                <TabsContent value="theme" className="space-y-4">
+                    <ThemeSettings />
+                </TabsContent>
 
                 <TabsContent value="features" className="space-y-4">
                     <FeatureSettings />

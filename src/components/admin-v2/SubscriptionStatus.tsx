@@ -6,9 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Crown, AlertTriangle, ShieldCheck } from "lucide-react";
 import { formatDistanceToNow, parseISO, format, startOfMonth, endOfMonth } from "date-fns";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import PricingSection from "@/components/international/PricingSection";
-import { toast } from "sonner";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { useEffect } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -18,9 +16,8 @@ import { isFreePlan } from "@/lib/getPlanLimits";
 export function SubscriptionStatus() {
     const { userData } = useAuthStore();
     const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
-    const [isCancelOpen, setIsCancelOpen] = useState(false);
 
-    const [loading, setLoading] = useState(false);
+
     const [scansUsed, setScansUsed] = useState(0);
 
     const sub = userData?.role === "partner" ? userData.subscription_details : undefined;
@@ -51,16 +48,7 @@ export function SubscriptionStatus() {
     // Calculate percentage based on state-based scansUsed
     const usagePercent = isUnlimited ? 0 : Math.min(100, (scansUsed / scanLimit) * 100);
 
-    const handleCancelRequest = async () => {
-        setLoading(true);
-        // Mock cancellation request
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setLoading(false);
-        setIsCancelOpen(false);
-        toast.info("Cancellation request sent to support.");
-    };
-
-    const isInternational = userData?.role === "partner" && userData.country !== "IN";
+    const isInternational = userData?.role === "partner" && userData.country !== "India" && userData.country !== "IN";
     const isInternationalPlan = userData?.role === "partner" && userData?.subscription_details?.plan?.id?.startsWith("int_");
 
     useEffect(() => {
@@ -179,43 +167,16 @@ export function SubscriptionStatus() {
                         )}
 
                         {/* Actions */}
-                        <div className="flex gap-3">
-                            <Button
-                                className={`bg-orange-600 hover:bg-orange-700 text-white dark:bg-orange-700 dark:hover:bg-orange-600 ${isExpired ? "animate-pulse" : ""}`}
-                                onClick={() => window.location.href = "/pricing"}
-                            >
-                                {isExpired ? "Renew Plan Now" : "Upgrade Plan"}
-                            </Button>
-
-                            <Dialog open={isCancelOpen} onOpenChange={setIsCancelOpen}>
-                                <DialogTrigger asChild>
-                                    <Button variant="outline" className="text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50 dark:border-red-900 dark:bg-red-950/20 dark:hover:bg-red-900/30">
-                                        Cancel Plan
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Cancel Subscription</DialogTitle>
-                                        <DialogDescription>
-                                            Are you sure you want to cancel? This will downgrade your account at the end of the billing period.
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="py-4">
-                                        <p className="text-sm text-gray-600 mb-4">
-                                            Please note that refunds are processed manually. A request will be sent to our support team.
-                                        </p>
-                                        <Button
-                                            variant="destructive"
-                                            className="w-full"
-                                            onClick={handleCancelRequest}
-                                            disabled={loading}
-                                        >
-                                            {loading ? "Sending Request..." : "Confirm Cancellation"}
-                                        </Button>
-                                    </div>
-                                </DialogContent>
-                            </Dialog>
-                        </div>
+                        {(isOnFreePlan || isExpired) && (
+                            <div className="flex gap-3">
+                                <Button
+                                    className={`bg-orange-600 hover:bg-orange-700 text-white dark:bg-orange-700 dark:hover:bg-orange-600 ${isExpired ? "animate-pulse" : ""}`}
+                                    onClick={() => window.location.href = "/pricing"}
+                                >
+                                    {isExpired ? "Renew Plan Now" : "Upgrade Plan"}
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 </CardContent>
             </Card>

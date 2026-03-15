@@ -29,7 +29,7 @@ const CouponsPage = () => {
     if (navigator.share) {
       navigator.share({
         title: appName,
-        text: `Join me on $Menuthere`,
+        text: `Join me on Menuthere`,
         url: shareUrl,
       });
     } else {

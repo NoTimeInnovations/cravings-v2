@@ -305,6 +305,7 @@ export const updatePartnerMutation = `
       geo_location
       social_links
       footnote
+      has_seen_tour
     }
   }
 `;

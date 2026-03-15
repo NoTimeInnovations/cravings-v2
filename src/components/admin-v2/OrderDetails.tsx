@@ -37,6 +37,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 
 
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { DeliveryBoyAssignment } from "./DeliveryBoyAssignment";
 
 interface OrderDetailsProps {
     order: Order | null;
@@ -291,6 +292,11 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                         )}
                     </div>
                 </div>
+
+                {/* Delivery Boy Assignment */}
+                {order.type === "delivery" && order.deliveryAddress && (
+                    <DeliveryBoyAssignment order={order} />
+                )}
             </div>
 
             {order.payment_method && (

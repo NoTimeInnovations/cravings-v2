@@ -60,6 +60,7 @@ export const partnerIdQuery = `
       hide_unavailable
       subscription_details
       username
+      has_seen_tour
       qr_codes(limit: 1) {
         id
       }
@@ -106,6 +107,7 @@ export const partnerLoginQuery = `
       hide_unavailable
       subscription_details
       username
+      has_seen_tour
       qr_codes(limit: 1) {
         id
       }
@@ -175,6 +177,15 @@ export const updateUserFullNameMutation = `
     update_users_by_pk(pk_columns: { id: $id }, _set: { full_name: $full_name }) {
       id
       full_name
+    }
+  }
+`;
+
+export const updateUserPhoneMutation = `
+  mutation UpdateUserPhone($id: uuid!, $phone: String) {
+    update_users_by_pk(pk_columns: { id: $id }, _set: { phone: $phone }) {
+      id
+      phone
     }
   }
 `;

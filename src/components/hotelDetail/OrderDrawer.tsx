@@ -16,17 +16,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import { validatePhoneNumber, getPhoneValidationError } from "@/lib/getUserCountry";
+import {
+  validatePhoneNumber,
+  getPhoneValidationError,
+} from "@/lib/getUserCountry";
 import { getPhoneDigitsForCountry } from "@/lib/countryPhoneMap";
-
-
 
 export const getGstAmount = (price: number, gstPercentage: number) => {
   return (price * gstPercentage) / 100;
 };
 
 export const calculateDeliveryDistanceAndCost = async (
-  hotelData: HotelData
+  hotelData: HotelData,
 ) => {
   const { setDeliveryInfo } = useOrderStore.getState();
 
@@ -55,7 +56,7 @@ export const calculateDeliveryDistanceAndCost = async (
     if (!mapboxToken) return;
 
     const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${userLocation.join(
-      ","
+      ",",
     )};${restaurantCoords.join(",")}?access_token=${mapboxToken}`;
 
     const response = await fetch(url);
@@ -66,7 +67,7 @@ export const calculateDeliveryDistanceAndCost = async (
     const exactDistance = data.routes[0].distance / 1000;
     // Ceil the distance for whole kilometer charging
     // const distanceInKm = Math.ceil(exactDistance);
-    const distanceInKm = exactDistance
+    const distanceInKm = exactDistance;
     const deliveryRate = hotelData?.delivery_rate || 0;
 
     const {
@@ -93,17 +94,23 @@ export const calculateDeliveryDistanceAndCost = async (
 
     if (is_fixed_rate) {
       calculatedCost = deliveryRate;
-    } else if (delivery_mode === "advanced" && delivery_ranges && delivery_ranges.length > 0) {
+    } else if (
+      delivery_mode === "advanced" &&
+      delivery_ranges &&
+      delivery_ranges.length > 0
+    ) {
       // Advanced mode: Range-based pricing
       const applicableRange = delivery_ranges.find(
-        (range) => distanceInKm >= range.from_km && distanceInKm <= range.to_km
+        (range) => distanceInKm >= range.from_km && distanceInKm <= range.to_km,
       );
 
       if (applicableRange) {
         calculatedCost = applicableRange.rate;
       } else {
         // If no range matches, find the highest range and apply its rate
-        const sortedRanges = [...delivery_ranges].sort((a, b) => b.to_km - a.to_km);
+        const sortedRanges = [...delivery_ranges].sort(
+          (a, b) => b.to_km - a.to_km,
+        );
         if (sortedRanges.length > 0 && distanceInKm > sortedRanges[0].to_km) {
           // Beyond all ranges, use the default delivery rate per km
           calculatedCost = distanceInKm * deliveryRate;
@@ -112,7 +119,11 @@ export const calculateDeliveryDistanceAndCost = async (
           calculatedCost = 0;
         }
       }
-    } else if ((delivery_mode === "basic" || !delivery_mode) && first_km_range && first_km_range.km > 0) {
+    } else if (
+      (delivery_mode === "basic" || !delivery_mode) &&
+      first_km_range &&
+      first_km_range.km > 0
+    ) {
       // Basic mode or legacy format: First KM + per km pricing
       if (distanceInKm <= first_km_range.km) {
         calculatedCost = first_km_range.rate;
@@ -175,9 +186,11 @@ const OrderDrawer = ({
   const [isQrScan, setIsQrScan] = useState(false);
   const [features, setFeatures] = useState<FeatureFlags | null>(null);
 
-
   // Client timezone (used for formatting times in messages)
-  const tz = typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+  const tz =
+    typeof window !== "undefined"
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone
+      : "UTC";
 
   // Login modal state
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -208,7 +221,6 @@ const OrderDrawer = ({
 
   useEffect(() => {
     setOpenDrawerBottom((items?.length || 0) > 0 ? true : false);
-
   }, [items, setOpenDrawerBottom]);
 
   const calculateGrandTotal = () => {
@@ -221,16 +233,18 @@ const OrderDrawer = ({
       grandTotal += getExtraCharge(
         items || [],
         qrGroup.extra_charge,
-        qrGroup.charge_type || "FLAT_FEE"
+        qrGroup.charge_type || "FLAT_FEE",
       );
     }
 
     if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge) {
       const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
-      const itemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
-      grandTotal += chargeType === "variable"
-        ? itemCount * hotelData.delivery_rules.parcel_charge
-        : hotelData.delivery_rules.parcel_charge;
+      const itemCount =
+        items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+      grandTotal +=
+        chargeType === "variable"
+          ? itemCount * hotelData.delivery_rules.parcel_charge
+          : hotelData.delivery_rules.parcel_charge;
     }
 
     if (hotelData?.gst_percentage) {
@@ -242,21 +256,27 @@ const OrderDrawer = ({
 
   const getWhatsappLink = (orderId?: string) => {
     // First try to get order ID from function parameter, then from localStorage, then from order store
-    const finalOrderId = orderId || localStorage?.getItem('last-order-id') || useOrderStore.getState().orderId;
+    const finalOrderId =
+      orderId ||
+      localStorage?.getItem("last-order-id") ||
+      useOrderStore.getState().orderId;
     const savedAddress = userAddress || "N/A";
     const selectedWhatsAppNumber = localStorage?.getItem(
-      `hotel-${hotelData.id}-whatsapp-area`
+      `hotel-${hotelData.id}-whatsapp-area`,
     );
     const selectedArea = localStorage?.getItem(
-      `hotel-${hotelData.id}-selected-area`
+      `hotel-${hotelData.id}-selected-area`,
     );
 
     const currentSelectedArea = selectedArea || "";
 
     // Get location from localStorage or from the order store
     let locationLink = "";
-    const userLocationData = localStorage?.getItem("user-location-store") ||
-      JSON.stringify({ state: { coords: useOrderStore.getState().coordinates } });
+    const userLocationData =
+      localStorage?.getItem("user-location-store") ||
+      JSON.stringify({
+        state: { coords: useOrderStore.getState().coordinates },
+      });
 
     if (userLocationData) {
       try {
@@ -274,20 +294,22 @@ const OrderDrawer = ({
       items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
     const qrCharge = qrGroup?.extra_charge
       ? getExtraCharge(
-        items || [],
-        qrGroup.extra_charge,
-        qrGroup.charge_type || "FLAT_FEE"
-      )
+          items || [],
+          qrGroup.extra_charge,
+          qrGroup.charge_type || "FLAT_FEE",
+        )
       : 0;
     const deliveryCharge =
       !isQrScan &&
-        orderType === "delivery" &&
-        deliveryInfo?.cost &&
-        !deliveryInfo?.isOutOfRange
+      orderType === "delivery" &&
+      deliveryInfo?.cost &&
+      !deliveryInfo?.isOutOfRange
         ? deliveryInfo.cost
         : 0;
-    const parcelChargeType = hotelData?.delivery_rules?.parcel_charge_type || "fixed";
-    const parcelItemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+    const parcelChargeType =
+      hotelData?.delivery_rules?.parcel_charge_type || "fixed";
+    const parcelItemCount =
+      items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
     const parcelCharge =
       tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge
         ? parcelChargeType === "variable"
@@ -299,11 +321,22 @@ const OrderDrawer = ({
       : 0;
     const currentOrderData = useOrderStore.getState().order;
     const orderDiscounts = currentOrderData?.discounts || [];
-    const discountAmount = orderDiscounts.reduce((total: number, discount: any) => {
-      return total + (discount.savings || 0);
-    }, 0);
+    const discountAmount = orderDiscounts.reduce(
+      (total: number, discount: any) => {
+        return total + (discount.savings || 0);
+      },
+      0,
+    );
 
-    const grandTotal = Math.max(0, baseTotal + qrCharge + deliveryCharge + parcelCharge + gstAmount - discountAmount);
+    const grandTotal = Math.max(
+      0,
+      baseTotal +
+        qrCharge +
+        deliveryCharge +
+        parcelCharge +
+        gstAmount -
+        discountAmount,
+    );
 
     const hasMultiWhatsapp = getFeatures(hotelData?.feature_flags || "")
       ?.multiwhatsapp?.enabled;
@@ -313,47 +346,85 @@ const OrderDrawer = ({
       currentSelectedArea &&
       currentSelectedArea.trim() !== "";
 
-    const showTableLabel = hotelData?.id !== '33f5474e-4644-4e47-a327-94684c71b170'; // Krishnakripa Residency
-    const nowTime = new Intl.DateTimeFormat("en-GB", { hour: "numeric", minute: "numeric", hour12: true, timeZone: tz }).format(new Date());
+    const showTableLabel =
+      hotelData?.id !== "33f5474e-4644-4e47-a327-94684c71b170"; // Krishnakripa Residency
+    const nowTime = new Intl.DateTimeFormat("en-GB", {
+      hour: "numeric",
+      minute: "numeric",
+      hour12: true,
+      timeZone: tz,
+    }).format(new Date());
 
     const currentOrder = useOrderStore.getState().order;
-    const displayId = currentOrder?.id === finalOrderId ? currentOrder?.display_id : null;
-    const dateParts = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).formatToParts(new Date());
-    const day = dateParts.find(p => p.type === 'day')?.value;
-    const month = dateParts.find(p => p.type === 'month')?.value;
+    const displayId =
+      currentOrder?.id === finalOrderId ? currentOrder?.display_id : null;
+    const dateParts = new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "short",
+    }).formatToParts(new Date());
+    const day = dateParts.find((p) => p.type === "day")?.value;
+    const month = dateParts.find((p) => p.type === "month")?.value;
 
-    const shortId = displayId || (finalOrderId ? finalOrderId.slice(0, 4).toUpperCase() : 'N/A');
+    const shortId =
+      displayId ||
+      (finalOrderId ? finalOrderId.slice(0, 4).toUpperCase() : "N/A");
     const formattedOrderId = `${shortId}-${month} ${day}`;
 
-    const headerLine = hotelData?.id === '7eb04e2d-9c20-42ba-a6b6-fce8019cad5f' ? '*Order Details*' : '*🍽️ Order Details 🍽️*';
-    const tableLine = (tableNumber ?? 0) > 0
-      ? `${showTableLabel ? "*Table:* " : ""}${qrData?.table_name || tableNumber}`
-      : `*Order Type:* ${orderType || "Delivery"}`;
-    const itemsList = items
-      ?.map(
-        (item, index) =>
-          `${index + 1}. ${item.name} (${item.category.name})\n   ➤ Qty: ${item.quantity} × ${hotelData.currency}${item.price.toFixed(2)} = ${hotelData.currency}${(item.price * item.quantity).toFixed(2)}`
-      )
-      .join("\n\n") || "";
+    const headerLine =
+      hotelData?.id === "7eb04e2d-9c20-42ba-a6b6-fce8019cad5f"
+        ? "*Order Details*"
+        : "*🍽️ Order Details 🍽️*";
+    const tableLine =
+      (tableNumber ?? 0) > 0
+        ? `${showTableLabel ? "*Table:* " : ""}${qrData?.table_name || tableNumber}`
+        : `*Order Type:* ${orderType || "Delivery"}`;
+    const itemsList =
+      items
+        ?.map(
+          (item, index) =>
+            `${index + 1}. ${item.name} (${item.category.name})\n   ➤ Qty: ${item.quantity} × ${hotelData.currency}${item.price.toFixed(2)} = ${hotelData.currency}${(item.price * item.quantity).toFixed(2)}`,
+        )
+        .join("\n\n") || "";
 
     const billingLines = [
       `*Subtotal:* ${hotelData.currency}${baseTotal.toFixed(2)}`,
-      hotelData?.gst_percentage ? `*${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${hotelData.gst_percentage}%):* ${hotelData.currency}${gstAmount.toFixed(2)}` : "",
-      !isQrScan && orderType === "delivery" && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? `*Delivery Charge:* ${hotelData.currency}${deliveryInfo.cost.toFixed(2)}` : "",
-      qrGroup?.extra_charge ? `*${qrGroup.name}:* ${hotelData.currency}${qrCharge.toFixed(2)}` : "",
-      parcelCharge > 0 ? `*Parcel Charge:* ${hotelData.currency}${parcelCharge.toFixed(2)}` : "",
-      discountAmount > 0 ? `*Discount:* -${hotelData.currency}${discountAmount.toFixed(2)}` : "",
+      hotelData?.gst_percentage
+        ? `*${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${hotelData.gst_percentage}%):* ${hotelData.currency}${gstAmount.toFixed(2)}`
+        : "",
+      !isQrScan &&
+      orderType === "delivery" &&
+      deliveryInfo?.cost &&
+      !deliveryInfo?.isOutOfRange
+        ? `*Delivery Charge:* ${hotelData.currency}${deliveryInfo.cost.toFixed(2)}`
+        : "",
+      qrGroup?.extra_charge
+        ? `*${qrGroup.name}:* ${hotelData.currency}${qrCharge.toFixed(2)}`
+        : "",
+      parcelCharge > 0
+        ? `*Parcel Charge:* ${hotelData.currency}${parcelCharge.toFixed(2)}`
+        : "",
+      discountAmount > 0
+        ? `*Discount:* -${hotelData.currency}${discountAmount.toFixed(2)}`
+        : "",
       `*Total Price:* ${hotelData.currency}${grandTotal.toFixed(2)}`,
-    ].filter(Boolean).join("\n");
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     const infoLines = [
       `*Order ID:* ${formattedOrderId}`,
       tableLine,
-      shouldShowHotelLocation ? `*Hotel Location:* ${currentSelectedArea.toUpperCase()}` : "",
-      orderType === "delivery" ? `*Delivery Address:* ${savedAddress}${locationLink}` : "",
+      shouldShowHotelLocation
+        ? `*Hotel Location:* ${currentSelectedArea.toUpperCase()}`
+        : "",
+      orderType === "delivery"
+        ? `*Delivery Address:* ${savedAddress}${locationLink}`
+        : "",
       (user as User)?.phone ? `*Customer Phone:* ${(user as User).phone}` : "",
       `*Time:* ${nowTime}`,
-    ].filter(Boolean).join("\n");
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     const whatsappMsg = [
       headerLine,
@@ -365,7 +436,9 @@ const OrderDrawer = ({
       "",
       billingLines,
       orderNote ? `\n*📝 Note:* ${orderNote}` : "",
-    ].filter((line) => line !== undefined).join("\n");
+    ]
+      .filter((line) => line !== undefined)
+      .join("\n");
 
     const number =
       selectedWhatsAppNumber ||
@@ -373,12 +446,16 @@ const OrderDrawer = ({
       hotelData?.phone ||
       "8590115462";
 
-    return `https://api.whatsapp.com/send?phone=${hotelData?.country_code || "+91"
-      }${number}&text=${encodeURIComponent(whatsappMsg)}`;
+    return `https://api.whatsapp.com/send?phone=${
+      hotelData?.country_code || "+91"
+    }${number}&text=${encodeURIComponent(whatsappMsg)}`;
   };
 
   // Modified: Intercept "View Order" click
   const handlePlaceOrder = async () => {
+    // Close search overlay if open
+    window.dispatchEvent(new CustomEvent("close-search-overlay"));
+
     if (!user) {
       // Show full-screen login modal
       setShowLoginModal(true);
@@ -394,7 +471,7 @@ const OrderDrawer = ({
   // Handle login and proceed
   const handleLoginAndProceed = async () => {
     // Get country code from hotelData
-    const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, '') || '91'; // Default to India if not available
+    const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, "") || "91"; // Default to India if not available
     const phoneDigits = getPhoneDigitsForCountry(countryCode);
 
     if (!phoneNumber || !validatePhoneNumber(phoneNumber, countryCode)) {
@@ -405,10 +482,10 @@ const OrderDrawer = ({
     setIsSubmitting(true);
     try {
       const success = await signInWithPhone(phoneNumber, hotelData.id, {
-        country: hotelData?.country || 'India',
+        country: hotelData?.country || "India",
         countryCode,
-        callingCode: hotelData?.country_code || '+91',
-        phoneDigits
+        callingCode: hotelData?.country_code || "+91",
+        phoneDigits,
       });
       if (success) {
         toast.success("Logged in successfully!");
@@ -430,8 +507,6 @@ const OrderDrawer = ({
     }
   };
 
-
-
   return (
     <>
       {/* Render PlaceOrderModal (controlled by store) */}
@@ -442,18 +517,21 @@ const OrderDrawer = ({
         hotelData={hotelData}
         tableNumber={tableNumber || 0}
         tableName={qrData?.table_name || undefined}
+        styles={styles}
       />
 
       {/* Bottom Drawer */}
       <div
         onClick={handlePlaceOrder}
         style={{
-          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+          boxShadow:
+            "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
           backgroundColor: styles.accent || "#ea580c",
           color: "#ffffff",
         }}
-        className={`fixed left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-2xl flex items-center justify-between transition-all duration-300 cursor-pointer ${open_drawer_bottom ? "translate-y-0" : "translate-y-[200%]"
-          } ${hasBottomNav ? "bottom-20" : "bottom-6"}`}
+        className={`fixed left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-xl flex items-center justify-between transition-all duration-300 cursor-pointer ${
+          open_drawer_bottom ? "translate-y-0" : "translate-y-[200%]"
+        } ${hasBottomNav ? "bottom-20" : "bottom-6"}`}
       >
         <div className="font-semibold text-lg">
           {items?.length || 0} item{(items?.length || 0) !== 1 ? "s" : ""} added
@@ -466,23 +544,55 @@ const OrderDrawer = ({
 
       {/* Full-Screen Login Modal - Mobile First */}
       {showLoginModal && (
-        <div className="fixed inset-0 z-[70] bg-white flex flex-col">
+        <div
+          className="fixed inset-0 z-[70] flex flex-col"
+          style={{
+            backgroundColor: styles.backgroundColor || "#fff",
+            color: styles.color || "#000",
+          }}
+        >
           {/* Header Bar */}
-          <div className="border-b border-stone-200 bg-white sticky top-0 z-10">
+          <div
+            className="sticky top-0 z-10"
+            style={{
+              backgroundColor: styles.backgroundColor || "#fff",
+              borderBottom: `1px solid ${styles.color}15`,
+            }}
+          >
             <div className="flex items-center justify-between px-4 pt-4">
               <button
                 onClick={() => setShowLoginModal(false)}
-                className="p-2 -ml-2 rounded-full hover:bg-stone-100 transition-all duration-200"
+                className="p-2 -ml-2 rounded-full transition-all duration-200"
+                style={{ color: styles.color }}
                 aria-label="Close"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-stone-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
-              <h2 className="text-base font-semibold text-gray-900">Login to Continue</h2>
+              <h2
+                className="text-base font-semibold"
+                style={{ color: styles.color }}
+              >
+                Login to Continue
+              </h2>
               <div className="w-9" />
             </div>
-            <p className="text-stone-500 text-xs text-center pb-3 px-4">
+            <p
+              className="text-xs text-center pb-3 px-4"
+              style={{ color: `${styles.color}80` }}
+            >
               Please enter your phone number to review your order
             </p>
           </div>
@@ -492,17 +602,31 @@ const OrderDrawer = ({
             <div className="max-w-md mx-auto px-6 py-8 space-y-8">
               {/* Phone Input */}
               <div className="space-y-3">
-                <Label htmlFor="phone" className="text-sm font-semibold text-gray-900 block">
+                <Label
+                  htmlFor="phone"
+                  className="text-sm font-semibold block"
+                  style={{ color: styles.color }}
+                >
                   Phone Number
                   {hotelData?.country && (
-                    <span className="text-stone-500 font-normal ml-2 text-xs">
+                    <span
+                      className="font-normal ml-2 text-xs"
+                      style={{ color: `${styles.color}80` }}
+                    >
                       ({hotelData.country})
                     </span>
                   )}
                 </Label>
                 <div className="flex gap-3">
-                  <div className="flex items-center justify-center px-4 sm:px-5 bg-orange-100/30 rounded-2xl text-base font-bold text-orange-600 border border-orange-600/20">
-                    {hotelData?.country_code || '+91'}
+                  <div
+                    className="flex items-center justify-center px-4 sm:px-5 rounded-2xl text-base font-bold border"
+                    style={{
+                      backgroundColor: `${styles.accent}15`,
+                      color: styles.accent,
+                      borderColor: `${styles.accent}30`,
+                    }}
+                  >
+                    {hotelData?.country_code || "+91"}
                   </div>
                   <Input
                     id="phone"
@@ -510,12 +634,21 @@ const OrderDrawer = ({
                     placeholder="Enter your phone number"
                     value={phoneNumber}
                     onChange={(e) => {
-                      const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, '') || '91';
+                      const countryCode =
+                        hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
                       const maxDigits = getPhoneDigitsForCountry(countryCode);
-                      setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, maxDigits));
+                      setPhoneNumber(
+                        e.target.value.replace(/\D/g, "").slice(0, maxDigits),
+                      );
                     }}
                     autoFocus
-                    className="flex-1 rounded-2xl text-gray-900 placeholder:text-gray-400 bg-white border-stone-200 focus:border-orange-600 focus:ring-2 focus:ring-orange-600/20 h-14 text-base px-4 sm:px-5 transition-all duration-200"
+                    className="flex-1 rounded-2xl h-14 text-base px-4 sm:px-5 transition-all duration-200 placeholder:text-inherit placeholder:opacity-40"
+                    style={{
+                      backgroundColor: styles.backgroundColor,
+                      color: styles.color,
+                      borderColor: `${styles.color}20`,
+                      outline: "none",
+                    }}
                   />
                 </div>
               </div>
@@ -525,7 +658,12 @@ const OrderDrawer = ({
                 <button
                   onClick={handleLoginAndProceed}
                   disabled={isSubmitting || !phoneNumber}
-                  className="w-full px-6 py-4 bg-orange-100/70 text-orange-600 rounded-full hover:bg-orange-600 hover:text-white border border-orange-600/30 hover:border-orange-600 transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                  className="w-full px-6 py-4 rounded-full transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                  style={{
+                    backgroundColor: `${styles.accent}18`,
+                    color: styles.accent,
+                    border: `1px solid ${styles.accent}30`,
+                  }}
                 >
                   {isSubmitting ? (
                     <span className="flex items-center justify-center gap-2">
@@ -539,20 +677,33 @@ const OrderDrawer = ({
 
                 <button
                   onClick={() => setShowLoginModal(false)}
-                  className="w-full px-6 py-3.5 rounded-full border border-stone-300 bg-transparent text-stone-800 hover:bg-stone-100 hover:text-stone-900 hover:border-stone-500 transition-all duration-200 font-medium text-base"
+                  className="w-full px-6 py-3.5 rounded-full bg-transparent transition-all duration-200 font-medium text-base"
+                  style={{
+                    color: styles.color,
+                    border: `1px solid ${styles.color}30`,
+                  }}
                 >
                   Cancel
                 </button>
               </div>
 
               {/* Privacy Note */}
-              <p className="text-xs text-stone-500 text-center leading-relaxed pt-2">
+              <p
+                className="text-xs text-center leading-relaxed pt-2"
+                style={{ color: `${styles.color}80` }}
+              >
                 By continuing, you agree to our{" "}
-                <span className="text-orange-600 hover:underline cursor-pointer">
+                <span
+                  className="hover:underline cursor-pointer"
+                  style={{ color: styles.accent }}
+                >
                   Terms of Service
                 </span>{" "}
                 and{" "}
-                <span className="text-orange-600 hover:underline cursor-pointer">
+                <span
+                  className="hover:underline cursor-pointer"
+                  style={{ color: styles.accent }}
+                >
                   Privacy Policy
                 </span>
               </p>

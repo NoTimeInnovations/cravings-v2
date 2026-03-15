@@ -10,7 +10,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Order, OrderItem } from "@/store/orderStore";
 import OfferLoadinPage from "@/components/OfferLoadinPage";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
-import { ArrowLeft, MessageCircle, CreditCard } from "lucide-react";
+import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck } from "lucide-react";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 
 const GET_ORDER_QUERY = `
@@ -29,6 +29,16 @@ const GET_ORDER_QUERY = `
       status_history
       display_id
       partner_id
+      delivery_boy_id
+      assigned_at
+      delivery_boy {
+        id
+        name
+        phone
+        current_lat
+        current_lng
+        location_updated_at
+      }
       partner {
         gst_percentage
         currency
@@ -48,7 +58,7 @@ const GET_ORDER_QUERY = `
       partner {
         name
         currency
-        
+
       }
       order_items {
         id
@@ -104,6 +114,9 @@ const OrderClient = () => {
                         extraCharges: order?.extra_charges || [],
                         discounts: order?.discounts || [],
                         user: order?.user,
+                        delivery_boy_id: order?.delivery_boy_id,
+                        assigned_at: order?.assigned_at,
+                        delivery_boy: order?.delivery_boy,
                         items: order?.order_items.map((i: any) => ({
                             id: i.item.id,
                             quantity: i.quantity,
@@ -299,6 +312,65 @@ ${itemsText}
                                 </div>
                             </div>
                         </div>
+
+                        {/* Live Delivery Tracking */}
+                        {order?.status === "dispatched" && order?.delivery_boy_id && order?.delivery_boy && (
+                            <div className="p-6 border-b bg-purple-50">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Truck className="h-5 w-5 text-purple-600" />
+                                    <h2 className="text-lg font-semibold text-purple-900">Your order is on the way!</h2>
+                                </div>
+                                <p className="text-sm text-purple-800 mb-3">
+                                    Delivery by <span className="font-medium">{order.delivery_boy.name}</span>
+                                </p>
+
+                                {/* Map showing delivery boy and customer location */}
+                                {order.delivery_boy.current_lat && order.delivery_boy.current_lng && order.delivery_location?.coordinates && (
+                                    <div className="mb-3">
+                                        <a
+                                            href={`https://www.google.com/maps/dir/${order.delivery_boy.current_lat},${order.delivery_boy.current_lng}/${order.delivery_location.coordinates[1]},${order.delivery_location.coordinates[0]}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="block"
+                                        >
+                                            <img
+                                                src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s-bicycle+4f46e5(${order.delivery_boy.current_lng},${order.delivery_boy.current_lat}),pin-s+ff0000(${order.delivery_location.coordinates[0]},${order.delivery_location.coordinates[1]})/auto/600x300?padding=60&access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`}
+                                                alt="Delivery tracking"
+                                                className="w-full h-auto rounded-md border border-purple-200"
+                                            />
+                                        </a>
+                                        {order.delivery_boy.location_updated_at && (
+                                            <p className="text-xs text-purple-600 mt-1">
+                                                Location updated {Math.round((Date.now() - new Date(order.delivery_boy.location_updated_at).getTime()) / 1000)}s ago
+                                            </p>
+                                        )}
+                                        {(() => {
+                                            // Simple ETA using Haversine distance / 25 km/h
+                                            const lat1 = order.delivery_boy.current_lat! * Math.PI / 180;
+                                            const lat2 = order.delivery_location!.coordinates[1] * Math.PI / 180;
+                                            const dLat = lat2 - lat1;
+                                            const dLng = (order.delivery_location!.coordinates[0] - order.delivery_boy.current_lng!) * Math.PI / 180;
+                                            const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng/2) * Math.sin(dLng/2);
+                                            const dist = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                                            const etaMinutes = Math.max(1, Math.round((dist / 25) * 60));
+                                            return (
+                                                <p className="text-sm font-medium text-purple-900 mt-1">
+                                                    Estimated arrival: ~{etaMinutes} min{etaMinutes > 1 ? "s" : ""}
+                                                </p>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
+
+                                <a
+                                    href={`tel:${order.delivery_boy.phone}`}
+                                    className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+                                >
+                                    <Phone className="h-4 w-4" />
+                                    Call Delivery Boy
+                                </a>
+                            </div>
+                        )}
 
                         <div className="p-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

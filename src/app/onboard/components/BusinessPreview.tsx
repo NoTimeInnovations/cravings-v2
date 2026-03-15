@@ -34,7 +34,7 @@ export default function BusinessPreview({
     if (!isSubmitting) {
       // Open WhatsApp link
       window.open(
-        `https://wa.me/918590115462?text=Hi!%20I'm%20interested%20in%20partnering%20with%20$Menuthere.%20Can%20you%20share%20the%20details`,
+        `https://wa.me/918590115462?text=Hi!%20I'm%20interested%20in%20partnering%20with%20Menuthere.%20Can%20you%20share%20the%20details`,
         "_blank",
       );
     }
@@ -128,7 +128,11 @@ export default function BusinessPreview({
                         <img
                           src={item.image}
                           alt={item.name}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
                           className="object-cover"
                         />
                       ) : (

@@ -17,7 +17,7 @@ const AuthInitializer = () => {
     if (!loading && userData?.role === "partner") {
       const restrictedPaths = ["/", "/explore"];
       if (restrictedPaths.includes(pathname)) {
-        router.push("/admin-v2");
+        router.replace("/admin-v2");
       }
     }
 
@@ -30,6 +30,17 @@ const AuthInitializer = () => {
   }, [userData, loading, pathname, router]);
 
 
+  // Expose __saveNotificationToken for Android WebView bridge
+  // The Palaaram Android app calls this after injecting the OneSignal subscription ID
+  useEffect(() => {
+    (window as any).__saveNotificationToken = () => {
+      Notification.token.save();
+    };
+    return () => {
+      delete (window as any).__saveNotificationToken;
+    };
+  }, []);
+
   useEffect(() => {
     const initializeAuth = async () => {
       try {
@@ -40,8 +51,9 @@ const AuthInitializer = () => {
         if (!isAuth) {
           const uuid = crypto.randomUUID();
           await setTempUserIdCookie("temp_" + uuid);
-          await Notification.token.save();
         }
+        // Always save token — handles returning users and Android app token injection
+        await Notification.token.save();
       } catch (error) {
         console.error("Failed to initialize auth:", error);
       }

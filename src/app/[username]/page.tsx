@@ -3,8 +3,9 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { processHotelPage, fetchHotelMetadata } from "@/lib/hotelDataFetcher";
 import HotelMenuPage from "@/screens/HotelMenuPage_v2";
 import { getAuthCookie } from "@/app/auth/actions";
-import { Metadata } from "next";
+import { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
+import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 import {
   ScanLimitReachedCard,
   SubscriptionExpiredCard,
@@ -49,16 +50,38 @@ export async function generateMetadata({
     hotel.description?.trim() ||
     `Explore the full menu of ${hotel.store_name}${locationLabel ? ` in ${locationLabel}` : ""}. Browse dishes, prices, and daily specials. Order online or scan QR code.`;
 
+  const bannerUrl = hotel.store_banner || "/hotelDetailsBanner.jpeg";
+  const metaImage = isVideoUrl(bannerUrl) ? getVideoThumbnailUrl(bannerUrl) : bannerUrl;
+
   return {
     title: seoTitle,
-    icons: [hotel.store_banner || "/hotelDetailsBanner.jpeg"],
+    icons: [metaImage],
     description: seoDescription,
+    manifest: `/api/manifest/${username}`,
     openGraph: {
-      images: [hotel.store_banner || "/hotelDetailsBanner.jpeg"],
+      images: [metaImage],
       title: seoTitle,
       description: seoDescription,
     },
   };
+}
+
+export async function generateViewport({
+  params,
+}: {
+  params: Promise<{ username: string }>;
+}): Promise<Viewport> {
+  const { username } = await params;
+  const partnerId = await getPartnerIdByUsername(username);
+
+  if (!partnerId) return { themeColor: "#ffffff" };
+
+  const hotel = await fetchHotelMetadata(partnerId);
+  const theme = typeof (hotel as any)?.theme === "string"
+    ? JSON.parse((hotel as any).theme)
+    : (hotel as any)?.theme || null;
+
+  return { themeColor: theme?.colors?.bg || "#ffffff" };
 }
 
 const UsernamePage = async ({

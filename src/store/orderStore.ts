@@ -114,6 +114,17 @@ export interface Order {
     phone?: string;
     email: string;
   };
+  delivery_boy_id?: string;
+  assigned_at?: string;
+  delivered_at?: string;
+  delivery_boy?: {
+    id: string;
+    name: string;
+    phone: string;
+    current_lat?: number;
+    current_lng?: number;
+    location_updated_at?: string;
+  };
   tableName?: string | null;
   extraCharges?:
   | {
@@ -326,7 +337,9 @@ const useOrderStore = create(
             }
           );
 
-          await Notification.user.sendOrderStatusNotification(order, status);
+          const { userData: authData } = useAuthStore.getState();
+          const storeName = authData && 'store_name' in authData ? authData.store_name : undefined;
+          await Notification.user.sendOrderStatusNotification(order, status, storeName);
 
           if (response.errors) {
             throw new Error(
@@ -401,14 +414,20 @@ const useOrderStore = create(
             }
           }
 
-          if (newStatus === "cancelled") {
+          // Send order status notification to user (fire-and-forget, never block order)
+          try {
             const order = orders.find((o) => o.id === orderId);
             if (order) {
+              const { userData: authData2 } = useAuthStore.getState();
+              const storeName2 = authData2 && 'store_name' in authData2 ? authData2.store_name : undefined;
               await Notification.user.sendOrderStatusNotification(
                 order,
-                newStatus
+                newStatus,
+                storeName2
               );
             }
+          } catch (notifError) {
+            console.error("Notification failed (order still updated):", notifError);
           }
 
           const updatedOrders = orders.map((order) =>
@@ -1270,7 +1289,13 @@ const useOrderStore = create(
             totalPrice: 0,
           }));
 
-          if (!hotelData.petpooja_restaurant_id) await Notification.partner.sendOrderNotification(newOrder);
+          if (!hotelData.petpooja_restaurant_id) {
+            try {
+              await Notification.partner.sendOrderNotification(newOrder);
+            } catch (notifError) {
+              console.error("Partner notification failed (order still placed):", notifError);
+            }
+          }
           return newOrder;
         } catch (error) {
           console.error("Order placement error:", error);
@@ -1394,6 +1419,10 @@ const useOrderStore = create(
               captain_id: order.captain_id,
               tableName: order.qr_code?.table_name || order.table_name || null,
               captain: captainData, // Use the properly structured captain data
+              delivery_boy_id: order.delivery_boy_id,
+              assigned_at: order.assigned_at,
+              delivered_at: order.delivered_at,
+              delivery_boy: order.delivery_boy,
               items: order.order_items.map((i: any) => ({
                 id: i.menu?.id,
                 quantity: i.quantity,
@@ -1479,6 +1508,10 @@ function transformOrderFromHasura(order: any): Order {
     discounts: order.discounts || [],
     captain_id: order.captain_id,
     captain: order.captainid,
+    delivery_boy_id: order.delivery_boy_id,
+    assigned_at: order.assigned_at,
+    delivered_at: order.delivered_at,
+    delivery_boy: order.delivery_boy,
     extraCharges: order.extra_charges,
   };
 }

@@ -110,6 +110,7 @@ export interface Partner extends BaseUser {
   };
   petpooja_restaurant_id?: string;
   username?: string;
+  has_seen_tour?: boolean;
 }
 
 export interface SuperAdmin extends BaseUser {
@@ -216,7 +217,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           set({
             userData: {
               ...partner,
-              password: "",
+              password: partner.password || "",
               currency: partner.currency,
               whatsapp_numbers: partner.whatsapp_numbers,
               location_details: partner.location_details,

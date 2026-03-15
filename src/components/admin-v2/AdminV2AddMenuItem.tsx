@@ -343,8 +343,20 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
 
                 <div className="space-y-6">
                     <Card>
-                        <CardHeader>
+                        <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle>Item Image</CardTitle>
+                            {newItem.image_url && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => setNewItem((prev) => ({ ...prev, image_url: "" }))}
+                                >
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    Remove
+                                </Button>
+                            )}
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">

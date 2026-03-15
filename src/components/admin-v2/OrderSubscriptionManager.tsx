@@ -98,7 +98,11 @@ export function OrderSubscriptionManager() {
                     allSeenOrderIds.current.add(order.id);
                 });
 
-                if (genuinelyNewOrders.length > 0) {
+                // Only show new-order notification if the list actually grew.
+                // When an order is deleted, pagination shifts can surface
+                // previously-unseen IDs — those are NOT new orders.
+                const listGrew = paginatedOrders.length > prevOrdersRef.current.length;
+                if (genuinelyNewOrders.length > 0 && listGrew) {
                     soundRef.current?.play();
                     toast.info(`New order received!`);
                 }

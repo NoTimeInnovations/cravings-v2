@@ -59,6 +59,14 @@ export default function Footer({
               </li>
               <li>
                 <Link
+                  href="/solutions/petpooja"
+                  className="text-sm text-white/80 hover:text-white transition-colors"
+                >
+                  PetPooja Integration
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/solutions/restaurants"
                   className="text-sm text-white/80 hover:text-white transition-colors"
                 >

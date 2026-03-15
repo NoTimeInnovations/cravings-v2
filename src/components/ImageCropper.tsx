@@ -15,6 +15,7 @@ interface ImageCropperProps {
   onClose: () => void;
   imageUrl: string;
   onCropComplete: (croppedImageUrl: string, cropType: string) => void;
+  lockedAspect?: number;
 }
 
 /**
@@ -36,7 +37,7 @@ function centerFreeCrop(
   };
 }
 
-export default function ImageCropper({ isOpen, onClose, imageUrl, onCropComplete }: ImageCropperProps) {
+export default function ImageCropper({ isOpen, onClose, imageUrl, onCropComplete, lockedAspect }: ImageCropperProps) {
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -49,7 +50,22 @@ export default function ImageCropper({ isOpen, onClose, imageUrl, onCropComplete
    */
   const onImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
-    if (cropMode === 'circle') {
+    if (lockedAspect) {
+      // Set initial crop with locked aspect, covering as much as possible
+      let cropW = width * 0.9;
+      let cropH = cropW / lockedAspect;
+      if (cropH > height * 0.9) {
+        cropH = height * 0.9;
+        cropW = cropH * lockedAspect;
+      }
+      setCrop({
+        unit: 'px',
+        x: (width - cropW) / 2,
+        y: (height - cropH) / 2,
+        width: cropW,
+        height: cropH,
+      });
+    } else if (cropMode === 'circle') {
       const size = Math.max(width, height);
       setCrop({
         unit: 'px',
@@ -61,7 +77,7 @@ export default function ImageCropper({ isOpen, onClose, imageUrl, onCropComplete
     } else {
       setCrop(centerFreeCrop(width, height));
     }
-  }, [cropMode]);
+  }, [cropMode, lockedAspect]);
 
   /**
    * This is the core function that performs the cropping.
@@ -206,23 +222,29 @@ export default function ImageCropper({ isOpen, onClose, imageUrl, onCropComplete
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden min-h-0 space-y-4 p-1 flex flex-col">
-          <div className="flex flex-row gap-2 items-center mb-4">
-            <span className="text-sm font-medium text-gray-700">Crop Mode:</span>
-            <Button
-              variant={cropMode === 'free' ? 'default' : 'outline'}
-              onClick={() => setCropMode('free')}
-              size="sm"
-            >
-              Free
-            </Button>
-            <Button
-              variant={cropMode === 'circle' ? 'default' : 'outline'}
-              onClick={() => setCropMode('circle')}
-              size="sm"
-            >
-              Circle
-            </Button>
-          </div>
+          {lockedAspect ? (
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-sm font-medium text-gray-700">Aspect ratio locked to {Math.round(lockedAspect * 583)}:{583}</span>
+            </div>
+          ) : (
+            <div className="flex flex-row gap-2 items-center mb-4">
+              <span className="text-sm font-medium text-gray-700">Crop Mode:</span>
+              <Button
+                variant={cropMode === 'free' ? 'default' : 'outline'}
+                onClick={() => setCropMode('free')}
+                size="sm"
+              >
+                Free
+              </Button>
+              <Button
+                variant={cropMode === 'circle' ? 'default' : 'outline'}
+                onClick={() => setCropMode('circle')}
+                size="sm"
+              >
+                Circle
+              </Button>
+            </div>
+          )}
 
           <div className="flex-1 flex items-center justify-center w-full bg-gray-100 rounded-lg p-2 min-h-0 overflow-hidden">
             <div className="w-full h-full flex items-center justify-center">
@@ -230,7 +252,7 @@ export default function ImageCropper({ isOpen, onClose, imageUrl, onCropComplete
                 crop={crop}
                 onChange={(_, percentCrop) => setCrop(percentCrop)}
                 onComplete={(c) => setCompletedCrop(c)}
-                aspect={cropMode === 'circle' ? 1 : undefined}
+                aspect={lockedAspect ? lockedAspect : cropMode === 'circle' ? 1 : undefined}
                 minWidth={50}
                 minHeight={50}
                 className="max-h-full w-fit mx-auto flex justify-center"

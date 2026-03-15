@@ -13,6 +13,8 @@ import { useRouter } from "next/navigation";
 import FullScreenLoader from "@/components/ui/FullScreenLoader";
 import { Check, Crown, X } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import plansData from "@/data/plans.json";
+import { UpgradeSuccessModal } from "@/components/admin-v2/UpgradeSuccessModal";
 
 type UpgradePlanDialogProps = {
     open: boolean;
@@ -36,63 +38,33 @@ type StandardPlan = {
     yearly: PlanVariant;
 };
 
-const indiaPlan: StandardPlan = {
-    description: "Essential, contactless digital menu for your restaurant",
-    features: [
-        "Digital menu",
-        "Unlimited items",
-        "QR code generation",
-        "Unlimited edits",
-        "Manage availability",
-        "Manage priority",
-        "Google menu sync",
-        "Chat support",
-    ],
-    monthly: {
-        id: "in_digital_monthly",
-        name: "Digital Menu Monthly",
-        price: "299",
-        type: "monthly",
-        rz_plan_id: "plan_S7E5JO7kPtwGnA",
-    },
-    yearly: {
-        id: "in_digital",
-        name: "Digital Menu Yearly",
-        price: "2999",
-        type: "yearly",
-        rz_plan_id: "plan_S7EEdzZoy456iP",
-        savings: "Save ₹589",
-    },
-};
+function buildPlan(monthlyId: string, yearlyId: string, plans: any[]): StandardPlan {
+    const monthly = plans.find((p: any) => p.id === monthlyId);
+    const yearly = plans.find((p: any) => p.id === yearlyId);
+    return {
+        description: monthly?.description || yearly?.description || "",
+        features: monthly?.features || yearly?.features || [],
+        monthly: {
+            id: monthly?.id || monthlyId,
+            name: monthly?.name || "Digital Menu Monthly",
+            price: (monthly?.price || "0").replace(/[^0-9.]/g, ""),
+            type: "monthly",
+            rz_plan_id: monthly?.rz_plan_id || "",
+            savings: monthly?.savings,
+        },
+        yearly: {
+            id: yearly?.id || yearlyId,
+            name: yearly?.name || "Digital Menu Yearly",
+            price: (yearly?.price || "0").replace(/[^0-9.]/g, ""),
+            type: "yearly",
+            rz_plan_id: yearly?.rz_plan_id || "",
+            savings: yearly?.savings,
+        },
+    };
+}
 
-const internationalPlan: StandardPlan = {
-    description: "Essential digital menu for your restaurant",
-    features: [
-        "Digital menu",
-        "Unlimited items",
-        "QR code generation",
-        "Unlimited edits",
-        "Manage availability",
-        "Manage priority",
-        "Google menu sync",
-        "Priority chat support",
-    ],
-    monthly: {
-        id: "int_digital_monthly",
-        name: "Digital Menu Monthly",
-        price: "19",
-        type: "monthly",
-        rz_plan_id: "plan_SIjWQgXZj9I2Vx",
-    },
-    yearly: {
-        id: "int_digital",
-        name: "Digital Menu Yearly",
-        price: "190",
-        type: "yearly",
-        rz_plan_id: "plan_SIjXPD8frrA8TZ",
-        savings: "Save $38",
-    },
-};
+const indiaPlan = buildPlan("in_digital_monthly", "in_digital", plansData.india);
+const internationalPlan = buildPlan("int_digital_monthly", "int_digital", plansData.international);
 
 declare global {
     interface Window {
@@ -109,8 +81,17 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
     const [countryCode, setCountryCode] = useState("IN");
 
     useEffect(() => {
+        if (!document.querySelector('script[src*="checkout.razorpay.com"]')) {
+            const script = document.createElement("script");
+            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.async = true;
+            document.body.appendChild(script);
+        }
+    }, []);
+
+    useEffect(() => {
         if (partnerCountry) {
-            setCountryCode(partnerCountry === "India" ? "IN" : "OTHER");
+            setCountryCode((partnerCountry === "India" || partnerCountry === "IN") ? "IN" : "OTHER");
             return;
         }
         try {
@@ -128,7 +109,8 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
     const [isAnnual, setIsAnnual] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [loadingText, setLoadingText] = useState<string | null>(null);
-
+    const [showSuccess, setShowSuccess] = useState(false);
+    const [upgradedPlanName, setUpgradedPlanName] = useState("");
 
     const activeVariant = isAnnual ? plan.yearly : plan.monthly;
     const currentPlanId = partner?.subscription_details?.plan?.id;
@@ -175,8 +157,19 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
                         },
                     );
                     if (verifyRes.success) {
-                        toast.success("Upgrade Successful! Welcome to " + activeVariant.name);
-                        router.push("/admin-v2");
+                        // Refresh auth store with updated subscription & features
+                        if (verifyRes.feature_flags || verifyRes.subscription_details) {
+                            useAuthStore.setState({
+                                userData: {
+                                    ...userData,
+                                    feature_flags: verifyRes.feature_flags || (userData as any).feature_flags,
+                                    subscription_details: verifyRes.subscription_details || (userData as any).subscription_details,
+                                } as any,
+                            });
+                        }
+                        setIsLoading(false);
+                        setUpgradedPlanName(activeVariant.name);
+                        setShowSuccess(true);
                     } else {
                         toast.error("Payment verification failed. Please contact support.");
                         setIsLoading(false);
@@ -189,6 +182,12 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
                 },
                 theme: { color: "#EA580C" },
             };
+
+            if (!window.Razorpay) {
+                toast.error("Payment gateway is loading. Please try again.");
+                setIsLoading(false);
+                return;
+            }
 
             const rzp = new window.Razorpay(options);
             rzp.on("payment.failed", function (res: any) {
@@ -282,6 +281,16 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
 
     return (
         <>
+            <UpgradeSuccessModal
+                open={showSuccess}
+                onClose={() => {
+                    setShowSuccess(false);
+                    onOpenChange(false);
+                    router.push("/admin-v2");
+                }}
+                planName={upgradedPlanName}
+                features={plan.features}
+            />
             <FullScreenLoader
                 isLoading={isLoading}
                 loadingTexts={loadingText ? [loadingText] : ["Processing..."]}

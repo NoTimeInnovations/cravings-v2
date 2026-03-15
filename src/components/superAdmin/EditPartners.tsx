@@ -474,7 +474,7 @@ const EditPartners = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                {selectedPartner.country === "India" && (
+                {(selectedPartner.country === "India" || selectedPartner.country === "IN") && (
                   <>
                     <div className="space-y-2">
                       <Label htmlFor="state">State</Label>

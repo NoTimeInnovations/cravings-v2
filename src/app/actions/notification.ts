@@ -24,17 +24,22 @@ const getMessage = (
       body: body || "You have a new message",
     },
     android: {
+      priority: "high" as const,
       notification: {
         icon: "ic_stat_logo",
+        channelId: data?.channel_id || "cravings_channel_1",
+        sound: soundAndroid || "custom_sound",
       },
     },
     apns: {
+      headers: {
+        "apns-priority": "10",
+      },
       payload: {
         aps: {
-          sound: "custom_sound.caf",
+          sound: soundIOS || "custom_sound.caf",
           contentAvailable: true,
         },
-
       },
     },
     data: data || {},
@@ -56,16 +61,20 @@ const findPlatform = () => {
 
 class Token {
   async save() {
-    const tokenId = window?.localStorage.getItem("tokenId");
-    if (tokenId) {
-      return;
-    }
-
     const token = window?.localStorage.getItem("fcmToken");
     const user = await getAuthCookie();
     const tempUser = await getTempUserIdCookie();
 
     if (!token || (!user && !tempUser)) {
+      return;
+    }
+
+    // Skip if same token was already saved for this user
+    const savedToken = window?.localStorage.getItem("savedFcmToken");
+    const savedUserId = window?.localStorage.getItem("savedTokenUserId");
+    const currentUserId = user?.id || tempUser;
+    if (!currentUserId) return;
+    if (savedToken === token && savedUserId === currentUserId) {
       return;
     }
 
@@ -76,7 +85,7 @@ class Token {
               object: $object,
               on_conflict: {
                 constraint: device_tokens_user_id_device_token_key,
-                update_columns: [platform, updated_at, user_id] 
+                update_columns: [platform, updated_at, user_id]
               }
             ) {
               id
@@ -86,7 +95,7 @@ class Token {
       {
         object: {
           device_token: token,
-          user_id: user?.id || tempUser,
+          user_id: currentUserId,
           platform: findPlatform(),
           updated_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
@@ -99,6 +108,8 @@ class Token {
       return;
     } else {
       window?.localStorage.setItem("tokenId", insert_device_tokens_one.id);
+      window?.localStorage.setItem("savedFcmToken", token);
+      window?.localStorage.setItem("savedTokenUserId", currentUserId);
     }
   }
 
@@ -129,65 +140,69 @@ class Token {
 
 class PartnerNotification {
   async sendOrderNotification(order: Order) {
-    const partnerId = order.partnerId;
+    try {
+      const partnerId = order.partnerId;
 
-    const { device_tokens } = await fetchFromHasura(
-      `
-      query GetPartnerDeviceTokens($partnerId: String!) {
-        device_tokens(
-          where: { user_id: { _eq: $partnerId } },
-          order_by: { created_at: desc },
-          limit: 3
-        ) {
-          device_token
+      const { device_tokens } = await fetchFromHasura(
+        `
+        query GetPartnerDeviceTokens($partnerId: String!) {
+          device_tokens(
+            where: { user_id: { _eq: $partnerId } },
+            order_by: { created_at: desc },
+            limit: 3
+          ) {
+            device_token
+          }
         }
+      `,
+        {
+          partnerId,
+        }
+      );
+
+      const tokens = device_tokens?.map(
+        (token: { device_token: string }) => token.device_token
+      ) || [];
+
+      console.log("Tokens found : ", tokens)
+
+      if (tokens.length === 0) {
+        return;
       }
-    `,
-      {
-        partnerId,
+
+      const orderItemsDesc = order.items
+        .map((item) => `${item.name} x ${item.quantity}`)
+        .join(", ");
+
+      const message = getMessage(
+        "New Order Of",
+        `You have a new order of ${orderItemsDesc}`,
+        tokens,
+        {
+          url: "https://menuthere.com",
+          channel_id: "cravings_channel_1",
+          sound: "custom_sound.caf",
+          order_id: order.id,
+        }
+      );
+
+      console.log("Order notification payload : ", message)
+
+      const response = await fetch(`${BASE_URL}/api/notifications/send`, {
+        method: "POST",
+        body: JSON.stringify({
+          message: message,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        console.error("Failed to send order notification");
       }
-    );
-
-    const tokens = device_tokens?.map(
-      (token: { device_token: string }) => token.device_token
-    );
-
-    console.log("Tokens found : ", tokens)
-
-    if (tokens.length === 0) {
-      return;
-    }
-
-    const orderItemsDesc = order.items
-      .map((item) => `${item.name} x ${item.quantity}`)
-      .join(", ");
-
-    const message = getMessage(
-      "New Order Of",
-      `You have a new order of ${orderItemsDesc}`,
-      tokens,
-      {
-        url: "https://menuthere.com",
-        channel_id: "cravings_channel_1",
-        sound: "custom_sound.caf",
-        order_id: order.id,
-      }
-    );
-
-    console.log("Order notification payload : ", message)
-
-    const response = await fetch(`${BASE_URL}/api/notifications/send`, {
-      method: "POST",
-      body: JSON.stringify({
-        message: message,
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      console.error("Failed to send order notification");
+    } catch (error) {
+      console.error("Error sending order notification:", error);
     }
   }
 
@@ -260,7 +275,7 @@ class PartnerNotification {
         ).toLocaleDateString()}`,
         tokens,
         {
-          url: `https://menuthere.com/offers/${offer?.id || ""}`,
+          url: "https://menuthere.com",
           channel_id: "cravings_channel_2",
           sound: "default_sound"
         }
@@ -287,53 +302,127 @@ class PartnerNotification {
 }
 
 class UserNotification {
-  async sendOrderStatusNotification(order: Order, status: string) {
-    const user = order.userId;
+  async sendOrderStatusNotification(order: Order, status: string, storeName?: string) {
+    try {
+      const user = order.userId;
 
-    const { device_tokens } = await fetchFromHasura(
-      `
-      query GetUserDeviceTokens($userId: String!) {
-        device_tokens(where: {user_id: {_eq: $userId}}) {
-          device_token
+      const { device_tokens } = await fetchFromHasura(
+        `
+        query GetUserDeviceTokens($userId: String!) {
+          device_tokens(where: {user_id: {_eq: $userId}}) {
+            device_token
+          }
         }
-      }
-    `,
-      {
-        userId: user,
-      }
-    );
+      `,
+        {
+          userId: user,
+        }
+      );
 
-    const tokens = device_tokens?.map(
-      (token: { device_token: string }) => token.device_token
-    );
+      const tokens = device_tokens?.map(
+        (token: { device_token: string }) => token.device_token
+      ) || [];
 
-    if (tokens.length === 0) {
-      return;
+      if (tokens.length === 0) {
+        return;
+      }
+
+      // Fetch store name if not available on the order (admin subscriptions don't include partner data)
+      let storeName = order.partner?.store_name;
+      if (!storeName && order.partnerId) {
+        const { partners_by_pk } = await fetchFromHasura(
+          `query GetPartnerName($partnerId: uuid!) {
+            partners_by_pk(id: $partnerId) { store_name }
+          }`,
+          { partnerId: order.partnerId }
+        );
+        storeName = partners_by_pk?.store_name;
+      }
+
+      const message = getMessage(
+        `Order ${status} `,
+        `Your order has been ${status}${storeName ? ` by ${storeName}` : ""}`,
+        tokens,
+        {
+          url: `https://menuthere.com/order/${order.id}`,
+          channel_id: "cravings_channel_2",
+          sound: "default_sound",
+        }
+      );
+
+      const response = await fetch(`${BASE_URL}/api/notifications/send`, {
+        method: "POST",
+        body: JSON.stringify({
+          message: message,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        console.error("Failed to send order status notification");
+      }
+    } catch (error) {
+      console.error("Error sending order status notification:", error);
     }
+  }
+}
 
-    const message = getMessage(
-      `Order ${status} `,
-      `Your order has been ${status} by ${order.partner?.store_name}`,
-      tokens,
-      {
-        url: `https://menuthere.com/order/${order.id}`,
-        channel_id: "cravings_channel_2",
-        sound: "default_sound",
+class DeliveryBoyNotification {
+  async sendAssignmentNotification(
+    deliveryBoyId: string,
+    orderId: string,
+    orderDisplayId: string,
+    deliveryAddress: string
+  ) {
+    try {
+      // Fetch delivery boy's device tokens from device_tokens table
+      const { device_tokens } = await fetchFromHasura(
+        `
+        query GetDeliveryBoyDeviceTokens($deliveryBoyId: String!) {
+          device_tokens(where: {user_id: {_eq: $deliveryBoyId}}) {
+            device_token
+          }
+        }
+      `,
+        { deliveryBoyId }
+      );
+
+      const tokens = device_tokens?.map(
+        (token: { device_token: string }) => token.device_token
+      ) || [];
+
+      if (tokens.length === 0) {
+        console.log("No device tokens found for delivery boy:", deliveryBoyId);
+        return;
       }
-    );
 
-    const response = await fetch(`${BASE_URL}/api/notifications/send`, {
-      method: "POST",
-      body: JSON.stringify({
-        message: message,
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+      const message = getMessage(
+        "New Delivery Assignment",
+        `Order #${orderDisplayId} - ${deliveryAddress}`,
+        tokens,
+        {
+          order_id: orderId,
+          type: "delivery_assignment",
+          channel_id: "cravings_channel_1",
+          sound: "custom_sound",
+        }
+      );
 
-    if (!response.ok) {
-      console.error("Failed to send order status notification");
+      const response = await fetch(`${BASE_URL}/api/notifications/send`, {
+        method: "POST",
+        body: JSON.stringify({ message }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        console.error("Failed to send delivery boy notification");
+      }
+    } catch (error) {
+      console.error("Error sending delivery boy notification:", error);
     }
   }
 }
@@ -341,5 +430,6 @@ class UserNotification {
 export const Notification = {
   partner: new PartnerNotification(),
   user: new UserNotification(),
+  deliveryBoy: new DeliveryBoyNotification(),
   token: new Token(),
 };

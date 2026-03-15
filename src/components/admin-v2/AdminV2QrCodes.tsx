@@ -393,10 +393,7 @@ export function AdminV2QrCodes() {
     // VIEW LOGIC
     const openView = async (qr: QrCode) => {
         setViewingQr(qr);
-        const username = (userData as any)?.username;
-        const qrUrl = username
-            ? `https://${DOMAIN}/${username}`
-            : `https://${DOMAIN}/qrScan/${(qr.partner?.store_name || "store").replace(/\s+/g, "-")}/${qr.id}`;
+        const qrUrl = `https://${DOMAIN}/qrScan/${(qr.partner?.store_name || "store").replace(/\s+/g, "-")}/${qr.id}`;
         try {
             const url = await QRCode.toDataURL(qrUrl);
             setViewQrCodeUrl(url);
@@ -407,10 +404,7 @@ export function AdminV2QrCodes() {
     };
 
     const handleCopyLink = (qr: QrCode) => {
-        const username = (userData as any)?.username;
-        const qrUrl = username
-            ? `https://${DOMAIN}/${username}`
-            : `https://${DOMAIN}/qrScan/${(qr.partner?.store_name || "store").replace(/\s+/g, "-")}/${qr.id}`;
+        const qrUrl = `https://${DOMAIN}/qrScan/${(qr.partner?.store_name || "store").replace(/\s+/g, "-")}/${qr.id}`;
         navigator.clipboard.writeText(qrUrl);
         toast.success("Link copied");
     };
@@ -439,10 +433,7 @@ export function AdminV2QrCodes() {
 
             for (let i = 0; i < itemsToExport.length; i++) {
                 const qrdata = itemsToExport[i];
-                const username = (userData as any)?.username;
-                const qrUrl = username
-                    ? `https://${DOMAIN}/${username}`
-                    : `https://${DOMAIN}/qrScan/${qrdata.partner?.store_name.replace(/\s+/g, "-")}/${qrdata.id}`;
+                const qrUrl = `https://${DOMAIN}/qrScan/${(qrdata.partner?.store_name || "store").replace(/\s+/g, "-")}/${qrdata.id}`;
                 const base64 = await QRCode.toDataURL(qrUrl);
                 worksheet.addRow([qrdata.table_number || qrdata.table_name || "N/A", "", qrdata.no_of_scans || 0]);
                 const imageId = workbook.addImage({ base64, extension: "png" });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Check, Upload, ClipboardPaste, Image as ImageIcon, Search, X, Sparkles } from "lucide-react";
+import { Loader2, Check, Upload, Image as ImageIcon, Search, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,11 +29,11 @@ export function ImageGridModalV2({
     onSelectImage,
 }: ImageGridModalV2Props) {
     const [searchQuery, setSearchQuery] = useState("");
-    const [aiPrompt, setAiPrompt] = useState("");
+
     const [galleryImages, setGalleryImages] = useState<string[]>([]);
-    const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+
     const [isLoading, setIsLoading] = useState(false);
-    const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+
     const [activeTab, setActiveTab] = useState("gallery");
     const [canPaste, setCanPaste] = useState(false);
     const { fetchCategorieImages } = useMenuStore();
@@ -48,7 +48,6 @@ export function ImageGridModalV2({
         if (isOpen) {
             const defaultTerm = itemName ? itemName.trim() : category.trim();
             setSearchQuery(defaultTerm);
-            setAiPrompt(defaultTerm);
             fetchGalleryImages(defaultTerm);
         }
     }, [isOpen, itemName, category]);
@@ -131,31 +130,6 @@ export function ImageGridModalV2({
         }
     };
 
-    const handlePollinationsGenerate = async () => {
-        if (!aiPrompt) {
-            toast.error("Please enter a prompt");
-            return;
-        }
-
-        setIsGeneratingAi(true);
-        try {
-            // Generate 4 variations using random seeds
-            const newImages = Array.from({ length: 4 }).map(() => {
-                const seed = Math.floor(Math.random() * 10000);
-                const encodedPrompt = encodeURIComponent(aiPrompt);
-                return `https://image.pollinations.ai/prompt/${encodedPrompt}?nologo=true&width=512&height=512&seed=${seed}`;
-            });
-
-            setGeneratedImages(prev => [...newImages, ...prev]);
-            toast.success("Images generated!");
-        } catch (error) {
-            console.error("AI Generation error:", error);
-            toast.error("Failed to generate images");
-        } finally {
-            setIsGeneratingAi(false);
-        }
-    };
-
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[85vw] md:max-w-7xl h-[90vh] flex flex-col p-0 gap-0 overflow-hidden bg-background transform-gpu">
@@ -185,14 +159,6 @@ export function ImageGridModalV2({
                             <Upload className="w-4 h-4 mr-2" />
                             Upload
                         </Button>
-                        <Button
-                            variant={activeTab === "ai" ? "secondary" : "ghost"}
-                            className="justify-start"
-                            onClick={() => setActiveTab("ai")}
-                        >
-                            <Sparkles className="w-4 h-4 mr-2" />
-                            AI Generate
-                        </Button>
                     </div>
 
                     {/* Main Content */}
@@ -202,7 +168,6 @@ export function ImageGridModalV2({
                             <div className="flex p-2 gap-2">
                                 <Button size="sm" variant={activeTab === "gallery" ? "secondary" : "ghost"} onClick={() => setActiveTab("gallery")}>Gallery</Button>
                                 <Button size="sm" variant={activeTab === "upload" ? "secondary" : "ghost"} onClick={() => setActiveTab("upload")}>Upload</Button>
-                                <Button size="sm" variant={activeTab === "ai" ? "secondary" : "ghost"} onClick={() => setActiveTab("ai")}>AI</Button>
                             </div>
                         </div>
 
@@ -298,67 +263,6 @@ export function ImageGridModalV2({
                                 </div>
                             </div>
 
-                            {activeTab === "ai" && (
-                                <div className="h-full flex flex-col p-6 gap-6">
-                                    <div className="space-y-4">
-                                        <div className="space-y-2">
-                                            <h3 className="text-lg font-semibold">AI Generation</h3>
-                                            <p className="text-sm text-muted-foreground">
-                                                Generate unique images using AI.
-                                            </p>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Input
-                                                value={aiPrompt}
-                                                onChange={(e) => setAiPrompt(e.target.value)}
-                                                placeholder="e.g. Delicious Butter Chicken"
-                                            />
-                                            <Button onClick={handlePollinationsGenerate} disabled={isGeneratingAi}>
-                                                {isGeneratingAi ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-                                                Generate
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex-1 border rounded-lg bg-muted/10 p-4 text-muted-foreground text-sm relative overflow-y-auto max-h-[40vh]">
-                                        {isGeneratingAi ? (
-                                            <div className="flex flex-col items-center justify-center gap-4 z-10 h-full min-h-[200px]">
-                                                <div className="relative">
-                                                    <div className="absolute inset-0 rounded-full blur-xl bg-primary/20 animate-pulse" />
-                                                    <Sparkles className="w-12 h-12 text-primary animate-bounce relative z-10" />
-                                                </div>
-                                                <p className="text-lg font-medium animate-pulse text-foreground">Generating images...</p>
-                                            </div>
-                                        ) : generatedImages.length > 0 ? (
-                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                                {generatedImages.map((url, idx) => (
-                                                    <div
-                                                        key={`ai-${idx}`}
-                                                        className={cn(
-                                                            "group relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all",
-                                                            currentImage === url ? "border-primary ring-2 ring-primary/20" : "border-transparent hover:border-muted-foreground/25"
-                                                        )}
-                                                        onClick={() => onSelectImage(url)}
-                                                    >
-                                                        <Img src={url} alt="AI Generated" className="w-full h-full object-cover" />
-                                                        {currentImage === url && (
-                                                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                                                                <div className="bg-primary text-primary-foreground rounded-full p-1">
-                                                                    <Check className="w-4 h-4" />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center justify-center h-full min-h-[200px]">
-                                                Generated images will appear here
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>

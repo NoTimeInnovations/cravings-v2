@@ -12,7 +12,7 @@ import React from "react";
 import { Partner } from "@/store/authStore";
 import { getAuthCookie } from "@/app/auth/actions";
 import { ThemeConfig, DEFAULT_THEME } from "@/components/hotelDetail/ThemeChangeButton";
-import { Metadata } from "next";
+import { Metadata, Viewport } from "next";
 import { getSocialLinks } from "@/lib/getSocialLinks";
 import { usePartnerStore } from "@/store/usePartnerStore";
 import { filterOffersByType } from "@/lib/offerFilters";
@@ -29,6 +29,7 @@ import {
 
 import { headers } from "next/headers";
 import { getDomainConfig } from "@/lib/domain-utils";
+import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 
 export async function generateMetadata({
   params,
@@ -89,21 +90,50 @@ export async function generateMetadata({
   const slug = encodeURIComponent((hotel.store_name || "").replace(/\s+/g, "-"));
   const canonicalUrl = `https://menuthere.com/hotels/${slug}/${hotelId}`;
 
+  // For video banners, use the thumbnail for meta images/icons
+  const bannerUrl = hotel.store_banner || "/hotelDetailsBanner.jpeg";
+  const metaImage = isVideoUrl(bannerUrl)
+    ? getVideoThumbnailUrl(bannerUrl)
+    : bannerUrl;
+
   return {
     title: seoTitle,
-    icons: [hotel.store_banner || "/hotelDetailsBanner.jpeg"],
+    icons: [metaImage],
     description: seoDescription,
     alternates: { canonical: canonicalUrl },
     robots: isTestAccount
       ? { index: false, follow: false }
       : { index: true, follow: true },
     openGraph: {
-      images: [hotel.store_banner || "/hotelDetailsBanner.jpeg"],
+      images: [metaImage],
       title: seoTitle,
       description: seoDescription,
       url: canonicalUrl,
     },
   };
+}
+
+export async function generateViewport({
+  params,
+}: {
+  params: Promise<{ id: string[] }>;
+}): Promise<Viewport> {
+  const { id: hotelIds } = await params;
+  const hotelId = isUUID(hotelIds?.[0] || "") ? hotelIds?.[0] : hotelIds?.[1];
+
+  try {
+    const partnerData = await fetchFromHasura(getPartnerAndOffersQuery, {
+      id: hotelId,
+      offer_types: ["delivery", "all"]
+    });
+    const hotel = partnerData?.partners?.[0];
+    const hotelTheme: ThemeConfig | null = typeof hotel?.theme === "string"
+      ? JSON.parse(hotel.theme)
+      : hotel?.theme || null;
+    return { themeColor: hotelTheme?.colors?.bg || "#ffffff" };
+  } catch {
+    return { themeColor: "#ffffff" };
+  }
 }
 
 export interface HotelDataMenus extends Omit<MenuItem, "category"> {
@@ -135,10 +165,15 @@ export interface HotelData extends Partner {
 
 export interface SocialLinks {
   instagram?: string;
+  facebook?: string;
   whatsapp?: string;
   googleReview?: string;
   location?: string;
   phone?: string;
+  zomato?: string;
+  uberEats?: string;
+  talabat?: string;
+  doordash?: string;
 }
 
 const HotelPage = async ({
@@ -398,7 +433,7 @@ const HotelPage = async ({
 
   // --- Subscription & Scan Limit Logic ---
   const sub = freshSubscription?.subscription_details || hoteldata?.subscription_details;
-  const isInternational = hoteldata?.country !== "IN";
+  const isInternational = hoteldata?.country !== "India" && hoteldata?.country !== "IN";
   const subPlan = sub?.plan;
 
   if (isInternational && sub && hoteldata) {
@@ -550,7 +585,7 @@ const HotelPage = async ({
               offers: {
                 "@type": "Offer",
                 price: String(item.price || 0),
-                priceCurrency: hoteldata?.country === "IN" ? "INR" : "USD",
+                priceCurrency: (hoteldata?.country === "India" || hoteldata?.country === "IN") ? "INR" : "USD",
               },
             });
             return acc;

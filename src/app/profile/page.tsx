@@ -1706,16 +1706,16 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen w-full bg-orange-50 p-2 pt-16">
+    <main className="min-h-screen w-full bg-orange-50 p-2 pt-4 pb-24">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Back Button */}
         <Button
-          onClick={() => router.push("/admin-v2")}
+          onClick={() => router.back()}
           variant="ghost"
           className="flex items-center gap-2 hover:bg-orange-100 text-gray-700"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Admin</span>
+          <span>Back</span>
         </Button>
 
         <Card className="overflow-hidden hover:shadow-xl transition-shadow">
@@ -2110,8 +2110,7 @@ export default function ProfilePage() {
                   {isEditing.phone && (
                     <Button
                       onClick={handleSavePhone}
-                      variant="ghost"
-                      className="hover:bg-orange-800 bg-orange-600 text-white hover:text-white"
+                      className="bg-orange-600 hover:bg-orange-700 text-white"
                     >
                       Submit
                     </Button>
