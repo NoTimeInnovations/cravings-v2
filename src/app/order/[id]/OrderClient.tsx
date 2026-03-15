@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { formatDate, getDateOnly } from "@/lib/formatDate";
 import { ExtraCharge } from "@/store/posStore";
@@ -12,6 +12,9 @@ import OfferLoadinPage from "@/components/OfferLoadinPage";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
 import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck } from "lucide-react";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
+import dynamic from "next/dynamic";
+
+const DeliveryMap = dynamic(() => import("./DeliveryMap"), { ssr: false });
 
 const GET_ORDER_QUERY = `
   subscription GetOrder($id: uuid!) {
@@ -44,21 +47,17 @@ const GET_ORDER_QUERY = `
         currency
         store_name
         country
+        name
       }
       gst_included
       extra_charges
       discounts
       phone
       user_id
-        user {
+      user {
         full_name
         phone
         email
-      }
-      partner {
-        name
-        currency
-
       }
       order_items {
         id
@@ -83,6 +82,22 @@ const OrderClient = () => {
         whatsapp_numbers?: string[] | any;
         country_code?: string;
     } | null>(null);
+    const [locationAgo, setLocationAgo] = useState<number | null>(null);
+
+    // Ticking timer for "Location updated Xs ago"
+    useEffect(() => {
+        const updatedAt = order?.delivery_boy?.location_updated_at;
+        if (!updatedAt) {
+            setLocationAgo(null);
+            return;
+        }
+        const update = () => {
+            setLocationAgo(Math.round((Date.now() - new Date(updatedAt).getTime()) / 1000));
+        };
+        update();
+        const interval = setInterval(update, 1000);
+        return () => clearInterval(interval);
+    }, [order?.delivery_boy?.location_updated_at]);
 
     useEffect(() => {
         if (!orderId) return;
@@ -320,55 +335,62 @@ ${itemsText}
                                     <Truck className="h-5 w-5 text-purple-600" />
                                     <h2 className="text-lg font-semibold text-purple-900">Your order is on the way!</h2>
                                 </div>
-                                <p className="text-sm text-purple-800 mb-3">
-                                    Delivery by <span className="font-medium">{order.delivery_boy.name}</span>
-                                </p>
+                                <div className="flex items-center justify-between mb-3">
+                                    <p className="text-sm text-purple-800">
+                                        Delivery by <span className="font-medium">{order.delivery_boy.name}</span>
+                                    </p>
+                                    <a
+                                        href={`tel:${order.delivery_boy.phone}`}
+                                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+                                    >
+                                        <Phone className="h-4 w-4" />
+                                        Call
+                                    </a>
+                                </div>
 
-                                {/* Map showing delivery boy and customer location */}
-                                {order.delivery_boy.current_lat && order.delivery_boy.current_lng && order.delivery_location?.coordinates && (
-                                    <div className="mb-3">
-                                        <a
-                                            href={`https://www.google.com/maps/dir/${order.delivery_boy.current_lat},${order.delivery_boy.current_lng}/${order.delivery_location.coordinates[1]},${order.delivery_location.coordinates[0]}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="block"
-                                        >
-                                            <img
-                                                src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s-bicycle+4f46e5(${order.delivery_boy.current_lng},${order.delivery_boy.current_lat}),pin-s+ff0000(${order.delivery_location.coordinates[0]},${order.delivery_location.coordinates[1]})/auto/600x300?padding=60&access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`}
-                                                alt="Delivery tracking"
-                                                className="w-full h-auto rounded-md border border-purple-200"
-                                            />
-                                        </a>
-                                        {order.delivery_boy.location_updated_at && (
-                                            <p className="text-xs text-purple-600 mt-1">
-                                                Location updated {Math.round((Date.now() - new Date(order.delivery_boy.location_updated_at).getTime()) / 1000)}s ago
-                                            </p>
-                                        )}
-                                        {(() => {
-                                            // Simple ETA using Haversine distance / 25 km/h
-                                            const lat1 = order.delivery_boy.current_lat! * Math.PI / 180;
-                                            const lat2 = order.delivery_location!.coordinates[1] * Math.PI / 180;
-                                            const dLat = lat2 - lat1;
-                                            const dLng = (order.delivery_location!.coordinates[0] - order.delivery_boy.current_lng!) * Math.PI / 180;
-                                            const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng/2) * Math.sin(dLng/2);
-                                            const dist = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                                            const etaMinutes = Math.max(1, Math.round((dist / 25) * 60));
-                                            return (
-                                                <p className="text-sm font-medium text-purple-900 mt-1">
-                                                    Estimated arrival: ~{etaMinutes} min{etaMinutes > 1 ? "s" : ""}
+                                {order.delivery_boy.current_lat != null && order.delivery_boy.current_lng != null && order.delivery_location?.coordinates ? (
+                                    <div>
+                                        <div className="flex items-center justify-between text-xs text-purple-600 mb-1">
+                                            {locationAgo != null && (
+                                                <span>
+                                                    Location updated {locationAgo < 60
+                                                        ? `${locationAgo}s`
+                                                        : `${Math.floor(locationAgo / 60)}m ${locationAgo % 60}s`} ago
+                                                </span>
+                                            )}
+                                            {(() => {
+                                                const lat1 = order.delivery_boy.current_lat! * Math.PI / 180;
+                                                const lat2 = order.delivery_location!.coordinates[1] * Math.PI / 180;
+                                                const dLat = lat2 - lat1;
+                                                const dLng = (order.delivery_location!.coordinates[0] - order.delivery_boy.current_lng!) * Math.PI / 180;
+                                                const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng/2) * Math.sin(dLng/2);
+                                                const dist = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                                                const etaMinutes = Math.max(1, Math.round((dist / 25) * 60));
+                                                return (
+                                                    <span className="font-medium text-purple-900">
+                                                        ETA: ~{etaMinutes} min{etaMinutes > 1 ? "s" : ""}
+                                                    </span>
+                                                );
+                                            })()}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="p-4 bg-purple-100 rounded-md border border-purple-200">
+                                        <div className="flex items-center gap-3">
+                                            <div className="animate-pulse">
+                                                <Truck className="h-6 w-6 text-purple-400" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-purple-800">
+                                                    Waiting for delivery boy&apos;s location...
                                                 </p>
-                                            );
-                                        })()}
+                                                <p className="text-xs text-purple-600 mt-0.5">
+                                                    Live tracking will appear once the delivery boy shares their location
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
-
-                                <a
-                                    href={`tel:${order.delivery_boy.phone}`}
-                                    className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
-                                >
-                                    <Phone className="h-4 w-4" />
-                                    Call Delivery Boy
-                                </a>
                             </div>
                         )}
 
@@ -401,20 +423,20 @@ ${itemsText}
                                                     (order.delivery_location?.coordinates?.length ?? 0) >
                                                     0 && (
                                                         <div className="mt-2">
-                                                            <a
-                                                                href={`https://www.google.com/maps?q=${order.delivery_location.coordinates[1]},${order.delivery_location.coordinates[0]}`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="block"
-                                                            >
-                                                                <img
-                                                                    src={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-s+ff0000(${order.delivery_location.coordinates[0]},${order.delivery_location.coordinates[1]})/${order.delivery_location.coordinates[0]},${order.delivery_location.coordinates[1]},16/600x300?access_token=${process.env.NEXT_PUBLIC_MAPBOX_TOKEN}`}
-                                                                    alt="Delivery location"
-                                                                    className="w-full h-auto rounded-md border border-gray-200"
-                                                                />
-                                                            </a>
+                                                            <DeliveryMap
+                                                                deliveryLng={order.delivery_location.coordinates[0]}
+                                                                deliveryLat={order.delivery_location.coordinates[1]}
+                                                                driverLng={order.delivery_boy?.current_lng}
+                                                                driverLat={order.delivery_boy?.current_lat}
+                                                                onMapClick={() => {
+                                                                    const url = order.delivery_boy?.current_lat != null && order.delivery_boy?.current_lng != null
+                                                                        ? `https://www.google.com/maps/dir/${order.delivery_boy.current_lat},${order.delivery_boy.current_lng}/${order.delivery_location!.coordinates[1]},${order.delivery_location!.coordinates[0]}`
+                                                                        : `https://www.google.com/maps?q=${order.delivery_location!.coordinates[1]},${order.delivery_location!.coordinates[0]}`;
+                                                                    window.open(url, "_blank");
+                                                                }}
+                                                            />
                                                             <p className="text-xs text-gray-500 mt-1">
-                                                                Click on map to view in Google Maps
+                                                                Tap map to open in Google Maps
                                                             </p>
                                                         </div>
                                                     )}
