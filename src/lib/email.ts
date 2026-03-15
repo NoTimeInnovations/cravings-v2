@@ -11,7 +11,7 @@ export const EMAIL_CONFIG = {
     apiKey: process.env.RESEND_API_KEY,
     appName: 'Menuthere',
     fromEmail: 'Menuthere <support@mail.menuthere.com>',
-    logoUrl: 'https://menuthere.com/menuthere-logo.png',
+    logoUrl: 'https://menuthere.com/menuthere-logo-new.png',
     baseUrl: 'https://menuthere.com',
 };
 

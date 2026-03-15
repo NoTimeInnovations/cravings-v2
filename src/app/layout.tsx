@@ -20,8 +20,8 @@ const MENUTHERE_CONFIG: DomainConfig = {
     "Menuthere | QR Code Digital Menu for Restaurants, Cafes & Hotels",
   description:
     "Create your QR code digital menu in minutes. Real-time updates, Google Business sync, dynamic offers & analytics",
-  logo: "/menuthere-logo.png",
-  icon: "/menuthere-logo.png",
+  logo: "/menuthere-logo-new.png",
+  icon: "/menuthere-logo-new.png",
   logowhite: "/menuthere-white.png",
   ogImage: "/og_image.png",
 };

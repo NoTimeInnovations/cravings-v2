@@ -124,7 +124,7 @@ export default function Login() {
       <div className="w-full max-w-sm sm:max-w-md bg-white rounded-xl p-5 sm:p-8">
         <div className="flex flex-col items-center mb-6 sm:mb-8">
           <img
-            src="/menuthere_logo_full.svg"
+            src="/menuthere-logo-full-new.svg"
             alt="Menuthere"
             width={171}
             height={46}

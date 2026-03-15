@@ -40,7 +40,7 @@ const PwaInstallPrompt = () => {
         <div className="flex items-center justify-between px-4 py-3 border-b-2 border-black/10">
           <div className="flex items-center gap-2 ">
             <Img
-              src={"/Menuthere-logo.png"}
+              src={"/menuthere-logo-new.png"}
               alt="Menuthere"
               width={64}
               height={64}

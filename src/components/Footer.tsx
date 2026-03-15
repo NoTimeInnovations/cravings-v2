@@ -19,7 +19,7 @@ export default function Footer({
           <div className="col-span-2">
             <Link href="/" className="inline-block mb-3">
               <Image
-                src="/menuthere_logo_full_white.svg"
+                src="/menuthere-logo-full-new-white.svg"
                 alt="Menuthere"
                 width={201}
                 height={46}

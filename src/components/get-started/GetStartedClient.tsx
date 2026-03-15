@@ -1975,7 +1975,7 @@ export default function GetStartedClient({
                 </div>
               ) : (
                 <>
-                  <img src="/menuthere-logo.png" alt="Menuthere" width={24} height={24} className="h-6 w-6 object-contain" />
+                  <img src="/menuthere-logo-new.png" alt="Menuthere" width={24} height={24} className="h-6 w-6 object-contain" />
                   <span className="text-xl font-semibold text-stone-900">
                     Menuthere
                   </span>

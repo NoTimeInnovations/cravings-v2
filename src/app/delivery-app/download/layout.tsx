@@ -40,7 +40,7 @@ export default function DownloadLayout({
           <div className="flex justify-center h-14 items-center">
             <Link href="/" className="flex items-center">
               <Image
-                src="/menuthere_logo_full.svg"
+                src="/menuthere-logo-full-new.svg"
                 alt="Menuthere"
                 width={140}
                 height={38}

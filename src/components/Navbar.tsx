@@ -451,7 +451,7 @@ export function Navbar() {
   const renderBranding = () => (
     <Link href="/" className="flex items-center cursor-pointer">
       <Image
-        src="/menuthere_logo_full.svg"
+        src="/menuthere-logo-full-new.svg"
         alt="Menuthere"
         width={171}
         height={46}
