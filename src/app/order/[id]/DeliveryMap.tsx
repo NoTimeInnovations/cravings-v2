@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -13,6 +13,9 @@ interface DeliveryMapProps {
   driverLat?: number | null;
   onMapClick?: () => void;
 }
+
+const ROUTE_SOURCE = "route";
+const ROUTE_LAYER = "route-line";
 
 export default function DeliveryMap({
   deliveryLng,
@@ -27,6 +30,7 @@ export default function DeliveryMap({
   const driverMarker = useRef<mapboxgl.Marker | null>(null);
   const animationFrame = useRef<number | null>(null);
   const currentDriverPos = useRef<{ lng: number; lat: number } | null>(null);
+  const routeAbort = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
@@ -52,6 +56,26 @@ export default function DeliveryMap({
       .setLngLat([deliveryLng, deliveryLat])
       .addTo(map.current);
 
+    // Add route source and layer once map loads
+    map.current.on("load", () => {
+      if (!map.current) return;
+      map.current.addSource(ROUTE_SOURCE, {
+        type: "geojson",
+        data: { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [] } },
+      });
+      map.current.addLayer({
+        id: ROUTE_LAYER,
+        type: "line",
+        source: ROUTE_SOURCE,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#FF8220",
+          "line-width": 4,
+          "line-opacity": 0.85,
+        },
+      });
+    });
+
     map.current.on("click", () => onMapClick?.());
 
     return () => {
@@ -60,7 +84,7 @@ export default function DeliveryMap({
     };
   }, []);
 
-  // Smoothly animate driver marker to new position
+  // Smoothly animate driver marker to new position & update route
   useEffect(() => {
     if (!map.current) return;
     if (driverLng == null || driverLat == null) return;
@@ -85,6 +109,7 @@ export default function DeliveryMap({
         .addTo(map.current);
       currentDriverPos.current = { ...targetPos };
       fitBounds();
+      fetchRoute(driverLng, driverLat);
       return;
     }
 
@@ -118,6 +143,7 @@ export default function DeliveryMap({
     };
 
     animationFrame.current = requestAnimationFrame(animate);
+    fetchRoute(driverLng, driverLat);
 
     return () => {
       if (animationFrame.current) {
@@ -125,6 +151,36 @@ export default function DeliveryMap({
       }
     };
   }, [driverLng, driverLat]);
+
+  async function fetchRoute(fromLng: number, fromLat: number) {
+    if (!map.current) return;
+
+    // Abort previous request
+    routeAbort.current?.abort();
+    const controller = new AbortController();
+    routeAbort.current = controller;
+
+    try {
+      const res = await fetch(
+        `https://api.mapbox.com/directions/v5/mapbox/driving/${fromLng},${fromLat};${deliveryLng},${deliveryLat}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`,
+        { signal: controller.signal }
+      );
+      const data = await res.json();
+      const coords = data.routes?.[0]?.geometry?.coordinates;
+      if (!coords || !map.current) return;
+
+      const source = map.current.getSource(ROUTE_SOURCE) as mapboxgl.GeoJSONSource | undefined;
+      if (source) {
+        source.setData({
+          type: "Feature",
+          properties: {},
+          geometry: { type: "LineString", coordinates: coords },
+        });
+      }
+    } catch (e: any) {
+      if (e.name !== "AbortError") console.error("Route fetch error:", e);
+    }
+  }
 
   function fitBounds() {
     if (!map.current) return;
