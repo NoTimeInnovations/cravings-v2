@@ -395,6 +395,12 @@ export default function GetStartedClient({
       }
 
       if (newFiles.length > 0) {
+        const oversized = newFiles.filter((f) => f.size > MAX_FILE_SIZE);
+        if (oversized.length > 0) {
+          toast.error(
+            `${oversized.length} file(s) exceed the 10MB size limit. Please upload smaller files.`
+          );
+        }
         setMenuFiles((prev) => [...prev, ...newFiles]);
         toast.success(`${newFiles.length} file(s) added!`);
       }
@@ -408,7 +414,14 @@ export default function GetStartedClient({
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setMenuFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+      const files = Array.from(e.target.files!);
+      const oversized = files.filter((f) => f.size > MAX_FILE_SIZE);
+      if (oversized.length > 0) {
+        toast.error(
+          `${oversized.length} file(s) exceed the 10MB size limit. Please upload smaller files.`
+        );
+      }
+      setMenuFiles((prev) => [...prev, ...files]);
     }
   };
 
