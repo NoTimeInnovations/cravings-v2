@@ -377,6 +377,6 @@ export const config = {
      * - images (image files)
      * - api/auth (auth API routes)
      */
-    "/((?!_next/static|_next/image|favicon.ico|images|api/auth).*)",
+    "/((?!_next/static|_next/image|favicon.ico|favicon_new.ico|images|api/auth).*)",
   ],
 };

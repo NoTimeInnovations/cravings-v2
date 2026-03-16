@@ -39,12 +39,12 @@ export const metadata: Metadata = {
     "Create your QR code digital menu in minutes. Real-time updates, Google Business sync, dynamic offers & analytics. Trusted by 600+ restaurants, cafes & hotels.",
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "16x16 32x32 48x48", type: "image/x-icon" },
+      { url: "/favicon_new.ico", sizes: "16x16 32x32 48x48", type: "image/x-icon" },
       { url: "/icon-64x64.png", sizes: "64x64", type: "image/png" },
       { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
       { url: "/icon-512x512.png", sizes: "512x512", type: "image/png" },
     ],
-    shortcut: [{ url: "/favicon.ico", type: "image/x-icon" }],
+    shortcut: [{ url: "/favicon_new.ico", type: "image/x-icon" }],
     apple: [{ url: "/icon-192x192.png" }],
   },
   metadataBase: new URL("https://menuthere.com"),
