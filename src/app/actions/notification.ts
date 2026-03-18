@@ -227,11 +227,14 @@ class PartnerNotification {
         return;
       }
 
-      const { followers } = await fetchFromHasura(
+      const { followers, partners } = await fetchFromHasura(
         `
         query GetPartnerFollowers($partnerId: uuid!) {
           followers(where: {partner_id: {_eq: $partnerId}}) {
             user_id
+          }
+          partners(where: {id: {_eq: $partnerId}}) {
+            username
           }
         }
       `,
@@ -239,6 +242,8 @@ class PartnerNotification {
           partnerId,
         }
       );
+
+      const partnerUsername = partners?.[0]?.username;
 
       const userIds = followers.map(
         (follower: { user_id: string }) => follower.user_id
@@ -275,7 +280,7 @@ class PartnerNotification {
         ).toLocaleDateString()}`,
         tokens,
         {
-          url: "https://menuthere.com",
+          url: `https://menuthere.com/${partnerUsername || partnerId}`,
           channel_id: "cravings_channel_2",
           sound: "default_sound"
         }
