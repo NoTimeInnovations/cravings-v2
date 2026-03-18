@@ -336,11 +336,11 @@ export function AdminV2Menu() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-          Menu Management
-        </h1>
-        <div className="flex flex-col gap-3 w-full sm:flex-row sm:items-center sm:w-auto">
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            Menu Management
+          </h1>
           <div className="flex gap-2 w-full sm:w-auto">
             <div className="relative flex-1 sm:w-64">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -368,15 +368,14 @@ export function AdminV2Menu() {
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:flex-wrap sm:w-auto">
+        </div>
+        <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               onClick={() => setIsAvailabilityMode(true)}
-              className="w-full sm:w-auto px-2 sm:px-4"
             >
-              <Power className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Manage Availability</span>
-              <span className="inline sm:hidden">Availability</span>
+              <Power className="h-4 w-4 mr-2" />
+              Manage Availability
               {isFreePlan && (
                 <Crown className="h-3.5 w-3.5 ml-1 text-yellow-500" />
               )}
@@ -384,11 +383,9 @@ export function AdminV2Menu() {
             <Button
               variant="outline"
               onClick={() => setIsPriorityMode(true)}
-              className="w-full sm:w-auto px-2 sm:px-4"
             >
-              <ArrowUpDown className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Change Priority</span>
-              <span className="inline sm:hidden">Priority</span>
+              <ArrowUpDown className="h-4 w-4 mr-2" />
+              Change Priority
               {isFreePlan && (
                 <Crown className="h-3.5 w-3.5 ml-1 text-yellow-500" />
               )}
@@ -396,7 +393,6 @@ export function AdminV2Menu() {
             <Button
               variant="outline"
               onClick={() => setIsAddingItem(true)}
-              className="w-full sm:w-auto"
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Item
@@ -404,7 +400,6 @@ export function AdminV2Menu() {
             <Button
               variant="outline"
               onClick={() => setIsAddingCategory(true)}
-              className="w-full sm:w-auto"
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Category
@@ -413,7 +408,6 @@ export function AdminV2Menu() {
               <Button
                 variant="outline"
                 onClick={() => window.open(`/${partner.username}`, "_blank")}
-                className="col-span-2 sm:col-span-1 w-full sm:w-auto"
               >
                 <ExternalLink className="h-4 w-4 mr-2" />
                 View Menu
@@ -465,7 +459,7 @@ export function AdminV2Menu() {
                     toast.dismiss(toastId);
                   }
                 }}
-                className="col-span-2 sm:col-span-1 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <img
                   src="https://www.gstatic.com/images/branding/product/1x/google_my_business_48dp.png"
@@ -480,7 +474,6 @@ export function AdminV2Menu() {
                 variant="outline"
                 onClick={handleGetAllImages}
                 disabled={isFetchingImages}
-                className="col-span-2 sm:col-span-1 w-full sm:w-auto"
               >
                 {isFetchingImages ? (
                   <>
@@ -495,7 +488,6 @@ export function AdminV2Menu() {
                 )}
               </Button>
             }
-          </div>
         </div>
       </div>
 
