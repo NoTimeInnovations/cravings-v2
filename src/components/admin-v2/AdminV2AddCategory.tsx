@@ -617,7 +617,7 @@ For each item, provide:
                         onClick={() => { setIsAIMode(true); setIsAddingItemManually(false); }}
                     >
                         <Sparkles className="h-4 w-4 mr-2" />
-                        AI Menu Extract
+                        Menu Upload
                     </Button>
                 </div>
             )}
@@ -851,7 +851,7 @@ For each item, provide:
             {isAIMode && (
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>AI Menu Extract</CardTitle>
+                        <CardTitle>Menu Upload</CardTitle>
                         <Button
                             variant="ghost"
                             size="icon"

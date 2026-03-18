@@ -368,7 +368,7 @@ export function AdminV2Menu() {
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto">
+          <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:flex-wrap sm:w-auto">
             <Button
               variant="outline"
               onClick={() => setIsAvailabilityMode(true)}
