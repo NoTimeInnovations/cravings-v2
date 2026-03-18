@@ -85,7 +85,7 @@ export default function AdminPage() {
 
     return (
         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
-            <div className="h-screen flex flex-col bg-orange-50 dark:bg-background">
+            <div className="h-screen flex flex-col bg-orange-50 dark:bg-background overflow-hidden">
                 <AdminNavbar
                     onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                     isSidebarOpen={isSidebarOpen}
