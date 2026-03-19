@@ -59,10 +59,12 @@ export function useFirebasePhoneAuth() {
           recaptchaVerifierRef.current.clear();
           recaptchaVerifierRef.current = null;
         }
-        // Reset the container to avoid stale reCAPTCHA
-        const container = document.getElementById(recaptchaContainerId);
-        if (container) {
-          container.innerHTML = "";
+        // Replace the container element entirely to clear reCAPTCHA's internal state
+        const oldContainer = document.getElementById(recaptchaContainerId);
+        if (oldContainer) {
+          const newContainer = document.createElement("div");
+          newContainer.id = recaptchaContainerId;
+          oldContainer.replaceWith(newContainer);
         }
 
         const verifier = new RecaptchaVerifier(auth, recaptchaContainerId, {
@@ -78,6 +80,11 @@ export function useFirebasePhoneAuth() {
         confirmationResultRef.current = result;
         setStep("otp");
       } catch (err: any) {
+        console.error("Firebase Phone Auth Error:", {
+          code: err?.code,
+          message: err?.message,
+          fullError: err,
+        });
         const message = getErrorMessage(err?.code);
         setError(message);
         if (recaptchaVerifierRef.current) {
