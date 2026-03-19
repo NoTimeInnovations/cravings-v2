@@ -19,8 +19,11 @@ import {
 } from "@/api/partners";
 import { sendPetpoojaOnboardingEmailAction } from "@/app/actions/sendPetpoojaOnboardingEmail";
 
-const DEFAULT_CC_EMAILS = [
+const DEFAULT_TO_EMAILS = [
   "malvi.vaghela@petpooja.com",
+];
+
+const DEFAULT_CC_EMAILS = [
   "jatan.vala@petpooja.com",
   "rohan.sakhrani@petpooja.com",
   "siddharth.patel@petpooja.com",
@@ -37,11 +40,14 @@ const CreatePartnerPage = () => {
   const [menuMapping, setMenuMapping] = useState("Online");
   const [senderName, setSenderName] = useState("Thrisha K");
   const [senderOrg, setSenderOrg] = useState("Notime Services (Cravings)");
+  const [toEmails, setToEmails] = useState<string[]>(DEFAULT_TO_EMAILS);
+  const [newToEmail, setNewToEmail] = useState("");
   const [ccEmails, setCcEmails] = useState<string[]>(DEFAULT_CC_EMAILS);
   const [newCcEmail, setNewCcEmail] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sendEmail, setSendEmail] = useState(true);
+  const [enableBackwardTax, setEnableBackwardTax] = useState(true);
 
   const emailSubject = `New Restaurant Onboarding Of ${name || "[Restaurant Name]"} - Petpooja`;
 
@@ -63,6 +69,18 @@ const CreatePartnerPage = () => {
       return false;
     }
     return true;
+  };
+
+  const addToEmail = () => {
+    const trimmed = newToEmail.trim();
+    if (trimmed && !toEmails.includes(trimmed)) {
+      setToEmails([...toEmails, trimmed]);
+      setNewToEmail("");
+    }
+  };
+
+  const removeToEmail = (emailToRemove: string) => {
+    setToEmails(toEmails.filter((e) => e !== emailToRemove));
   };
 
   const addCcEmail = () => {
@@ -117,7 +135,7 @@ const CreatePartnerPage = () => {
       // 3. Send onboarding email
       if (sendEmail) {
         const emailResult = await sendPetpoojaOnboardingEmailAction({
-          to: email,
+          to: [email, ...toEmails].filter(Boolean).join(", "),
           cc: ccEmails,
           subject: emailSubject,
           restaurantName: name,
@@ -125,6 +143,7 @@ const CreatePartnerPage = () => {
           menuMapping,
           senderName,
           senderOrg,
+          enableBackwardTax,
         });
 
         if (emailResult.success) {
@@ -247,6 +266,26 @@ const CreatePartnerPage = () => {
                   />
                 </button>
               </div>
+
+              {/* Backward Tax Toggle */}
+              <div className="flex items-center justify-between pt-2">
+                <Label className="text-orange-900 flex items-center gap-2">
+                  Mention backward tax in email
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => setEnableBackwardTax(!enableBackwardTax)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    enableBackwardTax ? "bg-orange-600" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      enableBackwardTax ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
             </CardContent>
             <CardFooter>
               <Button
@@ -302,11 +341,35 @@ const CreatePartnerPage = () => {
 
                 <div className="space-y-2">
                   <Label className="text-sm text-gray-600">To</Label>
-                  <Input
-                    value={email || "(uses partner email)"}
-                    disabled
-                    className="bg-gray-50 text-sm"
-                  />
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-xs">
+                      {email || "(partner email)"}
+                    </span>
+                    {toEmails.map((toEmail) => (
+                      <span
+                        key={toEmail}
+                        className="inline-flex items-center gap-1 bg-orange-100 text-orange-800 px-2 py-1 rounded-md text-xs"
+                      >
+                        {toEmail}
+                        <button type="button" onClick={() => removeToEmail(toEmail)}>
+                          <X className="h-3 w-3 hover:text-red-600" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      type="email"
+                      placeholder="Add To email"
+                      value={newToEmail}
+                      onChange={(e) => setNewToEmail(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addToEmail(); } }}
+                      className="text-sm"
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={addToEmail}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -377,7 +440,7 @@ const CreatePartnerPage = () => {
                   </div>
                   <div className="text-xs text-gray-500">
                     <span className="font-medium">To:</span>{" "}
-                    {email ? `${name} (${email})` : "(partner email)"}
+                    {[email ? `${name} (${email})` : "(partner email)", ...toEmails].join(", ")}
                   </div>
                   <div className="text-xs text-gray-500">
                     <span className="font-medium">CC:</span>{" "}
@@ -414,9 +477,11 @@ const CreatePartnerPage = () => {
                         <strong>[{menuMapping}]</strong> menu version for the
                         Cravings configuration.
                       </li>
-                      <li>
-                        Also <strong>enable backward tax</strong> for this partner.
-                      </li>
+                      {enableBackwardTax && (
+                        <li>
+                          Also <strong>enable backward tax</strong> for this partner.
+                        </li>
+                      )}
                     </ul>
                     <p>
                       Petpooja Team, once we have the merchant&apos;s
