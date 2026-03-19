@@ -32,10 +32,18 @@ export function OtpInput({
   );
 
   const handleChange = useCallback(
-    (index: number, char: string) => {
-      const digit = char.replace(/\D/g, "").slice(-1);
-      if (!digit) return;
+    (index: number, inputValue: string) => {
+      const cleaned = inputValue.replace(/\D/g, "");
+      if (!cleaned) return;
 
+      // Autofill or multi-char input: treat as full OTP
+      if (cleaned.length > 1) {
+        onChange(cleaned.slice(0, length));
+        focusInput(Math.min(cleaned.length, length - 1));
+        return;
+      }
+
+      const digit = cleaned;
       const newValue = digits.map((d, i) => (i === index ? digit : d)).join("").replace(/ /g, "");
       onChange(newValue.slice(0, length));
 
