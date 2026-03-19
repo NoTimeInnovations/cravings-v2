@@ -37,6 +37,7 @@ import { Tag } from "lucide-react";
 import { UpiPaymentScreen } from "./UpiPaymentScreen";
 import AddressManagementModal, { type SavedAddress, type AddressModalTheme } from "./AddressManagementModal";
 import { Notification } from "@/app/actions/notification";
+import { useFirebasePhoneAuth } from "@/hooks/useFirebasePhoneAuth";
 
 // Helper: detect if a hex color is dark
 function isDarkColor(hex: string): boolean {
@@ -823,11 +824,33 @@ const LoginDrawer = ({
 }) => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [userName, setUserName] = useState("");
+  const [otp, setOtp] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signInWithPhone } = useAuthStore();
   const needUserName = hotelData?.delivery_rules?.need_user_name ?? false;
+  const {
+    step: otpStep,
+    isSending,
+    isVerifying,
+    error: otpError,
+    sendOtp,
+    verifyOtp,
+    reset: resetOtp,
+  } = useFirebasePhoneAuth();
 
-  const handleLogin = async () => {
+  // Reset state when drawer closes
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (showLoginDrawer && !wasOpen.current) {
+      resetOtp();
+      setOtp("");
+      setPhoneNumber("");
+      setUserName("");
+    }
+    wasOpen.current = showLoginDrawer;
+  }, [showLoginDrawer, resetOtp]);
+
+  const handleSendOtp = async () => {
     const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
     const phoneDigits = getPhoneDigitsForCountry(countryCode);
 
@@ -841,8 +864,30 @@ const LoginDrawer = ({
       return;
     }
 
+    try {
+      const fullPhone = `${hotelData?.country_code || "+91"}${phoneNumber}`;
+      await sendOtp(fullPhone, "recaptcha-container-order");
+      toast.success("OTP sent successfully!");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to send OTP"
+      );
+    }
+  };
+
+  const handleVerifyAndLogin = async () => {
+    if (otp.length !== 6) {
+      toast.error("Please enter a 6-digit OTP");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      await verifyOtp(otp);
+
+      const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
+      const phoneDigits = getPhoneDigitsForCountry(countryCode);
+
       const result = await signInWithPhone(phoneNumber, hotelId, {
         country: hotelData?.country || "India",
         countryCode,
@@ -850,7 +895,6 @@ const LoginDrawer = ({
         phoneDigits,
       });
       if (result) {
-        // Update full_name if provided
         if (userName.trim() && result.id) {
           try {
             await fetchFromHasura(updateUserFullNameMutation, {
@@ -869,8 +913,10 @@ const LoginDrawer = ({
       } else {
         toast.error("Login failed. Please try again.");
       }
-    } catch {
-      toast.error("Login failed. Please try again.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Verification failed"
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -891,151 +937,265 @@ const LoginDrawer = ({
         {/* Top bar with close */}
         <div className="shrink-0 flex items-center justify-between px-4 py-4">
           <button
-            onClick={() => setShowLoginDrawer(false)}
+            onClick={() => {
+              if (otpStep === "otp") {
+                resetOtp();
+                setOtp("");
+              } else {
+                setShowLoginDrawer(false);
+              }
+            }}
             className="p-1.5 rounded-full hover:opacity-80 transition-all duration-200"
-            aria-label="Close"
+            aria-label={otpStep === "otp" ? "Back" : "Close"}
           >
             <ArrowLeft className="h-6 w-6" />
           </button>
-          <span className="text-base font-bold">Login</span>
+          <span className="text-base font-bold">
+            {otpStep === "otp" ? "Verify OTP" : "Login"}
+          </span>
           <div className="w-9" />
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 flex flex-col justify-center max-w-md mx-auto w-full">
-          {/* Header */}
-          <div className="mb-8 text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              <h2 className="text-3xl font-bold text-inherit mb-3">
-                Welcome Back
-              </h2>
-              <p className="opacity-70 text-[15px] leading-relaxed">
-                Please enter your phone number to review your order
-              </p>
-            </motion.div>
-          </div>
-
-          {/* Name Input */}
-          {needUserName && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="mb-4"
-            >
-              <Label
-                htmlFor="userName"
-                className="text-sm font-semibold text-inherit mb-3 block"
-              >
-                Your Name <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                type="text"
-                id="userName"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                placeholder="Enter your name"
-                className="rounded-xl text-inherit placeholder:opacity-70 bg-transparent border-[var(--pom-card-border,#e7e5e4)] focus:border-[var(--pom-accent,#ea580c)] focus:ring-2 focus:ring-[var(--pom-accent,#ea580c)]/20 h-14 text-base px-5 transition-all duration-200"
-              />
-            </motion.div>
-          )}
-
-          {/* Phone Input */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="mb-8"
-          >
-            <Label
-              htmlFor="phone"
-              className="text-sm font-semibold text-inherit mb-3 block"
-            >
-              Phone Number
-              {hotelData?.country && (
-                <span className="opacity-60 font-normal ml-2 text-xs">
-                  ({hotelData.country})
-                </span>
-              )}
-            </Label>
-            <div className="flex gap-3">
-              <div className="flex items-center justify-center px-5 rounded-xl text-base font-bold text-[var(--pom-accent,#ea580c)] border border-[var(--pom-card-border,#e7e5e4)]" style={{ backgroundColor: "color-mix(in srgb, var(--pom-accent, #ea580c) 10%, transparent)" }}>
-                {hotelData?.country_code || "+91"}
+          {otpStep === "phone" ? (
+            <>
+              {/* Header */}
+              <div className="mb-8 text-center">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <h2 className="text-3xl font-bold text-inherit mb-3">
+                    Welcome Back
+                  </h2>
+                  <p className="opacity-70 text-[15px] leading-relaxed">
+                    Please enter your phone number to review your order
+                  </p>
+                </motion.div>
               </div>
-              <Input
-                type="tel"
-                id="phone"
-                value={phoneNumber}
-                onChange={(e) => {
-                  const countryCode =
-                    hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
-                  const maxDigits = getPhoneDigitsForCountry(countryCode);
-                  setPhoneNumber(
-                    e.target.value.replace(/\D/g, "").slice(0, maxDigits),
-                  );
-                }}
-                placeholder="Enter your phone number"
-                className="flex-1 rounded-xl text-inherit placeholder:opacity-70 bg-transparent border-[var(--pom-card-border,#e7e5e4)] focus:border-[var(--pom-accent,#ea580c)] focus:ring-2 focus:ring-[var(--pom-accent,#ea580c)]/20 h-14 text-base px-5 transition-all duration-200"
-                autoFocus
-              />
-            </div>
-          </motion.div>
 
-          {/* Action Button */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="space-y-4"
-          >
-            <button
-              onClick={handleLogin}
-              disabled={isSubmitting || !phoneNumber || (needUserName && !userName.trim())}
-              className="w-full px-6 py-4 text-[var(--pom-accent,#ea580c)] rounded-full hover:text-white border border-[var(--pom-accent,#ea580c)] transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
-              style={{ backgroundColor: "color-mix(in srgb, var(--pom-accent, #ea580c) 15%, transparent)" }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--pom-accent, #ea580c)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "color-mix(in srgb, var(--pom-accent, #ea580c) 15%, transparent)"; }}
-            >
-              {isSubmitting ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Verifying...
-                </span>
-              ) : (
-                "Continue"
+              {/* Name Input */}
+              {needUserName && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  className="mb-4"
+                >
+                  <Label
+                    htmlFor="userName"
+                    className="text-sm font-semibold text-inherit mb-3 block"
+                  >
+                    Your Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    id="userName"
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    placeholder="Enter your name"
+                    className="rounded-xl text-inherit placeholder:opacity-70 bg-transparent border-[var(--pom-card-border,#e7e5e4)] focus:border-[var(--pom-accent,#ea580c)] focus:ring-2 focus:ring-[var(--pom-accent,#ea580c)]/20 h-14 text-base px-5 transition-all duration-200"
+                  />
+                </motion.div>
               )}
-            </button>
 
-            <button
-              onClick={() => setShowLoginDrawer(false)}
-              className="w-full px-6 py-3.5 rounded-full border bg-transparent hover:opacity-80 transition-all duration-200 font-medium text-base"
-              style={{ borderColor: "var(--pom-card-border, #d6d3d1)" }}
-            >
-              Cancel
-            </button>
-          </motion.div>
+              {/* Phone Input */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="mb-8"
+              >
+                <Label
+                  htmlFor="phone"
+                  className="text-sm font-semibold text-inherit mb-3 block"
+                >
+                  Phone Number
+                  {hotelData?.country && (
+                    <span className="opacity-60 font-normal ml-2 text-xs">
+                      ({hotelData.country})
+                    </span>
+                  )}
+                </Label>
+                <div className="flex gap-3">
+                  <div className="flex items-center justify-center px-5 rounded-xl text-base font-bold text-[var(--pom-accent,#ea580c)] border border-[var(--pom-card-border,#e7e5e4)]" style={{ backgroundColor: "color-mix(in srgb, var(--pom-accent, #ea580c) 10%, transparent)" }}>
+                    {hotelData?.country_code || "+91"}
+                  </div>
+                  <Input
+                    type="tel"
+                    id="phone"
+                    value={phoneNumber}
+                    onChange={(e) => {
+                      const countryCode =
+                        hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
+                      const maxDigits = getPhoneDigitsForCountry(countryCode);
+                      setPhoneNumber(
+                        e.target.value.replace(/\D/g, "").slice(0, maxDigits),
+                      );
+                    }}
+                    placeholder="Enter your phone number"
+                    className="flex-1 rounded-xl text-inherit placeholder:opacity-70 bg-transparent border-[var(--pom-card-border,#e7e5e4)] focus:border-[var(--pom-accent,#ea580c)] focus:ring-2 focus:ring-[var(--pom-accent,#ea580c)]/20 h-14 text-base px-5 transition-all duration-200"
+                    autoFocus
+                  />
+                </div>
+              </motion.div>
 
-          {/* Privacy Note */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="text-xs opacity-60 text-center mt-6 leading-relaxed"
-          >
-            By continuing, you agree to our{" "}
-            <span className="text-[var(--pom-accent,#ea580c)] hover:underline cursor-pointer">
-              Terms of Service
-            </span>{" "}
-            and{" "}
-            <span className="text-[var(--pom-accent,#ea580c)] hover:underline cursor-pointer">
-              Privacy Policy
-            </span>
-          </motion.p>
+              {/* Send OTP Button */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="space-y-4"
+              >
+                <button
+                  onClick={handleSendOtp}
+                  disabled={isSending || !phoneNumber || (needUserName && !userName.trim())}
+                  className="w-full px-6 py-4 text-[var(--pom-accent,#ea580c)] rounded-full hover:text-white border border-[var(--pom-accent,#ea580c)] transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                  style={{ backgroundColor: "color-mix(in srgb, var(--pom-accent, #ea580c) 15%, transparent)" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--pom-accent, #ea580c)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "color-mix(in srgb, var(--pom-accent, #ea580c) 15%, transparent)"; }}
+                >
+                  {isSending ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Sending OTP...
+                    </span>
+                  ) : (
+                    "Send OTP"
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setShowLoginDrawer(false)}
+                  className="w-full px-6 py-3.5 rounded-full border bg-transparent hover:opacity-80 transition-all duration-200 font-medium text-base"
+                  style={{ borderColor: "var(--pom-card-border, #d6d3d1)" }}
+                >
+                  Cancel
+                </button>
+              </motion.div>
+
+              {/* Privacy Note */}
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-xs opacity-60 text-center mt-6 leading-relaxed"
+              >
+                By continuing, you agree to our{" "}
+                <span className="text-[var(--pom-accent,#ea580c)] hover:underline cursor-pointer">
+                  Terms of Service
+                </span>{" "}
+                and{" "}
+                <span className="text-[var(--pom-accent,#ea580c)] hover:underline cursor-pointer">
+                  Privacy Policy
+                </span>
+              </motion.p>
+            </>
+          ) : (
+            <>
+              {/* OTP Verification Step */}
+              <div className="mb-8 text-center">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <h2 className="text-3xl font-bold text-inherit mb-3">
+                    Verify OTP
+                  </h2>
+                  <p className="opacity-70 text-[15px] leading-relaxed">
+                    Enter the 6-digit code sent to{" "}
+                    <span className="font-semibold">
+                      {hotelData?.country_code || "+91"} {phoneNumber}
+                    </span>
+                  </p>
+                </motion.div>
+              </div>
+
+              {/* OTP Input */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="mb-8"
+              >
+                <Label
+                  htmlFor="otp-order"
+                  className="text-sm font-semibold text-inherit mb-3 block"
+                >
+                  Enter OTP
+                </Label>
+                <Input
+                  id="otp-order"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) =>
+                    setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                  placeholder="Enter 6-digit OTP"
+                  autoFocus
+                  className="rounded-xl text-inherit placeholder:opacity-70 bg-transparent border-[var(--pom-card-border,#e7e5e4)] focus:border-[var(--pom-accent,#ea580c)] focus:ring-2 focus:ring-[var(--pom-accent,#ea580c)]/20 h-14 text-center text-xl tracking-[0.3em] px-5 transition-all duration-200 placeholder:text-sm placeholder:tracking-normal"
+                />
+                {otpError && (
+                  <p className="text-sm text-red-500 text-center mt-2">{otpError}</p>
+                )}
+              </motion.div>
+
+              {/* Verify Button */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="space-y-4"
+              >
+                <button
+                  onClick={handleVerifyAndLogin}
+                  disabled={isVerifying || isSubmitting || otp.length !== 6}
+                  className="w-full px-6 py-4 text-[var(--pom-accent,#ea580c)] rounded-full hover:text-white border border-[var(--pom-accent,#ea580c)] transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                  style={{ backgroundColor: "color-mix(in srgb, var(--pom-accent, #ea580c) 15%, transparent)" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--pom-accent, #ea580c)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "color-mix(in srgb, var(--pom-accent, #ea580c) 15%, transparent)"; }}
+                >
+                  {isVerifying || isSubmitting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      {isVerifying ? "Verifying OTP..." : "Logging in..."}
+                    </span>
+                  ) : (
+                    "Verify & Continue"
+                  )}
+                </button>
+
+                <div className="flex justify-between items-center">
+                  <button
+                    onClick={() => {
+                      resetOtp();
+                      setOtp("");
+                    }}
+                    className="text-sm font-medium transition-colors"
+                    style={{ color: "var(--pom-text-muted, #78716c)" }}
+                  >
+                    Change Number
+                  </button>
+                  <button
+                    onClick={handleSendOtp}
+                    disabled={isSending}
+                    className="text-sm font-medium transition-colors disabled:opacity-50"
+                    style={{ color: "var(--pom-accent, #ea580c)" }}
+                  >
+                    {isSending ? "Sending..." : "Resend OTP"}
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
         </div>
+
+        <div id="recaptcha-container-order"></div>
       </motion.div>
     </AnimatePresence>
   );
