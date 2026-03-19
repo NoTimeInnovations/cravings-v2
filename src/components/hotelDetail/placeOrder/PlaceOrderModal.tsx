@@ -38,6 +38,7 @@ import { UpiPaymentScreen } from "./UpiPaymentScreen";
 import AddressManagementModal, { type SavedAddress, type AddressModalTheme } from "./AddressManagementModal";
 import { Notification } from "@/app/actions/notification";
 import { useFirebasePhoneAuth } from "@/hooks/useFirebasePhoneAuth";
+import { OtpInput } from "@/components/ui/otp-input";
 
 // Helper: detect if a hex color is dark
 function isDarkColor(hex: string): boolean {
@@ -1121,24 +1122,10 @@ const LoginDrawer = ({
                 transition={{ delay: 0.2 }}
                 className="mb-8"
               >
-                <Label
-                  htmlFor="otp-order"
-                  className="text-sm font-semibold text-inherit mb-3 block"
-                >
-                  Enter OTP
-                </Label>
-                <Input
-                  id="otp-order"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
+                <OtpInput
                   value={otp}
-                  onChange={(e) =>
-                    setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
-                  }
-                  placeholder="Enter 6-digit OTP"
-                  autoFocus
-                  className="rounded-xl text-inherit placeholder:opacity-70 bg-transparent border-[var(--pom-card-border,#e7e5e4)] focus:border-[var(--pom-accent,#ea580c)] focus:ring-2 focus:ring-[var(--pom-accent,#ea580c)]/20 h-14 text-center text-xl tracking-[0.3em] px-5 transition-all duration-200 placeholder:text-sm placeholder:tracking-normal"
+                  onChange={setOtp}
+                  accentColor="var(--pom-accent, #ea580c)"
                 />
                 {otpError && (
                   <p className="text-sm text-red-500 text-center mt-2">{otpError}</p>

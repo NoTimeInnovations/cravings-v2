@@ -19,6 +19,7 @@ import {
 import { useDomain } from "@/providers/DomainProvider";
 import { FcGoogle } from "react-icons/fc";
 import { useFirebasePhoneAuth } from "@/hooks/useFirebasePhoneAuth";
+import { OtpInput } from "@/components/ui/otp-input";
 
 type LoginMode = "user" | "partner";
 export default function Login() {
@@ -230,24 +231,7 @@ export default function Login() {
               <p className="text-sm text-stone-500 text-center">
                 OTP sent to {userCountryInfo?.callingCode} {userPhone}
               </p>
-              <div className="space-y-2">
-                <Label htmlFor="otp" className="text-sm text-stone-700">
-                  Enter OTP
-                </Label>
-                <Input
-                  id="otp"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) =>
-                    setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
-                  }
-                  placeholder="Enter 6-digit OTP"
-                  autoFocus
-                  className="h-12 rounded-xl border-stone-200 bg-stone-50 px-4 text-center text-xl tracking-[0.3em] text-stone-900 placeholder:text-stone-400 placeholder:text-sm placeholder:tracking-normal focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
-                />
-              </div>
+              <OtpInput value={otp} onChange={setOtp} />
               {otpError && (
                 <p className="text-sm text-red-500 text-center">{otpError}</p>
               )}

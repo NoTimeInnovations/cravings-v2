@@ -1,7 +1,7 @@
 "use client";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import useOrderStore from "@/store/orderStore";
 import { toast } from "sonner";
 import { usePathname } from "next/navigation";
@@ -21,6 +21,8 @@ import {
   getPhoneValidationError,
 } from "@/lib/getUserCountry";
 import { getPhoneDigitsForCountry } from "@/lib/countryPhoneMap";
+import { useFirebasePhoneAuth } from "@/hooks/useFirebasePhoneAuth";
+import { OtpInput } from "@/components/ui/otp-input";
 
 export const getGstAmount = (price: number, gstPercentage: number) => {
   return (price * gstPercentage) / 100;
@@ -195,7 +197,28 @@ const OrderDrawer = ({
   // Login modal state
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [otp, setOtp] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    step: otpStep,
+    isSending,
+    isVerifying,
+    error: otpError,
+    sendOtp,
+    verifyOtp,
+    reset: resetOtp,
+  } = useFirebasePhoneAuth();
+
+  // Reset OTP state when modal opens
+  const wasLoginOpen = useRef(false);
+  useEffect(() => {
+    if (showLoginModal && !wasLoginOpen.current) {
+      resetOtp();
+      setOtp("");
+      setPhoneNumber("");
+    }
+    wasLoginOpen.current = showLoginModal;
+  }, [showLoginModal, resetOtp]);
 
   useEffect(() => {
     setIsQrScan(pathname.includes("qrScan") && !!qrId && !(tableNumber === 0));
@@ -468,10 +491,8 @@ const OrderDrawer = ({
     }
   };
 
-  // Handle login and proceed
-  const handleLoginAndProceed = async () => {
-    // Get country code from hotelData
-    const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, "") || "91"; // Default to India if not available
+  const handleSendOtp = async () => {
+    const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
     const phoneDigits = getPhoneDigitsForCountry(countryCode);
 
     if (!phoneNumber || !validatePhoneNumber(phoneNumber, countryCode)) {
@@ -479,8 +500,28 @@ const OrderDrawer = ({
       return;
     }
 
+    try {
+      const fullPhone = `${hotelData?.country_code || "+91"}${phoneNumber}`;
+      await sendOtp(fullPhone, "recaptcha-container-drawer");
+      toast.success("OTP sent successfully!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to send OTP");
+    }
+  };
+
+  const handleVerifyAndProceed = async () => {
+    if (otp.length !== 6) {
+      toast.error("Please enter a 6-digit OTP");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      await verifyOtp(otp);
+
+      const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
+      const phoneDigits = getPhoneDigitsForCountry(countryCode);
+
       const success = await signInWithPhone(phoneNumber, hotelData.id, {
         country: hotelData?.country || "India",
         countryCode,
@@ -491,8 +532,8 @@ const OrderDrawer = ({
         toast.success("Logged in successfully!");
         setShowLoginModal(false);
         setPhoneNumber("");
+        setOtp("");
 
-        // Now open the PlaceOrderModal
         setOpenPlaceOrderModal(true);
         setOpenOrderDrawer(false);
         setOpenDrawerBottom(false);
@@ -500,8 +541,7 @@ const OrderDrawer = ({
         toast.error("Login failed. Please try again.");
       }
     } catch (error) {
-      toast.error("Something went wrong. Please try again.");
-      console.error(error);
+      toast.error(error instanceof Error ? error.message : "Verification failed");
     } finally {
       setIsSubmitting(false);
     }
@@ -561,10 +601,17 @@ const OrderDrawer = ({
           >
             <div className="flex items-center justify-between px-4 pt-4">
               <button
-                onClick={() => setShowLoginModal(false)}
+                onClick={() => {
+                  if (otpStep === "otp") {
+                    resetOtp();
+                    setOtp("");
+                  } else {
+                    setShowLoginModal(false);
+                  }
+                }}
                 className="p-2 -ml-2 rounded-full transition-all duration-200"
                 style={{ color: styles.color }}
-                aria-label="Close"
+                aria-label={otpStep === "otp" ? "Back" : "Close"}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -577,7 +624,7 @@ const OrderDrawer = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
+                    d={otpStep === "otp" ? "M15 19l-7-7 7-7" : "M6 18L18 6M6 6l12 12"}
                   />
                 </svg>
               </button>
@@ -585,7 +632,7 @@ const OrderDrawer = ({
                 className="text-base font-semibold"
                 style={{ color: styles.color }}
               >
-                Login to Continue
+                {otpStep === "otp" ? "Verify OTP" : "Login to Continue"}
               </h2>
               <div className="w-9" />
             </div>
@@ -593,122 +640,185 @@ const OrderDrawer = ({
               className="text-xs text-center pb-3 px-4"
               style={{ color: `${styles.color}80` }}
             >
-              Please enter your phone number to review your order
+              {otpStep === "otp"
+                ? `Enter the code sent to ${hotelData?.country_code || "+91"} ${phoneNumber}`
+                : "Please enter your phone number to review your order"}
             </p>
           </div>
 
           {/* Content Container */}
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-md mx-auto px-6 py-8 space-y-8">
-              {/* Phone Input */}
-              <div className="space-y-3">
-                <Label
-                  htmlFor="phone"
-                  className="text-sm font-semibold block"
-                  style={{ color: styles.color }}
-                >
-                  Phone Number
-                  {hotelData?.country && (
-                    <span
-                      className="font-normal ml-2 text-xs"
-                      style={{ color: `${styles.color}80` }}
+              {otpStep === "phone" ? (
+                <>
+                  {/* Phone Input */}
+                  <div className="space-y-3">
+                    <Label
+                      htmlFor="phone"
+                      className="text-sm font-semibold block"
+                      style={{ color: styles.color }}
                     >
-                      ({hotelData.country})
-                    </span>
-                  )}
-                </Label>
-                <div className="flex gap-3">
-                  <div
-                    className="flex items-center justify-center px-4 sm:px-5 rounded-2xl text-base font-bold border"
-                    style={{
-                      backgroundColor: `${styles.accent}15`,
-                      color: styles.accent,
-                      borderColor: `${styles.accent}30`,
-                    }}
-                  >
-                    {hotelData?.country_code || "+91"}
+                      Phone Number
+                      {hotelData?.country && (
+                        <span
+                          className="font-normal ml-2 text-xs"
+                          style={{ color: `${styles.color}80` }}
+                        >
+                          ({hotelData.country})
+                        </span>
+                      )}
+                    </Label>
+                    <div className="flex gap-3">
+                      <div
+                        className="flex items-center justify-center px-4 sm:px-5 rounded-2xl text-base font-bold border"
+                        style={{
+                          backgroundColor: `${styles.accent}15`,
+                          color: styles.accent,
+                          borderColor: `${styles.accent}30`,
+                        }}
+                      >
+                        {hotelData?.country_code || "+91"}
+                      </div>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="Enter your phone number"
+                        value={phoneNumber}
+                        onChange={(e) => {
+                          const countryCode =
+                            hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
+                          const maxDigits = getPhoneDigitsForCountry(countryCode);
+                          setPhoneNumber(
+                            e.target.value.replace(/\D/g, "").slice(0, maxDigits),
+                          );
+                        }}
+                        autoFocus
+                        className="flex-1 rounded-2xl h-14 text-base px-4 sm:px-5 transition-all duration-200 placeholder:text-inherit placeholder:opacity-40"
+                        style={{
+                          backgroundColor: styles.backgroundColor,
+                          color: styles.color,
+                          borderColor: `${styles.color}20`,
+                          outline: "none",
+                        }}
+                      />
+                    </div>
                   </div>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="Enter your phone number"
-                    value={phoneNumber}
-                    onChange={(e) => {
-                      const countryCode =
-                        hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
-                      const maxDigits = getPhoneDigitsForCountry(countryCode);
-                      setPhoneNumber(
-                        e.target.value.replace(/\D/g, "").slice(0, maxDigits),
-                      );
-                    }}
-                    autoFocus
-                    className="flex-1 rounded-2xl h-14 text-base px-4 sm:px-5 transition-all duration-200 placeholder:text-inherit placeholder:opacity-40"
-                    style={{
-                      backgroundColor: styles.backgroundColor,
-                      color: styles.color,
-                      borderColor: `${styles.color}20`,
-                      outline: "none",
-                    }}
-                  />
-                </div>
-              </div>
 
-              {/* Action Buttons */}
-              <div className="space-y-3 pt-4">
-                <button
-                  onClick={handleLoginAndProceed}
-                  disabled={isSubmitting || !phoneNumber}
-                  className="w-full px-6 py-4 rounded-full transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
-                  style={{
-                    backgroundColor: `${styles.accent}18`,
-                    color: styles.accent,
-                    border: `1px solid ${styles.accent}30`,
-                  }}
-                >
-                  {isSubmitting ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      Verifying...
+                  {/* Send OTP Button */}
+                  <div className="space-y-3 pt-4">
+                    <button
+                      onClick={handleSendOtp}
+                      disabled={isSending || !phoneNumber}
+                      className="w-full px-6 py-4 rounded-full transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                      style={{
+                        backgroundColor: `${styles.accent}18`,
+                        color: styles.accent,
+                        border: `1px solid ${styles.accent}30`,
+                      }}
+                    >
+                      {isSending ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          Sending OTP...
+                        </span>
+                      ) : (
+                        "Send OTP"
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => setShowLoginModal(false)}
+                      className="w-full px-6 py-3.5 rounded-full bg-transparent transition-all duration-200 font-medium text-base"
+                      style={{
+                        color: styles.color,
+                        border: `1px solid ${styles.color}30`,
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+
+                  {/* Privacy Note */}
+                  <p
+                    className="text-xs text-center leading-relaxed pt-2"
+                    style={{ color: `${styles.color}80` }}
+                  >
+                    By continuing, you agree to our{" "}
+                    <span
+                      className="hover:underline cursor-pointer"
+                      style={{ color: styles.accent }}
+                    >
+                      Terms of Service
+                    </span>{" "}
+                    and{" "}
+                    <span
+                      className="hover:underline cursor-pointer"
+                      style={{ color: styles.accent }}
+                    >
+                      Privacy Policy
                     </span>
-                  ) : (
-                    "Continue"
-                  )}
-                </button>
+                  </p>
+                </>
+              ) : (
+                <>
+                  {/* OTP Input */}
+                  <div className="space-y-3">
+                    <OtpInput
+                      value={otp}
+                      onChange={setOtp}
+                      accentColor={styles.accent}
+                    />
+                    {otpError && (
+                      <p className="text-sm text-red-500 text-center">{otpError}</p>
+                    )}
+                  </div>
 
-                <button
-                  onClick={() => setShowLoginModal(false)}
-                  className="w-full px-6 py-3.5 rounded-full bg-transparent transition-all duration-200 font-medium text-base"
-                  style={{
-                    color: styles.color,
-                    border: `1px solid ${styles.color}30`,
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
+                  {/* Verify Button */}
+                  <div className="space-y-3 pt-4">
+                    <button
+                      onClick={handleVerifyAndProceed}
+                      disabled={isVerifying || isSubmitting || otp.length !== 6}
+                      className="w-full px-6 py-4 rounded-full transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                      style={{
+                        backgroundColor: `${styles.accent}18`,
+                        color: styles.accent,
+                        border: `1px solid ${styles.accent}30`,
+                      }}
+                    >
+                      {isVerifying || isSubmitting ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          {isVerifying ? "Verifying OTP..." : "Logging in..."}
+                        </span>
+                      ) : (
+                        "Verify & Continue"
+                      )}
+                    </button>
 
-              {/* Privacy Note */}
-              <p
-                className="text-xs text-center leading-relaxed pt-2"
-                style={{ color: `${styles.color}80` }}
-              >
-                By continuing, you agree to our{" "}
-                <span
-                  className="hover:underline cursor-pointer"
-                  style={{ color: styles.accent }}
-                >
-                  Terms of Service
-                </span>{" "}
-                and{" "}
-                <span
-                  className="hover:underline cursor-pointer"
-                  style={{ color: styles.accent }}
-                >
-                  Privacy Policy
-                </span>
-              </p>
+                    <div className="flex justify-between items-center">
+                      <button
+                        onClick={() => { resetOtp(); setOtp(""); }}
+                        className="text-sm font-medium transition-colors"
+                        style={{ color: `${styles.color}80` }}
+                      >
+                        Change Number
+                      </button>
+                      <button
+                        onClick={handleSendOtp}
+                        disabled={isSending}
+                        className="text-sm font-medium transition-colors disabled:opacity-50"
+                        style={{ color: styles.accent }}
+                      >
+                        {isSending ? "Sending..." : "Resend OTP"}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
+
+          <div id="recaptcha-container-drawer"></div>
         </div>
       )}
     </>
