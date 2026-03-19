@@ -7,7 +7,6 @@ const GMAIL_APP_PASSWORD = process.env.SERVICESNOTIME_GMAIL_APP_PASSWORD;
 
 export async function sendPetpoojaOnboardingEmailAction(props: {
   to: string;
-  cc: string[];
   subject: string;
   restaurantName: string;
   restaurantId: string;
@@ -35,7 +34,6 @@ export async function sendPetpoojaOnboardingEmailAction(props: {
     await transporter.sendMail({
       from: `"${props.senderName} - ${props.senderOrg}" <${GMAIL_USER}>`,
       to: props.to,
-      cc: props.cc.filter(Boolean).join(", "),
       subject: props.subject,
       html: htmlContent,
     });

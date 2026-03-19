@@ -74,6 +74,9 @@ export default function PricingCard({
               {currencySymbol}
               {variant.price}
             </span>
+            {currencySymbol === "₹" && (
+              <span className="text-sm text-stone-400 ml-1">+GST</span>
+            )}
           </div>
         )}
       </div>

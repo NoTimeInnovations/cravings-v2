@@ -21,9 +21,6 @@ import { sendPetpoojaOnboardingEmailAction } from "@/app/actions/sendPetpoojaOnb
 
 const DEFAULT_TO_EMAILS = [
   "malvi.vaghela@petpooja.com",
-];
-
-const DEFAULT_CC_EMAILS = [
   "jatan.vala@petpooja.com",
   "rohan.sakhrani@petpooja.com",
   "siddharth.patel@petpooja.com",
@@ -42,8 +39,6 @@ const CreatePartnerPage = () => {
   const [senderOrg, setSenderOrg] = useState("Notime Services (Cravings)");
   const [toEmails, setToEmails] = useState<string[]>(DEFAULT_TO_EMAILS);
   const [newToEmail, setNewToEmail] = useState("");
-  const [ccEmails, setCcEmails] = useState<string[]>(DEFAULT_CC_EMAILS);
-  const [newCcEmail, setNewCcEmail] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sendEmail, setSendEmail] = useState(true);
@@ -83,17 +78,6 @@ const CreatePartnerPage = () => {
     setToEmails(toEmails.filter((e) => e !== emailToRemove));
   };
 
-  const addCcEmail = () => {
-    const trimmed = newCcEmail.trim();
-    if (trimmed && !ccEmails.includes(trimmed)) {
-      setCcEmails([...ccEmails, trimmed]);
-      setNewCcEmail("");
-    }
-  };
-
-  const removeCcEmail = (emailToRemove: string) => {
-    setCcEmails(ccEmails.filter((e) => e !== emailToRemove));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,7 +120,6 @@ const CreatePartnerPage = () => {
       if (sendEmail) {
         const emailResult = await sendPetpoojaOnboardingEmailAction({
           to: [email, ...toEmails].filter(Boolean).join(", "),
-          cc: ccEmails,
           subject: emailSubject,
           restaurantName: name,
           restaurantId,
@@ -373,36 +356,6 @@ const CreatePartnerPage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-sm text-gray-600">CC (Petpooja Team)</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {ccEmails.map((ccEmail) => (
-                      <span
-                        key={ccEmail}
-                        className="inline-flex items-center gap-1 bg-orange-100 text-orange-800 px-2 py-1 rounded-md text-xs"
-                      >
-                        {ccEmail}
-                        <button type="button" onClick={() => removeCcEmail(ccEmail)}>
-                          <X className="h-3 w-3 hover:text-red-600" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      type="email"
-                      placeholder="Add CC email"
-                      value={newCcEmail}
-                      onChange={(e) => setNewCcEmail(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCcEmail(); } }}
-                      className="text-sm"
-                    />
-                    <Button type="button" variant="outline" size="sm" onClick={addCcEmail}>
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
                   <Label className="text-sm text-gray-600">Menu Mapping</Label>
                   <Input
                     value={menuMapping}
@@ -441,10 +394,6 @@ const CreatePartnerPage = () => {
                   <div className="text-xs text-gray-500">
                     <span className="font-medium">To:</span>{" "}
                     {[email ? `${name} (${email})` : "(partner email)", ...toEmails].join(", ")}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    <span className="font-medium">CC:</span>{" "}
-                    {ccEmails.join(", ")}
                   </div>
                 </div>
 

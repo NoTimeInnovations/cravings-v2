@@ -238,6 +238,9 @@ export function UpgradePlanDialog({ open, onOpenChange, featureName }: UpgradePl
                     <span className="text-3xl font-bold text-foreground">
                         {currencySymbol}{activeVariant.price}
                     </span>
+                    {isIndia && (
+                        <span className="text-sm text-muted-foreground">+GST</span>
+                    )}
                     <span className="text-sm text-muted-foreground">
                         {isAnnual ? "/year" : "/month"}
                     </span>
