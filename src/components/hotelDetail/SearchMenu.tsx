@@ -8,6 +8,7 @@ import useOrderStore from "@/store/orderStore";
 import { toast } from "sonner";
 import ItemDetailsModal from "./styles/Default/ItemDetailsModal";
 import { getFeatures } from "@/lib/getFeatures";
+import { formatPrice } from "@/lib/constants";
 
 const SearchMenu = ({
   hotelData,
@@ -363,8 +364,23 @@ const SearchMenu = ({
                                 className="block text-base font-black mb-1"
                                 style={{ color: styles.accent }}
                               >
-                                {currency}
-                                {item.price}
+                                {item.is_price_as_per_size ? (
+                                  <span className="text-xs font-normal opacity-50">As per size</span>
+                                ) : hasVariants ? (
+                                  <>
+                                    <span className="text-xs font-normal opacity-50">From </span>
+                                    {currency}
+                                    {formatPrice(
+                                      item.variants!.sort((a, b) => a?.price - b?.price)[0]?.price || item.price,
+                                      hotelData?.id
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    {currency}
+                                    {formatPrice(item.price, hotelData?.id)}
+                                  </>
+                                )}
                               </span>
                               {item.description && (
                                 <p className="text-sm line-clamp-2 opacity-50">

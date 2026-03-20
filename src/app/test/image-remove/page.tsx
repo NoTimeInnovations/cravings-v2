@@ -48,7 +48,7 @@ const Page = () => {
   const [searchType, setSearchType] = useState<SearchType>('name')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [isDeleting, setIsDeleting] = useState(false)
-  const partnerId = 'abd80b78-ad9f-4e21-a7a2-9b5124c1233a'
+  const partnerId = '3d93c364-132a-49be-8085-f224b6544822'
 
   const fetchMenuItems = async () => {
     try {
