@@ -27,7 +27,7 @@ async function sendWhatsAppOrderNotification(order: Order, status: string, store
     } else if (status === "cancelled") {
       text = `❌ *Order Cancelled*\n\nHi, your order${store ? ` from *${store}*` : ""} has been cancelled.\n\n🍽️ *Items:*\n${orderItems}\n\n💰 *Total:* ${currency}${order.totalPrice}\n\nIf you have any questions, please contact the store directly.`;
     } else {
-      text = `🍽️ *Order Update*\n\nYour order${store ? ` from *${store}*` : ""} status has been updated to: *${status}*`;
+      return;
     }
 
     await fetch("/api/whatsapp/send", {
