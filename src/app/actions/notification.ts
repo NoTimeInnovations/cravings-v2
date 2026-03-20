@@ -9,6 +9,37 @@ import TEST_PARTNERS from "@/utils/testPartnerAccounts";
 
 const BASE_URL = "https://notification-server-khaki.vercel.app";
 
+async function sendWhatsAppOrderNotification(order: Order, status: string, storeName?: string) {
+  try {
+    const phone = order.phone || order.user?.phone;
+    if (!phone) return;
+
+    const orderItems = order.items
+      .map((item) => `${item.name} x ${item.quantity}`)
+      .join(", ");
+
+    const displayId = order.display_id || order.order_number || order.id.slice(0, 8);
+    const store = storeName || order.partner?.store_name || "";
+
+    let text = "";
+    if (status === "accepted") {
+      text = `✅ *Order Accepted!*\n\nHi! Your order *#${displayId}*${store ? ` from *${store}*` : ""} has been accepted.\n\n📦 *Items:* ${orderItems}\n💰 *Total:* ${order.partner?.currency ?? "₹"}${order.totalPrice}\n\nYour order is being prepared. Thank you for ordering!`;
+    } else if (status === "cancelled") {
+      text = `❌ *Order Cancelled*\n\nHi, your order *#${displayId}*${store ? ` from *${store}*` : ""} has been cancelled.\n\n📦 *Items:* ${orderItems}\n💰 *Total:* ${order.partner?.currency ?? "₹"}${order.totalPrice}\n\nIf you have any questions, please contact the store directly.`;
+    } else {
+      text = `📋 *Order Update*\n\nYour order *#${displayId}*${store ? ` from *${store}*` : ""} status has been updated to: *${status}*`;
+    }
+
+    await fetch("/api/whatsapp/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, text }),
+    });
+  } catch (error) {
+    console.error("WhatsApp notification failed:", error);
+  }
+}
+
 const getMessage = (
   title: string,
   body: string,
@@ -367,6 +398,11 @@ class UserNotification {
 
       if (!response.ok) {
         console.error("Failed to send order status notification");
+      }
+
+      // Send WhatsApp notification for accepted/cancelled orders
+      if (status === "accepted" || status === "cancelled") {
+        sendWhatsAppOrderNotification(order, status, storeName);
       }
     } catch (error) {
       console.error("Error sending order status notification:", error);
