@@ -23,11 +23,11 @@ async function sendWhatsAppOrderNotification(order: Order, status: string, store
 
     let text = "";
     if (status === "accepted") {
-      text = `✅ *Order Accepted!*\n\nHi! Your order *#${displayId}*${store ? ` from *${store}*` : ""} has been accepted.\n\n📦 *Items:* ${orderItems}\n💰 *Total:* ${order.partner?.currency ?? "₹"}${order.totalPrice}\n\nYour order is being prepared. Thank you for ordering!`;
+      text = `✅ *Order Accepted!*\n\nHi! Your order *#${displayId}*${store ? ` from *${store}*` : ""} has been accepted.\n\n🍽️ *Items:* ${orderItems}\n💰 *Total:* ${order.partner?.currency ?? "₹"}${order.totalPrice}\n\nYour food is being prepared. Thank you for ordering! 🧑‍🍳`;
     } else if (status === "cancelled") {
-      text = `❌ *Order Cancelled*\n\nHi, your order *#${displayId}*${store ? ` from *${store}*` : ""} has been cancelled.\n\n📦 *Items:* ${orderItems}\n💰 *Total:* ${order.partner?.currency ?? "₹"}${order.totalPrice}\n\nIf you have any questions, please contact the store directly.`;
+      text = `❌ *Order Cancelled*\n\nHi, your order *#${displayId}*${store ? ` from *${store}*` : ""} has been cancelled.\n\n🍽️ *Items:* ${orderItems}\n💰 *Total:* ${order.partner?.currency ?? "₹"}${order.totalPrice}\n\nIf you have any questions, please contact the store directly.`;
     } else {
-      text = `📋 *Order Update*\n\nYour order *#${displayId}*${store ? ` from *${store}*` : ""} status has been updated to: *${status}*`;
+      text = `🍽️ *Order Update*\n\nYour order *#${displayId}*${store ? ` from *${store}*` : ""} status has been updated to: *${status}*`;
     }
 
     await fetch("/api/whatsapp/send", {
