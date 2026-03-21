@@ -842,8 +842,8 @@ export function GeneralSettings() {
                     </CardContent>
                 </Card>
 
-                {/* WhatsApp Business Integration */}
-                <Card className="relative">
+                {/* WhatsApp Business Integration — hidden until fully ready */}
+                {false && <Card className="relative">
                     <CardHeader>
                         <div className="flex items-center gap-2">
                             <CardTitle>WhatsApp Business</CardTitle>
@@ -983,7 +983,7 @@ export function GeneralSettings() {
                             </>
                         )}
                     </CardContent>
-                </Card>
+                </Card>}
 
             </div >
 
