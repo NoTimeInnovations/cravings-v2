@@ -14,7 +14,7 @@ import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { deleteFileFromS3, uploadFileToS3 } from "@/app/actions/aws-s3";
 import Img from "@/components/Img";
-import { Loader2, Upload, Save, Power, LogOut, Eye, EyeOff, KeyRound } from "lucide-react";
+import { Loader2, Upload, Save, Power, LogOut, Eye, EyeOff, KeyRound, MessageCircle, Unplug, CheckCircle2 } from "lucide-react";
 import BannerEditor from "@/components/BannerEditor";
 import dynamic from "next/dynamic";
 import { HotelData } from "@/app/hotels/[...id]/page";
@@ -77,6 +77,31 @@ export function GeneralSettings() {
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
     const [isSyncingMenu, setIsSyncingMenu] = useState(false);
 
+    // WhatsApp Business Integration State
+    // "menuthere" = use our shared WhatsApp, "own" = connect their own WABA
+    const [whatsappMode, setWhatsappMode] = useState<"menuthere" | "own" | null>(null);
+    const [wabaConnected, setWabaConnected] = useState(false);
+    const [wabaPhoneNumber, setWabaPhoneNumber] = useState<string | null>(null);
+    const [isWabaLoading, setIsWabaLoading] = useState(false);
+
+    // Handle WhatsApp connection redirect params
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("whatsapp_connected") === "true") {
+            toast.success("WhatsApp Business Account connected successfully!");
+            // Clean up URL
+            const url = new URL(window.location.href);
+            url.searchParams.delete("whatsapp_connected");
+            window.history.replaceState({}, "", url.toString());
+        }
+        if (params.get("whatsapp_error")) {
+            toast.error("WhatsApp connection failed: " + params.get("whatsapp_error"));
+            const url = new URL(window.location.href);
+            url.searchParams.delete("whatsapp_error");
+            window.history.replaceState({}, "", url.toString());
+        }
+    }, []);
+
     useEffect(() => {
         if (userData?.role === "partner") {
             setStoreName(userData.store_name || "");
@@ -89,6 +114,9 @@ export function GeneralSettings() {
 
             // Check Google Connection
             checkGoogleConnection(userData.id);
+
+            // Check WhatsApp Business Connection
+            checkWhatsAppConnection(userData.id);
 
             const socialLinks = getSocialLinks(userData as HotelData);
             setInstaLink(socialLinks.instagram || "");
@@ -199,6 +227,121 @@ export function GeneralSettings() {
         } finally {
             setIsSyncingMenu(false);
             toast.dismiss(toastId);
+        }
+    };
+
+    // ─── WhatsApp Business Integration ─────────────────────────────
+    const checkWhatsAppConnection = async (partnerId: string) => {
+        setIsWabaLoading(true);
+        try {
+            const res = await fetch(`/api/whatsapp/meta/status?partnerId=${partnerId}`);
+            const data = await res.json();
+            if (res.ok && data.connected) {
+                setWabaConnected(true);
+                setWabaPhoneNumber(data.display_phone || null);
+                setWhatsappMode("own");
+            } else {
+                setWabaConnected(false);
+                // Default to menuthere if no preference saved
+                setWhatsappMode((userData as any)?.whatsapp_integration_mode || "menuthere");
+            }
+        } catch {
+            setWabaConnected(false);
+            setWhatsappMode("menuthere");
+        } finally {
+            setIsWabaLoading(false);
+        }
+    };
+
+    const handleConnectWhatsApp = () => {
+        if (!userData) return;
+        const state = JSON.stringify({
+            partnerId: userData.id,
+            redirect: `${window.location.pathname}?view=Settings`,
+        });
+        // Load Facebook SDK and trigger Embedded Signup
+        const launchSignup = () => {
+            (window as any).FB.login(
+                (response: any) => {
+                    if (response.authResponse) {
+                        const { code } = response.authResponse;
+                        // Send code to our callback
+                        const host = window.location.origin;
+                        window.location.href =
+                            `${host}/api/whatsapp/meta/auth/callback?code=${code}&state=${encodeURIComponent(state)}`;
+                    } else {
+                        toast.error("WhatsApp connection was cancelled");
+                    }
+                },
+                {
+                    config_id: process.env.NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID,
+                    response_type: "code",
+                    override_default_response_type: true,
+                    extras: {
+                        setup: {},
+                        featureType: "",
+                        sessionInfoVersion: "3",
+                    },
+                }
+            );
+        };
+
+        // Load FB SDK if not already loaded
+        if ((window as any).FB) {
+            launchSignup();
+        } else {
+            const script = document.createElement("script");
+            script.src = "https://connect.facebook.net/en_US/sdk.js";
+            script.async = true;
+            script.defer = true;
+            script.crossOrigin = "anonymous";
+            script.onload = () => {
+                (window as any).FB.init({
+                    appId: process.env.NEXT_PUBLIC_META_APP_ID,
+                    cookie: true,
+                    xfbml: false,
+                    version: "v21.0",
+                });
+                launchSignup();
+            };
+            document.body.appendChild(script);
+        }
+    };
+
+    const handleDisconnectWhatsApp = async () => {
+        if (!userData) return;
+        if (!confirm("Disconnect your WhatsApp Business Account? You can reconnect anytime.")) return;
+
+        setIsWabaLoading(true);
+        try {
+            const res = await fetch("/api/whatsapp/meta/disconnect", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ partnerId: userData.id }),
+            });
+            if (res.ok) {
+                setWabaConnected(false);
+                setWabaPhoneNumber(null);
+                setWhatsappMode("menuthere");
+                toast.success("WhatsApp disconnected");
+            } else {
+                toast.error("Failed to disconnect");
+            }
+        } catch {
+            toast.error("Failed to disconnect");
+        } finally {
+            setIsWabaLoading(false);
+        }
+    };
+
+    const handleWhatsAppModeChange = async (mode: "menuthere" | "own") => {
+        setWhatsappMode(mode);
+        if (!userData) return;
+        try {
+            await updatePartner(userData.id, { whatsapp_integration_mode: mode });
+            setState({ whatsapp_integration_mode: mode } as any);
+        } catch {
+            // silent — non-critical
         }
     };
 
@@ -695,6 +838,149 @@ export function GeneralSettings() {
                                     This will send an invitation to your Google Business Profile. Once you (Admin) accept it, we will link your menu.
                                 </p>
                             </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* WhatsApp Business Integration */}
+                <Card className="relative">
+                    <CardHeader>
+                        <div className="flex items-center gap-2">
+                            <CardTitle>WhatsApp Business</CardTitle>
+                            {isOnFreePlan && <Lock className="h-4 w-4 text-orange-600" />}
+                        </div>
+                        <CardDescription>
+                            Choose how to send WhatsApp messages to your customers — use Menuthere's shared WhatsApp or connect your own business number.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {isOnFreePlan ? (
+                            <UpgradePrompt
+                                variant="card"
+                                feature="WhatsApp Business Integration"
+                                description="Upgrade to connect your own WhatsApp Business account."
+                            />
+                        ) : isWabaLoading ? (
+                            <div className="flex items-center gap-2 py-4">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span className="text-sm text-muted-foreground">Checking connection...</span>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Option Selection */}
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    {/* Option 1: Use Menuthere's WhatsApp */}
+                                    <button
+                                        type="button"
+                                        onClick={() => handleWhatsAppModeChange("menuthere")}
+                                        className={`relative flex flex-col gap-2 rounded-lg border-2 p-4 text-left transition-all ${
+                                            whatsappMode === "menuthere"
+                                                ? "border-green-500 bg-green-50"
+                                                : "border-muted hover:border-muted-foreground/30"
+                                        }`}
+                                    >
+                                        {whatsappMode === "menuthere" && (
+                                            <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 text-green-600" />
+                                        )}
+                                        <div className="flex items-center gap-2">
+                                            <MessageCircle className="h-5 w-5 text-green-600" />
+                                            <span className="font-semibold text-sm">Use Menuthere&apos;s WhatsApp</span>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                            Messages are sent from Menuthere&apos;s shared number. No setup needed — works instantly.
+                                        </p>
+                                    </button>
+
+                                    {/* Option 2: Connect Own WhatsApp */}
+                                    <button
+                                        type="button"
+                                        onClick={() => handleWhatsAppModeChange("own")}
+                                        className={`relative flex flex-col gap-2 rounded-lg border-2 p-4 text-left transition-all ${
+                                            whatsappMode === "own"
+                                                ? "border-blue-500 bg-blue-50"
+                                                : "border-muted hover:border-muted-foreground/30"
+                                        }`}
+                                    >
+                                        {whatsappMode === "own" && (
+                                            <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 text-blue-600" />
+                                        )}
+                                        <div className="flex items-center gap-2">
+                                            <Unplug className="h-5 w-5 text-blue-600" />
+                                            <span className="font-semibold text-sm">Connect Your Own WhatsApp</span>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                            Messages are sent from your own WhatsApp Business number. Customers see your brand.
+                                        </p>
+                                    </button>
+                                </div>
+
+                                {/* Show connect/status based on selected mode */}
+                                {whatsappMode === "own" && (
+                                    <div className="mt-2">
+                                        {wabaConnected ? (
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-4">
+                                                    <div className="rounded-full bg-green-100 p-2">
+                                                        <MessageCircle className="h-5 w-5 text-green-600" />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <p className="font-semibold text-green-800">WhatsApp Connected</p>
+                                                        <p className="text-sm text-green-700">
+                                                            {wabaPhoneNumber
+                                                                ? `Sending from ${wabaPhoneNumber}`
+                                                                : "Your WhatsApp Business Account is active"}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={handleDisconnectWhatsApp}
+                                                    disabled={isWabaLoading}
+                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                >
+                                                    {isWabaLoading ? (
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <Unplug className="mr-2 h-4 w-4" />
+                                                    )}
+                                                    Disconnect
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                <p className="text-sm text-muted-foreground">
+                                                    Connect your WhatsApp Business Account via Meta. You&apos;ll be guided through the setup process.
+                                                </p>
+                                                <Button
+                                                    onClick={handleConnectWhatsApp}
+                                                    disabled={isWabaLoading}
+                                                    className="bg-[#25D366] hover:bg-[#20BD5A] text-white"
+                                                >
+                                                    {isWabaLoading ? (
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <MessageCircle className="mr-2 h-4 w-4" />
+                                                    )}
+                                                    Connect WhatsApp Business
+                                                </Button>
+                                                <p className="text-xs text-muted-foreground">
+                                                    You&apos;ll need a Meta Business Account and a WhatsApp Business phone number.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {whatsappMode === "menuthere" && (
+                                    <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3">
+                                        <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+                                        <p className="text-sm text-green-800">
+                                            Active — Order notifications will be sent via Menuthere&apos;s WhatsApp.
+                                        </p>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </CardContent>
                 </Card>

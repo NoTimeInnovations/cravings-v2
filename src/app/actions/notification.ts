@@ -33,7 +33,7 @@ async function sendWhatsAppOrderNotification(order: Order, status: string, store
     await fetch("/api/whatsapp/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, text }),
+      body: JSON.stringify({ phone, text, partnerId: order.partnerId }),
     });
   } catch (error) {
     console.error("WhatsApp notification failed:", error);
