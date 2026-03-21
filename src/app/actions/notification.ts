@@ -9,7 +9,8 @@ import TEST_PARTNERS from "@/utils/testPartnerAccounts";
 
 const BASE_URL = "https://notification-server-khaki.vercel.app";
 
-async function sendWhatsAppOrderNotification(order: Order, status: string, storeName?: string) {
+// Send template message when order is PLACED
+async function sendWhatsAppOrderPlaced(order: Order, storeName?: string) {
   try {
     const phone = order.phone || order.user?.phone;
     if (!phone) return;
@@ -23,15 +24,6 @@ async function sendWhatsAppOrderNotification(order: Order, status: string, store
 
     const total = `${currency}${order.totalPrice}`;
 
-    let templateName = "";
-    if (status === "accepted") {
-      templateName = "order_accepted";
-    } else if (status === "cancelled") {
-      templateName = "order_cancelled";
-    } else {
-      return;
-    }
-
     await fetch("/api/whatsapp/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -39,14 +31,58 @@ async function sendWhatsAppOrderNotification(order: Order, status: string, store
         phone,
         partnerId: order.partnerId,
         template: {
-          name: templateName,
+          name: "order_update",
           language: "en",
           parameters: [store, orderItems, total],
         },
       }),
     });
   } catch (error) {
-    console.error("WhatsApp notification failed:", error);
+    console.error("WhatsApp order placed notification failed:", error);
+  }
+}
+
+// Send free-form text when order status changes (only if user clicked "Track Order Status")
+async function sendWhatsAppStatusUpdate(order: Order, status: string, storeName?: string) {
+  try {
+    const phone = order.phone || order.user?.phone;
+    if (!phone) return;
+
+    // Check if user opted in by clicking "Track Order Status" within 24hrs
+    const optedIn = await checkWhatsAppOptIn(phone);
+    if (!optedIn) return;
+
+    const store = storeName || order.partner?.store_name || "your store";
+    const displayStatus = status.charAt(0).toUpperCase() + status.slice(1);
+    const orderItems = order.items
+      .map((item) => `${item.name} x ${item.quantity}`)
+      .join(", ");
+    const orderId = order.display_id || order.id.slice(0, 8);
+
+    const text = `Your order #${orderId} from ${store} has been ${displayStatus}.\n\nItems: ${orderItems}`;
+
+    await fetch("/api/whatsapp/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, text, partnerId: order.partnerId }),
+    });
+  } catch (error) {
+    console.error("WhatsApp status update failed:", error);
+  }
+}
+
+// Check if user clicked "Track Order Status" within last 24 hours
+async function checkWhatsAppOptIn(phone: string): Promise<boolean> {
+  try {
+    let cleanPhone = phone.replace(/[\s\-\+\(\)]/g, "");
+    if (cleanPhone.startsWith("0")) cleanPhone = "91" + cleanPhone.slice(1);
+    if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
+
+    const res = await fetch(`/api/whatsapp/meta/opt-in?phone=${cleanPhone}`);
+    const data = await res.json();
+    return data.opted_in === true;
+  } catch {
+    return false;
   }
 }
 
@@ -348,6 +384,10 @@ class PartnerNotification {
 }
 
 class UserNotification {
+  async sendWhatsAppOrderPlaced(order: Order, storeName?: string) {
+    return sendWhatsAppOrderPlaced(order, storeName);
+  }
+
   async sendOrderStatusNotification(order: Order, status: string, storeName?: string) {
     try {
       const user = order.userId;
@@ -410,10 +450,8 @@ class UserNotification {
         console.error("Failed to send order status notification");
       }
 
-      // Send WhatsApp notification for accepted/cancelled orders
-      if (status === "accepted" || status === "cancelled") {
-        sendWhatsAppOrderNotification(order, status, storeName);
-      }
+      // Send WhatsApp status update (only reaches users who clicked "Track Order Status")
+      sendWhatsAppStatusUpdate(order, status, storeName);
     } catch (error) {
       console.error("Error sending order status notification:", error);
     }

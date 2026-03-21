@@ -1296,6 +1296,14 @@ const useOrderStore = create(
               console.error("Partner notification failed (order still placed):", notifError);
             }
           }
+
+          // Send WhatsApp order placed template with "Track Order Status" button
+          try {
+            await Notification.user.sendWhatsAppOrderPlaced(newOrder, hotelData.store_name);
+          } catch (e) {
+            console.error("WhatsApp order placed notification failed:", e);
+          }
+
           return newOrder;
         } catch (error) {
           console.error("Order placement error:", error);
