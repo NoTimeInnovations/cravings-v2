@@ -14,18 +14,20 @@ async function sendWhatsAppOrderNotification(order: Order, status: string, store
     const phone = order.phone || order.user?.phone;
     if (!phone) return;
 
-    const orderItems = order.items
-      .map((item) => `  • ${item.name} x ${item.quantity}`)
-      .join("\n");
-
-    const store = storeName || order.partner?.store_name || "";
+    const store = storeName || order.partner?.store_name || "your store";
     const currency = order.partner?.currency ?? "₹";
 
-    let text = "";
+    const orderItems = order.items
+      .map((item) => `${item.name} x ${item.quantity}`)
+      .join(", ");
+
+    const total = `${currency}${order.totalPrice}`;
+
+    let templateName = "";
     if (status === "accepted") {
-      text = `✅ *Order Accepted!*\n\nHi! Your order${store ? ` from *${store}*` : ""} has been accepted.\n\n🍽️ *Items:*\n${orderItems}\n\n💰 *Total:* ${currency}${order.totalPrice}\n\nYour food is being prepared. Thank you for ordering! 🧑‍🍳`;
+      templateName = "order_accepted";
     } else if (status === "cancelled") {
-      text = `❌ *Order Cancelled*\n\nHi, your order${store ? ` from *${store}*` : ""} has been cancelled.\n\n🍽️ *Items:*\n${orderItems}\n\n💰 *Total:* ${currency}${order.totalPrice}\n\nIf you have any questions, please contact the store directly.`;
+      templateName = "order_cancelled";
     } else {
       return;
     }
@@ -33,7 +35,15 @@ async function sendWhatsAppOrderNotification(order: Order, status: string, store
     await fetch("/api/whatsapp/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, text, partnerId: order.partnerId }),
+      body: JSON.stringify({
+        phone,
+        partnerId: order.partnerId,
+        template: {
+          name: templateName,
+          language: "en",
+          parameters: [store, orderItems, total],
+        },
+      }),
     });
   } catch (error) {
     console.error("WhatsApp notification failed:", error);

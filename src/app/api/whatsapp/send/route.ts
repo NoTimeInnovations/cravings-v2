@@ -5,11 +5,18 @@ const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
 
 export async function POST(request: NextRequest) {
   try {
-    const { phone, text, partnerId } = await request.json();
+    const { phone, text, partnerId, template } = await request.json();
 
-    if (!phone || !text) {
+    if (!phone) {
       return NextResponse.json(
-        { error: "phone and text are required" },
+        { error: "phone is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!text && !template) {
+      return NextResponse.json(
+        { error: "text or template is required" },
         { status: 400 }
       );
     }
@@ -50,6 +57,34 @@ export async function POST(request: NextRequest) {
       formattedPhone = "91" + formattedPhone;
     }
 
+    // Build message payload
+    let messagePayload: any = {
+      messaging_product: "whatsapp",
+      to: formattedPhone,
+    };
+
+    if (template) {
+      // Template message (for business-initiated conversations)
+      messagePayload.type = "template";
+      messagePayload.template = {
+        name: template.name,
+        language: { code: template.language || "en" },
+        components: [
+          {
+            type: "body",
+            parameters: (template.parameters || []).map((p: string) => ({
+              type: "text",
+              text: p,
+            })),
+          },
+        ],
+      };
+    } else {
+      // Free-form text (only works within 24hr customer-initiated window)
+      messagePayload.type = "text";
+      messagePayload.text = { body: text };
+    }
+
     // Send via WhatsApp Cloud API
     const res = await fetch(
       `https://graph.facebook.com/${API_VERSION}/${phoneNumberId}/messages`,
@@ -59,12 +94,7 @@ export async function POST(request: NextRequest) {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          to: formattedPhone,
-          type: "text",
-          text: { body: text },
-        }),
+        body: JSON.stringify(messagePayload),
       }
     );
 
