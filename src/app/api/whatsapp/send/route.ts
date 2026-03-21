@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPartnerByPhoneNumberId } from "@/lib/whatsapp-meta";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
@@ -15,7 +14,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine which credentials to use
+    // Determine which credentials to use — default to Menuthere's
     let phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID!;
     let accessToken = process.env.WHATSAPP_ACCESS_TOKEN!;
 
@@ -28,23 +27,17 @@ export async function POST(request: NextRequest) {
               phone_number_id
               access_token
             }
-            partners_by_pk(id: $partner_id) {
-              whatsapp_integration_mode
-            }
           }
         `;
         const data = await fetchFromHasura(query, { partner_id: partnerId });
         const integration = data?.whatsapp_business_integrations?.[0];
-        const mode = data?.partners_by_pk?.whatsapp_integration_mode;
 
-        // Use partner's own WABA if they chose "own" and have integration
-        if (mode === "own" && integration?.phone_number_id && integration?.access_token) {
+        if (integration?.phone_number_id && integration?.access_token) {
           phoneNumberId = integration.phone_number_id;
           accessToken = integration.access_token;
         }
-      } catch (e) {
-        // Fallback to Menuthere's credentials
-        console.warn("Failed to fetch partner WABA, using default:", e);
+      } catch {
+        // Table may not exist yet or query failed — use Menuthere's credentials
       }
     }
 
