@@ -49,8 +49,8 @@ async function sendWhatsAppStatusUpdate(order: Order, status: string, storeName?
     const phone = order.phone || order.user?.phone;
     if (!phone) return;
 
-    // Check if user opted in by clicking "Track Order Status" within 24hrs
-    const optedIn = await checkWhatsAppOptIn(phone);
+    // Check if user opted in for this specific order
+    const optedIn = await checkWhatsAppOptIn(phone, order.id);
     if (!optedIn) return;
 
     const store = storeName || order.partner?.store_name || "your store";
@@ -85,14 +85,14 @@ async function sendWhatsAppStatusUpdate(order: Order, status: string, storeName?
   }
 }
 
-// Check if user clicked "Track Order Status" within last 24 hours
-async function checkWhatsAppOptIn(phone: string): Promise<boolean> {
+// Check if user clicked "Track Order Status" for this specific order
+async function checkWhatsAppOptIn(phone: string, orderId: string): Promise<boolean> {
   try {
     let cleanPhone = phone.replace(/[\s\-\+\(\)]/g, "");
     if (cleanPhone.startsWith("0")) cleanPhone = "91" + cleanPhone.slice(1);
     if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
 
-    const res = await fetch(`/api/whatsapp/meta/opt-in?phone=${cleanPhone}`);
+    const res = await fetch(`/api/whatsapp/meta/opt-in?phone=${cleanPhone}&order_id=${orderId}`);
     const data = await res.json();
     return data.opted_in === true;
   } catch {
