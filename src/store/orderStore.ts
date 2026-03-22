@@ -1,5 +1,6 @@
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { getFeatures } from "@/lib/getFeatures";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { useAuthStore, Captain } from "./authStore";
@@ -1297,11 +1298,14 @@ const useOrderStore = create(
             }
           }
 
-          // Send WhatsApp order placed template with "Track Order Status" button
-          try {
-            await Notification.user.sendWhatsAppOrderPlaced(newOrder, hotelData.store_name);
-          } catch (e) {
-            console.error("WhatsApp order placed notification failed:", e);
+          // Send WhatsApp order placed template (only if feature flag enabled)
+          const features = getFeatures(hotelData.feature_flags || null);
+          if (features.whatsappnotifications.access && features.whatsappnotifications.enabled) {
+            try {
+              await Notification.user.sendWhatsAppOrderPlaced(newOrder, hotelData.store_name);
+            } catch (e) {
+              console.error("WhatsApp order placed notification failed:", e);
+            }
           }
 
           return newOrder;
