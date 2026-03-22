@@ -78,7 +78,7 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
           id
           display_id
           status
-          totalPrice
+          total_price
           items
           partner {
             store_name
