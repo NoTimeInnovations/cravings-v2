@@ -43,15 +43,11 @@ async function sendWhatsAppOrderPlaced(order: Order, storeName?: string) {
   }
 }
 
-// Send free-form text when order status changes (only if user clicked "Track Order Status")
+// Send free-form text when order status changes
 async function sendWhatsAppStatusUpdate(order: Order, status: string, storeName?: string) {
   try {
     const phone = order.phone || order.user?.phone;
     if (!phone) return;
-
-    // Check if user opted in for this specific order
-    const optedIn = await checkWhatsAppOptIn(phone, order.id);
-    if (!optedIn) return;
 
     const store = storeName || order.partner?.store_name || "your store";
     const displayStatus = status.charAt(0).toUpperCase() + status.slice(1);
@@ -85,20 +81,7 @@ async function sendWhatsAppStatusUpdate(order: Order, status: string, storeName?
   }
 }
 
-// Check if user clicked "Track Order Status" for this specific order
-async function checkWhatsAppOptIn(phone: string, orderId: string): Promise<boolean> {
-  try {
-    let cleanPhone = phone.replace(/[\s\-\+\(\)]/g, "");
-    if (cleanPhone.startsWith("0")) cleanPhone = "91" + cleanPhone.slice(1);
-    if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
 
-    const res = await fetch(`/api/whatsapp/meta/opt-in?phone=${cleanPhone}&order_id=${orderId}`);
-    const data = await res.json();
-    return data.opted_in === true;
-  } catch {
-    return false;
-  }
-}
 
 const getMessage = (
   title: string,

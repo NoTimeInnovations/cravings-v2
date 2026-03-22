@@ -57,9 +57,7 @@ export async function POST(req: NextRequest) {
 // ─── Handle "Track Order Status" button click ────────────────────
 async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) {
   try {
-    // 1. Find the most recent order first, then save opt-in scoped to it
-
-    // 2. Find the most recent order for this phone
+    // 1. Find the most recent order for this phone
     const phone10 = userPhone.startsWith("91") ? userPhone.slice(2) : userPhone;
 
     const query = `
@@ -127,10 +125,7 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
     };
     const emoji = statusEmojis[(order.status as string).toLowerCase()] || "📋";
 
-    // 3. Save opt-in scoped to this order
-    await saveOptIn(userPhone, order.id);
-
-    // 4. Send confirmation + current status
+    // 2. Send current status reply
     const text = `🔔 *Order Tracking Activated!*\n\n` +
       `You'll receive live updates for your order right here on WhatsApp.\n\n` +
       `━━━━━━━━━━━━━━━━\n` +
@@ -147,34 +142,7 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
   }
 }
 
-// ─── Save opt-in scoped to a specific order ─────────────────────
-async function saveOptIn(phone: string, orderId: string) {
-  try {
-    const mutation = `
-      mutation UpsertWhatsAppOptIn($phone: String!, $order_id: uuid!, $opted_in_at: timestamptz!) {
-        insert_whatsapp_opt_ins_one(
-          object: { phone: $phone, order_id: $order_id, opted_in_at: $opted_in_at },
-          on_conflict: {
-            constraint: whatsapp_opt_ins_phone_key,
-            update_columns: [opted_in_at, order_id]
-          }
-        ) {
-          id
-        }
-      }
-    `;
-
-    await fetchFromHasura(mutation, {
-      phone,
-      order_id: orderId,
-      opted_in_at: new Date().toISOString(),
-    });
-  } catch {
-    // Table may not exist yet — non-critical
-  }
-}
-
-// ─── Send a free-form text reply (within 24hr window) ────────────
+// ─── Send a free-form text reply ─────────────────────────────────
 async function sendTextReply(phoneNumberId: string, to: string, text: string) {
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN!;
 
