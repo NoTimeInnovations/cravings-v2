@@ -101,7 +101,7 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
       await sendTextReply(
         phoneNumberId,
         userPhone,
-        "Sorry, we couldn't find a recent order for your number."
+        "😕 Sorry, we couldn't find a recent order for your number.\n\nPlease make sure you're using the same number you placed the order with."
       );
       return;
     }
@@ -109,12 +109,32 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
     const store = order.partner?.store_name || "your store";
     const orderId = order.display_id || order.id.slice(0, 8);
     const status = (order.status as string).charAt(0).toUpperCase() + (order.status as string).slice(1);
+    const currency = order.partner?.currency || "₹";
     const items = order.items
-      .map((item: any) => `${item.name} x ${item.quantity}`)
-      .join(", ");
+      .map((item: any) => `• ${item.name} × ${item.quantity}`)
+      .join("\n");
 
-    // 3. Send current status as free-form text (within 24hr window)
-    const text = `Your order #${orderId} from ${store} has been ${status}.\n\nItems: ${items}`;
+    const statusEmojis: Record<string, string> = {
+      confirmed: "✅",
+      preparing: "👨‍🍳",
+      ready: "🔔",
+      picked: "🚗",
+      delivered: "📦",
+      cancelled: "❌",
+      placed: "📝",
+    };
+    const emoji = statusEmojis[(order.status as string).toLowerCase()] || "📋";
+
+    // 3. Send confirmation + current status
+    const text = `🔔 *Order Tracking Activated!*\n\n` +
+      `You'll receive live updates for your order right here on WhatsApp.\n\n` +
+      `━━━━━━━━━━━━━━━━\n` +
+      `${emoji} *Current Status: ${status}*\n\n` +
+      `🏪 *${store}*\n` +
+      `🆔 Order *#${orderId}*\n\n` +
+      `🛒 *Items:*\n${items}\n` +
+      `━━━━━━━━━━━━━━━━\n\n` +
+      `We'll notify you when your order status changes! 🙏`;
 
     await sendTextReply(phoneNumberId, userPhone, text);
   } catch (error) {

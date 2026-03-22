@@ -56,11 +56,24 @@ async function sendWhatsAppStatusUpdate(order: Order, status: string, storeName?
     const store = storeName || order.partner?.store_name || "your store";
     const displayStatus = status.charAt(0).toUpperCase() + status.slice(1);
     const orderItems = order.items
-      .map((item) => `${item.name} x ${item.quantity}`)
-      .join(", ");
+      .map((item) => `• ${item.name} × ${item.quantity}`)
+      .join("\n");
     const orderId = order.display_id || order.id.slice(0, 8);
 
-    const text = `Your order #${orderId} from ${store} has been ${displayStatus}.\n\nItems: ${orderItems}`;
+    const statusEmojis: Record<string, string> = {
+      confirmed: "✅",
+      preparing: "👨‍🍳",
+      ready: "🔔",
+      picked: "🚗",
+      delivered: "📦",
+      cancelled: "❌",
+    };
+    const emoji = statusEmojis[status.toLowerCase()] || "📋";
+
+    const text = `${emoji} *Order Update*\n\n` +
+      `Your order *#${orderId}* from *${store}* is now *${displayStatus}*.\n\n` +
+      `🛒 *Items:*\n${orderItems}\n\n` +
+      `Thank you for ordering! 🙏`;
 
     await fetch("/api/whatsapp/send", {
       method: "POST",
