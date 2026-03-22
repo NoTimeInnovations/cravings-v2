@@ -125,8 +125,8 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
     };
     const emoji = statusEmojis[(order.status as string).toLowerCase()] || "📋";
 
-    // 2. Send current status reply
-    const text = `🔔 *Order Tracking Activated!*\n\n` +
+    // 2. Send current status with track order button
+    const bodyText = `🔔 *Order Tracking Activated!*\n\n` +
       `You'll receive live updates for your order right here on WhatsApp.\n\n` +
       `━━━━━━━━━━━━━━━━\n` +
       `${emoji} *Current Status: ${status}*\n\n` +
@@ -136,7 +136,8 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
       `━━━━━━━━━━━━━━━━\n\n` +
       `We'll notify you when your order status changes! 🙏`;
 
-    await sendTextReply(phoneNumberId, userPhone, text);
+    const orderUrl = `https://menuthere.com/order/${order.id}`;
+    await sendInteractiveReply(phoneNumberId, userPhone, bodyText, orderUrl);
   } catch (error) {
     console.error("Track order status error:", error);
   }
@@ -166,5 +167,44 @@ async function sendTextReply(phoneNumberId: string, to: string, text: string) {
   if (!res.ok) {
     const err = await res.text();
     console.error("Text reply failed:", err);
+  }
+}
+
+// ─── Send interactive message with CTA URL button ───────────────
+async function sendInteractiveReply(phoneNumberId: string, to: string, bodyText: string, url: string) {
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN!;
+
+  const res = await fetch(
+    `https://graph.facebook.com/${API_VERSION}/${phoneNumberId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "interactive",
+        interactive: {
+          type: "cta_url",
+          body: { text: bodyText },
+          action: {
+            name: "cta_url",
+            parameters: {
+              display_text: "📍 Track Your Order",
+              url,
+            },
+          },
+        },
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.error("Interactive reply failed:", err);
+    // Fallback to plain text if interactive fails
+    await sendTextReply(phoneNumberId, to, bodyText + `\n\n📍 Track your order: ${url}`);
   }
 }
