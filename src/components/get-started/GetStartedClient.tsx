@@ -1309,18 +1309,20 @@ export default function GetStartedClient({
             className="absolute inset-0 bg-black/60 animate-in fade-in duration-200"
             onClick={() => setShowSampleMenuDialog(false)}
           />
-          <div className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl animate-in slide-in-from-bottom duration-300 sm:slide-in-from-bottom-4 sm:fade-in max-h-[85dvh] overflow-y-auto">
-            <button
-              onClick={() => setShowSampleMenuDialog(false)}
-              className="absolute right-4 top-4 p-1 rounded-full hover:bg-stone-100 transition-colors"
-            >
-              <X className="w-5 h-5 text-stone-400" />
-            </button>
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-stone-900">Choose a Sample Menu</h2>
-              <p className="text-sm text-stone-500 mt-1">
-                Pick a restaurant type to get started with a pre-built menu.
-              </p>
+          <div className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl px-5 pt-4 pb-5 shadow-xl animate-in slide-in-from-bottom duration-300 sm:slide-in-from-bottom-4 sm:fade-in max-h-[85dvh] overflow-y-auto">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h2 className="text-lg font-semibold text-stone-900">Choose a Sample Menu</h2>
+                <p className="text-sm text-stone-500 mt-0.5">
+                  Pick a restaurant type to get started with a pre-built menu.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSampleMenuDialog(false)}
+                className="p-1 -mr-1 rounded-full hover:bg-stone-100 transition-colors shrink-0"
+              >
+                <X className="w-5 h-5 text-stone-400" />
+              </button>
             </div>
             <div className="grid gap-3">
               {sampleMenus.map((menu) => (
