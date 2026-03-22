@@ -70,10 +70,8 @@ async function sendWhatsAppStatusUpdate(order: Order, status: string, storeName?
 
     const text = `${emoji} *Order Update*\n\n` +
       `Your order *#${orderId}* from *${store}* is now *${displayStatus}*.\n\n` +
-      `🛒 *Items:*\n${orderItems}\n\n` +
-      (isFinal
-        ? `Thank you for ordering! 🙏`
-        : `We'll notify you when your order status changes 🙏`);
+      `🛒 *Items:*\n${orderItems}` +
+      (isFinal ? `\n\nThank you for ordering! 🙏` : "");
 
     await fetch("/api/whatsapp/send", {
       method: "POST",
