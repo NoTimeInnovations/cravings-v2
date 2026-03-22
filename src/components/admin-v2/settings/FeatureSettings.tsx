@@ -207,6 +207,21 @@ export function FeatureSettings() {
 
                                 </div>
                             )}
+
+                            {features.whatsappnotifications?.access && (
+                                <div className="flex items-center justify-between p-4 border rounded-lg">
+                                    <div className="space-y-0.5">
+                                        <div className="font-medium">WhatsApp Notifications</div>
+                                        <div className="text-sm text-muted-foreground">
+                                            {features.whatsappnotifications.enabled ? "Enabled" : "Disabled"}
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={features.whatsappnotifications.enabled}
+                                        onCheckedChange={(checked) => handleFeatureToggle("whatsappnotifications", checked)}
+                                    />
+                                </div>
+                            )}
                         </>
                     )}
                 </CardContent>

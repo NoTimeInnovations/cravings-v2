@@ -6,6 +6,7 @@ import { OrderStatusHistoryTypes } from "@/lib/statusHistory";
 import { Offer } from "@/store/offerStore_hasura";
 import { HotelData } from "../hotels/[...id]/page";
 import TEST_PARTNERS from "@/utils/testPartnerAccounts";
+import { getFeatures } from "@/lib/getFeatures";
 
 const BASE_URL = "https://notification-server-khaki.vercel.app";
 
@@ -413,16 +414,18 @@ class UserNotification {
         return;
       }
 
-      // Fetch store name if not available on the order (admin subscriptions don't include partner data)
+      // Fetch store name and feature flags if not available on the order
       let storeName = order.partner?.store_name;
-      if (!storeName && order.partnerId) {
+      let featureFlags: string | null = null;
+      if (order.partnerId) {
         const { partners_by_pk } = await fetchFromHasura(
-          `query GetPartnerName($partnerId: uuid!) {
-            partners_by_pk(id: $partnerId) { store_name }
+          `query GetPartnerInfo($partnerId: uuid!) {
+            partners_by_pk(id: $partnerId) { store_name feature_flags }
           }`,
           { partnerId: order.partnerId }
         );
-        storeName = partners_by_pk?.store_name;
+        if (!storeName) storeName = partners_by_pk?.store_name;
+        featureFlags = partners_by_pk?.feature_flags || null;
       }
 
       const message = getMessage(
@@ -450,8 +453,11 @@ class UserNotification {
         console.error("Failed to send order status notification");
       }
 
-      // Send WhatsApp status update (only reaches users who clicked "Track Order Status")
-      sendWhatsAppStatusUpdate(order, status, storeName);
+      // Send WhatsApp status update (only if feature flag enabled)
+      const features = getFeatures(featureFlags);
+      if (features.whatsappnotifications.access && features.whatsappnotifications.enabled) {
+        sendWhatsAppStatusUpdate(order, status, storeName);
+      }
     } catch (error) {
       console.error("Error sending order status notification:", error);
     }

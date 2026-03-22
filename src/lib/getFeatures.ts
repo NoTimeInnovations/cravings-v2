@@ -27,6 +27,10 @@ export type FeatureFlags = {
     access: boolean;
     enabled: boolean;
   };
+  whatsappnotifications: {
+    access: boolean;
+    enabled: boolean;
+  };
 };
 
 export const revertFeatureToString = (features: FeatureFlags): string => {
@@ -60,6 +64,10 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
     parts.push(`purchasemanagement-${features.purchasemanagement.enabled}`);
   }
 
+  if (features.whatsappnotifications.access) {
+    parts.push(`whatsappnotifications-${features.whatsappnotifications.enabled}`);
+  }
+
   return parts.join(",");
 };
 
@@ -90,6 +98,10 @@ export const getFeatures = (perm: string | null) => {
       enabled: false,
     },
     purchasemanagement: {
+      access: false,
+      enabled: false,
+    },
+    whatsappnotifications: {
       access: false,
       enabled: false,
     }
@@ -126,6 +138,9 @@ export const getFeatures = (perm: string | null) => {
       } else if (key === "purchasemanagement") {
         permissions.purchasemanagement.access = true;
         permissions.purchasemanagement.enabled = value === "true";
+      } else if (key === "whatsappnotifications") {
+        permissions.whatsappnotifications.access = true;
+        permissions.whatsappnotifications.enabled = value === "true";
       }
     }
   }
