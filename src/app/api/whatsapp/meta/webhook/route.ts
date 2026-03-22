@@ -126,15 +126,7 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
     const emoji = statusEmojis[(order.status as string).toLowerCase()] || "📋";
 
     // 2. Send current status with track order button
-    const bodyText = `🔔 *Order Tracking Activated!*\n\n` +
-      `You'll receive live updates for your order right here on WhatsApp.\n\n` +
-      `━━━━━━━━━━━━━━━━\n` +
-      `${emoji} *Current Status: ${status}*\n\n` +
-      `🏪 *${store}*\n` +
-      `🆔 Order *#${orderId}*\n\n` +
-      `🛒 *Items:*\n${items}\n` +
-      `━━━━━━━━━━━━━━━━\n\n` +
-      `We'll notify you when your order status changes! 🙏`;
+    const bodyText = `Click the button below to see realtime order updates 👇`;
 
     const orderUrl = `https://menuthere.com/order/${order.id}`;
     await sendInteractiveReply(phoneNumberId, userPhone, bodyText, orderUrl);
@@ -192,7 +184,7 @@ async function sendInteractiveReply(phoneNumberId: string, to: string, bodyText:
           action: {
             name: "cta_url",
             parameters: {
-              display_text: "📍 Track Your Order",
+              display_text: "Track Your Order",
               url,
             },
           },
@@ -205,6 +197,6 @@ async function sendInteractiveReply(phoneNumberId: string, to: string, bodyText:
     const err = await res.text();
     console.error("Interactive reply failed:", err);
     // Fallback to plain text if interactive fails
-    await sendTextReply(phoneNumberId, to, bodyText + `\n\n📍 Track your order: ${url}`);
+    await sendTextReply(phoneNumberId, to, `Click the link below to see realtime order updates:\n\n${url}`);
   }
 }
