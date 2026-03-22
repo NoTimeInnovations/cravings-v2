@@ -21,7 +21,7 @@ import {
   getPhoneValidationError,
 } from "@/lib/getUserCountry";
 import { getPhoneDigitsForCountry } from "@/lib/countryPhoneMap";
-import { useFirebasePhoneAuth } from "@/hooks/useFirebasePhoneAuth";
+import { useWhatsAppOtp } from "@/hooks/useWhatsAppOtp";
 import { OtpInput } from "@/components/ui/otp-input";
 
 export const getGstAmount = (price: number, gstPercentage: number) => {
@@ -207,7 +207,7 @@ const OrderDrawer = ({
     sendOtp,
     verifyOtp,
     reset: resetOtp,
-  } = useFirebasePhoneAuth();
+  } = useWhatsAppOtp();
 
   // Reset OTP state when modal opens
   const wasLoginOpen = useRef(false);
@@ -502,8 +502,8 @@ const OrderDrawer = ({
 
     try {
       const fullPhone = `${hotelData?.country_code || "+91"}${phoneNumber}`;
-      await sendOtp(fullPhone, "recaptcha-container-drawer");
-      toast.success("OTP sent successfully!");
+      await sendOtp(fullPhone);
+      toast.success("OTP sent to your WhatsApp!");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to send OTP");
     }
@@ -818,7 +818,6 @@ const OrderDrawer = ({
             </div>
           </div>
 
-          <div id="recaptcha-container-drawer"></div>
         </div>
       )}
     </>

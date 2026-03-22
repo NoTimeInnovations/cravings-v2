@@ -37,7 +37,7 @@ import { Tag } from "lucide-react";
 import { UpiPaymentScreen } from "./UpiPaymentScreen";
 import AddressManagementModal, { type SavedAddress, type AddressModalTheme } from "./AddressManagementModal";
 import { Notification } from "@/app/actions/notification";
-import { useFirebasePhoneAuth } from "@/hooks/useFirebasePhoneAuth";
+import { useWhatsAppOtp } from "@/hooks/useWhatsAppOtp";
 import { OtpInput } from "@/components/ui/otp-input";
 
 // Helper: detect if a hex color is dark
@@ -837,7 +837,7 @@ const LoginDrawer = ({
     sendOtp,
     verifyOtp,
     reset: resetOtp,
-  } = useFirebasePhoneAuth();
+  } = useWhatsAppOtp();
 
   // Reset state when drawer closes
   const wasOpen = useRef(false);
@@ -867,8 +867,8 @@ const LoginDrawer = ({
 
     try {
       const fullPhone = `${hotelData?.country_code || "+91"}${phoneNumber}`;
-      await sendOtp(fullPhone, "recaptcha-container-order");
-      toast.success("OTP sent successfully!");
+      await sendOtp(fullPhone);
+      toast.success("OTP sent to your WhatsApp!");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to send OTP"
@@ -1182,7 +1182,6 @@ const LoginDrawer = ({
           )}
         </div>
 
-        <div id="recaptcha-container-order"></div>
       </motion.div>
     </AnimatePresence>
   );

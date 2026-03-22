@@ -18,7 +18,7 @@ import {
 } from "@/lib/getUserCountry";
 import { useDomain } from "@/providers/DomainProvider";
 import { FcGoogle } from "react-icons/fc";
-import { useFirebasePhoneAuth } from "@/hooks/useFirebasePhoneAuth";
+import { useWhatsAppOtp } from "@/hooks/useWhatsAppOtp";
 import { OtpInput } from "@/components/ui/otp-input";
 
 type LoginMode = "user" | "partner";
@@ -43,7 +43,7 @@ export default function Login() {
     sendOtp,
     verifyOtp,
     reset: resetOtp,
-  } = useFirebasePhoneAuth();
+  } = useWhatsAppOtp();
   const [otp, setOtp] = useState("");
 
   // Fetch user country info on mount
@@ -94,8 +94,8 @@ export default function Login() {
 
     try {
       const fullPhone = `${userCountryInfo.callingCode}${cleanedPhone}`;
-      await sendOtp(fullPhone, "recaptcha-container-login");
-      toast.success("OTP sent successfully!");
+      await sendOtp(fullPhone);
+      toast.success("OTP sent to your WhatsApp!");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to send OTP"
@@ -229,7 +229,8 @@ export default function Login() {
           ) : (
             <form onSubmit={handleVerifyOtp} className="space-y-4">
               <p className="text-sm text-stone-500 text-center">
-                OTP sent to {userCountryInfo?.callingCode} {userPhone}
+                OTP sent via WhatsApp to {userCountryInfo?.callingCode}{" "}
+                {userPhone}
               </p>
               <OtpInput value={otp} onChange={setOtp} />
               {otpError && (
@@ -340,7 +341,6 @@ export default function Login() {
           </Link>
         </div>
 
-        <div id="recaptcha-container-login"></div>
       </div>
     </div>
   );
