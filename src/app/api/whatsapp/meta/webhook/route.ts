@@ -79,7 +79,10 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
           display_id
           status
           total_price
-          items
+          order_items {
+            quantity
+            item
+          }
           partner {
             store_name
             currency
@@ -109,8 +112,8 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
     const orderId = order.display_id || order.id.slice(0, 8);
     const status = (order.status as string).charAt(0).toUpperCase() + (order.status as string).slice(1);
     const currency = order.partner?.currency || "₹";
-    const items = order.items
-      .map((item: any) => `• ${item.name} × ${item.quantity}`)
+    const items = (order.order_items || [])
+      .map((oi: any) => `• ${oi.item?.name || "Item"} × ${oi.quantity}`)
       .join("\n");
 
     const statusEmojis: Record<string, string> = {
