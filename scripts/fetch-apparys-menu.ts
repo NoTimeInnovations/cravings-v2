@@ -149,7 +149,7 @@ async function main() {
   // Step 4: Write to JSON file
   const fs = await import("fs");
   const path = await import("path");
-  const outPath = path.join(__dirname, "..", "src", "data", "sampleMenu.json");
+  const outPath = path.join(__dirname, "..", "src", "data", "sampleMenus", "southIndian.json");
   fs.writeFileSync(outPath, JSON.stringify(sampleItems, null, 2));
   console.log(`Saved to ${outPath}`);
 }

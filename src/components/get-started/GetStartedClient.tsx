@@ -96,8 +96,7 @@ import CURRENCIES from "@/data/currencies.json";
 
 const COUNTRIES = Object.keys(COUNTRY_META_DATA);
 
-import SAMPLE_MENU_DATA from "@/data/sampleMenu.json";
-const SAMPLE_MENU_ITEMS: MenuItem[] = SAMPLE_MENU_DATA as MenuItem[];
+import { sampleMenus, SampleMenuOption } from "@/data/sampleMenus";
 
 // --- Phone validation by country code ---
 import _PHONE_DIGITS_BY_CODE from "@/data/phoneDigitsByCode.json";
@@ -185,6 +184,7 @@ export default function GetStartedClient({
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isHydrated, setIsHydrated] = useState(false);
   const [menuFiles, setMenuFiles] = useState<File[]>([]);
+  const [showSampleMenuDialog, setShowSampleMenuDialog] = useState(false);
 
   const getDefaultPhoneCode = (country: string) => {
     const entry = countryCodes.find((c) => c.country === country);
@@ -636,13 +636,15 @@ export default function GetStartedClient({
     }
   };
 
-  const handleStartWithSampleData = () => {
-    setExtractedItems(SAMPLE_MENU_ITEMS);
-    extractionPromise.current = Promise.resolve(SAMPLE_MENU_ITEMS);
+  const handleStartWithSampleData = (menu: SampleMenuOption) => {
+    const items = menu.items as MenuItem[];
+    setExtractedItems(items);
+    extractionPromise.current = Promise.resolve(items);
+    setShowSampleMenuDialog(false);
 
     router.push('/get-started?step=2');
     setStep(2);
-    toast.success("Loaded sample menu data!");
+    toast.success(`Loaded "${menu.name}" sample menu!`);
   };
 
   const handleCancelExtraction = () => {
@@ -1293,13 +1295,59 @@ export default function GetStartedClient({
       </div>
 
       <button
-        onClick={handleStartWithSampleData}
+        onClick={() => setShowSampleMenuDialog(true)}
         className="w-full h-12 md:h-14 text-base md:text-lg rounded-xl border-2 border-dashed border-orange-600/30 text-orange-600 hover:bg-orange-100/30 hover:border-orange-600/50 bg-white/50 transition-all group relative overflow-hidden flex items-center justify-center font-medium"
       >
         <div className="absolute inset-0 bg-gradient-to-r from-orange-100/0 via-orange-100/30 to-orange-100/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
         <Sparkles className="w-5 h-5 mr-2 text-orange-600 group-hover:text-orange-600 transition-colors" />
         <span>Try with Sample Menu</span>
       </button>
+
+      {showSampleMenuDialog && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60 animate-in fade-in duration-200"
+            onClick={() => setShowSampleMenuDialog(false)}
+          />
+          <div className="relative w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl p-6 shadow-xl animate-in slide-in-from-bottom duration-300 sm:slide-in-from-bottom-4 sm:fade-in max-h-[85dvh] overflow-y-auto">
+            <button
+              onClick={() => setShowSampleMenuDialog(false)}
+              className="absolute right-4 top-4 p-1 rounded-full hover:bg-stone-100 transition-colors"
+            >
+              <X className="w-5 h-5 text-stone-400" />
+            </button>
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-stone-900">Choose a Sample Menu</h2>
+              <p className="text-sm text-stone-500 mt-1">
+                Pick a restaurant type to get started with a pre-built menu.
+              </p>
+            </div>
+            <div className="grid gap-3">
+              {sampleMenus.map((menu) => (
+                <button
+                  key={menu.id}
+                  onClick={() => handleStartWithSampleData(menu)}
+                  disabled={menu.items.length === 0}
+                  className="flex items-center gap-4 p-4 rounded-xl border border-stone-200 hover:border-orange-600/40 hover:bg-orange-50/50 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-stone-200 disabled:hover:bg-transparent"
+                >
+                  <span className="text-3xl">{menu.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-stone-900 group-hover:text-orange-600 transition-colors">
+                      {menu.name}
+                    </p>
+                    <p className="text-sm text-stone-500">{menu.description}</p>
+                  </div>
+                  {menu.items.length === 0 && (
+                    <span className="text-xs text-stone-400 bg-stone-100 px-2 py-1 rounded-full shrink-0">
+                      Coming soon
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 

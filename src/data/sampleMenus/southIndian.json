@@ -1,0 +1,852 @@
+[
+  {
+    "name": "Thalassery Biryani",
+    "price": 159,
+    "description": "Traditional Thalassery-style biryani with aromatic spices and flavored rice.",
+    "category": "biriyani",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Thalassery_Biryani_rice_biryani_1772525192139.webp"
+  },
+  {
+    "name": "Arabian Chicken Mandi",
+    "price": 199,
+    "description": "Authentic Arabian mandi with tender chicken and fragrant long-grain rice.",
+    "category": "biriyani",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Arabian_Chicken_Mandi_rice_biryani_1772525481924.webp"
+  },
+  {
+    "name": "Dum Biryani",
+    "price": 149,
+    "description": "Slow-cooked dum biryani with layered rice and rich aromatic spices.",
+    "category": "biriyani",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Dum_Biryani_rice_biryani_1772525418688.webp"
+  },
+  {
+    "name": "Chicken Pulav",
+    "price": 169,
+    "description": "Flavorful chicken pulav with tender chicken pieces and fragrant basmati rice.",
+    "category": "biriyani",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Chicken_Pulav_rice_biryani_1772525304742.webp"
+  },
+  {
+    "name": "Paneer Do Pyaza",
+    "price": 179,
+    "description": "Paneer cooked with double onion gravy and aromatic spices.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Paneer_Do_Pyaza_veg_mains_1772519206913.webp"
+  },
+  {
+    "name": "Paneer Angara",
+    "price": 159,
+    "description": "Smoky chargrilled paneer in a spicy, robust gravy.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Paneer_Angara_veg_mains_1772519541864.webp"
+  },
+  {
+    "name": "Mushroom Masala",
+    "price": 129,
+    "description": "Fresh mushrooms cooked in a rich and spicy masala gravy.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Mushroom_Masala_veg_mains_1772519782987.webp"
+  },
+  {
+    "name": "Dal Tadka",
+    "price": 99,
+    "description": "Yellow lentils tempered with cumin, garlic, and aromatic spices.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Dal_Tadka_veg_mains_1772519972710.webp"
+  },
+  {
+    "name": "Mutter Paneer",
+    "price": 149,
+    "description": "Soft paneer cubes and green peas in a creamy tomato-based gravy.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Mutter_Paneer_veg_mains_1772520354281.webp"
+  },
+  {
+    "name": "Mix Veg",
+    "price": 129,
+    "description": "Assorted fresh vegetables cooked in a flavorful spiced gravy.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Mix_Veg_veg_mains_1772520450271.webp"
+  },
+  {
+    "name": "Green Peas Masala",
+    "price": 119,
+    "description": "Green peas simmered in a spicy onion-tomato masala.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Green_Peas_Masala_veg_mains_1772520508731.webp"
+  },
+  {
+    "name": "Paneer Tikka Masala",
+    "price": 149,
+    "description": "Grilled paneer tikka in a creamy, spiced tomato gravy.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Paneer_Tikka_Masala_veg_mains_1772519650055.webp"
+  },
+  {
+    "name": "Paneer Butter Masala",
+    "price": 149,
+    "description": "Soft paneer in a rich, creamy butter and tomato sauce.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Paneer_Butter_Masala_veg_mains_1772519591756.webp"
+  },
+  {
+    "name": "Paneer Mushroom Masala",
+    "price": 169,
+    "description": "Paneer and mushrooms in a flavorful spiced gravy.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Paneer_Mushroom_Masala_veg_mains_1772519351988.webp"
+  },
+  {
+    "name": "Kaju Masala",
+    "price": 169,
+    "description": "Cashew nuts cooked in a rich and creamy masala gravy.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Kaju_Masala_veg_mains_1772520304236.webp"
+  },
+  {
+    "name": "Kaju Paneer Masala",
+    "price": 189,
+    "description": "Cashews and paneer in a luxurious creamy masala sauce.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Kaju_Paneer_Masala_veg_mains_1772520222660.webp"
+  },
+  {
+    "name": "Kaju Cheese Masala",
+    "price": 189,
+    "description": "Cashews and cheese in a rich, indulgent masala gravy.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Kaju_Cheese_Masala_veg_mains_1772519144484.webp"
+  },
+  {
+    "name": "Paneer Bhurji",
+    "price": 179,
+    "description": "Scrambled paneer cooked with onions, tomatoes, and spices.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Paneer_Bhurji_veg_mains_1772519222278.webp"
+  },
+  {
+    "name": "Paneer Kadai",
+    "price": 159,
+    "description": "Paneer cooked kadai-style with bell peppers and aromatic spices.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Paneer_Kadai_veg_mains_1772519075515.webp"
+  },
+  {
+    "name": "Veg Kadai",
+    "price": 159,
+    "description": "Mixed vegetables cooked kadai-style with fresh spices and peppers.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Veg_Kadai_veg_mains_1772519408777.webp"
+  },
+  {
+    "name": "Veg Korma",
+    "price": 159,
+    "description": "Mixed vegetables in a mild, creamy coconut and cashew gravy.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Veg_Korma_veg_mains_1772519454997.webp"
+  },
+  {
+    "name": "Veg Angara",
+    "price": 159,
+    "description": "Smoky mixed vegetables in a bold, spicy chargrilled gravy.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Veg_Angara_veg_mains_1772519262658.webp"
+  },
+  {
+    "name": "Veg Kolhapuri",
+    "price": 159,
+    "description": "Mixed vegetables in a fiery Kolhapuri-style spiced gravy.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Veg_Kolhapuri_veg_mains_1772519303394.webp"
+  },
+  {
+    "name": "Veg Maratha",
+    "price": 159,
+    "description": "Mixed vegetables cooked Maratha-style with bold regional spices.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Veg_Maratha_veg_mains_1772519057610.webp"
+  },
+  {
+    "name": "Paneer Korma",
+    "price": 159,
+    "description": "Soft paneer in a mild, creamy korma sauce with cashews and coconut.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Paneer_Korma_veg_mains_1772519013146.webp"
+  },
+  {
+    "name": "Palak Paneer",
+    "price": 149,
+    "description": "Paneer cubes in a smooth, creamy spinach gravy.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Palak_Paneer_veg_mains_1772483140299.webp"
+  },
+  {
+    "name": "Paneer Masala",
+    "price": 129,
+    "description": "Paneer cubes in a rich onion-tomato masala gravy.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Paneer_Masala_veg_mains_1772519853300.webp"
+  },
+  {
+    "name": "Butter Shev Bhaj",
+    "price": 119,
+    "description": "Crispy sev in a buttery, spiced gravy.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Butter_Shev_Bhaj_veg_mains_1772519910200.webp"
+  },
+  {
+    "name": "Yellow Dal Fry",
+    "price": 99,
+    "description": "Comfort dal fry made with yellow lentils and a fragrant tadka.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Yellow_Dal_Fry_veg_mains_1772520018445.webp"
+  },
+  {
+    "name": "Shev Bhaji",
+    "price": 99,
+    "description": "Traditional sev bhaji with crispy sev in a spiced curry.",
+    "category": "veg-mains",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Shev_Bhaji_veg_mains_1772520133488.webp"
+  },
+  {
+    "name": "Paneer Handi",
+    "price": 249,
+    "description": "Paneer slow-cooked in a clay pot with rich, aromatic gravy.",
+    "category": "chef-drops-veg",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Paneer_Handi_handi_heat_veg_1772529849905.webp"
+  },
+  {
+    "name": "Shahi Paneer Handi",
+    "price": 299,
+    "description": "Royal shahi paneer prepared in a handi with cream, nuts, and spices.",
+    "category": "chef-drops-veg",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Shahi_Paneer_Handi_handi_heat_veg_1772529706845.webp"
+  },
+  {
+    "name": "Paneer Mushroom Handi",
+    "price": 279,
+    "description": "Paneer and mushrooms slow-cooked in a clay pot with rich gravy.",
+    "category": "chef-drops-veg",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Paneer_Mushroom_Handi_handi_heat_veg_1772529761433.webp"
+  },
+  {
+    "name": "Paneer Angara Handi",
+    "price": 279,
+    "description": "Smoky paneer angara prepared in a handi with bold spices.",
+    "category": "chef-drops-veg",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Paneer_Angara_Handi_handi_heat_veg_1772529805766.webp"
+  },
+  {
+    "name": "Veg Handi",
+    "price": 249,
+    "description": "Mixed vegetables slow-cooked in a clay pot with aromatic spices.",
+    "category": "chef-drops-veg",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Veg_Handi_handi_heat_veg_1772529888197.webp"
+  },
+  {
+    "name": "Paneer Tikka Lababdar",
+    "price": 199,
+    "description": "Grilled paneer tikka in a creamy, lababdar-style tomato gravy.",
+    "category": "chef-drops-veg",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Paneer_Tikka_Lababdar_chef_drops_veg_1772529587743.webp"
+  },
+  {
+    "name": "Paneer Takatak",
+    "price": 199,
+    "description": "Paneer tossed tawa-style with bold spices and a smoky finish.",
+    "category": "chef-drops-veg",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Paneer_Takatak_chef_drops_veg_1772529628097.webp"
+  },
+  {
+    "name": "Pepper Paneer Masala",
+    "price": 199,
+    "description": "Paneer in a bold black pepper and spice-infused gravy.",
+    "category": "chef-drops-veg",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Pepper_Paneer_Masala_chef_drops_veg_1772529666963.webp"
+  },
+  {
+    "name": "Chicken Do Pyaza",
+    "price": 179,
+    "description": "Chicken cooked with double onion in a rich, spiced gravy.",
+    "category": "chicken-mains",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Chicken_Do_Pyaza_chicken_mains_1772520941748.webp"
+  },
+  {
+    "name": "Chicken Achari Masala",
+    "price": 199,
+    "description": "Chicken in a tangy pickle-spiced masala gravy.",
+    "category": "chicken-mains",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Chicken_Achari_Masala_chicken_mains_1772521383167.webp"
+  },
+  {
+    "name": "Malabar Chicken Curry",
+    "price": 139,
+    "description": "Traditional Malabar-style chicken curry with coconut and spices.",
+    "category": "chicken-mains",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Malabar_Chicken_Curry_chicken_mains_1772521431368.webp"
+  },
+  {
+    "name": "Chicken Tandoor Masala",
+    "price": 189,
+    "description": "Tandoori chicken pieces in a rich, spiced masala gravy.",
+    "category": "chicken-mains",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Chicken_Tandoor_Masala_chicken_mains_1772521255500.webp"
+  },
+  {
+    "name": "Pepper Chicken Masala",
+    "price": 199,
+    "description": "Chicken in a bold, aromatic black pepper masala.",
+    "category": "chicken-mains",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Pepper_Chicken_Masala_chicken_mains_1772521152138.webp"
+  },
+  {
+    "name": "Chicken Sukka",
+    "price": 189,
+    "description": "Dry-roasted chicken with coconut and Mangalorean spices.",
+    "category": "chicken-mains",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Chicken_Sukka_chicken_mains_1772521319250.webp"
+  },
+  {
+    "name": "Chicken Korma",
+    "price": 169,
+    "description": "Chicken in a mild, creamy korma sauce with cashews and coconut.",
+    "category": "chicken-mains",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Chicken_Korma_chicken_mains_1772520797451.webp"
+  },
+  {
+    "name": "Chicken Mughlai",
+    "price": 169,
+    "description": "Chicken in a rich, Mughlai-style creamy gravy with aromatic spices.",
+    "category": "chicken-mains",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Chicken_Mughlai_chicken_mains_1772520838604.webp"
+  },
+  {
+    "name": "Chicken Angara",
+    "price": 169,
+    "description": "Smoky chargrilled chicken in a spicy, robust gravy.",
+    "category": "chicken-mains",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Chicken_Angara_chicken_mains_1772520741809.webp"
+  },
+  {
+    "name": "Chicken Fry",
+    "price": 159,
+    "description": "Crispy fried chicken seasoned with aromatic spices.",
+    "category": "chicken-mains",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Chicken_Fry_chicken_mains_1772520898749.webp"
+  },
+  {
+    "name": "Chicken Masala",
+    "price": 139,
+    "description": "Chicken cooked in a flavorful onion-tomato masala gravy.",
+    "category": "chicken-mains",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Chicken_Masala_chicken_mains_1772483279409.webp"
+  },
+  {
+    "name": "Chicken Rasoi",
+    "price": 499,
+    "description": "Premium chef's special chicken rasoi preparation.",
+    "category": "chicken-mains",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Chicken_Rasoi_chicken_mains_1772520611376.webp"
+  },
+  {
+    "name": "Chicken Handi",
+    "price": 399,
+    "description": "Chicken slow-cooked in a clay pot with rich, aromatic gravy.",
+    "category": "chicken-mains",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Chicken_Handi_chicken_mains_1772520692977.webp"
+  },
+  {
+    "name": "Veg Thali",
+    "price": 89,
+    "description": "Complete vegetarian meal plate with rice, dal, sabji, roti, and sides.",
+    "category": "thali-mode",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Veg_Thali_thali_mode_1772522356349.webp"
+  },
+  {
+    "name": "Egg Thali",
+    "price": 149,
+    "description": "Complete meal plate with egg curry, rice, roti, and sides.",
+    "category": "thali-mode",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Egg_Thali_thali_mode_1772522568206.webp"
+  },
+  {
+    "name": "Chicken Thali",
+    "price": 179,
+    "description": "Complete meal plate with chicken curry, rice, roti, and sides.",
+    "category": "thali-mode",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Chicken_Thali_thali_mode_1772522410165.webp"
+  },
+  {
+    "name": "Sabji Vatti",
+    "price": 20,
+    "description": "Extra portion of vegetable side dish.",
+    "category": "thali-mode",
+    "is_veg": true
+  },
+  {
+    "name": "Egg Masala",
+    "price": 89,
+    "description": "Boiled eggs in a rich, spiced onion-tomato masala gravy.",
+    "category": "egg-station",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Egg_Masala_egg_station_1772521899620.webp"
+  },
+  {
+    "name": "Malabar Egg Curry",
+    "price": 89,
+    "description": "Eggs in a traditional Malabar-style coconut curry.",
+    "category": "egg-station",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Malabar_Egg_Curry_egg_station_1772521881403.webp"
+  },
+  {
+    "name": "Egg Do Pyaza",
+    "price": 149,
+    "description": "Eggs cooked with double onion in a rich, spiced gravy.",
+    "category": "egg-station",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Egg_Do_Pyaza_egg_station_1772522045662.webp"
+  },
+  {
+    "name": "Egg Bhurji",
+    "price": 69,
+    "description": "Indian-style scrambled eggs with onions, tomatoes, and spices.",
+    "category": "egg-station",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Egg_Bhurji_egg_station_1772522097149.webp"
+  },
+  {
+    "name": "Egg Omlett",
+    "price": 49,
+    "description": "Classic egg omelette seasoned with spices.",
+    "category": "egg-station",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Egg_Omlett_egg_station_1772522110773.webp"
+  },
+  {
+    "name": "Boil Egg",
+    "price": 10,
+    "description": "Simple boiled egg, a quick protein-rich snack.",
+    "category": "egg-station",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/dabfa04e-fab9-496e-a997-5638eb4d9f7e/menu/Boil_Egg_egg_station_1772522126027.webp"
+  },
+  {
+    "name": "Masala Alfaham Mandi",
+    "price": 290,
+    "description": "Special masala alfaham mandi, a flavorful delight.",
+    "category": "mandi",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Apparys_Special_Masala_Alfaham_Mandi_Mandi_1772049266451.webp",
+    "variants": [
+      {
+        "name": "Small",
+        "price": 290
+      },
+      {
+        "name": "Medium",
+        "price": 560
+      },
+      {
+        "name": "Large",
+        "price": 960
+      }
+    ]
+  },
+  {
+    "name": "Normal Alfaham Mandi",
+    "price": 250,
+    "description": "Traditional Mandi rice with tender alfaham.",
+    "category": "mandi",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Normal_Alfaham_Mandi_mandi_1771822592768.webp",
+    "variants": [
+      {
+        "name": "Small",
+        "price": 250
+      },
+      {
+        "name": "Medium",
+        "price": 490
+      },
+      {
+        "name": "Large",
+        "price": 870
+      }
+    ]
+  },
+  {
+    "name": "Peri Peri Alfaham Mandi",
+    "price": 280,
+    "description": "Mandi rice with peri-peri flavored alfaham.",
+    "category": "mandi",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Peri_Peri_Alfaham_Mandi_mandi_1771822717005.webp",
+    "variants": [
+      {
+        "name": "Small",
+        "price": 280
+      },
+      {
+        "name": "Medium",
+        "price": 550
+      },
+      {
+        "name": "Large",
+        "price": 950
+      }
+    ]
+  },
+  {
+    "name": "Honey Alfaham Mandi",
+    "price": 280,
+    "description": "Mandi rice with sweet honey-glazed alfaham.",
+    "category": "mandi",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Honey_Alfaham_Mandi_Mandi_1772048961745.webp",
+    "variants": [
+      {
+        "name": "Small",
+        "price": 280
+      },
+      {
+        "name": "Medium",
+        "price": 550
+      },
+      {
+        "name": "Large",
+        "price": 950
+      }
+    ]
+  },
+  {
+    "name": "Kanthari Alfaham Mandi",
+    "price": 280,
+    "description": "Mandi rice with spicy Kanthari alfaham.",
+    "category": "mandi",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Kanthari_Alfaham_Mandi_mandi_1771822786292.webp",
+    "variants": [
+      {
+        "name": "Small",
+        "price": 280
+      },
+      {
+        "name": "Medium",
+        "price": 550
+      },
+      {
+        "name": "Large",
+        "price": 950
+      }
+    ]
+  },
+  {
+    "name": "Dragon Alfaham Mandi",
+    "price": 280,
+    "description": "Mandi rice with spicy dragon alfaham.",
+    "category": "mandi",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Dragon_Alfaham_Mandi_mandi_1771822671359.webp",
+    "variants": [
+      {
+        "name": "Small",
+        "price": 280
+      },
+      {
+        "name": "Medium",
+        "price": 550
+      },
+      {
+        "name": "Large",
+        "price": 950
+      }
+    ]
+  },
+  {
+    "name": "Fresh Line Juice",
+    "price": 29,
+    "description": "Refreshing fresh lime juice, tangy and zesty for a revitalizing drink.",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Fresh_Line_Juice_Cold_Drinks_1772049960059.webp"
+  },
+  {
+    "name": "Grape Juice",
+    "price": 70,
+    "description": "Sweet and refreshing grape juice, bursting with natural fruity flavor.",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Grape_Juice_Cold_Drinks_1772050356904.webp"
+  },
+  {
+    "name": "Sprite",
+    "price": 45,
+    "description": "Cooldrinks",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Sprite__Cold_Drinks_1772050986543.webp"
+  },
+  {
+    "name": "Orange Juice",
+    "price": 70,
+    "description": "Freshly squeezed orange juice, tangy, sweet, and packed with vitamin C.",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Orange_Juice_Cold_Drinks_1772050487024.webp"
+  },
+  {
+    "name": "Pepsi",
+    "price": 45,
+    "description": "cooldrinks",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Pepsi_Cold_Drinks_1772051046476.webp"
+  },
+  {
+    "name": "Mineral Water",
+    "price": 20,
+    "description": "Pure and refreshing mineral water to quench your thirst and keep you hydrated.",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Mineral_Water_Cold_Drinks_1772050243637.webp"
+  },
+  {
+    "name": "Water melon Juice",
+    "price": 60,
+    "description": "Chilled watermelon juice, naturally sweet, refreshing, and hydrating.",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Water_melon_Juice_Cold_Drinks_1772050697409.webp"
+  },
+  {
+    "name": "Mosambi Juice",
+    "price": 70,
+    "description": "Fresh mosambi (sweet lime) juice, tangy, sweet, and refreshingly citrusy.",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Mosambi_Juice_Cold_Drinks_1772050789994.webp"
+  },
+  {
+    "name": "Pineapple juice",
+    "price": 70,
+    "description": "Refreshing pineapple juice, sweet, tangy, and tropical in every sip",
+    "category": "cold-drinks",
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Pineapple_juice_Cold_Drinks_1772050599553.webp"
+  },
+  {
+    "name": "Ghee Dosa",
+    "price": 70,
+    "description": "Crispy dosa cooked with ghee.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Ghee_Dosa_Dosa_Specials_1772044447815.webp"
+  },
+  {
+    "name": "Plain Dosa",
+    "price": 55,
+    "description": "A simple and plain rice crepe.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Plain_Dosa_dosa_specials_1771823326213.webp"
+  },
+  {
+    "name": "Normal Dosa",
+    "price": 15,
+    "description": "Thin, crispy rice crepe.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Normal_Dosa_Single_Dosa_Specials_1772044199265.webp"
+  },
+  {
+    "name": "Onion Dosa",
+    "price": 90,
+    "description": "Crispy dosa topped with finely chopped onions and spices for a flavorful, crunchy bite.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Onion_Dosa_Dosa_Specials_1772045145463.webp"
+  },
+  {
+    "name": "Chicken Dosa",
+    "price": 170,
+    "description": "Crispy dosa filled with spicy, tender chicken masala for a hearty and flavorful treat.",
+    "category": "dosa-special",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Chicken_Dosa_Dosa_Specials_1772045386772.webp"
+  },
+  {
+    "name": "Beef Dosa",
+    "price": 170,
+    "description": "Crispy dosa stuffed with flavorful, spiced beef for a bold and satisfying bite.",
+    "category": "dosa-special",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Beef_Dosa_Dosa_Specials_1772045508148.webp"
+  },
+  {
+    "name": "Onion Uttapam",
+    "price": 70,
+    "description": "Soft and fluffy uttapam topped with fresh onions for a savory, flavorful bite.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Onion_Uttapam_Dosa_Specials_1772045764239.webp"
+  },
+  {
+    "name": "Podi Dosa",
+    "price": 80,
+    "description": "Crispy dosa topped with spicy podi and ghee for a bold, aromatic flavor.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Podi_Dosa_Dosa_Specials_1772044732525.webp"
+  },
+  {
+    "name": "Egg Dosa",
+    "price": 90,
+    "description": "Crispy dosa layered with seasoned egg for a rich and satisfying South Indian favorite.",
+    "category": "dosa-special",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Egg_Dosa_Dosa_Specials_1772044991974.webp"
+  },
+  {
+    "name": "Masala Dosa",
+    "price": 80,
+    "description": "Crispy dosa filled with spiced potato mixture.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Masala_Dosa_Dosa_Specials_1772044330032.webp"
+  },
+  {
+    "name": "Paneer Masala Dosa",
+    "price": 150,
+    "description": "Crispy dosa stuffed with spiced paneer masala for a rich and flavorful twist on a classic favorite.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Paneer_Masala_Dosa_Dosa_Specials_1772045304152.webp"
+  },
+  {
+    "name": "Mushroom Dosa",
+    "price": 140,
+    "description": "Crispy dosa filled with spiced mushrooms for a savory and delicious twist.",
+    "category": "dosa-special",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Mushroom_Dosa_Dosa_Specials_1772045602293.webp"
+  },
+  {
+    "name": "Egg Noodles",
+    "price": 160,
+    "description": "Noodles stir-fried with scrambled eggs.",
+    "category": "noodles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Egg_Noodles_Noodles_1771960463656.webp"
+  },
+  {
+    "name": "Chicken Noodles",
+    "price": 170,
+    "description": "Noodles stir-fried with tender chicken pieces.",
+    "category": "noodles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Chicken_Noodles_noodles_1771777696902.webp"
+  },
+  {
+    "name": "Beef Noodles",
+    "price": 180,
+    "description": "Noodles stir-fried with savory beef.",
+    "category": "noodles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Beef_Noodles_Noodles_1771960642480.webp"
+  },
+  {
+    "name": "Schezwan Chicken Noodles",
+    "price": 180,
+    "description": "Spicy Schezwan noodles tossed with juicy chicken, crunchy vegetables, and bold chili-garlic sauce for a fiery and satisfying meal.",
+    "category": "noodles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Schezwan_Chicken_Noodles_noodles_1771959658727.webp"
+  },
+  {
+    "name": "Mixed Noodles",
+    "price": 210,
+    "description": "Noodles with a mix of vegetables and meats.",
+    "category": "noodles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Mixed_Noodles_Noodles_1771960303563.webp"
+  },
+  {
+    "name": "Veg Noodles",
+    "price": 150,
+    "description": "Noodles stir-fried with fresh vegetables.",
+    "category": "noodles",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Veg_Noodles_noodles_1771959567577.webp"
+  },
+  {
+    "name": "Paneer Noodles",
+    "price": 160,
+    "description": "Noodles stir-fried with paneer and vegetables.",
+    "category": "noodles",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Paneer_Noodles_noodles_1771959706352.webp"
+  },
+  {
+    "name": "Schezwan Mixed Noodles",
+    "price": 220,
+    "description": "Fiery Schezwan noodles stir-fried with a mix of chicken, beef, egg, and fresh vegetables in a bold chili-garlic sauce for a flavor-packed delight.",
+    "category": "noodles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Schezwan_Mixed_Noodles_Noodles_1771960196270.webp"
+  },
+  {
+    "name": "Schezwan Beef Noodles",
+    "price": 190,
+    "description": "Spicy Schezwan noodles stir-fried with tender beef strips, crisp vegetables, and bold chili-garlic sauce for a fiery, flavor-packed bite.",
+    "category": "noodles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/098fa941-3476-4a2c-b1f8-ea88eb15ad4f/menu/Schezwan_Beef_Noodles_noodles_1771959514844.webp"
+  }
+]

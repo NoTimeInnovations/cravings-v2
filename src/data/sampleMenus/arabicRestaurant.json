@@ -1,0 +1,938 @@
+[
+  {
+    "name": "10 Piece Regular",
+    "price": 799,
+    "description": "Special offer for 10 pieces of regular broasted chicken, a great deal.",
+    "category": "deal-of-the-day",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/10_PIECE_Regular_special_offer_1773744212952.webp"
+  },
+  {
+    "name": "6 Piece Spice Infused",
+    "price": 499,
+    "description": "Special offer for 6 pieces of spice-infused broasted chicken, full of flavor.",
+    "category": "deal-of-the-day",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/6485559b-85b5-4da3-9303-0b93ab863e11/menu/6_PIECE_Spice_Infused_special_offer_1773748547288.webp"
+  },
+  {
+    "name": "10 Pcs Strips Regular",
+    "price": 399,
+    "description": "A special offer for 10 pieces of crispy regular chicken strips.",
+    "category": "deal-of-the-day",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/6485559b-85b5-4da3-9303-0b93ab863e11/menu/10_PCS_STRIPS_Regular_special_offer_1773748557416.webp"
+  },
+  {
+    "name": "10 Pcs Strips Spice Infused",
+    "price": 419,
+    "description": "A special offer for 10 pieces of spicy chicken strips, perfectly seasoned.",
+    "category": "deal-of-the-day",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/6485559b-85b5-4da3-9303-0b93ab863e11/menu/10_PCS_STRIPS_Spice_Infused_special_offer_1773748567519.webp"
+  },
+  {
+    "name": "Cheezy Roll",
+    "price": 189,
+    "description": "A cheesy delight, this Roll offers a savory and satisfying experience.",
+    "category": "rolls",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Cheezy_Roll_rolls_1773744718858.webp"
+  },
+  {
+    "name": "Loaded Fries",
+    "price": 229,
+    "description": "Indulge in generously Loaded Fries, topped with delicious savory ingredients.",
+    "category": "frites-frenzy",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Loaded_Fries_loaded_fries_1773744899383.webp"
+  },
+  {
+    "name": "Grilled Chicken Fries",
+    "price": 249,
+    "description": "Delicious Grilled Chicken Fries, topped with tender grilled chicken pieces.",
+    "category": "frites-frenzy",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Grilled_Chicken_Fries_loaded_fries_1773744915299.webp"
+  },
+  {
+    "name": "Cookie Toffee",
+    "price": 79,
+    "description": "Indulgent Cookie Toffee scoop, crunchy cookies and rich toffee blended.",
+    "category": "icecream-scoops",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Cookie_Toffee_scoops_1773744929150.webp"
+  },
+  {
+    "name": "Big Baik Burger",
+    "price": 180,
+    "description": "A large, satisfying Big Baik Burger, packed with delicious ingredients.",
+    "category": "burgers",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Big_Baik_Burger_burgers_1773746361820.webp"
+  },
+  {
+    "name": "Chocolate Kalashnikov",
+    "price": 189,
+    "description": "An overload of chocolate ice-cream, sauce, chips, and brownie pieces.",
+    "category": "sundaes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/CHOCOLATE_KALASHNIKOV_sundaes_1773746374592.webp"
+  },
+  {
+    "name": "Mighty Dry Fruit",
+    "price": 189,
+    "description": "A delightful sundae with honey ice-cream and a ton of dry fruits.",
+    "category": "sundaes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/MIGHTY_DRY_FRUIT_sundaes_1773746387869.webp"
+  },
+  {
+    "name": "Oreo Fudge",
+    "price": 159,
+    "description": "A delightful falooda combining creamy fudge with crunchy Oreo pieces.",
+    "category": "falooda",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/OREO_FUDGE_special_falooda_1773746399664.webp"
+  },
+  {
+    "name": "Blueberry Twist",
+    "price": 189,
+    "description": "A refreshing falooda with a delightful blueberry twist, bursting with flavor.",
+    "category": "falooda",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/BLUEBERRY_TWIST_special_falooda_1773746411002.webp"
+  },
+  {
+    "name": "Sweetzo Royale",
+    "price": 199,
+    "description": "A regal falooda creation, combining a mix of exquisite flavors and textures.",
+    "category": "falooda",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/SWEETZO_ROYALE_special_falooda_1773746438024.webp"
+  },
+  {
+    "name": "Crispy Roll",
+    "price": 149,
+    "description": "Experience the crunch of this Crispy Roll, a delightfully textured snack.",
+    "category": "rolls",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Crispy_Roll_rolls_1773746475415.webp"
+  },
+  {
+    "name": "Feasto Roll",
+    "price": 139,
+    "description": "The Feasto Roll is a savory wrap, great for a fulfilling meal.",
+    "category": "rolls",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Feasto_Roll_rolls_1773746504738.webp"
+  },
+  {
+    "name": "Barbecue Burger",
+    "price": 169,
+    "description": "A smoky Barbecue Burger, featuring a rich and savory barbecue flavor.",
+    "category": "burgers",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Barbecue_Burger_burgers_1773746517422.webp"
+  },
+  {
+    "name": "Kids Burger",
+    "price": 119,
+    "description": "A perfect Kids Burger, sized for smaller appetites with classic taste.",
+    "category": "burgers",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Kids_Burger_burgers_1773746545547.webp"
+  },
+  {
+    "name": "Classic Chicken Burger",
+    "price": 99,
+    "description": "The Classic Chicken Burger, a timeless favorite with tender chicken.",
+    "category": "burgers",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Classic_Chicken_Burger_burgers_1773746558284.webp"
+  },
+  {
+    "name": "Barbeque Fries",
+    "price": 239,
+    "description": "Crispy fries generously topped with smoky barbecue sauce and ingredients.",
+    "category": "frites-frenzy",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Barbeque_Fries_loaded_fries_1773746586754.webp"
+  },
+  {
+    "name": "Sheswan Fries",
+    "price": 239,
+    "description": "Zesty Sheswan Fries, tossed in a spicy and aromatic Szechuan sauce.",
+    "category": "frites-frenzy",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Sheswan_Fries_loaded_fries_1773746598452.webp"
+  },
+  {
+    "name": "Mango",
+    "price": 89,
+    "description": "A tropical Mango Mojito, vibrant and refreshing with a zesty kick.",
+    "category": "mojito-magic",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Mango_mojitos_1773746804713.webp"
+  },
+  {
+    "name": "Pink Guava",
+    "price": 89,
+    "description": "A unique Pink Guava Mojito, sweet and refreshing with a fruity twist.",
+    "category": "mojito-magic",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Pink_Guava_mojitos_1773746832928.webp"
+  },
+  {
+    "name": "Passion Fruit",
+    "price": 89,
+    "description": "An exotic Passion Fruit Mojito, tangy and sweet, a tropical delight.",
+    "category": "mojito-magic",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Passion_Fruit_mojitos_1773746847061.webp"
+  },
+  {
+    "name": "Strawberry",
+    "price": 89,
+    "description": "A sweet Strawberry Mojito, bursting with fresh berry flavor, truly refreshing.",
+    "category": "mojito-magic",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Strawberry_mojitos_1773746873342.webp"
+  },
+  {
+    "name": "Cotton Candy",
+    "price": 89,
+    "description": "A whimsical Cotton Candy Mojito, sweet and fun with a refreshing twist.",
+    "category": "mojito-magic",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Cotton_Candy_mojitos_1773746885280.webp"
+  },
+  {
+    "name": "Pineapple",
+    "price": 89,
+    "description": "A tropical Pineapple Mojito, sweet and tangy, incredibly refreshing on a hot day.",
+    "category": "mojito-magic",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Pineapple_mojitos_1773746908655.webp"
+  },
+  {
+    "name": "Bubble Gum",
+    "price": 89,
+    "description": "A playful Bubble Gum Mojito, sweet and unique with a refreshing burst.",
+    "category": "mojito-magic",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Bubble_Gum_mojitos_1773746921077.webp"
+  },
+  {
+    "name": "Orange",
+    "price": 89,
+    "description": "A zesty Orange Mojito, bright and citrusy, perfect for a refreshing break.",
+    "category": "mojito-magic",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Orange_mojitos_1773746951316.webp"
+  },
+  {
+    "name": "Vanilla",
+    "price": 69,
+    "description": "Classic creamy Vanilla scoop, a timeless and universally loved flavor.",
+    "category": "icecream-scoops",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Vanilla_scoops_1773746962936.webp"
+  },
+  {
+    "name": "Alphonso Mango",
+    "price": 79,
+    "description": "Seasonal Alphonso Mango scoop, intensely fruity and creamy, a true delight.",
+    "category": "icecream-scoops",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Alphonso_Mango_scoops_1773746991229.webp"
+  },
+  {
+    "name": "Strawberry",
+    "price": 79,
+    "description": "Sweet Strawberry scoop, bursting with fresh berry flavor and creamy texture.",
+    "category": "icecream-scoops",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Strawberry_scoops_1773747005554.webp"
+  },
+  {
+    "name": "Tender Coconut",
+    "price": 79,
+    "description": "Refreshing Tender Coconut scoop, creamy and subtly sweet with tropical essence.",
+    "category": "icecream-scoops",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Tender_Coconut_scoops_1773747028448.webp"
+  },
+  {
+    "name": "Oreo Fudge",
+    "price": 79,
+    "description": "Decadent Oreo Fudge scoop, a rich blend of cookies and chocolate fudge.",
+    "category": "icecream-scoops",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Oreo_Fudge_scoops_1773747039765.webp"
+  },
+  {
+    "name": "Belgian Chocolate",
+    "price": 89,
+    "description": "Luxurious Belgian Chocolate scoop, intensely rich and smooth for connoisseurs.",
+    "category": "icecream-scoops",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Belgian_Chocolate_scoops_1773747064959.webp"
+  },
+  {
+    "name": "Blueberry Twist",
+    "price": 89,
+    "description": "Fruity Blueberry Twist scoop, a sweet and tangy berry sensation.",
+    "category": "icecream-scoops",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Blueberry_Twist_scoops_1773747077219.webp"
+  },
+  {
+    "name": "Red Velvet",
+    "price": 89,
+    "description": "Velvety Red Velvet scoop, a rich and creamy dessert with distinct flavor.",
+    "category": "icecream-scoops",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Red_Velvet_scoops_1773747102594.webp"
+  },
+  {
+    "name": "Tender Coconut",
+    "price": 129,
+    "description": "Refreshing Tender Coconut ice cream shake, creamy and subtly sweet, tropical delight.",
+    "category": "regular-shakes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Tender_Coconut_ice_cream_shakes_1773747138609.webp"
+  },
+  {
+    "name": "Thandoori Roll",
+    "price": 189,
+    "description": "A delicious Thandoori Roll, packed with flavorful fillings for a quick bite.",
+    "category": "rolls",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Thandoori_Roll_rolls_1773744704249.webp"
+  },
+  {
+    "name": "Veg Roll",
+    "price": 119,
+    "description": "A tasty Veg Roll, filled with fresh vegetables, a delightful vegetarian option.",
+    "category": "rolls",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Veg_Roll_rolls_1773744732405.webp"
+  },
+  {
+    "name": "Butterscotch Nuts",
+    "price": 79,
+    "description": "Creamy Butterscotch Nuts scoop, featuring crunchy nuts for added texture.",
+    "category": "icecream-scoops",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Butterscotch_Nuts_scoops_1773747293845.webp"
+  },
+  {
+    "name": "Chocolate",
+    "price": 129,
+    "description": "Classic Chocolate ice cream shake, rich and creamy, a timeless favorite.",
+    "category": "regular-shakes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Chocolate_ice_cream_shakes_1773747408758.webp"
+  },
+  {
+    "name": "Butterscotch Nuts",
+    "price": 129,
+    "description": "Crunchy Butterscotch Nuts ice cream shake, creamy with added nutty texture.",
+    "category": "regular-shakes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Butterscotch_Nuts_ice_cream_shakes_1773747431505.webp"
+  },
+  {
+    "name": "Cafe Mocha",
+    "price": 129,
+    "description": "Invigorating Cafe Mocha ice cream shake, a perfect blend of coffee and chocolate.",
+    "category": "regular-shakes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Cafe_Mocha_ice_cream_shakes_1773747455795.webp"
+  },
+  {
+    "name": "Strawberry",
+    "price": 129,
+    "description": "Fruity Strawberry ice cream shake, fresh and sweet, a delightful treat.",
+    "category": "regular-shakes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Strawberry_ice_cream_shakes_1773747468690.webp"
+  },
+  {
+    "name": "Belgian Chocolate",
+    "price": 129,
+    "description": "Rich Belgian Chocolate ice cream shake, intensely smooth and decadent.",
+    "category": "regular-shakes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Belgian_Chocolate_ice_cream_shakes_1773747492156.webp"
+  },
+  {
+    "name": "Brownie Blast",
+    "price": 189,
+    "description": "An indulgent Brownie Blast Sundae Shake, loaded with brownies and chocolate.",
+    "category": "sundae-shake",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Brownie_Blast_sundae_shakes_1773747509065.webp"
+  },
+  {
+    "name": "Biscoff 007",
+    "price": 189,
+    "description": "A secret agent Biscoff 007 Sundae Shake, luxurious with Lotus Biscoff flavor.",
+    "category": "sundae-shake",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Biscoff_007_sundae_shakes_1773747538284.webp"
+  },
+  {
+    "name": "Royal Dry Fruit",
+    "price": 169,
+    "description": "A majestic Royal Dry Fruit Sundae Shake, rich with premium dry fruits.",
+    "category": "sundae-shake",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Royal_Dry_Fruit_sundae_shakes_1773747564910.webp"
+  },
+  {
+    "name": "Blueberry Chill",
+    "price": 169,
+    "description": "A cool Blueberry Chill Sundae Shake, refreshing with blueberry twist and nuts.",
+    "category": "sundae-shake",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Blueberry_Chill_sundae_shakes_1773747577244.webp"
+  },
+  {
+    "name": "Mango Mania",
+    "price": 189,
+    "description": "Tropical Mango Mania Sundae Shake, bursting with juicy mango flavor.",
+    "category": "sundae-shake",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Mango_Mania_sundae_shakes_1773747600983.webp"
+  },
+  {
+    "name": "Death By Chocolate",
+    "price": 189,
+    "description": "A decadent chocolate fantasy with brownie, vanilla ice-cream, and rich choco sauce.",
+    "category": "sundaes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/DEATH_BY_CHOCOLATE_sundaes_1773747630500.webp"
+  },
+  {
+    "name": "Biscoff Delight",
+    "price": 189,
+    "description": "A delightful fusion of Biscoff cookie with ice-cream and butterscotch sauce.",
+    "category": "sundaes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/BISCOFF_DELIGHT_sundaes_1773747645067.webp"
+  },
+  {
+    "name": "Snickers",
+    "price": 189,
+    "description": "Special Snickers ice-cream topped with butterscotch and chocolate chips.",
+    "category": "sundaes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/SNICKERS_sundaes_1773747662895.webp"
+  },
+  {
+    "name": "Pistachio-kunafa",
+    "price": 189,
+    "description": "A delicious blend of pistachio kunafa ice-cream with nuts and roasted kunafa.",
+    "category": "sundaes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/PISTACHIO_KUNAFA_sundaes_1773747690684.webp"
+  },
+  {
+    "name": "Blueberry Blizzard",
+    "price": 189,
+    "description": "Special blueberry twist ice-cream with tutti frutti, nuts, and blueberry topping.",
+    "category": "sundaes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/BLUEBERRY_BLIZZARD_sundaes_1773747718097.webp"
+  },
+  {
+    "name": "Classic Tender Coconut",
+    "price": 189,
+    "description": "Special tender coconut ice-cream sundae with dry fruits, nuts, and tender coconut.",
+    "category": "sundaes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/CLASSIC_TENDER_COCONUT_sundaes_1773747732234.webp"
+  },
+  {
+    "name": "Butterscotch",
+    "price": 189,
+    "description": "Rich butterscotch falooda, a sweet and creamy treat with delightful flavors.",
+    "category": "falooda",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/6485559b-85b5-4da3-9303-0b93ab863e11/menu/BUTTERSCOTCH_special_falooda_1773748787847.webp"
+  },
+  {
+    "name": "Brownie",
+    "price": 189,
+    "description": "Indulgent brownie falooda, a rich and chocolaty dessert experience.",
+    "category": "falooda",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/BROWNIE_special_falooda_1773747793708.webp"
+  },
+  {
+    "name": "Chocolate",
+    "price": 159,
+    "description": "Classic chocolate falooda, a rich and creamy treat for chocolate lovers.",
+    "category": "falooda",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/CHOCOLATE_special_falooda_1773747805145.webp"
+  },
+  {
+    "name": "Lotus Biscoff",
+    "price": 179,
+    "description": "Crisp waffle topped with creamy Lotus Biscoff spread and ice-cream.",
+    "category": "waffles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/LOTUS_BISCOFF_waffles_1773747830407.webp"
+  },
+  {
+    "name": "Butterscotch N Nuts",
+    "price": 149,
+    "description": "Delicious waffle with rich butterscotch sauce, crunchy nuts, and a scoop of ice-cream.",
+    "category": "waffles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/BUTTERSCOTCH_N_NUTS_waffles_1773747843989.webp"
+  },
+  {
+    "name": "Death By Chocolate",
+    "price": 149,
+    "description": "An indulgent waffle drowned in rich chocolate sauce and delectable chocolate chunks.",
+    "category": "waffles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/DEATH_BY_CHOCOLATE_waffles_1773747871908.webp"
+  },
+  {
+    "name": "Blueberry Tornado",
+    "price": 149,
+    "description": "Fresh waffle swirled with sweet blueberry topping and a scoop of ice-cream.",
+    "category": "waffles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/BLUEBERRY_TORNADO_waffles_1773747885735.webp"
+  },
+  {
+    "name": "Chocolate Overload",
+    "price": 129,
+    "description": "A chocolate lover's dream, with generous chocolate toppings on a fresh waffle.",
+    "category": "waffles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/CHOCOLATE_OVERLOAD_waffles_1773747914913.webp"
+  },
+  {
+    "name": "Strawberry Love",
+    "price": 129,
+    "description": "Sweet waffle with fresh strawberry sauce and a scoop of delicious strawberry ice-cream.",
+    "category": "waffles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/STRAWBERRY_LOVE_waffles_1773747930926.webp"
+  },
+  {
+    "name": "Salankatia Hazelnut",
+    "price": 349,
+    "description": "Decadent Salankatia dessert, infused with the rich, nutty flavor of hazelnuts.",
+    "category": "egyptian-desserts",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/SALANKATIA_HAZELNUT__salankatia__1773747955324.webp"
+  },
+  {
+    "name": "Lotus Biscoff",
+    "price": 189,
+    "description": "A delightful falooda featuring the unique taste of Lotus Biscoff cookies.",
+    "category": "falooda",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/6485559b-85b5-4da3-9303-0b93ab863e11/menu/LOTUS_BISCOFF_special_falooda_1773748775174.webp"
+  },
+  {
+    "name": "Salankatia Pistachio Hazelnut",
+    "price": 349,
+    "description": "Salankatia dessert combining the delightful blend of both pistachio and hazelnut flavors.",
+    "category": "egyptian-desserts",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/SALANKATIA_PISTACHIO_HAZELNUT__salankatia__1773748001606.webp"
+  },
+  {
+    "name": "Mini Salankatia Pistachio",
+    "price": 179,
+    "description": "A small-sized Salankatia dessert, highlighted by savory pistachio goodness.",
+    "category": "egyptian-desserts-mini",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/MINI_SALANKATIA_PISTACHIO_mini_salankatia_1773748109877.webp"
+  },
+  {
+    "name": "Mini Salankatia Lotus Biscoff",
+    "price": 179,
+    "description": "A small Salankatia dessert featuring the distinctive caramel notes of Lotus Biscoff.",
+    "category": "egyptian-desserts-mini",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/MINI_SALANKATIA_LOTUS_BISCOFF_mini_salankatia_1773748134043.webp"
+  },
+  {
+    "name": "Mini Salankatia Pistachio Hazelnut",
+    "price": 179,
+    "description": "Mini Salankatia combining the delightful blend of both pistachio and hazelnut flavors.",
+    "category": "egyptian-desserts-mini",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/MINI_SALANKATIA_PISTACHIO_HAZELNUT_mini_salankatia_1773748144747.webp"
+  },
+  {
+    "name": "Mini Salankatia Pistachio Lotus Biscoff",
+    "price": 179,
+    "description": "A delightful mini Salankatia blending the distinct flavors of pistachio and Lotus Biscoff.",
+    "category": "egyptian-desserts-mini",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/MINI_SALANKATIA_PISTACHIO_LOTUS_BISCOFF_mini_salankatia_1773748170702.webp"
+  },
+  {
+    "name": "Strawberry Pull-me-up",
+    "price": 149,
+    "description": "A fun and interactive dessert featuring delightful strawberry flavors.",
+    "category": "brownie-treats",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/STRAWBERRY_PULL_ME_UP_specials_1773748217228.webp"
+  },
+  {
+    "name": "Sizzling Brownie",
+    "price": 169,
+    "description": "Warm, fudgy brownie served sizzling hot, often with a scoop of ice-cream.",
+    "category": "brownie-treats",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/SIZZLING_BROWNIE_specials_1773748281677.webp"
+  },
+  {
+    "name": "Putt Icecream",
+    "price": 249,
+    "description": "A unique and creative ice-cream dessert, offering a delightful and refreshing experience.",
+    "category": "brownie-treats",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/PUTT_ICECREAM_specials_1773748294754.webp"
+  },
+  {
+    "name": "Blueberry Pull-me-up",
+    "price": 159,
+    "description": "A delightful and interactive dessert featuring vibrant blueberry flavors.",
+    "category": "brownie-treats",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/BLUEBERRY_PULL_ME_UP_specials_1773748307097.webp"
+  },
+  {
+    "name": "Loaded Brownie",
+    "price": 169,
+    "description": "Rich brownie packed with various toppings and ingredients for an indulgent treat.",
+    "category": "brownie-treats",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/LOADED_BROWNIE_specials_1773748319871.webp"
+  },
+  {
+    "name": "Salankatia Hazelnut Lotus Biscoff",
+    "price": 349,
+    "description": "A luxurious Salankatia featuring the rich combination of hazelnut and Lotus Biscoff.",
+    "category": "egyptian-desserts",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/6485559b-85b5-4da3-9303-0b93ab863e11/menu/SALANKATIA_HAZELNUT_LOTUS_BISCOFF__salankatia__1773749001021.webp"
+  },
+  {
+    "name": "Tropical Fusion",
+    "price": 189,
+    "description": "An exotic falooda blending various tropical fruit flavors into one refreshing treat.",
+    "category": "falooda",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/TROPICAL_FUSION_special_falooda_1773746422925.webp"
+  },
+  {
+    "name": "Classic Veg. Burger",
+    "price": 110,
+    "description": "A wholesome Classic Veg. Burger, packed with flavorful vegetarian patty.",
+    "category": "burgers",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Classic_Veg__Burger_burgers_1773746572901.webp"
+  },
+  {
+    "name": "Green Apple",
+    "price": 89,
+    "description": "A crisp Green Apple Mojito, tangy and invigorating, a perfect thirst quencher.",
+    "category": "mojito-magic",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Green_Apple_mojitos_1773746819216.webp"
+  },
+  {
+    "name": "Oreo Fudge",
+    "price": 129,
+    "description": "Decadent Oreo Fudge ice cream shake, blended with cookies and chocolate fudge.",
+    "category": "regular-shakes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Oreo_Fudge_ice_cream_shakes_1773747126371.webp"
+  },
+  {
+    "name": "Oreo Choco Fudge",
+    "price": 189,
+    "description": "Special Oreo Fudge Sundae with chocolate, Oreo, and rich butterscotch.",
+    "category": "sundaes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/OREO_CHOCO_FUDGE_sundaes_1773747675257.webp"
+  },
+  {
+    "name": "Dry Fruit",
+    "price": 189,
+    "description": "A refreshing falooda generously loaded with a variety of delicious dry fruits.",
+    "category": "falooda",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/DRY_FRUIT_special_falooda_1773747781101.webp"
+  },
+  {
+    "name": "Dry Fruit",
+    "price": 149,
+    "description": "Warm waffle topped with an assortment of dry fruits, offering a healthy twist.",
+    "category": "waffles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/DRY_FRUIT_waffles_1773747901319.webp"
+  },
+  {
+    "name": "Classic Rose",
+    "price": 139,
+    "description": "A fragrant and refreshing classic rose falooda, a timeless floral delight.",
+    "category": "falooda",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/CLASSIC_ROSE_special_falooda_1773746447577.webp"
+  },
+  {
+    "name": "Sausage Roll",
+    "price": 159,
+    "description": "Enjoy the classic taste of a Sausage Roll, perfectly wrapped and flavorful.",
+    "category": "rolls",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Sausage_Roll_rolls_1773746460696.webp"
+  },
+  {
+    "name": "Fillet Roll",
+    "price": 159,
+    "description": "A tender Fillet Roll, featuring succulent fillet pieces in a warm wrap.",
+    "category": "rolls",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Fillet_Roll_rolls_1773746492324.webp"
+  },
+  {
+    "name": "Tandoori Burger",
+    "price": 190,
+    "description": "Experience the aromatic Tandoori Burger, a fusion of delicious flavors.",
+    "category": "burgers",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Tandoori_Burger_burgers_1773746533723.webp"
+  },
+  {
+    "name": "Chocolate",
+    "price": 79,
+    "description": "Rich decadent Chocolate scoop, a sweet treat for any chocolate lover.",
+    "category": "icecream-scoops",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Chocolate_scoops_1773746978370.webp"
+  },
+  {
+    "name": "Fig And Honey",
+    "price": 79,
+    "description": "Unique Fig and Honey scoop, a delightful blend of sweet and earthy notes.",
+    "category": "icecream-scoops",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Fig_and_Honey_scoops_1773747016674.webp"
+  },
+  {
+    "name": "Butterscotch",
+    "price": 129,
+    "description": "Sweet Butterscotch ice cream shake, smooth and delightful with caramel notes.",
+    "category": "regular-shakes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Butterscotch_ice_cream_shakes_1773747421619.webp"
+  },
+  {
+    "name": "Royal Honey Fruit",
+    "price": 129,
+    "description": "A regal Royal Honey Fruit ice cream shake, unique and naturally sweet.",
+    "category": "regular-shakes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Royal_Honey_Fruit_ice_cream_shakes_1773747442944.webp"
+  },
+  {
+    "name": "Mango",
+    "price": 129,
+    "description": "Tropical Mango ice cream shake, sweet and refreshing with real mango flavor.",
+    "category": "regular-shakes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Mango_ice_cream_shakes_1773747480042.webp"
+  },
+  {
+    "name": "Butterscotch Bliss",
+    "price": 169,
+    "description": "A classic combo of delicious butterscotch sauce, ice-cream, cashews, and almonds.",
+    "category": "sundaes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/BUTTERSCOTCH_BLISS_sundaes_1773747617062.webp"
+  },
+  {
+    "name": "Red Velvet",
+    "price": 189,
+    "description": "Special pineapple ice-cream sundae with fresh fruits, nuts, and pineapple topping.",
+    "category": "sundaes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/RED_VELVET_sundaes_1773747703065.webp"
+  },
+  {
+    "name": "Tropical Fusion",
+    "price": 189,
+    "description": "A mighty trio of blueberry and strawberry twist topped with fruits and sauces.",
+    "category": "sundaes",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/TROPICAL_FUSION_sundaes_1773747744231.webp"
+  },
+  {
+    "name": "Tender Coconut",
+    "price": 159,
+    "description": "A refreshing falooda made with delicate, sweet tender coconut for a tropical taste.",
+    "category": "falooda",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/TENDER_COCONUT_special_falooda_1773747816908.webp"
+  },
+  {
+    "name": "Bubbly Blue Mojito",
+    "price": 59,
+    "description": "A vibrant Bubbly Blue Mojito, fizzy and refreshing with a unique color.",
+    "category": "mojito-magic",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Bubbly_Blue_Mojito_mojitos_1773746861108.webp"
+  },
+  {
+    "name": "Kacha Mango",
+    "price": 89,
+    "description": "A tangy Kacha Mango Mojito, raw mango flavor with a zesty kick.",
+    "category": "mojito-magic",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Kacha_Mango_mojitos_1773746896633.webp"
+  },
+  {
+    "name": "Blueberry",
+    "price": 89,
+    "description": "A fruity Blueberry Mojito, sweet and tangy, a wonderfully refreshing drink.",
+    "category": "mojito-magic",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Blueberry_mojitos_1773746932891.webp"
+  },
+  {
+    "name": "Pistachio Kunafa",
+    "price": 79,
+    "description": "Exotic Pistachio Kunafa scoop, a unique blend of nutty and sweet flavors.",
+    "category": "icecream-scoops",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Pistachio_Kunafa_scoops_1773747051472.webp"
+  },
+  {
+    "name": "Lotus Biscoff",
+    "price": 89,
+    "description": "Caramelized Lotus Biscoff scoop, a creamy delight with speculoos cookie crumbs.",
+    "category": "icecream-scoops",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Lotus_Biscoff_scoops_1773747091241.webp"
+  },
+  {
+    "name": "Mighty Boost",
+    "price": 79,
+    "description": "A Mighty Boost scoop, offering a unique and energizing flavor experience.",
+    "category": "icecream-scoops",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Mighty_Boost_scoops_1773747282960.webp"
+  },
+  {
+    "name": "Snickers",
+    "price": 89,
+    "description": "Indulgent Snickers scoop, featuring chocolate, caramel, and peanuts.",
+    "category": "icecream-scoops",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Snickers_scoops_1773747306749.webp"
+  },
+  {
+    "name": "Chocolate Outlaw",
+    "price": 169,
+    "description": "A rich Chocolate Outlaw Sundae Shake, decadent with various chocolate confections.",
+    "category": "sundae-shake",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Chocolate_Outlaw_sundae_shakes_1773747524987.webp"
+  },
+  {
+    "name": "Cookie N Cream",
+    "price": 169,
+    "description": "Classic Cookie N Cream Sundae Shake, blended with Oreo cookies and cream.",
+    "category": "sundae-shake",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Cookie_N_Cream_sundae_shakes_1773747551109.webp"
+  },
+  {
+    "name": "Strawberry Week",
+    "price": 169,
+    "description": "A delightful Strawberry Week Sundae Shake, fresh strawberries and creamy goodness.",
+    "category": "sundae-shake",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/Strawberry_Week_sundae_shakes_1773747588673.webp"
+  },
+  {
+    "name": "Nutty Nutella",
+    "price": 179,
+    "description": "Warm waffle loaded with creamy Nutella and crunchy nuts, a delightful treat.",
+    "category": "waffles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/NUTTY_NUTELLA_waffles_1773747859974.webp"
+  },
+  {
+    "name": "Oreo Caramel",
+    "price": 129,
+    "description": "Delicious waffle featuring crunchy Oreo pieces, decadent caramel sauce, and ice-cream.",
+    "category": "waffles",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/OREO_CARAMEL_waffles_1773747944091.webp"
+  },
+  {
+    "name": "Mango",
+    "price": 189,
+    "description": "Sweet and creamy mango falooda, a tropical delight bursting with fresh mango flavor.",
+    "category": "falooda",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/MANGO_special_falooda_1773747981100.webp"
+  },
+  {
+    "name": "Salankatia Pistachio",
+    "price": 349,
+    "description": "A rich and flavorful Salankatia dessert, highlighted by savory pistachio goodness.",
+    "category": "egyptian-desserts",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/SALANKATIA_PISTACHIO__salankatia__1773747993398.webp"
+  },
+  {
+    "name": "Mini Salankatia Hazelnut",
+    "price": 179,
+    "description": "Mini Salankatia dessert, infused with the rich, nutty flavor of hazelnuts.",
+    "category": "egyptian-desserts-mini",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/MINI_SALANKATIA_HAZELNUT_mini_salankatia_1773748122647.webp"
+  },
+  {
+    "name": "Mini Salankatia Hazelnut Lotus Biscoff",
+    "price": 179,
+    "description": "A mini Salankatia featuring the rich combination of hazelnut and Lotus Biscoff.",
+    "category": "egyptian-desserts-mini",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/MINI_SALANKATIA_HAZELNUT_LOTUS_BISCOFF_mini_salankatia_1773748156876.webp"
+  },
+  {
+    "name": "Salankatia Lotus Biscoff",
+    "price": 349,
+    "description": "A unique Salankatia dessert featuring the distinctive caramel notes of Lotus Biscoff.",
+    "category": "egyptian-desserts",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/SALANKATIA_LOTUS_BISCOFF__salankatia__1773747968178.webp"
+  },
+  {
+    "name": "Salankatia Pistachio Lotus Biscoff",
+    "price": 349,
+    "description": "A delightful Salankatia dessert blending the distinct flavors of pistachio and Lotus Biscoff.",
+    "category": "egyptian-desserts",
+    "is_veg": false,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/SALANKATIA_PISTACHIO_LOTUS_BISCOFF__salankatia__1773748013102.webp"
+  }
+]

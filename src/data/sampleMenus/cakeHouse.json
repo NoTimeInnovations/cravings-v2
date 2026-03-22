@@ -1,0 +1,426 @@
+[
+  {
+    "name": "Tripple Chocolate Cake",
+    "price": 600,
+    "description": "Rich chocolate cake with multiple layers of chocolatey goodness.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/TRIPPLE_CHOCOLATE_CAKE_Cakes_1772977650840.webp"
+  },
+  {
+    "name": "Belgian Chocolate Cake",
+    "price": 750,
+    "description": "Decadent Belgian chocolate cake, a true indulgence for chocolate lovers.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/BELGIAN_CHOCOLATE_CAKE_Cakes_1772977657133.webp"
+  },
+  {
+    "name": "Nutmeg Hazelnut Cake",
+    "price": 600,
+    "description": "A delightful blend of nutmeg and hazelnut in a moist cake.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/NUTMEG_HAZELNUT_CAKE_Cakes_1772977663206.webp"
+  },
+  {
+    "name": "Ferrero Rocher Cake",
+    "price": 800,
+    "description": "Inspired by the iconic Ferrero Rocher, a nutty chocolate delight.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/FERRERO_ROCHER_CAKE_Cakes_1772977669992.webp"
+  },
+  {
+    "name": "French La Opera",
+    "price": 900,
+    "description": "Elegant French Opera cake with coffee, chocolate, and almond layers.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/FRENCH_LA_OPERA_Cakes_1772977676029.webp"
+  },
+  {
+    "name": "Galaxy Chocolate Cake",
+    "price": 600,
+    "description": "A visually stunning chocolate cake with a galaxy-themed design.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/GALAXY_CHOCOLATE_CAKE_Cakes_1772977682413.webp"
+  },
+  {
+    "name": "Lotus Biscoff Cake",
+    "price": 600,
+    "description": "Caramelized biscuit flavor in a rich and creamy cake.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/LOTUS_BISCOFF_CAKE_Cakes_1772977688949.webp"
+  },
+  {
+    "name": "Bee Special Honey Cake",
+    "price": 600,
+    "description": "Sweet and aromatic honey cake, a signature Bee Cake creation.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/BEE_SPECIAL_HONEY_CAKE_Cakes_1772977695615.webp"
+  },
+  {
+    "name": "Rainbow Cake",
+    "price": 600,
+    "description": "A vibrant cake with colorful layers and a delightful frosting.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/RAINBOW_CAKE_Cakes_1772977703555.webp"
+  },
+  {
+    "name": "Mix Fruit Cake",
+    "price": 600,
+    "description": "A delightful cake packed with a medley of fresh fruits.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/MIX_FRIUT_CAKE_Cakes_1772977710335.webp"
+  },
+  {
+    "name": "Choco Nutty Cake",
+    "price": 600,
+    "description": "Chocolate and nuts combine for a rich and crunchy cake.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/CHOCO_NUTTY_CAKE_cakes_1772996293508.webp"
+  },
+  {
+    "name": "Blueberry Cheese Cake",
+    "price": 1500,
+    "description": "A luscious cheesecake topped with sweet and tangy blueberries.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/BLUEBERRY_CHEESE_CAKE_cakes_1772996305314.webp"
+  },
+  {
+    "name": "Twin Chips Chocolate Cake",
+    "price": 550,
+    "description": "Double chocolate cake, adorned with tempting chocolate chips.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/TWIN_CHIPS_CHOCOLATE_CAKE_cakes_1772996312092.webp"
+  },
+  {
+    "name": "Tres Leches Cake",
+    "price": 500,
+    "description": "Spongy cake soaked in three milks, a sweet delight.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/TRES_LECHES_CAKE_cakes_1772996323712.webp"
+  },
+  {
+    "name": "Saffron Milk Cake",
+    "price": 550,
+    "description": "Aromatic saffron-infused milk cake with delicate floral notes.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/SAFFRON_MILK_CAKE_cakes_1772996330301.webp"
+  },
+  {
+    "name": "5 In One Choco Dream Cake",
+    "price": 750,
+    "description": "Five layers of chocolatey bliss for the ultimate dream.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/5_IN_ONE_CHOCO_DREAM_CAKE_cakes_1772996337228.webp"
+  },
+  {
+    "name": "5 In One Choco Mini Dream Cake",
+    "price": 300,
+    "description": "Miniature version of our popular 5-in-one chocolate dream cake.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/5_IN_ONE_CHOCO_MINI_DREAM_CAKE_cakes_1772996355764.webp"
+  },
+  {
+    "name": "Tres Leches Box",
+    "price": 150,
+    "description": "Boxed Tres Leches cake, perfect for sharing.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/TRES_LECHES_BOX_cakes_1772996361655.webp"
+  },
+  {
+    "name": "Raffaello Cake",
+    "price": 500,
+    "description": "Coconut and almond cake inspired by Raffaello confections.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/RAFFAELLO_CAKE_cakes_1772996424537.webp"
+  },
+  {
+    "name": "Pista Malai Cake",
+    "price": 600,
+    "description": "Pistachio and creamy Malai cake, a unique flavor combination.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/PISTA_MALAI_CAKE_cakes_1772996431608.webp"
+  },
+  {
+    "name": "Tender Coconut Cake",
+    "price": 600,
+    "description": "Light and refreshing cake with tender coconut flavors.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/TENDER_COCONUT_CAKE_cakes_1772996437645.webp"
+  },
+  {
+    "name": "Crunchy Butterscotch",
+    "price": 450,
+    "description": "Buttery cake with a delightful crunchy texture.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/CRUNCHY_BUTTERSCOTCH_cakes_1772996452615.webp"
+  },
+  {
+    "name": "Red Velvet Premium Cake",
+    "price": 800,
+    "description": "Luxurious red velvet cake, rich and velvety smooth.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/RED_VELVET_PREMIUM_CAKE_cakes_1772996459589.webp"
+  },
+  {
+    "name": "Kitkat Cake",
+    "price": 750,
+    "description": "Chocolate cake topped generously with KitKat bars.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/KITKAT_CAKE_cakes_1772996465909.webp"
+  },
+  {
+    "name": "Nutty Bubble Cake",
+    "price": 600,
+    "description": "Fun cake with bubblegum flavor and nutty crunch.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/NUTTY_BUBBLE_CAKE_cakes_1772996480358.webp"
+  },
+  {
+    "name": "Choco Red Cake",
+    "price": 450,
+    "description": "Combination of chocolate and red velvet for a unique taste.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/CHOCO_RED_CAKE_cakes_1772996485898.webp"
+  },
+  {
+    "name": "Vancho Cake",
+    "price": 500,
+    "description": "Classic vanilla cake, simple yet delicious.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/VANCHO_CAKE_cakes_1772996497745.webp"
+  },
+  {
+    "name": "Oreo Caramel",
+    "price": 400,
+    "description": "Decadent cake with oreo cookies and caramel swirls.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/OREO_CARAMEL_cakes_1772996504241.webp"
+  },
+  {
+    "name": "Mango Cake",
+    "price": 450,
+    "description": "Tropical mango cake, perfect for a fruity delight.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/MANGO_CAKE_cakes_1772996509636.webp"
+  },
+  {
+    "name": "Strawberry Cake",
+    "price": 500,
+    "description": "Fresh strawberry cake, a classic favorite.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/STRAWBERRY_CAKE_cakes_1772996521921.webp"
+  },
+  {
+    "name": "Black Fantasy Cake",
+    "price": 600,
+    "description": "Dark and mysterious chocolate cake with a fantasy twist.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/BLACK_FANTASY_CAKE_cakes_1772996527680.webp"
+  },
+  {
+    "name": "White Fantasy Cake",
+    "price": 500,
+    "description": "Light and airy cake with a magical white theme.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/WHITE_FANTASY_CAKE_cakes_1772996535063.webp"
+  },
+  {
+    "name": "Black Forest Cake",
+    "price": 700,
+    "description": "Classic black forest cake with chocolate, cream, and cherries.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/BLACK_FOREST_CAKE_cakes_1772996549184.webp"
+  },
+  {
+    "name": "Choco Fantasy Cake",
+    "price": 450,
+    "description": "A dreamy chocolate cake with a touch of fantasy.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/CHOCO_FANTASY_CAKE_cakes_1772996557308.webp"
+  },
+  {
+    "name": "Red Nutty Cake",
+    "price": 600,
+    "description": "A rich red velvet cake with a generous nutty topping.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/RED_NUTTY_CAKE_cakes_1772996287431.webp"
+  },
+  {
+    "name": "Lotus Cheese Cake",
+    "price": 800,
+    "description": "Creamy cheesecake infused with lotus biscoff flavor.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/LOTUS_CHEESE_CAKE_cakes_1772996299973.webp"
+  },
+  {
+    "name": "Naked Chocolate Cake",
+    "price": 800,
+    "description": "A rustic chocolate cake, showcasing its natural layers.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/NAKED_CHOCOLATE_CAKE_cakes_1772996317852.webp"
+  },
+  {
+    "name": "Mini Choco Mousse Cake",
+    "price": 350,
+    "description": "Individual chocolate mousse cakes, rich and decadent.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/MINI_CHOCO_MOUSSE_CAKE_cakes_1772996343878.webp"
+  },
+  {
+    "name": "Saffron Milk Box",
+    "price": 150,
+    "description": "Boxed Saffron Milk cake, a taste of luxury.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/SAFFRON_MILK_BOX_cakes_1772996367206.webp"
+  },
+  {
+    "name": "Ferrero Rocher Cheese Cake",
+    "price": 1000,
+    "description": "Cheesecake featuring the decadent flavors of Ferrero Rocher.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/FERRERO_ROCHER_CHEESE_CAKE_cakes_1772996417182.webp"
+  },
+  {
+    "name": "Irish Coffee Cake",
+    "price": 600,
+    "description": "Coffee-infused cake with a hint of Irish liqueur.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/IRISH_COFFEE_CAKE_cakes_1772996445565.webp"
+  },
+  {
+    "name": "Red Velvet Cake",
+    "price": 450,
+    "description": "Classic red velvet cake with creamy frosting.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/RED_VELVET_CAKE_cakes_1772996471980.webp"
+  },
+  {
+    "name": "Dark Vancho Cake",
+    "price": 500,
+    "description": "Intense dark chocolate cake with a rich vanilla flavor.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/DARK_VANCHO_CAKE_cakes_1772996492600.webp"
+  },
+  {
+    "name": "Blueberry Cake",
+    "price": 500,
+    "description": "Sweet blueberry cake with a delightful berry flavor.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/BLUEBERRY_CAKE_cakes_1772996514832.webp"
+  },
+  {
+    "name": "White Forest Cake",
+    "price": 450,
+    "description": "White forest cake with cream, cherries, and white chocolate.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/WHITE_FOREST_CAKE_cakes_1772996541853.webp"
+  },
+  {
+    "name": "Pineapple Cake",
+    "price": 450,
+    "description": "Sweet and tangy pineapple cake, a tropical delight.",
+    "category": "cakes",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/PINEAPPLE_CAKE_cakes_1772996564984.webp"
+  },
+  {
+    "name": "Lotus Biscoff Mousse",
+    "price": 450,
+    "description": "Creamy lotus biscoff mousse, a delightful dessert.",
+    "category": "desserts",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/LOTUS_BISCOFF_MOUSSE_desserts_1772996349887.webp"
+  },
+  {
+    "name": "Mango Panna Cotta",
+    "price": 120,
+    "description": "Silky smooth panna cotta with a sweet mango topping.",
+    "category": "desserts",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/MANGO_PANNA_COTTA_desserts_1772996373532.webp"
+  },
+  {
+    "name": "Mini Fruit Tart",
+    "price": 100,
+    "description": "Bite-sized tart filled with fresh fruits and creamy custard.",
+    "category": "desserts",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/MINI_FRUIT_TART_desserts_1772996379438.webp"
+  },
+  {
+    "name": "Chocolate Brownie",
+    "price": 60,
+    "description": "Fudgy and rich chocolate brownie, a classic treat.",
+    "category": "desserts",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/CHOCOLATE_BROWNIE_desserts_1772996386564.webp"
+  },
+  {
+    "name": "Muffins",
+    "price": 40,
+    "description": "Soft and fluffy muffins, perfect for a quick bite.",
+    "category": "desserts",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/MUFFINS_desserts_1772996392955.webp"
+  },
+  {
+    "name": "Choco Cake Bar",
+    "price": 50,
+    "description": "Convenient chocolate cake bars, delightful and easy to enjoy.",
+    "category": "desserts",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/CHOCO_CAKE_BAR_desserts_1772996400184.webp"
+  },
+  {
+    "name": "Chocolate Glass",
+    "price": 60,
+    "description": "Layers of chocolate cake and cream in a glass.",
+    "category": "desserts",
+    "is_veg": true,
+    "image": "https://cravingsbucket.s3.ap-southeast-2.amazonaws.com/image-db/CHCOCOLATE_GLASS_desserts_1772996411837.webp"
+  }
+]
