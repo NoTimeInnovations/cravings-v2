@@ -67,7 +67,10 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
             _or: [
               { phone: { _eq: $phone } },
               { phone: { _eq: $phone_with_code } },
-              { phone: { _eq: $phone_with_plus } }
+              { phone: { _eq: $phone_with_plus } },
+              { user: { phone: { _eq: $phone } } },
+              { user: { phone: { _eq: $phone_with_code } } },
+              { user: { phone: { _eq: $phone_with_plus } } }
             ]
           },
           order_by: { created_at: desc },
