@@ -62,6 +62,10 @@ export async function proxy(request: NextRequest) {
   ) {
     const username = await getPartnerUsernameByDomain(host);
     if (username) {
+      // Static files (images, fonts, etc.) — serve directly without rewriting
+      if (/\.[a-zA-Z0-9]+$/.test(request.nextUrl.pathname)) {
+        return NextResponse.next();
+      }
       const url = request.nextUrl.clone();
       const suffix = url.pathname === "/" ? "" : url.pathname;
       url.pathname = `/${username}${suffix}`;
