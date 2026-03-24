@@ -26,9 +26,14 @@ export async function GET(req: NextRequest) {
 
     const data = await res.json();
 
+    const cname =
+      data?.cnames?.[0] ||
+      data?.verification?.find((v: any) => v.type === "CNAME")?.value ||
+      "cname.vercel-dns.com";
+
     return NextResponse.json({
       verified: data.verified === true,
-      cname: "cname.vercel-dns.com",
+      cname,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -57,10 +57,16 @@ export async function POST(req: NextRequest) {
     // Register with Vercel (provisions SSL automatically)
     const vercelResult = await addDomainToVercel(cleanDomain);
 
+    // Extract the recommended CNAME from Vercel's response
+    const cname =
+      vercelResult?.cnames?.[0] ||
+      vercelResult?.verification?.find((v: any) => v.type === "CNAME")?.value ||
+      "cname.vercel-dns.com";
+
     return NextResponse.json({
       success: true,
       domain: cleanDomain,
-      cname: "cname.vercel-dns.com",
+      cname,
       vercel: vercelResult,
     });
   } catch (error: any) {

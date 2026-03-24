@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { updatePartner } from "@/api/partners";
+import CustomDomainSettings from "@/components/admin/CustomDomainSettings";
 import { revalidateTag } from "@/app/actions/revalidate";
 import { deleteFileFromS3, uploadFileToS3 } from "@/app/actions/aws-s3";
 import Img from "@/components/Img";
@@ -1122,6 +1123,15 @@ export function GeneralSettings() {
                             </div>
                         </div>
                     )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardContent className="pt-6">
+                    <CustomDomainSettings
+                        partnerId={userData?.id as string}
+                        currentDomain={(userData as any)?.custom_domain}
+                    />
                 </CardContent>
             </Card>
 
