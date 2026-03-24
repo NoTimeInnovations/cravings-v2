@@ -65,7 +65,9 @@ export async function proxy(request: NextRequest) {
       const url = request.nextUrl.clone();
       const suffix = url.pathname === "/" ? "" : url.pathname;
       url.pathname = `/${username}${suffix}`;
-      return NextResponse.rewrite(url);
+      const rewriteHeaders = new Headers(request.headers);
+      rewriteHeaders.set("x-is-custom-domain", "1");
+      return NextResponse.rewrite(url, { request: { headers: rewriteHeaders } });
     }
   }
 

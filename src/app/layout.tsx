@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Inter, Dancing_Script, Poppins, Roboto, Geist } from "next/font/google";
 import Script from "next/script";
 import dynamic from "next/dynamic";
+import { headers } from "next/headers";
 import "./globals.css";
 import "@smastrom/react-rating/style.css";
 import { Toaster } from "@/components/ui/sonner";
@@ -99,11 +100,14 @@ const geist = Geist({
   display: "swap",
 });
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headersList = await headers();
+  const isCustomDomain = headersList.get("x-is-custom-domain") === "1";
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -173,11 +177,11 @@ document.head.appendChild(o)}initApollo();`,
           <DomainProvider config={MENUTHERE_CONFIG}>
             <AuthInitializer />
 <Toaster richColors closeButton position="top-center" />
-            <Navbar />
+            {!isCustomDomain && <Navbar />}
             <main id="main-content">
               {children}
             </main>
-            <BottomNav />
+            {!isCustomDomain && <BottomNav />}
           </DomainProvider>
         </PostHogProvider>
       </body>
