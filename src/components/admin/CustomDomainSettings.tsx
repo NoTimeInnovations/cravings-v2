@@ -3,30 +3,70 @@
 import { useState, useEffect } from "react";
 import { CheckCircle, AlertCircle, Globe, Trash2, RefreshCw, Copy } from "lucide-react";
 
-const FALLBACK_CNAME = "cname.vercel-dns.com";
+interface DnsRecord {
+  type: string;
+  name: string;
+  value: string;
+}
 
 interface Props {
   partnerId: string;
   currentDomain?: string | null;
 }
 
+function DnsRecordRow({ record }: { record: DnsRecord }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(record.value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="grid grid-cols-3 gap-2 text-xs font-mono">
+      <div className="bg-background border border-border rounded p-2">
+        <p className="text-muted-foreground mb-1">Type</p>
+        <p className="font-semibold text-foreground">{record.type}</p>
+      </div>
+      <div className="bg-background border border-border rounded p-2">
+        <p className="text-muted-foreground mb-1">Name</p>
+        <p className="font-semibold text-foreground truncate">{record.name}</p>
+      </div>
+      <div className="bg-background border border-border rounded p-2 relative">
+        <p className="text-muted-foreground mb-1">Value</p>
+        <div className="flex items-center justify-between gap-1">
+          <p className="font-semibold text-foreground text-xs truncate">{record.value}</p>
+          <button onClick={handleCopy} className="shrink-0 text-muted-foreground hover:text-foreground">
+            <Copy size={12} />
+          </button>
+        </div>
+        {copied && (
+          <span className="absolute -top-6 right-0 text-xs bg-foreground text-background rounded px-1 py-0.5">
+            Copied!
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function CustomDomainSettings({ partnerId, currentDomain }: Props) {
   const [domain, setDomain] = useState(currentDomain || "");
   const [savedDomain, setSavedDomain] = useState(currentDomain || "");
-  const [cname, setCname] = useState(FALLBACK_CNAME);
+  const [dnsRecords, setDnsRecords] = useState<DnsRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
-  // On load, if a domain is already saved fetch its status + correct CNAME from Vercel
+  // On load, if a domain is already saved fetch its status + DNS records from Vercel
   useEffect(() => {
     if (!currentDomain) return;
     fetch(`/api/domains/verify?domain=${encodeURIComponent(currentDomain)}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data.cname) setCname(data.cname);
+        if (data.dnsRecords?.length) setDnsRecords(data.dnsRecords);
         if (data.verified === true) setVerified(true);
       })
       .catch(() => {});
@@ -45,7 +85,7 @@ export default function CustomDomainSettings({ partnerId, currentDomain }: Props
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save domain");
       setSavedDomain(data.domain);
-      if (data.cname) setCname(data.cname);
+      if (data.dnsRecords?.length) setDnsRecords(data.dnsRecords);
       setVerified(null);
     } catch (err: any) {
       setError(err.message);
@@ -67,6 +107,7 @@ export default function CustomDomainSettings({ partnerId, currentDomain }: Props
       if (!res.ok) throw new Error("Failed to remove domain");
       setSavedDomain("");
       setDomain("");
+      setDnsRecords([]);
       setVerified(null);
     } catch (err: any) {
       setError(err.message);
@@ -83,7 +124,7 @@ export default function CustomDomainSettings({ partnerId, currentDomain }: Props
       const res = await fetch(`/api/domains/verify?domain=${encodeURIComponent(savedDomain)}`);
       const data = await res.json();
       setVerified(data.verified === true);
-      if (data.cname) setCname(data.cname);
+      if (data.dnsRecords?.length) setDnsRecords(data.dnsRecords);
     } catch {
       setVerified(false);
     } finally {
@@ -91,13 +132,8 @@ export default function CustomDomainSettings({ partnerId, currentDomain }: Props
     }
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(cname);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const showCname = savedDomain && verified !== true;
+  const showDnsInstructions = savedDomain && verified !== true;
+  const hasARecord = dnsRecords.some((r) => r.type === "A");
 
   return (
     <div className="space-y-4">
@@ -153,35 +189,23 @@ export default function CustomDomainSettings({ partnerId, currentDomain }: Props
       )}
 
       {/* DNS instructions — hidden once verified */}
-      {showCname && (
+      {showDnsInstructions && (
         <div className="border border-border rounded-lg p-4 bg-muted/40 space-y-3">
           <p className="text-sm font-medium text-foreground">
-            Add this CNAME record with your DNS provider:
+            Add these DNS records with your DNS provider:
           </p>
-          <div className="grid grid-cols-3 gap-2 text-xs font-mono">
-            <div className="bg-background border border-border rounded p-2">
-              <p className="text-muted-foreground mb-1">Type</p>
-              <p className="font-semibold text-foreground">CNAME</p>
-            </div>
-            <div className="bg-background border border-border rounded p-2">
-              <p className="text-muted-foreground mb-1">Name</p>
-              <p className="font-semibold text-foreground truncate">{savedDomain.split(".")[0]}</p>
-            </div>
-            <div className="bg-background border border-border rounded p-2 relative">
-              <p className="text-muted-foreground mb-1">Value</p>
-              <div className="flex items-center justify-between gap-1">
-                <p className="font-semibold text-foreground text-xs truncate">{cname}</p>
-                <button onClick={handleCopy} className="shrink-0 text-muted-foreground hover:text-foreground">
-                  <Copy size={12} />
-                </button>
-              </div>
-              {copied && (
-                <span className="absolute -top-6 right-0 text-xs bg-foreground text-background rounded px-1 py-0.5">
-                  Copied!
-                </span>
-              )}
-            </div>
+
+          <div className="space-y-2">
+            {dnsRecords.map((record, i) => (
+              <DnsRecordRow key={i} record={record} />
+            ))}
           </div>
+
+          {hasARecord && (
+            <p className="text-xs text-muted-foreground">
+              Apex domains (e.g. example.com) require an A record instead of CNAME.
+            </p>
+          )}
 
           {/* Verify row */}
           <div className="flex items-center justify-between pt-1">

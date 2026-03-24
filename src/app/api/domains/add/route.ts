@@ -57,16 +57,33 @@ export async function POST(req: NextRequest) {
     // Register with Vercel (provisions SSL automatically)
     const vercelResult = await addDomainToVercel(cleanDomain);
 
-    // Extract the recommended CNAME from Vercel's response
-    const cname =
-      vercelResult?.cnames?.[0] ||
-      vercelResult?.verification?.find((v: any) => v.type === "CNAME")?.value ||
-      "cname.vercel-dns.com";
+    // Extract all required DNS records from Vercel's response
+    const dnsRecords: { type: string; name: string; value: string }[] = [];
+    const aEntry = vercelResult?.verification?.find((v: any) => v.type === "A");
+    if (aEntry) {
+      dnsRecords.push({ type: "A", name: "@", value: aEntry.value || "76.76.21.21" });
+    } else {
+      dnsRecords.push({
+        type: "CNAME",
+        name: cleanDomain.split(".").length > 2 ? cleanDomain.split(".")[0] : "@",
+        value:
+          vercelResult?.cnames?.[0] ||
+          vercelResult?.verification?.find((v: any) => v.type === "CNAME")?.value ||
+          "cname.vercel-dns.com",
+      });
+    }
+    const txtEntry = vercelResult?.verification?.find((v: any) => v.type === "TXT");
+    if (txtEntry) {
+      dnsRecords.push({ type: "TXT", name: txtEntry.domain || "_vercel", value: txtEntry.value });
+    }
 
     return NextResponse.json({
       success: true,
       domain: cleanDomain,
-      cname,
+      dnsRecords,
+      dnsRecord: dnsRecords[0],
+      // Legacy field kept for compatibility
+      cname: dnsRecords.find((r) => r.type === "CNAME")?.value,
       vercel: vercelResult,
     });
   } catch (error: any) {
