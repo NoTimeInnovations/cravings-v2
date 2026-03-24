@@ -1,9 +1,31 @@
 "use server";
 
+import { fetchFromHasura } from "@/lib/hasuraClient";
+
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
 
 // In-memory OTP store with expiry
 const otpStore = new Map<string, { code: string; expiresAt: number }>();
+
+// Log OTP message to database (fire-and-forget)
+function logOtpMessage(phone: string, status: "sent" | "failed", metaMessageId?: string, errorDetails?: string) {
+  const mutation = `
+    mutation LogOtpMessage($object: whatsapp_message_logs_insert_input!) {
+      insert_whatsapp_message_logs_one(object: $object) { id }
+    }
+  `;
+  fetchFromHasura(mutation, {
+    object: {
+      phone,
+      template_name: "otp_message_v2",
+      message_type: "template",
+      category: "otp",
+      status,
+      meta_message_id: metaMessageId || null,
+      error_details: errorDetails || null,
+    },
+  }).catch((err) => console.error("Failed to log OTP message:", err));
+}
 
 function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -32,10 +54,9 @@ function formatPhone(phone: string): string {
 export async function sendWhatsAppOtp(
   phone: string
 ): Promise<{ success: boolean; error?: string }> {
+  const formattedPhone = formatPhone(phone);
   try {
     cleanExpired();
-
-    const formattedPhone = formatPhone(phone);
     const code = generateOtp();
     const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
 
@@ -81,12 +102,17 @@ export async function sendWhatsAppOtp(
     if (!res.ok) {
       const errBody = await res.text();
       console.error("WhatsApp OTP send error:", res.status, errBody);
+      logOtpMessage(formattedPhone, "failed", undefined, errBody);
       return { success: false, error: "Failed to send OTP via WhatsApp" };
     }
+
+    const result = await res.json();
+    logOtpMessage(formattedPhone, "sent", result.messages?.[0]?.id);
 
     return { success: true };
   } catch (error) {
     console.error("Failed to send WhatsApp OTP:", error);
+    logOtpMessage(formattedPhone, "failed", undefined, String(error));
     return { success: false, error: "Failed to send verification code" };
   }
 }

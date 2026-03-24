@@ -205,16 +205,20 @@ export function AdminV2Dashboard() {
     }
   };
 
+  const viewMenuHref = partner?.username
+    ? `/${partner.username}`
+    : qrId
+      ? `/qrScan/${storeName?.replace(/ /g, "-")}/${qrId}`
+      : `/hotels/${partner?.id}`;
+
   const allQuickActions: (QuickAction & { hidden?: boolean })[] = [
+    {
+      title: "View Menu",
+      icon: ExternalLink,
+      href: viewMenuHref,
+    },
     ...(qrId
       ? [
-          {
-            title: "View Menu",
-            icon: ExternalLink,
-            href: partner?.username
-              ? `/${partner.username}`
-              : `/qrScan/${storeName?.replace(/ /g, "-")}/${qrId}`,
-          },
           {
             title: "View QR",
             icon: QrCode,

@@ -816,12 +816,14 @@ const LoginDrawer = ({
   hotelId,
   hotelData,
   onLoginSuccess,
+  requireOtp = false,
 }: {
   showLoginDrawer: boolean;
   setShowLoginDrawer: (show: boolean) => void;
   hotelId: string;
   hotelData: HotelData;
   onLoginSuccess: () => void;
+  requireOtp?: boolean;
 }) => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [userName, setUserName] = useState("");
@@ -850,6 +852,56 @@ const LoginDrawer = ({
     }
     wasOpen.current = showLoginDrawer;
   }, [showLoginDrawer, resetOtp]);
+
+  const handleDirectLogin = async () => {
+    const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
+    const phoneDigits = getPhoneDigitsForCountry(countryCode);
+
+    if (!phoneNumber || !validatePhoneNumber(phoneNumber, countryCode)) {
+      toast.error(getPhoneValidationError(countryCode));
+      return;
+    }
+
+    if (needUserName && !userName.trim()) {
+      toast.error("Please enter your name");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const result = await signInWithPhone(phoneNumber, hotelId, {
+        country: hotelData?.country || "India",
+        countryCode,
+        callingCode: hotelData?.country_code || "+91",
+        phoneDigits,
+      });
+      if (result) {
+        if (userName.trim() && result.id) {
+          try {
+            await fetchFromHasura(updateUserFullNameMutation, {
+              id: result.id,
+              full_name: userName.trim(),
+            });
+            useAuthStore.setState({
+              userData: { ...result, full_name: userName.trim(), role: "user" } as any,
+            });
+          } catch { }
+        }
+        toast.success("Logged in successfully");
+        Notification.token.save();
+        onLoginSuccess();
+        setShowLoginDrawer(false);
+      } else {
+        toast.error("Login failed. Please try again.");
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Login failed"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSendOtp = async () => {
     const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
@@ -939,7 +991,7 @@ const LoginDrawer = ({
         <div className="shrink-0 flex items-center justify-between px-4 py-4">
           <button
             onClick={() => {
-              if (otpStep === "otp") {
+              if (otpStep === "otp" && requireOtp) {
                 resetOtp();
                 setOtp("");
               } else {
@@ -947,19 +999,19 @@ const LoginDrawer = ({
               }
             }}
             className="p-1.5 rounded-full hover:opacity-80 transition-all duration-200"
-            aria-label={otpStep === "otp" ? "Back" : "Close"}
+            aria-label={otpStep === "otp" && requireOtp ? "Back" : "Close"}
           >
             <ArrowLeft className="h-6 w-6" />
           </button>
           <span className="text-base font-bold">
-            {otpStep === "otp" ? "Verify OTP" : "Login"}
+            {otpStep === "otp" && requireOtp ? "Verify OTP" : "Login"}
           </span>
           <div className="w-9" />
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 flex flex-col justify-center max-w-md mx-auto w-full">
-          {otpStep === "phone" ? (
+          {otpStep === "phone" || !requireOtp ? (
             <>
               {/* Header */}
               <div className="mb-8 text-center">
@@ -972,7 +1024,7 @@ const LoginDrawer = ({
                     Welcome Back
                   </h2>
                   <p className="opacity-70 text-[15px] leading-relaxed">
-                    Please enter your phone number to review your order
+                    Please enter your phone number to place your order
                   </p>
                 </motion.div>
               </div>
@@ -1043,7 +1095,7 @@ const LoginDrawer = ({
                 </div>
               </motion.div>
 
-              {/* Send OTP Button */}
+              {/* Send OTP / Continue Button */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1051,20 +1103,20 @@ const LoginDrawer = ({
                 className="space-y-4"
               >
                 <button
-                  onClick={handleSendOtp}
-                  disabled={isSending || !phoneNumber || (needUserName && !userName.trim())}
+                  onClick={requireOtp ? handleSendOtp : handleDirectLogin}
+                  disabled={(requireOtp ? isSending : isSubmitting) || !phoneNumber || (needUserName && !userName.trim())}
                   className="w-full px-6 py-4 text-[var(--pom-accent,#ea580c)] rounded-full hover:text-white border border-[var(--pom-accent,#ea580c)] transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
                   style={{ backgroundColor: "color-mix(in srgb, var(--pom-accent, #ea580c) 15%, transparent)" }}
                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--pom-accent, #ea580c)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "color-mix(in srgb, var(--pom-accent, #ea580c) 15%, transparent)"; }}
                 >
-                  {isSending ? (
+                  {(requireOtp ? isSending : isSubmitting) ? (
                     <span className="flex items-center justify-center gap-2">
                       <Loader2 className="h-5 w-5 animate-spin" />
-                      Sending OTP...
+                      {requireOtp ? "Sending OTP..." : "Logging in..."}
                     </span>
                   ) : (
-                    "Send OTP"
+                    requireOtp ? "Send OTP" : "Continue"
                   )}
                 </button>
 
@@ -2406,6 +2458,7 @@ const PlaceOrderModal = ({
           hotelId={hotelData?.id || ""}
           hotelData={hotelData}
           onLoginSuccess={handleLoginSuccess}
+          requireOtp={!isQrScan && hotelFeatures.whatsappnotifications.access && hotelFeatures.whatsappnotifications.enabled}
         />
       </div>
 

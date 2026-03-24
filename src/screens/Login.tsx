@@ -16,10 +16,7 @@ import {
   getPhoneValidationError,
   UserCountryInfo,
 } from "@/lib/getUserCountry";
-import { useDomain } from "@/providers/DomainProvider";
 import { FcGoogle } from "react-icons/fc";
-import { useWhatsAppOtp } from "@/hooks/useWhatsAppOtp";
-import { OtpInput } from "@/components/ui/otp-input";
 
 type LoginMode = "user" | "partner";
 export default function Login() {
@@ -35,16 +32,6 @@ export default function Login() {
     email: "",
     password: "",
   });
-  const {
-    step: otpStep,
-    isSending,
-    isVerifying,
-    error: otpError,
-    sendOtp,
-    verifyOtp,
-    reset: resetOtp,
-  } = useWhatsAppOtp();
-  const [otp, setOtp] = useState("");
 
   // Fetch user country info on mount
   useEffect(() => {
@@ -77,8 +64,8 @@ export default function Login() {
     window.location.href = "/api/auth/google?context=login";
   };
 
-  const handleSendOtp = async (e?: React.FormEvent) => {
-    e?.preventDefault();
+  const handleUserLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
 
     if (!userCountryInfo) {
       toast.error("Unable to detect your country. Please try again.");
@@ -92,29 +79,9 @@ export default function Login() {
       return;
     }
 
-    try {
-      const fullPhone = `${userCountryInfo.callingCode}${cleanedPhone}`;
-      await sendOtp(fullPhone);
-      toast.success("OTP sent to your WhatsApp!");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to send OTP"
-      );
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otp.length !== 6) {
-      toast.error("Please enter a 6-digit OTP");
-      return;
-    }
-
     setIsLoading(true);
     try {
-      await verifyOtp(otp);
-      const cleanedPhone = userPhone.replace(/^\+\d+/, "");
-      await signInWithPhone(cleanedPhone, undefined, userCountryInfo!);
+      await signInWithPhone(cleanedPhone, undefined, userCountryInfo);
       await Notification.token.save();
       const redirectPath = localStorage?.getItem("redirectPath");
       if (redirectPath) {
@@ -124,10 +91,7 @@ export default function Login() {
         navigate.push("/");
       }
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Verification failed"
-      );
-      console.error("OTP verification error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to sign in");
     } finally {
       setIsLoading(false);
     }
@@ -185,87 +149,46 @@ export default function Login() {
         </div>
 
         {mode === "user" ? (
-          otpStep === "phone" ? (
-            <form onSubmit={handleSendOtp} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="phone" className="text-sm text-stone-700">
-                  Phone Number
-                </Label>
-                <div className="flex gap-2">
-                  {userCountryInfo && (
-                    <div className="flex items-center px-4 bg-stone-50 rounded-xl text-sm font-medium text-stone-600 shrink-0 border border-stone-200">
-                      {userCountryInfo.callingCode}
-                    </div>
-                  )}
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder={
-                      userCountryInfo
-                        ? `${userCountryInfo.phoneDigits}-digit number`
-                        : "Phone number"
-                    }
-                    value={userPhone}
-                    onChange={(e) => {
-                      const maxDigits = userCountryInfo?.phoneDigits || 10;
-                      setUserPhone(
-                        e.target.value.replace(/\D/g, "").slice(0, maxDigits),
-                      );
-                    }}
-                    required
-                    className="flex-1 min-w-0 h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
-                  />
-                </div>
-              </div>
-              <ButtonV2
-                type="submit"
-                variant="primary"
-                disabled={isSending}
-                className="w-full justify-center"
-              >
-                {isSending ? "Sending OTP..." : "Send OTP"}
-              </ButtonV2>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <p className="text-sm text-stone-500 text-center">
-                OTP sent via WhatsApp to {userCountryInfo?.callingCode}{" "}
-                {userPhone}
-              </p>
-              <OtpInput value={otp} onChange={setOtp} />
-              {otpError && (
-                <p className="text-sm text-red-500 text-center">{otpError}</p>
-              )}
-              <ButtonV2
-                type="submit"
-                variant="primary"
-                disabled={isVerifying || isLoading || otp.length !== 6}
-                className="w-full justify-center"
-              >
-                {isVerifying || isLoading ? "Verifying..." : "Verify & Continue"}
-              </ButtonV2>
-              <div className="flex justify-between text-sm">
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetOtp();
-                    setOtp("");
+          <form onSubmit={handleUserLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="text-sm text-stone-700">
+                Phone Number
+              </Label>
+              <div className="flex gap-2">
+                {userCountryInfo && (
+                  <div className="flex items-center px-4 bg-stone-50 rounded-xl text-sm font-medium text-stone-600 shrink-0 border border-stone-200">
+                    {userCountryInfo.callingCode}
+                  </div>
+                )}
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder={
+                    userCountryInfo
+                      ? `${userCountryInfo.phoneDigits}-digit number`
+                      : "Phone number"
+                  }
+                  value={userPhone}
+                  onChange={(e) => {
+                    const maxDigits = userCountryInfo?.phoneDigits || 10;
+                    setUserPhone(
+                      e.target.value.replace(/\D/g, "").slice(0, maxDigits),
+                    );
                   }}
-                  className="text-stone-500 hover:text-stone-900 transition-colors"
-                >
-                  Change Number
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSendOtp()}
-                  disabled={isSending}
-                  className="text-orange-600 hover:text-orange-700 transition-colors disabled:opacity-50"
-                >
-                  {isSending ? "Sending..." : "Resend OTP"}
-                </button>
+                  required
+                  className="flex-1 min-w-0 h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
+                />
               </div>
-            </form>
-          )
+            </div>
+            <ButtonV2
+              type="submit"
+              variant="primary"
+              disabled={isLoading}
+              className="w-full justify-center"
+            >
+              {isLoading ? "Please wait..." : "Continue"}
+            </ButtonV2>
+          </form>
         ) : (
           <div className="space-y-4">
             <button

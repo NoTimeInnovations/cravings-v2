@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback, KeyboardEvent, ClipboardEvent } from "react";
+import { useRef, useEffect } from "react";
 
 interface OtpInputProps {
   value: string;
@@ -19,100 +19,40 @@ export function OtpInput({
   autoFocus = true,
   accentColor,
 }: OtpInputProps) {
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const digits = value.split("").concat(Array(length).fill("")).slice(0, length);
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [autoFocus]);
 
-  const focusInput = useCallback(
-    (index: number) => {
-      const clampedIndex = Math.max(0, Math.min(index, length - 1));
-      inputRefs.current[clampedIndex]?.focus();
-    },
-    [length]
-  );
-
-  const handleChange = useCallback(
-    (index: number, inputValue: string) => {
-      const cleaned = inputValue.replace(/\D/g, "");
-      if (!cleaned) return;
-
-      // Autofill or multi-char input: treat as full OTP
-      if (cleaned.length > 1) {
-        onChange(cleaned.slice(0, length));
-        focusInput(Math.min(cleaned.length, length - 1));
-        return;
-      }
-
-      const digit = cleaned;
-      const newValue = digits.map((d, i) => (i === index ? digit : d)).join("").replace(/ /g, "");
-      onChange(newValue.slice(0, length));
-
-      if (index < length - 1) {
-        focusInput(index + 1);
-      }
-    },
-    [digits, onChange, length, focusInput]
-  );
-
-  const handleKeyDown = useCallback(
-    (index: number, e: KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Backspace") {
-        e.preventDefault();
-        if (digits[index] && digits[index] !== " ") {
-          const newValue = digits.map((d, i) => (i === index ? " " : d)).join("").trim();
-          onChange(newValue);
-        } else if (index > 0) {
-          const newValue = digits.map((d, i) => (i === index - 1 ? " " : d)).join("").trim();
-          onChange(newValue);
-          focusInput(index - 1);
-        }
-      } else if (e.key === "ArrowLeft" && index > 0) {
-        focusInput(index - 1);
-      } else if (e.key === "ArrowRight" && index < length - 1) {
-        focusInput(index + 1);
-      }
-    },
-    [digits, onChange, length, focusInput]
-  );
-
-  const handlePaste = useCallback(
-    (e: ClipboardEvent<HTMLInputElement>) => {
-      e.preventDefault();
-      const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, length);
-      if (pasted) {
-        onChange(pasted);
-        focusInput(Math.min(pasted.length, length - 1));
-      }
-    },
-    [onChange, length, focusInput]
-  );
+  const handleChange = (inputValue: string) => {
+    const cleaned = inputValue.replace(/\D/g, "").slice(0, length);
+    onChange(cleaned);
+  };
 
   const borderColor = accentColor || "#ea580c";
 
   return (
-    <div className="flex gap-2 sm:gap-3 justify-center">
-      {digits.map((digit, index) => (
-        <input
-          key={index}
-          ref={(el) => { inputRefs.current[index] = el; }}
-          type="text"
-          inputMode="numeric"
-          maxLength={1}
-          value={digit === " " ? "" : digit}
-          disabled={disabled}
-          autoFocus={autoFocus && index === 0}
-          onChange={(e) => handleChange(index, e.target.value)}
-          onKeyDown={(e) => handleKeyDown(index, e)}
-          onPaste={handlePaste}
-          onFocus={(e) => e.target.select()}
-          className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-bold rounded-xl border-2 bg-transparent transition-all duration-200 outline-none disabled:opacity-50"
-          style={{
-            borderColor: digit && digit !== " " ? borderColor : "currentColor",
-            opacity: digit && digit !== " " ? 1 : 0.2,
-            color: "inherit",
-          }}
-        />
-      ))}
+    <div className="flex justify-center">
+      <input
+        ref={inputRef}
+        type="text"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => handleChange(e.target.value)}
+        placeholder={"•".repeat(length)}
+        maxLength={length}
+        className="w-full max-w-[280px] h-14 text-center text-2xl sm:text-3xl font-bold rounded-xl border-2 bg-transparent transition-all duration-200 outline-none disabled:opacity-50 tracking-[0.5em]"
+        style={{
+          borderColor: value.length > 0 ? borderColor : "currentColor",
+          opacity: value.length > 0 ? 1 : 0.4,
+          color: "inherit",
+        }}
+      />
     </div>
   );
 }

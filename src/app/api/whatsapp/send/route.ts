@@ -3,6 +3,54 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
 
+// Log WhatsApp message to database (fire-and-forget)
+function logWhatsAppMessage(params: {
+  partnerId?: string;
+  phone: string;
+  templateName?: string;
+  messageType: "template" | "text";
+  category: string;
+  status: "sent" | "failed";
+  metaMessageId?: string;
+  errorDetails?: string;
+}) {
+  const mutation = `
+    mutation LogWhatsAppMessage($object: whatsapp_message_logs_insert_input!) {
+      insert_whatsapp_message_logs_one(object: $object) { id }
+    }
+  `;
+  fetchFromHasura(mutation, {
+    object: {
+      partner_id: params.partnerId || null,
+      phone: params.phone,
+      template_name: params.templateName || null,
+      message_type: params.messageType,
+      category: params.category,
+      status: params.status,
+      meta_message_id: params.metaMessageId || null,
+      error_details: params.errorDetails || null,
+    },
+  }).catch((err) => console.error("Failed to log WhatsApp message:", err));
+}
+
+// Infer message category from template name or context
+function inferCategory(template?: { name: string }, text?: string): string {
+  if (template) {
+    const name = template.name.toLowerCase();
+    if (name.includes("otp")) return "otp";
+    if (name.includes("order")) return "order_update";
+    if (name.includes("offer")) return "offer_alert";
+    if (name.includes("registration") || name.includes("welcome")) return "registration";
+    return "other";
+  }
+  if (text) {
+    const lower = text.toLowerCase();
+    if (lower.includes("order update") || lower.includes("order #")) return "order_status";
+    return "other";
+  }
+  return "other";
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { phone, text, partnerId, template } = await request.json();
@@ -85,6 +133,8 @@ export async function POST(request: NextRequest) {
       messagePayload.text = { body: text };
     }
 
+    const category = inferCategory(template, text);
+
     // Send via WhatsApp Cloud API
     const res = await fetch(
       `https://graph.facebook.com/${API_VERSION}/${phoneNumberId}/messages`,
@@ -101,6 +151,17 @@ export async function POST(request: NextRequest) {
     if (!res.ok) {
       const errBody = await res.text();
       console.error("WhatsApp Cloud API error:", res.status, errBody);
+
+      logWhatsAppMessage({
+        partnerId,
+        phone: formattedPhone,
+        templateName: template?.name,
+        messageType: template ? "template" : "text",
+        category,
+        status: "failed",
+        errorDetails: errBody,
+      });
+
       return NextResponse.json(
         { error: "Failed to send WhatsApp message", details: errBody },
         { status: 500 }
@@ -108,7 +169,19 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await res.json();
-    return NextResponse.json({ success: true, messageId: result.messages?.[0]?.id });
+    const metaMessageId = result.messages?.[0]?.id;
+
+    logWhatsAppMessage({
+      partnerId,
+      phone: formattedPhone,
+      templateName: template?.name,
+      messageType: template ? "template" : "text",
+      category,
+      status: "sent",
+      metaMessageId,
+    });
+
+    return NextResponse.json({ success: true, messageId: metaMessageId });
   } catch (error) {
     console.error("WhatsApp API route error:", error);
     return NextResponse.json(

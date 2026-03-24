@@ -17,6 +17,7 @@ import WhatsappGrpQrCodes from "@/components/superAdmin/WhatsappGrpQrCodes";
 import ReelAnalytics from "@/components/reelAnalytics/ReelAnalytics";
 import ParnterPayments from "@/components/superAdmin/ParnterPayments";
 import SubscriptionManagementV2 from "@/components/superAdmin/SubscriptionManagementV2";
+import WhatsAppAnalytics from "@/components/superAdmin/WhatsAppAnalytics";
 
 type SearchParams = Promise<{ [key: string]: string | undefined }>;
 
@@ -122,6 +123,11 @@ const page = async (props: { searchParams: SearchParams }) => {
       name: "Subscription Management V2",
       component: <SubscriptionManagementV2 />,
       id: "subscription-management-v2",
+    },
+    {
+      name: "WhatsApp Analytics",
+      component: <WhatsAppAnalytics />,
+      id: "whatsapp-analytics",
     },
     {
       name: "Google Business Integration",

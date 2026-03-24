@@ -209,6 +209,14 @@ const OrderDrawer = ({
     reset: resetOtp,
   } = useWhatsAppOtp();
 
+  // Only require OTP if whatsappnotifications is enabled, not on /login page, and not a table order
+  const isLoginPage = pathname === "/login";
+  const requireOtp =
+    !isLoginPage &&
+    !isQrScan &&
+    !!features?.whatsappnotifications?.access &&
+    !!features?.whatsappnotifications?.enabled;
+
   // Reset OTP state when modal opens
   const wasLoginOpen = useRef(false);
   useEffect(() => {
@@ -491,6 +499,40 @@ const OrderDrawer = ({
     }
   };
 
+  const handleDirectLogin = async () => {
+    const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
+    const phoneDigits = getPhoneDigitsForCountry(countryCode);
+
+    if (!phoneNumber || !validatePhoneNumber(phoneNumber, countryCode)) {
+      toast.error(getPhoneValidationError(countryCode));
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const success = await signInWithPhone(phoneNumber, hotelData.id, {
+        country: hotelData?.country || "India",
+        countryCode,
+        callingCode: hotelData?.country_code || "+91",
+        phoneDigits,
+      });
+      if (success) {
+        toast.success("Logged in successfully!");
+        setShowLoginModal(false);
+        setPhoneNumber("");
+        setOpenPlaceOrderModal(true);
+        setOpenOrderDrawer(false);
+        setOpenDrawerBottom(false);
+      } else {
+        toast.error("Login failed. Please try again.");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Login failed");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSendOtp = async () => {
     const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
     const phoneDigits = getPhoneDigitsForCountry(countryCode);
@@ -602,7 +644,7 @@ const OrderDrawer = ({
             <div className="flex items-center justify-between px-4 pt-4">
               <button
                 onClick={() => {
-                  if (otpStep === "otp") {
+                  if (otpStep === "otp" && requireOtp) {
                     resetOtp();
                     setOtp("");
                   } else {
@@ -611,7 +653,7 @@ const OrderDrawer = ({
                 }}
                 className="p-2 -ml-2 rounded-full transition-all duration-200"
                 style={{ color: styles.color }}
-                aria-label={otpStep === "otp" ? "Back" : "Close"}
+                aria-label={otpStep === "otp" && requireOtp ? "Back" : "Close"}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -624,7 +666,7 @@ const OrderDrawer = ({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d={otpStep === "otp" ? "M15 19l-7-7 7-7" : "M6 18L18 6M6 6l12 12"}
+                    d={otpStep === "otp" && requireOtp ? "M15 19l-7-7 7-7" : "M6 18L18 6M6 6l12 12"}
                   />
                 </svg>
               </button>
@@ -632,7 +674,7 @@ const OrderDrawer = ({
                 className="text-base font-semibold"
                 style={{ color: styles.color }}
               >
-                {otpStep === "otp" ? "Verify OTP" : "Login to Continue"}
+                {otpStep === "otp" && requireOtp ? "Verify OTP" : "Login to Continue"}
               </h2>
               <div className="w-9" />
             </div>
@@ -642,14 +684,14 @@ const OrderDrawer = ({
             >
               {otpStep === "otp"
                 ? `Enter the code sent to ${hotelData?.country_code || "+91"} ${phoneNumber}`
-                : "Please enter your phone number to review your order"}
+                : "Please enter your phone number to place your order"}
             </p>
           </div>
 
           {/* Content Container */}
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-md mx-auto px-6 py-8 space-y-8">
-              {otpStep === "phone" ? (
+              {otpStep === "phone" || !requireOtp ? (
                 <>
                   {/* Phone Input */}
                   <div className="space-y-3">
@@ -704,11 +746,11 @@ const OrderDrawer = ({
                     </div>
                   </div>
 
-                  {/* Send OTP Button */}
+                  {/* Send OTP / Continue Button */}
                   <div className="space-y-3 pt-4">
                     <button
-                      onClick={handleSendOtp}
-                      disabled={isSending || !phoneNumber}
+                      onClick={requireOtp ? handleSendOtp : handleDirectLogin}
+                      disabled={(requireOtp ? isSending : isSubmitting) || !phoneNumber}
                       className="w-full px-6 py-4 rounded-full transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
                       style={{
                         backgroundColor: `${styles.accent}18`,
@@ -716,13 +758,13 @@ const OrderDrawer = ({
                         border: `1px solid ${styles.accent}30`,
                       }}
                     >
-                      {isSending ? (
+                      {(requireOtp ? isSending : isSubmitting) ? (
                         <span className="flex items-center justify-center gap-2">
                           <Loader2 className="h-5 w-5 animate-spin" />
-                          Sending OTP...
+                          {requireOtp ? "Sending OTP..." : "Logging in..."}
                         </span>
                       ) : (
-                        "Send OTP"
+                        requireOtp ? "Send OTP" : "Continue"
                       )}
                     </button>
 
