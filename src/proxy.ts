@@ -22,7 +22,53 @@ declare module 'next/server' {
   }
 }
 
+const MENUTHERE_HOSTS = ["menuthere.com", "www.menuthere.com"];
+
+async function getPartnerUsernameByDomain(domain: string): Promise<string | null> {
+  try {
+    const endpoint = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT!;
+    const secret = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET!;
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-hasura-admin-secret": secret,
+      },
+      body: JSON.stringify({
+        query: `query GetPartnerByDomain($domain: String!) {
+          partners(where: { custom_domain: { _eq: $domain } }, limit: 1) {
+            username
+          }
+        }`,
+        variables: { domain },
+      }),
+    });
+    const data = await res.json();
+    return data?.data?.partners?.[0]?.username || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function proxy(request: NextRequest) {
+  const host = (request.headers.get("host") || "").split(":")[0];
+
+  // Custom domain handling — rewrite to /{username} before any auth logic
+  if (
+    !MENUTHERE_HOSTS.includes(host) &&
+    !host.endsWith(".menuthere.com") &&
+    !host.includes("localhost") &&
+    !host.endsWith(".vercel.app")
+  ) {
+    const username = await getPartnerUsernameByDomain(host);
+    if (username) {
+      const url = request.nextUrl.clone();
+      const suffix = url.pathname === "/" ? "" : url.pathname;
+      url.pathname = `/${username}${suffix}`;
+      return NextResponse.rewrite(url);
+    }
+  }
+
   const authToken = request.cookies.get("new_auth_token")?.value;
   const pathname = request.nextUrl.pathname;
 
