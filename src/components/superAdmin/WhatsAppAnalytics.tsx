@@ -139,6 +139,7 @@ interface PartnerRow {
 
 interface PartnerDetailData {
   order_update: number;
+  otp: number;
   total: number;
   sent: number;
   failed: number;
@@ -298,6 +299,7 @@ const WhatsAppAnalytics = () => {
       if (result) {
         setPartnerDetail({
           order_update: result.order_update?.aggregate?.count || 0,
+          otp: result.otp?.aggregate?.count || 0,
           total: result.total?.aggregate?.count || 0,
           sent: result.sent?.aggregate?.count || 0,
           failed: result.failed?.aggregate?.count || 0,
@@ -426,9 +428,9 @@ const WhatsAppAnalytics = () => {
             <div>
               <p className="text-sm text-gray-600">Total Cost</p>
               <h3 className="text-2xl font-bold">
-                {loading ? '...' : `₹${totalCost.toFixed(2)}`}
+                {loading ? '...' : `₹${totalCost.toFixed(3)}`}
               </h3>
-              <p className="text-xs text-gray-500">All time: ₹{allTimeCost.toFixed(2)}</p>
+              <p className="text-xs text-gray-500">All time: ₹{allTimeCost.toFixed(3)}</p>
             </div>
             <div className="p-3 rounded-full bg-orange-100">
               <IndianRupee size={24} className="text-orange-600" />
@@ -453,7 +455,7 @@ const WhatsAppAnalytics = () => {
                 </div>
                 <p className="text-xs text-gray-600">{config.label}</p>
                 <h4 className="text-xl font-bold">{loading ? '...' : count.toLocaleString()}</h4>
-                <p className="text-xs text-gray-500">₹{cost.toFixed(2)}</p>
+                <p className="text-xs text-gray-500">₹{cost.toFixed(3)}</p>
               </Card>
             );
           })}
@@ -588,7 +590,7 @@ const WhatsAppAnalytics = () => {
                       {partner.messageCount.toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right">
-                      ₹{(partner.messageCount * COST_PER_MESSAGE).toFixed(2)}
+                      ₹{(partner.messageCount * COST_PER_MESSAGE).toFixed(3)}
                     </TableCell>
                     <TableCell className="text-center">
                       <button
@@ -674,16 +676,22 @@ const WhatsAppAnalytics = () => {
                   <div className="p-3 rounded-lg bg-orange-50 text-center">
                     <p className="text-xs text-gray-500">Cost</p>
                     <p className="text-lg font-bold text-orange-600">
-                      ₹{(partnerDetail.total * COST_PER_MESSAGE).toFixed(2)}
+                      ₹{(partnerDetail.total * COST_PER_MESSAGE).toFixed(3)}
                     </p>
                   </div>
                 </div>
 
                 {/* Category breakdown */}
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="p-3 rounded-lg bg-gray-50 text-center">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-purple-50 text-center">
                     <p className="text-xs text-gray-500">{CATEGORY_CONFIG['order_update'].label}</p>
                     <p className="text-lg font-bold">{partnerDetail.order_update.toLocaleString()}</p>
+                    <p className="text-xs text-gray-400">₹{(partnerDetail.order_update * COST_PER_MESSAGE).toFixed(3)}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-blue-50 text-center">
+                    <p className="text-xs text-gray-500">{CATEGORY_CONFIG['otp'].label}</p>
+                    <p className="text-lg font-bold">{partnerDetail.otp.toLocaleString()}</p>
+                    <p className="text-xs text-gray-400">₹{(partnerDetail.otp * COST_PER_MESSAGE).toFixed(3)}</p>
                   </div>
                 </div>
 

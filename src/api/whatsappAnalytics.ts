@@ -102,6 +102,11 @@ export const getWhatsAppPartnerDetail = `
     ) {
       aggregate { count }
     }
+    otp: whatsapp_message_logs_aggregate(
+      where: { partner_id: { _eq: $partnerId }, category: { _eq: "otp" }, created_at: { _gte: $startDate, _lte: $endDate } }
+    ) {
+      aggregate { count }
+    }
     total: whatsapp_message_logs_aggregate(
       where: { partner_id: { _eq: $partnerId }, created_at: { _gte: $startDate, _lte: $endDate } }
     ) {
