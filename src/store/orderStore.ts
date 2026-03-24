@@ -1265,6 +1265,7 @@ const useOrderStore = create(
             userId: userData.id,
             user: {
               phone: userData.phone || "N/A",
+              full_name: customerName || (userData as any).full_name || null,
             },
             gstIncluded,
             extraCharges: exCharges,

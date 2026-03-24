@@ -839,7 +839,7 @@ const LoginDrawer = ({
     sendOtp,
     verifyOtp,
     reset: resetOtp,
-  } = useWhatsAppOtp();
+  } = useWhatsAppOtp(hotelId);
 
   // Reset state when drawer closes
   const wasOpen = useRef(false);

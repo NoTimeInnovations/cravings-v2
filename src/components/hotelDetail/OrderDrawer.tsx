@@ -207,7 +207,7 @@ const OrderDrawer = ({
     sendOtp,
     verifyOtp,
     reset: resetOtp,
-  } = useWhatsAppOtp();
+  } = useWhatsAppOtp(hotelData?.id);
 
   // Only require OTP if whatsappnotifications is enabled, not on /login page, and not a table order
   const isLoginPage = pathname === "/login";

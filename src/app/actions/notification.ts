@@ -18,7 +18,7 @@ async function sendWhatsAppOrderPlaced(order: Order, storeName?: string) {
 
     const store = storeName || order.partner?.store_name || "your store";
     const currency = order.partner?.currency ?? "₹";
-    const username = (order.user as any)?.name || (order.user as any)?.full_name || "Customer";
+    const username = order.user?.full_name || "Customer";
     const orderId = order.display_id || order.id.slice(0, 8);
 
     const typeMap: Record<string, string> = {

@@ -8,7 +8,7 @@ import {
 
 export type PhoneAuthStep = "phone" | "otp";
 
-export function useWhatsAppOtp() {
+export function useWhatsAppOtp(partnerId?: string) {
   const [step, setStep] = useState<PhoneAuthStep>("phone");
   const [isSending, setIsSending] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -20,7 +20,7 @@ export function useWhatsAppOtp() {
     setIsSending(true);
     try {
       setPhoneNumber(phone);
-      const result = await sendWhatsAppOtp(phone);
+      const result = await sendWhatsAppOtp(phone, partnerId);
       if (!result.success) {
         const message = result.error || "Failed to send OTP";
         setError(message);

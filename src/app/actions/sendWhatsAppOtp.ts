@@ -8,7 +8,7 @@ const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
 const otpStore = new Map<string, { code: string; expiresAt: number }>();
 
 // Log OTP message to database (fire-and-forget)
-function logOtpMessage(phone: string, status: "sent" | "failed", metaMessageId?: string, errorDetails?: string) {
+function logOtpMessage(phone: string, status: "sent" | "failed", partnerId?: string, metaMessageId?: string, errorDetails?: string) {
   const mutation = `
     mutation LogOtpMessage($object: whatsapp_message_logs_insert_input!) {
       insert_whatsapp_message_logs_one(object: $object) { id }
@@ -17,6 +17,7 @@ function logOtpMessage(phone: string, status: "sent" | "failed", metaMessageId?:
   fetchFromHasura(mutation, {
     object: {
       phone,
+      partner_id: partnerId || null,
       template_name: "otp_message_v2",
       message_type: "template",
       category: "otp",
@@ -52,7 +53,8 @@ function formatPhone(phone: string): string {
 }
 
 export async function sendWhatsAppOtp(
-  phone: string
+  phone: string,
+  partnerId?: string
 ): Promise<{ success: boolean; error?: string }> {
   const formattedPhone = formatPhone(phone);
   try {
@@ -102,17 +104,17 @@ export async function sendWhatsAppOtp(
     if (!res.ok) {
       const errBody = await res.text();
       console.error("WhatsApp OTP send error:", res.status, errBody);
-      logOtpMessage(formattedPhone, "failed", undefined, errBody);
+      logOtpMessage(formattedPhone, "failed", partnerId, undefined, errBody);
       return { success: false, error: "Failed to send OTP via WhatsApp" };
     }
 
     const result = await res.json();
-    logOtpMessage(formattedPhone, "sent", result.messages?.[0]?.id);
+    logOtpMessage(formattedPhone, "sent", partnerId, result.messages?.[0]?.id);
 
     return { success: true };
   } catch (error) {
     console.error("Failed to send WhatsApp OTP:", error);
-    logOtpMessage(formattedPhone, "failed", undefined, String(error));
+    logOtpMessage(formattedPhone, "failed", partnerId, undefined, String(error));
     return { success: false, error: "Failed to send verification code" };
   }
 }
