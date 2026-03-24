@@ -54,10 +54,9 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ─── Handle "Track Order Status" button click ────────────────────
+// ─── Handle "Track Order Status" quick reply click ───────────────
 async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) {
   try {
-    // 1. Find the most recent order for this phone
     const phone10 = userPhone.startsWith("91") ? userPhone.slice(2) : userPhone;
 
     const query = `
@@ -77,17 +76,6 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
           limit: 1
         ) {
           id
-          display_id
-          status
-          total_price
-          order_items {
-            quantity
-            item
-          }
-          partner {
-            store_name
-            currency
-          }
         }
       }
     `;
@@ -109,30 +97,13 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
       return;
     }
 
-    const store = order.partner?.store_name || "your store";
-    const orderId = order.display_id || order.id.slice(0, 8);
-    const status = (order.status as string).charAt(0).toUpperCase() + (order.status as string).slice(1);
-    const currency = order.partner?.currency || "₹";
-    const items = (order.order_items || [])
-      .map((oi: any) => `• ${oi.item?.name || "Item"} × ${oi.quantity}`)
-      .join("\n");
-
-    const statusEmojis: Record<string, string> = {
-      confirmed: "✅",
-      preparing: "👨‍🍳",
-      ready: "🔔",
-      picked: "🚗",
-      delivered: "📦",
-      cancelled: "❌",
-      placed: "📝",
-    };
-    const emoji = statusEmojis[(order.status as string).toLowerCase()] || "📋";
-
-    // 2. Send current status with track order button
-    const bodyText = `Click the button below to see realtime order updates 👇`;
-
     const orderUrl = `https://menuthere.com/order/${order.id}`;
-    await sendInteractiveReply(phoneNumberId, userPhone, bodyText, orderUrl);
+    await sendInteractiveReply(
+      phoneNumberId,
+      userPhone,
+      "Click the button below to see realtime order updates 👇",
+      orderUrl
+    );
   } catch (error) {
     console.error("Track order status error:", error);
   }
@@ -165,7 +136,7 @@ async function sendTextReply(phoneNumberId: string, to: string, text: string) {
   }
 }
 
-// ─── Send interactive message with CTA URL button ───────────────
+// ─── Send interactive message with CTA URL button ────────────────
 async function sendInteractiveReply(phoneNumberId: string, to: string, bodyText: string, url: string) {
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN!;
 
@@ -199,7 +170,7 @@ async function sendInteractiveReply(phoneNumberId: string, to: string, bodyText:
   if (!res.ok) {
     const err = await res.text();
     console.error("Interactive reply failed:", err);
-    // Fallback to plain text if interactive fails
     await sendTextReply(phoneNumberId, to, `Click the link below to see realtime order updates:\n\n${url}`);
   }
 }
+

@@ -113,19 +113,37 @@ export async function POST(request: NextRequest) {
 
     if (template) {
       // Template message (for business-initiated conversations)
+      const components: any[] = [];
+
+      if (template.headerParams?.length) {
+        components.push({
+          type: "header",
+          parameters: template.headerParams.map((p: string) => ({ type: "text", text: p })),
+        });
+      }
+
+      components.push({
+        type: "body",
+        parameters: (template.parameters || []).map((p: string) => ({
+          type: "text",
+          text: p,
+        })),
+      });
+
+      if (template.buttonParams?.length) {
+        components.push({
+          type: "button",
+          sub_type: "url",
+          index: "0",
+          parameters: template.buttonParams.map((p: string) => ({ type: "text", text: p })),
+        });
+      }
+
       messagePayload.type = "template";
       messagePayload.template = {
         name: template.name,
         language: { code: template.language || "en" },
-        components: [
-          {
-            type: "body",
-            parameters: (template.parameters || []).map((p: string) => ({
-              type: "text",
-              text: p,
-            })),
-          },
-        ],
+        components,
       };
     } else {
       // Free-form text (only works within 24hr customer-initiated window)

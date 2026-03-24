@@ -18,6 +18,15 @@ async function sendWhatsAppOrderPlaced(order: Order, storeName?: string) {
 
     const store = storeName || order.partner?.store_name || "your store";
     const currency = order.partner?.currency ?? "₹";
+    const username = (order.user as any)?.name || (order.user as any)?.full_name || "Customer";
+    const orderId = order.display_id || order.id.slice(0, 8);
+
+    const typeMap: Record<string, string> = {
+      delivery: "Delivery",
+      table_order: "Dine-in",
+      pos: "POS",
+    };
+    const orderType = typeMap[order.type ?? ""] || "Takeaway";
 
     const orderItems = order.items
       .map((item) => `${item.name} x ${item.quantity}`)
@@ -32,9 +41,10 @@ async function sendWhatsAppOrderPlaced(order: Order, storeName?: string) {
         phone,
         partnerId: order.partnerId,
         template: {
-          name: "order_update",
+          name: "order_update_v2",
           language: "en",
-          parameters: [store, orderItems, total],
+          headerParams: [username],
+          parameters: [store, orderId, orderType, total, orderItems],
         },
       }),
     });
