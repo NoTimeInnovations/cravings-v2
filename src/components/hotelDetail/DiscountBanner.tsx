@@ -7,7 +7,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 type DiscountData = {
   id: string;
   code: string;
-  discount_type: "percentage" | "flat";
+  discount_type: "percentage" | "flat" | "freebie";
   discount_value: number;
   min_order_value: number | null;
   max_discount_amount: number | null;
@@ -16,6 +16,8 @@ type DiscountData = {
   valid_time_from: string | null;
   valid_time_to: string | null;
   has_coupon: boolean;
+  freebie_item_count: number | null;
+  freebie_item_ids: string | null;
 };
 
 const DiscountBanner = ({
@@ -29,6 +31,7 @@ const DiscountBanner = ({
 }) => {
   const [discounts, setDiscounts] = useState<DiscountData[]>([]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [freebieItemNames, setFreebieItemNames] = useState<Record<string, string>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,7 +51,7 @@ const DiscountBanner = ({
         ) {
           id code discount_type discount_value min_order_value
           max_discount_amount starts_at expires_at valid_time_from
-          valid_time_to has_coupon
+          valid_time_to has_coupon freebie_item_count freebie_item_ids
         }
       }`,
       { partner_id: partnerId }
@@ -60,6 +63,22 @@ const DiscountBanner = ({
           return true;
         });
         setDiscounts(active);
+
+        // Resolve freebie item names
+        const freebieIds = active
+          .filter((d: DiscountData) => d.discount_type === "freebie" && d.freebie_item_ids)
+          .flatMap((d: DiscountData) => d.freebie_item_ids!.split(",").map((id: string) => id.trim()))
+          .filter(Boolean);
+        if (freebieIds.length > 0) {
+          fetchFromHasura(
+            `query GetFreebieItems($ids: [uuid!]!) { menu(where: { id: { _in: $ids } }) { id name } }`,
+            { ids: [...new Set(freebieIds)] }
+          ).then((menuRes) => {
+            const names: Record<string, string> = {};
+            (menuRes?.menu ?? []).forEach((m: { id: string; name: string }) => { names[m.id] = m.name; });
+            setFreebieItemNames(names);
+          }).catch(() => {});
+        }
       })
       .catch((err) => console.error("DiscountBanner fetch failed:", err));
   }, [partnerId]);
@@ -124,7 +143,12 @@ const DiscountBanner = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-bold leading-none" style={{ color: accent }}>
-                      {disc.discount_type === "percentage"
+                      {disc.discount_type === "freebie"
+                        ? (() => {
+                            const names = disc.freebie_item_ids?.split(",").map((id) => freebieItemNames[id.trim()]).filter(Boolean);
+                            return names?.length ? `FREE ${names.join(", ")}` : "FREE ITEM";
+                          })()
+                        : disc.discount_type === "percentage"
                         ? `${disc.discount_value}% OFF`
                         : `${currency}${disc.discount_value} OFF`}
                     </p>

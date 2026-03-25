@@ -47,9 +47,11 @@ export interface ExtraCharge {
 
 export interface Discount {
   id: string;
-  type: "percentage" | "flat";
+  type: "percentage" | "flat" | "freebie";
   value: number;
   reason?: string;
+  freebie_item_count?: number;
+  freebie_item_ids?: string;
 }
 
 interface POSState {
@@ -497,7 +499,9 @@ export const usePOSStore = create<POSState>((set, get) => ({
 
       // Calculate Discount
       const discountAmount = discounts.reduce((total, discount) => {
-        if (discount.type === "flat") {
+        if (discount.type === "freebie") {
+          return total + discount.value; // Freebie discount = item price as flat discount
+        } else if (discount.type === "flat") {
           return total + discount.value;
         } else {
           return total + (subtotal * discount.value) / 100;
@@ -603,7 +607,9 @@ export const usePOSStore = create<POSState>((set, get) => ({
     // Calculate Discount
     const subtotal = foodSubtotal + extraChargesSubtotal;
     const discountAmount = discounts.reduce((total, discount) => {
-      if (discount.type === "flat") {
+      if (discount.type === "freebie") {
+        return total; // Freebie discounts don't reduce monetary total
+      } else if (discount.type === "flat") {
         return total + discount.value;
       } else {
         return total + (subtotal * discount.value) / 100;
@@ -682,7 +688,9 @@ export const usePOSStore = create<POSState>((set, get) => ({
       const subtotal = foodSubtotal + extraChargesTotal;
 
       const discountAmount = discounts.reduce((total, discount) => {
-        if (discount.type === "flat") {
+        if (discount.type === "freebie") {
+          return total + discount.value; // Freebie discount = item price as flat discount
+        } else if (discount.type === "flat") {
           return total + discount.value;
         } else {
           return total + (subtotal * discount.value) / 100;
