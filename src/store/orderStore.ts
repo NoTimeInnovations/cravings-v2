@@ -66,6 +66,7 @@ export interface DeliveryRules {
   need_user_name?: boolean;
   parcel_charge?: number;
   parcel_charge_type?: "fixed" | "variable"; // fixed = flat amount, variable = per item
+  hide_delivery_charge?: boolean;
 }
 
 export interface Order {
@@ -1022,7 +1023,7 @@ const useOrderStore = create(
           }
 
           // Add delivery charge if applicable
-          if (type === "delivery" && deliveryCharge && deliveryCharge > 0) {
+          if (type === "delivery" && deliveryCharge && deliveryCharge > 0 && !hotelData?.delivery_rules?.hide_delivery_charge) {
             exCharges.push({
               name: "Delivery Charge",
               amount: deliveryCharge,

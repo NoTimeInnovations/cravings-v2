@@ -330,11 +330,13 @@ const OrderDrawer = ({
           qrGroup.charge_type || "FLAT_FEE",
         )
       : 0;
+    const hideDeliveryCharge = hotelData?.delivery_rules?.hide_delivery_charge ?? false;
     const deliveryCharge =
       !isQrScan &&
       orderType === "delivery" &&
       deliveryInfo?.cost &&
-      !deliveryInfo?.isOutOfRange
+      !deliveryInfo?.isOutOfRange &&
+      !hideDeliveryCharge
         ? deliveryInfo.cost
         : 0;
     const parcelChargeType =
@@ -426,7 +428,9 @@ const OrderDrawer = ({
       orderType === "delivery" &&
       deliveryInfo?.cost &&
       !deliveryInfo?.isOutOfRange
-        ? `*Delivery Charge:* ${hotelData.currency}${deliveryInfo.cost.toFixed(2)}`
+        ? (hideDeliveryCharge
+          ? `_Delivery charge applicable_`
+          : `*Delivery Charge:* ${hotelData.currency}${deliveryInfo.cost.toFixed(2)}`)
         : "",
       qrGroup?.extra_charge
         ? `*${qrGroup.name}:* ${hotelData.currency}${qrCharge.toFixed(2)}`

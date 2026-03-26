@@ -278,6 +278,7 @@ export function DeliverySettings() {
         need_user_name: false,
         parcel_charge: 0,
         parcel_charge_type: "fixed",
+        hide_delivery_charge: false,
     });
     const [whatsappNumbers, setWhatsappNumbers] = useState<{ number: string; area: string }[]>([]);
     const [countryCode, setCountryCode] = useState("+91");
@@ -306,6 +307,7 @@ export function DeliverySettings() {
                 need_user_name: userData.delivery_rules?.need_user_name ?? false,
                 parcel_charge: userData.delivery_rules?.parcel_charge || 0,
                 parcel_charge_type: userData.delivery_rules?.parcel_charge_type || "fixed",
+                hide_delivery_charge: userData.delivery_rules?.hide_delivery_charge ?? false,
             });
 
             // Initialize WhatsApp numbers
@@ -397,6 +399,7 @@ export function DeliverySettings() {
             need_user_name: data.delivery_rules?.need_user_name ?? false,
             parcel_charge: data.delivery_rules?.parcel_charge || 0,
             parcel_charge_type: data.delivery_rules?.parcel_charge_type || "fixed",
+            hide_delivery_charge: data.delivery_rules?.hide_delivery_charge ?? false,
         };
 
         const initialWhatsapp = data.whatsapp_numbers?.length > 0
@@ -484,6 +487,17 @@ export function DeliverySettings() {
                         <Switch
                             checked={deliveryRules.isDeliveryActive}
                             onCheckedChange={(checked) => setDeliveryRules(prev => ({ ...prev, isDeliveryActive: checked }))}
+                        />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <Label className="text-base">Don&apos;t show delivery charge</Label>
+                            <p className="text-sm text-muted-foreground">Show &quot;Delivery charge applicable&quot; note instead of adding delivery charge to bill.</p>
+                        </div>
+                        <Switch
+                            checked={deliveryRules.hide_delivery_charge ?? false}
+                            onCheckedChange={(checked) => setDeliveryRules(prev => ({ ...prev, hide_delivery_charge: checked }))}
                         />
                     </div>
 
