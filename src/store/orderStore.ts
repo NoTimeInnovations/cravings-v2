@@ -518,6 +518,7 @@ const useOrderStore = create(
                 name: i.item?.name || "Unknown",
                 price: i.item?.offers?.[0]?.offer_price || i.item?.price || 0,
                 category: i.item?.category,
+                is_freebie: i.item?.is_freebie || false,
               })),
             }));
 
@@ -1173,6 +1174,7 @@ const useOrderStore = create(
                         offers: [],
                         category: fi.category || null,
                         pp_id: fi.pp_id || null,
+                        is_freebie: true,
                       },
                       created_at: createdAt,
                     }))
@@ -1277,6 +1279,7 @@ const useOrderStore = create(
                         price: fi.price,
                         offers: [],
                         category: fi.category || null,
+                        is_freebie: true,
                       },
                     }))
                   : []),
@@ -1481,6 +1484,7 @@ const useOrderStore = create(
                 price: i.item?.price || i.menu?.price || 0,
                 category: i.menu?.category,
                 stocks: i.menu?.stocks,
+                is_freebie: i.item?.is_freebie || false,
               })),
             };
           });
@@ -1533,6 +1537,7 @@ function transformOrderFromHasura(order: any): Order {
       description: item.menu?.description || "",
       is_top: item.menu?.is_top || false,
       is_available: item.menu?.is_available || true,
+      is_freebie: item.item?.is_freebie || false,
     })),
     totalPrice: order.total_price || 0,
     createdAt: order.created_at,

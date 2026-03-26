@@ -587,15 +587,6 @@ const BillCard = ({
           <span className="text-inherit">{currency}{(subtotal + freebieTotalPrice).toFixed(2)}</span>
         </div>
 
-        {freebieItems.length > 0 && freebieItems.map((item, idx) => (
-          <div key={idx} className="flex justify-between text-sm">
-            <span className="text-green-600">
-              {item.name} x{freebieCount} <span className="text-xs font-semibold">(FREE)</span>
-            </span>
-            <span className="text-green-600">{currency}{(item.price * freebieCount).toFixed(2)}</span>
-          </div>
-        ))}
-
         {qrGroup && qrExtraCharges > 0 && (
           <div className="flex justify-between text-sm">
             <span style={{ color: "var(--pom-text-muted)" }}>
@@ -638,11 +629,11 @@ const BillCard = ({
         ) : null}
 
         {discountSavings > 0 && (
-          <div className="flex justify-between text-sm">
-            <span className="text-green-600 font-medium">
+          <div className="flex justify-between text-sm opacity-70">
+            <span className="font-medium">
               {discount?.type === "freebie" ? "Freebie Discount" : "Discount"}
             </span>
-            <span className="text-green-600">-{currency}{discountSavings.toFixed(2)}</span>
+            <span>-{currency}{discountSavings.toFixed(2)}</span>
           </div>
         )}
 
@@ -1685,14 +1676,15 @@ const PlaceOrderModal = ({
           return;
         }
       }
-      // Check valid time window
-      if (disc.valid_time_from && disc.valid_time_to) {
-        const now = new Date();
-        const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
-        if (currentTime < disc.valid_time_from || currentTime > disc.valid_time_to) {
-          setDiscountError(`This discount is valid only between ${disc.valid_time_from} and ${disc.valid_time_to}.`);
-          return;
-        }
+      // Check valid date/time window
+      const now = new Date();
+      if (disc.starts_at && now < new Date(disc.starts_at)) {
+        setDiscountError(`This discount starts on ${new Date(disc.starts_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}.`);
+        return;
+      }
+      if (disc.expires_at && now > new Date(disc.expires_at)) {
+        setDiscountError("This discount has expired.");
+        return;
       }
       // Check order type
       if (disc.discount_order_types) {
@@ -2261,12 +2253,12 @@ const PlaceOrderModal = ({
                       const item = hotelData?.menus?.find((m) => m.id === id.trim());
                       if (!item) return null;
                       return (
-                        <div key={id} className="flex items-center justify-between py-2 px-1 rounded-lg" style={{ backgroundColor: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                        <div key={id} className="flex items-center justify-between py-2 px-1 rounded-lg opacity-80" style={{ backgroundColor: "var(--pom-card-bg, #fff)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
                           <div>
-                            <p className="text-sm font-semibold text-green-700 dark:text-green-400">{item.name}</p>
-                            <p className="text-xs text-green-600 dark:text-green-500">{hotelData?.currency || "₹"}{item.price.toFixed(2)} <span className="font-bold">FREE</span></p>
+                            <p className="text-sm font-semibold">{item.name}</p>
+                            <p className="text-xs opacity-60">{hotelData?.currency || "₹"}{item.price.toFixed(2)} <span className="font-bold">FREE</span></p>
                           </div>
-                          <span className="text-xs font-bold text-green-700 dark:text-green-400 px-2 py-1 rounded-md" style={{ backgroundColor: "rgba(34,197,94,0.15)" }}>x{appliedDiscount.freebie_item_count || 1}</span>
+                          <span className="text-xs font-bold px-2 py-1 rounded-md opacity-70">x{appliedDiscount.freebie_item_count || 1}</span>
                         </div>
                       );
                     })}
@@ -2385,10 +2377,10 @@ const PlaceOrderModal = ({
                   )}
 
                   {appliedDiscount ? (
-                    <div className="flex items-center justify-between rounded-lg px-3 py-2.5" style={{ backgroundColor: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)" }}>
+                    <div className="flex items-center justify-between rounded-lg px-3 py-2.5" style={{ backgroundColor: "var(--pom-card-bg, #fff)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
                       <div>
-                        <p className="text-sm font-semibold font-mono" style={{ color: "#4ade80" }}>{appliedDiscount.code}</p>
-                        <p className="text-xs mt-0.5" style={{ color: "#86efac" }}>
+                        <p className="text-sm font-semibold font-mono">{appliedDiscount.code}</p>
+                        <p className="text-xs mt-0.5 opacity-60">
                           {appliedDiscount.type === "freebie"
                             ? (() => {
                                 const names = appliedDiscount.freebie_item_ids?.split(",").map((id) => {
@@ -2400,7 +2392,7 @@ const PlaceOrderModal = ({
                             : `You save ${hotelData?.currency || "₹"}${computeDiscountSavings(appliedDiscount).toFixed(2)}`}
                         </p>
                       </div>
-                      <button onClick={handleRemoveDiscount} className="p-1 rounded-full" style={{ color: "#4ade80" }}>
+                      <button onClick={handleRemoveDiscount} className="p-1 rounded-full opacity-60">
                         <X className="h-4 w-4" />
                       </button>
                     </div>

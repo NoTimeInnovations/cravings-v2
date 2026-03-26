@@ -69,8 +69,6 @@ const emptyForm = {
     starts_at: "",
     expires_at: "",
     valid_days: "All" as string,
-    valid_time_from: "",
-    valid_time_to: "",
     discount_order_types: ["1", "2", "3"] as string[],
     discount_on_total: true,
     has_coupon: true,
@@ -175,8 +173,6 @@ export function DiscountCodeSettings() {
             if (form.usage_limit) object.usage_limit = Number(form.usage_limit);
             if (form.starts_at) object.starts_at = new Date(form.starts_at).toISOString();
             if (form.expires_at) object.expires_at = new Date(form.expires_at).toISOString();
-            if (form.valid_time_from) object.valid_time_from = form.valid_time_from;
-            if (form.valid_time_to) object.valid_time_to = form.valid_time_to;
             if (form.applicable_on !== "All" && form.category_item_ids.trim()) object.category_item_ids = form.category_item_ids.trim();
             if (form.rank) object.rank = Number(form.rank);
 
@@ -465,24 +461,6 @@ export function DiscountCodeSettings() {
                                     />
                                 </div>
 
-                                {/* Valid Time From/To */}
-                                <div className="space-y-2">
-                                    <Label>Valid Time From <span className="text-muted-foreground text-xs">(optional)</span></Label>
-                                    <Input
-                                        type="time"
-                                        value={form.valid_time_from}
-                                        onChange={(e) => setForm({ ...form, valid_time_from: e.target.value })}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Valid Time To <span className="text-muted-foreground text-xs">(optional)</span></Label>
-                                    <Input
-                                        type="time"
-                                        value={form.valid_time_to}
-                                        onChange={(e) => setForm({ ...form, valid_time_to: e.target.value })}
-                                    />
-                                </div>
-
                                 {/* Applicable On */}
                                 <div className="space-y-2">
                                     <Label>Applicable On</Label>
@@ -668,14 +646,11 @@ export function DiscountCodeSettings() {
                                                 <span>Used: {disc.used_count}{disc.usage_limit ? ` / ${disc.usage_limit}` : ""}</span>
                                                 {disc.discount_order_types && <span>Types: {formatOrderTypes(disc.discount_order_types)}</span>}
                                                 {disc.valid_days && disc.valid_days !== "All" && <span>Days: {disc.valid_days}</span>}
-                                                {disc.valid_time_from && disc.valid_time_to && (
-                                                    <span>{disc.valid_time_from} - {disc.valid_time_to}</span>
-                                                )}
                                                 {disc.starts_at && (
-                                                    <span>From: {new Date(disc.starts_at).toLocaleDateString()}</span>
+                                                    <span>From: {new Date(disc.starts_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}</span>
                                                 )}
                                                 {disc.expires_at && (
-                                                    <span>Until: {new Date(disc.expires_at).toLocaleDateString()}</span>
+                                                    <span>Until: {new Date(disc.expires_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}</span>
                                                 )}
                                             </div>
                                         </div>

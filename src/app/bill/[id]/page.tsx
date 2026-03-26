@@ -178,6 +178,7 @@ const PrintOrderPage = () => {
             description: item.menu?.description || "",
             is_top: item.menu?.is_top || false,
             is_available: item.menu?.is_available || true,
+            is_freebie: item.item?.is_freebie || false,
           })),
           extra_charges: orders_by_pk.extra_charges || [],
           tableNumber: orders_by_pk.table_number, // Ensure this matches your usage
@@ -378,7 +379,7 @@ const PrintOrderPage = () => {
 
   // Calculate amounts
   const foodSubtotal = (order?.items ?? []).reduce(
-    (sum: number, item: OrderItem) => sum + item.price * item.quantity,
+    (sum: number, item: any) => sum + (item.is_freebie ? 0 : item.price * item.quantity),
     0
   );
 
@@ -565,14 +566,15 @@ const PrintOrderPage = () => {
         {/* Order Items */}
         <h3 className="font-bold text-sm uppercase mb-1">Items Ordered</h3>
         <ul className="space-y-1 text-sm">
-          {(order?.items ?? []).map((item: OrderItem) => (
+          {(order?.items ?? []).map((item: any) => (
             <li key={item.id} className="flex justify-between">
               <span>
                 {item.quantity}x {item.name}
+                {item.is_freebie && <span className="text-xs font-bold ml-1">(FREE)</span>}
               </span>
               <span>
                 {currency}
-                {(item.price * item.quantity).toFixed(2)}
+                {item.is_freebie ? "0.00" : (item.price * item.quantity).toFixed(2)}
               </span>
             </li>
           ))}
@@ -622,16 +624,10 @@ const PrintOrderPage = () => {
                   : (subtotal * discount.value) / 100;
                 return (
                   <li key={index}>
-                    {discount.type === "freebie" && discount.freebie_item_names && (
-                      <div className="flex justify-between mb-0.5">
-                        <span>{discount.freebie_item_names}{discount.freebie_item_count > 1 ? ` x${discount.freebie_item_count}` : ""} <span className="text-xs font-bold">(FREE)</span></span>
-                        <span>{currency}{discountValue.toFixed(2)}</span>
-                      </div>
-                    )}
                     <div className="flex justify-between">
                       <span>
                         {discount.type === "freebie"
-                          ? "Freebie Discount"
+                          ? `Freebie${discount.freebie_item_names ? ` - ${discount.freebie_item_names}` : ""}${discount.freebie_item_count > 1 ? ` x${discount.freebie_item_count}` : ""}`
                           : discount.type === "percentage" ? `${discount.value}% Off` : "Flat Discount"}
                         {discount.reason && ` (${discount.reason})`}
                       </span>

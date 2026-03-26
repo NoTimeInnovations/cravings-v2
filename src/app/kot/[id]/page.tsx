@@ -82,6 +82,7 @@ const PrintKOTPage = () => {
             quantity: item.quantity,
             name: item.item.name || item.menu.name || "N/A",
             notes: item.item.kot_notes,
+            is_freebie: item.item?.is_freebie || false,
           })),
           tableNumber: orders_by_pk.table_number,
           tableName:
@@ -246,6 +247,7 @@ const PrintKOTPage = () => {
               <div className="flex justify-between font-medium">
                 <span>
                   {item.quantity}x {item.name}
+                  {item.is_freebie && <span className="text-xs font-bold ml-1">(FREE)</span>}
                 </span>
               </div>
               {item.notes && (

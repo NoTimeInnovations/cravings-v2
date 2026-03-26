@@ -91,15 +91,21 @@ const DiscountBanner = ({
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  const formatTimeRange = (from: string | null, to: string | null) => {
-    if (!from || !to) return null;
-    const fmt = (t: string) => {
-      const [h, m] = t.split(":");
-      const hr = parseInt(h);
+  const formatDateTimeRange = (startsAt: string | null, expiresAt: string | null) => {
+    if (!startsAt && !expiresAt) return null;
+    const fmt = (iso: string) => {
+      const d = new Date(iso);
+      const day = d.getDate();
+      const month = d.toLocaleString([], { month: "short" });
+      const hr = d.getHours();
+      const min = String(d.getMinutes()).padStart(2, "0");
       const ampm = hr >= 12 ? "PM" : "AM";
-      return `${hr % 12 || 12}:${m} ${ampm}`;
+      const h12 = hr % 12 || 12;
+      return `${day} ${month}, ${h12}:${min} ${ampm}`;
     };
-    return `${fmt(from)} - ${fmt(to)}`;
+    if (startsAt && expiresAt) return `${fmt(startsAt)} - ${fmt(expiresAt)}`;
+    if (startsAt) return `From ${fmt(startsAt)}`;
+    return `Until ${fmt(expiresAt!)}`;
   };
 
   const getDaysLeft = (expires: string | null) => {
@@ -119,7 +125,7 @@ const DiscountBanner = ({
       >
         {discounts.map((disc) => {
           const daysLeft = getDaysLeft(disc.expires_at);
-          const timeRange = formatTimeRange(disc.valid_time_from, disc.valid_time_to);
+          const timeRange = formatDateTimeRange(disc.starts_at, disc.expires_at);
 
           return (
             <div
@@ -142,7 +148,7 @@ const DiscountBanner = ({
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-bold leading-none" style={{ color: accent }}>
+                    <p className="text-sm font-bold leading-none truncate" style={{ color: accent }}>
                       {disc.discount_type === "freebie"
                         ? (() => {
                             const names = disc.freebie_item_ids?.split(",").map((id) => freebieItemNames[id.trim()]).filter(Boolean);
@@ -154,7 +160,7 @@ const DiscountBanner = ({
                     </p>
                     {daysLeft && (
                       <span
-                        className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white"
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white whitespace-nowrap"
                         style={{ backgroundColor: accent }}
                       >
                         {daysLeft}
@@ -172,7 +178,7 @@ const DiscountBanner = ({
                         · Max {currency}{disc.max_discount_amount}
                       </span>
                     )}
-                    {timeRange && (
+                    {false && timeRange && (
                       <span className="text-[10px] opacity-60 flex items-center gap-0.5">
                         · <Clock size={9} /> {timeRange}
                       </span>
