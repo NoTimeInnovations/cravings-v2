@@ -287,24 +287,31 @@ export function GeneralSettings() {
             );
         };
 
-        // Load FB SDK if not already loaded
-        if ((window as any).FB) {
+        const initAndLaunch = () => {
+            (window as any).FB.init({
+                appId: process.env.NEXT_PUBLIC_META_APP_ID,
+                cookie: true,
+                xfbml: false,
+                version: "v21.0",
+            });
+            (window as any).__fbInitDone = true;
             launchSignup();
+        };
+
+        // If SDK is loaded AND already initialized, just launch
+        if ((window as any).FB && (window as any).__fbInitDone) {
+            launchSignup();
+        } else if ((window as any).FB) {
+            // SDK object exists but init() not called yet
+            initAndLaunch();
         } else {
+            // Load FB SDK script
             const script = document.createElement("script");
             script.src = "https://connect.facebook.net/en_US/sdk.js";
             script.async = true;
             script.defer = true;
             script.crossOrigin = "anonymous";
-            script.onload = () => {
-                (window as any).FB.init({
-                    appId: process.env.NEXT_PUBLIC_META_APP_ID,
-                    cookie: true,
-                    xfbml: false,
-                    version: "v21.0",
-                });
-                launchSignup();
-            };
+            script.onload = () => initAndLaunch();
             document.body.appendChild(script);
         }
     };
@@ -843,8 +850,8 @@ export function GeneralSettings() {
                     </CardContent>
                 </Card>
 
-                {/* WhatsApp Business Integration — hidden until fully ready */}
-                {false && <Card className="relative">
+                {/* WhatsApp Business Integration */}
+                <Card className="relative">
                     <CardHeader>
                         <div className="flex items-center gap-2">
                             <CardTitle>WhatsApp Business</CardTitle>
@@ -984,7 +991,7 @@ export function GeneralSettings() {
                             </>
                         )}
                     </CardContent>
-                </Card>}
+                </Card>
 
             </div >
 

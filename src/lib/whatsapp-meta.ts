@@ -74,12 +74,35 @@ export async function subscribeWabaWebhooks(
   }
 }
 
+// ─── Fetch display phone number from Meta ────────────────────────
+export async function getPhoneNumberDetails(
+  phoneNumberId: string,
+  accessToken: string,
+): Promise<{ displayPhone: string; verifiedName: string | null }> {
+  const res = await fetch(
+    `${GRAPH_API_BASE}/${phoneNumberId}?fields=display_phone_number,verified_name`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+
+  if (!res.ok) {
+    console.error("Failed to fetch phone number details:", await res.text());
+    return { displayPhone: "", verifiedName: null };
+  }
+
+  const data = await res.json();
+  return {
+    displayPhone: data.display_phone_number || "",
+    verifiedName: data.verified_name || null,
+  };
+}
+
 // ─── Save/Update integration in Hasura ───────────────────────────
 export async function saveWhatsAppIntegration(data: {
   partner_id: string;
   waba_id: string;
   phone_number_id: string;
   access_token: string;
+  display_phone?: string;
 }) {
   // Check if integration already exists for this partner
   const checkQuery = `
@@ -112,6 +135,7 @@ export async function saveWhatsAppIntegration(data: {
         waba_id: data.waba_id,
         phone_number_id: data.phone_number_id,
         access_token: data.access_token,
+        display_phone: data.display_phone || null,
         updated_at: new Date().toISOString(),
       },
     });
@@ -130,6 +154,7 @@ export async function saveWhatsAppIntegration(data: {
         waba_id: data.waba_id,
         phone_number_id: data.phone_number_id,
         access_token: data.access_token,
+        display_phone: data.display_phone || null,
         updated_at: new Date().toISOString(),
       },
     });
