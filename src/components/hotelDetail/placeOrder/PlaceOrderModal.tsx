@@ -1492,6 +1492,85 @@ const PlaceOrderModal = ({
     }).catch(() => { });
   }, [hotelData?.id, showDiscountSection]);
 
+  // Auto-apply non-coupon discounts (e.g. freebies) when order qualifies
+  useEffect(() => {
+    if (!showDiscountSection || !hotelData?.id || appliedDiscount) return;
+    if (!items || items.length === 0) return;
+    const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
+    if (subtotal <= 0) return;
+
+    fetchFromHasura(
+      `query GetAutoApplyDiscounts($partner_id: uuid!) {
+        discounts(
+          where: {
+            partner_id: { _eq: $partner_id }
+            is_active: { _eq: true }
+            has_coupon: { _eq: false }
+            _or: [
+              { expires_at: { _is_null: true } }
+              { expires_at: { _gt: "now()" } }
+            ]
+          }
+          order_by: [{ rank: asc_nulls_last }]
+        ) {
+          id code description discount_type discount_value min_order_value
+          max_discount_amount discount_order_types discount_on_total
+          has_coupon applicable_on category_item_ids rank pp_discount_id
+          freebie_item_count freebie_item_ids valid_days starts_at
+          expires_at valid_time_from valid_time_to terms_conditions
+          usage_limit used_count
+        }
+      }`,
+      { partner_id: hotelData.id }
+    ).then((res) => {
+      const discs = res?.discounts ?? [];
+      const now = new Date();
+      const currentOrderTypeMap: Record<string, string> = { delivery: "1", takeaway: "2" };
+      const currentTypeCode = isQrScan ? "3" : (currentOrderTypeMap[orderType || "delivery"] || "1");
+      const today = now.toLocaleDateString("en-US", { weekday: "short" });
+
+      const eligible = discs.find((disc: any) => {
+        if (disc.starts_at && new Date(disc.starts_at) > now) return false;
+        if (disc.usage_limit != null && disc.used_count >= disc.usage_limit) return false;
+        if (disc.min_order_value && subtotal < Number(disc.min_order_value)) return false;
+        if (disc.discount_order_types) {
+          const allowed = disc.discount_order_types.split(",").map((t: string) => t.trim());
+          if (!allowed.includes(currentTypeCode)) return false;
+        }
+        if (disc.valid_days && disc.valid_days !== "All") {
+          const validDays = disc.valid_days.split(",").map((d: string) => d.trim());
+          if (!validDays.includes(today)) return false;
+        }
+        return true;
+      });
+
+      if (eligible) {
+        setAppliedDiscount({
+          id: eligible.id,
+          code: eligible.code,
+          type: eligible.discount_type,
+          value: Number(eligible.discount_value),
+          max_discount_amount: eligible.max_discount_amount ? Number(eligible.max_discount_amount) : undefined,
+          min_order_value: eligible.min_order_value ? Number(eligible.min_order_value) : undefined,
+          description: eligible.description || undefined,
+          terms_conditions: eligible.terms_conditions || undefined,
+          discount_on_total: eligible.discount_on_total,
+          discount_order_types: eligible.discount_order_types || undefined,
+          valid_days: eligible.valid_days || undefined,
+          valid_time_from: eligible.valid_time_from || undefined,
+          valid_time_to: eligible.valid_time_to || undefined,
+          applicable_on: eligible.applicable_on || undefined,
+          category_item_ids: eligible.category_item_ids || undefined,
+          has_coupon: eligible.has_coupon,
+          rank: eligible.rank ? Number(eligible.rank) : undefined,
+          pp_discount_id: eligible.pp_discount_id || undefined,
+          freebie_item_count: eligible.freebie_item_count ? Number(eligible.freebie_item_count) : undefined,
+          freebie_item_ids: eligible.freebie_item_ids || undefined,
+        });
+      }
+    }).catch(() => {});
+  }, [hotelData?.id, showDiscountSection, items, appliedDiscount, orderType, isQrScan]);
+
   // Prefill customer name from user data
   useEffect(() => {
     if (user && needUserName && !customerNameSaved) {
