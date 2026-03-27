@@ -538,8 +538,9 @@ const BillCard = ({
     )
     : 0;
 
+  const hideDeliveryCharge = hotelData?.delivery_rules?.hide_delivery_charge ?? false;
   const deliveryCharges =
-    isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange
+    isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && !hideDeliveryCharge
       ? deliveryInfo.cost
       : 0;
 
@@ -597,12 +598,18 @@ const BillCard = ({
           </div>
         )}
 
-        {isDelivery && (deliveryInfo?.cost ?? 0) > 0 && !deliveryInfo?.isOutOfRange && (
+        {isDelivery && (deliveryInfo?.cost ?? 0) > 0 && !deliveryInfo?.isOutOfRange && !hideDeliveryCharge && (
           <div className="flex justify-between text-sm">
             <span style={{ color: "var(--pom-text-muted)" }}>
               Delivery Fee | {deliveryInfo?.distance?.toFixed(1)} kms
             </span>
             <span className="text-inherit">{currency}{deliveryInfo?.cost?.toFixed(2)}</span>
+          </div>
+        )}
+
+        {isDelivery && hideDeliveryCharge && (
+          <div className="text-sm" style={{ color: "var(--pom-text-muted)" }}>
+            Delivery charge applicable
           </div>
         )}
 
@@ -2013,7 +2020,8 @@ const PlaceOrderModal = ({
         !isQrScan &&
         deliveryInfo?.cost &&
         !deliveryInfo?.isOutOfRange &&
-        orderType === "delivery"
+        orderType === "delivery" &&
+        !(hotelData?.delivery_rules?.hide_delivery_charge)
       ) {
         extraCharges.push({
           name: "Delivery Charge",
