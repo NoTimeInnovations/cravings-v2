@@ -170,12 +170,20 @@ const DiscountBanner = ({
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     {disc.min_order_value && (
                       <span className="text-[10px] opacity-60">
-                        Above {currency}{disc.min_order_value}
+                        Purchase above {currency}{disc.min_order_value} to apply
                       </span>
                     )}
                     {disc.max_discount_amount && disc.discount_type === "percentage" && (
                       <span className="text-[10px] opacity-60">
                         · Max {currency}{disc.max_discount_amount}
+                      </span>
+                    )}
+                    {!disc.has_coupon && (
+                      <span
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                        style={{ backgroundColor: accent + "20", color: accent }}
+                      >
+                        Auto Apply
                       </span>
                     )}
                     {false && timeRange && (
