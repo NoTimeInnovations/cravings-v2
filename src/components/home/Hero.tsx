@@ -7,7 +7,7 @@ export default function Hero() {
       <div className="w-full max-w-2xl mx-auto text-center flex flex-col items-center">
         {/* Heading */}
         <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-gray-900 tracking-tight">
-          Your restaurant&apos;s own delivery website, zero commissions
+          Your restaurant&apos;s own delivery website
         </h1>
 
         {/* Subtitle */}

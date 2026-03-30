@@ -30,12 +30,12 @@ export const metadata: Metadata = {
   title:
     "Menuthere | Online Ordering & Delivery Platform for Restaurants",
   description:
-    "Launch your restaurant's own delivery website — zero commissions, Petpooja POS integration, real-time orders & analytics. Trusted by 600+ restaurants across India.",
+    "Launch your restaurant's own delivery website with Petpooja POS integration, real-time orders & analytics. Trusted by 600+ restaurants across India.",
   openGraph: {
     title:
       "Menuthere | Online Ordering & Delivery Platform for Restaurants",
     description:
-      "Launch your restaurant's own delivery website — zero commissions, Petpooja POS integration, real-time orders & analytics. Trusted by 600+ restaurants across India.",
+      "Launch your restaurant's own delivery website with Petpooja POS integration, real-time orders & analytics. Trusted by 600+ restaurants across India.",
     images: ["/og_image.png"],
     type: "website",
     url: "https://menuthere.com",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     title:
       "Menuthere | Online Ordering & Delivery Platform for Restaurants",
     description:
-      "Launch your restaurant's own delivery website — zero commissions, Petpooja POS integration, real-time orders & analytics. Trusted by 600+ restaurants across India.",
+      "Launch your restaurant's own delivery website with Petpooja POS integration, real-time orders & analytics. Trusted by 600+ restaurants across India.",
     images: ["/og_image.png"],
   },
   alternates: {
@@ -67,7 +67,7 @@ export default function Home() {
       description: "Free plan to launch your own restaurant delivery website with online ordering",
     },
     description:
-      "Menuthere is the all-in-one online ordering and delivery platform for restaurants. Launch your own commission-free delivery website with Petpooja POS integration, real-time order management, and powerful analytics.",
+      "Menuthere is the all-in-one online ordering and delivery platform for restaurants. Launch your own delivery website with Petpooja POS integration, real-time order management, and powerful analytics.",
     url: "https://menuthere.com",
     screenshot: "https://menuthere.com/og_image.png",
     aggregateRating: {
@@ -101,7 +101,7 @@ export default function Home() {
       height: 512,
     },
     description:
-      "The all-in-one online ordering and delivery platform for restaurants. Launch your own website, take commission-free orders, and grow your business.",
+      "The all-in-one online ordering and delivery platform for restaurants. Launch your own website, take orders directly, and grow your business.",
     sameAs: [
       "https://www.instagram.com/menu.there/",
       "https://www.linkedin.com/company/Menuthere",

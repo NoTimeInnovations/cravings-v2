@@ -14,7 +14,7 @@ export default function StartFreeTrailSection() {
           </h1>
           <p className="text-white/70 mb-6">
             Upload your menu, set up your delivery zones, and start taking
-            orders directly from your customers. Zero commissions, full
+            orders directly from your customers with full
             Petpooja POS integration. Join 600+ restaurants already growing
             with Menuthere.
           </p>
