@@ -50,11 +50,6 @@ const FAQS = [
       "Share your website link on social media, WhatsApp, Google Business Profile, and in-store QR codes. Menuthere also syncs your menu to Google Maps so customers discover you organically. Your website is SEO-optimized out of the box.",
   },
   {
-    question: "What payment methods are supported?",
-    answer:
-      "Menuthere supports UPI, debit/credit cards, net banking, and cash on delivery via Razorpay. Payments go directly to your account. We never hold your money.",
-  },
-  {
     question: "Will I be able to turn off ordering during offline hours?",
     answer:
       "Yes. Go to Settings and toggle your restaurant off anytime, perfect for offline hours, holidays, or maintenance. Toggle back on when ready. You can also set automatic open/close schedules.",
