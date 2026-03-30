@@ -27,8 +27,9 @@ export default function Footer({
               />
             </Link>
             <p className="text-sm text-white/80 max-w-xs leading-relaxed">
-              The all-in-one platform for restaurants to manage digital menus,
-              orders, and grow their business online.
+              The all-in-one online ordering and delivery platform for
+              restaurants. Launch your own website, skip aggregator commissions,
+              and grow your business.
             </p>
           </div>
 

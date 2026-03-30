@@ -5,17 +5,26 @@ import dynamic from "next/dynamic";
 const RealTimeMenuAnimation = dynamic(() => import("./RealTimeMenuAnimation"));
 const OffersAnimation = dynamic(() => import("./OffersAnimation"));
 const AnalyticsAnimation = dynamic(() => import("./AnalyticsAnimation"));
-const ReviewsAnimation = dynamic(() => import("./ReviewsAnimation"));
 const GoogleSyncAnimation = dynamic(() => import("./GoogleSyncAnimation"));
 const SmartQRAnimation = dynamic(() => import("./SmartQRAnimation"));
 const AggregatorAnimation = dynamic(() => import("./AggregatorAnimation"));
 const PetpoojaAnimation = dynamic(() => import("./PetpoojaAnimation"));
+const DeliveryBoyAnimation = dynamic(() => import("./DeliveryBoyAnimation"));
+const BrandedAppAnimation = dynamic(() => import("./BrandedAppAnimation"));
 
 const FEATURES = [
   {
+    title: "Your Own Delivery Website",
+    description:
+      "Launch a branded online ordering website for your restaurant in minutes. Customers order directly from you. No aggregator middlemen, no 30% commissions. You own the customer relationship, control your pricing, and keep every rupee of profit.",
+    href: "/product/delivery-website",
+    cta: "See how it works",
+    image: "/features/smartqr-v2.webp",
+  },
+  {
     title: "Save 30% vs Aggregators",
     description:
-      "Aggregators charge 20-33% commission + hidden fees, totaling up to 45% of every order. With Menuthere, get your own ordering website with just 1% commission and PetPooja POS integration. Own your customer data, control your pricing, and build brand loyalty.",
+      "Aggregators charge 20-33% commission + hidden fees, totaling up to 45% of every order. With Menuthere, get your own ordering website with just 1% commission and Petpooja POS integration. Own your customer data, control your pricing, and build brand loyalty.",
     href: "/solutions/petpooja",
     cta: "See full comparison & savings calculator",
     image: "/features/smartqr-v2.webp",
@@ -23,58 +32,66 @@ const FEATURES = [
   {
     title: "Petpooja POS Integration",
     description:
-      "Connect your Menuthere menu directly to Petpooja POS. Menu items, prices, and categories sync automatically. Every online order is pushed to your POS in real-time — no manual entry, no missed orders, no double handling.",
+      "Every online order flows directly into your Petpooja POS in real-time. No manual entry, no missed orders, no double handling. Menu items, prices, and categories sync automatically between your POS and delivery website. The only platform in India with deep Petpooja integration built-in.",
     href: "/solutions/petpooja",
     cta: "Learn about Petpooja integration",
     image: "/features/smartqr-v2.webp",
   },
   {
-    title: "Smart QR Menu",
+    title: "Real-Time Order Management",
     description:
-      "Customers scan a QR code and instantly browse your full menu on their phone. No app downloads, no waiting. A beautiful, mobile-first menu with high-quality images, dietary filters, and smart search — designed to increase average order value by up to 25%.",
-    href: "/solutions/restaurants",
+      "Accept, track, and manage delivery orders from a single dashboard. Get instant notifications for new orders, update order status in real-time, and keep your kitchen and delivery team in sync. No more juggling multiple tablets or missing orders during rush hours.",
+    href: "/get-started",
+    cta: "Explore order management",
+    image: "/features/realtimesync-v2.webp",
+  },
+  {
+    title: "Digital Menu Creator",
+    description:
+      "Create a beautiful, mobile-first digital menu with high-quality images, dietary filters, and smart search. Customers scan a QR code and instantly browse your full menu. No app downloads needed. Designed to increase average order value by up to 25%.",
+    href: "/product/digital-menu",
     cta: "Learn more about Digital Menu",
     image: "/features/smartqr-v2.webp",
   },
   {
-    title: "Google Business Menu Sync",
-    description:
-      "Automatically sync your complete menu — categories, items, prices, and photos — to your Google Business Profile in one click. Show up on Google Maps with a full menu. Restaurants with complete profiles get 7x more clicks and drive 30% more footfall.",
-    href: "/solutions/google-business",
-    cta: "See how Google Sync works",
-    image: "/features/syncmenu-v2.webp",
-  },
-  {
-    title: "Real-Time Menu Updates",
-    description:
-      "Change prices, add new items, toggle availability, or run time-based offers — all in real-time. Updates reflect instantly on your digital menu. No reprints, no designers, no delays. Save thousands annually on printing costs alone.",
-    href: "/get-started",
-    cta: "Explore menu management",
-    image: "/features/realtimesync-v2.webp",
-  },
-  {
     title: "Dynamic Offers & Promotions",
     description:
-      "Run flash deals, happy-hour specials, or time-based discounts that activate and expire automatically. Highlight best-sellers with Must-Try badges and Chef's Choice tags. Drive repeat visits and boost revenue without printing a single flyer.",
+      "Run flash deals, happy-hour specials, or time-based discounts that activate and expire automatically. Highlight best-sellers with Must-Try badges and Chef's Choice tags. Drive repeat orders and boost revenue without printing a single flyer.",
     href: "/solutions/owners",
     cta: "See how offers work",
     image: "/features/offersandpromo-v2.webp",
   },
   {
-    title: "Analytics & Insights",
+    title: "Google Business Menu Sync",
     description:
-      "Track daily scan volumes, peak hour heatmaps, device usage, and best-selling items. Make data-driven decisions about your pricing, promotions, and menu placement. Know exactly what is working and what needs attention.",
-    href: "/solutions/owners",
-    cta: "Learn about analytics",
+      "Automatically sync your complete menu (categories, items, prices, and photos) to your Google Business Profile in one click. Show up on Google Maps with a full menu. Restaurants with complete profiles get 7x more clicks and drive 30% more footfall.",
+    href: "/solutions/google-business",
+    cta: "See how Google Sync works",
+    image: "/features/syncmenu-v2.webp",
+  },
+  {
+    title: "Delivery Boy App",
+    description:
+      "A dedicated app for your delivery team. Delivery boys receive order notifications, navigate to customer locations, and update delivery status, all in real-time. Track live locations, assign orders automatically, and ensure faster deliveries with complete visibility.",
+    href: "/download-app",
+    cta: "Learn about the delivery app",
     image: "/features/analytics-v2.webp",
   },
   {
-    title: "Google Reviews Booster",
+    title: "Your Own Branded Restaurant App",
     description:
-      "Automatically prompt customers to leave a Google review after scanning your menu. Build your 5-star rating effortlessly. Display real-time Google reviews on your digital menu to build instant trust with new customers.",
-    href: "/solutions/restaurants",
-    cta: "Boost your reviews",
-    image: "/features/googelreview-v2.webp",
+      "Get your own restaurant app published on the App Store and Play Store under your brand name. Customers can browse your menu, place orders, track deliveries, and reorder with one tap. Build loyalty and drive repeat business with push notifications and in-app offers.",
+    href: "/get-started",
+    cta: "Get your own app",
+    image: "/features/analytics-v2.webp",
+  },
+  {
+    title: "Analytics & Insights",
+    description:
+      "Track order volumes, revenue trends, peak hours, and best-selling items. Make data-driven decisions about your pricing, promotions, and delivery operations. Know exactly what is working and where to optimize.",
+    href: "/solutions/owners",
+    cta: "Learn about analytics",
+    image: "/features/analytics-v2.webp",
   },
 ];
 
@@ -83,14 +100,9 @@ export default function MonitorSection() {
     <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] min-h-screen pt-20">
       <div className="flex flex-col gap-6 relative z-10 max-w-5xl px-8 md:px-16 mb-20">
         <h2 className="font-geist font-medium text-3xl md:text-4xl text-stone-900 leading-tight">
-          Everything your menu needs,{" "}
+          Everything your restaurant needs,{" "}
           <span className="text-stone-500">in one platform.</span>
         </h2>
-        {/* <p className="text-base text-stone-500 max-w-xl leading-relaxed">
-          From QR code menus to Google Business sync, Menuthere gives you the
-          tools to manage your menu, take orders, and grow your business — no
-          technical skills required.
-        </p> */}
       </div>
 
       {FEATURES.map((feature, index) => (
@@ -103,23 +115,27 @@ export default function MonitorSection() {
           image={feature.image}
           align={index % 2 === 0 ? "left" : "right"}
           customPanel={
-            feature.title === "Save 30% vs Aggregators"
+            feature.title === "Your Own Delivery Website"
               ? "aggregator"
-              : feature.title === "Petpooja POS Integration"
-                ? "petpooja"
-                : feature.title === "Real-Time Menu Updates"
-                ? "realtime"
-                : feature.title === "Dynamic Offers & Promotions"
-                  ? "offers"
-                  : feature.title === "Analytics & Insights"
-                    ? "analytics"
-                    : feature.title === "Google Reviews Booster"
-                      ? "reviews"
-                      : feature.title === "Google Business Menu Sync"
-                        ? "googlesync"
-                        : feature.title === "Smart QR Menu"
-                          ? "smartqr"
-                          : undefined
+              : feature.title === "Save 30% vs Aggregators"
+                ? "aggregator"
+                : feature.title === "Petpooja POS Integration"
+                  ? "petpooja"
+                  : feature.title === "Real-Time Order Management"
+                    ? "realtime"
+                    : feature.title === "Digital Menu Creator"
+                      ? "smartqr"
+                      : feature.title === "Dynamic Offers & Promotions"
+                        ? "offers"
+                        : feature.title === "Google Business Menu Sync"
+                          ? "googlesync"
+                          : feature.title === "Delivery Boy App"
+                            ? "deliveryboy"
+                            : feature.title === "Your Own Branded Restaurant App"
+                              ? "brandedapp"
+                              : feature.title === "Analytics & Insights"
+                                ? "analytics"
+                                : undefined
           }
         />
       ))}
@@ -204,7 +220,7 @@ function MonitorSectionCard({
   cta: string;
   image: string;
   align: "left" | "right";
-  customPanel?: "realtime" | "offers" | "analytics" | "reviews" | "googlesync" | "smartqr" | "aggregator" | "petpooja";
+  customPanel?: "realtime" | "offers" | "analytics" | "googlesync" | "smartqr" | "aggregator" | "petpooja" | "deliveryboy" | "brandedapp";
 }) {
   const panel =
     customPanel === "aggregator" ? (
@@ -217,12 +233,14 @@ function MonitorSectionCard({
       <OffersAnimation />
     ) : customPanel === "analytics" ? (
       <AnalyticsAnimation />
-    ) : customPanel === "reviews" ? (
-      <ReviewsAnimation />
     ) : customPanel === "googlesync" ? (
       <GoogleSyncAnimation />
     ) : customPanel === "smartqr" ? (
       <SmartQRAnimation />
+    ) : customPanel === "deliveryboy" ? (
+      <DeliveryBoyAnimation />
+    ) : customPanel === "brandedapp" ? (
+      <BrandedAppAnimation />
     ) : (
       <ImagePanel image={image} title={title} />
     );

@@ -44,16 +44,16 @@ interface BeforeInstallPromptEvent extends Event {
 
 const PRODUCTS = [
   {
-    title: "Digital Menu",
-    description: "Accept orders via QR code scan",
-    icon: ScanLine,
-    href: "/product/digital-menu",
-  },
-  {
     title: "Own Delivery Website",
     description: "Commission-free delivery platform",
     icon: Globe,
     href: "/product/delivery-website",
+  },
+  {
+    title: "Digital Menu Creator",
+    description: "QR code menus for dine-in ordering",
+    icon: ScanLine,
+    href: "/product/digital-menu",
   },
   {
     title: "Point Of Sale (POS)",
@@ -73,14 +73,6 @@ const PRODUCTS = [
     icon: ClipboardList,
     href: "/product/captain-ordering",
   },
-  /*
-  {
-    title: "Inventory & Purchase",
-    description: "Track stock and manage suppliers",
-    icon: Boxes,
-    href: "/product/inventory-management"
-  }
-  */
 ];
 
 const SOLUTIONS_FEATURES = [

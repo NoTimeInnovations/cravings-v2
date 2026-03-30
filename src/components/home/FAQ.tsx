@@ -10,59 +10,59 @@ import {
 
 const FAQS = [
   {
-    question: "How do I stop customers finding old menus on Google or apps?",
+    question: "How is Menuthere different from Zomato or Swiggy?",
     answer:
-      "All changes-like products, prices, descriptions, or availability-are applied instantly to your digital menu. Verify by clicking View Menu from your dashboard; no delays or reprints needed.",
+      "Aggregators like Zomato and Swiggy charge 20-33% commission on every order. Menuthere gives you your own branded delivery website where customers order directly from you, with just 1% commission. You own the customer data, control your pricing, and build brand loyalty.",
   },
   {
-    question: "Out-of-stock items still show on my QR/digital menu-what gives?",
+    question: "How does the Petpooja POS integration work?",
     answer:
-      "In the Menu section, click Availability at the top. Toggle entire categories or individual items on/off with a single click-sold-out items vanish everywhere immediately.",
+      "Once connected, your Petpooja menu syncs automatically with your Menuthere delivery website. Every online order is pushed directly to your POS in real-time. No manual entry, no missed orders. Menu items, prices, and categories stay in sync across both systems.",
   },
   {
-    question: "Updating menus takes forever and costs a fortune in designers.",
+    question: "How do I set up my delivery zones and charges?",
     answer:
-      "Editing is extremely simple and takes seconds-no technical knowledge required. Go to the Menu section, click any product to update name, price, image, description, offers, or variants, then save. Changes go live instantly.",
+      "From your dashboard, go to Delivery Settings. Define delivery zones by radius or pin code, set delivery charges per zone, and configure minimum order amounts. You can also enable or disable delivery for specific areas anytime.",
   },
   {
-    question: "How do I instantly update my menu products?",
+    question: "Can customers order for pickup as well as delivery?",
     answer:
-      "Go to the Menu section in your dashboard. You'll see all categories and products listed-click any to edit details like name, price, image, or description, then save for instant updates.",
+      "Yes, your delivery website supports both delivery and pickup orders. Customers can choose their preference at checkout. You can enable or disable either option from your dashboard settings.",
   },
   {
-    question: "How do I rearrange menu items or categories?",
+    question: "How do I manage incoming orders during rush hours?",
     answer:
-      "Open the Menu section and click Priority. Drag or set priority numbers for categories and items, then save-the new order appears live right away.",
+      "All orders appear in your dashboard in real-time with instant notifications. You can accept, prepare, and update order status from one screen. Orders also sync to your Petpooja POS if connected, so your kitchen stays in the loop.",
   },
   {
-    question: "How do I add offers or specials to menu items?",
+    question: "Do I need any technical skills to set this up?",
     answer:
-      "For Specials/Best Sellers: In Menu section, toggle the option per item-they'll appear as Must-Try at the top. For custom offers: Go to Offers section, create single/multi-item deals, and they activate instantly.",
+      "Not at all. Upload your menu (or sync it from Petpooja), customize your branding, and your delivery website is live in minutes. No coding, no designers, no app downloads needed.",
   },
   {
-    question: "Hard to update banners or product images without tech help?",
+    question: "Can I run offers and discounts on my delivery website?",
     answer:
-      "Navigate to Settings → General Settings to upload/change your restaurant banner. For products, edit images directly in the Menu section-drag-and-drop simple, live immediately.",
+      "Yes! Run flash deals, coupon codes, first-order discounts, or time-based specials that activate and expire automatically. Highlight best-sellers with Must-Try badges to boost average order value.",
   },
   {
-    question: "Can I preview or schedule changes like daily specials easily?",
+    question: "How do customers find my delivery website?",
     answer:
-      "Yes-preview any edit via View Menu before saving. For scheduling, use the Offers section to set timed updates (e.g., daily specials)-automate without daily logins.",
+      "Share your website link on social media, WhatsApp, Google Business Profile, and in-store QR codes. Menuthere also syncs your menu to Google Maps so customers discover you organically. Your website is SEO-optimized out of the box.",
   },
   {
-    question: "Will I be able to turn the store off during offline hours?",
+    question: "What payment methods are supported?",
     answer:
-      "Yes. Go to Settings and toggle your restaurant off anytime-perfect for offline hours, closures, or maintenance. Toggle back on when ready.",
+      "Menuthere supports UPI, debit/credit cards, net banking, and cash on delivery via Razorpay. Payments go directly to your account. We never hold your money.",
   },
   {
-    question: "How easy is it overall to edit menu items?",
+    question: "Will I be able to turn off ordering during offline hours?",
     answer:
-      "Extremely-seconds per change. Update prices, names, images, availability, or offers via intuitive toggles/dropdowns in the Menu section, no coding or designers.",
+      "Yes. Go to Settings and toggle your restaurant off anytime, perfect for offline hours, holidays, or maintenance. Toggle back on when ready. You can also set automatic open/close schedules.",
   },
   {
     question: "Can I cancel my subscription at any time?",
     answer:
-      "Yes-cancel anytime from your account. Your plan stays active until the current billing period ends, with no further charges unless you renew.",
+      "Yes, cancel anytime from your account. Your plan stays active until the current billing period ends, with no further charges unless you renew.",
   },
 ];
 
