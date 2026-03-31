@@ -21,14 +21,11 @@ async function sendWhatsAppOrderPlaced(order: Order, storeName?: string, partner
     const username = order.user?.full_name || "Customer";
     const orderId = order.display_id || order.id.slice(0, 8);
 
-    const typeMap: Record<string, string> = {
-      delivery: "Delivery",
-      table_order: "Dine-in",
-      pos: "POS",
-    };
-    const orderType = typeMap[order.type ?? ""] || "Takeaway";
-
     const total = `${currency}${order.totalPrice}`;
+
+    const orderItems = order.items
+      .map((item) => `${item.name} × ${item.quantity} — ${currency}${item.price}`)
+      .join("\n");
 
     await fetch("/api/whatsapp/send", {
       method: "POST",
@@ -37,10 +34,11 @@ async function sendWhatsAppOrderPlaced(order: Order, storeName?: string, partner
         phone,
         partnerId: order.partnerId,
         template: {
-          name: "order_update_v2",
+          name: "otp_publish",
           language: "en",
           headerParams: [username],
-          parameters: [store, orderId, orderType, total, partnerPhone || ""],
+          parameters: [store, `#${orderId}`, total, orderItems, partnerPhone || ""],
+          buttonParams: [order.id],
         },
       }),
     });
