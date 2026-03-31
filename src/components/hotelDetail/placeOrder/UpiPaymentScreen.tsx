@@ -102,7 +102,7 @@ export const UpiPaymentScreen = ({
         <div className="text-center">
           <p className="text-xs text-gray-500">Total Amount</p>
           <p className="text-3xl font-bold text-gray-900">
-            {currency}{amount.toFixed(2)}
+            {currency}{" "}{amount.toFixed(2)}
           </p>
         </div>
 

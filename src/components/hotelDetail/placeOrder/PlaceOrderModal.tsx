@@ -453,7 +453,7 @@ const ItemsCard = ({
               {item.name}
             </DescriptionWithTextBreak>
             <p className="text-[13px] mt-1 font-medium" style={{ color: "var(--pom-text-muted)" }}>
-              {currency}{(item.price * item.quantity).toFixed(2)}
+              {currency}{" "}{(item.price * item.quantity).toFixed(2)}
             </p>
           </div>
           {/* Right: Quantity control */}
@@ -585,7 +585,7 @@ const BillCard = ({
       <div className="space-y-2.5">
         <div className="flex justify-between text-sm">
           <span style={{ color: "var(--pom-text-muted)" }}>Item Total</span>
-          <span className="text-inherit">{currency}{(subtotal + freebieTotalPrice).toFixed(2)}</span>
+          <span className="text-inherit">{currency}{" "}{(subtotal + freebieTotalPrice).toFixed(2)}</span>
         </div>
 
         {qrGroup && qrExtraCharges > 0 && (
@@ -594,7 +594,7 @@ const BillCard = ({
               {qrGroup.name || "Service Charge"}
               {qrGroup.charge_type === "PER_ITEM" && <span className="text-xs ml-1">(Per item)</span>}
             </span>
-            <span className="text-inherit">{currency}{qrExtraCharges.toFixed(2)}</span>
+            <span className="text-inherit">{currency}{" "}{qrExtraCharges.toFixed(2)}</span>
           </div>
         )}
 
@@ -603,7 +603,7 @@ const BillCard = ({
             <span style={{ color: "var(--pom-text-muted)" }}>
               Delivery Fee | {deliveryInfo?.distance?.toFixed(1)} kms
             </span>
-            <span className="text-inherit">{currency}{deliveryInfo?.cost?.toFixed(2)}</span>
+            <span className="text-inherit">{currency}{" "}{deliveryInfo?.cost?.toFixed(2)}</span>
           </div>
         )}
 
@@ -619,7 +619,7 @@ const BillCard = ({
               Parcel Charge
               {parcelChargeType === "variable" && <span className="text-xs ml-1">({totalItemCount} items)</span>}
             </span>
-            <span className="text-inherit">{currency}{parcelCharge.toFixed(2)}</span>
+            <span className="text-inherit">{currency}{" "}{parcelCharge.toFixed(2)}</span>
           </div>
         )}
 
@@ -630,7 +630,7 @@ const BillCard = ({
               <span style={{ color: "var(--pom-text-muted)" }}>
                 {hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} &amp; Other Charges ({gstPercentage}%)
               </span>
-              <span className="text-inherit">{currency}{gstAmount.toFixed(2)}</span>
+              <span className="text-inherit">{currency}{" "}{gstAmount.toFixed(2)}</span>
             </div>
           </>
         ) : null}
@@ -640,7 +640,7 @@ const BillCard = ({
             <span className="font-medium">
               {discount?.type === "freebie" ? "Freebie Discount" : "Discount"}
             </span>
-            <span>-{currency}{discountSavings.toFixed(2)}</span>
+            <span>-{currency}{" "}{discountSavings.toFixed(2)}</span>
           </div>
         )}
 
@@ -648,7 +648,7 @@ const BillCard = ({
           <div className="flex justify-between items-center">
             <span className="font-extrabold text-inherit text-[15px]">Grand Total</span>
             <span className="font-extrabold text-inherit text-lg">
-              {currency}{grandTotal.toFixed(2)}
+              {currency}{" "}{grandTotal.toFixed(2)}
             </span>
           </div>
         </div>
@@ -2310,8 +2310,10 @@ const PlaceOrderModal = ({
               {/* Restaurant / Hotel Name + Order Type */}
               <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
                 <h2 className="font-bold text-base">{hotelData?.store_name || hotelData?.name}</h2>
-                {hotelData?.location && (
-                  <p className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>{hotelData.location}</p>
+                {(hotelData?.location_details || hotelData?.district || hotelData?.country) && (
+                  <p className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
+                    {hotelData.location_details || [hotelData.district, hotelData.country].filter(Boolean).join(", ")}
+                  </p>
                 )}
                 {tableNumber === 0 && (
                   <div className="mt-3">
