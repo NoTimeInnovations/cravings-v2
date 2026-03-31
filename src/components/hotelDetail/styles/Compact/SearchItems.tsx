@@ -19,6 +19,8 @@ interface SearchItemsProps {
   hoteldata: HotelData;
   tableNumber: number;
   auth?: any;
+  iconOnly?: boolean;
+  inputStyle?: boolean;
 }
 
 const SearchItems = ({
@@ -27,6 +29,8 @@ const SearchItems = ({
   hoteldata,
   tableNumber,
   auth,
+  iconOnly,
+  inputStyle,
 }: SearchItemsProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -71,15 +75,32 @@ const SearchItems = ({
 
   return (
     <div>
-      {/* Dummy Search Bar using shadcn/ui Button */}
-      <Button
-        variant="outline"
-        className="w-full justify-start text-muted-foreground font-normal h-[40px] rounded-full"
-        onClick={openModal}
-      >
-        <Search className="mr-2 h-4 w-4" />
-        Search for dishes...
-      </Button>
+      {/* Search Trigger */}
+      {iconOnly && inputStyle ? (
+        <div
+          onClick={openModal}
+          className="flex items-center gap-2 border border-gray-200 rounded-full px-4 py-2 cursor-pointer hover:border-gray-300 transition-colors flex-shrink-0 bg-white/60 mt-1"
+        >
+          <Search className="h-4 w-4 opacity-40" />
+          <span className="text-sm opacity-40 font-normal whitespace-nowrap">Search dishes</span>
+        </div>
+      ) : iconOnly ? (
+        <button
+          onClick={openModal}
+          className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-black/5 transition-colors flex-shrink-0"
+        >
+          <Search className="h-5 w-5 opacity-60" />
+        </button>
+      ) : (
+        <Button
+          variant="outline"
+          className="w-full justify-start text-muted-foreground font-normal h-[40px] rounded-full"
+          onClick={openModal}
+        >
+          <Search className="mr-2 h-4 w-4" />
+          Search for dishes...
+        </Button>
+      )}
 
       {/* Full-Screen Search Modal */}
       {isModalOpen && (

@@ -67,6 +67,9 @@ export interface DeliveryRules {
   parcel_charge?: number;
   parcel_charge_type?: "fixed" | "variable"; // fixed = flat amount, variable = per item
   hide_delivery_charge?: boolean;
+  announcement?: string;
+  banner_mode?: "single" | "carousel";
+  carousel_banners?: string[];
 }
 
 export interface Order {

@@ -2,6 +2,7 @@
 
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
+import LocationHeader from "../../LocationHeader";
 import ThemeChangeButton, { ThemeConfig } from "../../ThemeChangeButton";
 import SearchMenu from "../../SearchMenu";
 import { MapPin, LayoutGrid, Phone, Search, Zap, ChevronLeft, ChevronRight, Star, Minus, Plus, Utensils, ShoppingBag, ExternalLink, User } from "lucide-react";
@@ -46,6 +47,45 @@ export interface SidebarHotelPageProps {
   qrId?: string | null;
   isOnFreePlan?: boolean;
 }
+
+const SidebarBannerCarousel = ({ banners, accent }: { banners: string[]; accent: string }) => {
+  const [current, setCurrent] = useState(0);
+  const interval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    interval.current = setInterval(() => setCurrent((p) => (p + 1) % banners.length), 3500);
+    return () => { if (interval.current) clearInterval(interval.current); };
+  }, [banners.length]);
+
+  return (
+    <div className="relative w-full h-full">
+      <div className="flex transition-transform duration-500 ease-in-out h-full" style={{ transform: `translateX(-${current * 100}%)` }}>
+        {banners.slice(0, 5).map((url, idx) => (
+          <div key={idx} className="min-w-full h-full flex-shrink-0">
+            {isVideoUrl(url) ? (
+              <video src={url} poster={getVideoThumbnailUrl(url)} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+            ) : (
+              <img src={url} alt={`Banner ${idx + 1}`} className="w-full h-full object-cover" />
+            )}
+          </div>
+        ))}
+      </div>
+      {banners.length > 1 && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+          {banners.slice(0, 5).map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => { setCurrent(idx); if (interval.current) clearInterval(interval.current); interval.current = setInterval(() => setCurrent((p) => (p + 1) % banners.length), 3500); }}
+              className="rounded-full transition-all duration-300"
+              style={{ width: current === idx ? 16 : 6, height: 6, backgroundColor: current === idx ? accent : "rgba(255,255,255,0.5)" }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Sidebar = ({
   styles,
@@ -294,6 +334,15 @@ const Sidebar = ({
     >
       {!open_place_order_modal ? (
         <>
+          {/* Location Header */}
+          <LocationHeader
+            hoteldata={hoteldata}
+            styles={styles}
+            accent={styles.accent || "#ea580c"}
+            bannerError={false}
+            setBannerError={() => {}}
+          />
+
           <ShopClosedModalWarning
             hotelId={hoteldata?.id}
             isShopOpen={hoteldata?.is_shop_open}
@@ -302,39 +351,48 @@ const Sidebar = ({
           {/* Banner */}
           <section className="relative">
             <div className="w-full h-[28vh] relative overflow-hidden">
-              {hoteldata?.store_banner && hoteldata?.store_banner !== "" ? (
-                isVideoUrl(hoteldata.store_banner) ? (
-                  <video
-                    src={hoteldata.store_banner}
-                    poster={getVideoThumbnailUrl(hoteldata.store_banner)}
-                    preload="metadata"
-                    autoPlay muted loop playsInline
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <img
-                    src={hoteldata.store_banner}
-                    alt={hoteldata?.store_name}
-                    className="w-full h-full object-cover"
-                  />
-                )
-              ) : (
-                <div
-                  className="w-full h-full flex items-center justify-center relative overflow-hidden"
-                  style={{ backgroundColor: styles.accent }}
-                >
-                  <div
-                    className="absolute inset-0 opacity-10"
-                    style={{
-                      backgroundImage: "radial-gradient(#fff 2px, transparent 2px)",
-                      backgroundSize: "20px 20px",
-                    }}
-                  />
-                  <h1 className="font-handwriting text-white drop-shadow-md text-center font-bold break-words w-full text-4xl z-10 p-4">
-                    {hoteldata?.store_name}
-                  </h1>
-                </div>
-              )}
+              {(() => {
+                const bannerMode = hoteldata?.delivery_rules?.banner_mode || "single";
+                const carouselBanners: string[] = hoteldata?.delivery_rules?.carousel_banners || [];
+
+                if (bannerMode === "carousel" && carouselBanners.length > 0) {
+                  return <SidebarBannerCarousel banners={carouselBanners} accent={styles.accent} />;
+                } else if (hoteldata?.store_banner && hoteldata?.store_banner !== "") {
+                  return isVideoUrl(hoteldata.store_banner) ? (
+                    <video
+                      src={hoteldata.store_banner}
+                      poster={getVideoThumbnailUrl(hoteldata.store_banner)}
+                      preload="metadata"
+                      autoPlay muted loop playsInline
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <img
+                      src={hoteldata.store_banner}
+                      alt={hoteldata?.store_name}
+                      className="w-full h-full object-cover"
+                    />
+                  );
+                } else {
+                  return (
+                    <div
+                      className="w-full h-full flex items-center justify-center relative overflow-hidden"
+                      style={{ backgroundColor: styles.accent }}
+                    >
+                      <div
+                        className="absolute inset-0 opacity-10"
+                        style={{
+                          backgroundImage: "radial-gradient(#fff 2px, transparent 2px)",
+                          backgroundSize: "20px 20px",
+                        }}
+                      />
+                      <h1 className="font-handwriting text-white drop-shadow-md text-center font-bold break-words w-full text-4xl z-10 p-4">
+                        {hoteldata?.store_name}
+                      </h1>
+                    </div>
+                  );
+                }
+              })()}
               {/* Gradient overlay at bottom of banner */}
               <div
                 className="absolute bottom-0 left-0 right-0 h-28"

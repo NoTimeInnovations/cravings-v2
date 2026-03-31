@@ -610,22 +610,18 @@ const OrderDrawer = ({
       <div
         onClick={handlePlaceOrder}
         style={{
-          boxShadow:
-            "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+          boxShadow: "0 -2px 16px rgba(0, 0, 0, 0.12)",
           backgroundColor: styles.accent || "#ea580c",
           color: "#ffffff",
         }}
-        className={`fixed left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-md px-6 py-4 rounded-xl flex items-center justify-between transition-all duration-300 cursor-pointer ${
+        className={`fixed left-1/2 -translate-x-1/2 z-[200] w-[92%] max-w-md px-5 py-3.5 rounded-2xl flex items-center justify-between transition-all duration-300 cursor-pointer ${
           open_drawer_bottom ? "translate-y-0" : "translate-y-[200%]"
         } ${hasBottomNav ? "bottom-20" : "bottom-6"}`}
       >
-        <div className="font-semibold text-lg">
-          {items?.length || 0} item{(items?.length || 0) !== 1 ? "s" : ""} added
-        </div>
-
-        <div className="font-bold text-lg flex items-center gap-2">
-          View Order
-        </div>
+        <span className="font-semibold text-sm whitespace-nowrap">
+          {items?.reduce((acc, item) => acc + item.quantity, 0) || 0} items | {hotelData?.currency || "₹"}{(items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0).toFixed(2)}
+        </span>
+        <span className="font-bold text-sm whitespace-nowrap">View Cart</span>
       </div>
 
       {/* Full-Screen Login Modal - Mobile First */}

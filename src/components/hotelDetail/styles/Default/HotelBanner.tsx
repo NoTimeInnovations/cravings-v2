@@ -1,7 +1,7 @@
 "use client";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 
 import {
@@ -13,7 +13,55 @@ import {
 } from "@/components/ui/dialog";
 import { X } from "lucide-react";
 
+const DefaultBannerCarousel = ({ banners, accent }: { banners: string[]; accent: string }) => {
+  const [current, setCurrent] = useState(0);
+  const interval = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    interval.current = setInterval(() => setCurrent((p) => (p + 1) % banners.length), 3500);
+    return () => { if (interval.current) clearInterval(interval.current); };
+  }, [banners.length]);
+
+  return (
+    <div className="relative w-full overflow-hidden rounded-2xl" style={{ height: "180px" }}>
+      <div className="flex transition-transform duration-500 ease-in-out h-full" style={{ transform: `translateX(-${current * 100}%)` }}>
+        {banners.slice(0, 5).map((url, idx) => (
+          <div key={idx} className="min-w-full h-full flex-shrink-0">
+            {isVideoUrl(url) ? (
+              <video src={url} poster={getVideoThumbnailUrl(url)} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+            ) : (
+              <img src={url} alt={`Banner ${idx + 1}`} className="w-full h-full object-cover" />
+            )}
+          </div>
+        ))}
+      </div>
+      {banners.length > 1 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+          {banners.slice(0, 5).map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => { setCurrent(idx); if (interval.current) clearInterval(interval.current); interval.current = setInterval(() => setCurrent((p) => (p + 1) % banners.length), 3500); }}
+              className="rounded-full transition-all duration-300"
+              style={{ width: current === idx ? 16 : 6, height: 6, backgroundColor: current === idx ? accent : "rgba(255,255,255,0.5)" }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const HotelBanner = ({ styles, hoteldata }: { styles: Styles; hoteldata: HotelData }) => {
+  const bannerMode = (hoteldata as any)?.delivery_rules?.banner_mode || "single";
+  const carouselBanners: string[] = (hoteldata as any)?.delivery_rules?.carousel_banners || [];
+
+  // Carousel mode - show full-width carousel
+  if (bannerMode === "carousel" && carouselBanners.length > 0) {
+    return <DefaultBannerCarousel banners={carouselBanners} accent={styles.accent || "#ea580c"} />;
+  }
+
+  // Single banner mode - original circular avatar
   const bannerSrc = hoteldata?.store_banner || "/image_placeholder.png";
   const isVideo = isVideoUrl(bannerSrc);
   const posterSrc = isVideo ? getVideoThumbnailUrl(bannerSrc) : undefined;
