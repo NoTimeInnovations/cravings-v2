@@ -1345,7 +1345,8 @@ const useOrderStore = create(
           const features = getFeatures(hotelData.feature_flags || null);
           if (features.whatsappnotifications.access && features.whatsappnotifications.enabled) {
             try {
-              await Notification.user.sendWhatsAppOrderPlaced(newOrder, hotelData.store_name);
+              const partnerPhone = `${hotelData.country_code || "+91"}${hotelData.phone}`;
+              await Notification.user.sendWhatsAppOrderPlaced(newOrder, hotelData.store_name, partnerPhone);
             } catch (e) {
               console.error("WhatsApp order placed notification failed:", e);
             }
