@@ -187,17 +187,33 @@ const BannerCarousel = ({
   const handleTouchEnd = () => {
     if (!isSwiping.current) return;
     isSwiping.current = false;
-    const threshold = 50;
-    setIsTransitioning(true);
-    if (trackRef.current) {
-      trackRef.current.style.transition = "";
-      trackRef.current.style.transform = "";
-    }
+    const slideWidth = trackRef.current?.parentElement?.offsetWidth || 300;
+    const threshold = slideWidth * 0.3;
+
+    // Determine target index
+    let newIndex = index;
     if (touchDeltaX.current < -threshold) {
-      setIndex((prev) => prev + 1);
+      newIndex = index + 1;
     } else if (touchDeltaX.current > threshold) {
-      setIndex((prev) => prev - 1);
+      newIndex = index - 1;
     }
+
+    // Apply smooth transition to target position
+    if (trackRef.current) {
+      trackRef.current.style.transition = "transform 400ms cubic-bezier(0.25, 0.1, 0.25, 1)";
+      trackRef.current.style.transform = `translateX(-${newIndex * slideWidth}px)`;
+    }
+
+    // After transition completes, sync React state
+    setTimeout(() => {
+      if (trackRef.current) {
+        trackRef.current.style.transition = "";
+        trackRef.current.style.transform = "";
+      }
+      setIsTransitioning(true);
+      setIndex(newIndex);
+    }, 420);
+
     resetAutoPlay();
   };
 
@@ -246,7 +262,7 @@ const BannerCarousel = ({
           className="flex h-full"
           style={{
             transform: `translateX(-${index * 100}%)`,
-            transition: isTransitioning ? "transform 500ms ease-in-out" : "none",
+            transition: isTransitioning ? "transform 600ms cubic-bezier(0.25, 0.1, 0.25, 1)" : "none",
           }}
         >
           {extendedSlides.map((slide, idx) => renderSlide(slide, idx))}
@@ -820,7 +836,7 @@ const Compact = ({
           backgroundColor: localStyles?.backgroundColor || "#fff",
           letterSpacing: "-0.01em",
         }}
-        className="max-w-3xl mx-auto relative pb-40"
+        className="max-w-4xl mx-auto relative pb-40"
       >
         {/* Floating buttons - Only visible in Food tab */}
         {activeTab === "food" && (
@@ -1072,7 +1088,7 @@ const Compact = ({
                           </span>
                         </h2>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 divide-y" style={{ borderColor: localStyles?.border?.borderColor || "#e5e7eb" }}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:gap-x-4 md:gap-y-1" style={{ borderColor: localStyles?.border?.borderColor || "#e5e7eb" }}>
                         {itemsToDisplay.map((item) => {
                           // Find all offers for this item
                           const itemOffers =

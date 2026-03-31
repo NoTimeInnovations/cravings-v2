@@ -251,7 +251,8 @@ const OrderDrawer = ({
   }, [setOpenPlaceOrderModal]);
 
   useEffect(() => {
-    setOpenDrawerBottom((items?.length || 0) > 0 ? true : false);
+    const totalQty = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+    setOpenDrawerBottom(totalQty > 0);
   }, [items, setOpenDrawerBottom]);
 
   const calculateGrandTotal = () => {
@@ -607,22 +608,29 @@ const OrderDrawer = ({
       />
 
       {/* Bottom Drawer */}
-      <div
-        onClick={handlePlaceOrder}
-        style={{
-          boxShadow: "0 -2px 16px rgba(0, 0, 0, 0.12)",
-          backgroundColor: styles.accent || "#ea580c",
-          color: "#ffffff",
-        }}
-        className={`fixed left-1/2 -translate-x-1/2 z-[200] w-[92%] max-w-md px-5 py-3.5 rounded-2xl flex items-center justify-between transition-all duration-300 cursor-pointer ${
-          open_drawer_bottom ? "translate-y-0" : "translate-y-[200%]"
-        } ${hasBottomNav ? "bottom-20" : "bottom-6"}`}
-      >
-        <span className="font-semibold text-sm whitespace-nowrap">
-          {items?.reduce((acc, item) => acc + item.quantity, 0) || 0} items | {hotelData?.currency || "₹"}{(items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0).toFixed(2)}
-        </span>
-        <span className="font-bold text-sm whitespace-nowrap">View Cart</span>
-      </div>
+      {(() => {
+        const totalQty = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+        const totalPrice = items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
+        if (totalQty === 0) return null;
+        return (
+          <div
+            onClick={handlePlaceOrder}
+            style={{
+              boxShadow: "0 -2px 16px rgba(0, 0, 0, 0.12)",
+              backgroundColor: styles.accent || "#ea580c",
+              color: "#ffffff",
+            }}
+            className={`fixed left-1/2 -translate-x-1/2 z-[200] w-[92%] max-w-md px-5 py-3.5 rounded-2xl flex items-center justify-between transition-all duration-300 cursor-pointer ${
+              open_drawer_bottom ? "translate-y-0" : "translate-y-[200%]"
+            } ${hasBottomNav ? "bottom-20" : "bottom-6"}`}
+          >
+            <span className="font-semibold text-sm whitespace-nowrap">
+              {totalQty} {totalQty === 1 ? "item" : "items"} | {hotelData?.currency || "₹"}{totalPrice.toFixed(2)}
+            </span>
+            <span className="font-bold text-sm whitespace-nowrap">View Cart</span>
+          </div>
+        );
+      })()}
 
       {/* Full-Screen Login Modal - Mobile First */}
       {showLoginModal && (

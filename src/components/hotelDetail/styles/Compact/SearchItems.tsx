@@ -128,22 +128,36 @@ const SearchItems = ({
 
           {/* Menu Items List using shadcn/ui ScrollArea */}
           <ScrollArea className="flex-grow">
-            <div className="pt-2 pb-4 px-2">
+            <div className="pt-2 pb-4 px-4 divide-y" style={{ borderColor: `${styles?.color}10` }}>
               {filteredMenu.length > 0 ? (
                 filteredMenu.map((item) => (
-                  <ItemCard
-                    key={item.id}
-                    item={item}
-                    styles={styles}
-                    hoteldata={hoteldata}
-                    feature_flags={hoteldata.feature_flags}
-                    tableNumber={tableNumber}
-                    auth={auth}
-                  />
+                  <div key={item.id} className="py-3 flex gap-3 items-start">
+                    <div className="flex-1 min-w-0">
+                      {item.is_veg !== null && item.is_veg !== undefined && (
+                        <div className="mb-1">
+                          <span className={`inline-block w-3.5 h-3.5 border rounded-sm text-[8px] flex items-center justify-center ${item.is_veg ? "border-green-600 text-green-600" : "border-red-600 text-red-600"}`}>
+                            ●
+                          </span>
+                        </div>
+                      )}
+                      <p className="font-semibold text-sm" style={{ color: styles?.color }}>{item.name}</p>
+                      {item.description && (
+                        <p className="text-xs mt-0.5 line-clamp-2 opacity-50" style={{ color: styles?.color }}>{item.description}</p>
+                      )}
+                      <p className="text-sm font-bold mt-1" style={{ color: styles?.accent }}>
+                        {hoteldata?.currency || "₹"} {item.variants?.sort((a: any, b: any) => (a?.price ?? 0) - (b?.price ?? 0))[0]?.price || item.price}
+                      </p>
+                    </div>
+                    {item.image_url && (
+                      <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
+                        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </div>
                 ))
               ) : (
-                <div className="text-center p-10 text-muted-foreground">
-                  <p>No dishes found for "{searchQuery}"</p>
+                <div className="text-center p-10" style={{ color: styles?.color, opacity: 0.4 }}>
+                  <p>No dishes found for &ldquo;{searchQuery}&rdquo;</p>
                 </div>
               )}
             </div>

@@ -165,25 +165,11 @@ const UnifiedAddressSection = ({
     setAddress(fullAddress);
 
     if (addr?.latitude && addr?.longitude) {
-      const locationData = {
-        state: {
-          coords: {
-            lat: addr.latitude,
-            lng: addr.longitude,
-          },
-        },
-      };
-      localStorage?.setItem(
-        "user-location-store",
-        JSON.stringify(locationData),
-      );
-    }
-
-    if (addr?.latitude && addr?.longitude) {
-      useOrderStore.getState().setUserCoordinates({
-        lat: addr.latitude,
-        lng: addr.longitude,
-      });
+      const newCoords = { lat: addr.latitude, lng: addr.longitude };
+      useOrderStore.getState().setUserCoordinates(newCoords);
+      // Also update geolocation store so LocationHeader syncs
+      const { setCoords } = useLocationStore.getState();
+      setCoords(newCoords);
     } else {
       useOrderStore.getState().setUserCoordinates(null);
     }
