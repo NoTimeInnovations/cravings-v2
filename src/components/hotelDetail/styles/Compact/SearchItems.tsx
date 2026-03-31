@@ -4,13 +4,117 @@ import {
 } from "@/app/hotels/[...id]/page";
 import { Search, X } from "lucide-react";
 import React, { useMemo, useState, useEffect, useRef } from "react";
-import ItemCard from "./ItemCard"; // Assuming ItemCard is in the same directory
+import ItemCard from "./ItemCard";
 import { DefaultHotelPageProps } from "../Default/Default";
+import useOrderStore from "@/store/orderStore";
+import { getFeatures } from "@/lib/getFeatures";
 
 // Import shadcn/ui components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+// Search result item with add button
+const SearchResultItem = ({
+  item,
+  styles,
+  hoteldata,
+  tableNumber,
+}: {
+  item: HotelDataMenus;
+  styles: DefaultHotelPageProps["styles"];
+  hoteldata: HotelData;
+  tableNumber: number;
+}) => {
+  const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
+
+  const hasOrderingFeature = getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled && tableNumber !== 0;
+  const hasDeliveryFeature = getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled && tableNumber === 0 && (hoteldata?.delivery_rules?.isDeliveryActive ?? true);
+  const showAddButton = hasOrderingFeature || hasDeliveryFeature;
+
+  const hasVariants = item.variants && item.variants.length > 0;
+  const itemInCart = items?.find((i) => i.id === item.id);
+  const variantItems = hasVariants ? items?.filter((i) => i.id.startsWith(`${item.id}|`)) || [] : [];
+  const quantity = (itemInCart?.quantity || 0) + variantItems.reduce((sum, i) => sum + i.quantity, 0);
+
+  const handleAdd = () => {
+    if (!item.category?.id) return;
+    addItem({
+      id: item.id,
+      description: item.description,
+      image_url: item.image_url,
+      is_available: item.is_available,
+      is_top: item.is_top,
+      priority: item.priority,
+      category_id: item.category.id,
+      category: item.category,
+      price: item.variants?.sort((a, b) => (a?.price ?? 0) - (b?.price ?? 0))[0]?.price || item.price,
+      name: item.name,
+      quantity: 1,
+      variantSelections: [],
+      offers: [],
+    } as any);
+  };
+
+  const handleDecrease = () => {
+    if (!item.id) return;
+    if (quantity > 1) decreaseQuantity(item.id);
+    else removeItem(item.id);
+  };
+
+  const price = item.variants?.sort((a: any, b: any) => (a?.price ?? 0) - (b?.price ?? 0))[0]?.price || item.price;
+
+  return (
+    <div className="py-3 flex gap-3 items-start">
+      <div className="flex-1 min-w-0">
+        {item.is_veg !== null && item.is_veg !== undefined && (
+          <div className="mb-1">
+            <span className={`inline-block w-3.5 h-3.5 border rounded-sm text-[8px] flex items-center justify-center ${item.is_veg ? "border-green-600 text-green-600" : "border-red-600 text-red-600"}`}>
+              ●
+            </span>
+          </div>
+        )}
+        <p className="font-semibold text-sm" style={{ color: styles?.color }}>{item.name}</p>
+        {item.description && (
+          <p className="text-xs mt-0.5 line-clamp-2 opacity-50" style={{ color: styles?.color }}>{item.description}</p>
+        )}
+        <p className="text-sm font-bold mt-1" style={{ color: styles?.accent }}>
+          {hasVariants && <span className="text-xs font-normal">From </span>}
+          {hoteldata?.currency || "₹"} {price}
+        </p>
+      </div>
+      <div className="flex flex-col items-center flex-shrink-0">
+        {item.image_url && (
+          <div className="w-20 h-20 rounded-lg overflow-hidden">
+            <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+          </div>
+        )}
+        {showAddButton && item.is_available && (
+          <div className={`${item.image_url ? "-mt-3" : "mt-1"}`}>
+            {quantity > 0 && !hasVariants ? (
+              <div
+                className="bg-white border rounded-lg px-3 py-1 font-semibold flex items-center gap-3 text-xs shadow-sm"
+                style={{ color: styles?.accent, borderColor: `${styles?.accent}30` }}
+              >
+                <button onClick={(e) => { e.stopPropagation(); handleDecrease(); }} className="text-sm font-bold">−</button>
+                <span>{quantity}</span>
+                <button onClick={(e) => { e.stopPropagation(); handleAdd(); }} className="text-sm font-bold">+</button>
+              </div>
+            ) : (
+              <div
+                onClick={handleAdd}
+                className="bg-white border rounded-lg px-4 py-1 font-semibold text-xs cursor-pointer shadow-sm"
+                style={{ color: styles?.accent, borderColor: `${styles?.accent}40` }}
+              >
+                {quantity > 0 ? `Added (${quantity})` : "Add"}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 // The props for SearchItems remain the same
 interface SearchItemsProps {
@@ -131,29 +235,13 @@ const SearchItems = ({
             <div className="pt-2 pb-4 px-4 divide-y" style={{ borderColor: `${styles?.color}10` }}>
               {filteredMenu.length > 0 ? (
                 filteredMenu.map((item) => (
-                  <div key={item.id} className="py-3 flex gap-3 items-start">
-                    <div className="flex-1 min-w-0">
-                      {item.is_veg !== null && item.is_veg !== undefined && (
-                        <div className="mb-1">
-                          <span className={`inline-block w-3.5 h-3.5 border rounded-sm text-[8px] flex items-center justify-center ${item.is_veg ? "border-green-600 text-green-600" : "border-red-600 text-red-600"}`}>
-                            ●
-                          </span>
-                        </div>
-                      )}
-                      <p className="font-semibold text-sm" style={{ color: styles?.color }}>{item.name}</p>
-                      {item.description && (
-                        <p className="text-xs mt-0.5 line-clamp-2 opacity-50" style={{ color: styles?.color }}>{item.description}</p>
-                      )}
-                      <p className="text-sm font-bold mt-1" style={{ color: styles?.accent }}>
-                        {hoteldata?.currency || "₹"} {item.variants?.sort((a: any, b: any) => (a?.price ?? 0) - (b?.price ?? 0))[0]?.price || item.price}
-                      </p>
-                    </div>
-                    {item.image_url && (
-                      <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
-                        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                      </div>
-                    )}
-                  </div>
+                  <SearchResultItem
+                    key={item.id}
+                    item={item}
+                    styles={styles}
+                    hoteldata={hoteldata}
+                    tableNumber={tableNumber}
+                  />
                 ))
               ) : (
                 <div className="text-center p-10" style={{ color: styles?.color, opacity: 0.4 }}>

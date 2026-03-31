@@ -619,7 +619,14 @@ const Compact = ({
   isOnFreePlan,
 }: DefaultHotelPageProps) => {
   const [activeCatIndex, setActiveCatIndex] = useState<number>(0);
-  const [activeTab, setActiveTab] = useState<"food" | "orders" | "offers">("food");
+  const [activeTab, setActiveTab] = useState<"food" | "orders" | "offers">(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab === "orders" || tab === "offers") return tab;
+    }
+    return "food";
+  });
 
   // Custom Theme State
   const [showThemeCustomizer, setShowThemeCustomizer] = useState(false);
@@ -641,6 +648,20 @@ const Compact = ({
   const hasOffers = offers && offers.length > 0;
   const [vegFilter, setVegFilter] = useState<"all" | "veg" | "non-veg">("all");
   const [bannerError, setBannerError] = useState(false);
+
+  // Save theme to localStorage for profile page
+  useEffect(() => {
+    try {
+      const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+      localStorage.setItem("hotelTheme", JSON.stringify({
+        accent: localStyles?.accent || "#ea580c",
+        bg: localStyles?.backgroundColor || "#fff",
+        text: localStyles?.color || "#000",
+        storeName: hoteldata?.store_name || "",
+        storePath: pathname,
+      }));
+    } catch {}
+  }, [localStyles, hoteldata?.store_name]);
 
   // Sync props to local state if not editing
   useEffect(() => {
@@ -1430,7 +1451,7 @@ const Compact = ({
               }}
             >
               <Home size={20} />
-              <span className="text-[10px] font-medium">Home</span>
+              <span className="text-[10px] font-medium">Food</span>
             </button>
             <button
               onClick={() => setActiveTab("offers")}

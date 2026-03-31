@@ -333,10 +333,9 @@ const ItemCard = ({
             {item.is_veg !== null && item.is_veg !== undefined && (
               <div className="flex-shrink-0">
                 {item.is_veg === false ? (
-                  <svg width="14" height="14" viewBox="0 0 14 14" className="flex-shrink-0">
-                    <path d="M7 1L13 13H1L7 1Z" fill="none" stroke="#B91C1C" strokeWidth="1.5" />
-                    <circle cx="7" cy="9" r="2.5" fill="#B91C1C" />
-                  </svg>
+                  <div className="w-3.5 h-3.5 border-[1.5px] border-red-700 flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-red-700"></div>
+                  </div>
                 ) : (
                   <div className="w-3.5 h-3.5 border-[1.5px] border-green-600 flex items-center justify-center">
                     <div className="w-2 h-2 rounded-full bg-green-600"></div>
@@ -584,10 +583,9 @@ const ItemCard = ({
                   {item.is_veg !== null && item.is_veg !== undefined && (
                     <div className="flex-shrink-0">
                       {item.is_veg === false ? (
-                        <svg width="14" height="14" viewBox="0 0 14 14">
-                          <path d="M7 1L13 13H1L7 1Z" fill="none" stroke="#B91C1C" strokeWidth="1.5" />
-                          <circle cx="7" cy="9" r="2.5" fill="#B91C1C" />
-                        </svg>
+                        <div className="w-3.5 h-3.5 border-[1.5px] border-red-700 flex items-center justify-center">
+                          <div className="w-2 h-2 rounded-full bg-red-700" />
+                        </div>
                       ) : (
                         <div className="w-3.5 h-3.5 border-[1.5px] border-green-600 flex items-center justify-center">
                           <div className="w-2 h-2 rounded-full bg-green-600" />
@@ -674,10 +672,9 @@ const ItemCard = ({
                           {item.is_veg !== null && item.is_veg !== undefined && (
                             <div className="flex-shrink-0">
                               {item.is_veg === false ? (
-                                <svg width="12" height="12" viewBox="0 0 14 14">
-                                  <path d="M7 1L13 13H1L7 1Z" fill="none" stroke="#B91C1C" strokeWidth="1.5" />
-                                  <circle cx="7" cy="9" r="2.5" fill="#B91C1C" />
-                                </svg>
+                                <div className="w-3 h-3 border-[1.5px] border-red-700 flex items-center justify-center">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-red-700" />
+                                </div>
                               ) : (
                                 <div className="w-3 h-3 border-[1.5px] border-green-600 flex items-center justify-center">
                                   <div className="w-1.5 h-1.5 rounded-full bg-green-600" />

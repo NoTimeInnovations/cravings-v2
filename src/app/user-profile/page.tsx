@@ -23,6 +23,8 @@ import {
   X,
   UtensilsCrossed,
   ArrowLeft,
+  Home,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,23 +90,38 @@ export default function UserProfilePage() {
     }
   }, [userData?.id, subscribeUserOrders]);
 
-  // Group orders by store
+  const [showAllStores, setShowAllStores] = useState(false);
+
+  // Group orders by store, sorted by most recent order
   const ordersByStore = useMemo(() => {
     const grouped: Record<
       string,
-      { storeName: string; currency: string; orders: typeof userOrders }
+      { storeName: string; currency: string; orders: typeof userOrders; latestOrder: string }
     > = {};
     for (const order of userOrders) {
       const partnerId = (order as any).partnerId || (order as any).partner_id;
       const storeName = (order.partner as any)?.store_name || "Unknown Store";
       const currency = (order.partner as Partner)?.currency || "₹";
       if (!grouped[partnerId]) {
-        grouped[partnerId] = { storeName, currency, orders: [] };
+        grouped[partnerId] = { storeName, currency, orders: [], latestOrder: order.createdAt };
       }
       grouped[partnerId].orders.push(order);
+      if (order.createdAt > grouped[partnerId].latestOrder) {
+        grouped[partnerId].latestOrder = order.createdAt;
+      }
     }
     return grouped;
   }, [userOrders]);
+
+  // Sort stores by most recent order, show only latest store unless "show all"
+  const sortedStoreEntries = useMemo(() => {
+    const entries = Object.entries(ordersByStore).sort(
+      ([, a], [, b]) => new Date(b.latestOrder).getTime() - new Date(a.latestOrder).getTime()
+    );
+    return showAllStores ? entries : entries.slice(0, 1);
+  }, [ordersByStore, showAllStores]);
+
+  const totalStoreCount = Object.keys(ordersByStore).length;
 
   const handleSaveName = async () => {
     if (!user || !nameValue.trim()) return;
@@ -163,36 +180,32 @@ export default function UserProfilePage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: bg }}>
+    <div className="min-h-screen" style={{ backgroundColor: bg, fontFamily: "'Open Sans', sans-serif" }}>
       {/* Header */}
       <div
-        className="border-b sticky top-0 z-50 px-4 py-3 flex items-center gap-3 shadow-sm"
-        style={{ backgroundColor: bg, borderColor: `${text}15` }}
+        className="sticky top-0 z-50 px-4 py-3 flex items-center gap-3"
+        style={{ backgroundColor: accent }}
       >
         <button
           onClick={() => router.back()}
-          className="p-2 rounded-full transition-colors hover:bg-black/5"
-          style={{ color: text }}
+          className="p-2 rounded-full transition-colors hover:bg-white/10"
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft size={20} className="text-white" />
         </button>
-        {theme.storePath ? (
-          <Link
-            href={theme.storePath}
-            className="flex items-center gap-2 p-2 rounded-full transition-colors"
-            style={{ color: accent }}
-          >
-            <UtensilsCrossed size={20} />
-          </Link>
-        ) : (
-          <UtensilsCrossed size={20} style={{ color: accent }} />
-        )}
-        <h1 className="font-semibold text-lg" style={{ color: text }}>
+        <h1 className="font-semibold text-base text-white flex-1">
           My Profile
         </h1>
+        {theme.storePath && (
+          <Link
+            href={theme.storePath}
+            className="p-2 rounded-full transition-colors hover:bg-white/10"
+          >
+            <UtensilsCrossed size={18} className="text-white" />
+          </Link>
+        )}
       </div>
 
-      <div className="container mx-auto px-4 pb-8 pt-4 max-w-lg">
+      <div className="container mx-auto px-4 pb-24 pt-4 max-w-lg">
         {/* Profile Card */}
         <div
           className="rounded-xl p-5 mb-6 shadow-sm"
@@ -359,14 +372,14 @@ export default function UserProfilePage() {
         </div>
 
         {/* Logout */}
-        <Button
-          variant="destructive"
-          className="w-full mb-6"
+        <button
+          className="w-full mb-6 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+          style={{ backgroundColor: `${text}08`, color: "#ef4444", border: `1px solid ${text}12` }}
           onClick={handleLogout}
         >
-          <LogOut className="h-4 w-4 mr-2" />
+          <LogOut className="h-4 w-4" />
           Log Out
-        </Button>
+        </button>
 
         {/* Orders by Store */}
         <div>
@@ -385,7 +398,7 @@ export default function UserProfilePage() {
                 style={{ color: accent }}
               />
             </div>
-          ) : Object.keys(ordersByStore).length === 0 ? (
+          ) : totalStoreCount === 0 ? (
             <div
               className="text-center py-12 rounded-xl"
               style={{
@@ -398,7 +411,7 @@ export default function UserProfilePage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {Object.entries(ordersByStore).map(
+              {sortedStoreEntries.map(
                 ([partnerId, { storeName, currency, orders }]) => (
                   <div
                     key={partnerId}
@@ -501,10 +514,65 @@ export default function UserProfilePage() {
                   </div>
                 ),
               )}
+
+              {/* Load more stores button */}
+              {!showAllStores && totalStoreCount > 1 && (
+                <button
+                  onClick={() => setShowAllStores(true)}
+                  className="w-full py-3 rounded-xl text-sm font-semibold transition-colors"
+                  style={{
+                    color: accent,
+                    backgroundColor: `${accent}10`,
+                    border: `1px solid ${accent}20`,
+                  }}
+                >
+                  Show orders from {totalStoreCount - 1} other restaurant{totalStoreCount - 1 > 1 ? "s" : ""}
+                </button>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Bottom Navigation */}
+      {theme.storePath && (
+        <div
+          className="md:hidden fixed bottom-0 left-0 right-0 border-t z-[999] px-2 py-1.5 flex justify-around items-center max-w-xl mx-auto"
+          style={{ backgroundColor: bg, borderColor: `${text}15` }}
+        >
+          <Link
+            href={`${theme.storePath}?tab=food`}
+            className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors opacity-40"
+            style={{ color: text }}
+          >
+            <Home size={20} />
+            <span className="text-[10px] font-medium">Food</span>
+          </Link>
+          <Link
+            href={`${theme.storePath}?tab=offers`}
+            className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors opacity-40"
+            style={{ color: text }}
+          >
+            <Tag size={20} />
+            <span className="text-[10px] font-medium">Offers</span>
+          </Link>
+          <Link
+            href={`${theme.storePath}?tab=orders`}
+            className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors opacity-40"
+            style={{ color: text }}
+          >
+            <ShoppingBag size={20} />
+            <span className="text-[10px] font-medium">Orders</span>
+          </Link>
+          <div
+            className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg"
+            style={{ color: accent }}
+          >
+            <UserIcon size={20} />
+            <span className="text-[10px] font-medium">Profile</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
