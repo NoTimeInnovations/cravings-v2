@@ -643,31 +643,9 @@ const ItemCard = ({
                     return (
                       <div
                         key={variant.name}
-                        className="py-3 flex items-center justify-between gap-4"
+                        className="py-3 flex items-center justify-between gap-3"
                       >
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          {/* Checkbox indicator */}
-                          <button
-                            onClick={() => {
-                              if (showVariantAddButton) {
-                                if (qty > 0) {
-                                  handleVariantRemove(variant);
-                                } else {
-                                  handleVariantAdd(variant);
-                                }
-                              }
-                            }}
-                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                              qty > 0 ? "border-orange-500 bg-orange-500" : "border-gray-300"
-                            }`}
-                          >
-                            {qty > 0 && (
-                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                                <path d="M2.5 6L5 8.5L9.5 3.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            )}
-                          </button>
-
+                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
                           {/* Veg/Non-veg indicator */}
                           {item.is_veg !== null && item.is_veg !== undefined && (
                             <div className="flex-shrink-0">
@@ -683,28 +661,65 @@ const ItemCard = ({
                             </div>
                           )}
 
-                          <span className="font-medium text-sm">{variant.name}</span>
-                        </div>
-
-                        {/* Price */}
-                        {shouldShowPrice && !item.is_price_as_per_size && (
-                          <div className="text-sm font-semibold text-right flex-shrink-0">
-                            {hasValidVariantOffer ? (
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-red-500">
-                                  {hoteldata?.currency || "₹"}{formatPrice(variantOffer.offer_price!, hoteldata?.id)}
-                                </span>
-                                {hasValidOriginalPrice && originalVariantPrice > variantOffer.offer_price! && (
-                                  <span className="line-through text-gray-400 text-xs font-normal">
+                          <div className="flex-1 min-w-0">
+                            <span className="font-medium text-sm">{variant.name}</span>
+                            {/* Price below name */}
+                            {shouldShowPrice && !item.is_price_as_per_size && (
+                              <div className="text-xs mt-0.5">
+                                {hasValidVariantOffer ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-semibold text-red-500">
+                                      {hoteldata?.currency || "₹"}{formatPrice(variantOffer.offer_price!, hoteldata?.id)}
+                                    </span>
+                                    {hasValidOriginalPrice && originalVariantPrice > variantOffer.offer_price! && (
+                                      <span className="line-through text-gray-400 font-normal">
+                                        {hoteldata?.currency || "₹"}{formatPrice(originalVariantPrice, hoteldata?.id)}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : hasValidOriginalPrice && originalVariantPrice > 0 ? (
+                                  <span className="font-semibold text-gray-700">
                                     {hoteldata?.currency || "₹"}{formatPrice(originalVariantPrice, hoteldata?.id)}
                                   </span>
-                                )}
+                                ) : null}
                               </div>
-                            ) : hasValidOriginalPrice && originalVariantPrice > 0 ? (
-                              <span>
-                                {hoteldata?.currency || "₹"}{formatPrice(originalVariantPrice, hoteldata?.id)}
-                              </span>
-                            ) : null}
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Add / Quantity stepper */}
+                        {showVariantAddButton && (
+                          <div className="flex-shrink-0">
+                            {qty > 0 ? (
+                              <div
+                                className="flex items-center gap-3 border rounded-lg px-2.5 py-1"
+                                style={{ borderColor: `${styles.accent}30` }}
+                              >
+                                <button
+                                  onClick={() => handleVariantRemove(variant)}
+                                  className="text-sm font-bold leading-none"
+                                  style={{ color: styles.accent }}
+                                >
+                                  −
+                                </button>
+                                <span className="text-sm font-semibold w-4 text-center" style={{ color: styles.accent }}>{qty}</span>
+                                <button
+                                  onClick={() => handleVariantAdd(variant)}
+                                  className="text-sm font-bold leading-none"
+                                  style={{ color: styles.accent }}
+                                >
+                                  +
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleVariantAdd(variant)}
+                                className="border rounded-lg px-4 py-1 text-xs font-semibold"
+                                style={{ color: styles.accent, borderColor: `${styles.accent}40` }}
+                              >
+                                Add
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
