@@ -874,8 +874,11 @@ const Compact = ({
 
         {activeTab === "food" ? (
           <>
-            {/* ===== LOCATION HEADER (hide for QR scan / dine-in) ===== */}
+            {/* ===== LOCATION HEADER (hide for QR scan / dine-in and when no ordering/delivery) ===== */}
             {tableNumber === 0 && (
+              getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled ||
+              getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled
+            ) && (
               <LocationHeader
                 hoteldata={hoteldata}
                 styles={localStyles}

@@ -502,7 +502,7 @@ const ItemCard = ({
                         className="bg-white border rounded-lg px-5 py-1 font-semibold text-sm cursor-pointer shadow-sm whitespace-nowrap"
                         style={{ color: styles.accent, borderColor: `${styles.accent}40` }}
                       >
-                        {hasOrderingFeature ? "Options" : "Add"}
+                        {(hasOrderingFeature || (!hasOrderingFeature && !hasDeliveryFeature)) ? "Options" : "Add"}
                       </div>
                     )
                   ) : null
@@ -543,7 +543,7 @@ const ItemCard = ({
                     className="bg-white border rounded-lg px-5 py-1 font-semibold text-sm cursor-pointer shadow-sm"
                     style={{ color: styles.accent, borderColor: `${styles.accent}40` }}
                   >
-                    {hasOrderingFeature ? "Options" : "Add"}
+                    {(hasOrderingFeature || (!hasOrderingFeature && !hasDeliveryFeature)) ? "Options" : "Add"}
                   </div>
                 ) : null}
               </div>
@@ -611,15 +611,20 @@ const ItemCard = ({
 
             <div className="border-t border-gray-100 mx-4" />
 
-            {/* Quantity / Variant Selection */}
+            {/* Variant Selection */}
             <div className="p-4">
-              <div className="flex items-center justify-between mb-1">
-                <h4 className="font-bold text-base">Quantity</h4>
-                <span className="text-xs px-2 py-0.5 rounded bg-orange-50 text-orange-600 font-medium border border-orange-200">
-                  Required
-                </span>
-              </div>
-              <p className="text-sm text-gray-400 mb-3">Select options</p>
+              {/* Only show Quantity/Required header when ordering is available */}
+              {(hasOrderingFeature || hasDeliveryFeature) && (
+                <>
+                  <div className="flex items-center justify-between mb-1">
+                    <h4 className="font-bold text-base">Quantity</h4>
+                    <span className="text-xs px-2 py-0.5 rounded bg-orange-50 text-orange-600 font-medium border border-orange-200">
+                      Required
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-400 mb-3">Select options</p>
+                </>
+              )}
 
               <div className="divide-y divide-gray-100">
                 {(() => {
@@ -638,6 +643,7 @@ const ItemCard = ({
                     const originalVariantPrice = variant.price;
                     const hasValidOriginalPrice = typeof originalVariantPrice === "number";
                     const showVariantAddButton = showAddButton && isOrderable;
+                    const isMenuOnly = !hasOrderingFeature && !hasDeliveryFeature;
                     const qty = getVariantQuantity(variant.name);
 
                     return (
@@ -661,34 +667,33 @@ const ItemCard = ({
                             </div>
                           )}
 
-                          <div className="flex-1 min-w-0">
-                            <span className="font-medium text-sm">{variant.name}</span>
-                            {/* Price below name */}
-                            {shouldShowPrice && !item.is_price_as_per_size && (
-                              <div className="text-xs mt-0.5">
-                                {hasValidVariantOffer ? (
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-semibold text-red-500">
-                                      {hoteldata?.currency || "₹"}{formatPrice(variantOffer.offer_price!, hoteldata?.id)}
-                                    </span>
-                                    {hasValidOriginalPrice && originalVariantPrice > variantOffer.offer_price! && (
-                                      <span className="line-through text-gray-400 font-normal">
-                                        {hoteldata?.currency || "₹"}{formatPrice(originalVariantPrice, hoteldata?.id)}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : hasValidOriginalPrice && originalVariantPrice > 0 ? (
-                                  <span className="font-semibold text-gray-700">
-                                    {hoteldata?.currency || "₹"}{formatPrice(originalVariantPrice, hoteldata?.id)}
-                                  </span>
-                                ) : null}
-                              </div>
-                            )}
-                          </div>
+                          <span className="font-medium text-sm flex-1 min-w-0">{variant.name}</span>
                         </div>
 
-                        {/* Add / Quantity stepper */}
-                        {showVariantAddButton && (
+                        {/* Price - always shown on the right side */}
+                        {shouldShowPrice && !item.is_price_as_per_size && (
+                          <div className="text-sm font-semibold flex-shrink-0">
+                            {hasValidVariantOffer ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-red-500">
+                                  {hoteldata?.currency || "₹"}{formatPrice(variantOffer.offer_price!, hoteldata?.id)}
+                                </span>
+                                {hasValidOriginalPrice && originalVariantPrice > variantOffer.offer_price! && (
+                                  <span className="line-through text-gray-400 text-xs font-normal">
+                                    {hoteldata?.currency || "₹"}{formatPrice(originalVariantPrice, hoteldata?.id)}
+                                  </span>
+                                )}
+                              </div>
+                            ) : hasValidOriginalPrice && originalVariantPrice > 0 ? (
+                              <span className="text-gray-700">
+                                {hoteldata?.currency || "₹"}{formatPrice(originalVariantPrice, hoteldata?.id)}
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
+
+                        {/* Add / Quantity stepper (only when ordering/delivery enabled) */}
+                        {showVariantAddButton && !isMenuOnly && (
                           <div className="flex-shrink-0">
                             {qty > 0 ? (
                               <div

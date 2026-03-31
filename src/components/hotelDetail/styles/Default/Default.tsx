@@ -134,8 +134,11 @@ const Default = ({
       {/* Only show menu content when not in order placement view */}
       {!open_place_order_modal ? (
         <>
-          {/* Location Header (hide for QR scan / dine-in) */}
+          {/* Location Header (hide for QR scan / dine-in and when no ordering/delivery) */}
           {tableNumber === 0 && (
+            getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled ||
+            getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled
+          ) && (
             <LocationHeader
               hoteldata={hoteldata}
               styles={styles}
