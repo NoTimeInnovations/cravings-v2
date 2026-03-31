@@ -1,5 +1,4 @@
 import { ButtonV2 } from "@/components/ui/ButtonV2";
-import MenuUpload from "./MenuUpload";
 
 export default function Hero() {
   return (
@@ -17,25 +16,13 @@ export default function Hero() {
 
         {/* CTA Buttons */}
         <div className="flex items-center gap-3 mt-8">
-          <ButtonV2 href="/get-started" variant="primary">
-            Launch your website
-          </ButtonV2>
-          <ButtonV2 href="https://cal.id/menuthere" variant="secondary">
+          <ButtonV2 href="https://cal.id/menuthere" variant="primary">
             Book a Demo
           </ButtonV2>
+          <ButtonV2 href="/help-center" variant="secondary">
+            Contact Support
+          </ButtonV2>
         </div>
-
-        {/* Divider */}
-        <div className="flex items-center gap-3 w-full max-w-sm mt-10">
-          <div className="flex-1 h-px bg-stone-200" />
-          <span className="text-xs text-stone-400 uppercase tracking-wider">
-            or
-          </span>
-          <div className="flex-1 h-px bg-stone-200" />
-        </div>
-
-        {/* Upload Menu Section (client component) */}
-        <MenuUpload />
       </div>
     </section>
   );
