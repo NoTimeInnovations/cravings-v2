@@ -62,7 +62,7 @@ const PRESETS = [
 ];
 
 // =================================================================
-// Banner Carousel Component
+// Banner Carousel Component - Smooth infinite swipable carousel
 // =================================================================
 const BannerCarousel = ({
   hoteldata,
@@ -77,114 +77,183 @@ const BannerCarousel = ({
   accent: string;
   topItems: any[];
 }) => {
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const slideInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-
   const bannerMode = hoteldata?.delivery_rules?.banner_mode || "single";
   const carouselBanners: string[] = hoteldata?.delivery_rules?.carousel_banners || [];
 
-  // Build slides based on banner_mode
   const slides = useMemo(() => {
     const slideList: { image: string; title?: string }[] = [];
-
     if (bannerMode === "carousel" && carouselBanners.length > 0) {
-      // Use merchant-uploaded carousel banners (max 5)
       carouselBanners.slice(0, 5).forEach((url, idx) => {
         slideList.push({ image: url, title: `Banner ${idx + 1}` });
       });
     } else {
-      // Single banner mode - just show store banner
       if (hoteldata?.store_banner && !bannerError) {
-        slideList.push({
-          image: hoteldata.store_banner,
-          title: hoteldata.store_name,
-        });
+        slideList.push({ image: hoteldata.store_banner, title: hoteldata.store_name });
       }
     }
-
-    // If no slides at all, add a placeholder
     if (slideList.length === 0) {
       slideList.push({ image: "", title: hoteldata?.store_name });
     }
-
     return slideList;
   }, [hoteldata, bannerError, bannerMode, carouselBanners]);
 
-  // Auto-slide
-  useEffect(() => {
-    if (slides.length <= 1) return;
-    slideInterval.current = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 3500);
-    return () => {
-      if (slideInterval.current) clearInterval(slideInterval.current);
-    };
-  }, [slides.length]);
+  const count = slides.length;
+  const isMultiple = count > 1;
 
-  const goToSlide = (index: number) => {
-    setCurrentSlide(index);
-    if (slideInterval.current) clearInterval(slideInterval.current);
-    slideInterval.current = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
+  // For infinite loop: [last, ...slides, first]
+  const extendedSlides = useMemo(() => {
+    if (!isMultiple) return slides;
+    return [slides[count - 1], ...slides, slides[0]];
+  }, [slides, count, isMultiple]);
+
+  const [index, setIndex] = useState(isMultiple ? 1 : 0);
+  const [isTransitioning, setIsTransitioning] = useState(true);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const autoPlayRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const touchStartX = useRef(0);
+  const touchDeltaX = useRef(0);
+  const isSwiping = useRef(false);
+
+  const realIndex = isMultiple ? ((index - 1 + count) % count) : 0;
+
+  const resetAutoPlay = useCallback(() => {
+    if (autoPlayRef.current) clearInterval(autoPlayRef.current);
+    if (!isMultiple) return;
+    autoPlayRef.current = setInterval(() => {
+      setIsTransitioning(true);
+      setIndex((prev) => prev + 1);
     }, 3500);
+  }, [isMultiple]);
+
+  useEffect(() => {
+    resetAutoPlay();
+    return () => { if (autoPlayRef.current) clearInterval(autoPlayRef.current); };
+  }, [resetAutoPlay]);
+
+  // Handle infinite loop snap-back
+  useEffect(() => {
+    if (!isMultiple) return;
+    if (index === 0) {
+      // Snapped to clone of last — jump to real last
+      const timer = setTimeout(() => {
+        setIsTransitioning(false);
+        setIndex(count);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    if (index === count + 1) {
+      // Snapped to clone of first — jump to real first
+      const timer = setTimeout(() => {
+        setIsTransitioning(false);
+        setIndex(1);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [index, count, isMultiple]);
+
+  // Re-enable transition after snap-back
+  useEffect(() => {
+    if (!isTransitioning) {
+      const timer = setTimeout(() => setIsTransitioning(true), 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isTransitioning]);
+
+  const goToSlide = (realIdx: number) => {
+    setIsTransitioning(true);
+    setIndex(realIdx + 1);
+    resetAutoPlay();
   };
+
+  // Touch / swipe handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchDeltaX.current = 0;
+    isSwiping.current = true;
+    if (autoPlayRef.current) clearInterval(autoPlayRef.current);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isSwiping.current) return;
+    touchDeltaX.current = e.touches[0].clientX - touchStartX.current;
+    if (trackRef.current) {
+      const slideWidth = trackRef.current.parentElement?.offsetWidth || 0;
+      const baseOffset = -index * slideWidth;
+      trackRef.current.style.transition = "none";
+      trackRef.current.style.transform = `translateX(${baseOffset + touchDeltaX.current}px)`;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isSwiping.current) return;
+    isSwiping.current = false;
+    const threshold = 50;
+    setIsTransitioning(true);
+    if (trackRef.current) {
+      trackRef.current.style.transition = "";
+      trackRef.current.style.transform = "";
+    }
+    if (touchDeltaX.current < -threshold) {
+      setIndex((prev) => prev + 1);
+    } else if (touchDeltaX.current > threshold) {
+      setIndex((prev) => prev - 1);
+    }
+    resetAutoPlay();
+  };
+
+  const renderSlide = (slide: { image: string; title?: string }, idx: number) => (
+    <div key={idx} className="w-full h-full flex-shrink-0">
+      {slide.image ? (
+        isVideoUrl(slide.image) ? (
+          <video
+            src={slide.image}
+            poster={getVideoThumbnailUrl(slide.image)}
+            preload="metadata"
+            autoPlay muted loop playsInline
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <img
+            src={slide.image}
+            alt={slide.title || "Banner"}
+            className="w-full h-full object-cover"
+            onError={() => { if (idx === 0) setBannerError(true); }}
+          />
+        )
+      ) : (
+        <div
+          className="w-full h-full flex items-center justify-center relative overflow-hidden"
+          style={{ backgroundColor: accent }}
+        >
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(#fff 2px, transparent 2px)", backgroundSize: "20px 20px" }} />
+          <h2 className="font-handwriting text-white text-3xl font-bold drop-shadow-md text-center px-4 relative z-10">{slide.title}</h2>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="relative px-4 pt-3">
-      {/* Carousel Container */}
-      <div className="relative overflow-hidden rounded-2xl" style={{ height: "180px" }}>
+      <div
+        className="relative overflow-hidden rounded-2xl"
+        style={{ height: "180px" }}
+        onTouchStart={isMultiple ? handleTouchStart : undefined}
+        onTouchMove={isMultiple ? handleTouchMove : undefined}
+        onTouchEnd={isMultiple ? handleTouchEnd : undefined}
+      >
         <div
-          className="flex transition-transform duration-500 ease-in-out h-full"
-          style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+          ref={trackRef}
+          className="flex h-full"
+          style={{
+            transform: `translateX(-${index * 100}%)`,
+            transition: isTransitioning ? "transform 500ms ease-in-out" : "none",
+          }}
         >
-          {slides.map((slide, idx) => (
-            <div key={idx} className="min-w-full h-full flex-shrink-0 relative">
-              {slide.image ? (
-                isVideoUrl(slide.image) ? (
-                  <video
-                    src={slide.image}
-                    poster={getVideoThumbnailUrl(slide.image)}
-                    preload="metadata"
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    className="w-full h-full object-cover rounded-2xl"
-                  />
-                ) : (
-                  <img
-                    src={slide.image}
-                    alt={slide.title || "Banner"}
-                    className="w-full h-full object-cover rounded-2xl"
-                    onError={() => {
-                      if (idx === 0) setBannerError(true);
-                    }}
-                  />
-                )
-              ) : (
-                <div
-                  className="w-full h-full flex items-center justify-center rounded-2xl relative overflow-hidden"
-                  style={{ backgroundColor: accent }}
-                >
-                  <div
-                    className="absolute inset-0 opacity-10"
-                    style={{
-                      backgroundImage: "radial-gradient(#fff 2px, transparent 2px)",
-                      backgroundSize: "20px 20px",
-                    }}
-                  />
-                  <h2 className="font-handwriting text-white text-3xl font-bold drop-shadow-md text-center px-4 relative z-10">
-                    {slide.title}
-                  </h2>
-                </div>
-              )}
-            </div>
-          ))}
+          {extendedSlides.map((slide, idx) => renderSlide(slide, idx))}
         </div>
       </div>
 
-      {/* Dot Indicators */}
-      {slides.length > 1 && (
+      {isMultiple && (
         <div className="flex justify-center gap-1.5 mt-2">
           {slides.map((_, idx) => (
             <button
@@ -192,10 +261,9 @@ const BannerCarousel = ({
               onClick={() => goToSlide(idx)}
               className="rounded-full transition-all duration-300"
               style={{
-                width: currentSlide === idx ? "16px" : "6px",
+                width: realIndex === idx ? "16px" : "6px",
                 height: "6px",
-                backgroundColor:
-                  currentSlide === idx ? accent : `${accent}30`,
+                backgroundColor: realIndex === idx ? accent : `${accent}30`,
               }}
             />
           ))}
@@ -769,14 +837,16 @@ const Compact = ({
 
         {activeTab === "food" ? (
           <>
-            {/* ===== LOCATION HEADER ===== */}
-            <LocationHeader
-              hoteldata={hoteldata}
-              styles={localStyles}
-              accent={localStyles?.accent || "#ea580c"}
-              bannerError={bannerError}
-              setBannerError={setBannerError}
-            />
+            {/* ===== LOCATION HEADER (hide for QR scan / dine-in) ===== */}
+            {tableNumber === 0 && (
+              <LocationHeader
+                hoteldata={hoteldata}
+                styles={localStyles}
+                accent={localStyles?.accent || "#ea580c"}
+                bannerError={bannerError}
+                setBannerError={setBannerError}
+              />
+            )}
 
             {/* Announcement Bar (below header) */}
             {hoteldata?.delivery_rules?.announcement && (

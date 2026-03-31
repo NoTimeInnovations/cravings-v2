@@ -134,14 +134,16 @@ const Default = ({
       {/* Only show menu content when not in order placement view */}
       {!open_place_order_modal ? (
         <>
-          {/* Location Header */}
-          <LocationHeader
-            hoteldata={hoteldata}
-            styles={styles}
-            accent={styles.accent || "#ea580c"}
-            bannerError={false}
-            setBannerError={() => {}}
-          />
+          {/* Location Header (hide for QR scan / dine-in) */}
+          {tableNumber === 0 && (
+            <LocationHeader
+              hoteldata={hoteldata}
+              styles={styles}
+              accent={styles.accent || "#ea580c"}
+              bannerError={false}
+              setBannerError={() => {}}
+            />
+          )}
 
           {/* shop closed modal */}
           <ShopClosedModalWarning
