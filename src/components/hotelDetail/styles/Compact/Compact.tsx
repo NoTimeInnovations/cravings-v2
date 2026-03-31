@@ -35,6 +35,7 @@ import { getFeatures } from "@/lib/getFeatures";
 import { ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
 import DiscountBanner from "../../DiscountBanner";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
+import useOrderStore from "@/store/orderStore";
 import { FaWhatsapp, FaInstagram, FaFacebook } from "react-icons/fa";
 import { Star, Phone } from "lucide-react";
 import LocationHeader from "../../LocationHeader";
@@ -205,6 +206,150 @@ const BannerCarousel = ({
 };
 
 // =================================================================
+// =================================================================
+// Compact Offers Tab - shows discount codes + item offers inline
+// =================================================================
+const CompactOffersTab = ({
+  offers,
+  hoteldata,
+  styles,
+  tableNumber,
+}: {
+  offers: any[];
+  hoteldata: any;
+  styles: any;
+  tableNumber: number;
+}) => {
+  const [discounts, setDiscounts] = useState<any[]>([]);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
+
+  useEffect(() => {
+    if (!hoteldata?.id) return;
+    import("@/lib/hasuraClient").then(({ fetchFromHasura }) => {
+      fetchFromHasura(
+        `query GetDiscounts($pid: uuid!) {
+          discounts(where: { partner_id: { _eq: $pid }, is_active: { _eq: true }, _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }] }, order_by: [{ rank: asc_nulls_last }]) {
+            id code discount_type discount_value min_order_value max_discount_amount has_coupon description
+          }
+        }`,
+        { pid: hoteldata.id }
+      ).then((data: any) => {
+        setDiscounts(data?.discounts || []);
+      });
+    });
+  }, [hoteldata?.id]);
+
+  const couponDiscounts = discounts.filter((d) => d.has_coupon);
+  const hasOffers = offers && offers.length > 0;
+  const hasCoupons = couponDiscounts.length > 0;
+
+  const handleCopy = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
+
+  const getDescription = (d: any) => {
+    if (d.description) return d.description;
+    const val = d.discount_type === "percentage" ? `${d.discount_value}% OFF` : `₹${d.discount_value} OFF`;
+    const min = d.min_order_value ? ` ABOVE ${d.min_order_value}` : "";
+    const max = d.max_discount_amount ? ` UPTO ${d.max_discount_amount}` : "";
+    return `${val}${min}${max}`;
+  };
+
+  if (!hasOffers && !hasCoupons) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+        <Tag size={48} className="mb-4 opacity-20" style={{ color: styles?.color }} />
+        <p className="text-lg font-semibold" style={{ color: styles?.color }}>No offers currently</p>
+        <p className="text-sm mt-1 opacity-50" style={{ color: styles?.color }}>Check back later for exciting deals!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 py-5">
+      {/* Coupon Codes Section */}
+      {hasCoupons && (
+        <div className="mb-6">
+          <h3 className="font-bold text-base mb-3" style={{ color: styles?.color }}>Available Coupons</h3>
+          <div className="space-y-3">
+            {couponDiscounts.map((d) => (
+              <div key={d.id} className="rounded-xl p-4" style={{ backgroundColor: `${styles?.accent || "#ea580c"}08`, border: `1px solid ${styles?.accent || "#ea580c"}20` }}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="border-2 border-dashed rounded-md px-3 py-1" style={{ borderColor: "#22c55e", color: "#22c55e" }}>
+                    <span className="text-sm font-bold tracking-wider">{d.code}</span>
+                  </div>
+                  <button
+                    onClick={() => handleCopy(d.code)}
+                    className="text-xs font-semibold px-3 py-1 rounded-md transition-colors"
+                    style={{ color: copiedCode === d.code ? "#22c55e" : styles?.accent }}
+                  >
+                    {copiedCode === d.code ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+                <p className="text-xs font-medium" style={{ color: styles?.color, opacity: 0.7 }}>{getDescription(d)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Item Offers Section */}
+      {hasOffers && (
+        <div>
+          <h3 className="font-bold text-base mb-3" style={{ color: styles?.color }}>Offers</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {offers.map((offer) => {
+              const menuItem = hoteldata?.menus?.find((m: any) => m.id === offer.menu?.id);
+              if (!menuItem) return null;
+              const originalPrice = offer.variant?.price || offer.menu?.price || 0;
+              const offerPrice = offer.offer_price ?? 0;
+              const discount = originalPrice > 0 ? Math.round(((originalPrice - offerPrice) / originalPrice) * 100) : 0;
+              const itemInCart = items?.find((i) => i.id === menuItem.id);
+              const quantity = itemInCart?.quantity || 0;
+
+              return (
+                <div key={offer.id} className="rounded-xl overflow-hidden" style={{ border: `1px solid ${styles?.accent || "#ea580c"}15` }}>
+                  <div className="relative h-28">
+                    <img
+                      src={offer.menu?.image_url || "/image_placeholder.png"}
+                      alt={offer.menu?.name}
+                      className="w-full h-full object-cover"
+                    />
+                    {discount > 0 && (
+                      <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                        {discount}% OFF
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-2.5">
+                    <p className="text-xs font-semibold truncate" style={{ color: styles?.color }}>{offer.menu?.name}</p>
+                    {offer.variant && (
+                      <p className="text-[10px] opacity-50 mt-0.5">{offer.variant.name}</p>
+                    )}
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-sm font-bold" style={{ color: styles?.accent }}>
+                        {hoteldata?.currency || "₹"}{offerPrice}
+                      </span>
+                      {originalPrice > 0 && originalPrice !== offerPrice && (
+                        <span className="text-[10px] line-through opacity-40">
+                          {hoteldata?.currency || "₹"}{originalPrice}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Compact Social Icons (inline, right of store name)
 // =================================================================
 const CompactSocialIcons = ({
@@ -1167,24 +1312,12 @@ const Compact = ({
             )}
           </>
         ) : activeTab === "offers" ? (
-          <div className="px-4 py-6">
-            {offers && offers.length > 0 ? (
-              <OffersList
-                offers={offers}
-                hotelName={hoteldata?.store_name || ""}
-                styles={localStyles}
-                feature_flags={hoteldata?.feature_flags}
-                tableNumber={tableNumber}
-                menu={hoteldata?.menus || []}
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <Tag size={48} className="mb-4 opacity-20" style={{ color: localStyles?.color }} />
-                <p className="text-lg font-semibold" style={{ color: localStyles?.color }}>No offers currently</p>
-                <p className="text-sm mt-1 opacity-50" style={{ color: localStyles?.color }}>Check back later for exciting deals!</p>
-              </div>
-            )}
-          </div>
+          <CompactOffersTab
+            offers={offers}
+            hoteldata={hoteldata}
+            styles={localStyles}
+            tableNumber={tableNumber}
+          />
         ) : (
           <CompactOrders hotelId={hoteldata?.id} styles={localStyles} />
         )}

@@ -84,6 +84,7 @@ const UnifiedAddressSection = ({
     null,
   );
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const headerAddress = useOrderStore((s) => s.userAddress);
 
   const savedAddresses = ((user as any)?.addresses || []) as SavedAddress[];
 
@@ -101,6 +102,21 @@ const UnifiedAddressSection = ({
   }, []);
 
   useEffect(() => {
+    // If user already selected a location from the location header, use that
+    const orderCoords = useOrderStore.getState().coordinates;
+    const orderAddress = useOrderStore.getState().userAddress;
+    if (orderCoords && orderAddress && !selectedAddressId) {
+      // Check if the coordinates match a saved address
+      const matchingAddr = savedAddresses.find(
+        (a) => a.latitude === orderCoords.lat && a.longitude === orderCoords.lng
+      );
+      if (matchingAddr) {
+        setSelectedAddressId(matchingAddr.id);
+      }
+      // Always set the address from order store so it shows in checkout
+      setAddress(orderAddress);
+      return;
+    }
     if (savedAddresses.length === 0) return;
     const defaultAddress =
       savedAddresses.find((addr) => addr.isDefault) || savedAddresses[0];
@@ -262,7 +278,15 @@ const UnifiedAddressSection = ({
               </div>
             </div>
           );
-        })() : (
+        })() : headerAddress ? (
+          <div className="flex items-center gap-2.5">
+            <MapPin className="h-4 w-4 shrink-0 text-[var(--pom-accent,#ea580c)]" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-inherit truncate">Selected Location</p>
+              <p className="text-xs truncate" style={{ color: "var(--pom-text-muted)" }}>{headerAddress}</p>
+            </div>
+          </div>
+        ) : (
           <button
             onClick={() => { setEditingAddress(null); setShowAddressModal(true); }}
             className="flex items-center gap-2.5 w-full text-left"
