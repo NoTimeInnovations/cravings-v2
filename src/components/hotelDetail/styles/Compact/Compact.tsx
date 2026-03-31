@@ -249,10 +249,10 @@ const BannerCarousel = ({
   );
 
   return (
-    <div className="relative px-4 pt-3">
+    <div className={`relative ${isMultiple ? "px-4 pt-3" : ""}`}>
       <div
-        className="relative overflow-hidden rounded-2xl"
-        style={{ height: "180px" }}
+        className={`relative overflow-hidden ${isMultiple ? "rounded-2xl" : ""}`}
+        style={{ height: isMultiple ? "180px" : "200px" }}
         onTouchStart={isMultiple ? handleTouchStart : undefined}
         onTouchMove={isMultiple ? handleTouchMove : undefined}
         onTouchEnd={isMultiple ? handleTouchEnd : undefined}
@@ -835,6 +835,12 @@ const Compact = ({
     return cats.sort((a, b) => (a.priority || 0) - (b.priority || 0));
   }, [categories, hasOffers, topItems]);
 
+  const hasOrderingOrDelivery = !!(
+    getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled ||
+    getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled
+  );
+  const showLocationHeader = tableNumber === 0 && hasOrderingOrDelivery;
+
   // Calculate if bottom nav should be shown
   const showBottomNav =
     auth?.role === "user" &&
@@ -874,11 +880,8 @@ const Compact = ({
 
         {activeTab === "food" ? (
           <>
-            {/* ===== LOCATION HEADER (hide for QR scan / dine-in and when no ordering/delivery) ===== */}
-            {tableNumber === 0 && (
-              getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled ||
-              getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled
-            ) && (
+            {/* ===== LOCATION HEADER ===== */}
+            {showLocationHeader && (
               <LocationHeader
                 hoteldata={hoteldata}
                 styles={localStyles}
@@ -988,7 +991,7 @@ const Compact = ({
                 borderColor: localStyles?.border?.borderColor || "#0000001D",
               }}
               ref={categoriesContainerRef}
-              className="overflow-x-auto w-full flex gap-1 px-2 py-1 sticky top-[60px] z-10 shadow-sm scrollbar-hide border-b"
+              className={`overflow-x-auto w-full flex gap-1 px-2 py-1 sticky z-20 shadow-sm scrollbar-hide border-b ${showLocationHeader ? "top-[56px]" : "top-0"}`}
               onScroll={() => updateBorderPosition(activeCatIndex)}
             >
               {/* Animated border element */}
@@ -1101,7 +1104,7 @@ const Compact = ({
                           backgroundColor:
                             localStyles?.backgroundColor || "#fff",
                         }}
-                        className="sticky top-[100px] z-[9] pt-5 pb-2"
+                        className="pt-3 pb-2"
                       >
                         <h2 className="text-[18px] font-bold leading-snug">
                           <span style={{ color: localStyles?.color || "#1a1a1a" }}>
