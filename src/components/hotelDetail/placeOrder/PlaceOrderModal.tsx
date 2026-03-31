@@ -102,31 +102,19 @@ const UnifiedAddressSection = ({
   }, []);
 
   useEffect(() => {
-    // If user already selected a location from the location header, use that
+    // Only show address if user explicitly selected one from the location header
     const orderCoords = useOrderStore.getState().coordinates;
     const orderAddress = useOrderStore.getState().userAddress;
     if (orderCoords && orderAddress && !selectedAddressId) {
-      // Check if the coordinates match a saved address
       const matchingAddr = savedAddresses.find(
         (a) => a.latitude === orderCoords.lat && a.longitude === orderCoords.lng
       );
       if (matchingAddr) {
         setSelectedAddressId(matchingAddr.id);
       }
-      // Always set the address from order store so it shows in checkout
       setAddress(orderAddress);
-      return;
     }
-    if (savedAddresses.length === 0) return;
-    const defaultAddress =
-      savedAddresses.find((addr) => addr.isDefault) || savedAddresses[0];
-    if (
-      defaultAddress &&
-      defaultAddress.id !== selectedAddressId &&
-      !selectedAddressId
-    ) {
-      handleAddressSelect(defaultAddress);
-    }
+    // No auto-selection of default saved address — user must pick from location header
   }, [savedAddresses, selectedAddressId]);
 
   const saveAddressesForUser = async (addresses: SavedAddress[]) => {
