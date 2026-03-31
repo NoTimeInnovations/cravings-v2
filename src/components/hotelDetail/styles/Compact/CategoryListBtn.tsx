@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Book, X } from "lucide-react";
+import { UtensilsCrossed, X } from "lucide-react";
 import useOrderStore from "@/store/orderStore";
 import { Category, formatDisplayName } from "@/store/categoryStore_hasura";
 import { useRouter } from "next/navigation";
@@ -116,7 +116,7 @@ const CategoryListBtn: React.FC<{ categories: Category[]; hasBottomNav?: boolean
         className="flex ml-auto items-center justify-center h-14 w-14 bg-black text-white rounded-full shadow-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black transition-all duration-300 transform hover:scale-110"
         aria-label="Toggle category menu"
       >
-        {isMenuOpen ? <X size={24} /> : <Book size={24} />}
+        {isMenuOpen ? <X size={24} /> : <UtensilsCrossed size={22} />}
       </button>
 
 

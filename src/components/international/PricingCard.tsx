@@ -55,13 +55,6 @@ export default function PricingCard({
       {/* Title */}
       <div className="flex items-center justify-between">
         <h3 className="text-stone-500">{plan.title}</h3>
-        {!isFree && (
-          <span className="text-xs text-stone-400">
-            {isAnnual
-              ? `${currencySymbol}${Math.round(Number(variant.price) / 12)}/mo`
-              : `${currencySymbol}${Number(variant.price) * 12}/yr`}
-          </span>
-        )}
       </div>
 
       {/* Price */}
@@ -74,9 +67,6 @@ export default function PricingCard({
               {currencySymbol}
               {variant.price}
             </span>
-            {currencySymbol === "₹" && (
-              <span className="text-sm text-stone-400 ml-1">+GST</span>
-            )}
           </div>
         )}
       </div>

@@ -1,10 +1,10 @@
 "use client";
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { MyOrdersButton } from "./MyOrdersButton";
 import Link from "next/link";
 
 import CompactOrders from "./CompactOrders";
-import { Utensils, ShoppingBag, User } from "lucide-react";
+import { Utensils, ShoppingBag, User, Heart, ChevronDown, Home, Tag } from "lucide-react";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { formatDisplayName } from "@/store/categoryStore_hasura";
 import ItemCard from "./ItemCard";
@@ -35,6 +35,10 @@ import { getFeatures } from "@/lib/getFeatures";
 import { ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
 import DiscountBanner from "../../DiscountBanner";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
+import useOrderStore from "@/store/orderStore";
+import { FaWhatsapp, FaInstagram, FaFacebook } from "react-icons/fa";
+import { Star, Phone } from "lucide-react";
+import LocationHeader from "../../LocationHeader";
 
 // Helper to check darkness for contrast
 const isColorDark = (hex: string) => {
@@ -58,8 +62,543 @@ const PRESETS = [
 ];
 
 // =================================================================
-// Discount Banner Component
+// Banner Carousel Component - Smooth infinite swipable carousel
 // =================================================================
+const BannerCarousel = ({
+  hoteldata,
+  bannerError,
+  setBannerError,
+  accent,
+  topItems,
+}: {
+  hoteldata: any;
+  bannerError: boolean;
+  setBannerError: (v: boolean) => void;
+  accent: string;
+  topItems: any[];
+}) => {
+  const bannerMode = hoteldata?.delivery_rules?.banner_mode || "single";
+  const carouselBanners: string[] = hoteldata?.delivery_rules?.carousel_banners || [];
+
+  const slides = useMemo(() => {
+    const slideList: { image: string; title?: string }[] = [];
+    if (bannerMode === "carousel" && carouselBanners.length > 0) {
+      carouselBanners.slice(0, 5).forEach((url, idx) => {
+        slideList.push({ image: url, title: `Banner ${idx + 1}` });
+      });
+    } else {
+      if (hoteldata?.store_banner && !bannerError) {
+        slideList.push({ image: hoteldata.store_banner, title: hoteldata.store_name });
+      }
+    }
+    if (slideList.length === 0) {
+      slideList.push({ image: "", title: hoteldata?.store_name });
+    }
+    return slideList;
+  }, [hoteldata, bannerError, bannerMode, carouselBanners]);
+
+  const count = slides.length;
+  const isMultiple = count > 1;
+
+  // For infinite loop: [last, ...slides, first]
+  const extendedSlides = useMemo(() => {
+    if (!isMultiple) return slides;
+    return [slides[count - 1], ...slides, slides[0]];
+  }, [slides, count, isMultiple]);
+
+  const [index, setIndex] = useState(isMultiple ? 1 : 0);
+  const [isTransitioning, setIsTransitioning] = useState(true);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const autoPlayRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const touchStartX = useRef(0);
+  const touchDeltaX = useRef(0);
+  const isSwiping = useRef(false);
+
+  const realIndex = isMultiple ? ((index - 1 + count) % count) : 0;
+
+  const resetAutoPlay = useCallback(() => {
+    if (autoPlayRef.current) clearInterval(autoPlayRef.current);
+    if (!isMultiple) return;
+    autoPlayRef.current = setInterval(() => {
+      setIsTransitioning(true);
+      setIndex((prev) => prev + 1);
+    }, 3500);
+  }, [isMultiple]);
+
+  useEffect(() => {
+    resetAutoPlay();
+    return () => { if (autoPlayRef.current) clearInterval(autoPlayRef.current); };
+  }, [resetAutoPlay]);
+
+  // Handle infinite loop snap-back
+  useEffect(() => {
+    if (!isMultiple) return;
+    if (index === 0) {
+      // Snapped to clone of last — jump to real last
+      const timer = setTimeout(() => {
+        setIsTransitioning(false);
+        setIndex(count);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+    if (index === count + 1) {
+      // Snapped to clone of first — jump to real first
+      const timer = setTimeout(() => {
+        setIsTransitioning(false);
+        setIndex(1);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [index, count, isMultiple]);
+
+  // Re-enable transition after snap-back
+  useEffect(() => {
+    if (!isTransitioning) {
+      const timer = setTimeout(() => setIsTransitioning(true), 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isTransitioning]);
+
+  const goToSlide = (realIdx: number) => {
+    setIsTransitioning(true);
+    setIndex(realIdx + 1);
+    resetAutoPlay();
+  };
+
+  // Touch / swipe handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchDeltaX.current = 0;
+    isSwiping.current = true;
+    if (autoPlayRef.current) clearInterval(autoPlayRef.current);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isSwiping.current) return;
+    touchDeltaX.current = e.touches[0].clientX - touchStartX.current;
+    if (trackRef.current) {
+      const slideWidth = trackRef.current.parentElement?.offsetWidth || 0;
+      const baseOffset = -index * slideWidth;
+      trackRef.current.style.transition = "none";
+      trackRef.current.style.transform = `translateX(${baseOffset + touchDeltaX.current}px)`;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isSwiping.current) return;
+    isSwiping.current = false;
+    const slideWidth = trackRef.current?.parentElement?.offsetWidth || 300;
+    const threshold = slideWidth * 0.3;
+
+    // Determine target index
+    let newIndex = index;
+    if (touchDeltaX.current < -threshold) {
+      newIndex = index + 1;
+    } else if (touchDeltaX.current > threshold) {
+      newIndex = index - 1;
+    }
+
+    // Apply smooth transition to target position
+    if (trackRef.current) {
+      trackRef.current.style.transition = "transform 400ms cubic-bezier(0.25, 0.1, 0.25, 1)";
+      trackRef.current.style.transform = `translateX(-${newIndex * slideWidth}px)`;
+    }
+
+    // After transition completes, sync React state
+    setTimeout(() => {
+      if (trackRef.current) {
+        trackRef.current.style.transition = "";
+        trackRef.current.style.transform = "";
+      }
+      setIsTransitioning(true);
+      setIndex(newIndex);
+    }, 420);
+
+    resetAutoPlay();
+  };
+
+  const renderSlide = (slide: { image: string; title?: string }, idx: number) => (
+    <div key={idx} className="w-full h-full flex-shrink-0">
+      {slide.image ? (
+        isVideoUrl(slide.image) ? (
+          <video
+            src={slide.image}
+            poster={getVideoThumbnailUrl(slide.image)}
+            preload="metadata"
+            autoPlay muted loop playsInline
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <img
+            src={slide.image}
+            alt={slide.title || "Banner"}
+            className="w-full h-full object-cover"
+            onError={() => { if (idx === 0) setBannerError(true); }}
+          />
+        )
+      ) : (
+        <div
+          className="w-full h-full flex items-center justify-center relative overflow-hidden"
+          style={{ backgroundColor: accent }}
+        >
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(#fff 2px, transparent 2px)", backgroundSize: "20px 20px" }} />
+          <h2 className="font-handwriting text-white text-3xl font-bold drop-shadow-md text-center px-4 relative z-10">{slide.title}</h2>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="relative px-4 pt-3">
+      <div
+        className="relative overflow-hidden rounded-2xl"
+        style={{ height: "180px" }}
+        onTouchStart={isMultiple ? handleTouchStart : undefined}
+        onTouchMove={isMultiple ? handleTouchMove : undefined}
+        onTouchEnd={isMultiple ? handleTouchEnd : undefined}
+      >
+        <div
+          ref={trackRef}
+          className="flex h-full"
+          style={{
+            transform: `translateX(-${index * 100}%)`,
+            transition: isTransitioning ? "transform 600ms cubic-bezier(0.25, 0.1, 0.25, 1)" : "none",
+          }}
+        >
+          {extendedSlides.map((slide, idx) => renderSlide(slide, idx))}
+        </div>
+      </div>
+
+      {isMultiple && (
+        <div className="flex justify-center gap-1.5 mt-2">
+          {slides.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => goToSlide(idx)}
+              className="rounded-full transition-all duration-300"
+              style={{
+                width: realIndex === idx ? "16px" : "6px",
+                height: "6px",
+                backgroundColor: realIndex === idx ? accent : `${accent}30`,
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// =================================================================
+// =================================================================
+// Compact Offers Tab - shows discount codes + item offers inline
+// =================================================================
+const CompactOffersTab = ({
+  offers,
+  hoteldata,
+  styles,
+  tableNumber,
+}: {
+  offers: any[];
+  hoteldata: any;
+  styles: any;
+  tableNumber: number;
+}) => {
+  const [discounts, setDiscounts] = useState<any[]>([]);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
+
+  useEffect(() => {
+    if (!hoteldata?.id) return;
+    import("@/lib/hasuraClient").then(({ fetchFromHasura }) => {
+      fetchFromHasura(
+        `query GetDiscounts($pid: uuid!) {
+          discounts(where: { partner_id: { _eq: $pid }, is_active: { _eq: true }, _or: [{ expires_at: { _is_null: true } }, { expires_at: { _gt: "now()" } }] }, order_by: [{ rank: asc_nulls_last }]) {
+            id code discount_type discount_value min_order_value max_discount_amount has_coupon description
+          }
+        }`,
+        { pid: hoteldata.id }
+      ).then((data: any) => {
+        setDiscounts(data?.discounts || []);
+      });
+    });
+  }, [hoteldata?.id]);
+
+  const couponDiscounts = discounts.filter((d) => d.has_coupon);
+  const hasOffers = offers && offers.length > 0;
+  const hasCoupons = couponDiscounts.length > 0;
+
+  const handleCopy = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
+
+  const getDescription = (d: any) => {
+    if (d.description) return d.description;
+    const val = d.discount_type === "percentage" ? `${d.discount_value}% OFF` : `₹${d.discount_value} OFF`;
+    const min = d.min_order_value ? ` ABOVE ${d.min_order_value}` : "";
+    const max = d.max_discount_amount ? ` UPTO ${d.max_discount_amount}` : "";
+    return `${val}${min}${max}`;
+  };
+
+  if (!hasOffers && !hasCoupons) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+        <Tag size={48} className="mb-4 opacity-20" style={{ color: styles?.color }} />
+        <p className="text-lg font-semibold" style={{ color: styles?.color }}>No offers currently</p>
+        <p className="text-sm mt-1 opacity-50" style={{ color: styles?.color }}>Check back later for exciting deals!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 py-5">
+      {/* Coupon Codes Section */}
+      {hasCoupons && (
+        <div className="mb-6">
+          <h3 className="font-bold text-base mb-3" style={{ color: styles?.color }}>Available Coupons</h3>
+          <div className="space-y-3">
+            {couponDiscounts.map((d) => (
+              <div key={d.id} className="rounded-xl p-4" style={{ backgroundColor: `${styles?.accent || "#ea580c"}08`, border: `1px solid ${styles?.accent || "#ea580c"}20` }}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="border-2 border-dashed rounded-md px-3 py-1" style={{ borderColor: "#22c55e", color: "#22c55e" }}>
+                    <span className="text-sm font-bold tracking-wider">{d.code}</span>
+                  </div>
+                  <button
+                    onClick={() => handleCopy(d.code)}
+                    className="text-xs font-semibold px-3 py-1 rounded-md transition-colors"
+                    style={{ color: copiedCode === d.code ? "#22c55e" : styles?.accent }}
+                  >
+                    {copiedCode === d.code ? "Copied!" : "Copy"}
+                  </button>
+                </div>
+                <p className="text-xs font-medium" style={{ color: styles?.color, opacity: 0.7 }}>{getDescription(d)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Item Offers Section */}
+      {hasOffers && (
+        <div>
+          <h3 className="font-bold text-base mb-3" style={{ color: styles?.color }}>Offers</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {offers.map((offer) => {
+              const menuItem = hoteldata?.menus?.find((m: any) => m.id === offer.menu?.id);
+              if (!menuItem) return null;
+              const originalPrice = offer.variant?.price || offer.menu?.price || 0;
+              const offerPrice = offer.offer_price ?? 0;
+              const discount = originalPrice > 0 ? Math.round(((originalPrice - offerPrice) / originalPrice) * 100) : 0;
+              const itemInCart = items?.find((i) => i.id === menuItem.id);
+              const quantity = itemInCart?.quantity || 0;
+
+              return (
+                <div key={offer.id} className="rounded-xl overflow-hidden" style={{ border: `1px solid ${styles?.accent || "#ea580c"}15` }}>
+                  <div className="relative h-28">
+                    <img
+                      src={offer.menu?.image_url || "/image_placeholder.png"}
+                      alt={offer.menu?.name}
+                      className="w-full h-full object-cover"
+                    />
+                    {discount > 0 && (
+                      <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                        {discount}% OFF
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-2.5">
+                    <p className="text-xs font-semibold truncate" style={{ color: styles?.color }}>{offer.menu?.name}</p>
+                    {offer.variant && (
+                      <p className="text-[10px] opacity-50 mt-0.5">{offer.variant.name}</p>
+                    )}
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-sm font-bold" style={{ color: styles?.accent }}>
+                        {hoteldata?.currency || "₹"}{offerPrice}
+                      </span>
+                      {originalPrice > 0 && originalPrice !== offerPrice && (
+                        <span className="text-[10px] line-through opacity-40">
+                          {hoteldata?.currency || "₹"}{originalPrice}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Compact Social Icons (inline, right of store name)
+// =================================================================
+const CompactSocialIcons = ({
+  socialLinks,
+  geoLocationLink,
+  hoteldata,
+}: {
+  socialLinks: any;
+  geoLocationLink?: string;
+  hoteldata?: any;
+}) => {
+  const [showRateModal, setShowRateModal] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [hasRated, setHasRated] = useState(false);
+  const [showThankYou, setShowThankYou] = useState(false);
+  const ratingKey = hoteldata?.id ? `rating_${hoteldata.id}` : "";
+
+  useEffect(() => {
+    if (!ratingKey) return;
+    const saved = localStorage?.getItem(ratingKey);
+    if (saved) {
+      setRating(parseInt(saved, 10));
+      setHasRated(true);
+    }
+  }, [ratingKey]);
+
+  const handleStarClick = (index: number) => {
+    if (hasRated || !ratingKey) return;
+    const newRating = index + 1;
+    setRating(newRating);
+    localStorage?.setItem(ratingKey, newRating.toString());
+    setHasRated(true);
+    if (newRating === 5) {
+      const reviewUrl = socialLinks?.googleReview ||
+        (hoteldata?.place_id ? `https://search.google.com/local/writereview?placeid=${hoteldata.place_id}` : null);
+      if (reviewUrl) window.open(reviewUrl, "_blank", "noopener,noreferrer");
+      setTimeout(() => setShowRateModal(false), 500);
+    } else {
+      setShowThankYou(true);
+      setTimeout(() => { setShowRateModal(false); setShowThankYou(false); }, 2000);
+    }
+  };
+
+  const icons: { href?: string; icon: React.ReactNode; color: string; bg: string; onClick?: () => void }[] = [];
+
+  if (socialLinks?.phone && socialLinks.phone !== "") {
+    icons.push({
+      href: `tel:${socialLinks.phone}`,
+      icon: <Phone size={14} />,
+      color: "#ff4d4f",
+      bg: "#fff5f5",
+    });
+  }
+  if (socialLinks?.whatsapp && socialLinks.whatsapp !== "") {
+    icons.push({
+      href: socialLinks.whatsapp,
+      icon: <FaWhatsapp size={14} />,
+      color: "#25D366",
+      bg: "#f0fdf4",
+    });
+  }
+  if (socialLinks?.instagram && socialLinks.instagram !== "") {
+    icons.push({
+      href: socialLinks.instagram.startsWith("http") ? socialLinks.instagram : socialLinks.instagram,
+      icon: <FaInstagram size={14} />,
+      color: "#ad46ff",
+      bg: "#faf5ff",
+    });
+  }
+  if (socialLinks?.facebook && socialLinks.facebook !== "") {
+    icons.push({
+      href: socialLinks.facebook.startsWith("http") ? socialLinks.facebook : `https://facebook.com/${socialLinks.facebook}`,
+      icon: <FaFacebook size={14} />,
+      color: "#1877F2",
+      bg: "#eff6ff",
+    });
+  }
+  if (geoLocationLink || (socialLinks?.location && socialLinks.location !== "")) {
+    icons.push({
+      href: (geoLocationLink || socialLinks.location) as string,
+      icon: <MapPin size={14} />,
+      color: "#2b7fff",
+      bg: "#eff6ff",
+    });
+  }
+  // Rate Us star icon
+  if (!hasRated) {
+    icons.push({
+      icon: <Star size={14} strokeWidth={2} />,
+      color: "#f59e0b",
+      bg: "#fef9ee",
+      onClick: () => setShowRateModal(true),
+    });
+  }
+
+  if (icons.length === 0) return null;
+
+  return (
+    <>
+      <div className="flex gap-2 px-4 pb-3 overflow-x-auto scrollbar-hide">
+        {icons.map((item, idx) =>
+          item.onClick ? (
+            <button
+              key={idx}
+              onClick={item.onClick}
+              className="w-9 h-9 rounded-full flex items-center justify-center shadow-sm border flex-shrink-0 transition-transform hover:scale-105"
+              style={{ backgroundColor: item.bg, color: item.color, borderColor: `${item.color}20` }}
+            >
+              {item.icon}
+            </button>
+          ) : (
+            <a
+              key={idx}
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-9 h-9 rounded-full flex items-center justify-center shadow-sm border flex-shrink-0 transition-transform hover:scale-105"
+              style={{ backgroundColor: item.bg, color: item.color, borderColor: `${item.color}20` }}
+            >
+              {item.icon}
+            </a>
+          )
+        )}
+      </div>
+
+      {/* Rate Us Modal */}
+      {showRateModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => { setShowRateModal(false); setShowThankYou(false); }}
+        >
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+            {showThankYou ? (
+              <div className="flex flex-col items-center justify-center p-8 text-center">
+                <h3 className="text-xl font-semibold text-gray-900">Thank you!</h3>
+                <p className="text-gray-600">We appreciate your feedback.</p>
+              </div>
+            ) : (
+              <>
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-gray-900">Rate our service</h3>
+                  <p className="mt-1 text-sm text-gray-500">Your feedback helps us improve.</p>
+                </div>
+                <div className="flex justify-center py-6">
+                  {[...Array(5)].map((_, index) => (
+                    <Star
+                      key={index}
+                      className={`h-10 w-10 transition-transform duration-200 ${hasRated ? "cursor-default" : "cursor-pointer hover:scale-125"}`}
+                      fill={index + 1 <= (hoverRating || rating) ? "#FFD700" : "#E5E7EB"}
+                      stroke={index + 1 <= (hoverRating || rating) ? "#FFD700" : "#E5E7EB"}
+                      onClick={() => handleStarClick(index)}
+                      onMouseEnter={() => !hasRated && setHoverRating(index + 1)}
+                      onMouseLeave={() => !hasRated && setHoverRating(0)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
 
 const Compact = ({
   styles,
@@ -80,7 +619,14 @@ const Compact = ({
   isOnFreePlan,
 }: DefaultHotelPageProps) => {
   const [activeCatIndex, setActiveCatIndex] = useState<number>(0);
-  const [activeTab, setActiveTab] = useState<"food" | "orders">("food");
+  const [activeTab, setActiveTab] = useState<"food" | "orders" | "offers">(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab === "orders" || tab === "offers") return tab;
+    }
+    return "food";
+  });
 
   // Custom Theme State
   const [showThemeCustomizer, setShowThemeCustomizer] = useState(false);
@@ -102,6 +648,20 @@ const Compact = ({
   const hasOffers = offers && offers.length > 0;
   const [vegFilter, setVegFilter] = useState<"all" | "veg" | "non-veg">("all");
   const [bannerError, setBannerError] = useState(false);
+
+  // Save theme to localStorage for profile page
+  useEffect(() => {
+    try {
+      const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+      localStorage.setItem("hotelTheme", JSON.stringify({
+        accent: localStyles?.accent || "#ea580c",
+        bg: localStyles?.backgroundColor || "#fff",
+        text: localStyles?.color || "#000",
+        storeName: hoteldata?.store_name || "",
+        storePath: pathname,
+      }));
+    } catch {}
+  }, [localStyles, hoteldata?.store_name]);
 
   // Sync props to local state if not editing
   useEffect(() => {
@@ -272,7 +832,7 @@ const Compact = ({
       } as any);
     }
 
-    return cats;
+    return cats.sort((a, b) => (a.priority || 0) - (b.priority || 0));
   }, [categories, hasOffers, topItems]);
 
   // Calculate if bottom nav should be shown
@@ -287,21 +847,18 @@ const Compact = ({
     <div
       style={{
         backgroundColor: localStyles?.backgroundColor || "#fff",
+        fontFamily: "var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       }}
-      className="min-h-screen"
+      className="min-h-screen antialiased"
     >
       <main
         style={{
-          color: localStyles?.color || "#000",
+          color: localStyles?.color || "#1a1a1a",
           backgroundColor: localStyles?.backgroundColor || "#fff",
+          letterSpacing: "-0.01em",
         }}
-        className="max-w-3xl mx-auto relative pb-40 "
+        className="max-w-4xl mx-auto relative pb-40"
       >
-        <ShopClosedModalWarning
-          hotelId={hoteldata?.id}
-          isShopOpen={hoteldata?.is_shop_open}
-        />
-
         {/* Floating buttons - Only visible in Food tab */}
         {activeTab === "food" && (
           <>
@@ -311,253 +868,105 @@ const Compact = ({
               hasBottomNav={showBottomNav}
             />
 
-            {/* rateusbtn  */}
-            {hoteldata?.id !== "efd0b93b-9607-44b3-b2dc-a03e77f3dd0e" && (
-              <RateUs
-                hoteldata={hoteldata}
-                socialLinks={socialLinks}
-                hasBottomNav={showBottomNav}
-              />
-            )}
 
-            {/* MyOrdersButton - Top Right */}
-            {/* <div className="absolute top-4 right-4 z-40">
-              <MyOrdersButton />
-            </div> */}
           </>
         )}
 
         {activeTab === "food" ? (
           <>
-            {/* hotel banner */}
-            <div className="relative">
-              {/* image */}
-              <div className="w-full h-[30vh] relative overflow-hidden">
-                {hoteldata?.store_banner &&
-                hoteldata?.store_banner !== "" &&
-                !bannerError ? (
-                  isVideoUrl(hoteldata.store_banner) ? (
-                    <video
-                      src={hoteldata.store_banner}
-                      poster={getVideoThumbnailUrl(hoteldata.store_banner)}
-                      preload="metadata"
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      className="object-cover"
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
-                    />
-                  ) : (
-                    <img
-                      src={hoteldata?.store_banner}
-                      alt="Hotel Logo"
-                      className="object-cover"
-                      onError={() => setBannerError(true)}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
-                    />
-                  )
-                ) : (
-                  <div
-                    className="w-full h-full flex items-center justify-center relative overflow-hidden"
-                    style={{
-                      backgroundColor: localStyles?.accent || "#ea580c",
-                    }}
-                  >
-                    <div
-                      className="absolute inset-0 opacity-10"
-                      style={{
-                        backgroundImage:
-                          "radial-gradient(#fff 2px, transparent 2px)",
-                        backgroundSize: "20px 20px",
-                      }}
-                    ></div>
-                  </div>
-                )}
-              </div>
+            {/* ===== LOCATION HEADER (hide for QR scan / dine-in) ===== */}
+            {tableNumber === 0 && (
+              <LocationHeader
+                hoteldata={hoteldata}
+                styles={localStyles}
+                accent={localStyles?.accent || "#ea580c"}
+                bannerError={bannerError}
+                setBannerError={setBannerError}
+              />
+            )}
 
-              {/* Center Overlay - Handwriting Font */}
-              {(!hoteldata?.store_banner ||
-                hoteldata?.store_banner === "" ||
-                bannerError) && (
-                <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none p-4">
-                  <h1
-                    className={`font-handwriting text-white drop-shadow-md text-center font-bold break-words w-full ${
-                      (hoteldata?.store_name?.length || 0) > 35
-                        ? "text-2xl"
-                        : (hoteldata?.store_name?.length || 0) > 25
-                          ? "text-3xl"
-                          : (hoteldata?.store_name?.length || 0) > 15
-                            ? "text-4xl"
-                            : "text-5xl"
-                    }`}
-                  >
-                    {hoteldata?.store_name}
-                  </h1>
-                </div>
-              )}
-            </div>
-
-            {/* hotel details (Below Banner) */}
-            <div className="flex flex-col gap-2 p-5 pb-2 items-start justify-center">
-              <h1 className="text-xl font-semibold">{hoteldata?.store_name}</h1>
-              {((hoteldata?.district && hoteldata.district !== "") ||
-                (hoteldata?.country && hoteldata.country !== "") ||
-                (hoteldata?.location_details &&
-                  hoteldata.location_details !== "")) && (
-                <div className="inline-flex gap-2 text-sm opacity-80">
-                  <MapPin size={15} />
-                  <span>
-                    {hoteldata.location_details ||
-                      hoteldata.district ||
-                      hoteldata.country}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* social links */}
-            {/* REMOVED: `hasOffers` check and the OffersList button from here */}
-            {(socialLinks ||
-              isOwner ||
-              hoteldata?.geo_location?.coordinates) && (
+            {/* Announcement Bar (below header) */}
+            {hoteldata?.delivery_rules?.announcement && (
               <div
-                style={{
-                  borderColor: localStyles?.border?.borderColor || "#0000001D",
-                }}
-                className="flex overflow-x-auto scrollbar-hide gap-2 p-4 pt-2 border-b-[1px] z-20"
+                className="px-4 py-2 text-center"
+                style={{ backgroundColor: `${localStyles?.accent || "#ea580c"}15` }}
               >
-                <SocialLinks
-                  socialLinks={socialLinks}
-                  geoLocationLink={
-                    hoteldata?.place_id
-                      ? `https://www.google.com/maps/place/?q=place_id:${hoteldata.place_id}`
-                      : hoteldata?.geo_location?.coordinates
-                        ? `https://www.google.com/maps?q=${hoteldata.geo_location.coordinates[1]},${hoteldata.geo_location.coordinates[0]}`
-                        : undefined
-                  }
-                />
-                {isOwner && !isOnFreePlan && (
-                  <div
-                    onClick={() => setShowThemeCustomizer(!showThemeCustomizer)}
-                    className="flex items-center gap-2 border-[1px] border-gray-300 p-2 rounded-md bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
-                    role="button"
-                    aria-label="Customize Theme"
-                  >
-                    <Palette size={15} style={{ color: "#000" }} />
-                    <span className="text-xs text-nowrap text-gray-500 font-medium">
-                      {showThemeCustomizer ? "Close Editor" : "Change Theme"}
+                <p className="text-[12px] font-medium" style={{ color: localStyles?.accent || "#ea580c" }}>
+                  {hoteldata.delivery_rules.announcement}
+                </p>
+              </div>
+            )}
+
+            <ShopClosedModalWarning
+              hotelId={hoteldata?.id}
+              isShopOpen={hoteldata?.is_shop_open}
+            />
+
+            {/* ===== BANNER CAROUSEL ===== */}
+            <BannerCarousel
+              hoteldata={hoteldata}
+              bannerError={bannerError}
+              setBannerError={setBannerError}
+              accent={localStyles?.accent || "#ea580c"}
+              topItems={topItems}
+            />
+
+            {/* ===== STORE NAME + SEARCH ===== */}
+            <div className="px-4 pt-4 pb-1 flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-[22px] font-bold">{hoteldata?.store_name}</h1>
+                {((hoteldata?.district && hoteldata.district !== "") ||
+                  (hoteldata?.country && hoteldata.country !== "") ||
+                  (hoteldata?.location_details &&
+                    hoteldata.location_details !== "")) && (
+                  <div className="inline-flex items-center gap-1.5 text-xs opacity-60 mt-0.5">
+                    <MapPin size={12} />
+                    <span>
+                      {hoteldata.location_details ||
+                        hoteldata.district ||
+                        hoteldata.country}
                     </span>
                   </div>
                 )}
               </div>
-            )}
-
-            {/* search btn  */}
-            <div className="p-4">
-              {/* search  */}
               <SearchItems
                 menu={hoteldata?.menus}
                 hoteldata={hoteldata}
                 styles={localStyles}
                 tableNumber={tableNumber}
                 auth={auth}
+                iconOnly
+                inputStyle
               />
             </div>
 
-            {/* Veg/Non-Veg Filter - only show if menu has items with is_veg set */}
-            {hasVegFilter && (
-              <div className="px-4 flex gap-2 flex-wrap pb-2">
-                <button
-                  onClick={() => setVegFilter("all")}
-                  style={{
-                    borderColor:
-                      localStyles?.border?.borderColor || "#0000001D",
-                    color:
-                      vegFilter === "all"
-                        ? localStyles?.backgroundColor || "#fff"
-                        : localStyles?.color || "#000",
-                    backgroundColor:
-                      vegFilter === "all"
-                        ? localStyles?.accent || "#000"
-                        : localStyles?.backgroundColor || "#fff",
-                  }}
-                  className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 transition-colors"
+            {/* Horizontal Social Icons */}
+            <CompactSocialIcons
+              socialLinks={socialLinks}
+              hoteldata={hoteldata}
+              geoLocationLink={
+                hoteldata?.place_id
+                  ? `https://www.google.com/maps/place/?q=place_id:${hoteldata.place_id}`
+                  : hoteldata?.geo_location?.coordinates
+                    ? `https://www.google.com/maps?q=${hoteldata.geo_location.coordinates[1]},${hoteldata.geo_location.coordinates[0]}`
+                    : undefined
+              }
+            />
+
+            {/* Theme customizer button for owner */}
+            {isOwner && !isOnFreePlan && (
+              <div className="px-4 pb-2">
+                <div
+                  onClick={() => setShowThemeCustomizer(!showThemeCustomizer)}
+                  className="inline-flex items-center gap-2 border-[1px] border-gray-300 p-2 rounded-md bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                  role="button"
+                  aria-label="Customize Theme"
                 >
-                  All
-                </button>
-                <button
-                  onClick={() => setVegFilter("veg")}
-                  style={{
-                    borderColor:
-                      vegFilter === "veg"
-                        ? "#22c55e"
-                        : localStyles?.border?.borderColor || "#0000001D",
-                    color:
-                      vegFilter === "veg"
-                        ? "white"
-                        : localStyles?.color || "#000",
-                    backgroundColor:
-                      vegFilter === "veg"
-                        ? "#22c55e"
-                        : localStyles?.backgroundColor || "#fff",
-                  }}
-                  className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 flex items-center gap-1 transition-colors"
-                >
-                  <div
-                    className={`w-2.5 h-2.5 border-[1.5px] ${
-                      vegFilter === "veg" ? "border-white" : "border-green-600"
-                    } flex items-center justify-center`}
-                  >
-                    <div
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        vegFilter === "veg" ? "bg-white" : "bg-green-600"
-                      }`}
-                    ></div>
-                  </div>
-                  Veg
-                </button>
-                <button
-                  onClick={() => setVegFilter("non-veg")}
-                  style={{
-                    borderColor:
-                      vegFilter === "non-veg"
-                        ? "#ef4444"
-                        : localStyles?.border?.borderColor || "#0000001D",
-                    color:
-                      vegFilter === "non-veg"
-                        ? "white"
-                        : localStyles?.color || "#000",
-                    backgroundColor:
-                      vegFilter === "non-veg"
-                        ? "#ef4444"
-                        : localStyles?.backgroundColor || "#fff",
-                  }}
-                  className="border font-semibold text-xs text-nowrap rounded-full px-3 py-1 flex items-center gap-1 transition-colors"
-                >
-                  <div
-                    className={`w-2.5 h-2.5 border-[1.5px] ${
-                      vegFilter === "non-veg"
-                        ? "border-white"
-                        : "border-red-600"
-                    } flex items-center justify-center`}
-                  >
-                    <div
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        vegFilter === "non-veg" ? "bg-white" : "bg-red-600"
-                      }`}
-                    ></div>
-                  </div>
-                  Non-Veg
-                </button>
+                  <Palette size={15} style={{ color: "#000" }} />
+                  <span className="text-xs text-nowrap text-gray-500 font-medium">
+                    {showThemeCustomizer ? "Close Editor" : "Change Theme"}
+                  </span>
+                </div>
               </div>
             )}
 
@@ -576,7 +985,7 @@ const Compact = ({
                 borderColor: localStyles?.border?.borderColor || "#0000001D",
               }}
               ref={categoriesContainerRef}
-              className="overflow-x-auto w-full flex gap-2 p-2 sticky top-0 z-10 shadow-md scrollbar-hide border-[1px] "
+              className="overflow-x-auto w-full flex gap-1 px-2 py-1 sticky top-[60px] z-10 shadow-sm scrollbar-hide border-b"
               onScroll={() => updateBorderPosition(activeCatIndex)}
             >
               {/* Animated border element */}
@@ -602,8 +1011,8 @@ const Compact = ({
                   }}
                   onClick={() => handleCategoryClick(index, category)}
                   key={category.id}
-                  className={`p-3 text-nowrap cursor-pointer ${
-                    activeCatIndex === index ? "font-semibold" : "font-medium"
+                  className={`px-3 py-2.5 text-nowrap cursor-pointer text-[15px] ${
+                    activeCatIndex === index ? "font-bold" : "font-normal opacity-60"
                   } flex-shrink-0`}
                 >
                   {formatDisplayName(category.name)}
@@ -612,10 +1021,8 @@ const Compact = ({
             </div>
 
             {/* Categories Content */}
-            <div className="grid gap-4 p-4">
-              {allCategories
-                .sort((a, b) => (a.priority || 0) - (b.priority || 0))
-                .map((category, index) => {
+            <div className="grid px-4">
+              {allCategories.map((category, index) => {
                   // Conditionally determine the list of items to render for other categories.
                   let itemsToDisplay = [];
 
@@ -682,22 +1089,27 @@ const Compact = ({
                     <section
                       key={category.id}
                       id={category.name}
-                      className="py-4"
                     >
-                      <h2
+                      <div
                         ref={(el) => {
                           categoryHeadersRef.current[index] = el;
                         }}
                         style={{
-                          color: localStyles?.accent || "#000",
                           backgroundColor:
                             localStyles?.backgroundColor || "#fff",
                         }}
-                        className="text-xl font-bold sticky top-[64px] z-[9] py-4"
+                        className="sticky top-[100px] z-[9] pt-5 pb-2"
                       >
-                        {formatDisplayName(category.name)}
-                      </h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 md:divide-y-0 divide-y-2 divide-gray-200">
+                        <h2 className="text-[18px] font-bold leading-snug">
+                          <span style={{ color: localStyles?.color || "#1a1a1a" }}>
+                            {formatDisplayName(category.name)}
+                          </span>{" "}
+                          <span className="font-normal" style={{ color: localStyles?.accent || "#ea580c" }}>
+                            ({itemsToDisplay.length} {itemsToDisplay.length === 1 ? "item" : "items"})
+                          </span>
+                        </h2>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:gap-x-4 md:gap-y-1" style={{ borderColor: localStyles?.border?.borderColor || "#e5e7eb" }}>
                         {itemsToDisplay.map((item) => {
                           // Find all offers for this item
                           const itemOffers =
@@ -1006,14 +1418,21 @@ const Compact = ({
               />
             )}
           </>
+        ) : activeTab === "offers" ? (
+          <CompactOffersTab
+            offers={offers}
+            hoteldata={hoteldata}
+            styles={localStyles}
+            tableNumber={tableNumber}
+          />
         ) : (
           <CompactOrders hotelId={hoteldata?.id} styles={localStyles} />
         )}
 
-        {/* Bottom Navigation for Mobile Logged-in Users */}
+        {/* Bottom Navigation */}
         {showBottomNav && (
           <div
-            className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[999] px-4 py-2 flex justify-around items-center max-w-xl mx-auto"
+            className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t z-[999] px-2 py-1.5 flex justify-around items-center max-w-xl mx-auto"
             style={{
               backgroundColor: localStyles?.backgroundColor || "#fff",
               borderColor: localStyles?.border?.borderColor || "#e5e7eb",
@@ -1021,8 +1440,8 @@ const Compact = ({
           >
             <button
               onClick={() => setActiveTab("food")}
-              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
-                activeTab === "food" ? "opacity-100" : "opacity-50"
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${
+                activeTab === "food" ? "opacity-100" : "opacity-40"
               }`}
               style={{
                 color:
@@ -1031,13 +1450,28 @@ const Compact = ({
                     : localStyles?.color,
               }}
             >
-              <Utensils size={20} />
-              <span className="text-xs font-medium">Food</span>
+              <Home size={20} />
+              <span className="text-[10px] font-medium">Food</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("offers")}
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${
+                activeTab === "offers" ? "opacity-100" : "opacity-40"
+              }`}
+              style={{
+                color:
+                  activeTab === "offers"
+                    ? localStyles?.accent
+                    : localStyles?.color,
+              }}
+            >
+              <Tag size={20} />
+              <span className="text-[10px] font-medium">Offers</span>
             </button>
             <button
               onClick={() => setActiveTab("orders")}
-              className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${
-                activeTab === "orders" ? "opacity-100" : "opacity-50"
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${
+                activeTab === "orders" ? "opacity-100" : "opacity-40"
               }`}
               style={{
                 color:
@@ -1047,15 +1481,15 @@ const Compact = ({
               }}
             >
               <ShoppingBag size={20} />
-              <span className="text-xs font-medium">Orders</span>
+              <span className="text-[10px] font-medium">Orders</span>
             </button>
             <Link
               href="/user-profile"
-              className="flex flex-col items-center gap-1 p-2 rounded-lg transition-colors opacity-50"
+              className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors opacity-40"
               style={{ color: localStyles?.color }}
             >
               <User size={20} />
-              <span className="text-xs font-medium">Profile</span>
+              <span className="text-[10px] font-medium">Profile</span>
             </Link>
           </div>
         )}
