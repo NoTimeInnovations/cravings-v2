@@ -8,6 +8,7 @@ import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { createPortal } from "react-dom";
 import { calculateDeliveryDistanceAndCost } from "./OrderDrawer";
+import { isVideoUrl } from "@/lib/mediaUtils";
 
 interface LocationHeaderProps {
   hoteldata: HotelData;
@@ -144,7 +145,7 @@ const LocationHeader = ({
     ? displayAddress.length > 35
       ? displayAddress.substring(0, 35) + "..."
       : displayAddress
-    : storeLocation;
+    : "Select location";
 
   return (
     <>
@@ -156,7 +157,7 @@ const LocationHeader = ({
       >
         {/* Store Logo */}
         <div className="w-10 h-10 rounded-full bg-white flex-shrink-0 overflow-hidden flex items-center justify-center shadow-sm">
-          {hoteldata?.store_banner && !bannerError ? (
+          {hoteldata?.store_banner && !bannerError && !isVideoUrl(hoteldata.store_banner) ? (
             <img
               src={hoteldata.store_banner}
               alt={storeName}
