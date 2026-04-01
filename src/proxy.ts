@@ -66,6 +66,13 @@ export async function proxy(request: NextRequest) {
       if (/\.[a-zA-Z0-9]+$/.test(request.nextUrl.pathname)) {
         return NextResponse.next();
       }
+      // App routes that should not be prefixed with the partner username
+      const appRoutes = ["/user-profile", "/my-orders", "/login", "/signup", "/api/", "/profile", "/admin", "/superadmin", "/captain", "/help-center", "/pricing", "/about-us", "/explore", "/offers", "/partner", "/get-started", "/demo", "/_next/"];
+      if (appRoutes.some((r) => request.nextUrl.pathname.startsWith(r))) {
+        const rewriteHeaders = new Headers(request.headers);
+        rewriteHeaders.set("x-is-custom-domain", "1");
+        return NextResponse.rewrite(request.nextUrl, { request: { headers: rewriteHeaders } });
+      }
       const url = request.nextUrl.clone();
       const suffix = url.pathname === "/" ? "" : url.pathname;
       url.pathname = `/${username}${suffix}`;
