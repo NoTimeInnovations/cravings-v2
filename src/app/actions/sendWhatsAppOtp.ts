@@ -4,6 +4,14 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
 
+// Test phone numbers — skip OTP sending and verification
+const TEST_PHONES = ["0000000000", "6282826684", "9809873068"];
+
+function isTestPhone(phone: string): boolean {
+  const cleaned = phone.replace(/[\s\-\+\(\)]/g, "");
+  return TEST_PHONES.some((tp) => cleaned.endsWith(tp));
+}
+
 // In-memory OTP store with expiry
 const otpStore = new Map<string, { code: string; expiresAt: number }>();
 
@@ -55,7 +63,11 @@ function formatPhone(phone: string): string {
 export async function sendWhatsAppOtp(
   phone: string,
   partnerId?: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; skipOtp?: boolean }> {
+  if (isTestPhone(phone)) {
+    return { success: true, skipOtp: true };
+  }
+
   const formattedPhone = formatPhone(phone);
   try {
     cleanExpired();
@@ -123,6 +135,10 @@ export async function verifyWhatsAppOtp(
   phone: string,
   code: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (isTestPhone(phone)) {
+    return { success: true };
+  }
+
   cleanExpired();
 
   const formattedPhone = formatPhone(phone);

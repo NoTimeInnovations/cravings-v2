@@ -15,7 +15,7 @@ export function useWhatsAppOtp(partnerId?: string) {
   const [error, setError] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState<string>("");
 
-  const sendOtp = useCallback(async (phone: string) => {
+  const sendOtp = useCallback(async (phone: string): Promise<{ skipOtp?: boolean }> => {
     setError(null);
     setIsSending(true);
     try {
@@ -26,7 +26,11 @@ export function useWhatsAppOtp(partnerId?: string) {
         setError(message);
         throw new Error(message);
       }
+      if (result.skipOtp) {
+        return { skipOtp: true };
+      }
       setStep("otp");
+      return { skipOtp: false };
     } catch (err: any) {
       const message = err?.message || "Something went wrong. Please try again.";
       if (!error) setError(message);
