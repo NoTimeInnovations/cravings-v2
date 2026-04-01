@@ -81,7 +81,7 @@ type Phase =
   | "move-done-2" | "click-done-2" | "sheet2-close"
   // Place order
   | "cart-show" | "move-place" | "click-place" | "order-placed" | "order-sent"
-  // Step text screens
+  // Step text screens (with flying icon overlay)
   | "step-text-1" | "step-text-2" | "step-text-3"
   // Desktop
   | "trans-1" | "desktop-enter" | "order-arrive"
@@ -97,7 +97,7 @@ function PhoneFrame({ children }: { children: React.ReactNode }) {
         {/* Dynamic Island */}
         <div className="absolute top-[6px] md:top-[7px] left-1/2 -translate-x-1/2 w-[38px] md:w-[50px] h-[11px] md:h-[14px] bg-stone-950 rounded-full z-20" />
         {/* Screen */}
-        <div className="relative bg-[#F9F8F5] rounded-[19px] md:rounded-[24px] overflow-hidden h-[250px] md:h-[330px]">
+        <div className="relative isolate bg-[#F9F8F5] rounded-[19px] md:rounded-[24px] overflow-hidden h-[250px] md:h-[330px]">
           {/* Top padding for dynamic island */}
           <div className="h-4 md:h-5" />
           {children}
@@ -181,30 +181,30 @@ function OrderFlowInner({ onComplete }: { onComplete: () => void }) {
     t.push(setTimeout(() => setPhase("order-placed"), 9500));
     t.push(setTimeout(() => setPhase("order-sent"), 10300));
 
-    // Step text 1: "Order received in dashboard"
-    t.push(setTimeout(() => setPhase("step-text-1"), 11300));
-    t.push(setTimeout(() => setPhase("trans-1"), 13500));
-    t.push(setTimeout(() => setPhase("desktop-enter"), 14200));
+    // Step text 1 + flying icon → Dashboard
+    t.push(setTimeout(() => setPhase("step-text-1"), 11100));
+    t.push(setTimeout(() => setPhase("trans-1"), 13300));
+    t.push(setTimeout(() => setPhase("desktop-enter"), 14000));
 
     // Scene 2: Dashboard receives order
-    t.push(setTimeout(() => setPhase("order-arrive"), 14700));
-    t.push(setTimeout(() => { setCursorPos(getCenter(acceptRef)); setPhase("move-accept"); }, 15500));
-    t.push(setTimeout(() => setPhase("click-accept"), 16100));
-    t.push(setTimeout(() => setPhase("accepted"), 16300));
-    t.push(setTimeout(() => setPhase("assigned"), 17100));
+    t.push(setTimeout(() => setPhase("order-arrive"), 14500));
+    t.push(setTimeout(() => { setCursorPos(getCenter(acceptRef)); setPhase("move-accept"); }, 15300));
+    t.push(setTimeout(() => setPhase("click-accept"), 15900));
+    t.push(setTimeout(() => setPhase("accepted"), 16100));
+    t.push(setTimeout(() => setPhase("assigned"), 16900));
 
-    // Step text 2: "Delivery partner picks up"
-    t.push(setTimeout(() => setPhase("step-text-2"), 18100));
-    t.push(setTimeout(() => setPhase("trans-2"), 20300));
-    t.push(setTimeout(() => setPhase("delivery-enter"), 21000));
+    // Step text 2 + flying icon → Delivery
+    t.push(setTimeout(() => setPhase("step-text-2"), 17700));
+    t.push(setTimeout(() => setPhase("trans-2"), 19900));
+    t.push(setTimeout(() => setPhase("delivery-enter"), 20600));
 
     // Scene 3: Delivery boy notification
-    t.push(setTimeout(() => setPhase("notif-show"), 21400));
-    t.push(setTimeout(() => setPhase("hold"), 22400));
+    t.push(setTimeout(() => setPhase("notif-show"), 21000));
+    t.push(setTimeout(() => setPhase("hold"), 22000));
 
-    // Step text 3: "Order delivered successfully"
-    t.push(setTimeout(() => setPhase("step-text-3"), 23400));
-    t.push(setTimeout(onComplete, 25600));
+    // Step text 3 + flying icon → Done
+    t.push(setTimeout(() => setPhase("step-text-3"), 22800));
+    t.push(setTimeout(onComplete, 25000));
 
     return () => t.forEach(clearTimeout);
   }, [onComplete, getCenter]);
@@ -617,7 +617,7 @@ function OrderFlowInner({ onComplete }: { onComplete: () => void }) {
 
               {/* Order sent overlay */}
               {phase === "order-sent" && (
-                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-20 animate-[orderSentFade_0.3s_ease-out]">
+                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-[19px] md:rounded-[24px] flex items-center justify-center z-20 animate-[orderSentFade_0.3s_ease-out]">
                   <div className="text-center">
                     <div className="w-8 h-8 md:w-10 md:h-10 mx-auto bg-green-500 rounded-full flex items-center justify-center mb-1.5 animate-[orderSentScale_0.4s_ease-out]">
                       <svg className="w-4 h-4 md:w-5 md:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -956,7 +956,7 @@ function OrderFlowInner({ onComplete }: { onComplete: () => void }) {
               </svg>
             </div>
             <p className="text-base md:text-xl font-semibold text-stone-800 leading-snug">
-              Delivery partner picks up<br />&amp; delivers the order
+              Assigned order notification is<br />received in delivery boy&apos;s app
             </p>
           </div>
         </div>
@@ -1031,7 +1031,7 @@ export default function OrderFlowAnimation() {
           <div className="flex justify-center pb-1 md:pb-1.5">
             <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-[#3a3a3c]" />
           </div>
-          <div className="bg-[#fcfbf7] rounded-md md:rounded-lg overflow-hidden">
+          <div className="bg-white rounded-md md:rounded-lg overflow-hidden">
             <OrderFlowInner
               key={cycle}
               onComplete={handleComplete}
