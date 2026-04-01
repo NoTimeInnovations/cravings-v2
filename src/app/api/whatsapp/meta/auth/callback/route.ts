@@ -5,6 +5,8 @@ import {
   getPhoneNumberDetails,
   subscribeWabaWebhooks,
   saveWhatsAppIntegration,
+  initiateSmbSync,
+  checkCoexistenceStatus,
 } from "@/lib/whatsapp-meta";
 
 export async function GET(request: NextRequest) {
@@ -27,7 +29,6 @@ export async function GET(request: NextRequest) {
         partnerId = parsed.partnerId;
         redirectUrl = parsed.redirect;
       } catch {
-        // Fallback: state is just the partnerId string
         partnerId = stateRaw;
       }
     }
@@ -39,13 +40,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const isCoexistence = searchParams.get("coexistence") === "true";
+
     // 1. Exchange code for access token
     const { access_token } = await exchangeCodeForToken(code);
 
-    // 2. Get WABA ID and Phone Number ID from the token
-    const { wabaId, phoneNumberId } = await getConnectedWabaInfo(access_token);
+    // 2. Get WABA ID and Phone Number ID
+    // For coexistence, try query params first (from session info), fall back to debug token
+    let wabaId = searchParams.get("waba_id") || "";
+    let phoneNumberId = searchParams.get("phone_number_id") || "";
 
-    console.log("--- WhatsApp Business Connected ---");
+    if (!wabaId || !phoneNumberId) {
+      const info = await getConnectedWabaInfo(access_token);
+      wabaId = wabaId || info.wabaId;
+      phoneNumberId = phoneNumberId || info.phoneNumberId;
+    }
+
+    console.log(`--- WhatsApp Business Connected ${isCoexistence ? "(Coexistence)" : ""} ---`);
     console.log("Partner ID:", partnerId);
     console.log("WABA ID:", wabaId);
     console.log("Phone Number ID:", phoneNumberId);
@@ -66,7 +77,19 @@ export async function GET(request: NextRequest) {
       display_phone: displayPhone,
     });
 
-    // 6. Redirect back to the app
+    // 6. For coexistence: skip phone registration (already registered),
+    //    initiate contacts + message history sync (must happen within 24h)
+    if (isCoexistence) {
+      const status = await checkCoexistenceStatus(phoneNumberId, access_token);
+      console.log("[Coexistence] Status:", status);
+
+      // Fire-and-forget sync — don't block the redirect
+      initiateSmbSync(phoneNumberId, access_token).catch((err) =>
+        console.error("[Coexistence] Sync failed:", err)
+      );
+    }
+
+    // 7. Redirect back to the app
     const host = request.headers.get("host");
     const protocol = host?.includes("localhost") ? "http" : "https";
 
@@ -78,7 +101,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Default redirect to admin settings
     return NextResponse.redirect(
       `${protocol}://${host}/admin-v2?view=Settings&whatsapp_connected=true`,
     );

@@ -260,16 +260,48 @@ export function GeneralSettings() {
             partnerId: userData.id,
             redirect: `${window.location.pathname}?view=Settings`,
         });
+
+        // Listen for session info from Embedded Signup (coexistence flow)
+        const sessionListener = (event: MessageEvent) => {
+            if (event.origin !== "https://www.facebook.com") return;
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === "WA_EMBEDDED_SIGNUP") {
+                    console.log("[Coexistence] Session event:", data);
+                    // Store session data for the auth callback
+                    if (data.data?.waba_id) {
+                        sessionStorage.setItem("wa_coexistence_waba_id", data.data.waba_id);
+                    }
+                    if (data.data?.phone_number_id) {
+                        sessionStorage.setItem("wa_coexistence_phone_id", data.data.phone_number_id);
+                    }
+                    if (data.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING") {
+                        sessionStorage.setItem("wa_coexistence_mode", "true");
+                    }
+                }
+            } catch { }
+        };
+        window.addEventListener("message", sessionListener);
+
         // Load Facebook SDK and trigger Embedded Signup
         const launchSignup = () => {
             (window as any).FB.login(
                 (response: any) => {
+                    window.removeEventListener("message", sessionListener);
                     if (response.authResponse) {
                         const { code } = response.authResponse;
-                        // Send code to our callback
                         const host = window.location.origin;
+                        const isCoexistence = sessionStorage.getItem("wa_coexistence_mode") === "true";
+                        const wabaId = sessionStorage.getItem("wa_coexistence_waba_id") || "";
+                        const phoneId = sessionStorage.getItem("wa_coexistence_phone_id") || "";
+                        // Clean up
+                        sessionStorage.removeItem("wa_coexistence_mode");
+                        sessionStorage.removeItem("wa_coexistence_waba_id");
+                        sessionStorage.removeItem("wa_coexistence_phone_id");
+                        // Send code to our callback with coexistence flag
                         window.location.href =
-                            `${host}/api/whatsapp/meta/auth/callback?code=${code}&state=${encodeURIComponent(state)}`;
+                            `${host}/api/whatsapp/meta/auth/callback?code=${code}&state=${encodeURIComponent(state)}` +
+                            (isCoexistence ? `&coexistence=true&waba_id=${wabaId}&phone_number_id=${phoneId}` : "");
                     } else {
                         toast.error("WhatsApp connection was cancelled");
                     }
@@ -280,7 +312,7 @@ export function GeneralSettings() {
                     override_default_response_type: true,
                     extras: {
                         setup: {},
-                        featureType: "",
+                        featureType: "whatsapp_business_app_onboarding",
                         sessionInfoVersion: "3",
                     },
                 }

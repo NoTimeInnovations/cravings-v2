@@ -28,9 +28,27 @@ export async function POST(req: NextRequest) {
       const changes = entry.changes || [];
 
       for (const change of changes) {
-        if (change.field !== "messages") continue;
-
+        const field = change.field;
         const value = change.value;
+
+        // Handle coexistence webhook events
+        if (field === "smb_app_state_sync") {
+          console.log("[Coexistence] Contact sync event:", JSON.stringify(value).slice(0, 500));
+          continue;
+        }
+
+        if (field === "smb_message_echoes") {
+          console.log("[Coexistence] Message echo:", JSON.stringify(value).slice(0, 500));
+          continue;
+        }
+
+        if (field === "history") {
+          console.log("[Coexistence] History event:", JSON.stringify(value).slice(0, 500));
+          continue;
+        }
+
+        if (field !== "messages") continue;
+
         const phoneNumberId = value.metadata?.phone_number_id;
         const messages = value.messages || [];
 

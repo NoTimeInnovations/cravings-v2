@@ -197,6 +197,85 @@ export async function getPartnerByPhoneNumberId(phoneNumberId: string) {
   return res?.whatsapp_business_integrations?.[0] || null;
 }
 
+// ─── Initiate contacts + message history sync (coexistence) ──────
+export async function initiateSmbSync(
+  phoneNumberId: string,
+  accessToken: string,
+): Promise<{ contactsRequestId?: string; historyRequestId?: string }> {
+  const results: { contactsRequestId?: string; historyRequestId?: string } = {};
+
+  // Step 1: Contacts sync
+  try {
+    const contactsRes = await fetch(`${GRAPH_API_BASE}/${phoneNumberId}/smb_app_data`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        sync_type: "smb_app_state_sync",
+      }),
+    });
+    if (contactsRes.ok) {
+      const data = await contactsRes.json();
+      results.contactsRequestId = data.request_id;
+      console.log("[Coexistence] Contacts sync initiated:", data.request_id);
+    } else {
+      console.error("[Coexistence] Contacts sync failed:", await contactsRes.text());
+    }
+  } catch (err) {
+    console.error("[Coexistence] Contacts sync error:", err);
+  }
+
+  // Step 2: Message history sync
+  try {
+    const historyRes = await fetch(`${GRAPH_API_BASE}/${phoneNumberId}/smb_app_data`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        sync_type: "smb_app_state_sync",
+      }),
+    });
+    if (historyRes.ok) {
+      const data = await historyRes.json();
+      results.historyRequestId = data.request_id;
+      console.log("[Coexistence] History sync initiated:", data.request_id);
+    } else {
+      console.error("[Coexistence] History sync failed:", await historyRes.text());
+    }
+  } catch (err) {
+    console.error("[Coexistence] History sync error:", err);
+  }
+
+  return results;
+}
+
+// ─── Check coexistence status of a phone number ─────────────────
+export async function checkCoexistenceStatus(
+  phoneNumberId: string,
+  accessToken: string,
+): Promise<{ isOnBizApp: boolean; platformType: string | null }> {
+  try {
+    const res = await fetch(
+      `${GRAPH_API_BASE}/${phoneNumberId}?fields=is_on_biz_app,platform_type`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (!res.ok) return { isOnBizApp: false, platformType: null };
+    const data = await res.json();
+    return {
+      isOnBizApp: data.is_on_biz_app === true,
+      platformType: data.platform_type || null,
+    };
+  } catch {
+    return { isOnBizApp: false, platformType: null };
+  }
+}
+
 // ─── Send a WhatsApp message via Cloud API ───────────────────────
 export async function sendWhatsAppCloudMessage(
   phoneNumberId: string,
