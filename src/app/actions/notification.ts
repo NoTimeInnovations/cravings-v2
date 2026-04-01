@@ -11,7 +11,7 @@ import { getFeatures } from "@/lib/getFeatures";
 const BASE_URL = "https://notification-server-khaki.vercel.app";
 
 // Send template message when order is PLACED
-async function sendWhatsAppOrderPlaced(order: Order, storeName?: string) {
+async function sendWhatsAppOrderPlaced(order: Order, storeName?: string, partnerPhone?: string) {
   try {
     const phone = order.phone || order.user?.phone;
     if (!phone) return;
@@ -21,18 +21,11 @@ async function sendWhatsAppOrderPlaced(order: Order, storeName?: string) {
     const username = order.user?.full_name || "Customer";
     const orderId = order.display_id || order.id.slice(0, 8);
 
-    const typeMap: Record<string, string> = {
-      delivery: "Delivery",
-      table_order: "Dine-in",
-      pos: "POS",
-    };
-    const orderType = typeMap[order.type ?? ""] || "Takeaway";
+    const total = `${currency}${order.totalPrice}`;
 
     const orderItems = order.items
-      .map((item) => `${item.name} x ${item.quantity}`)
-      .join(", ");
-
-    const total = `${currency}${order.totalPrice}`;
+      .map((item) => `${item.name} × ${item.quantity} — ${currency}${item.price}`)
+      .join("\n");
 
     await fetch("/api/whatsapp/send", {
       method: "POST",
@@ -41,10 +34,11 @@ async function sendWhatsAppOrderPlaced(order: Order, storeName?: string) {
         phone,
         partnerId: order.partnerId,
         template: {
-          name: "order_update_v2",
+          name: "otp_publish",
           language: "en",
           headerParams: [username],
-          parameters: [store, orderId, orderType, total, orderItems],
+          parameters: [store, `#${orderId}`, total, orderItems, partnerPhone || ""],
+          buttonParams: [order.id],
         },
       }),
     });
@@ -393,8 +387,8 @@ class PartnerNotification {
 }
 
 class UserNotification {
-  async sendWhatsAppOrderPlaced(order: Order, storeName?: string) {
-    return sendWhatsAppOrderPlaced(order, storeName);
+  async sendWhatsAppOrderPlaced(order: Order, storeName?: string, partnerPhone?: string) {
+    return sendWhatsAppOrderPlaced(order, storeName, partnerPhone);
   }
 
   async sendOrderStatusNotification(order: Order, status: string, storeName?: string) {
