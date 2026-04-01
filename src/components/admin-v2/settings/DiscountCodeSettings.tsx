@@ -19,14 +19,15 @@ import {
     updateDiscountMutation,
     deleteDiscountMutation,
 } from "@/api/discounts";
-import { Loader2, Plus, Trash2, Tag, Copy, Check } from "lucide-react";
+import { Loader2, Plus, Trash2, Tag, Copy, Check, Search } from "lucide-react";
+import { getMenu } from "@/api/menu";
 
 type Discount = {
     id: string;
     code: string;
     description: string | null;
     terms_conditions: string | null;
-    discount_type: "percentage" | "flat";
+    discount_type: "percentage" | "flat" | "freebie";
     discount_value: number;
     min_order_value: number | null;
     max_discount_amount: number | null;
@@ -44,6 +45,8 @@ type Discount = {
     applicable_on: string | null;
     category_item_ids: string | null;
     rank: number | null;
+    freebie_item_count: number | null;
+    freebie_item_ids: string | null;
     created_at: string;
 };
 
@@ -58,7 +61,7 @@ const emptyForm = {
     code: "",
     description: "",
     terms_conditions: "",
-    discount_type: "percentage" as "percentage" | "flat",
+    discount_type: "percentage" as "percentage" | "flat" | "freebie",
     discount_value: "",
     min_order_value: "",
     max_discount_amount: "",
@@ -66,14 +69,14 @@ const emptyForm = {
     starts_at: "",
     expires_at: "",
     valid_days: "All" as string,
-    valid_time_from: "",
-    valid_time_to: "",
     discount_order_types: ["1", "2", "3"] as string[],
     discount_on_total: true,
     has_coupon: true,
     applicable_on: "All",
     category_item_ids: "",
     rank: "",
+    freebie_item_ids: "",
+    freebie_item_count: "",
 };
 
 function generateCode() {
@@ -101,10 +104,26 @@ export function DiscountCodeSettings() {
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [selectedDays, setSelectedDays] = useState<string[]>([]);
     const [allDays, setAllDays] = useState(true);
+    const [menuItems, setMenuItems] = useState<{ id: string; name: string; price: number }[]>([]);
+    const [freebieSearch, setFreebieSearch] = useState("");
+    const [selectedFreebieItems, setSelectedFreebieItems] = useState<{ id: string; name: string }[]>([]);
 
     useEffect(() => {
-        if (userData?.id) fetchDiscounts();
+        if (userData?.id) {
+            fetchDiscounts();
+            fetchMenuItems();
+        }
     }, [userData?.id]);
+
+    const fetchMenuItems = async () => {
+        if (!userData?.id) return;
+        try {
+            const res = await fetchFromHasura(getMenu, { partner_id: userData.id });
+            setMenuItems(res.menu ?? []);
+        } catch {
+            // silent fail - menu items are only needed for freebie
+        }
+    };
 
     const fetchDiscounts = async () => {
         if (!userData?.id) return;
@@ -122,8 +141,11 @@ export function DiscountCodeSettings() {
     const handleCreate = async () => {
         if (!userData?.id) return;
         if (!form.code.trim()) return toast.error("Code is required");
-        if (!form.discount_value || Number(form.discount_value) <= 0) return toast.error("Discount value must be greater than 0");
-        if (form.discount_type === "percentage" && Number(form.discount_value) > 100) return toast.error("Percentage cannot exceed 100");
+        if (form.discount_type !== "freebie") {
+            if (!form.discount_value || Number(form.discount_value) <= 0) return toast.error("Discount value must be greater than 0");
+            if (form.discount_type === "percentage" && Number(form.discount_value) > 100) return toast.error("Percentage cannot exceed 100");
+        }
+        if (form.discount_type === "freebie" && !form.freebie_item_ids.trim()) return toast.error("Freebie item IDs are required");
 
         setCreating(true);
         try {
@@ -131,7 +153,7 @@ export function DiscountCodeSettings() {
                 partner_id: userData.id,
                 code: form.code.trim().toUpperCase(),
                 discount_type: form.discount_type,
-                discount_value: Number(form.discount_value),
+                discount_value: form.discount_type === "freebie" ? 0 : Number(form.discount_value),
                 is_active: true,
                 used_count: 0,
                 discount_on_total: form.discount_on_total,
@@ -140,6 +162,10 @@ export function DiscountCodeSettings() {
                 valid_days: allDays ? "All" : selectedDays.join(","),
                 discount_order_types: form.discount_order_types.join(","),
             };
+            if (form.discount_type === "freebie") {
+                object.freebie_item_ids = form.freebie_item_ids.trim();
+                object.freebie_item_count = form.freebie_item_count ? Number(form.freebie_item_count) : 1;
+            }
             if (form.description.trim()) object.description = form.description.trim();
             if (form.terms_conditions.trim()) object.terms_conditions = form.terms_conditions.trim();
             if (form.min_order_value) object.min_order_value = Number(form.min_order_value);
@@ -147,8 +173,6 @@ export function DiscountCodeSettings() {
             if (form.usage_limit) object.usage_limit = Number(form.usage_limit);
             if (form.starts_at) object.starts_at = new Date(form.starts_at).toISOString();
             if (form.expires_at) object.expires_at = new Date(form.expires_at).toISOString();
-            if (form.valid_time_from) object.valid_time_from = form.valid_time_from;
-            if (form.valid_time_to) object.valid_time_to = form.valid_time_to;
             if (form.applicable_on !== "All" && form.category_item_ids.trim()) object.category_item_ids = form.category_item_ids.trim();
             if (form.rank) object.rank = Number(form.rank);
 
@@ -157,6 +181,8 @@ export function DiscountCodeSettings() {
             setForm(emptyForm);
             setSelectedDays([]);
             setAllDays(true);
+            setSelectedFreebieItems([]);
+            setFreebieSearch("");
             setShowForm(false);
             toast.success("Discount created");
         } catch (err: any) {
@@ -265,7 +291,7 @@ export function DiscountCodeSettings() {
                                     <Label>Discount Type</Label>
                                     <Select
                                         value={form.discount_type}
-                                        onValueChange={(v) => setForm({ ...form, discount_type: v as "percentage" | "flat" })}
+                                        onValueChange={(v) => setForm({ ...form, discount_type: v as "percentage" | "flat" | "freebie" })}
                                     >
                                         <SelectTrigger>
                                             <SelectValue />
@@ -273,11 +299,13 @@ export function DiscountCodeSettings() {
                                         <SelectContent>
                                             <SelectItem value="percentage">Percentage (%)</SelectItem>
                                             <SelectItem value="flat">Flat Amount (₹)</SelectItem>
+                                            <SelectItem value="freebie">Freebie (Free Item)</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
 
                                 {/* Discount Value */}
+                                {form.discount_type !== "freebie" && (
                                 <div className="space-y-2">
                                     <Label>{form.discount_type === "percentage" ? "Discount (%)" : "Discount Amount (₹)"}</Label>
                                     <Input
@@ -289,6 +317,79 @@ export function DiscountCodeSettings() {
                                         placeholder={form.discount_type === "percentage" ? "e.g. 10" : "e.g. 50"}
                                     />
                                 </div>
+                                )}
+
+                                {/* Freebie Fields */}
+                                {form.discount_type === "freebie" && (
+                                <>
+                                    <div className="space-y-2 sm:col-span-2">
+                                        <Label>Select Free Item(s)</Label>
+                                        {selectedFreebieItems.length > 0 && (
+                                            <div className="flex flex-wrap gap-1.5 mb-2">
+                                                {selectedFreebieItems.map((item) => (
+                                                    <span key={item.id} className="inline-flex items-center gap-1 bg-orange-100 text-orange-800 px-2 py-1 rounded-md text-xs">
+                                                        {item.name}
+                                                        <button type="button" onClick={() => {
+                                                            setSelectedFreebieItems((prev) => prev.filter((i) => i.id !== item.id));
+                                                            setForm((prev) => ({
+                                                                ...prev,
+                                                                freebie_item_ids: prev.freebie_item_ids.split(",").filter((id) => id !== item.id).join(","),
+                                                                freebie_item_count: String(selectedFreebieItems.length - 1 || 1),
+                                                            }));
+                                                        }}>
+                                                            <Trash2 className="h-3 w-3 hover:text-red-600" />
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                        <div className="relative">
+                                            <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                value={freebieSearch}
+                                                onChange={(e) => setFreebieSearch(e.target.value)}
+                                                placeholder="Search menu items..."
+                                                className="pl-8"
+                                            />
+                                        </div>
+                                        {freebieSearch && (
+                                            <div className="border rounded-md max-h-40 overflow-y-auto">
+                                                {menuItems
+                                                    .filter((item) =>
+                                                        item.name.toLowerCase().includes(freebieSearch.toLowerCase()) &&
+                                                        !selectedFreebieItems.some((s) => s.id === item.id)
+                                                    )
+                                                    .slice(0, 10)
+                                                    .map((item) => (
+                                                        <button
+                                                            key={item.id}
+                                                            type="button"
+                                                            className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex justify-between items-center"
+                                                            onClick={() => {
+                                                                setSelectedFreebieItems((prev) => [...prev, { id: item.id, name: item.name }]);
+                                                                setForm((prev) => ({
+                                                                    ...prev,
+                                                                    freebie_item_ids: prev.freebie_item_ids ? `${prev.freebie_item_ids},${item.id}` : item.id,
+                                                                    freebie_item_count: String(selectedFreebieItems.length + 1),
+                                                                }));
+                                                                setFreebieSearch("");
+                                                            }}
+                                                        >
+                                                            <span>{item.name}</span>
+                                                            <span className="text-muted-foreground text-xs">₹{item.price}</span>
+                                                        </button>
+                                                    ))}
+                                                {menuItems.filter((item) =>
+                                                    item.name.toLowerCase().includes(freebieSearch.toLowerCase()) &&
+                                                    !selectedFreebieItems.some((s) => s.id === item.id)
+                                                ).length === 0 && (
+                                                    <p className="px-3 py-2 text-sm text-muted-foreground">No items found</p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                                )}
 
                                 {/* Min Order Value */}
                                 <div className="space-y-2">
@@ -357,24 +458,6 @@ export function DiscountCodeSettings() {
                                         type="datetime-local"
                                         value={form.expires_at}
                                         onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
-                                    />
-                                </div>
-
-                                {/* Valid Time From/To */}
-                                <div className="space-y-2">
-                                    <Label>Valid Time From <span className="text-muted-foreground text-xs">(optional)</span></Label>
-                                    <Input
-                                        type="time"
-                                        value={form.valid_time_from}
-                                        onChange={(e) => setForm({ ...form, valid_time_from: e.target.value })}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Valid Time To <span className="text-muted-foreground text-xs">(optional)</span></Label>
-                                    <Input
-                                        type="time"
-                                        value={form.valid_time_to}
-                                        onChange={(e) => setForm({ ...form, valid_time_to: e.target.value })}
                                     />
                                 </div>
 
@@ -506,7 +589,7 @@ export function DiscountCodeSettings() {
                                 </Button>
                                 <Button
                                     variant="outline"
-                                    onClick={() => { setShowForm(false); setForm(emptyForm); setSelectedDays([]); setAllDays(true); }}
+                                    onClick={() => { setShowForm(false); setForm(emptyForm); setSelectedDays([]); setAllDays(true); setSelectedFreebieItems([]); setFreebieSearch(""); }}
                                     disabled={creating}
                                 >
                                     Cancel
@@ -541,8 +624,10 @@ export function DiscountCodeSettings() {
                                         <div className="flex-1 min-w-0 space-y-1">
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <span className="font-mono font-semibold text-sm tracking-wider">{disc.code}</span>
-                                                <Badge variant={disc.discount_type === "percentage" ? "secondary" : "outline"} className="text-xs">
-                                                    {disc.discount_type === "percentage"
+                                                <Badge variant={disc.discount_type === "freebie" ? "default" : disc.discount_type === "percentage" ? "secondary" : "outline"} className="text-xs">
+                                                    {disc.discount_type === "freebie"
+                                                        ? `Free Item${disc.freebie_item_count && disc.freebie_item_count > 1 ? ` x${disc.freebie_item_count}` : ""}`
+                                                        : disc.discount_type === "percentage"
                                                         ? `${disc.discount_value}% off`
                                                         : `₹${disc.discount_value} off`}
                                                 </Badge>
@@ -561,14 +646,11 @@ export function DiscountCodeSettings() {
                                                 <span>Used: {disc.used_count}{disc.usage_limit ? ` / ${disc.usage_limit}` : ""}</span>
                                                 {disc.discount_order_types && <span>Types: {formatOrderTypes(disc.discount_order_types)}</span>}
                                                 {disc.valid_days && disc.valid_days !== "All" && <span>Days: {disc.valid_days}</span>}
-                                                {disc.valid_time_from && disc.valid_time_to && (
-                                                    <span>{disc.valid_time_from} - {disc.valid_time_to}</span>
-                                                )}
                                                 {disc.starts_at && (
-                                                    <span>From: {new Date(disc.starts_at).toLocaleDateString()}</span>
+                                                    <span>From: {new Date(disc.starts_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}</span>
                                                 )}
                                                 {disc.expires_at && (
-                                                    <span>Until: {new Date(disc.expires_at).toLocaleDateString()}</span>
+                                                    <span>Until: {new Date(disc.expires_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}</span>
                                                 )}
                                             </div>
                                         </div>

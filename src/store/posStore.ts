@@ -47,9 +47,11 @@ export interface ExtraCharge {
 
 export interface Discount {
   id: string;
-  type: "percentage" | "flat";
+  type: "percentage" | "flat" | "freebie";
   value: number;
   reason?: string;
+  freebie_item_count?: number;
+  freebie_item_ids?: string;
 }
 
 interface POSState {
@@ -497,7 +499,9 @@ export const usePOSStore = create<POSState>((set, get) => ({
 
       // Calculate Discount
       const discountAmount = discounts.reduce((total, discount) => {
-        if (discount.type === "flat") {
+        if (discount.type === "freebie") {
+          return total + discount.value; // Freebie discount = item price as flat discount
+        } else if (discount.type === "flat") {
           return total + discount.value;
         } else {
           return total + (subtotal * discount.value) / 100;
@@ -603,7 +607,9 @@ export const usePOSStore = create<POSState>((set, get) => ({
     // Calculate Discount
     const subtotal = foodSubtotal + extraChargesSubtotal;
     const discountAmount = discounts.reduce((total, discount) => {
-      if (discount.type === "flat") {
+      if (discount.type === "freebie") {
+        return total; // Freebie discounts don't reduce monetary total
+      } else if (discount.type === "flat") {
         return total + discount.value;
       } else {
         return total + (subtotal * discount.value) / 100;
@@ -682,7 +688,9 @@ export const usePOSStore = create<POSState>((set, get) => ({
       const subtotal = foodSubtotal + extraChargesTotal;
 
       const discountAmount = discounts.reduce((total, discount) => {
-        if (discount.type === "flat") {
+        if (discount.type === "freebie") {
+          return total + discount.value; // Freebie discount = item price as flat discount
+        } else if (discount.type === "flat") {
           return total + discount.value;
         } else {
           return total + (subtotal * discount.value) / 100;
@@ -760,29 +768,40 @@ export const usePOSStore = create<POSState>((set, get) => ({
           table_name: get().tableName || null,
           payment_method: paymentMethod || "cash",
           petpooja_restaurant_id: partnerData.petpooja_restaurant_id,
-          items: cartItems.map((item) => {
-            const variantName = item.id?.includes("|") ? item.id.split("|")[1] : null;
+          items: (() => {
+            // Collect freebie pp_ids from discounts to mark matching cart items
+            const freebieItemIds = new Set(
+              discounts
+                .filter((d) => d.type === "freebie" && d.freebie_item_ids)
+                .flatMap((d) => d.freebie_item_ids!.split(",").map((id) => id.trim()))
+            );
 
-            return {
-              id: uuidv4(),
-              order_id: orderId,
-              menu_id: item.id?.split("|")[0].split("_custom_")[0],
-              quantity: item.quantity,
-              variant: variantName ? {
-                id: variantName, // We don't have explicit variant IDs, using name
-                name: variantName,
-              } : null,
-              item: {
-                id: item.id,
-                name: item.name,
-                price: item.price,
-                offers: item.offers,
-                category: item.category,
-                pp_id: item.pp_id,
-              },
-              created_at: createdAt,
-            };
-          }),
+            return cartItems.map((item) => {
+              const variantName = item.id?.includes("|") ? item.id.split("|")[1] : null;
+              const isFreebie = freebieItemIds.has(item.pp_id || "");
+
+              return {
+                id: uuidv4(),
+                order_id: orderId,
+                menu_id: item.id?.split("|")[0].split("_custom_")[0],
+                quantity: item.quantity,
+                variant: variantName ? {
+                  id: variantName,
+                  name: variantName,
+                } : null,
+                item: {
+                  id: item.id,
+                  name: item.name,
+                  price: item.price,
+                  offers: item.offers,
+                  category: item.category,
+                  pp_id: item.pp_id,
+                  ...(isFreebie && { is_freebie: true }),
+                },
+                created_at: createdAt,
+              };
+            });
+          })(),
         };
 
         try {
@@ -862,17 +881,25 @@ export const usePOSStore = create<POSState>((set, get) => ({
           }
         }`,
         {
-          orderItems: cartItems.map((item) => ({
-            order_id: orderId,
-            menu_id: item.id?.split("|")[0].split("_custom_")[0],
-            quantity: item.quantity,
-            item: {
-              id: item.id,
-              name: item.name,
-              price: item.price,
-              category: item.category,
-            },
-          })),
+          orderItems: (() => {
+            const freebieItemIds = new Set(
+              discounts
+                .filter((d) => d.type === "freebie" && d.freebie_item_ids)
+                .flatMap((d) => d.freebie_item_ids!.split(",").map((id) => id.trim()))
+            );
+            return cartItems.map((item) => ({
+              order_id: orderId,
+              menu_id: item.id?.split("|")[0].split("_custom_")[0],
+              quantity: item.quantity,
+              item: {
+                id: item.id,
+                name: item.name,
+                price: item.price,
+                category: item.category,
+                ...(freebieItemIds.has(item.pp_id || "") && { is_freebie: true }),
+              },
+            }));
+          })(),
         }
       );
 

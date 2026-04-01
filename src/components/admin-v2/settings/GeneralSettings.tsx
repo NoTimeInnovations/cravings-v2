@@ -70,6 +70,16 @@ export function GeneralSettings() {
     const [isVideoEditorOpen, setIsVideoEditorOpen] = useState(false);
     const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
 
+    // Announcement State
+    const [announcement, setAnnouncement] = useState("");
+
+    // Banner Mode State
+    const [bannerMode, setBannerMode] = useState<"single" | "carousel">("single");
+    const [carouselBanners, setCarouselBanners] = useState<string[]>([]);
+    const [isCarouselUploading, setIsCarouselUploading] = useState(false);
+    const [carouselCropperOpen, setCarouselCropperOpen] = useState(false);
+    const [carouselSelectedImageUrl, setCarouselSelectedImageUrl] = useState("");
+
     // Google Business State
     const [googleConnected, setGoogleConnected] = useState(false);
     const [googleLocations, setGoogleLocations] = useState<any[]>([]);
@@ -112,6 +122,12 @@ export function GeneralSettings() {
             setFootNote(userData.footnote || "");
             setIsShopOpen(userData.is_shop_open);
             setBannerImage((userData as any).store_banner || null);
+
+            // Announcement & Banner Mode
+            const rules = (userData as any).delivery_rules;
+            setAnnouncement(rules?.announcement || "");
+            setBannerMode(rules?.banner_mode || "single");
+            setCarouselBanners(rules?.carousel_banners || []);
 
             // Check Google Connection
             checkGoogleConnection(userData.id);
@@ -597,6 +613,93 @@ export function GeneralSettings() {
         }
     };
 
+    const saveAnnouncementAndBannerMode = async () => {
+        if (!userData) return;
+        try {
+            const currentRules = (userData as any).delivery_rules || {};
+            const updatedRules = {
+                ...currentRules,
+                announcement,
+                banner_mode: bannerMode,
+                carousel_banners: carouselBanners,
+            };
+            await updatePartner(userData.id, { delivery_rules: updatedRules });
+            revalidateTag(userData.id);
+            setState({ delivery_rules: updatedRules } as any);
+            toast.success("Settings updated successfully");
+        } catch (error) {
+            console.error("Error updating settings:", error);
+            toast.error("Failed to update settings");
+        }
+    };
+
+    const handleCarouselBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || !files[0] || !userData) return;
+        if (carouselBanners.length >= 5) {
+            toast.error("Maximum 5 banners allowed");
+            return;
+        }
+        const file = files[0];
+        const blobUrl = URL.createObjectURL(file);
+        setCarouselSelectedImageUrl(blobUrl);
+        setCarouselCropperOpen(true);
+        e.target.value = "";
+    };
+
+    const handleCarouselCropComplete = async (croppedImageUrl: string) => {
+        setCarouselCropperOpen(false);
+        setCarouselSelectedImageUrl("");
+        if (!userData) return;
+        setIsCarouselUploading(true);
+        try {
+            const response = await fetch(croppedImageUrl);
+            const blob = await response.blob();
+            const extension = blob.type.split("/")[1] || "png";
+            const imgUrl = await uploadFileToS3(
+                blob,
+                `carousel_banners/${userData.id}_${Date.now()}.${extension}`
+            );
+            if (!imgUrl) throw new Error("Upload failed");
+
+            const updated = [...carouselBanners, imgUrl];
+            setCarouselBanners(updated);
+
+            // Save to DB immediately
+            const currentRules = (userData as any).delivery_rules || {};
+            const updatedRules = { ...currentRules, carousel_banners: updated, banner_mode: bannerMode };
+            await updatePartner(userData.id, { delivery_rules: updatedRules });
+            revalidateTag(userData.id);
+            setState({ delivery_rules: updatedRules } as any);
+            toast.success("Banner added");
+        } catch (error) {
+            toast.error("Failed to upload banner");
+        } finally {
+            setIsCarouselUploading(false);
+        }
+    };
+
+    const removeCarouselBanner = async (index: number) => {
+        if (!userData) return;
+        const bannerToRemove = carouselBanners[index];
+        const updated = carouselBanners.filter((_, i) => i !== index);
+        setCarouselBanners(updated);
+
+        try {
+            if (bannerToRemove.includes("cravingsbucket")) {
+                await deleteFileFromS3(bannerToRemove);
+            }
+            const currentRules = (userData as any).delivery_rules || {};
+            const updatedRules = { ...currentRules, carousel_banners: updated };
+            await updatePartner(userData.id, { delivery_rules: updatedRules });
+            revalidateTag(userData.id);
+            setState({ delivery_rules: updatedRules } as any);
+            toast.success("Banner removed");
+        } catch {
+            toast.error("Failed to remove banner");
+        }
+    };
+
     const handleShopToggle = async (checked: boolean) => {
         if (!userData) return;
 
@@ -658,45 +761,161 @@ export function GeneralSettings() {
                     <Card className={isOnFreePlan ? "opacity-60 pointer-events-none" : ""}>
                         <CardHeader>
                             <CardTitle>Store Banner</CardTitle>
-                            <CardDescription>This image will be displayed at the top of your store page.</CardDescription>
+                            <CardDescription>Choose single banner or carousel (up to 5 banners).</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border bg-muted">
-                                {bannerImage ? (
-                                    isVideoUrl(bannerImage) ? (
-                                        <video src={bannerImage} autoPlay muted loop playsInline className="h-full w-full object-cover" />
-                                    ) : (
-                                        <Img src={bannerImage} alt="Store Banner" className="h-full w-full object-cover" />
-                                    )
-                                ) : (
-                                    <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                                        No banner image
-                                    </div>
-                                )}
-                                {isBannerUploading && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-                                        <Loader2 className="h-6 w-6 animate-spin" />
-                                    </div>
-                                )}
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <Button variant="outline" className="relative" disabled={isBannerUploading}>
-                                    <Upload className="mr-2 h-4 w-4" />
-                                    Upload New Banner
-                                    <Input
-                                        type="file"
-                                        className="absolute inset-0 cursor-pointer opacity-0"
-                                        accept="image/*,video/mp4,video/webm"
-                                        onChange={handleBannerChange}
-                                        disabled={isBannerUploading}
-                                    />
+                        <CardContent className="space-y-5">
+                            {/* Banner Mode Toggle */}
+                            <div className="flex items-center gap-3">
+                                <Button
+                                    variant={bannerMode === "single" ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={async () => {
+                                        setBannerMode("single");
+                                        if (!userData) return;
+                                        const currentRules = (userData as any).delivery_rules || {};
+                                        const updatedRules = { ...currentRules, banner_mode: "single" };
+                                        await updatePartner(userData.id, { delivery_rules: updatedRules });
+                                        revalidateTag(userData.id);
+                                        setState({ delivery_rules: updatedRules } as any);
+                                    }}
+                                >
+                                    Single Banner
+                                </Button>
+                                <Button
+                                    variant={bannerMode === "carousel" ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={async () => {
+                                        setBannerMode("carousel");
+                                        if (!userData) return;
+                                        const currentRules = (userData as any).delivery_rules || {};
+                                        const updatedRules = { ...currentRules, banner_mode: "carousel" };
+                                        await updatePartner(userData.id, { delivery_rules: updatedRules });
+                                        revalidateTag(userData.id);
+                                        setState({ delivery_rules: updatedRules } as any);
+                                    }}
+                                >
+                                    Carousel (Max 5)
                                 </Button>
                             </div>
+
+                            {/* Single Banner Upload */}
+                            {bannerMode === "single" && (
+                                <>
+                                    <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border bg-muted">
+                                        {bannerImage ? (
+                                            isVideoUrl(bannerImage) ? (
+                                                <video src={bannerImage} autoPlay muted loop playsInline className="h-full w-full object-cover" />
+                                            ) : (
+                                                <Img src={bannerImage} alt="Store Banner" className="h-full w-full object-cover" />
+                                            )
+                                        ) : (
+                                            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                                                No banner image
+                                            </div>
+                                        )}
+                                        {isBannerUploading && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+                                                <Loader2 className="h-6 w-6 animate-spin" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <Button variant="outline" className="relative" disabled={isBannerUploading}>
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        Upload Banner
+                                        <Input
+                                            type="file"
+                                            className="absolute inset-0 cursor-pointer opacity-0"
+                                            accept="image/*,video/mp4,video/webm"
+                                            onChange={handleBannerChange}
+                                            disabled={isBannerUploading}
+                                        />
+                                    </Button>
+                                </>
+                            )}
+
+                            {/* Carousel Banners Upload */}
+                            {bannerMode === "carousel" && (
+                                <div className="space-y-3">
+                                    <Label>Carousel Banners ({carouselBanners.length}/5)</Label>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                        {carouselBanners.map((url, idx) => (
+                                            <div key={idx} className="relative aspect-video rounded-lg overflow-hidden border bg-muted group">
+                                                <Img src={url} alt={`Banner ${idx + 1}`} className="w-full h-full object-cover" />
+                                                <button
+                                                    onClick={() => removeCarouselBanner(idx)}
+                                                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    ✕
+                                                </button>
+                                                <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
+                                                    {idx + 1}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {carouselBanners.length < 5 && (
+                                            <div className="aspect-video rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors relative">
+                                                {isCarouselUploading ? (
+                                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                                ) : (
+                                                    <div className="text-center text-muted-foreground">
+                                                        <Upload className="h-6 w-6 mx-auto mb-1" />
+                                                        <span className="text-xs">Add Banner</span>
+                                                    </div>
+                                                )}
+                                                <Input
+                                                    type="file"
+                                                    className="absolute inset-0 cursor-pointer opacity-0"
+                                                    accept="image/*"
+                                                    onChange={handleCarouselBannerUpload}
+                                                    disabled={isCarouselUploading}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
 
                 <UpgradePlanDialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog} featureName="Store Banner" />
+
+                {/* Carousel Banner Cropper */}
+                {carouselCropperOpen && carouselSelectedImageUrl && (
+                    <BannerEditor
+                        imageUrl={carouselSelectedImageUrl}
+                        isOpen={carouselCropperOpen}
+                        onClose={() => {
+                            setCarouselCropperOpen(false);
+                            setCarouselSelectedImageUrl("");
+                        }}
+                        onComplete={handleCarouselCropComplete}
+                    />
+                )}
+
+                {/* Announcement Settings */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Announcement Bar</CardTitle>
+                        <CardDescription>Display a message at the top of your store page. Leave empty to hide.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Announcement Text</Label>
+                            <Input
+                                value={announcement}
+                                onChange={(e) => setAnnouncement(e.target.value)}
+                                placeholder="e.g. Free delivery on orders above ₹500!"
+                                maxLength={100}
+                            />
+                            <p className="text-xs text-muted-foreground">{announcement.length}/100 characters</p>
+                        </div>
+                        <Button onClick={saveAnnouncementAndBannerMode} size="sm">
+                            <Save className="mr-2 h-4 w-4" />
+                            Save Announcement
+                        </Button>
+                    </CardContent>
+                </Card>
 
                 <Card>
                     <CardHeader>

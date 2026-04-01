@@ -1,15 +1,61 @@
 "use client";
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { getFeatures } from "@/lib/getFeatures";
 import useOrderStore from "@/store/orderStore";
 import { Offer } from "@/store/offerStore_hasura";
 import { useRouter } from "next/navigation";
 import { formatPrice, requiresThreeDecimalPlaces } from "@/lib/constants";
-
+import { X } from "lucide-react";
 
 import { getTagColor } from "@/data/foodTags";
+
+// Bottom sheet footer button with total calculation
+const BottomSheetAddButton = ({
+  item,
+  styles,
+  hoteldata,
+  variantQuantities,
+  getVariantOffer,
+  onClose,
+}: {
+  item: any;
+  styles: any;
+  hoteldata: any;
+  variantQuantities: Record<string, number>;
+  getVariantOffer: (name: string) => any;
+  onClose: () => void;
+}) => {
+  const total = useMemo(() => {
+    let sum = 0;
+    const variants = item.variants || [];
+    for (const variant of variants) {
+      const qty = variantQuantities[variant.name] || 0;
+      if (qty > 0) {
+        const variantOffer = getVariantOffer(variant.name);
+        const price =
+          variantOffer && typeof variantOffer.offer_price === "number"
+            ? variantOffer.offer_price
+            : variant.price || 0;
+        sum += price * qty;
+      }
+    }
+    return sum;
+  }, [item.variants, variantQuantities, getVariantOffer]);
+
+  return (
+    <button
+      onClick={onClose}
+      className="w-full flex items-center justify-between rounded-xl px-5 py-3.5 text-white font-semibold text-base"
+      style={{ backgroundColor: styles?.accent || "#ea580c" }}
+    >
+      <span>Total {hoteldata?.currency || "₹"}{formatPrice(total, hoteldata?.id)}</span>
+      <span>Add Item</span>
+    </button>
+  );
+};
 
 const ItemCard = ({
   item,
@@ -171,11 +217,10 @@ const ItemCard = ({
   }, [items, item.id, item.variants?.length]);
 
   useEffect(() => {
-    const hasVariantsInCart = Object.values(variantQuantities).some(
-      (quantity) => quantity > 0
-    );
-    setShowVariants(hasVariantsInCart || !!defaultShowOptions);
-  }, [variantQuantities, defaultShowOptions]);
+    if (defaultShowOptions) {
+      setShowVariants(true);
+    }
+  }, [defaultShowOptions]);
 
   const handleAddItem = () => {
     if (hasMultipleVariantsOnOffer) {
@@ -280,186 +325,214 @@ const ItemCard = ({
 
   return (
     <>
-      <div className="p-4 flex justify-between relative">
-        <div>
-          <div className="flex items-center gap-2">
-            {/* Veg/Non-Veg Indicator - only show if is_veg is not null */}
+      <div className="py-4 flex gap-3 relative md:border-b md:border-gray-100">
+        {/* Left Content */}
+        <div className="flex-1 min-w-0 flex flex-col justify-start pt-0.5">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            {/* Veg/Non-Veg Indicator */}
             {item.is_veg !== null && item.is_veg !== undefined && (
               <div className="flex-shrink-0">
                 {item.is_veg === false ? (
-                  <div className="w-4 h-4 border-2 border-red-600 flex items-center justify-center">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-600"></div>
+                  <div className="w-3.5 h-3.5 border-[1.5px] border-red-700 flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-red-700"></div>
                   </div>
                 ) : (
-                  <div className="w-4 h-4 border-2 border-green-600 flex items-center justify-center">
-                    <div className="w-2.5 h-2.5 rounded-full bg-green-600"></div>
+                  <div className="w-3.5 h-3.5 border-[1.5px] border-green-600 flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-green-600"></div>
                   </div>
                 )}
               </div>
             )}
-            <h3 className="capitalize text-lg font-semibold">
+            <h3 className="font-bold text-[16px] leading-tight truncate">
               {offerData?.variant && !hasMultipleVariantsOnOffer
                 ? `${item.name} (${offerData.variant.name})`
                 : item.name}
             </h3>
           </div>
-          <p className="text-sm opacity-50">{item.description}</p>
-          {/* Tags Display */}
+
+          {/* Description */}
+          {item.description && (
+            <p className="text-[14px] text-gray-500 line-clamp-2 mt-1 leading-relaxed">
+              {item.description}
+            </p>
+          )}
+
+          {/* Tags */}
           {item.tags && item.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {(showAllTags ? item.tags : item.tags.slice(0, 4)).map((tag, i) => (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {(showAllTags ? item.tags : item.tags.slice(0, 3)).map((tag, i) => (
                 <span
                   key={i}
-                  className={`text-[10px] px-2 py-1 rounded-full border ${getTagColor(
-                    tag
-                  )}`}
+                  className={`text-[9px] px-1.5 py-0.5 rounded-full border ${getTagColor(tag)}`}
                 >
                   {tag}
                 </span>
               ))}
-              {item.tags.length > 4 && (
+              {item.tags.length > 3 && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowAllTags(!showAllTags);
                   }}
-                  className="text-[10px] px-2 py-1 rounded-full border bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200 transition-colors"
+                  className="text-[9px] px-1.5 py-0.5 rounded-full border bg-gray-100 text-gray-600 border-gray-200"
                 >
-                  {showAllTags ? "Show Less" : `+${item.tags.length - 4} more`}
+                  {showAllTags ? "Less" : `+${item.tags.length - 3}`}
                 </button>
               )}
             </div>
           )}
 
+          {/* Price */}
           {shouldShowPrice && (
             <div
               style={{ color: styles?.accent || "#000" }}
-              className="text-lg font-bold mt-1"
+              className="text-[16px] font-bold mt-2"
             >
               {item.is_price_as_per_size !== true ? (
                 <>
                   {hasValidMainOffer ? (
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="text-red-500">
-                          {hoteldata?.currency || "₹"} {formatPrice(mainOfferPrice, hoteldata?.id)}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-red-500">
+                        {hoteldata?.currency || "₹"} {formatPrice(mainOfferPrice, hoteldata?.id)}
+                      </span>
+                      {!hasMultipleVariantsOnOffer && hasValidMainOriginalPrice && (
+                        <span className="text-xs line-through opacity-50 font-normal">
+                          {hoteldata?.currency || "₹"} {formatPrice(mainOriginalPrice, hoteldata?.id)}
                         </span>
-                        {discountPercentage > 0 && (
-                          <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">
-                            {discountPercentage}% OFF
-                          </span>
-                        )}
-                      </div>
-                      {!hasMultipleVariantsOnOffer &&
-                        hasValidMainOriginalPrice && (
-                          <span className="text-sm line-through opacity-70 font-light">
-                            {hoteldata?.currency || "₹"} {formatPrice(mainOriginalPrice, hoteldata?.id)}
-                          </span>
-                        )}
-                    </div>
-                  ) : hasValidBasePrice ? (
-                    <div className="contents">
-                      {baseItemPrice > 0 ? (
-                        <>
-                          {hasVariants ? (
-                            <span className="text-sm ">From </span>
-                          ) : null}
-                          {hoteldata?.currency || "₹"} {formatPrice(baseItemPrice, hoteldata?.id)}
-                        </>
-                      ) : (
-                        ""
+                      )}
+                      {discountPercentage > 0 && (
+                        <span className="text-[10px] bg-red-500 text-white px-1 py-0.5 rounded font-semibold">
+                          {discountPercentage}% OFF
+                        </span>
                       )}
                     </div>
+                  ) : hasValidBasePrice ? (
+                    <span>
+                      {baseItemPrice > 0 ? (
+                        <>
+                          {hasVariants && <span className="text-xs font-normal">From </span>}
+                          {hoteldata?.currency || "₹"} {formatPrice(baseItemPrice, hoteldata?.id)}
+                        </>
+                      ) : ""}
+                    </span>
                   ) : null}
                 </>
               ) : (
-                <div className="text-base font-normal">{`(Price as per size)`}</div>
+                <span className="text-xs font-normal opacity-60">Price as per size</span>
               )}
             </div>
           )}
+
           {showStock && (
-            <div className="text-xs mt-1">
+            <div className="text-[10px] mt-1">
               {isOutOfStock ? (
                 <span className="text-red-500 font-semibold">Out of Stock</span>
               ) : (
-                <span className="text-green-600">
-                  In Stock: {stockQuantity}
-                </span>
+                <span className="text-green-600">In Stock: {stockQuantity}</span>
               )}
             </div>
           )}
         </div>
-        <div className="relative">
+
+        {/* Right - Image & Actions */}
+        <div className="flex-shrink-0 flex flex-col items-center" style={{ maxWidth: "160px" }}>
           <div className="relative">
-            <div className="overflow-hidden aspect-square h-28 rounded-3xl relative">
+            {/* Image */}
+            <div className="rounded-xl overflow-hidden relative" style={{ width: "156px", minWidth: "156px", height: "110px" }}>
               <img
                 src={item.image_url || "/image_placeholder.png"}
                 alt={`Best ${item.name} in ${hoteldata.location_details || hoteldata.district || hoteldata.country || 'town'}`}
-                className={`object-cover ${!item.image_url ? "invert opacity-50" : ""
-                  } ${!item.is_available || isOutOfStock ? "grayscale" : ""}`}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                className={`w-full h-full object-cover ${!item.image_url ? "invert opacity-50" : ""} ${!item.is_available || isOutOfStock ? "grayscale" : ""}`}
               />
             </div>
+
+            {/* Unavailable Overlay */}
             {(!item.is_available || isOutOfStock) && (
-              <div className="absolute top-1/2 left-0 -translate-y-1/2 bg-red-500 text-white text-center text-xs font-semibold py-1 px-2 w-full">
+              <div className="absolute top-1/2 left-0 -translate-y-1/2 bg-red-500/90 text-white text-center text-[10px] font-semibold py-0.5 w-full">
                 {!item.is_available ? "Unavailable" : "Out of Stock"}
               </div>
             )}
+
+            {/* Add Button - overlapping bottom of image */}
             {isOrderable && (
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
-                {offerData &&
-                  item.category?.name?.toLowerCase() === "custom" ? (
+              <div className="absolute -bottom-3 left-1/2 -translate-x-1/2">
+                {offerData && item.category?.name?.toLowerCase() === "custom" ? (
                   <div
                     onClick={() => router.push(`/offers/${offerData.id}`)}
-                    style={{ backgroundColor: styles.accent, color: "white" }}
-                    className="rounded-full px-4 py-1 font-medium text-xs text-nowrap h-fit cursor-pointer"
+                    className="bg-white border rounded-lg px-5 py-1 font-semibold text-xs cursor-pointer shadow-sm"
+                    style={{ color: styles.accent, borderColor: `${styles.accent}40` }}
                   >
                     View offer
                   </div>
-                ) : (hasVariants && !offerData) ||
-                  hasMultipleVariantsOnOffer ? (
+                ) : (hasVariants && !offerData) || hasMultipleVariantsOnOffer ? (
                   !defaultShowOptions ? (
-                    <div
-                      onClick={() => setShowVariants(!showVariants)}
-                      style={{ backgroundColor: styles.accent, color: "white" }}
-                      className="rounded-full px-4 py-1 font-medium text-sm whitespace-nowrap h-fit cursor-pointer"
-                    >
-                      {itemQuantity > 0
-                        ? `Added (${itemQuantity})`
-                        : showVariants
-                          ? "Hide Options"
-                          : "Show Options"}
-                    </div>
+                    itemQuantity > 0 ? (
+                      <div
+                        className="bg-white border rounded-lg px-3 py-1 font-semibold flex items-center gap-4 text-sm shadow-sm"
+                        style={{ color: styles.accent, borderColor: `${styles.accent}30` }}
+                      >
+                        <button
+                          className="cursor-pointer active:scale-90 text-sm leading-none font-bold"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Remove last added variant
+                            const variantInCart = items?.filter((i) => i.id.startsWith(`${item.id}|`)) || [];
+                            const lastVariant = variantInCart[variantInCart.length - 1];
+                            if (lastVariant) {
+                              lastVariant.quantity > 1 ? decreaseQuantity(lastVariant.id) : removeItem(lastVariant.id);
+                            }
+                          }}
+                        >
+                          −
+                        </button>
+                        <span className="font-semibold text-sm min-w-[12px] text-center">{itemQuantity}</span>
+                        <button
+                          className="cursor-pointer active:scale-90 text-sm leading-none font-bold"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowVariants(true);
+                          }}
+                        >
+                          +
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => setShowVariants(!showVariants)}
+                        className="bg-white border rounded-lg px-5 py-1 font-semibold text-sm cursor-pointer shadow-sm whitespace-nowrap"
+                        style={{ color: styles.accent, borderColor: `${styles.accent}40` }}
+                      >
+                        {(hasOrderingFeature || (!hasOrderingFeature && !hasDeliveryFeature)) ? "Options" : "Add"}
+                      </div>
+                    )
                   ) : null
                 ) : showAddButton && itemQuantity > 0 ? (
                   <div
-                    style={{ backgroundColor: styles.accent, color: "white" }}
-                    className="rounded-full px-3 py-1 font-medium flex items-center gap-3 text-sm"
+                    className="bg-white border rounded-lg px-3 py-1 font-semibold flex items-center gap-4 text-sm shadow-sm"
+                    style={{ color: styles.accent, borderColor: `${styles.accent}30` }}
                   >
-                    <div
-                      className="cursor-pointer active:scale-95"
+                    <button
+                      className="cursor-pointer active:scale-90 text-sm leading-none font-bold"
                       onClick={(e) => {
                         e.preventDefault();
                         const idToRemove = offerData?.variant
                           ? `${item.id}|${offerData.variant.name}`
                           : (item.id as string);
-                        itemQuantity > 1
-                          ? decreaseQuantity(idToRemove)
-                          : removeItem(idToRemove);
+                        itemQuantity > 1 ? decreaseQuantity(idToRemove) : removeItem(idToRemove);
                       }}
                     >
-                      -
-                    </div>
-                    <div>{itemQuantity}</div>
-                    <div
-                      className="cursor-pointer active:scale-95"
+                      −
+                    </button>
+                    <span className="font-semibold text-sm min-w-[12px] text-center">{itemQuantity}</span>
+                    <button
+                      className="cursor-pointer active:scale-90 text-sm leading-none font-bold"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleAddItem();
                       }}
                     >
                       +
-                    </div>
+                    </button>
                   </div>
                 ) : showAddButton ? (
                   <div
@@ -467,157 +540,215 @@ const ItemCard = ({
                       e.stopPropagation();
                       handleAddItem();
                     }}
-                    style={{ backgroundColor: styles.accent, color: "white" }}
-                    className="rounded-full px-4 py-1 font-medium text-sm h-fit cursor-pointer"
+                    className="bg-white border rounded-lg px-5 py-1 font-semibold text-sm cursor-pointer shadow-sm"
+                    style={{ color: styles.accent, borderColor: `${styles.accent}40` }}
                   >
-                    Add
+                    {(hasOrderingFeature || (!hasOrderingFeature && !hasDeliveryFeature)) ? "Options" : "Add"}
                   </div>
                 ) : null}
               </div>
             )}
           </div>
+
+          {/* Spacing below button */}
+          {isOrderable && <div className="h-3" />}
         </div>
       </div>
-      {showVariants && hasVariants && (
-        <div className="w-full mt-2 divide-y divide-gray-200/30 border-t border-gray-200/30">
-          {(() => {
-            if (isOfferCategory && hasMultipleVariantsOnOffer) {
-              return (
-                allItemOffers?.map((offer) => offer.variant!).filter(Boolean) ||
-                []
-              );
-            } else if (
-              isOfferCategory &&
-              offerData?.variant &&
-              !hasMultipleVariantsOnOffer
-            ) {
-              return [offerData.variant];
-            } else {
-              return item.variants || [];
-            }
-          })()
-            .filter(Boolean)
-            .map((variant) => {
-              const variantOffer = getVariantOffer(variant.name);
-              const hasValidVariantOffer =
-                variantOffer && typeof variantOffer.offer_price === "number";
-              const originalVariantPrice = variant.price;
-              const hasValidOriginalPrice =
-                typeof originalVariantPrice === "number";
-              const showVariantAddButton = showAddButton && isOrderable;
+      {/* Bottom Sheet Modal for Variants */}
+      {showVariants && hasVariants && typeof window !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[9999]" onClick={() => setShowVariants(false)}>
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/50" />
 
-              return (
-                <div
-                  key={variant.name}
-                  className="py-2 px-4 rounded-lg flex justify-between items-center gap-5 w-full"
-                >
-                  <div className="grid">
-                    <span className="font-semibold">{variant.name}</span>
-                    {shouldShowPrice &&
-                      !item.is_price_as_per_size &&
-                      showVariantAddButton && (
-                        <div
-                          className="text-lg font-bold"
-                          style={{ color: styles?.accent || "#000" }}
-                        >
-                          {hasValidVariantOffer ? (
-                            <div className="flex items-center gap-2">
-                              <span className="text-red-500">
-                                {hoteldata?.currency || "₹"} {formatPrice(variantOffer.offer_price!, hoteldata?.id)}
-                              </span>
-                              {hasValidOriginalPrice &&
-                                originalVariantPrice >
-                                variantOffer.offer_price! && (
-                                  <span className="line-through text-gray-400 text-sm font-light">
-                                    {originalVariantPrice > 0
-                                      ? `${hoteldata?.currency || "₹"} ${formatPrice(originalVariantPrice, hoteldata?.id)}`
-                                      : ""}
-                                  </span>
-                                )}
-                            </div>
-                          ) : hasValidOriginalPrice ? (
-                            <span>
-                              {originalVariantPrice > 0
-                                ? `${hoteldata?.currency || "₹"} ${formatPrice(originalVariantPrice, hoteldata?.id)}`
-                                : ""}
-                            </span>
-                          ) : null}
-                        </div>
-                      )}
-                  </div>
-                  {showVariantAddButton ? (
-                    <div className="flex gap-2 items-center justify-end">
-                      {getVariantQuantity(variant.name) > 0 ? (
-                        <div
-                          style={{
-                            backgroundColor: styles.accent,
-                            color: "white",
-                          }}
-                          className="rounded-full px-3 py-1 font-medium flex items-center gap-3"
-                        >
-                          <div
-                            className="cursor-pointer active:scale-95"
-                            onClick={() => handleVariantRemove(variant)}
-                          >
-                            -
-                          </div>
-                          <div>{getVariantQuantity(variant.name)}</div>
-                          <div
-                            className="cursor-pointer active:scale-95"
-                            onClick={() => handleVariantAdd(variant)}
-                          >
-                            +
-                          </div>
+          {/* Bottom Sheet */}
+          <div
+            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Item Image Header */}
+            {item.image_url && (
+              <div className="w-full h-40 relative">
+                <img
+                  src={item.image_url}
+                  alt={item.name}
+                  className="w-full h-full object-cover rounded-t-3xl"
+                />
+              </div>
+            )}
+
+            {/* Item Info + Close */}
+            <div className="p-4 pb-2 flex justify-between items-start gap-3">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  {item.is_veg !== null && item.is_veg !== undefined && (
+                    <div className="flex-shrink-0">
+                      {item.is_veg === false ? (
+                        <div className="w-3.5 h-3.5 border-[1.5px] border-red-700 flex items-center justify-center">
+                          <div className="w-2 h-2 rounded-full bg-red-700" />
                         </div>
                       ) : (
-                        <div
-                          onClick={() => handleVariantAdd(variant)}
-                          style={{
-                            backgroundColor: styles.accent,
-                            color: "white",
-                          }}
-                          className="rounded-full px-4 py-1 font-medium h-fit cursor-pointer"
-                        >
-                          Add
+                        <div className="w-3.5 h-3.5 border-[1.5px] border-green-600 flex items-center justify-center">
+                          <div className="w-2 h-2 rounded-full bg-green-600" />
                         </div>
                       )}
                     </div>
-                  ) : (
-                    shouldShowPrice &&
-                    !item.is_price_as_per_size && (
-                      <div
-                        className="text-lg font-bold"
-                        style={{ color: styles?.accent || "#000" }}
-                      >
-                        {hasValidVariantOffer ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-red-500">
-                              {hoteldata?.currency || "₹"} {formatPrice(variantOffer.offer_price!, hoteldata?.id)}
-                            </span>
-                            {hasValidOriginalPrice &&
-                              originalVariantPrice >
-                              variantOffer.offer_price! && (
-                                <span className="line-through text-gray-400 text-sm font-light">
-                                  {originalVariantPrice > 0
-                                    ? `${hoteldata?.currency || "₹"} ${formatPrice(originalVariantPrice, hoteldata?.id)}`
-                                    : ""}
-                                </span>
-                              )}
-                          </div>
-                        ) : hasValidOriginalPrice ? (
-                          <span>
-                            {originalVariantPrice > 0
-                              ? `${hoteldata?.currency || "₹"} ${formatPrice(originalVariantPrice, hoteldata?.id)}`
-                              : ""}
-                          </span>
-                        ) : null}
-                      </div>
-                    )
                   )}
+                  <h3 className="font-bold text-lg">{item.name}</h3>
                 </div>
-              );
-            })}
-        </div>
+                {item.description && (
+                  <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+                    {item.description}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setShowVariants(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 flex-shrink-0"
+              >
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+
+            <div className="border-t border-gray-100 mx-4" />
+
+            {/* Variant Selection */}
+            <div className="p-4">
+              {/* Only show Quantity/Required header when ordering is available */}
+              {(hasOrderingFeature || hasDeliveryFeature) && (
+                <>
+                  <div className="flex items-center justify-between mb-1">
+                    <h4 className="font-bold text-base">Quantity</h4>
+                    <span className="text-xs px-2 py-0.5 rounded bg-orange-50 text-orange-600 font-medium border border-orange-200">
+                      Required
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-400 mb-3">Select options</p>
+                </>
+              )}
+
+              <div className="divide-y divide-gray-100">
+                {(() => {
+                  if (isOfferCategory && hasMultipleVariantsOnOffer) {
+                    return allItemOffers?.map((offer) => offer.variant!).filter(Boolean) || [];
+                  } else if (isOfferCategory && offerData?.variant && !hasMultipleVariantsOnOffer) {
+                    return [offerData.variant];
+                  } else {
+                    return item.variants || [];
+                  }
+                })()
+                  .filter(Boolean)
+                  .map((variant) => {
+                    const variantOffer = getVariantOffer(variant.name);
+                    const hasValidVariantOffer = variantOffer && typeof variantOffer.offer_price === "number";
+                    const originalVariantPrice = variant.price;
+                    const hasValidOriginalPrice = typeof originalVariantPrice === "number";
+                    const showVariantAddButton = showAddButton && isOrderable;
+                    const isMenuOnly = !hasOrderingFeature && !hasDeliveryFeature;
+                    const qty = getVariantQuantity(variant.name);
+
+                    return (
+                      <div
+                        key={variant.name}
+                        className="py-3 flex items-center justify-between gap-3"
+                      >
+                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                          {/* Veg/Non-veg indicator */}
+                          {item.is_veg !== null && item.is_veg !== undefined && (
+                            <div className="flex-shrink-0">
+                              {item.is_veg === false ? (
+                                <div className="w-3 h-3 border-[1.5px] border-red-700 flex items-center justify-center">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-red-700" />
+                                </div>
+                              ) : (
+                                <div className="w-3 h-3 border-[1.5px] border-green-600 flex items-center justify-center">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-green-600" />
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <span className="font-medium text-sm flex-1 min-w-0">{variant.name}</span>
+                        </div>
+
+                        {/* Price - always shown on the right side */}
+                        {shouldShowPrice && !item.is_price_as_per_size && (
+                          <div className="text-sm font-semibold flex-shrink-0">
+                            {hasValidVariantOffer ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-red-500">
+                                  {hoteldata?.currency || "₹"}{formatPrice(variantOffer.offer_price!, hoteldata?.id)}
+                                </span>
+                                {hasValidOriginalPrice && originalVariantPrice > variantOffer.offer_price! && (
+                                  <span className="line-through text-gray-400 text-xs font-normal">
+                                    {hoteldata?.currency || "₹"}{formatPrice(originalVariantPrice, hoteldata?.id)}
+                                  </span>
+                                )}
+                              </div>
+                            ) : hasValidOriginalPrice && originalVariantPrice > 0 ? (
+                              <span className="text-gray-700">
+                                {hoteldata?.currency || "₹"}{formatPrice(originalVariantPrice, hoteldata?.id)}
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
+
+                        {/* Add / Quantity stepper (only when ordering/delivery enabled) */}
+                        {showVariantAddButton && !isMenuOnly && (
+                          <div className="flex-shrink-0">
+                            {qty > 0 ? (
+                              <div
+                                className="flex items-center gap-3 border rounded-lg px-2.5 py-1"
+                                style={{ borderColor: `${styles.accent}30` }}
+                              >
+                                <button
+                                  onClick={() => handleVariantRemove(variant)}
+                                  className="text-sm font-bold leading-none"
+                                  style={{ color: styles.accent }}
+                                >
+                                  −
+                                </button>
+                                <span className="text-sm font-semibold w-4 text-center" style={{ color: styles.accent }}>{qty}</span>
+                                <button
+                                  onClick={() => handleVariantAdd(variant)}
+                                  className="text-sm font-bold leading-none"
+                                  style={{ color: styles.accent }}
+                                >
+                                  +
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleVariantAdd(variant)}
+                                className="border rounded-lg px-4 py-1 text-xs font-semibold"
+                                style={{ color: styles.accent, borderColor: `${styles.accent}40` }}
+                              >
+                                Add
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            {/* Add Item Footer */}
+            {showAddButton && (
+              <div className="sticky bottom-0 p-4 bg-white border-t border-gray-100">
+                <BottomSheetAddButton
+                  item={item}
+                  styles={styles}
+                  hoteldata={hoteldata}
+                  variantQuantities={variantQuantities}
+                  getVariantOffer={getVariantOffer}
+                  onClose={() => setShowVariants(false)}
+                />
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
       )}
 
     </>

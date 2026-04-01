@@ -131,7 +131,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
     const currency = (userData as Partner)?.currency || "₹";
     const gstPercentage = (userData as Partner)?.gst_percentage || 0;
 
-    const foodSubtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const foodSubtotal = order.items.reduce((sum, item) => sum + ((item as any).is_freebie ? 0 : item.price * item.quantity), 0);
 
     const chargesSubtotal = (order.extraCharges || []).reduce((sum, charge) => {
         return sum + getExtraCharge(
@@ -325,14 +325,20 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {order.items.map((item, index) => (
-                            <TableRow key={index}>
-                                <TableCell className="font-medium">{item.name}</TableCell>
-                                <TableCell className="text-right">{item.quantity}</TableCell>
-                                <TableCell className="text-right">{currency}{item.price}</TableCell>
-                                <TableCell className="text-right">{currency}{item.price * item.quantity}</TableCell>
-                            </TableRow>
-                        ))}
+                        {order.items.map((item, index) => {
+                            const isFreebie = (item as any).is_freebie;
+                            return (
+                                <TableRow key={index}>
+                                    <TableCell className="font-medium">
+                                        {item.name}
+                                        {isFreebie && <span className="text-xs font-bold ml-1 opacity-60">(FREE)</span>}
+                                    </TableCell>
+                                    <TableCell className="text-right">{item.quantity}</TableCell>
+                                    <TableCell className="text-right">{currency}{isFreebie ? 0 : item.price}</TableCell>
+                                    <TableCell className="text-right">{currency}{isFreebie ? 0 : item.price * item.quantity}</TableCell>
+                                </TableRow>
+                            );
+                        })}
 
                         
 
@@ -366,13 +372,20 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                         {/* Discounts */}
                         {discounts.map((discount, index) => {
                             const disc = discount as any;
-                            const discountValue = disc.type === "flat"
+                            const discountValue = disc.type === "freebie"
+                                ? (disc.savings || disc.value || 0)
+                                : disc.type === "flat"
                                 ? disc.value
                                 : (subtotal * disc.value) / 100;
+                            const discountLabel = disc.type === "freebie"
+                                ? `Freebie Discount${disc.freebie_item_names ? ` (${disc.freebie_item_names})` : ""}`
+                                : disc.type === "percentage"
+                                ? `${disc.value}% Off`
+                                : "Flat Discount";
                             return (
                                 <TableRow key={`discount-${index}`} className="bg-muted/50 font-medium text-green-600">
                                     <TableCell colSpan={3} className="text-right text-sm">
-                                        {disc.type === "percentage" ? `${disc.value}% Off` : "Flat Discount"}
+                                        {discountLabel}
                                         {disc.reason && ` (${disc.reason})`}
                                     </TableCell>
                                     <TableCell className="text-right text-sm text-green-600">

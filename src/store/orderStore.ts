@@ -66,6 +66,10 @@ export interface DeliveryRules {
   need_user_name?: boolean;
   parcel_charge?: number;
   parcel_charge_type?: "fixed" | "variable"; // fixed = flat amount, variable = per item
+  hide_delivery_charge?: boolean;
+  announcement?: string;
+  banner_mode?: "single" | "carousel";
+  carousel_banners?: string[];
 }
 
 export interface Order {
@@ -211,7 +215,7 @@ interface OrderState {
     deliveryCharge?: number,
     notes?: string,
     tableName?: string,
-    discounts?: { code: string; type: string; value: number; savings: number; pp_discount_id?: string; description?: string; terms_conditions?: string; max_discount_amount?: number; min_order_value?: number; discount_on_total?: boolean; discount_order_types?: string; valid_days?: string; applicable_on?: string; rank?: number } | null,
+    discounts?: { code: string; type: string; value: number; savings: number; pp_discount_id?: string; description?: string; terms_conditions?: string; max_discount_amount?: number; min_order_value?: number; discount_on_total?: boolean; discount_order_types?: string; valid_days?: string; applicable_on?: string; rank?: number; freebie_item_count?: number; freebie_item_ids?: string; freebie_item_names?: string; freebie_items?: { id: string; name: string; price: number; pp_id?: string; category?: any }[] } | null,
     customerName?: string,
   ) => Promise<Order | null>;
   getCurrentOrder: () => HotelOrderState;
@@ -518,6 +522,7 @@ const useOrderStore = create(
                 name: i.item?.name || "Unknown",
                 price: i.item?.offers?.[0]?.offer_price || i.item?.price || 0,
                 category: i.item?.category,
+                is_freebie: i.item?.is_freebie || false,
               })),
             }));
 
@@ -961,7 +966,7 @@ const useOrderStore = create(
         deliveryCharge?: number,
         notes?: string,
         tableName?: string,
-        discounts?: { code: string; type: string; value: number; savings: number; pp_discount_id?: string; description?: string; terms_conditions?: string; max_discount_amount?: number; min_order_value?: number; discount_on_total?: boolean; discount_order_types?: string; valid_days?: string; applicable_on?: string; rank?: number } | null,
+        discounts?: { code: string; type: string; value: number; savings: number; pp_discount_id?: string; description?: string; terms_conditions?: string; max_discount_amount?: number; min_order_value?: number; discount_on_total?: boolean; discount_order_types?: string; valid_days?: string; applicable_on?: string; rank?: number; freebie_item_count?: number; freebie_item_ids?: string; freebie_item_names?: string; freebie_items?: { id: string; name: string; price: number; pp_id?: string; category?: any }[] } | null,
         customerName?: string,
       ) => {
         try {
@@ -1022,7 +1027,7 @@ const useOrderStore = create(
           }
 
           // Add delivery charge if applicable
-          if (type === "delivery" && deliveryCharge && deliveryCharge > 0) {
+          if (type === "delivery" && deliveryCharge && deliveryCharge > 0 && !hotelData?.delivery_rules?.hide_delivery_charge) {
             exCharges.push({
               name: "Delivery Charge",
               amount: deliveryCharge,
@@ -1135,26 +1140,50 @@ const useOrderStore = create(
                 valid_days: discounts.valid_days || null,
                 applicable_on: discounts.applicable_on || null,
                 rank: discounts.rank || null,
+                freebie_item_count: discounts.freebie_item_count || null,
+                freebie_item_ids: discounts.freebie_item_ids || null,
+                freebie_item_names: discounts.freebie_item_names || null,
               }] : [],
-              items: currentOrder.items.map((item) => ({
-                id: uuidv4(),
-                order_id: orderId,
-                menu_id: item.id.split("|")[0],
-                quantity: item.quantity,
-                variant: item.variantSelections?.[0] ? {
-                  id: item.variantSelections?.[0]?.id,
-                  name: item.variantSelections?.[0]?.name,
-                } : null,
-                item: {
-                  id: item.id,
-                  name: item.name,
-                  price: item.price,
-                  offers: item.offers,
-                  category: item.category,
-                  pp_id: item.pp_id,
-                },
-                created_at: createdAt,
-              })),
+              items: [
+                ...currentOrder.items.map((item) => ({
+                  id: uuidv4(),
+                  order_id: orderId,
+                  menu_id: item.id.split("|")[0],
+                  quantity: item.quantity,
+                  variant: item.variantSelections?.[0] ? {
+                    id: item.variantSelections?.[0]?.id,
+                    name: item.variantSelections?.[0]?.name,
+                  } : null,
+                  item: {
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    offers: item.offers,
+                    category: item.category,
+                    pp_id: item.pp_id,
+                  },
+                  created_at: createdAt,
+                })),
+                ...(discounts?.type === "freebie" && discounts.freebie_items?.length
+                  ? discounts.freebie_items.map((fi) => ({
+                      id: uuidv4(),
+                      order_id: orderId,
+                      menu_id: fi.id,
+                      quantity: discounts.freebie_item_count || 1,
+                      variant: null,
+                      item: {
+                        id: fi.id,
+                        name: fi.name,
+                        price: fi.price,
+                        offers: [],
+                        category: fi.category || null,
+                        pp_id: fi.pp_id || null,
+                        is_freebie: true,
+                      },
+                      created_at: createdAt,
+                    }))
+                  : []),
+              ],
             };
 
             try {
@@ -1232,17 +1261,33 @@ const useOrderStore = create(
               notes: notes || null,
               display_id: getNextDisplayOrderNumber.toString(),
               discounts: discounts ? [discounts] : null,
-              orderItems: currentOrder.items.map((item) => ({
-                menu_id: item.id.split("|")[0],
-                quantity: item.quantity,
-                item: {
-                  id: item.id,
-                  name: item.name,
-                  price: item.price,
-                  offers: item.offers,
-                  category: item.category,
-                },
-              })),
+              orderItems: [
+                ...currentOrder.items.map((item) => ({
+                  menu_id: item.id.split("|")[0],
+                  quantity: item.quantity,
+                  item: {
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    offers: item.offers,
+                    category: item.category,
+                  },
+                })),
+                ...(discounts?.type === "freebie" && discounts.freebie_items?.length
+                  ? discounts.freebie_items.map((fi) => ({
+                      menu_id: fi.id,
+                      quantity: discounts.freebie_item_count || 1,
+                      item: {
+                        id: fi.id,
+                        name: fi.name,
+                        price: fi.price,
+                        offers: [],
+                        category: fi.category || null,
+                        is_freebie: true,
+                      },
+                    }))
+                  : []),
+              ],
             }
           );
 
@@ -1443,6 +1488,7 @@ const useOrderStore = create(
                 price: i.item?.price || i.menu?.price || 0,
                 category: i.menu?.category,
                 stocks: i.menu?.stocks,
+                is_freebie: i.item?.is_freebie || false,
               })),
             };
           });
@@ -1495,6 +1541,7 @@ function transformOrderFromHasura(order: any): Order {
       description: item.menu?.description || "",
       is_top: item.menu?.is_top || false,
       is_available: item.menu?.is_available || true,
+      is_freebie: item.item?.is_freebie || false,
     })),
     totalPrice: order.total_price || 0,
     createdAt: order.created_at,

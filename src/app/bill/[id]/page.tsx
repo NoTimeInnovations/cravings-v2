@@ -178,6 +178,7 @@ const PrintOrderPage = () => {
             description: item.menu?.description || "",
             is_top: item.menu?.is_top || false,
             is_available: item.menu?.is_available || true,
+            is_freebie: item.item?.is_freebie || false,
           })),
           extra_charges: orders_by_pk.extra_charges || [],
           tableNumber: orders_by_pk.table_number, // Ensure this matches your usage
@@ -226,7 +227,9 @@ const PrintOrderPage = () => {
         const calcGstAmount = orders_by_pk.gst_included ?? (foodSubtotal * gstPercentage) / 100;
         const calcDiscounts = formattedOrder.discounts || [];
         const calcDiscountAmount = calcDiscounts.reduce((total: number, discount: any) => {
-          if (discount.type === "flat") {
+          if (discount.type === "freebie") {
+            return total + (discount.savings || discount.value || 0); // Freebie discount = item price
+          } else if (discount.type === "flat") {
             return total + (discount.value || 0);
           } else if (discount.type === "percentage") {
             return total + (subtotal * (discount.value || 0)) / 100;
@@ -376,7 +379,7 @@ const PrintOrderPage = () => {
 
   // Calculate amounts
   const foodSubtotal = (order?.items ?? []).reduce(
-    (sum: number, item: OrderItem) => sum + item.price * item.quantity,
+    (sum: number, item: any) => sum + (item.is_freebie ? 0 : item.price * item.quantity),
     0
   );
 
@@ -405,7 +408,9 @@ const PrintOrderPage = () => {
 
   const discounts = order.discounts || [];
   const discountAmount = discounts.reduce((total: number, discount: any) => {
-    if (discount.type === "flat") {
+    if (discount.type === "freebie") {
+      return total; // Freebie discounts don't reduce monetary total
+    } else if (discount.type === "flat") {
       return total + (discount.value || 0);
     } else if (discount.type === "percentage") {
       return total + (subtotal * (discount.value || 0)) / 100;
@@ -561,14 +566,15 @@ const PrintOrderPage = () => {
         {/* Order Items */}
         <h3 className="font-bold text-sm uppercase mb-1">Items Ordered</h3>
         <ul className="space-y-1 text-sm">
-          {(order?.items ?? []).map((item: OrderItem) => (
+          {(order?.items ?? []).map((item: any) => (
             <li key={item.id} className="flex justify-between">
               <span>
                 {item.quantity}x {item.name}
+                {item.is_freebie && <span className="text-xs font-bold ml-1">(FREE)</span>}
               </span>
               <span>
                 {currency}
-                {(item.price * item.quantity).toFixed(2)}
+                {item.is_freebie ? "0.00" : (item.price * item.quantity).toFixed(2)}
               </span>
             </li>
           ))}
@@ -611,19 +617,22 @@ const PrintOrderPage = () => {
             <h3 className="font-bold text-sm uppercase mb-1">Discounts</h3>
             <ul className="space-y-1 text-sm">
               {discounts.map((discount: any, index: number) => {
-                const discountValue = discount.type === "flat"
+                const discountValue = discount.type === "freebie"
+                  ? (discount.savings || discount.value || 0)
+                  : discount.type === "flat"
                   ? discount.value
                   : (subtotal * discount.value) / 100;
                 return (
-                  <li key={index} className="flex justify-between">
-                    <span>
-                      {discount.type === "percentage" ? `${discount.value}% Off` : "Flat Discount"}
-                      {discount.reason && ` (${discount.reason})`}
-                    </span>
-                    <span>
-                      - {currency}
-                      {discountValue.toFixed(2)}
-                    </span>
+                  <li key={index}>
+                    <div className="flex justify-between">
+                      <span>
+                        {discount.type === "freebie"
+                          ? `Freebie${discount.freebie_item_names ? ` - ${discount.freebie_item_names}` : ""}${discount.freebie_item_count > 1 ? ` x${discount.freebie_item_count}` : ""}`
+                          : discount.type === "percentage" ? `${discount.value}% Off` : "Flat Discount"}
+                        {discount.reason && ` (${discount.reason})`}
+                      </span>
+                      <span>- {currency}{discountValue.toFixed(2)}</span>
+                    </div>
                   </li>
                 );
               })}

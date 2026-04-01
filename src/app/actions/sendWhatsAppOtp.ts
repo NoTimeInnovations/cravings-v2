@@ -4,6 +4,12 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
 
+// Test account for App Store review — accepts hardcoded OTP 123456
+const TEST_PHONE = "0000000000";
+function isTestPhone(phone: string): boolean {
+  return phone.replace(/[\s\-\+\(\)]/g, "").endsWith(TEST_PHONE);
+}
+
 // In-memory OTP store with expiry
 const otpStore = new Map<string, { code: string; expiresAt: number }>();
 
@@ -57,6 +63,13 @@ export async function sendWhatsAppOtp(
   partnerId?: string
 ): Promise<{ success: boolean; error?: string }> {
   const formattedPhone = formatPhone(phone);
+
+  // Test account: store hardcoded OTP, skip WhatsApp message
+  if (isTestPhone(phone)) {
+    otpStore.set(formattedPhone, { code: "123456", expiresAt: Date.now() + 5 * 60 * 1000 });
+    return { success: true };
+  }
+
   try {
     cleanExpired();
     const code = generateOtp();

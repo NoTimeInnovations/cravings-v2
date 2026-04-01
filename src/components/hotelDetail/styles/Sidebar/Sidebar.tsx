@@ -2,6 +2,7 @@
 
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
+import LocationHeader from "../../LocationHeader";
 import ThemeChangeButton, { ThemeConfig } from "../../ThemeChangeButton";
 import SearchMenu from "../../SearchMenu";
 import { MapPin, LayoutGrid, Phone, Search, Zap, ChevronLeft, ChevronRight, Star, Minus, Plus, Utensils, ShoppingBag, ExternalLink, User } from "lucide-react";
@@ -46,6 +47,68 @@ export interface SidebarHotelPageProps {
   qrId?: string | null;
   isOnFreePlan?: boolean;
 }
+
+const SidebarBannerCarousel = ({ banners, accent }: { banners: string[]; accent: string }) => {
+  const items = banners.slice(0, 5);
+  const count = items.length;
+  const isMultiple = count > 1;
+  const extended = useMemo(() => isMultiple ? [items[count - 1], ...items, items[0]] : items, [items, count, isMultiple]);
+  const [index, setIndex] = useState(isMultiple ? 1 : 0);
+  const [transitioning, setTransitioning] = useState(true);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const autoRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const touchX = useRef(0);
+  const deltaX = useRef(0);
+  const realIndex = isMultiple ? ((index - 1 + count) % count) : 0;
+
+  const resetAuto = useCallback(() => {
+    if (autoRef.current) clearInterval(autoRef.current);
+    if (!isMultiple) return;
+    autoRef.current = setInterval(() => { setTransitioning(true); setIndex((p) => p + 1); }, 3500);
+  }, [isMultiple]);
+
+  useEffect(() => { resetAuto(); return () => { if (autoRef.current) clearInterval(autoRef.current); }; }, [resetAuto]);
+
+  useEffect(() => {
+    if (!isMultiple) return;
+    if (index === 0 || index === count + 1) {
+      const t = setTimeout(() => { setTransitioning(false); setIndex(index === 0 ? count : 1); }, 500);
+      return () => clearTimeout(t);
+    }
+  }, [index, count, isMultiple]);
+
+  useEffect(() => { if (!transitioning) { const t = setTimeout(() => setTransitioning(true), 50); return () => clearTimeout(t); } }, [transitioning]);
+
+  return (
+    <div className="relative w-full h-full overflow-hidden"
+      onTouchStart={isMultiple ? (e) => { touchX.current = e.touches[0].clientX; deltaX.current = 0; if (autoRef.current) clearInterval(autoRef.current); } : undefined}
+      onTouchMove={isMultiple ? (e) => { deltaX.current = e.touches[0].clientX - touchX.current; if (trackRef.current) { const w = trackRef.current.parentElement?.offsetWidth || 0; trackRef.current.style.transition = "none"; trackRef.current.style.transform = `translateX(${-index * w + deltaX.current}px)`; } } : undefined}
+      onTouchEnd={isMultiple ? () => { setTransitioning(true); if (trackRef.current) { trackRef.current.style.transition = ""; trackRef.current.style.transform = ""; } if (deltaX.current < -50) setIndex((p) => p + 1); else if (deltaX.current > 50) setIndex((p) => p - 1); resetAuto(); } : undefined}
+    >
+      <div ref={trackRef} className="flex h-full" style={{ transform: `translateX(-${index * 100}%)`, transition: transitioning ? "transform 500ms ease-in-out" : "none" }}>
+        {extended.map((url, idx) => (
+          <div key={idx} className="w-full h-full flex-shrink-0">
+            {isVideoUrl(url) ? (
+              <video src={url} poster={getVideoThumbnailUrl(url)} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+            ) : (
+              <img src={url} alt={`Banner ${idx + 1}`} className="w-full h-full object-cover" />
+            )}
+          </div>
+        ))}
+      </div>
+      {isMultiple && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+          {items.map((_, idx) => (
+            <button key={idx} onClick={() => { setTransitioning(true); setIndex(idx + 1); resetAuto(); }}
+              className="rounded-full transition-all duration-300"
+              style={{ width: realIndex === idx ? 16 : 6, height: 6, backgroundColor: realIndex === idx ? accent : "rgba(255,255,255,0.5)" }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Sidebar = ({
   styles,
@@ -294,6 +357,20 @@ const Sidebar = ({
     >
       {!open_place_order_modal ? (
         <>
+          {/* Location Header (hide for QR scan / dine-in and when no ordering/delivery) */}
+          {tableNumber === 0 && (
+            getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled ||
+            getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled
+          ) && (
+            <LocationHeader
+              hoteldata={hoteldata}
+              styles={styles}
+              accent={styles.accent || "#ea580c"}
+              bannerError={false}
+              setBannerError={() => {}}
+            />
+          )}
+
           <ShopClosedModalWarning
             hotelId={hoteldata?.id}
             isShopOpen={hoteldata?.is_shop_open}
@@ -302,39 +379,48 @@ const Sidebar = ({
           {/* Banner */}
           <section className="relative">
             <div className="w-full h-[28vh] relative overflow-hidden">
-              {hoteldata?.store_banner && hoteldata?.store_banner !== "" ? (
-                isVideoUrl(hoteldata.store_banner) ? (
-                  <video
-                    src={hoteldata.store_banner}
-                    poster={getVideoThumbnailUrl(hoteldata.store_banner)}
-                    preload="metadata"
-                    autoPlay muted loop playsInline
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <img
-                    src={hoteldata.store_banner}
-                    alt={hoteldata?.store_name}
-                    className="w-full h-full object-cover"
-                  />
-                )
-              ) : (
-                <div
-                  className="w-full h-full flex items-center justify-center relative overflow-hidden"
-                  style={{ backgroundColor: styles.accent }}
-                >
-                  <div
-                    className="absolute inset-0 opacity-10"
-                    style={{
-                      backgroundImage: "radial-gradient(#fff 2px, transparent 2px)",
-                      backgroundSize: "20px 20px",
-                    }}
-                  />
-                  <h1 className="font-handwriting text-white drop-shadow-md text-center font-bold break-words w-full text-4xl z-10 p-4">
-                    {hoteldata?.store_name}
-                  </h1>
-                </div>
-              )}
+              {(() => {
+                const bannerMode = hoteldata?.delivery_rules?.banner_mode || "single";
+                const carouselBanners: string[] = hoteldata?.delivery_rules?.carousel_banners || [];
+
+                if (bannerMode === "carousel" && carouselBanners.length > 0) {
+                  return <SidebarBannerCarousel banners={carouselBanners} accent={styles.accent} />;
+                } else if (hoteldata?.store_banner && hoteldata?.store_banner !== "") {
+                  return isVideoUrl(hoteldata.store_banner) ? (
+                    <video
+                      src={hoteldata.store_banner}
+                      poster={getVideoThumbnailUrl(hoteldata.store_banner)}
+                      preload="metadata"
+                      autoPlay muted loop playsInline
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <img
+                      src={hoteldata.store_banner}
+                      alt={hoteldata?.store_name}
+                      className="w-full h-full object-cover"
+                    />
+                  );
+                } else {
+                  return (
+                    <div
+                      className="w-full h-full flex items-center justify-center relative overflow-hidden"
+                      style={{ backgroundColor: styles.accent }}
+                    >
+                      <div
+                        className="absolute inset-0 opacity-10"
+                        style={{
+                          backgroundImage: "radial-gradient(#fff 2px, transparent 2px)",
+                          backgroundSize: "20px 20px",
+                        }}
+                      />
+                      <h1 className="font-handwriting text-white drop-shadow-md text-center font-bold break-words w-full text-4xl z-10 p-4">
+                        {hoteldata?.store_name}
+                      </h1>
+                    </div>
+                  );
+                }
+              })()}
               {/* Gradient overlay at bottom of banner */}
               <div
                 className="absolute bottom-0 left-0 right-0 h-28"

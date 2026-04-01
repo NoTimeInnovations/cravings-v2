@@ -84,6 +84,7 @@ const UnifiedAddressSection = ({
     null,
   );
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const headerAddress = useOrderStore((s) => s.userAddress);
 
   const savedAddresses = ((user as any)?.addresses || []) as SavedAddress[];
 
@@ -101,16 +102,19 @@ const UnifiedAddressSection = ({
   }, []);
 
   useEffect(() => {
-    if (savedAddresses.length === 0) return;
-    const defaultAddress =
-      savedAddresses.find((addr) => addr.isDefault) || savedAddresses[0];
-    if (
-      defaultAddress &&
-      defaultAddress.id !== selectedAddressId &&
-      !selectedAddressId
-    ) {
-      handleAddressSelect(defaultAddress);
+    // Only show address if user explicitly selected one from the location header
+    const orderCoords = useOrderStore.getState().coordinates;
+    const orderAddress = useOrderStore.getState().userAddress;
+    if (orderCoords && orderAddress && !selectedAddressId) {
+      const matchingAddr = savedAddresses.find(
+        (a) => a.latitude === orderCoords.lat && a.longitude === orderCoords.lng
+      );
+      if (matchingAddr) {
+        setSelectedAddressId(matchingAddr.id);
+      }
+      setAddress(orderAddress);
     }
+    // No auto-selection of default saved address — user must pick from location header
   }, [savedAddresses, selectedAddressId]);
 
   const saveAddressesForUser = async (addresses: SavedAddress[]) => {
@@ -161,25 +165,11 @@ const UnifiedAddressSection = ({
     setAddress(fullAddress);
 
     if (addr?.latitude && addr?.longitude) {
-      const locationData = {
-        state: {
-          coords: {
-            lat: addr.latitude,
-            lng: addr.longitude,
-          },
-        },
-      };
-      localStorage?.setItem(
-        "user-location-store",
-        JSON.stringify(locationData),
-      );
-    }
-
-    if (addr?.latitude && addr?.longitude) {
-      useOrderStore.getState().setUserCoordinates({
-        lat: addr.latitude,
-        lng: addr.longitude,
-      });
+      const newCoords = { lat: addr.latitude, lng: addr.longitude };
+      useOrderStore.getState().setUserCoordinates(newCoords);
+      // Also update geolocation store so LocationHeader syncs
+      const { setCoords } = useLocationStore.getState();
+      setCoords(newCoords);
     } else {
       useOrderStore.getState().setUserCoordinates(null);
     }
@@ -262,7 +252,15 @@ const UnifiedAddressSection = ({
               </div>
             </div>
           );
-        })() : (
+        })() : headerAddress ? (
+          <div className="flex items-center gap-2.5">
+            <MapPin className="h-4 w-4 shrink-0 text-[var(--pom-accent,#ea580c)]" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-inherit truncate">Selected Location</p>
+              <p className="text-xs truncate" style={{ color: "var(--pom-text-muted)" }}>{headerAddress}</p>
+            </div>
+          </div>
+        ) : (
           <button
             onClick={() => { setEditingAddress(null); setShowAddressModal(true); }}
             className="flex items-center gap-2.5 w-full text-left"
@@ -453,7 +451,7 @@ const ItemsCard = ({
               {item.name}
             </DescriptionWithTextBreak>
             <p className="text-[13px] mt-1 font-medium" style={{ color: "var(--pom-text-muted)" }}>
-              {currency}{(item.price * item.quantity).toFixed(2)}
+              {currency}{" "}{(item.price * item.quantity).toFixed(2)}
             </p>
           </div>
           {/* Right: Quantity control */}
@@ -511,7 +509,7 @@ interface BillCardProps {
   hotelData: HotelData;
   qrGroup: QrGroup | null;
   tableNumber: number;
-  discount?: { type: "percentage" | "flat"; value: number; max_discount_amount?: number } | null;
+  discount?: { type: "percentage" | "flat" | "freebie"; value: number; max_discount_amount?: number; freebie_item_count?: number; freebie_item_ids?: string; freebie_item_names?: string } | null;
 }
 
 const BillCard = ({
@@ -538,8 +536,9 @@ const BillCard = ({
     )
     : 0;
 
+  const hideDeliveryCharge = hotelData?.delivery_rules?.hide_delivery_charge ?? false;
   const deliveryCharges =
-    isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange
+    isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && !hideDeliveryCharge
       ? deliveryInfo.cost
       : 0;
 
@@ -554,9 +553,21 @@ const BillCard = ({
       : 0;
 
   const gstAmount = (subtotal * (gstPercentage || 0)) / 100;
+  // Calculate freebie item prices
+  const freebieItems = discount?.type === "freebie" && discount.freebie_item_ids
+    ? discount.freebie_item_ids.split(",").map((id) => {
+        const item = hotelData?.menus?.find((m) => m.id === id.trim());
+        return item ? { name: item.name, price: item.price } : null;
+      }).filter(Boolean) as { name: string; price: number }[]
+    : [];
+  const freebieCount = discount?.freebie_item_count || 1;
+  const freebieTotalPrice = freebieItems.reduce((sum, item) => sum + item.price * freebieCount, 0);
+
   let discountSavings = 0;
   if (discount) {
-    if (discount.type === "percentage") {
+    if (discount.type === "freebie") {
+      discountSavings = freebieTotalPrice;
+    } else if (discount.type === "percentage") {
       discountSavings = (subtotal * discount.value) / 100;
       if (discount.max_discount_amount) discountSavings = Math.min(discountSavings, discount.max_discount_amount);
     } else {
@@ -572,7 +583,7 @@ const BillCard = ({
       <div className="space-y-2.5">
         <div className="flex justify-between text-sm">
           <span style={{ color: "var(--pom-text-muted)" }}>Item Total</span>
-          <span className="text-inherit">{currency}{subtotal.toFixed(2)}</span>
+          <span className="text-inherit">{currency}{" "}{(subtotal + freebieTotalPrice).toFixed(2)}</span>
         </div>
 
         {qrGroup && qrExtraCharges > 0 && (
@@ -581,16 +592,22 @@ const BillCard = ({
               {qrGroup.name || "Service Charge"}
               {qrGroup.charge_type === "PER_ITEM" && <span className="text-xs ml-1">(Per item)</span>}
             </span>
-            <span className="text-inherit">{currency}{qrExtraCharges.toFixed(2)}</span>
+            <span className="text-inherit">{currency}{" "}{qrExtraCharges.toFixed(2)}</span>
           </div>
         )}
 
-        {isDelivery && (deliveryInfo?.cost ?? 0) > 0 && !deliveryInfo?.isOutOfRange && (
+        {isDelivery && (deliveryInfo?.cost ?? 0) > 0 && !deliveryInfo?.isOutOfRange && !hideDeliveryCharge && (
           <div className="flex justify-between text-sm">
             <span style={{ color: "var(--pom-text-muted)" }}>
               Delivery Fee | {deliveryInfo?.distance?.toFixed(1)} kms
             </span>
-            <span className="text-inherit">{currency}{deliveryInfo?.cost?.toFixed(2)}</span>
+            <span className="text-inherit">{currency}{" "}{deliveryInfo?.cost?.toFixed(2)}</span>
+          </div>
+        )}
+
+        {isDelivery && hideDeliveryCharge && (
+          <div className="text-sm" style={{ color: "var(--pom-text-muted)" }}>
+            Delivery charge applicable
           </div>
         )}
 
@@ -600,7 +617,7 @@ const BillCard = ({
               Parcel Charge
               {parcelChargeType === "variable" && <span className="text-xs ml-1">({totalItemCount} items)</span>}
             </span>
-            <span className="text-inherit">{currency}{parcelCharge.toFixed(2)}</span>
+            <span className="text-inherit">{currency}{" "}{parcelCharge.toFixed(2)}</span>
           </div>
         )}
 
@@ -611,15 +628,17 @@ const BillCard = ({
               <span style={{ color: "var(--pom-text-muted)" }}>
                 {hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} &amp; Other Charges ({gstPercentage}%)
               </span>
-              <span className="text-inherit">{currency}{gstAmount.toFixed(2)}</span>
+              <span className="text-inherit">{currency}{" "}{gstAmount.toFixed(2)}</span>
             </div>
           </>
         ) : null}
 
         {discountSavings > 0 && (
-          <div className="flex justify-between text-sm">
-            <span className="text-green-600 font-medium">Discount</span>
-            <span className="text-green-600">-{currency}{discountSavings.toFixed(2)}</span>
+          <div className="flex justify-between text-sm opacity-70">
+            <span className="font-medium">
+              {discount?.type === "freebie" ? "Freebie Discount" : "Discount"}
+            </span>
+            <span>-{currency}{" "}{discountSavings.toFixed(2)}</span>
           </div>
         )}
 
@@ -627,7 +646,7 @@ const BillCard = ({
           <div className="flex justify-between items-center">
             <span className="font-extrabold text-inherit text-[15px]">Grand Total</span>
             <span className="font-extrabold text-inherit text-lg">
-              {currency}{grandTotal.toFixed(2)}
+              {currency}{" "}{grandTotal.toFixed(2)}
             </span>
           </div>
         </div>
@@ -1397,7 +1416,7 @@ const PlaceOrderModal = ({
   const [appliedDiscount, setAppliedDiscount] = useState<{
     id: string;
     code: string;
-    type: "percentage" | "flat";
+    type: "percentage" | "flat" | "freebie";
     value: number;
     max_discount_amount?: number;
     min_order_value?: number;
@@ -1413,6 +1432,8 @@ const PlaceOrderModal = ({
     has_coupon?: boolean;
     rank?: number;
     pp_discount_id?: string;
+    freebie_item_count?: number;
+    freebie_item_ids?: string;
   } | null>(null);
   const [discountError, setDiscountError] = useState("");
   const [validatingCode, setValidatingCode] = useState(false);
@@ -1430,8 +1451,18 @@ const PlaceOrderModal = ({
   const hasDelivery = hotelData?.geo_location;
   const isQrScan = qrId !== null && tableNumber !== 0;
 
+  const getFreebieItemsTotal = (disc: typeof appliedDiscount) => {
+    if (!disc || disc.type !== "freebie" || !disc.freebie_item_ids) return 0;
+    const count = disc.freebie_item_count || 1;
+    return disc.freebie_item_ids.split(",").reduce((total, id) => {
+      const item = hotelData?.menus?.find((m) => m.id === id.trim());
+      return total + (item?.price || 0) * count;
+    }, 0);
+  };
+
   const computeDiscountSavings = (disc: typeof appliedDiscount) => {
     if (!disc) return 0;
+    if (disc.type === "freebie") return getFreebieItemsTotal(disc);
     const sub = items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
     let savings = disc.type === "percentage" ? (sub * disc.value) / 100 : disc.value;
     if (disc.type === "percentage" && disc.max_discount_amount) savings = Math.min(savings, disc.max_discount_amount);
@@ -1458,6 +1489,85 @@ const PlaceOrderModal = ({
       setHasActiveCodes(discs.length > 0);
     }).catch(() => { });
   }, [hotelData?.id, showDiscountSection]);
+
+  // Auto-apply non-coupon discounts (e.g. freebies) when order qualifies
+  useEffect(() => {
+    if (!showDiscountSection || !hotelData?.id || appliedDiscount) return;
+    if (!items || items.length === 0) return;
+    const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
+    if (subtotal <= 0) return;
+
+    fetchFromHasura(
+      `query GetAutoApplyDiscounts($partner_id: uuid!) {
+        discounts(
+          where: {
+            partner_id: { _eq: $partner_id }
+            is_active: { _eq: true }
+            has_coupon: { _eq: false }
+            _or: [
+              { expires_at: { _is_null: true } }
+              { expires_at: { _gt: "now()" } }
+            ]
+          }
+          order_by: [{ rank: asc_nulls_last }]
+        ) {
+          id code description discount_type discount_value min_order_value
+          max_discount_amount discount_order_types discount_on_total
+          has_coupon applicable_on category_item_ids rank pp_discount_id
+          freebie_item_count freebie_item_ids valid_days starts_at
+          expires_at valid_time_from valid_time_to terms_conditions
+          usage_limit used_count
+        }
+      }`,
+      { partner_id: hotelData.id }
+    ).then((res) => {
+      const discs = res?.discounts ?? [];
+      const now = new Date();
+      const currentOrderTypeMap: Record<string, string> = { delivery: "1", takeaway: "2" };
+      const currentTypeCode = isQrScan ? "3" : (currentOrderTypeMap[orderType || "delivery"] || "1");
+      const today = now.toLocaleDateString("en-US", { weekday: "short" });
+
+      const eligible = discs.find((disc: any) => {
+        if (disc.starts_at && new Date(disc.starts_at) > now) return false;
+        if (disc.usage_limit != null && disc.used_count >= disc.usage_limit) return false;
+        if (disc.min_order_value && subtotal < Number(disc.min_order_value)) return false;
+        if (disc.discount_order_types) {
+          const allowed = disc.discount_order_types.split(",").map((t: string) => t.trim());
+          if (!allowed.includes(currentTypeCode)) return false;
+        }
+        if (disc.valid_days && disc.valid_days !== "All") {
+          const validDays = disc.valid_days.split(",").map((d: string) => d.trim());
+          if (!validDays.includes(today)) return false;
+        }
+        return true;
+      });
+
+      if (eligible) {
+        setAppliedDiscount({
+          id: eligible.id,
+          code: eligible.code,
+          type: eligible.discount_type,
+          value: Number(eligible.discount_value),
+          max_discount_amount: eligible.max_discount_amount ? Number(eligible.max_discount_amount) : undefined,
+          min_order_value: eligible.min_order_value ? Number(eligible.min_order_value) : undefined,
+          description: eligible.description || undefined,
+          terms_conditions: eligible.terms_conditions || undefined,
+          discount_on_total: eligible.discount_on_total,
+          discount_order_types: eligible.discount_order_types || undefined,
+          valid_days: eligible.valid_days || undefined,
+          valid_time_from: eligible.valid_time_from || undefined,
+          valid_time_to: eligible.valid_time_to || undefined,
+          applicable_on: eligible.applicable_on || undefined,
+          category_item_ids: eligible.category_item_ids || undefined,
+          has_coupon: eligible.has_coupon,
+          rank: eligible.rank ? Number(eligible.rank) : undefined,
+          pp_discount_id: eligible.pp_discount_id || undefined,
+          freebie_item_count: eligible.freebie_item_count ? Number(eligible.freebie_item_count) : undefined,
+          freebie_item_ids: eligible.freebie_item_ids || undefined,
+        });
+      }
+    }).catch(() => {});
+  }, [hotelData?.id, showDiscountSection, items, appliedDiscount, orderType, isQrScan]);
 
   // Prefill customer name from user data
   useEffect(() => {
@@ -1650,14 +1760,15 @@ const PlaceOrderModal = ({
           return;
         }
       }
-      // Check valid time window
-      if (disc.valid_time_from && disc.valid_time_to) {
-        const now = new Date();
-        const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
-        if (currentTime < disc.valid_time_from || currentTime > disc.valid_time_to) {
-          setDiscountError(`This discount is valid only between ${disc.valid_time_from} and ${disc.valid_time_to}.`);
-          return;
-        }
+      // Check valid date/time window
+      const now = new Date();
+      if (disc.starts_at && now < new Date(disc.starts_at)) {
+        setDiscountError(`This discount starts on ${new Date(disc.starts_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}.`);
+        return;
+      }
+      if (disc.expires_at && now > new Date(disc.expires_at)) {
+        setDiscountError("This discount has expired.");
+        return;
       }
       // Check order type
       if (disc.discount_order_types) {
@@ -1693,6 +1804,8 @@ const PlaceOrderModal = ({
         has_coupon: disc.has_coupon,
         rank: disc.rank ? Number(disc.rank) : undefined,
         pp_discount_id: disc.pp_discount_id || undefined,
+        freebie_item_count: disc.freebie_item_count ? Number(disc.freebie_item_count) : undefined,
+        freebie_item_ids: disc.freebie_item_ids || undefined,
       });
       setDiscountInput("");
     } catch {
@@ -1984,7 +2097,8 @@ const PlaceOrderModal = ({
         !isQrScan &&
         deliveryInfo?.cost &&
         !deliveryInfo?.isOutOfRange &&
-        orderType === "delivery"
+        orderType === "delivery" &&
+        !(hotelData?.delivery_rules?.hide_delivery_charge)
       ) {
         extraCharges.push({
           name: "Delivery Charge",
@@ -2047,6 +2161,17 @@ const PlaceOrderModal = ({
           valid_days: appliedDiscount.valid_days,
           applicable_on: appliedDiscount.applicable_on,
           rank: appliedDiscount.rank,
+          freebie_item_count: appliedDiscount.freebie_item_count,
+          freebie_item_ids: appliedDiscount.freebie_item_ids,
+          freebie_item_names: appliedDiscount.freebie_item_ids
+            ? appliedDiscount.freebie_item_ids.split(",").map((id) => hotelData?.menus?.find((m) => m.id === id.trim())?.name).filter(Boolean).join(", ")
+            : undefined,
+          freebie_items: appliedDiscount.type === "freebie" && appliedDiscount.freebie_item_ids
+            ? appliedDiscount.freebie_item_ids.split(",").map((id) => {
+                const m = hotelData?.menus?.find((menu) => menu.id === id.trim());
+                return m ? { id: m.id, name: m.name, price: m.price, pp_id: (m as any).pp_id, category: m.category } : null;
+              }).filter(Boolean) as { id: string; name: string; price: number; pp_id?: string; category?: any }[]
+            : undefined,
         } : null,
         needUserName ? customerName.trim() : undefined,
       );
@@ -2183,8 +2308,10 @@ const PlaceOrderModal = ({
               {/* Restaurant / Hotel Name + Order Type */}
               <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
                 <h2 className="font-bold text-base">{hotelData?.store_name || hotelData?.name}</h2>
-                {hotelData?.location && (
-                  <p className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>{hotelData.location}</p>
+                {(hotelData?.location_details || hotelData?.district || hotelData?.country) && (
+                  <p className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
+                    {hotelData.location_details || [hotelData.district, hotelData.country].filter(Boolean).join(", ")}
+                  </p>
                 )}
                 {tableNumber === 0 && (
                   <div className="mt-3">
@@ -2207,6 +2334,23 @@ const PlaceOrderModal = ({
                     setOpenDrawerBottom(true);
                   }}
                 />
+                {appliedDiscount?.type === "freebie" && appliedDiscount.freebie_item_ids && (
+                  <div className="mt-2 space-y-2">
+                    {appliedDiscount.freebie_item_ids.split(",").map((id) => {
+                      const item = hotelData?.menus?.find((m) => m.id === id.trim());
+                      if (!item) return null;
+                      return (
+                        <div key={id} className="flex items-center justify-between py-2 px-1 rounded-lg opacity-80" style={{ backgroundColor: "var(--pom-card-bg, #fff)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
+                          <div>
+                            <p className="text-sm font-semibold">{item.name}</p>
+                            <p className="text-xs opacity-60">{hotelData?.currency || "₹"}{item.price.toFixed(2)} <span className="font-bold">FREE</span></p>
+                          </div>
+                          <span className="text-xs font-bold px-2 py-1 rounded-md opacity-70">x{appliedDiscount.freebie_item_count || 1}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {/* Note for restaurant — pill style */}
                 <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--pom-card-border, #e7e5e4)" }}>
@@ -2305,7 +2449,9 @@ const PlaceOrderModal = ({
                           <div className="flex-1 min-w-0">
                             <span className="text-xs font-bold font-mono text-[var(--pom-accent,#ea580c)] tracking-wider">{disc.code}</span>
                             <span className="text-[10px] block leading-tight" style={{ color: "var(--pom-text-muted)" }}>
-                              {disc.discount_type === "percentage"
+                              {disc.discount_type === "freebie"
+                                ? "Free item"
+                                : disc.discount_type === "percentage"
                                 ? `${disc.discount_value}% off`
                                 : `${hotelData?.currency || "₹"}${disc.discount_value} off`}
                               {disc.min_order_value ? ` above ${hotelData?.currency || "₹"}${disc.min_order_value}` : ""}
@@ -2318,14 +2464,22 @@ const PlaceOrderModal = ({
                   )}
 
                   {appliedDiscount ? (
-                    <div className="flex items-center justify-between rounded-lg px-3 py-2.5" style={{ backgroundColor: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)" }}>
+                    <div className="flex items-center justify-between rounded-lg px-3 py-2.5" style={{ backgroundColor: "var(--pom-card-bg, #fff)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
                       <div>
-                        <p className="text-sm font-semibold font-mono" style={{ color: "#4ade80" }}>{appliedDiscount.code}</p>
-                        <p className="text-xs mt-0.5" style={{ color: "#86efac" }}>
-                          You save {hotelData?.currency || "₹"}{computeDiscountSavings(appliedDiscount).toFixed(2)}
+                        <p className="text-sm font-semibold font-mono">{appliedDiscount.code}</p>
+                        <p className="text-xs mt-0.5 opacity-60">
+                          {appliedDiscount.type === "freebie"
+                            ? (() => {
+                                const names = appliedDiscount.freebie_item_ids?.split(",").map((id) => {
+                                  const item = hotelData?.menus?.find((m) => m.id === id.trim());
+                                  return item?.name;
+                                }).filter(Boolean);
+                                return names?.length ? `Free: ${names.join(", ")}` : "Free item included!";
+                              })()
+                            : `You save ${hotelData?.currency || "₹"}${computeDiscountSavings(appliedDiscount).toFixed(2)}`}
                         </p>
                       </div>
-                      <button onClick={handleRemoveDiscount} className="p-1 rounded-full" style={{ color: "#4ade80" }}>
+                      <button onClick={handleRemoveDiscount} className="p-1 rounded-full opacity-60">
                         <X className="h-4 w-4" />
                       </button>
                     </div>
@@ -2366,7 +2520,7 @@ const PlaceOrderModal = ({
                   qrGroup={qrGroup}
                   hotelData={hotelData}
                   tableNumber={tableNumber}
-                  discount={appliedDiscount ? { type: appliedDiscount.type, value: appliedDiscount.value, max_discount_amount: appliedDiscount.max_discount_amount } : null}
+                  discount={appliedDiscount ? { type: appliedDiscount.type, value: appliedDiscount.value, max_discount_amount: appliedDiscount.max_discount_amount, freebie_item_count: appliedDiscount.freebie_item_count, freebie_item_ids: appliedDiscount.freebie_item_ids, freebie_item_names: appliedDiscount.freebie_item_ids?.split(",").map((id) => hotelData?.menus?.find((m) => m.id === id.trim())?.name).filter(Boolean).join(", ") } : null}
                 />
               </div>
 

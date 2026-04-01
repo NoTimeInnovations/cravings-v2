@@ -80,7 +80,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     const [newChargeName, setNewChargeName] = useState("");
     const [newChargeAmount, setNewChargeAmount] = useState("");
     const [isAddingDiscount, setIsAddingDiscount] = useState(false);
-    const [discountType, setDiscountType] = useState<"percentage" | "flat">("percentage");
+    const [discountType, setDiscountType] = useState<"percentage" | "flat" | "freebie">("percentage");
     const [discountValue, setDiscountValue] = useState("");
     const [discountReason, setDiscountReason] = useState("");
     const [showBillDetails, setShowBillDetails] = useState(false);
@@ -285,7 +285,9 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
 
     // Calculate current order discounts
     const discountAmount = usePOSStore.getState().discounts.reduce((total, discount) => {
-        if (discount.type === "flat") {
+        if (discount.type === "freebie") {
+            return total + (discount.value || 0); // Freebie discount = item price as flat discount
+        } else if (discount.type === "flat") {
             return total + discount.value;
         } else {
             return total + (subtotal * discount.value) / 100;
@@ -313,7 +315,9 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
 
     const activeOrderDataDiscounts = activeOrderData?.discounts || [];
     const activeOrderDataDiscountAmount = activeOrderDataDiscounts.reduce((total: number, discount: any) => {
-        if (discount.type === "flat") {
+        if (discount.type === "freebie") {
+            return total + (discount.value || 0); // Freebie discount = item price as flat discount
+        } else if (discount.type === "flat") {
             return total + (discount.value || 0);
         } else {
             return total + (activeOrderDataTotal * (discount.value || 0)) / 100;
@@ -650,10 +654,11 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                         <select
                                             className="h-8 text-xs border rounded bg-background px-2"
                                             value={discountType}
-                                            onChange={(e) => setDiscountType(e.target.value as "percentage" | "flat")}
+                                            onChange={(e) => setDiscountType(e.target.value as "percentage" | "flat" | "freebie")}
                                         >
                                             <option value="percentage">%</option>
                                             <option value="flat">Flat</option>
+                                            <option value="freebie">Freebie</option>
                                         </select>
                                         <Input
                                             type="number"
@@ -696,7 +701,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                     {discounts.map((discount) => (
                                         <div key={discount.id} className="flex justify-between items-center text-xs bg-red-50 p-1.5 rounded text-red-700 border border-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900/50">
                                             <div className="flex flex-col">
-                                                <span>{discount.type === "percentage" ? `${discount.value}% Off` : `Flat ${formatCurrency(discount.value)} Off`}</span>
+                                                <span>{discount.type === "freebie" ? "Freebie (Free Item)" : discount.type === "percentage" ? `${discount.value}% Off` : `Flat ${formatCurrency(discount.value)} Off`}</span>
                                                 {discount.reason && <span className="text-[10px] opacity-75">{discount.reason}</span>}
                                             </div>
                                             <button onClick={() => removeDiscount(discount.id)} className="text-red-500 hover:text-red-700">
@@ -735,14 +740,16 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                         </div>
                                     ))}
                                     {discounts.map((discount) => {
-                                        const discountValue = discount.type === "flat"
+                                        const discountValue = discount.type === "freebie"
+                                            ? discount.value
+                                            : discount.type === "flat"
                                             ? discount.value
                                             : (subtotal * discount.value) / 100;
                                         return (
                                             <div key={discount.id} className="flex justify-between text-green-600 text-xs pl-2 border-l-2 border-green-200">
                                                 <span>
-                                                    {discount.type === "percentage" ? `${discount.value}% Off` : "Flat Discount"}
-                                                    {discount.reason && ` (${discount.reason})`}
+                                                    {discount.type === "freebie" ? `Freebie${discount.reason ? `: ${discount.reason}` : ""} (FREE)` : discount.type === "percentage" ? `${discount.value}% Off` : "Flat Discount"}
+                                                    {discount.type !== "freebie" && discount.reason && ` (${discount.reason})`}
                                                 </span>
                                                 <span>- {formatCurrency(discountValue)}</span>
                                             </div>
@@ -852,19 +859,29 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                             ))}
                                         </>
                                     )}
-                                    {activeOrderDataDiscountAmount > 0 && (
+                                    {(activeOrderDataDiscountAmount > 0 || activeOrderDataDiscounts.some((d: any) => d.type === "freebie")) && (
                                         <>
                                             {activeOrderDataDiscounts.map((discount: any, idx: number) => {
-                                                const discountValue = discount.type === "flat"
+                                                const discountValue = discount.type === "freebie"
+                                                    ? (discount.savings || discount.value || 0)
+                                                    : discount.type === "flat"
                                                     ? discount.value
                                                     : (activeOrderDataTotal * discount.value) / 100;
                                                 return (
-                                                    <div key={idx} className="flex justify-between text-green-600 text-xs pl-2 border-l-2 border-green-200">
-                                                        <span>
-                                                            {discount.type === "percentage" ? `${discount.value}% Off` : "Flat Discount"}
-                                                            {discount.reason && ` (${discount.reason})`}
-                                                        </span>
-                                                        <span>- {formatCurrency(discountValue)}</span>
+                                                    <div key={idx} className="flex flex-col text-green-600 text-xs pl-2 border-l-2 border-green-200 gap-0.5">
+                                                        {discount.type === "freebie" && discount.freebie_item_names && (
+                                                            <div className="flex justify-between">
+                                                                <span>{discount.freebie_item_names} <span className="font-bold">(FREE)</span></span>
+                                                                <span>{formatCurrency(discountValue)}</span>
+                                                            </div>
+                                                        )}
+                                                        <div className="flex justify-between">
+                                                            <span>
+                                                                {discount.type === "freebie" ? "Freebie Discount" : discount.type === "percentage" ? `${discount.value}% Off` : "Flat Discount"}
+                                                                {discount.reason && ` (${discount.reason})`}
+                                                            </span>
+                                                            <span>- {formatCurrency(discountValue)}</span>
+                                                        </div>
                                                     </div>
                                                 );
                                             })}

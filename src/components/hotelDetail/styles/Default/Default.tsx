@@ -1,6 +1,7 @@
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
-import React from "react";
+import React, { useState } from "react";
 import HotelBanner from "./HotelBanner";
+import LocationHeader from "../../LocationHeader";
 import DescriptionWithTextBreak from "@/components/DescriptionWithTextBreak";
 import ThemeChangeButton, { ThemeConfig } from "../../ThemeChangeButton";
 import SocialLinkList from "@/components/SocialLinkList";
@@ -133,6 +134,20 @@ const Default = ({
       {/* Only show menu content when not in order placement view */}
       {!open_place_order_modal ? (
         <>
+          {/* Location Header (hide for QR scan / dine-in and when no ordering/delivery) */}
+          {tableNumber === 0 && (
+            getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled ||
+            getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled
+          ) && (
+            <LocationHeader
+              hoteldata={hoteldata}
+              styles={styles}
+              accent={styles.accent || "#ea580c"}
+              bannerError={false}
+              setBannerError={() => {}}
+            />
+          )}
+
           {/* shop closed modal */}
           <ShopClosedModalWarning
             hotelId={hoteldata?.id}
