@@ -81,6 +81,8 @@ type Phase =
   | "move-done-2" | "click-done-2" | "sheet2-close"
   // Place order
   | "cart-show" | "move-place" | "click-place" | "order-placed" | "order-sent"
+  // Step text screens
+  | "step-text-1" | "step-text-2" | "step-text-3"
   // Desktop
   | "trans-1" | "desktop-enter" | "order-arrive"
   | "move-accept" | "click-accept" | "accepted" | "assigned"
@@ -110,7 +112,7 @@ function PhoneFrame({ children }: { children: React.ReactNode }) {
 }
 
 /* ── Inner Animation ── */
-function OrderFlowInner({ onComplete, onStepChange }: { onComplete: () => void; onStepChange?: (step: number) => void }) {
+function OrderFlowInner({ onComplete }: { onComplete: () => void }) {
   const [phase, setPhase] = useState<Phase>("phone-enter");
   const containerRef = useRef<HTMLDivElement>(null);
   const addBtn1Ref = useRef<HTMLDivElement>(null);
@@ -179,25 +181,30 @@ function OrderFlowInner({ onComplete, onStepChange }: { onComplete: () => void; 
     t.push(setTimeout(() => setPhase("order-placed"), 9500));
     t.push(setTimeout(() => setPhase("order-sent"), 10300));
 
-    // Transition to desktop
-    t.push(setTimeout(() => setPhase("trans-1"), 11100));
-    t.push(setTimeout(() => setPhase("desktop-enter"), 11800));
+    // Step text 1: "Order received in dashboard"
+    t.push(setTimeout(() => setPhase("step-text-1"), 11300));
+    t.push(setTimeout(() => setPhase("trans-1"), 13500));
+    t.push(setTimeout(() => setPhase("desktop-enter"), 14200));
 
     // Scene 2: Dashboard receives order
-    t.push(setTimeout(() => setPhase("order-arrive"), 12300));
-    t.push(setTimeout(() => { setCursorPos(getCenter(acceptRef)); setPhase("move-accept"); }, 13100));
-    t.push(setTimeout(() => setPhase("click-accept"), 13700));
-    t.push(setTimeout(() => setPhase("accepted"), 13900));
-    t.push(setTimeout(() => setPhase("assigned"), 14700));
+    t.push(setTimeout(() => setPhase("order-arrive"), 14700));
+    t.push(setTimeout(() => { setCursorPos(getCenter(acceptRef)); setPhase("move-accept"); }, 15500));
+    t.push(setTimeout(() => setPhase("click-accept"), 16100));
+    t.push(setTimeout(() => setPhase("accepted"), 16300));
+    t.push(setTimeout(() => setPhase("assigned"), 17100));
 
-    // Transition to delivery
-    t.push(setTimeout(() => setPhase("trans-2"), 15500));
-    t.push(setTimeout(() => setPhase("delivery-enter"), 16200));
+    // Step text 2: "Delivery partner picks up"
+    t.push(setTimeout(() => setPhase("step-text-2"), 18100));
+    t.push(setTimeout(() => setPhase("trans-2"), 20300));
+    t.push(setTimeout(() => setPhase("delivery-enter"), 21000));
 
     // Scene 3: Delivery boy notification
-    t.push(setTimeout(() => setPhase("notif-show"), 16600));
-    t.push(setTimeout(() => setPhase("hold"), 17600));
-    t.push(setTimeout(onComplete, 19300));
+    t.push(setTimeout(() => setPhase("notif-show"), 21400));
+    t.push(setTimeout(() => setPhase("hold"), 22400));
+
+    // Step text 3: "Order delivered successfully"
+    t.push(setTimeout(() => setPhase("step-text-3"), 23400));
+    t.push(setTimeout(onComplete, 25600));
 
     return () => t.forEach(clearTimeout);
   }, [onComplete, getCenter]);
@@ -205,12 +212,23 @@ function OrderFlowInner({ onComplete, onStepChange }: { onComplete: () => void; 
   /* ── Derived states ── */
 
   // Scene visibility
-  const phoneOn = !["trans-1","desktop-enter","order-arrive","move-accept","click-accept","accepted","assigned","trans-2","delivery-enter","notif-show","hold"].includes(phase);
+  const phoneOn = !["step-text-1","trans-1","desktop-enter","order-arrive","move-accept","click-accept","accepted","assigned","step-text-2","trans-2","delivery-enter","notif-show","hold","step-text-3"].includes(phase);
+  const text1On = phase === "step-text-1";
   const desktopOn = ["trans-1","desktop-enter","order-arrive","move-accept","click-accept","accepted","assigned"].includes(phase);
+  const text2On = phase === "step-text-2";
   const deliveryOn = ["trans-2","delivery-enter","notif-show","hold"].includes(phase);
+  const text3On = phase === "step-text-3";
 
-  const currentStep = deliveryOn ? 3 : desktopOn ? 2 : 1;
-  useEffect(() => { onStepChange?.(currentStep); }, [currentStep, onStepChange]);
+  // Scene order index for left-to-right slide
+  const activeScene = text3On ? 5 : deliveryOn ? 4 : text2On ? 3 : desktopOn ? 2 : text1On ? 1 : 0;
+  const slideStyle = (myIdx: number, isOn: boolean) => ({
+    gridRow: 1,
+    gridColumn: 1,
+    opacity: isOn ? 1 : 0,
+    transform: isOn ? "translateX(0)" : myIdx < activeScene ? "translateX(-60px)" : "translateX(60px)",
+    pointerEvents: "none" as const,
+  });
+
 
   // Bottom sheet
   const sheet1Phases = ["sheet1-open","move-add-1","click-add-1","added-1","move-plus-1","click-plus-1","qty2-1","move-done-1","click-done-1"];
@@ -276,20 +294,14 @@ function OrderFlowInner({ onComplete, onStepChange }: { onComplete: () => void; 
     : "0ms";
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative overflow-hidden">
       <div className="grid">
         {/* ═══════════════════════════════════════════
             Scene 1: Customer Phone — Restaurant Menu
             ═══════════════════════════════════════════ */}
         <div
           className="flex items-center justify-center transition-all duration-700 ease-in-out"
-          style={{
-            gridRow: 1,
-            gridColumn: 1,
-            opacity: phoneOn ? 1 : 0,
-            transform: `scale(${phoneOn ? 1 : 0.92})`,
-            pointerEvents: "none",
-          }}
+          style={slideStyle(0, phoneOn)}
         >
           <div>
             <PhoneFrame>
@@ -626,13 +638,7 @@ function OrderFlowInner({ onComplete, onStepChange }: { onComplete: () => void; 
             ═══════════════════════════════════════════ */}
         <div
           className="flex items-center transition-all duration-700 ease-in-out"
-          style={{
-            gridRow: 1,
-            gridColumn: 1,
-            opacity: desktopOn ? 1 : 0,
-            transform: `scale(${desktopOn ? 1 : 0.95})`,
-            pointerEvents: "none",
-          }}
+          style={slideStyle(2, desktopOn)}
         >
           <div className="w-full">
             <div
@@ -796,13 +802,7 @@ function OrderFlowInner({ onComplete, onStepChange }: { onComplete: () => void; 
             ═══════════════════════════════════════════ */}
         <div
           className="flex items-center justify-center transition-all duration-700 ease-in-out"
-          style={{
-            gridRow: 1,
-            gridColumn: 1,
-            opacity: deliveryOn ? 1 : 0,
-            transform: `scale(${deliveryOn ? 1 : 0.92})`,
-            pointerEvents: "none",
-          }}
+          style={slideStyle(4, deliveryOn)}
         >
           <div>
             <PhoneFrame>
@@ -923,6 +923,62 @@ function OrderFlowInner({ onComplete, onStepChange }: { onComplete: () => void; 
             </PhoneFrame>
           </div>
         </div>
+        {/* ═══════════════════════════════════════════
+            Step Text 1: Phone → Dashboard
+            ═══════════════════════════════════════════ */}
+        <div
+          className="flex items-center justify-center transition-all duration-700 ease-in-out"
+          style={slideStyle(1, text1On)}
+        >
+          <div className="text-center px-6 py-16 md:py-24">
+            <div className="w-10 h-10 md:w-12 md:h-12 mx-auto bg-orange-100 rounded-full flex items-center justify-center mb-3 md:mb-4">
+              <svg className="w-5 h-5 md:w-6 md:h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <p className="text-base md:text-xl font-semibold text-stone-800 leading-snug">
+              Order is received instantly<br />in your dashboard
+            </p>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════
+            Step Text 2: Dashboard → Delivery
+            ═══════════════════════════════════════════ */}
+        <div
+          className="flex items-center justify-center transition-all duration-700 ease-in-out"
+          style={slideStyle(3, text2On)}
+        >
+          <div className="text-center px-6 py-16 md:py-24">
+            <div className="w-10 h-10 md:w-12 md:h-12 mx-auto bg-orange-100 rounded-full flex items-center justify-center mb-3 md:mb-4">
+              <svg className="w-5 h-5 md:w-6 md:h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-base md:text-xl font-semibold text-stone-800 leading-snug">
+              Delivery partner picks up<br />&amp; delivers the order
+            </p>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════
+            Step Text 3: Order Delivered
+            ═══════════════════════════════════════════ */}
+        <div
+          className="flex items-center justify-center transition-all duration-700 ease-in-out"
+          style={slideStyle(5, text3On)}
+        >
+          <div className="text-center px-6 py-16 md:py-24">
+            <div className="w-10 h-10 md:w-12 md:h-12 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-3 md:mb-4">
+              <svg className="w-5 h-5 md:w-6 md:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <p className="text-base md:text-xl font-semibold text-stone-800 leading-snug">
+              Order delivered<br />successfully!
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Cursor overlay */}
@@ -940,17 +996,10 @@ function OrderFlowInner({ onComplete, onStepChange }: { onComplete: () => void; 
   );
 }
 
-/* ── Step Labels ── */
-const STEP_LABELS = [
-  "Customer browses your menu & places an order",
-  "The order is received instantly in your dashboard",
-  "Delivery partner picks up & delivers the order",
-];
-
 /* ── Main Component ── */
 export default function OrderFlowAnimation() {
   const [cycle, setCycle] = useState(0);
-  const [step, setStep] = useState(1);
+  const handleComplete = useCallback(() => setCycle((c) => c + 1), []);
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 md:px-6">
@@ -982,11 +1031,10 @@ export default function OrderFlowAnimation() {
           <div className="flex justify-center pb-1 md:pb-1.5">
             <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-[#3a3a3c]" />
           </div>
-          <div className="bg-[#fcfbf7] rounded-md md:rounded-lg">
+          <div className="bg-[#fcfbf7] rounded-md md:rounded-lg overflow-hidden">
             <OrderFlowInner
               key={cycle}
-              onComplete={() => setCycle((c) => c + 1)}
-              onStepChange={setStep}
+              onComplete={handleComplete}
             />
           </div>
         </div>
@@ -995,35 +1043,6 @@ export default function OrderFlowAnimation() {
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-16 md:w-20 h-0.5 md:h-[3px] rounded-b-sm bg-[#c8c8cc]" />
         </div>
         <div className="mt-1 mx-[5%] h-3 bg-black/[0.04] rounded-full blur-lg" />
-      </div>
-
-      {/* Step text */}
-      <div className="mt-5 md:mt-8 text-center">
-        <div className="flex items-center justify-center mb-2.5 md:mb-3">
-          {[1, 2, 3].map((s) => (
-            <div key={s} className="flex items-center">
-              {s > 1 && (
-                <div className={`w-6 md:w-10 h-px transition-colors duration-500 ${s <= step ? "bg-orange-300" : "bg-stone-200"}`} />
-              )}
-              <div className={`w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center text-[9px] md:text-[11px] font-bold transition-all duration-500 ${
-                s === step
-                  ? "bg-orange-600 text-white shadow-md shadow-orange-600/30"
-                  : s < step ? "bg-orange-100 text-orange-600" : "bg-stone-100 text-stone-400"
-              }`}>
-                {s}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="relative h-6">
-          {STEP_LABELS.map((label, i) => (
-            <p key={i} className={`absolute inset-x-0 text-sm md:text-base font-medium transition-all duration-500 ${
-              i + 1 === step ? "opacity-100 translate-y-0 text-stone-600" : "opacity-0 translate-y-2"
-            }`}>
-              {label}
-            </p>
-          ))}
-        </div>
       </div>
     </div>
   );
