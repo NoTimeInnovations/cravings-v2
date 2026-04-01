@@ -4,12 +4,10 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
 
-// Test phone numbers — skip OTP sending and verification
-const TEST_PHONES = ["0000000000", "6282826684", "9809873068"];
-
+// Test account for App Store review — accepts hardcoded OTP 123456
+const TEST_PHONE = "0000000000";
 function isTestPhone(phone: string): boolean {
-  const cleaned = phone.replace(/[\s\-\+\(\)]/g, "");
-  return TEST_PHONES.some((tp) => cleaned.endsWith(tp));
+  return phone.replace(/[\s\-\+\(\)]/g, "").endsWith(TEST_PHONE);
 }
 
 // In-memory OTP store with expiry
@@ -63,12 +61,15 @@ function formatPhone(phone: string): string {
 export async function sendWhatsAppOtp(
   phone: string,
   partnerId?: string
-): Promise<{ success: boolean; error?: string; skipOtp?: boolean }> {
+): Promise<{ success: boolean; error?: string }> {
+  const formattedPhone = formatPhone(phone);
+
+  // Test account: store hardcoded OTP, skip WhatsApp message
   if (isTestPhone(phone)) {
-    return { success: true, skipOtp: true };
+    otpStore.set(formattedPhone, { code: "123456", expiresAt: Date.now() + 5 * 60 * 1000 });
+    return { success: true };
   }
 
-  const formattedPhone = formatPhone(phone);
   try {
     cleanExpired();
     const code = generateOtp();
@@ -135,10 +136,6 @@ export async function verifyWhatsAppOtp(
   phone: string,
   code: string
 ): Promise<{ success: boolean; error?: string }> {
-  if (isTestPhone(phone)) {
-    return { success: true };
-  }
-
   cleanExpired();
 
   const formattedPhone = formatPhone(phone);

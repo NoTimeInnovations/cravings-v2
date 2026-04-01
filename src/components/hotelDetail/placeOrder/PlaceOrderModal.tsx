@@ -938,11 +938,7 @@ const LoginDrawer = ({
 
     try {
       const fullPhone = `${hotelData?.country_code || "+91"}${phoneNumber}`;
-      const result = await sendOtp(fullPhone);
-      if (result?.skipOtp) {
-        await handleDirectLogin();
-        return;
-      }
+      await sendOtp(fullPhone);
       toast.success("OTP sent to your WhatsApp!");
     } catch (error) {
       toast.error(
