@@ -10,13 +10,13 @@ export default function StartFreeTrailSection() {
       <div className="sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] mx-auto grid md:grid-cols-2">
         <div className="max-w-xl p-6 md:p-12">
           <h1 className="text-3xl md:text-4xl font-semibold text-white mb-4">
-            Get your restaurant online in under 2 minutes.
+            Launch your delivery website in under 2 minutes.
           </h1>
           <p className="text-white/70 mb-6">
-            Upload your existing menu, customize your brand colors, and share
-            your QR code with customers. No technical skills needed no app
-            downloads required. Join 600+ restaurants already growing with
-            Menuthere
+            Upload your menu, set up your delivery zones, and start taking
+            orders directly from your customers with full
+            Petpooja POS integration. Join 600+ restaurants already growing
+            with Menuthere.
           </p>
           <div className="flex gap-3">
             <Link

@@ -10,6 +10,7 @@ import {
   superAdminLoginQuery,
   partnerIdQuery,
   superAdminIdQuery,
+  resetDeletionStatusMutation,
 } from "@/api/auth";
 import {
   getAuthCookie,
@@ -467,6 +468,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       let user: User;
       if (response?.users?.length > 0) {
         user = response.users[0];
+        // Reset deletion status on login
+        await fetchFromHasura(resetDeletionStatusMutation, { id: user.id });
       } else {
         const createResponse = (await fetchFromHasura(userLoginMutation, {
           object: {
