@@ -16,9 +16,6 @@ const RestaurantMarquee = dynamic(
 const MonitorSection = dynamic(
   () => import("@/components/home/MonitorSection")
 );
-const CaseStudies = dynamic(
-  () => import("@/components/home/CaseStudies")
-);
 const StartFreeTrailSection = dynamic(
   () => import("@/components/home/StartFreeTrailSection")
 );
@@ -169,12 +166,7 @@ export default function Home() {
         <MonitorSection />
       </Suspense>
 
-      {/* CASE STUDIES — real restaurant results */}
-      <Suspense>
-        <CaseStudies />
-      </Suspense>
-
-      {/* CTA — start for free with stats */}
+{/* CTA — start for free with stats */}
       <Suspense>
         <StartFreeTrailSection />
       </Suspense>
