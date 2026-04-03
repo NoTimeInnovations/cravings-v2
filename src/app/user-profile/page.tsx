@@ -8,6 +8,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
   updateUserFullNameMutation,
   updateUserPhoneMutation,
+  softDeleteUserMutation,
 } from "@/api/auth";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -23,6 +24,7 @@ import {
   X,
   UtensilsCrossed,
   ArrowLeft,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -143,6 +145,25 @@ export default function UserProfilePage() {
       toast.error("Failed to update phone number");
     } finally {
       setSavingPhone(false);
+    }
+  };
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    setDeleting(true);
+    try {
+      await fetchFromHasura(softDeleteUserMutation, { id: user.id });
+      toast.success("Account deleted successfully");
+      await signOut();
+      router.replace("/");
+    } catch {
+      toast.error("Failed to delete account");
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -361,12 +382,59 @@ export default function UserProfilePage() {
         {/* Logout */}
         <Button
           variant="destructive"
-          className="w-full mb-6"
+          className="w-full mb-4"
           onClick={handleLogout}
         >
           <LogOut className="h-4 w-4 mr-2" />
           Log Out
         </Button>
+
+        {/* Delete Account */}
+        {!showDeleteConfirm ? (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="w-full text-center text-sm text-red-500 underline underline-offset-2 mb-6"
+          >
+            Delete Account
+          </button>
+        ) : (
+          <div
+            className="rounded-xl p-4 mb-6 border border-red-200"
+            style={{ backgroundColor: "#FEF2F2" }}
+          >
+            <p className="text-sm text-red-700 font-medium mb-1">
+              Are you sure you want to delete your account?
+            </p>
+            <p className="text-xs text-red-500 mb-3">
+              Your account will be deactivated. You can reactivate it by logging in again.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                size="sm"
+                className="flex-1"
+                onClick={handleDeleteAccount}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-1" />
+                )}
+                Yes, Delete
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Orders by Store */}
         <div>

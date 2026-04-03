@@ -936,7 +936,7 @@ function OrderFlowInner({ onComplete }: { onComplete: () => void }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <p className="text-base md:text-xl font-semibold text-stone-800 leading-snug">
+            <p className="text-base md:text-xl font-semibold text-white leading-snug">
               Order is received instantly<br />in your dashboard
             </p>
           </div>
@@ -955,7 +955,7 @@ function OrderFlowInner({ onComplete }: { onComplete: () => void }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <p className="text-base md:text-xl font-semibold text-stone-800 leading-snug">
+            <p className="text-base md:text-xl font-semibold text-white leading-snug">
               Assigned order notification is<br />received in delivery boy&apos;s app
             </p>
           </div>
@@ -974,7 +974,7 @@ function OrderFlowInner({ onComplete }: { onComplete: () => void }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <p className="text-base md:text-xl font-semibold text-stone-800 leading-snug">
+            <p className="text-base md:text-xl font-semibold text-white leading-snug">
               Order delivered<br />successfully!
             </p>
           </div>
@@ -1031,7 +1031,7 @@ export default function OrderFlowAnimation() {
           <div className="flex justify-center pb-1 md:pb-1.5">
             <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-[#3a3a3c]" />
           </div>
-          <div className="bg-white rounded-md md:rounded-lg overflow-hidden">
+          <div className="bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 rounded-md md:rounded-lg overflow-hidden">
             <OrderFlowInner
               key={cycle}
               onComplete={handleComplete}

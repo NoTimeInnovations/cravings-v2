@@ -236,3 +236,19 @@ export const deleteUserMutation = `
     }
   }
 `;
+
+export const softDeleteUserMutation = `
+  mutation SoftDeleteUser($id: uuid!) {
+    update_users_by_pk(pk_columns: { id: $id }, _set: { deletion_status: 1 }) {
+      id
+    }
+  }
+`;
+
+export const resetDeletionStatusMutation = `
+  mutation ResetDeletionStatus($id: uuid!) {
+    update_users_by_pk(pk_columns: { id: $id }, _set: { deletion_status: 0 }) {
+      id
+    }
+  }
+`;
