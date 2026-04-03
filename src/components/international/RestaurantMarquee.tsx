@@ -56,11 +56,7 @@ export default function RestaurantMarquee() {
 
   return (
     <div className="overflow-hidden max-w-[70%] mx-auto my-20 ">
-      <p className="text-center text-lg text-stone-500 mb-10 tracking-wide">
-        600+ restaurants and cafes are taking online orders, managing
-        deliveries, and growing their business with Menuthere.
-      </p>
-      <div
+<div
         className="flex"
         style={{
           maskImage:
