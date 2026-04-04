@@ -11,6 +11,7 @@ import { uploadFileToS3 } from "@/app/actions/aws-s3";
 import { GoogleGenerativeAI, Schema } from "@google/generative-ai";
 import { Partner } from "./authStore";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { getSafeStorage } from "@/lib/safeStorage";
 import { useCategoryStore } from "./categoryStore_hasura";
 
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
@@ -571,7 +572,7 @@ export const useSuperAdminPartnerStore = create<SuperAdminPartnerState>()(
     }),
     {
       name: "super-admin-partner-store", // Changed name to avoid conflicts with old structure
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => getSafeStorage()),
     }
   )
 );

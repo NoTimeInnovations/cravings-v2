@@ -75,7 +75,7 @@ const HotelMenuPage = ({
   const { setHotelId, genOrderId, open_place_order_modal } = useOrderStore();
   const { setQrData } = useQrDataStore();
 
-  const styles: Styles = {
+  const styles: Styles = useMemo(() => ({
     backgroundColor: theme?.colors?.bg || "#F5F5F5",
     color: theme?.colors?.text || "#000",
     accent: theme?.colors?.accent || "#EA580C",
@@ -85,7 +85,7 @@ const HotelMenuPage = ({
       borderWidth: "1px",
       borderStyle: "solid",
     },
-  };
+  }), [theme?.colors?.bg, theme?.colors?.text, theme?.colors?.accent, theme?.showGrid]);
 
   // useEffect(() => {
   //   saveUserLocation(false);

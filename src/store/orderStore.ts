@@ -1,6 +1,7 @@
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getFeatures } from "@/lib/getFeatures";
+import { getSafeStorage } from "@/lib/safeStorage";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { useAuthStore, Captain } from "./authStore";
@@ -1524,7 +1525,7 @@ const useOrderStore = create(
     }),
     {
       name: "order-storage",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => getSafeStorage()),
     }
   )
 );
