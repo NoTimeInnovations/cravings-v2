@@ -78,7 +78,10 @@ const BannerCarousel = ({
   topItems: any[];
 }) => {
   const bannerMode = hoteldata?.delivery_rules?.banner_mode || "single";
-  const carouselBanners: string[] = hoteldata?.delivery_rules?.carousel_banners || [];
+  const carouselBanners: string[] = useMemo(
+    () => hoteldata?.delivery_rules?.carousel_banners || [],
+    [hoteldata?.delivery_rules?.carousel_banners]
+  );
 
   const slides = useMemo(() => {
     const slideList: { image: string; title?: string }[] = [];
@@ -95,7 +98,7 @@ const BannerCarousel = ({
       slideList.push({ image: "", title: hoteldata?.store_name });
     }
     return slideList;
-  }, [hoteldata, bannerError, bannerMode, carouselBanners]);
+  }, [hoteldata?.store_banner, hoteldata?.store_name, bannerError, bannerMode, carouselBanners]);
 
   const count = slides.length;
   const isMultiple = count > 1;
@@ -619,14 +622,14 @@ const Compact = ({
   isOnFreePlan,
 }: DefaultHotelPageProps) => {
   const [activeCatIndex, setActiveCatIndex] = useState<number>(0);
-  const [activeTab, setActiveTab] = useState<"food" | "orders" | "offers">(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tab = params.get("tab");
-      if (tab === "orders" || tab === "offers") return tab;
-    }
-    return "food";
-  });
+  const [activeTab, setActiveTab] = useState<"food" | "orders" | "offers">("food");
+
+  // Read tab from URL after mount to avoid hydration mismatch
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (tab === "orders" || tab === "offers") setActiveTab(tab);
+  }, []);
 
   // Custom Theme State
   const [showThemeCustomizer, setShowThemeCustomizer] = useState(false);
@@ -697,15 +700,18 @@ const Compact = ({
         }
       }
 
-      if (currentActiveIndex !== activeCatIndex) {
-        setActiveCatIndex(currentActiveIndex);
-        scrollCategoryIntoView(currentActiveIndex);
-      }
+      setActiveCatIndex((prev) => {
+        if (prev !== currentActiveIndex) {
+          scrollCategoryIntoView(currentActiveIndex);
+          return currentActiveIndex;
+        }
+        return prev;
+      });
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [categories, activeCatIndex]);
+  }, [categories]);
 
   useEffect(() => {
     // Update border position whenever activeCatIndex changes
