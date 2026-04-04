@@ -72,7 +72,7 @@ const LocationHeader = ({
       (r) => r.lat !== loc.lat || r.lng !== loc.lng
     )].slice(0, 5);
     setRecentLocations(updated);
-    localStorage.setItem("recent-delivery-locations", JSON.stringify(updated));
+    try { localStorage.setItem("recent-delivery-locations", JSON.stringify(updated)); } catch {}
   };
 
   const selectLocation = useCallback(async (lat: number, lng: number, name: string, address: string) => {

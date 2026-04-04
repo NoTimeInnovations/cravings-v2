@@ -34,7 +34,12 @@ export const calculateDeliveryDistanceAndCost = async (
   const { setDeliveryInfo } = useOrderStore.getState();
 
   try {
-    const userCoordsStr = localStorage?.getItem("user-location-store");
+    let userCoordsStr: string | null = null;
+    try {
+      userCoordsStr = localStorage?.getItem("user-location-store");
+    } catch {
+      return;
+    }
     if (!userCoordsStr) return;
 
     const userLocationData = JSON.parse(userCoordsStr);
@@ -47,12 +52,30 @@ export const calculateDeliveryDistanceAndCost = async (
     }
 
     const restaurantCoords = hotelData?.geo_location?.coordinates;
-    if (!restaurantCoords) return;
+    if (
+      !restaurantCoords ||
+      !Array.isArray(restaurantCoords) ||
+      restaurantCoords.length < 2 ||
+      typeof restaurantCoords[0] !== "number" ||
+      typeof restaurantCoords[1] !== "number" ||
+      (restaurantCoords[0] === 0 && restaurantCoords[1] === 0)
+    ) {
+      return;
+    }
 
-    const userLocation = [
-      userLocationData.state.coords.lng,
-      userLocationData.state.coords.lat,
-    ];
+    const userLng = userLocationData.state.coords.lng;
+    const userLat = userLocationData.state.coords.lat;
+
+    // Validate coordinate ranges (lng: -180 to 180, lat: -90 to 90)
+    if (
+      userLng < -180 || userLng > 180 ||
+      userLat < -90 || userLat > 90 ||
+      (userLng === 0 && userLat === 0)
+    ) {
+      return;
+    }
+
+    const userLocation = [userLng, userLat];
 
     const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
     if (!mapboxToken) return;
@@ -62,6 +85,7 @@ export const calculateDeliveryDistanceAndCost = async (
     )};${restaurantCoords.join(",")}?access_token=${mapboxToken}`;
 
     const response = await fetch(url);
+    if (!response.ok) return;
     const data = await response.json();
 
     if (!data.routes || data.routes.length === 0) return;
@@ -235,25 +259,29 @@ const OrderDrawer = ({
   useEffect(() => {
     if (hotelData) {
       setFeatures(getFeatures(hotelData?.feature_flags as string));
+      const current = useOrderStore.getState().deliveryInfo;
       setDeliveryInfo({
-        distance: deliveryInfo?.distance || 0,
-        cost: deliveryInfo?.cost || 0,
-        ratePerKm: deliveryInfo?.ratePerKm || 0,
-        isOutOfRange: deliveryInfo?.isOutOfRange || false,
+        distance: current?.distance || 0,
+        cost: current?.cost || 0,
+        ratePerKm: current?.ratePerKm || 0,
+        isOutOfRange: current?.isOutOfRange || false,
         minimumOrderAmount:
           hotelData?.delivery_rules?.minimum_order_amount || 0,
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelData]);
 
   useEffect(() => {
     setOpenPlaceOrderModal(false);
-  }, [setOpenPlaceOrderModal]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const totalQty = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
     setOpenDrawerBottom(totalQty > 0);
-  }, [items, setOpenDrawerBottom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
 
   const calculateGrandTotal = () => {
     const baseTotal =

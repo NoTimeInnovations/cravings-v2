@@ -13,6 +13,7 @@ import {
   UpsertSupplierQuery,
 } from "@/api/inventory"
 import { createJSONStorage, persist } from "zustand/middleware";
+import { getSafeStorage } from "@/lib/safeStorage";
 
 export interface PartnerPurchaseTransaction extends PurchaseTransaction {
   purchase_item: PurchaseItem;
@@ -417,7 +418,7 @@ export const useInventoryStore = create<InventoryStore>()(
     }),
     {
       name: "inventory-store",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => getSafeStorage()),
       partialize: (state) => ({
         purchases: state.purchases,
         totalAmountThisMonth: state.totalAmountThisMonth,

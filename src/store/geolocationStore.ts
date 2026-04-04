@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { getSafeStorage } from "@/lib/safeStorage";
 import useOrderStore from "./orderStore";
 
 type Coords = {
@@ -153,7 +154,7 @@ export const useLocationStore = create<LocationStore>()(
     }),
     {
       name: "user-location-store",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => getSafeStorage()),
       partialize: (state) => ({
         coords: state.coords,
         geoString: state.geoString,

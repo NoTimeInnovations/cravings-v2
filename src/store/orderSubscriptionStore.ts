@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { getSafeStorage } from "@/lib/safeStorage";
 import { Order } from "./orderStore";
 
 interface OrderSubscriptionState {
@@ -93,7 +94,7 @@ export const useOrderSubscriptionStore = create<OrderSubscriptionState>()(
     }),
     {
       name: "order-subscription-storage",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => getSafeStorage()),
     }
   )
 );
