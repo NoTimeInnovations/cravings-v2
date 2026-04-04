@@ -1,6 +1,6 @@
 "use client";
 import useOrderStore, { OrderItem } from "@/store/orderStore";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import {
@@ -86,7 +86,10 @@ const UnifiedAddressSection = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const headerAddress = useOrderStore((s) => s.userAddress);
 
-  const savedAddresses = ((user as any)?.addresses || []) as SavedAddress[];
+  const savedAddresses = useMemo(
+    () => ((user as any)?.addresses || []) as SavedAddress[],
+    [(user as any)?.addresses],
+  );
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
