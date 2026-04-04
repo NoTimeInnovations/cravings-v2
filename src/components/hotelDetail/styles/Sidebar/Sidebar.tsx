@@ -529,7 +529,7 @@ const Sidebar = ({
                   <a
                     href={
                       hoteldata?.place_id
-                        ? `https://www.google.com/maps/place/?q=place_id:${hoteldata.place_id}`
+                        ? `https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${hoteldata.place_id}`
                         : hoteldata?.geo_location?.coordinates
                           ? `https://www.google.com/maps?q=${hoteldata.geo_location.coordinates[1]},${hoteldata.geo_location.coordinates[0]}`
                           : socialLinks.location as string
