@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -114,31 +114,29 @@ const AddressManagementModal = ({
   theme?: AddressModalTheme;
 }) => {
   // Use theme from props first, then localStorage fallback
-  const [accent, setAccent] = useState(themeProp?.accent || DEFAULT_ACCENT);
-  const [themeBg, setThemeBg] = useState(themeProp?.bg || "#F5F5F5");
-  const [themeText, setThemeText] = useState(themeProp?.text || "#000000");
-  const [showGrid, setShowGrid] = useState(themeProp?.showGrid === true);
-  useEffect(() => {
-    // If theme prop is provided, use it directly
+  const { accent, themeBg, themeText, showGrid } = useMemo(() => {
     if (themeProp) {
-      if (themeProp.accent) setAccent(themeProp.accent);
-      if (themeProp.bg) setThemeBg(themeProp.bg);
-      if (themeProp.text) setThemeText(themeProp.text);
-      setShowGrid(themeProp.showGrid === true);
-      return;
+      return {
+        accent: themeProp.accent || DEFAULT_ACCENT,
+        themeBg: themeProp.bg || "#F5F5F5",
+        themeText: themeProp.text || "#000000",
+        showGrid: themeProp.showGrid === true,
+      };
     }
-    // Fallback to localStorage
     try {
       const stored = localStorage.getItem("hotelTheme");
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed.accent) setAccent(parsed.accent);
-        if (parsed.bg) setThemeBg(parsed.bg);
-        if (parsed.text) setThemeText(parsed.text);
-        setShowGrid(parsed.showGrid === true);
+        return {
+          accent: parsed.accent || DEFAULT_ACCENT,
+          themeBg: parsed.bg || "#F5F5F5",
+          themeText: parsed.text || "#000000",
+          showGrid: parsed.showGrid === true,
+        };
       }
     } catch {}
-  }, [themeProp]);
+    return { accent: DEFAULT_ACCENT, themeBg: "#F5F5F5", themeText: "#000000", showGrid: false };
+  }, [themeProp?.accent, themeProp?.bg, themeProp?.text, themeProp?.showGrid]);
 
   // Glassmorphism card styles matching PlaceOrderModal
   const isDark = (() => {
