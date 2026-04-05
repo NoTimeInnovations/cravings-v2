@@ -119,49 +119,27 @@ const PricingSection = ({
   };
 
   const internationalPlans: Record<string, PlanCard> = {
-    starter: {
-      id: "starter",
-      title: "Starter",
-      description: "Perfect for small restaurants",
-      features: [
-        "Digital menu",
-        "Unlimited items & categories",
-        "QR code generation",
-        "WhatsApp integration",
-        "Standard support",
-      ],
-      variants: [
-        {
-          id: "int_starter_monthly",
-          name: "Starter Monthly",
-          price: "19",
-          period: "/month",
-          billed: "Billed monthly",
-          type: "monthly",
-          rz_plan_id: getRzPlanId("int_starter_monthly"),
-        },
-      ],
-    },
     professional: {
       id: "professional",
       title: "Professional",
-      description: "Ideal for growing businesses",
+      description: "Up to 5,000 orders per month",
       popular: true,
       features: [
         "Digital menu",
-        "Unlimited items",
+        "Unlimited items & categories",
         "QR code generation",
         "WhatsApp integration",
         "Google menu sync",
         "Priority support",
         "Advanced analytics & reporting",
         "Multi-location support",
+        "Up to 5,000 orders/month",
       ],
       variants: [
         {
           id: "int_digital_monthly",
           name: "Professional Monthly",
-          price: "49",
+          price: "100",
           period: "/month",
           billed: "Billed monthly",
           type: "monthly",
@@ -172,7 +150,7 @@ const PricingSection = ({
     enterprise: {
       id: "enterprise",
       title: "Enterprise",
-      description: "For large-scale operations",
+      description: "For more than 5,000 orders per month",
       contactSales: true,
       features: [
         "Unlimited orders",
@@ -664,7 +642,7 @@ const PricingSection = ({
 
             {/* ── International: Plan Cards ── */}
             <div className="sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] mx-auto px-5 py-12 md:py-16">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-2xl mx-auto">
                 {planKeys.map((key) => {
                   const plan = activePlans[key];
                   const variant = getActiveVariant(plan);
