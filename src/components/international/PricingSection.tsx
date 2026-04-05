@@ -20,7 +20,6 @@ import {
   Globe,
   Smartphone,
   Truck,
-  Megaphone,
   MessageCircle,
   UtensilsCrossed,
   LayoutGrid,
@@ -100,10 +99,10 @@ const PricingSection = ({
         "Delivery website with Petpooja POS integration",
         "Customer ordering app (Play Store & App Store)",
         "Delivery driver app with live tracking",
-        "Meta ads management for marketing",
         "WhatsApp automation",
         "Digital menu",
         "Table ordering system",
+        "Up to 5,000 orders/month",
       ],
       variants: [
         {
@@ -112,6 +111,30 @@ const PricingSection = ({
           price: "10000",
           period: "/month",
           billed: "Billed monthly",
+          type: "monthly",
+        },
+      ],
+    },
+    enterprise: {
+      id: "enterprise",
+      title: "Enterprise",
+      description: "For more than 5,000 orders per month",
+      contactSales: true,
+      features: [
+        "Unlimited orders",
+        "Full API access",
+        "Dedicated account manager",
+        "Custom dashboard & reports",
+        "White-label solutions",
+        "SLA guarantees",
+      ],
+      variants: [
+        {
+          id: "in_enterprise",
+          name: "Enterprise",
+          price: "Custom",
+          period: "",
+          billed: "Custom billing",
           type: "monthly",
         },
       ],
@@ -130,6 +153,8 @@ const PricingSection = ({
         "QR code generation",
         "WhatsApp integration",
         "Google menu sync",
+        "Customer ordering app (Play Store & App Store)",
+        "Delivery driver app for own drivers",
         "Priority support",
         "Advanced analytics & reporting",
         "Multi-location support",
@@ -504,13 +529,6 @@ const PricingSection = ({
       description:
         "Automated order confirmations, delivery updates, and promotional messages via WhatsApp.",
     },
-    {
-      icon: Megaphone,
-      title: "Meta Ads Management",
-      subtitle: "for Restaurant Marketing",
-      description:
-        "We run and manage Facebook & Instagram ad campaigns to bring new customers to your restaurant.",
-    },
   ];
 
   const planKeys = Object.keys(activePlans);
@@ -544,35 +562,94 @@ const PricingSection = ({
 
         {isIndia ? (
           <>
-            {/* ── India: Hero ── */}
+            {/* ── India: Header ── */}
             <div className="max-w-3xl mx-auto px-5 pt-28 md:pt-36 pb-10 md:pb-14 text-center">
-              <span className="inline-block px-3 py-1 rounded-full text-xs font-medium text-orange-600 bg-orange-100/70 border border-orange-600/20 mb-4">
-                All-in-One Bundle
-              </span>
               <h1 className="text-3xl sm:text-4xl md:text-[2.75rem] md:leading-[1.15] font-semibold text-stone-900 tracking-tight">
                 Everything your restaurant needs to grow.
               </h1>
               <p className="text-sm text-stone-500 mt-3 max-w-md mx-auto leading-relaxed">
-                One plan, eight powerful tools. No hidden fees, cancel anytime.
+                Flexible pricing options to match your business needs. No hidden fees, cancel anytime.
               </p>
-              <div className="flex items-baseline justify-center gap-1.5 mt-5">
-                <span className="text-3xl md:text-4xl font-semibold text-stone-900 tracking-tight">
-                  {currencySymbol}10,000
-                </span>
-                <span className="text-base text-stone-400 font-medium">/month</span>
+            </div>
+
+            {/* Divider */}
+            <div className="w-full h-px bg-stone-200" />
+
+            {/* ── India: Plan Cards ── */}
+            <div className="sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] mx-auto px-5 py-12 md:py-16">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-2xl mx-auto">
+                {planKeys.map((key) => {
+                  const plan = activePlans[key];
+                  const variant = getActiveVariant(plan);
+                  const isPopular = plan.popular;
+                  const isEnterprise = plan.contactSales;
+                  const isCurrent = currentPlanId === variant.id;
+
+                  return (
+                    <div
+                      key={key}
+                      className={cn(
+                        "relative rounded-2xl bg-white flex flex-col p-6 md:p-7",
+                        isPopular
+                          ? "border-2 border-orange-600/50"
+                          : "border border-stone-200",
+                      )}
+                    >
+                      {isPopular && (
+                        <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-xs font-semibold bg-orange-600 text-white">
+                          Most Popular
+                        </span>
+                      )}
+
+                      <h3 className="text-xl font-bold text-stone-900">{plan.title}</h3>
+                      <p className="text-sm text-stone-500 mt-1 mb-5">{plan.description}</p>
+
+                      <div className="flex items-baseline gap-0.5 mb-6">
+                        {isEnterprise ? (
+                          <span className="text-3xl md:text-4xl font-bold text-stone-900">Custom</span>
+                        ) : (
+                          <>
+                            <span className="text-3xl md:text-4xl font-bold text-stone-900">
+                              {currencySymbol}{variant.price}
+                            </span>
+                            <span className="text-sm text-stone-400 font-medium">/month</span>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col gap-3 mb-7 flex-1">
+                        {plan.features.map((feature, i) => (
+                          <div key={i} className="flex items-start gap-2.5">
+                            <div className="mt-0.5 w-5 h-5 rounded-full bg-green-50 flex items-center justify-center shrink-0">
+                              <Check className="h-3 w-3 text-green-600" />
+                            </div>
+                            <span className="text-sm text-stone-600">{feature}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <button
+                        onClick={() => handleCardClick(key)}
+                        disabled={isCurrent}
+                        className={cn(
+                          "w-full h-11 rounded-xl text-sm font-medium transition-colors",
+                          isCurrent
+                            ? "bg-stone-100 text-stone-400 cursor-not-allowed"
+                            : isPopular
+                              ? "bg-orange-600 text-white hover:bg-orange-700"
+                              : "bg-white text-orange-600 border border-orange-600/40 hover:bg-orange-50",
+                        )}
+                      >
+                        {isCurrent
+                          ? "Current Plan"
+                          : isEnterprise
+                            ? "Contact Sales"
+                            : "Get Started"}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-              <button
-                onClick={() => handleCardClick("bundle")}
-                disabled={currentPlanId === "in_bundle_monthly"}
-                className={cn(
-                  "mt-5 rounded-full px-8 py-2.5 text-sm font-medium transition-colors",
-                  currentPlanId === "in_bundle_monthly"
-                    ? "bg-stone-100 text-stone-400 cursor-not-allowed"
-                    : "bg-orange-600 text-white hover:bg-orange-700",
-                )}
-              >
-                {currentPlanId === "in_bundle_monthly" ? "Current Plan" : "Get Started"}
-              </button>
             </div>
 
             {/* Divider */}
@@ -608,7 +685,7 @@ const PricingSection = ({
                   Ready to grow your restaurant?
                 </h3>
                 <p className="text-orange-100 text-sm mb-6 max-w-sm mx-auto">
-                  Get all 8 tools in one plan. Start today.
+                  Get all the tools in one plan. Start today.
                 </p>
                 <button
                   onClick={() => handleCardClick("bundle")}
