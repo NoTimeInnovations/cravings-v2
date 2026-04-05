@@ -92,9 +92,8 @@ const PricingSection = ({
     bundle: {
       id: "bundle",
       title: "Complete Restaurant Bundle",
-      description: "Everything you need to grow your restaurant business",
+      description: "Up to 5,000 orders per month",
       popular: true,
-      contactSales: true,
       features: [
         "Delivery website with Petpooja POS integration",
         "Customer ordering app (Play Store & App Store)",
@@ -606,7 +605,7 @@ const PricingSection = ({
 
                       <div className="flex items-baseline gap-0.5 mb-6">
                         {isEnterprise ? (
-                          <span className="text-3xl md:text-4xl font-bold text-stone-900">Custom</span>
+                          <span className="text-lg text-stone-500 font-medium">Contact Sales</span>
                         ) : (
                           <>
                             <span className="text-3xl md:text-4xl font-bold text-stone-900">
@@ -751,7 +750,7 @@ const PricingSection = ({
                       {/* Price */}
                       <div className="flex items-baseline gap-0.5 mb-6">
                         {isEnterprise ? (
-                          <span className="text-3xl md:text-4xl font-bold text-stone-900">Custom</span>
+                          <span className="text-lg text-stone-500 font-medium">Contact Sales</span>
                         ) : (
                           <>
                             <span className="text-3xl md:text-4xl font-bold text-stone-900">
