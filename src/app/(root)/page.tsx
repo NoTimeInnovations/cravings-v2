@@ -27,12 +27,12 @@ export const metadata: Metadata = {
   title:
     "Menuthere | Online Ordering & Delivery Platform for Restaurants",
   description:
-    "Launch your restaurant's own delivery website with Petpooja POS integration, real-time orders & analytics. Trusted by 600+ restaurants across India.",
+    "Launch your restaurant's own delivery app with Petpooja POS integration, real-time orders & analytics. Trusted by 600+ restaurants across India.",
   openGraph: {
     title:
       "Menuthere | Online Ordering & Delivery Platform for Restaurants",
     description:
-      "Launch your restaurant's own delivery website with Petpooja POS integration, real-time orders & analytics. Trusted by 600+ restaurants across India.",
+      "Launch your restaurant's own delivery app with Petpooja POS integration, real-time orders & analytics. Trusted by 600+ restaurants across India.",
     images: ["/og_image.png"],
     type: "website",
     url: "https://menuthere.com",
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     title:
       "Menuthere | Online Ordering & Delivery Platform for Restaurants",
     description:
-      "Launch your restaurant's own delivery website with Petpooja POS integration, real-time orders & analytics. Trusted by 600+ restaurants across India.",
+      "Launch your restaurant's own delivery app with Petpooja POS integration, real-time orders & analytics. Trusted by 600+ restaurants across India.",
     images: ["/og_image.png"],
   },
   alternates: {
