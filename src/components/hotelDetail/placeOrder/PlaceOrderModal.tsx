@@ -2563,36 +2563,49 @@ const PlaceOrderModal = ({
           >
             <div className="max-w-2xl mx-auto">
               {user?.role !== "partner" && user?.role !== "superadmin" ? (
-                <button
-                  onClick={() =>
-                    handlePlaceOrder(() => {
-                      if (hasUpiQr) setShowUpiScreen(true);
-                    })
-                  }
-                  disabled={
-                    isPlaceOrderDisabled ||
-                    !user ||
-                    items?.length === 0 ||
-                    (isDelivery && orderType === "delivery" && (totalPrice ?? 0) < minimumOrderAmount)
-                  }
-                  className="w-full py-4 rounded-xl text-white font-bold text-[15px] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between px-6 active:scale-[0.98]"
-                  style={{ backgroundColor: "var(--pom-accent, #ea580c)" }}
-                >
-                  <span>
-                    {orderStatus === "loading" ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        Placing...
-                      </span>
-                    ) : (
-                      `${hotelData?.currency || "₹"}${_barGrandTotal.toFixed(2)}`
-                    )}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    PLACE ORDER
-                    <ArrowLeft size={15} className="rotate-180" />
-                  </span>
-                </button>
+                <div className="flex items-center gap-3">
+                  {/* Left side — Pay on delivery label (delivery orders only) */}
+                  {isDelivery && orderType === "delivery" && (
+                    <div className="shrink-0">
+                      <p className="font-bold text-sm" style={{ color: "var(--pom-text-muted)" }}>Pay on delivery</p>
+                      <p className="text-xs" style={{ color: "var(--pom-accent, #ea580c)" }}>UPI/Cash</p>
+                    </div>
+                  )}
+                  {/* Right side — Total + Place Order button */}
+                  <button
+                    onClick={() =>
+                      handlePlaceOrder(() => {
+                        if (hasUpiQr) setShowUpiScreen(true);
+                      })
+                    }
+                    disabled={
+                      isPlaceOrderDisabled ||
+                      !user ||
+                      items?.length === 0 ||
+                      (isDelivery && orderType === "delivery" && (totalPrice ?? 0) < minimumOrderAmount)
+                    }
+                    className={`${isDelivery && orderType === "delivery" ? "flex-1" : "w-full"} py-3.5 rounded-xl text-white font-bold text-[13px] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between px-5 active:scale-[0.98]`}
+                    style={{ backgroundColor: "var(--pom-accent, #ea580c)" }}
+                  >
+                    <span>
+                      {orderStatus === "loading" ? (
+                        <span className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Placing...
+                        </span>
+                      ) : (
+                        <span className="flex flex-col items-start leading-tight">
+                          <span className="text-[13px]">{hotelData?.currency || "₹"}{_barGrandTotal.toFixed(2)}</span>
+                          <span className="text-[9px] font-semibold opacity-80">TOTAL</span>
+                        </span>
+                      )}
+                    </span>
+                    <span className="flex items-center gap-1.5 whitespace-nowrap border-l border-white/20 pl-3 ml-1">
+                      Place Order
+                      <ArrowLeft size={13} className="rotate-180" />
+                    </span>
+                  </button>
+                </div>
               ) : (
                 <button
                   onClick={() => setShowLoginDrawer(true)}
