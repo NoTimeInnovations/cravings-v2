@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 const ROWS = [
-  { label: "Commission", aggregator: "30%", direct: "1%" },
+  { label: "Commission", aggregator: "30%", direct: "0%" },
   { label: "Customer data", aggregator: "Theirs", direct: "Yours" },
   { label: "Pricing", aggregator: "Locked", direct: "Free" },
   { label: "Brand loyalty", aggregator: "Lost", direct: "Yours" },

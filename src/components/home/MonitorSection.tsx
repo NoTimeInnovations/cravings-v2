@@ -24,7 +24,7 @@ const FEATURES = [
   {
     title: "Save 30% vs Aggregators",
     description:
-      "Aggregators charge 20-33% commission + hidden fees, totaling up to 45% of every order. With Menuthere, get your own ordering website with just 1% commission and Petpooja POS integration. Own your customer data, control your pricing, and build brand loyalty.",
+      "Aggregators charge 20-33% commission + hidden fees, totaling up to 45% of every order. With Menuthere, get your own ordering app with just 0% commission and Petpooja POS integration. Own your customer data, control your pricing, and build brand loyalty.",
     href: "/solutions/petpooja",
     cta: "See full comparison & savings calculator",
     image: "/features/smartqr-v2.webp",

@@ -637,7 +637,7 @@ export function Navbar() {
                       </span>
                     </div>
                     <p className="text-stone-500 text-xs mt-0.5">
-                      Just 1% commission with PetPooja POS integration
+                      Just 0% commission with PetPooja POS integration
                     </p>
                   </div>
                 </Link>
@@ -974,7 +974,7 @@ export function Navbar() {
                           </span>
                         </div>
                         <span className="text-gray-500 text-xs">
-                          1% commission, PetPooja POS integration
+                          0% commission, PetPooja POS integration
                         </span>
                       </div>
                     </Link>

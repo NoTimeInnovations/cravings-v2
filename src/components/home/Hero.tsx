@@ -11,7 +11,7 @@ export default function Hero() {
 
         {/* Subtitle */}
         <p className="geist-font text-lg text-[#544b47] max-w-md mt-5 leading-relaxed text-pretty">
-          Stop paying 30% to aggregators. Your own ordering website with Petpooja POS, delivery app &amp; branded restaurant app.
+          Stop paying 30% to aggregators. Your own ordering app with Petpooja POS, delivery app &amp; branded restaurant app.
         </p>
 
         {/* CTA Buttons */}

@@ -39,7 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title:
       "Stop Paying 30% Commission to Third-Party Delivery Platforms | Direct Ordering with Menuthere",
     description:
-      "Third-party delivery platforms charge restaurants 20-30%+ commission per order. Menuthere gives you your own ordering website with just 1% commission, full customer data ownership, and PetPooja POS integration. Take back control of your restaurant.",
+      "Third-party delivery platforms charge restaurants 20-30%+ commission per order. Menuthere gives you your own ordering app with just 0% commission, full customer data ownership, and PetPooja POS integration. Take back control of your restaurant.",
     alternates: {
       canonical: "https://menuthere.com/solutions/petpooja",
     },
@@ -47,7 +47,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title:
         "Stop Paying 30% Commission | Direct Ordering for Restaurants",
       description:
-        "Why pay 20-30% to other delivery platforms? Get your own ordering website with just 1% commission. PetPooja POS integration, full customer data, and complete control.",
+        "Why pay 20-30% to other delivery platforms? Get your own ordering website with just 0% commission. PetPooja POS integration, full customer data, and complete control.",
       type: "website",
       url: "https://menuthere.com/solutions/petpooja",
     },
@@ -58,7 +58,7 @@ const COMMISSION_BREAKDOWN = [
   {
     label: "Base Commission",
     aggregator: "18-33%",
-    menuthere: "1%",
+    menuthere: "0%",
   },
   {
     label: "GST",
@@ -129,9 +129,9 @@ const AGGREGATOR_PROBLEMS = [
 const OUR_SOLUTION = [
   {
     icon: IndianRupee,
-    title: "Just 1% Commission on Orders",
+    title: "Just 0% Commission on Orders",
     description:
-      "With just 1% commission, nearly every rupee your customer pays goes to you. No hidden fees, no revenue sharing. Your margins stay intact — the way it should be.",
+      "With just 0% commission, nearly every rupee your customer pays goes to you. No hidden fees, no revenue sharing. Your margins stay intact — the way it should be.",
   },
   {
     icon: Users,
@@ -169,7 +169,7 @@ const REAL_NUMBERS = [
   {
     metric: "Commission per order",
     aggregator: "18-33% + fees (effective 35-45%)",
-    direct: "Just 1%",
+    direct: "Just 0%",
   },
   {
     metric: "Customer data ownership",
@@ -207,7 +207,7 @@ const FAQ_DATA = [
   {
     question: "How does Menuthere help me stop paying other delivery platform commissions?",
     answer:
-      "Menuthere gives you your own branded ordering website where customers can place orders directly. With just 1% commission, you keep nearly all of your order revenue. We charge a simple subscription fee — not a 20-30% cut of every order.",
+      "Menuthere gives you your own branded ordering website where customers can place orders directly. With just 0% commission, you keep nearly all of your order revenue. We charge a simple subscription fee — not a 20-30% cut of every order.",
   },
   {
     question: "Does Menuthere provide delivery boys?",
@@ -222,7 +222,7 @@ const FAQ_DATA = [
   {
     question: "What about payment collection from customers?",
     answer:
-      "Menuthere includes integrated payment gateway support with just 1% fee (customer service only). Customers can pay online via UPI, cards, and wallets directly on your ordering website. You can also accept cash on delivery or use your existing payment setup.",
+      "Menuthere includes integrated payment gateway support with just 0% fee (customer service only). Customers can pay online via UPI, cards, and wallets directly on your ordering website. You can also accept cash on delivery or use your existing payment setup.",
   },
   {
     question: "Should I completely leave other delivery platforms?",
@@ -247,7 +247,7 @@ const FAQ_DATA = [
 ];
 
 const STATS = [
-  { value: "1%", label: "Commission Per Order" },
+  { value: "0%", label: "Commission Per Order" },
   { value: "35%", label: "Restaurants Want to Quit Aggregators" },
   { value: "45%", label: "Effective Aggregator Fee" },
   { value: "100%", label: "Customer Data You Own" },
