@@ -164,6 +164,9 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     upi_id
     show_payment_qr
     post_payment_message
+    cashfree_merchant_id
+    accept_payments_via_cashfree
+    accept_cod
     price_adjustment
     subscription_details
     menus(where: {
@@ -307,6 +310,9 @@ export const updatePartnerMutation = `
       footnote
       has_seen_tour
       delivery_rules
+      cashfree_merchant_id
+      accept_payments_via_cashfree
+      accept_cod
     }
   }
 `;

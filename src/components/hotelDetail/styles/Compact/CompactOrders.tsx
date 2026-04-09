@@ -15,6 +15,8 @@ import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
 import Link from "next/link";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { createCashfreeOrderForPartner } from "@/app/actions/cashfree";
+import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 
 interface CompactOrdersProps {
   hotelId: string;
@@ -32,7 +34,10 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
     phone?: string;
     whatsapp_numbers?: string[] | any;
     country_code?: string;
+    accept_payments_via_cashfree?: boolean;
+    cashfree_merchant_id?: string;
   } | null>(null);
+  const [cashfreeLoadingOrderId, setCashfreeLoadingOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     if (userData?.id) {
@@ -56,6 +61,8 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                     phone
                     country_code
                     whatsapp_numbers
+                    accept_payments_via_cashfree
+                    cashfree_merchant_id
                 }
             }
         `,
@@ -108,6 +115,46 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
 
     // Add + prefix for international format
     return number.startsWith("+") ? number : `+${number}`;
+  };
+
+  const hasCashfree = partnerPaymentInfo?.accept_payments_via_cashfree === true && !!partnerPaymentInfo?.cashfree_merchant_id;
+
+  const handleCashfreePayment = async (order: (typeof userOrders)[0]) => {
+    setCashfreeLoadingOrderId(order.id);
+    try {
+      const cfOrderId = `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const returnUrl = `${window.location.origin}/order/${order.id}?cf_order=${cfOrderId}`;
+
+      sessionStorage.setItem("cashfree_pending_payment", JSON.stringify({
+        cfOrderId,
+        partnerId: hotelId,
+      }));
+
+      const cfRes = await createCashfreeOrderForPartner(
+        hotelId,
+        cfOrderId,
+        order.totalPrice || 0,
+        {
+          id: userData?.id || "guest",
+          name: (userData as any)?.full_name || "Customer",
+          phone: (userData as any)?.phone || "",
+          email: (userData as any)?.email,
+        },
+        returnUrl,
+      );
+
+      if (!cfRes.success) throw new Error(cfRes.error);
+
+      const cashfreeMode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "PRODUCTION" ? "production" : "sandbox";
+      const cashfree = await loadCashfree({ mode: cashfreeMode as "sandbox" | "production" });
+      cashfree.checkout({
+        paymentSessionId: cfRes.paymentSessionId!,
+        redirectTarget: "_self",
+      });
+    } catch (error) {
+      console.error("Cashfree payment error:", error);
+      setCashfreeLoadingOrderId(null);
+    }
   };
 
   if (loading && partnerOrders.length === 0) {
@@ -217,6 +264,7 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
           const statusDisplay = getStatusDisplay(order);
           const isCompleted =
             order.status === "completed" || order.status === "cancelled";
+          const isPaid = !!(order as any).is_paid;
           const hasUpiQr =
             partnerPaymentInfo?.show_payment_qr && !!partnerPaymentInfo?.upi_id;
           const whatsappPhone = getWhatsAppNumber();
@@ -358,7 +406,7 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                 </div>
               </Link>
 
-              {!isCompleted && (whatsappLink || hasUpiQr) && (
+              {!isCompleted && (whatsappLink || (!isPaid && (hasCashfree || hasUpiQr))) && (
                 <div className="flex gap-2 mt-3">
                   {whatsappLink && (
                     <a
@@ -372,17 +420,26 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                       Send to WhatsApp
                     </a>
                   )}
-                  {hasUpiQr && (
+                  {!isPaid && (hasCashfree || hasUpiQr) && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setUpiOrder(order);
+                        if (hasCashfree) {
+                          handleCashfreePayment(order);
+                        } else {
+                          setUpiOrder(order);
+                        }
                       }}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-white rounded-lg font-medium text-xs transition-colors"
+                      disabled={cashfreeLoadingOrderId === order.id}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-white rounded-lg font-medium text-xs transition-colors disabled:opacity-50"
                       style={{ backgroundColor: styles?.accent || "#ea580c" }}
                     >
-                      <CreditCard className="w-3.5 h-3.5" />
-                      Pay Now
+                      {cashfreeLoadingOrderId === order.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <CreditCard className="w-3.5 h-3.5" />
+                      )}
+                      {cashfreeLoadingOrderId === order.id ? "Processing..." : "Pay Now"}
                     </button>
                   )}
                 </div>

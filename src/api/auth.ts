@@ -62,6 +62,9 @@ export const partnerIdQuery = `
       username
       custom_domain
       has_seen_tour
+      cashfree_merchant_id
+      accept_payments_via_cashfree
+      accept_cod
       qr_codes(limit: 1) {
         id
       }
@@ -110,6 +113,9 @@ export const partnerLoginQuery = `
       username
       custom_domain
       has_seen_tour
+      cashfree_merchant_id
+      accept_payments_via_cashfree
+      accept_cod
       qr_codes(limit: 1) {
         id
       }

@@ -11,6 +11,8 @@ import {
   ChevronDown,
   X,
   MessageCircle,
+  CreditCard,
+  Banknote,
 } from "lucide-react";
 import { useLocationStore } from "@/store/geolocationStore";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,6 +41,8 @@ import AddressManagementModal, { type SavedAddress, type AddressModalTheme } fro
 import { Notification } from "@/app/actions/notification";
 import { useWhatsAppOtp } from "@/hooks/useWhatsAppOtp";
 import { OtpInput } from "@/components/ui/otp-input";
+import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
+import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 
 // Helper: detect if a hex color is dark
 function isDarkColor(hex: string): boolean {
@@ -303,13 +307,19 @@ const OrderStatusDialog = ({
   whatsappLink,
   isPetpooja,
   hasUpiQr,
+  cashfreePaid,
+  orderId,
+  failReason,
 }: {
-  status: "idle" | "loading" | "success";
+  status: "idle" | "loading" | "verifying" | "success" | "failed";
   onClose: () => void;
   partnerId?: string;
   whatsappLink?: string;
   isPetpooja?: boolean;
   hasUpiQr?: boolean;
+  cashfreePaid?: boolean;
+  orderId?: string;
+  failReason?: string;
 }) => {
   const [loadingText, setLoadingText] = useState("Getting your items...");
 
@@ -330,6 +340,8 @@ const OrderStatusDialog = ({
     }
   }, [status]);
 
+  const isLoading = status === "loading" || status === "verifying";
+
   return (
     <AnimatePresence>
       {status !== "idle" && (
@@ -339,7 +351,7 @@ const OrderStatusDialog = ({
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[7000] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm"
         >
-          {status === "loading" && (
+          {isLoading && (
             <motion.div
               key="loading"
               initial={{ scale: 0.8, opacity: 0 }}
@@ -351,13 +363,13 @@ const OrderStatusDialog = ({
               <Loader2 className="w-16 h-16 animate-spin mx-auto text-white" />
               <AnimatePresence mode="wait">
                 <motion.p
-                  key={loadingText}
+                  key={status === "verifying" ? "verifying" : loadingText}
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   exit={{ y: -20, opacity: 0 }}
                   className="mt-6 text-2xl font-semibold"
                 >
-                  {loadingText}
+                  {status === "verifying" ? "Verifying payment..." : loadingText}
                 </motion.p>
               </AnimatePresence>
             </motion.div>
@@ -384,15 +396,20 @@ const OrderStatusDialog = ({
                 <CheckCircle2 className="w-24 h-24 text-green-400 mx-auto" />
               </motion.div>
               <h2 className="mt-6 text-3xl font-bold">
-                Order Placed Successfully!
+                {cashfreePaid ? "Payment Completed!" : "Order Placed Successfully!"}
               </h2>
-              {partnerId === "098fa941-3476-4a2c-b1f8-ea88eb15ad4f" && (
+              {cashfreePaid && (
+                <p className="mt-3 text-sm text-white/80 text-center px-4">
+                  Your payment has been received and your order has been placed successfully.
+                </p>
+              )}
+              {!cashfreePaid && partnerId === "098fa941-3476-4a2c-b1f8-ea88eb15ad4f" && (
                 <p className="mt-3 text-sm text-white/80 text-center px-4">
                   Kindly make the payment using the WhatsApp QR code and share the payment confirmation screenshot to confirm your order.
                 </p>
               )}
               <div className="w-full mt-8 px-4 space-y-3">
-                {whatsappLink && !isPetpooja && !hasUpiQr && (
+                {whatsappLink && !isPetpooja && !hasUpiQr && !cashfreePaid && (
                   <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
                     <button className="w-full flex items-center justify-center gap-2 px-6 py-2.5 bg-green-500 text-white rounded-xl font-medium text-sm shadow-lg shadow-green-500/30 hover:bg-green-600 transition-colors">
                       <MessageCircle className="w-4 h-4 shrink-0" />
@@ -400,12 +417,60 @@ const OrderStatusDialog = ({
                     </button>
                   </a>
                 )}
+                {cashfreePaid && orderId ? (
+                  <a
+                    href={`/order/${orderId}`}
+                    className="w-full px-6 py-2.5 border rounded-xl font-medium hover:opacity-80 transition-colors block text-center"
+                    style={{ borderColor: "var(--pom-card-border, #d6d3d1)" }}
+                  >
+                    View Order Details
+                  </a>
+                ) : (
+                  <button
+                    onClick={onClose}
+                    className="w-full px-6 py-2.5 border rounded-xl font-medium hover:opacity-80 transition-colors"
+                    style={{ borderColor: "var(--pom-card-border, #d6d3d1)" }}
+                  >
+                    Back to Menu
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {status === "failed" && (
+            <motion.div
+              key="failed"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              className="text-center text-white p-8 rounded-2xl shadow-lg flex flex-col items-center max-w-md mx-4"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{
+                  delay: 0.2,
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 15,
+                }}
+              >
+                <X className="w-24 h-24 text-red-400 mx-auto" />
+              </motion.div>
+              <h2 className="mt-6 text-3xl font-bold">
+                Payment Failed
+              </h2>
+              <p className="mt-3 text-sm text-white/80 text-center px-4">
+                {failReason || "Your payment could not be completed. Please try again."}
+              </p>
+              <div className="w-full mt-8 px-4 space-y-3">
                 <button
                   onClick={onClose}
                   className="w-full px-6 py-2.5 border rounded-xl font-medium hover:opacity-80 transition-colors"
                   style={{ borderColor: "var(--pom-card-border, #d6d3d1)" }}
                 >
-                  Back to Menu
+                  Try Again
                 </button>
               </div>
             </motion.div>
@@ -1401,13 +1466,19 @@ const PlaceOrderModal = ({
   const [isAndroid, setIsAndroid] = useState(false);
 
   const showGrid = themeStyles?.showGrid === true;
+  const isDark = themeStyles ? isDarkColor(themeStyles.backgroundColor || "#fafaf9") : false;
+
+  // Check immediately on first render if returning from Cashfree
+  const hasCashfreeReturn = typeof window !== "undefined" && !!sessionStorage.getItem("cashfree_pending_order");
 
   const [orderStatus, setOrderStatus] = useState<
-    "idle" | "loading" | "success"
-  >("idle");
+    "idle" | "loading" | "verifying" | "success" | "failed"
+  >(hasCashfreeReturn ? "verifying" : "idle");
+  const [paymentFailReason, setPaymentFailReason] = useState("");
   const [showUpiScreen, setShowUpiScreen] = useState(false);
   const [finalOrderAmount, setFinalOrderAmount] = useState(0);
   const [generatedWhatsappLink, setGeneratedWhatsappLink] = useState<string>("");
+  const [cashfreePaid, setCashfreePaid] = useState(hasCashfreeReturn);
 
   // Customer name state
   const needUserName = hotelData?.delivery_rules?.need_user_name ?? false;
@@ -1626,6 +1697,26 @@ const PlaceOrderModal = ({
   const hasMultiWhatsapp =
     getFeatures(hotelData?.feature_flags || "")?.multiwhatsapp?.enabled &&
     hotelData?.whatsapp_numbers?.length > 0;
+
+  const hasCashfree =
+    (hotelData as any)?.accept_payments_via_cashfree === true &&
+    !!(hotelData as any)?.cashfree_merchant_id;
+
+  const hasCod = (hotelData as any)?.accept_cod !== false; // default true if null/undefined
+
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"cod" | "cashfree">(
+    hasCashfree ? "cashfree" : "cod"
+  );
+  const [showPaymentSheet, setShowPaymentSheet] = useState(false);
+  const [paymentSheetClosing, setPaymentSheetClosing] = useState(false);
+  const closePaymentSheet = (newMethod?: "cod" | "cashfree") => {
+    if (newMethod) setSelectedPaymentMethod(newMethod);
+    setPaymentSheetClosing(true);
+    setTimeout(() => {
+      setShowPaymentSheet(false);
+      setPaymentSheetClosing(false);
+    }, 250);
+  };
 
   const hasUpiQr =
     hotelData?.show_payment_qr === true &&
@@ -2203,6 +2294,243 @@ const PlaceOrderModal = ({
     }
   };
 
+  const handleCashfreePayAndPlaceOrder = async () => {
+    // Run the same validations as handlePlaceOrder
+    if (tableNumber === 0 && !orderType) {
+      toast.error("Please select an order type");
+      return;
+    }
+    if (needUserName && !customerName.trim()) {
+      toast.error("Please enter your name");
+      return;
+    }
+    if (orderType === "delivery" && !address?.trim()) {
+      toast.error("Please select a delivery address");
+      return;
+    }
+    if (isDelivery) {
+      const needLocation = hotelData?.delivery_rules?.needDeliveryLocation ?? true;
+      if (!address?.trim()) { toast.error("Please enter your delivery address"); return; }
+      if (needLocation) {
+        if (hasDelivery && !selectedCoords) { toast.error("Please select your location on the map"); return; }
+        if (deliveryInfo?.isOutOfRange) { toast.error("Delivery is not available to your location"); return; }
+      }
+    }
+    if (hasMultiWhatsapp && !selectedLocation) { toast.error("Please select a hotel location"); return; }
+    if (!user) { toast.error("Please login first"); return; }
+
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setOrderStatus("loading");
+
+    try {
+      // Compute the grand total (same logic as handlePlaceOrder)
+      const subtotal = items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
+      const extraCharges: { name: string; amount: number; charge_type: string }[] = [];
+      if (isQrScan && qrGroup && qrGroup.name) {
+        const amt = getExtraCharge(items || [], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE");
+        if (amt > 0) extraCharges.push({ name: qrGroup.name, amount: amt, charge_type: qrGroup.charge_type || "FLAT_FEE" });
+      }
+      if (!isQrScan && tableNumber === 0 && qrGroup && qrGroup.name && (orderType === "delivery" || orderType === "takeaway")) {
+        const amt = getExtraCharge(items || [], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE");
+        if (amt > 0) extraCharges.push({ name: qrGroup.name, amount: amt, charge_type: qrGroup.charge_type || "FLAT_FEE" });
+      }
+      if (!isQrScan && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && orderType === "delivery" && !(hotelData?.delivery_rules?.hide_delivery_charge)) {
+        extraCharges.push({ name: "Delivery Charge", amount: deliveryInfo.cost, charge_type: "FLAT_FEE" });
+      }
+      if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge && hotelData.delivery_rules.parcel_charge > 0) {
+        const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
+        const itemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+        const parcelAmount = chargeType === "variable" ? itemCount * hotelData.delivery_rules.parcel_charge : hotelData.delivery_rules.parcel_charge;
+        extraCharges.push({ name: "Parcel Charge", amount: parcelAmount, charge_type: "FLAT_FEE" });
+      }
+      const gstAmount = getGstAmount(subtotal, hotelData?.gst_percentage as number);
+      const extraChargesTotal = extraCharges.reduce((acc, c) => acc + c.amount, 0);
+      const discountSavingsAmount = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
+      const grandTotal = Math.max(0, subtotal + extraChargesTotal + gstAmount - discountSavingsAmount);
+
+      // Create a temporary order ID for Cashfree
+      const cfOrderId = `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+
+      // Store order context in sessionStorage so we can resume after redirect
+      sessionStorage.setItem("cashfree_pending_order", JSON.stringify({
+        cfOrderId,
+        partnerId: hotelData.id,
+        amount: grandTotal,
+        orderType: orderType || null,
+        address: address || null,
+        customerName: customerName || null,
+        orderNote: orderNote || null,
+        selectedLocation: selectedLocation || null,
+        discountId: appliedDiscount?.id || null,
+      }));
+
+      // Build return URL — current page URL so Cashfree redirects back here
+      const returnUrl = `${window.location.origin}${window.location.pathname}?cf_order=${cfOrderId}`;
+
+      const cfRes = await createCashfreeOrderForPartner(
+        hotelData.id,
+        cfOrderId,
+        Math.round(grandTotal * 100) / 100,
+        {
+          id: user.id,
+          name: (user as any)?.full_name || customerName || "Customer",
+          phone: ((user as any)?.phone || "9999999999").replace(/\D/g, "").slice(-10),
+          email: (user as any)?.email,
+        },
+        returnUrl,
+      );
+
+      if (!cfRes.success) {
+        toast.error(cfRes.error || "Failed to create payment");
+        setOrderStatus("idle");
+        return;
+      }
+
+      // Launch Cashfree checkout
+      const cashfreeMode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "PRODUCTION" ? "production" : "sandbox";
+      const cashfree = await loadCashfree({ mode: cashfreeMode as "sandbox" | "production" });
+
+      cashfree.checkout({
+        paymentSessionId: cfRes.paymentSessionId!,
+        redirectTarget: "_self",
+      });
+      // Page will redirect — flow continues in useEffect below
+    } catch (error) {
+      console.error("Cashfree payment error:", error);
+      toast.error("Payment failed. Please try again.");
+      setOrderStatus("idle");
+    }
+  };
+
+  // Handle return from Cashfree checkout redirect — runs on mount
+  useEffect(() => {
+    const pendingStr = sessionStorage.getItem("cashfree_pending_order");
+    if (!pendingStr) return;
+
+    const pending = JSON.parse(pendingStr);
+    if (!pending?.cfOrderId || !pending?.partnerId) return;
+
+    // Clear immediately so we don't re-trigger
+    sessionStorage.removeItem("cashfree_pending_order");
+
+    // Restore saved state
+    if (pending.orderType) setOrderType(pending.orderType);
+    if (pending.address) setAddress(pending.address);
+    if (pending.customerName) setCustomerName(pending.customerName);
+    if (pending.orderNote) setOrderNote(pending.orderNote);
+    if (pending.selectedLocation) setSelectedLocation(pending.selectedLocation);
+
+    // Auto-open the place order modal and show verifying state
+    setOpenPlaceOrderModal(true);
+    setOrderStatus("verifying");
+    setCashfreePaid(true);
+
+    // Wait for auth store to hydrate (it's not persisted, needs cookie-based reauth)
+    const waitForAuth = () => new Promise<void>((resolve) => {
+      const check = () => {
+        const authUser = useAuthStore.getState().userData;
+        if (authUser?.id) { resolve(); return; }
+        setTimeout(check, 300);
+      };
+      // Start checking after a brief delay for initial page load
+      setTimeout(check, 500);
+      // Timeout after 15s
+      setTimeout(resolve, 15000);
+    });
+
+    const verifyAndPlace = async () => {
+      try {
+        const verifyRes = await verifyCashfreePayment(pending.partnerId, pending.cfOrderId);
+
+        if (!verifyRes.success || !verifyRes.paid) {
+          const reason = !verifyRes.success
+            ? verifyRes.error
+            : verifyRes.orderStatus === "ACTIVE"
+              ? "Payment was not completed. You may have cancelled or dropped off during checkout."
+              : `Payment status: ${verifyRes.orderStatus || "unknown"}. Please try again.`;
+          setPaymentFailReason(reason || "Payment could not be completed.");
+          setOrderStatus("failed");
+          setCashfreePaid(false);
+          return;
+        }
+
+        // Payment verified — wait for auth then place order
+        setOrderStatus("loading");
+        await waitForAuth();
+
+        const storeState = useOrderStore.getState();
+        const authUser = useAuthStore.getState().userData;
+
+        if (!authUser?.id) {
+          toast.error("Session expired. Please login and try again.");
+          setOrderStatus("idle");
+          return;
+        }
+
+        if (!storeState.items || storeState.items.length === 0) {
+          toast.error("Cart is empty. Your order could not be restored.");
+          setOrderStatus("idle");
+          return;
+        }
+
+        // Compute extra charges (same logic as handlePlaceOrder)
+        const cfItems = storeState.items;
+        const cfSubtotal = cfItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+        const cfExtraCharges: { name: string; amount: number; charge_type: string }[] = [];
+
+        if (isQrScan && qrGroup && qrGroup.name) {
+          const amt = getExtraCharge(cfItems, qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE");
+          if (amt > 0) cfExtraCharges.push({ name: qrGroup.name, amount: amt, charge_type: qrGroup.charge_type || "FLAT_FEE" });
+        }
+        if (!isQrScan && tableNumber === 0 && qrGroup && qrGroup.name) {
+          const amt = getExtraCharge(cfItems, qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE");
+          if (amt > 0) cfExtraCharges.push({ name: qrGroup.name, amount: amt, charge_type: qrGroup.charge_type || "FLAT_FEE" });
+        }
+
+        const cfDeliveryInfo = storeState.deliveryInfo;
+        if (!isQrScan && cfDeliveryInfo?.cost && !cfDeliveryInfo?.isOutOfRange && pending.orderType === "delivery" && !(hotelData?.delivery_rules?.hide_delivery_charge)) {
+          cfExtraCharges.push({ name: "Delivery Charge", amount: cfDeliveryInfo.cost, charge_type: "FLAT_FEE" });
+        }
+        if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge && hotelData.delivery_rules.parcel_charge > 0) {
+          const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
+          const itemCount = cfItems.reduce((acc, item) => acc + item.quantity, 0);
+          const parcelAmount = chargeType === "variable" ? itemCount * hotelData.delivery_rules.parcel_charge : hotelData.delivery_rules.parcel_charge;
+          cfExtraCharges.push({ name: "Parcel Charge", amount: parcelAmount, charge_type: "FLAT_FEE" });
+        }
+
+        const result = await storeState.placeOrder(
+          hotelData,
+          tableNumber,
+          qrId as string,
+          getGstAmount(cfSubtotal, hotelData?.gst_percentage as number),
+          cfExtraCharges.length > 0 ? cfExtraCharges : null,
+          undefined,
+          pending.orderNote || "",
+          tableName,
+          null,
+          pending.customerName || undefined,
+        );
+
+        if (result) {
+          if (result.id) {
+            localStorage?.setItem("last-order-id", result.id);
+            markOrderAsPaid(result.id, verifyRes.cfPaymentId || undefined).catch(() => {});
+          }
+          setOrderStatus("success");
+        } else {
+          toast.error("Failed to place order.");
+          setOrderStatus("idle");
+        }
+      } catch (error) {
+        console.error("Payment verification error:", error);
+        setPaymentFailReason("Could not verify payment. Please contact support.");
+        setOrderStatus("failed");
+      }
+    };
+
+    verifyAndPlace();
+  }, []);
+
   const handleLoginSuccess = () => {
     const savedArea = localStorage?.getItem(
       `hotel-${hotelData.id}-selected-area`,
@@ -2233,7 +2561,7 @@ const PlaceOrderModal = ({
   const minimumOrderAmount = deliveryInfo?.minimumOrderAmount || 0;
 
   const isPlaceOrderDisabled =
-    orderStatus === "loading" ||
+    orderStatus === "loading" || orderStatus === "verifying" || orderStatus === "failed" ||
     (tableNumber === 0 && !orderType) ||
     (isDelivery &&
       hasDelivery &&
@@ -2249,7 +2577,8 @@ const PlaceOrderModal = ({
   // Compute grand total for sticky bar
   const _barSubtotal = items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
   const _barQrCharge = qrGroup?.extra_charge ? getExtraCharge(items || [], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE") : 0;
-  const _barDeliveryCharge = !isQrScan && orderType === "delivery" && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0;
+  const _barHideDelivery = hotelData?.delivery_rules?.hide_delivery_charge ?? false;
+  const _barDeliveryCharge = !isQrScan && orderType === "delivery" && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && !_barHideDelivery ? deliveryInfo.cost : 0;
   const _barTotalItemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
   const _barParcelCharge = tableNumber === 0 && (hotelData?.delivery_rules?.parcel_charge || 0) > 0
     ? (hotelData?.delivery_rules?.parcel_charge_type === "variable" ? _barTotalItemCount * (hotelData?.delivery_rules?.parcel_charge || 0) : (hotelData?.delivery_rules?.parcel_charge || 0))
@@ -2512,6 +2841,8 @@ const PlaceOrderModal = ({
                 </div>
               )}
 
+              {/* Payment Method selector removed — now in bottom bar */}
+
               {/* Bill Details */}
               <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
                 <BillCard
@@ -2553,10 +2884,77 @@ const PlaceOrderModal = ({
           )}
         </div>
 
+        {/* Payment Method Bottom Sheet */}
+        {showPaymentSheet && (
+          <div
+            className="fixed inset-0 z-[60] flex items-end"
+            onClick={() => closePaymentSheet()}
+            style={{ transition: "opacity 0.25s ease", opacity: paymentSheetClosing ? 0 : 1 }}
+          >
+            <div className="absolute inset-0 bg-black/50" />
+            <div
+              className="relative w-full rounded-t-2xl p-5 pb-8"
+              style={{
+                backgroundColor: themeStyles?.backgroundColor || "#ffffff",
+                transition: "transform 0.25s ease",
+                transform: paymentSheetClosing ? "translateY(100%)" : "translateY(0)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ backgroundColor: "rgba(255,255,255,0.6)" }} />
+              <h3 className="font-bold text-[16px] mb-4" style={{ color: themeStyles?.color || "#1c1917" }}>Select payment method</h3>
+              <div className="flex flex-col gap-2">
+                {hasCod && (
+                  <button
+                    onClick={() => closePaymentSheet("cod")}
+                    className="flex items-center gap-3 p-4 rounded-xl border-2 transition-all"
+                    style={{
+                      borderColor: selectedPaymentMethod === "cod" ? "var(--pom-accent, #ea580c)" : "rgba(255,255,255,0.25)",
+                      backgroundColor: "rgba(255,255,255,0.12)",
+                    }}
+                  >
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.15)" }}>
+                      <Banknote size={20} style={{ color: "var(--pom-accent, #ea580c)" }} />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-semibold text-[14px]" style={{ color: themeStyles?.color || "#1c1917" }}>Pay on delivery</p>
+                      <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.6)" }}>UPI/Cash</p>
+                    </div>
+                    {selectedPaymentMethod === "cod" && (
+                      <CheckCircle2 size={20} className="ml-auto shrink-0" style={{ color: "var(--pom-accent, #ea580c)" }} />
+                    )}
+                  </button>
+                )}
+                {hasCashfree && (
+                  <button
+                    onClick={() => closePaymentSheet("cashfree")}
+                    className="flex items-center gap-3 p-4 rounded-xl border-2 transition-all"
+                    style={{
+                      borderColor: selectedPaymentMethod === "cashfree" ? "var(--pom-accent, #ea580c)" : "rgba(255,255,255,0.25)",
+                      backgroundColor: "rgba(255,255,255,0.12)",
+                    }}
+                  >
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.15)" }}>
+                      <CreditCard size={20} style={{ color: "var(--pom-accent, #ea580c)" }} />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-semibold text-[14px]" style={{ color: themeStyles?.color || "#1c1917" }}>Pay Online</p>
+                      <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.6)" }}>Cards/UPI/Net Banking</p>
+                    </div>
+                    {selectedPaymentMethod === "cashfree" && (
+                      <CheckCircle2 size={20} className="ml-auto shrink-0" style={{ color: "var(--pom-accent, #ea580c)" }} />
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Sticky Bottom Bar — Place Order */}
         {(items?.length ?? 0) > 0 && (
           <div
-            className="shrink-0 px-4 py-3 z-10"
+            className="shrink-0 px-3 py-2.5 z-10"
             style={{
               backgroundColor: "var(--pom-card-bg, white)",
               boxShadow: "0 -4px 20px rgba(0,0,0,0.12)",
@@ -2566,40 +2964,73 @@ const PlaceOrderModal = ({
           >
             <div className="max-w-2xl mx-auto">
               {user?.role !== "partner" && user?.role !== "superadmin" ? (
-                <button
-                  onClick={() =>
-                    handlePlaceOrder(() => {
-                      if (hasUpiQr) setShowUpiScreen(true);
-                    })
-                  }
-                  disabled={
-                    isPlaceOrderDisabled ||
-                    !user ||
-                    items?.length === 0 ||
-                    (isDelivery && orderType === "delivery" && (totalPrice ?? 0) < minimumOrderAmount)
-                  }
-                  className="w-full py-4 rounded-xl text-white font-bold text-[15px] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between px-6 active:scale-[0.98]"
-                  style={{ backgroundColor: "var(--pom-accent, #ea580c)" }}
-                >
-                  <span>
-                    {orderStatus === "loading" ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        Placing...
+                <div className="flex items-center gap-2">
+                  {/* Left: Pay Using selector */}
+                  <div
+                    className="shrink-0 min-w-0"
+                    onClick={() => {
+                      if (hasCashfree && hasCod) setShowPaymentSheet(true);
+                    }}
+                    style={{ cursor: hasCashfree && hasCod ? "pointer" : "default" }}
+                  >
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <CreditCard size={14} style={{ color: "var(--pom-text-muted, #78716c)", flexShrink: 0 }} />
+                      <span className="text-[11px] font-semibold tracking-wide whitespace-nowrap" style={{ color: "var(--pom-text-muted, #78716c)" }}>
+                        PAY USING {hasCashfree && hasCod && "▲"}
+                      </span>
+                    </div>
+                    <p className="font-bold text-[13px] leading-tight whitespace-nowrap" style={{ color: "var(--pom-accent, #ea580c)" }}>
+                      {selectedPaymentMethod === "cashfree" ? "Pay Online" : "Pay on delivery"}
+                    </p>
+                    <p className="text-[11px] whitespace-nowrap" style={{ color: "var(--pom-accent, #ea580c)", opacity: 0.7 }}>
+                      {selectedPaymentMethod === "cashfree" ? "Cards/UPI/Net Banking" : "UPI/Cash"}
+                    </p>
+                  </div>
+
+                  {/* Right: Place Order button */}
+                  <button
+                    onClick={() => {
+                      const useCashfree = hasCashfree && (!hasCod || selectedPaymentMethod === "cashfree");
+                      if (useCashfree) {
+                        handleCashfreePayAndPlaceOrder();
+                      } else {
+                        handlePlaceOrder(() => {
+                          if (hasUpiQr) setShowUpiScreen(true);
+                        });
+                      }
+                    }}
+                    disabled={
+                      isPlaceOrderDisabled ||
+                      !user ||
+                      items?.length === 0 ||
+                      (isDelivery && orderType === "delivery" && (totalPrice ?? 0) < minimumOrderAmount)
+                    }
+                    className="flex-1 min-w-0 py-3 rounded-xl text-white font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between px-4 active:scale-[0.98]"
+                    style={{ backgroundColor: "var(--pom-accent, #ea580c)" }}
+                  >
+                    {(orderStatus === "loading" || orderStatus === "verifying") ? (
+                      <span className="flex items-center gap-2 mx-auto text-[14px]">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {orderStatus === "verifying" ? "Verifying..." : selectedPaymentMethod === "cashfree" ? "Processing..." : "Placing..."}
                       </span>
                     ) : (
-                      `${hotelData?.currency || "₹"}${_barGrandTotal.toFixed(2)}`
+                      <>
+                        <span className="text-left shrink-0">
+                          <span className="block text-[14px] font-bold leading-tight">{hotelData?.currency || "₹"}{_barGrandTotal.toFixed(2)}</span>
+                          <span className="block text-[10px] font-semibold opacity-80 leading-tight">TOTAL</span>
+                        </span>
+                        <span className="flex items-center gap-1 text-[14px] font-bold whitespace-nowrap">
+                          Place Order
+                          <ArrowLeft size={14} className="rotate-180" />
+                        </span>
+                      </>
                     )}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    PLACE ORDER
-                    <ArrowLeft size={15} className="rotate-180" />
-                  </span>
-                </button>
+                  </button>
+                </div>
               ) : (
                 <button
                   onClick={() => setShowLoginDrawer(true)}
-                  className="w-full py-4 rounded-xl text-white font-bold text-[15px] transition-all active:scale-[0.98]"
+                  className="w-full py-3.5 rounded-xl text-white font-bold text-[15px] transition-all active:scale-[0.98]"
                   style={{ backgroundColor: "var(--pom-accent, #ea580c)" }}
                 >
                   Login to Place Order
@@ -2626,9 +3057,12 @@ const PlaceOrderModal = ({
         whatsappLink={generatedWhatsappLink}
         isPetpooja={!!hotelData.petpooja_restaurant_id}
         hasUpiQr={hasUpiQr}
+        cashfreePaid={cashfreePaid}
+        orderId={orderId || localStorage?.getItem("last-order-id") || undefined}
+        failReason={paymentFailReason}
       />
 
-      {showUpiScreen && (
+      {showUpiScreen && !cashfreePaid && (
         <UpiPaymentScreen
           upiId={hotelData.upi_id}
           storeName={hotelData.store_name}

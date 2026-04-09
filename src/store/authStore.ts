@@ -112,6 +112,9 @@ export interface Partner extends BaseUser {
   petpooja_restaurant_id?: string;
   username?: string;
   has_seen_tour?: boolean;
+  cashfree_merchant_id?: string;
+  accept_payments_via_cashfree?: boolean;
+  accept_cod?: boolean;
 }
 
 export interface SuperAdmin extends BaseUser {

@@ -466,6 +466,7 @@ subscription GetUserOrders($user_id: uuid!) {
     notes
     status
     status_history
+    is_paid
     display_id
     partner_id
     partner {
