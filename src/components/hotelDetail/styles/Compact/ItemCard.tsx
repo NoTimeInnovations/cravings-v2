@@ -590,7 +590,7 @@ const ItemCard = ({
                   <p className="text-sm text-gray-500 mt-1 leading-relaxed">{item.description}</p>
                 )}
                 {shouldShowPrice && (
-                  <div className="mt-2 text-base font-semibold">
+                  <div className="mt-2 mb-2 text-base font-semibold">
                     {hasValidMainOffer && !isUpcomingOffer ? (
                       <div className="flex items-center gap-2">
                         <span style={{ color: styles.accent }}>{hoteldata?.currency || "₹"}{formatPrice(offerData!.offer_price!, hoteldata?.id)}</span>
