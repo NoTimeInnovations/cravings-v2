@@ -338,10 +338,7 @@ class PartnerNotification {
         `        query GetUserDeviceTokens($userIds: [String!]!, $partnerId: uuid!) {
           device_tokens(where: {
             user_id: {_in: $userIds},
-            _or: [
-              {partner_id: {_eq: $partnerId}},
-              {partner_id: {_is_null: true}}
-            ]
+            partner_id: {_eq: $partnerId}
           }) {
             device_token
           }
@@ -413,10 +410,7 @@ class UserNotification {
         query GetUserDeviceTokens($userId: String!, $partnerId: uuid) {
           device_tokens(where: {
             user_id: {_eq: $userId},
-            _or: [
-              {partner_id: {_eq: $partnerId}},
-              {partner_id: {_is_null: true}}
-            ]
+            partner_id: {_eq: $partnerId}
           }) {
             device_token
           }
