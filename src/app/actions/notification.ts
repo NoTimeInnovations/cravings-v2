@@ -140,7 +140,7 @@ const findPlatform = () => {
 };
 
 class Token {
-  async save() {
+  async save(partnerId?: string) {
     const token = window?.localStorage.getItem("fcmToken");
     const user = await getAuthCookie();
     const tempUser = await getTempUserIdCookie();
@@ -149,13 +149,25 @@ class Token {
       return;
     }
 
-    // Skip if same token was already saved for this user
+    // Skip if same token was already saved for this user and partner
     const savedToken = window?.localStorage.getItem("savedFcmToken");
     const savedUserId = window?.localStorage.getItem("savedTokenUserId");
+    const savedPartnerId = window?.localStorage.getItem("savedTokenPartnerId");
     const currentUserId = user?.id || tempUser;
     if (!currentUserId) return;
-    if (savedToken === token && savedUserId === currentUserId) {
+    if (savedToken === token && savedUserId === currentUserId && savedPartnerId === (partnerId || "")) {
       return;
+    }
+
+    const object: any = {
+      device_token: token,
+      user_id: currentUserId,
+      platform: findPlatform(),
+      updated_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    };
+    if (partnerId) {
+      object.partner_id = partnerId;
     }
 
     const { insert_device_tokens_one } = await fetchFromHasura(
@@ -165,22 +177,14 @@ class Token {
               object: $object,
               on_conflict: {
                 constraint: device_tokens_user_id_device_token_key,
-                update_columns: [platform, updated_at, user_id]
+                update_columns: [platform, updated_at, user_id, partner_id]
               }
             ) {
               id
             }
           }
       `,
-      {
-        object: {
-          device_token: token,
-          user_id: currentUserId,
-          platform: findPlatform(),
-          updated_at: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-        },
-      }
+      { object }
     );
 
     if (insert_device_tokens_one?.id === null) {
@@ -190,6 +194,7 @@ class Token {
       window?.localStorage.setItem("tokenId", insert_device_tokens_one.id);
       window?.localStorage.setItem("savedFcmToken", token);
       window?.localStorage.setItem("savedTokenUserId", currentUserId);
+      window?.localStorage.setItem("savedTokenPartnerId", partnerId || "");
     }
   }
 
@@ -330,14 +335,21 @@ class PartnerNotification {
       );
 
       const { device_tokens } = await fetchFromHasura(
-        `        query GetUserDeviceTokens($userIds: [String!]!) {
-          device_tokens(where: {user_id: {_in: $userIds}}) {
+        `        query GetUserDeviceTokens($userIds: [String!]!, $partnerId: uuid!) {
+          device_tokens(where: {
+            user_id: {_in: $userIds},
+            _or: [
+              {partner_id: {_eq: $partnerId}},
+              {partner_id: {_is_null: true}}
+            ]
+          }) {
             device_token
           }
         }
       `,
         {
           userIds,
+          partnerId,
         }
       );
 
@@ -394,17 +406,25 @@ class UserNotification {
   async sendOrderStatusNotification(order: Order, status: string, storeName?: string) {
     try {
       const user = order.userId;
+      const partnerId = order.partnerId;
 
       const { device_tokens } = await fetchFromHasura(
         `
-        query GetUserDeviceTokens($userId: String!) {
-          device_tokens(where: {user_id: {_eq: $userId}}) {
+        query GetUserDeviceTokens($userId: String!, $partnerId: uuid) {
+          device_tokens(where: {
+            user_id: {_eq: $userId},
+            _or: [
+              {partner_id: {_eq: $partnerId}},
+              {partner_id: {_is_null: true}}
+            ]
+          }) {
             device_token
           }
         }
       `,
         {
           userId: user,
+          partnerId: partnerId || null,
         }
       );
 

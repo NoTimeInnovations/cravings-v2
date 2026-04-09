@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
                     status
                     status_history
                     user_id
+                    partner_id
                     partner {
                         store_name
                     }
@@ -59,12 +60,18 @@ export async function POST(request: NextRequest) {
         if (order.user_id) {
             try {
                 const { device_tokens } = await fetchFromHasura(`
-                    query GetUserDeviceTokens($userId: String!) {
-                        device_tokens(where: {user_id: {_eq: $userId}}) {
+                    query GetUserDeviceTokens($userId: String!, $partnerId: uuid) {
+                        device_tokens(where: {
+                            user_id: {_eq: $userId},
+                            _or: [
+                                {partner_id: {_eq: $partnerId}},
+                                {partner_id: {_is_null: true}}
+                            ]
+                        }) {
                             device_token
                         }
                     }
-                `, { userId: order.user_id });
+                `, { userId: order.user_id, partnerId: order.partner_id || null });
 
                 const tokens = device_tokens?.map((t: { device_token: string }) => t.device_token) || [];
 

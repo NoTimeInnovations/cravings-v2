@@ -30,11 +30,12 @@ const AuthInitializer = () => {
   }, [userData, loading, pathname, router]);
 
 
-  // Expose __saveNotificationToken for Android WebView bridge
-  // The Palaaram Android app calls this after injecting the OneSignal subscription ID
+  // Expose __saveNotificationToken for Android/iOS WebView bridge
+  // Native apps call this after injecting the OneSignal subscription ID
+  // partnerId param allows native apps to tag the token with their restaurant
   useEffect(() => {
-    (window as any).__saveNotificationToken = () => {
-      Notification.token.save();
+    (window as any).__saveNotificationToken = (partnerId?: string) => {
+      Notification.token.save(partnerId);
     };
     return () => {
       delete (window as any).__saveNotificationToken;
