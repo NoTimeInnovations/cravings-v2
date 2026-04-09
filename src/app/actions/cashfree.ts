@@ -50,7 +50,7 @@ export async function createCashfreeOrderForPartner(
       },
       order_meta: {
         return_url: returnUrl,
-        payment_methods: "cc,dc,upi,nb,wallet",
+        payment_methods: "cc,dc,upi,nb,app",
       },
     }),
   });
