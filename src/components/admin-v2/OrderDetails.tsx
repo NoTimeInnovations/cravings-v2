@@ -299,14 +299,30 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 )}
             </div>
 
-            {order.payment_method && (
+            {(order.payment_method || order.is_paid) && (
                 <div className="border rounded-lg bg-card p-4">
                     <h3 className="font-semibold mb-3">Payment Details</h3>
                     <div className="text-sm space-y-2">
+                        {order.payment_method && (
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Method:</span>
+                                <span className="font-medium capitalize">{order.payment_method}</span>
+                            </div>
+                        )}
                         <div className="flex justify-between">
-                            <span className="text-muted-foreground">Method:</span>
-                            <span className="font-medium">{order.payment_method}</span>
+                            <span className="text-muted-foreground">Status:</span>
+                            {order.is_paid ? (
+                                <span className="font-medium text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full text-xs">Payment Complete</span>
+                            ) : (
+                                <span className="font-medium text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 rounded-full text-xs">Pending</span>
+                            )}
                         </div>
+                        {order.cashfree_payment_id && (
+                            <div className="flex justify-between">
+                                <span className="text-muted-foreground">Cashfree ID:</span>
+                                <span className="font-medium font-mono text-xs">{order.cashfree_payment_id}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

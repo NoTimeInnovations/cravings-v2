@@ -306,6 +306,11 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                       >
                         {statusDisplay.text}
                       </span>
+                      {isPaid && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-green-100 text-green-700">
+                          Paid
+                        </span>
+                      )}
                     </div>
                     <p
                       className="text-sm"

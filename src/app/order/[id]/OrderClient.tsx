@@ -401,6 +401,11 @@ ${itemsText}
                                     >
                                         {statusDisplay.text}
                                     </span>
+                                    {isPaid && (
+                                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                            Payment Complete
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>

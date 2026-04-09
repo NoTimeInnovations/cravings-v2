@@ -149,6 +149,7 @@ export interface Order {
   }[]
   | null;
   is_paid?: boolean;
+  cashfree_payment_id?: string;
 }
 
 export interface DeliveryInfo {
@@ -518,6 +519,7 @@ const useOrderStore = create(
               discounts: order.discounts || [], // Handle null case
               delivery_charge: order.delivery_charge, // Include delivery_charge
               is_paid: order.is_paid || false,
+              cashfree_payment_id: order.cashfree_payment_id || null,
               user: order.user,
               items: order.order_items.map((i: any) => ({
                 id: i.item.id,
@@ -1578,6 +1580,7 @@ function transformOrderFromHasura(order: any): Order {
     delivery_boy: order.delivery_boy,
     extraCharges: order.extra_charges,
     is_paid: order.is_paid || false,
+    cashfree_payment_id: order.cashfree_payment_id || null,
   };
 }
 
