@@ -89,6 +89,7 @@ const ItemCard = ({
   defaultShowOptions?: boolean;
 }) => {
   const [showVariants, setShowVariants] = useState(defaultShowOptions);
+  const [showItemSheet, setShowItemSheet] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
 
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
@@ -325,7 +326,7 @@ const ItemCard = ({
 
   return (
     <>
-      <div className="py-4 flex gap-3 relative md:border-b md:border-gray-100">
+      <div className="py-4 flex gap-3 relative md:border-b md:border-gray-100 cursor-pointer" onClick={() => { if (hasVariants) setShowVariants(true); else setShowItemSheet(true); }}>
         {/* Left Content */}
         <div className="flex-1 min-w-0 flex flex-col justify-start pt-0.5">
           <div className="flex items-center gap-1.5 mb-0.5">
@@ -498,7 +499,7 @@ const ItemCard = ({
                       </div>
                     ) : (
                       <div
-                        onClick={() => setShowVariants(!showVariants)}
+                        onClick={(e) => { e.stopPropagation(); setShowVariants(!showVariants); }}
                         className="bg-white border rounded-lg px-5 py-1 font-semibold text-sm cursor-pointer shadow-sm whitespace-nowrap"
                         style={{ color: styles.accent, borderColor: `${styles.accent}40` }}
                       >
@@ -514,7 +515,7 @@ const ItemCard = ({
                     <button
                       className="cursor-pointer active:scale-90 text-sm leading-none font-bold"
                       onClick={(e) => {
-                        e.preventDefault();
+                        e.stopPropagation();
                         const idToRemove = offerData?.variant
                           ? `${item.id}|${offerData.variant.name}`
                           : (item.id as string);
@@ -554,6 +555,87 @@ const ItemCard = ({
           {isOrderable && <div className="h-3" />}
         </div>
       </div>
+      {/* Bottom Sheet for Item Details (non-variant items) */}
+      {showItemSheet && !hasVariants && typeof window !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[9999]" onClick={() => setShowItemSheet(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div
+            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {item.image_url && (
+              <div className="w-full h-48 relative">
+                <img src={item.image_url} alt={item.name} className="w-full h-full object-cover rounded-t-3xl" />
+              </div>
+            )}
+            <div className="p-4 pb-2 flex justify-between items-start gap-3">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  {item.is_veg !== null && item.is_veg !== undefined && (
+                    <div className="flex-shrink-0">
+                      {item.is_veg === false ? (
+                        <div className="w-3.5 h-3.5 border-[1.5px] border-red-700 flex items-center justify-center">
+                          <div className="w-2 h-2 rounded-full bg-red-700" />
+                        </div>
+                      ) : (
+                        <div className="w-3.5 h-3.5 border-[1.5px] border-green-600 flex items-center justify-center">
+                          <div className="w-2 h-2 rounded-full bg-green-600" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <h3 className="font-bold text-lg">{item.name}</h3>
+                </div>
+                {item.description && (
+                  <p className="text-sm text-gray-500 mt-1 leading-relaxed">{item.description}</p>
+                )}
+                {shouldShowPrice && (
+                  <div className="mt-2 text-base font-semibold">
+                    {hasValidMainOffer && !isUpcomingOffer ? (
+                      <div className="flex items-center gap-2">
+                        <span style={{ color: styles.accent }}>{hoteldata?.currency || "₹"}{formatPrice(offerData!.offer_price!, hoteldata?.id)}</span>
+                        {hasValidMainOriginalPrice && mainOriginalPrice > offerData!.offer_price! && (
+                          <span className="line-through text-gray-400 text-sm">{hoteldata?.currency || "₹"}{formatPrice(mainOriginalPrice, hoteldata?.id)}</span>
+                        )}
+                      </div>
+                    ) : hasValidBasePrice && baseItemPrice > 0 ? (
+                      <span className="text-gray-700">{hoteldata?.currency || "₹"}{formatPrice(baseItemPrice, hoteldata?.id)}</span>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setShowItemSheet(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 flex-shrink-0"
+              >
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+
+            {isOrderable && showAddButton && (
+              <div className="p-4 pt-2">
+                {itemQuantity > 0 ? (
+                  <div className="flex items-center justify-center gap-4 border rounded-xl py-2" style={{ borderColor: `${styles.accent}40` }}>
+                    <button onClick={() => { if (itemQuantity === 1) removeItem(item.id as string); else decreaseQuantity(item.id as string); }} className="text-lg font-bold px-3" style={{ color: styles.accent }}>−</button>
+                    <span className="text-base font-semibold w-6 text-center" style={{ color: styles.accent }}>{itemQuantity}</span>
+                    <button onClick={() => handleAddItem()} className="text-lg font-bold px-3" style={{ color: styles.accent }}>+</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { handleAddItem(); setShowItemSheet(false); }}
+                    className="w-full py-3 rounded-xl text-white font-semibold text-sm"
+                    style={{ backgroundColor: styles.accent }}
+                  >
+                    Add to cart — {hoteldata?.currency || "₹"}{formatPrice(hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice, hoteldata?.id || "")}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Bottom Sheet Modal for Variants */}
       {showVariants && hasVariants && typeof window !== "undefined" && createPortal(
         <div className="fixed inset-0 z-[9999]" onClick={() => setShowVariants(false)}>
