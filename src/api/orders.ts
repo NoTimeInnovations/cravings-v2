@@ -290,6 +290,8 @@ subscription GetPartnerOrders($partner_id: uuid!, $today_start: timestamptz!, $t
     orderedby
     display_id
     payment_method
+    is_paid
+    cashfree_payment_id
     captain_id
     captainid {
       id
@@ -373,6 +375,8 @@ subscription GetPaginatedPartnerOrders(
     extra_charges
     discounts
     payment_method
+    is_paid
+    cashfree_payment_id
     phone
     display_id
     user_id
@@ -466,6 +470,7 @@ subscription GetUserOrders($user_id: uuid!) {
     notes
     status
     status_history
+    is_paid
     display_id
     partner_id
     partner {

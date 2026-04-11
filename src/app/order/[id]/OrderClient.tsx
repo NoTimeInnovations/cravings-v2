@@ -10,8 +10,10 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Order, OrderItem } from "@/store/orderStore";
 import OfferLoadinPage from "@/components/OfferLoadinPage";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
-import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck } from "lucide-react";
+import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2 } from "lucide-react";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
+import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
+import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import dynamic from "next/dynamic";
 
 const DeliveryMap = dynamic(() => import("./DeliveryMap"), { ssr: false });
@@ -30,6 +32,7 @@ const GET_ORDER_QUERY = `
       delivery_location
       status
       status_history
+      is_paid
       display_id
       partner_id
       delivery_boy_id
@@ -81,8 +84,12 @@ const OrderClient = () => {
         phone?: string;
         whatsapp_numbers?: string[] | any;
         country_code?: string;
+        accept_payments_via_cashfree?: boolean;
+        cashfree_merchant_id?: string;
     } | null>(null);
     const [locationAgo, setLocationAgo] = useState<number | null>(null);
+    const [cashfreeLoading, setCashfreeLoading] = useState(false);
+    const [cashfreeVerifying, setCashfreeVerifying] = useState(false);
 
     // Ticking timer for "Location updated Xs ago"
     useEffect(() => {
@@ -132,6 +139,7 @@ const OrderClient = () => {
                         delivery_boy_id: order?.delivery_boy_id,
                         assigned_at: order?.assigned_at,
                         delivery_boy: order?.delivery_boy,
+                        is_paid: order?.is_paid || false,
                         items: order?.order_items.map((i: any) => ({
                             id: i.item.id,
                             quantity: i.quantity,
@@ -167,6 +175,8 @@ const OrderClient = () => {
                     phone
                     country_code
                     whatsapp_numbers
+                    accept_payments_via_cashfree
+                    cashfree_merchant_id
                 }
             }
         `, { id: order.partnerId }).then((data) => {
@@ -175,6 +185,32 @@ const OrderClient = () => {
             }
         }).catch(() => {});
     }, [order?.partnerId]);
+
+    // Verify Cashfree payment on return from checkout
+    useEffect(() => {
+        const pendingStr = sessionStorage.getItem("cashfree_pending_payment");
+        if (!pendingStr) return;
+
+        const pending = JSON.parse(pendingStr);
+        sessionStorage.removeItem("cashfree_pending_payment");
+
+        // Clean cf_order from URL
+        const url = new URL(window.location.href);
+        if (url.searchParams.has("cf_order")) {
+            url.searchParams.delete("cf_order");
+            window.history.replaceState({}, "", url.pathname);
+        }
+
+        setCashfreeVerifying(true);
+        verifyCashfreePayment(pending.partnerId, pending.cfOrderId)
+            .then(async (result) => {
+                if (result.success && result.paid) {
+                    await markOrderAsPaid(orderId, result.cfPaymentId || undefined);
+                }
+                setCashfreeVerifying(false);
+            })
+            .catch(() => setCashfreeVerifying(false));
+    }, [orderId]);
 
     // Use total_price directly from DB
     const grandTotal = order?.totalPrice || 0;
@@ -201,6 +237,7 @@ const OrderClient = () => {
 
     const statusDisplay = getStatusDisplay(order as Order);
     const isCompleted = order?.status === "completed" || order?.status === "cancelled";
+    const isPaid = !!(order as any)?.is_paid;
 
     const buildWhatsappLink = () => {
         // Prefer whatsapp_number from whatsapp_numbers array
@@ -271,6 +308,46 @@ ${itemsText}
 
     const whatsappLink = buildWhatsappLink();
     const hasUpiQr = partnerPaymentInfo?.show_payment_qr && !!partnerPaymentInfo?.upi_id;
+    const hasCashfree = partnerPaymentInfo?.accept_payments_via_cashfree === true && !!partnerPaymentInfo?.cashfree_merchant_id;
+
+    const handleCashfreePayment = async () => {
+        if (!order) return;
+        setCashfreeLoading(true);
+        try {
+            const cfOrderId = `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+            const returnUrl = `${window.location.origin}/order/${orderId}?cf_order=${cfOrderId}`;
+
+            sessionStorage.setItem("cashfree_pending_payment", JSON.stringify({
+                cfOrderId,
+                partnerId: order.partnerId,
+            }));
+
+            const cfRes = await createCashfreeOrderForPartner(
+                order.partnerId,
+                cfOrderId,
+                grandTotal,
+                {
+                    id: order.userId || "guest",
+                    name: order.user?.full_name || "Customer",
+                    phone: order.user?.phone || order.phone || "",
+                    email: order.user?.email,
+                },
+                returnUrl,
+            );
+
+            if (!cfRes.success) throw new Error(cfRes.error);
+
+            const cashfreeMode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "PRODUCTION" ? "production" : "sandbox";
+            const cashfree = await loadCashfree({ mode: cashfreeMode as "sandbox" | "production" });
+            cashfree.checkout({
+                paymentSessionId: cfRes.paymentSessionId!,
+                redirectTarget: "_self",
+            });
+        } catch (error) {
+            console.error("Cashfree payment error:", error);
+            setCashfreeLoading(false);
+        }
+    };
 
     const router = useRouter();
 
@@ -324,6 +401,11 @@ ${itemsText}
                                     >
                                         {statusDisplay.text}
                                     </span>
+                                    {isPaid && (
+                                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                            Payment Complete
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -536,6 +618,14 @@ ${itemsText}
 
                     </div>
 
+                    {/* Cashfree verification banner */}
+                    {cashfreeVerifying && (
+                        <div className="flex items-center justify-center gap-2 mt-6 p-4 bg-blue-50 rounded-xl text-blue-700 font-medium text-sm">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Verifying payment...
+                        </div>
+                    )}
+
                     {/* Action Buttons */}
                     {!isCompleted && (
                         <div className="flex flex-col sm:flex-row gap-3 mt-6">
@@ -550,13 +640,18 @@ ${itemsText}
                                     Send Order to WhatsApp
                                 </a>
                             )}
-                            {hasUpiQr && (
+                            {!isPaid && (hasCashfree || hasUpiQr) && (
                                 <button
-                                    onClick={() => setShowUpiScreen(true)}
-                                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-xl font-medium text-sm hover:bg-orange-600 transition-colors"
+                                    onClick={hasCashfree ? handleCashfreePayment : () => setShowUpiScreen(true)}
+                                    disabled={cashfreeLoading}
+                                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-xl font-medium text-sm hover:bg-orange-600 transition-colors disabled:opacity-50"
                                 >
-                                    <CreditCard className="w-4 h-4" />
-                                    Pay Now
+                                    {cashfreeLoading ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <CreditCard className="w-4 h-4" />
+                                    )}
+                                    {cashfreeLoading ? "Processing..." : "Pay Now"}
                                 </button>
                             )}
                         </div>
