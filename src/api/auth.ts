@@ -56,7 +56,6 @@ export const partnerIdQuery = `
       delivery_rules
       country_code
       location_details
-      location_details
       hide_unavailable
       subscription_details
       username
@@ -103,7 +102,6 @@ export const partnerLoginQuery = `
       geo_location
       delivery_rate
       delivery_rules
-      country_code
       country_code
       hide_unavailable
       subscription_details
