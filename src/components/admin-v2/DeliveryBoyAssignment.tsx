@@ -14,11 +14,11 @@ import {
   getActiveDeliveryBoysQuery,
   assignDeliveryBoyMutation,
 } from "@/api/deliveryBoys";
-import { useAuthStore } from "@/store/authStore";
+import { Partner, useAuthStore } from "@/store/authStore";
 import { Order } from "@/store/orderStore";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
 import { toast } from "sonner";
-import { Loader2, Phone, Truck } from "lucide-react";
+import { Bike, Copy, Loader2, Phone, Truck } from "lucide-react";
 import { Notification } from "@/app/actions/notification";
 
 interface DeliveryBoyOption {
@@ -60,6 +60,74 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
       setIsLoading(false);
     }
   };
+
+  const handleCopyAddress = async (address: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      toast.success(`${label} copied to clipboard`);
+    } catch (error) {
+      toast.error(`Failed to copy ${label.toLowerCase()}`);
+    }
+  };
+
+  const handleBookPorter = () => {
+    window.open(
+      "https://porter.in/two-wheelers/",
+      "_blank",
+      "noopener,noreferrer",
+    );
+  };
+
+  const handleCopyPickup = () => {
+    const partner = userData as Partner;
+    const pickupAddress = [partner?.location, partner?.location_details]
+      .map((v) => (v || "").trim())
+      .filter(Boolean)
+      .join(", ");
+    if (!pickupAddress) {
+      toast.error(
+        "No restaurant address set. Add one in Settings → General → Address & Coordinates",
+      );
+      return;
+    }
+    handleCopyAddress(pickupAddress, "Pickup address");
+  };
+
+  const deliveryActions = (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <Button
+        type="button"
+        size="sm"
+        onClick={handleBookPorter}
+        className="w-full bg-[#0a57ff] text-white hover:bg-[#0a57ff]/90"
+      >
+        <Bike className="h-3.5 w-3.5 mr-1.5" />
+        Book Porter
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="w-full"
+        onClick={() =>
+          handleCopyAddress(order.deliveryAddress || "", "Drop address")
+        }
+      >
+        <Copy className="h-3.5 w-3.5 mr-1.5" />
+        Copy Drop Address
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="w-full"
+        onClick={handleCopyPickup}
+      >
+        <Copy className="h-3.5 w-3.5 mr-1.5" />
+        Copy Pickup Address
+      </Button>
+    </div>
+  );
 
   const handleAssign = async () => {
     if (!selectedId) {
@@ -165,6 +233,9 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
             {order.delivery_boy.phone}
           </a>
         </div>
+        <div className="mt-3 pt-3 border-t border-purple-200 dark:border-purple-800">
+          {deliveryActions}
+        </div>
         {isReassigning && (
           <div className="mt-3 pt-3 border-t border-purple-200 dark:border-purple-800">
             <p className="text-xs text-muted-foreground mb-2">
@@ -255,6 +326,7 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
           </Button>
         </div>
       )}
+      <div className="mt-3 pt-3 border-t">{deliveryActions}</div>
     </div>
   );
 }

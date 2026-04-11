@@ -179,7 +179,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                     <Select
                         value={order.status}
                         onValueChange={handleUpdateOrderStatus}
