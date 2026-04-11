@@ -34,6 +34,7 @@ export function LocationSettings() {
     const mapRef = useRef<google.maps.Map | null>(null);
     const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
     const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
+    const [geocoding, setGeocoding] = useState(false);
 
     // Load Google Maps Script
     const { isLoaded, loadError } = useLoadScript({
@@ -57,13 +58,46 @@ export function LocationSettings() {
         mapRef.current = map;
     }, []);
 
-    const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
-        if (e.latLng) {
-            const lat = e.latLng.lat();
-            const lng = e.latLng.lng();
-            setSelectedLocation({ lat, lng });
-        }
-    }, []);
+    const reverseGeocode = useCallback(
+        (lat: number, lng: number) => {
+            if (!isLoaded) return;
+            setGeocoding(true);
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+                setGeocoding(false);
+                if (status === "OK" && results && results[0]) {
+                    const formatted = results[0].formatted_address || "";
+                    if (formatted) setLocation(formatted);
+                    if (results[0].place_id) setPlaceId(results[0].place_id);
+                }
+            });
+        },
+        [isLoaded]
+    );
+
+    const handleMapClick = useCallback(
+        (e: google.maps.MapMouseEvent) => {
+            if (e.latLng) {
+                const lat = e.latLng.lat();
+                const lng = e.latLng.lng();
+                setSelectedLocation({ lat, lng });
+                reverseGeocode(lat, lng);
+            }
+        },
+        [reverseGeocode]
+    );
+
+    const handleMarkerDragEnd = useCallback(
+        (e: google.maps.MapMouseEvent) => {
+            if (e.latLng) {
+                const lat = e.latLng.lat();
+                const lng = e.latLng.lng();
+                setSelectedLocation({ lat, lng });
+                reverseGeocode(lat, lng);
+            }
+        },
+        [reverseGeocode]
+    );
 
     const onPlaceChanged = useCallback(() => {
         if (autocompleteRef.current) {
@@ -159,6 +193,7 @@ export function LocationSettings() {
             if (coords) {
                 setGeoLocation({ latitude: coords.lat, longitude: coords.lng });
                 setSelectedLocation({ lat: coords.lat, lng: coords.lng });
+                reverseGeocode(coords.lat, coords.lng);
 
                 // Update map if open
                 if (mapRef.current) {
@@ -193,6 +228,21 @@ export function LocationSettings() {
                     <CardDescription>Manage your store's physical location.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <Label>Address</Label>
+                        <Textarea
+                            value={location}
+                            onChange={(e) => setLocation(e.target.value)}
+                            placeholder="Search on the map or type the address here"
+                            rows={2}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            {geocoding
+                                ? "Fetching address from map…"
+                                : "Auto-filled when you pick a point on the map. You can edit it manually."}
+                        </p>
+                    </div>
+
                     <div className="space-y-2">
                         <Label>Location Details</Label>
                         <Textarea
@@ -281,11 +331,13 @@ export function LocationSettings() {
                                 }}
                             >
                                 {(selectedLocation || (geoLocation.latitude && geoLocation.longitude)) && (
-                                    <Marker 
+                                    <Marker
                                         position={{
                                             lat: selectedLocation?.lat || geoLocation.latitude,
                                             lng: selectedLocation?.lng || geoLocation.longitude
                                         }}
+                                        draggable
+                                        onDragEnd={handleMarkerDragEnd}
                                     />
                                 )}
                             </GoogleMap>
