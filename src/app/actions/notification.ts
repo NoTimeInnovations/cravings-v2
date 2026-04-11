@@ -277,6 +277,7 @@ class PartnerNotification {
         method: "POST",
         body: JSON.stringify({
           message: message,
+          partner_id: partnerId,
         }),
         headers: {
           "Content-Type": "application/json",
@@ -379,6 +380,7 @@ class PartnerNotification {
         method: "POST",
         body: JSON.stringify({
           message: message,
+          partner_id: partnerId,
         }),
         headers: {
           "Content-Type": "application/json",
@@ -459,6 +461,7 @@ class UserNotification {
         method: "POST",
         body: JSON.stringify({
           message: message,
+          partner_id: partnerId,
         }),
         headers: {
           "Content-Type": "application/json",
@@ -485,7 +488,8 @@ class DeliveryBoyNotification {
     deliveryBoyId: string,
     orderId: string,
     orderDisplayId: string,
-    deliveryAddress: string
+    deliveryAddress: string,
+    partnerId?: string
   ) {
     try {
       // Fetch delivery boy's device tokens from device_tokens table
@@ -523,7 +527,7 @@ class DeliveryBoyNotification {
 
       const response = await fetch(`${BASE_URL}/api/notifications/send`, {
         method: "POST",
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, partner_id: partnerId }),
         headers: {
           "Content-Type": "application/json",
         },

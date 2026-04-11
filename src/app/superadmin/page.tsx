@@ -134,6 +134,12 @@ const page = async (props: { searchParams: SearchParams }) => {
       component: null,
       id: "google-business",
       href: "/superadmin/google-business",
+    },
+    {
+      name: "OneSignal Apps",
+      component: null,
+      id: "onesignal-apps",
+      href: "/superadmin/onesignal-apps",
     }
   ];
 

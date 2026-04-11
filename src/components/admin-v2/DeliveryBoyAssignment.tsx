@@ -164,6 +164,7 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
           order.id,
           order.display_id || order.id.slice(0, 8),
           order.deliveryAddress || "No address",
+          userData?.id,
         );
       } catch (e) {
         console.error("Failed to send delivery boy notification:", e);

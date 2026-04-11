@@ -77,6 +77,7 @@ export async function POST(request: NextRequest) {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
+                            partner_id: order.partner_id,
                             message: {
                                 tokens,
                                 notification: {
