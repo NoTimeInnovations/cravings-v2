@@ -1,7 +1,7 @@
 "use client";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Order } from "@/store/orderStore";
-import { getAuthCookie, getTempUserIdCookie } from "../auth/actions";
+import { getAuthCookie } from "../auth/actions";
 import { OrderStatusHistoryTypes } from "@/lib/statusHistory";
 import { Offer } from "@/store/offerStore_hasura";
 import { HotelData } from "../hotels/[...id]/page";
@@ -143,18 +143,18 @@ class Token {
   async save(partnerId?: string) {
     const token = window?.localStorage.getItem("fcmToken");
     const user = await getAuthCookie();
-    const tempUser = await getTempUserIdCookie();
 
-    if (!token || (!user && !tempUser)) {
+    // Only save for authenticated users — skip temp users
+    if (!token || !user?.id) {
       return;
     }
+
+    const currentUserId = user.id;
 
     // Skip if same token was already saved for this user and partner
     const savedToken = window?.localStorage.getItem("savedFcmToken");
     const savedUserId = window?.localStorage.getItem("savedTokenUserId");
     const savedPartnerId = window?.localStorage.getItem("savedTokenPartnerId");
-    const currentUserId = user?.id || tempUser;
-    if (!currentUserId) return;
     if (savedToken === token && savedUserId === currentUserId && savedPartnerId === (partnerId || "")) {
       return;
     }

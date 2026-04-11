@@ -910,7 +910,7 @@ const LoginDrawer = ({
           } catch { }
         }
         toast.success("Logged in successfully");
-        Notification.token.save();
+        Notification.token.save(hotelId);
         onLoginSuccess();
         setShowLoginDrawer(false);
       } else {
@@ -982,7 +982,7 @@ const LoginDrawer = ({
           } catch { }
         }
         toast.success("Logged in successfully");
-        Notification.token.save();
+        Notification.token.save(hotelId);
         onLoginSuccess();
         setShowLoginDrawer(false);
       } else {

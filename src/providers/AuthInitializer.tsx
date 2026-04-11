@@ -7,6 +7,30 @@ import { getAuthCookie, getTempUserIdCookie, setTempUserIdCookie } from "@/app/a
 import { Notification } from "@/app/actions/notification";
 import { usePathname, useRouter } from "next/navigation";
 import { usePostHog } from "@/providers/posthog-provider";
+import { fetchFromHasura } from "@/lib/hasuraClient";
+import { getPartnerByUsernameQuery } from "@/api/partners";
+
+const partnerIdSlugCache = new Map<string, string | null>();
+
+// Resolve the current URL's first path segment to a partner UUID.
+// Returns undefined when the path is not a partner slug or lookup fails.
+const resolvePartnerIdFromPath = async (): Promise<string | undefined> => {
+  if (typeof window === "undefined") return undefined;
+  const segment = window.location.pathname.split("/").filter(Boolean)[0];
+  if (!segment) return undefined;
+  if (partnerIdSlugCache.has(segment)) {
+    return partnerIdSlugCache.get(segment) ?? undefined;
+  }
+  try {
+    const result = await fetchFromHasura(getPartnerByUsernameQuery, { username: segment });
+    const id = result?.partners?.[0]?.id ?? null;
+    partnerIdSlugCache.set(segment, id);
+    return id ?? undefined;
+  } catch {
+    partnerIdSlugCache.set(segment, null);
+    return undefined;
+  }
+};
 
 const AuthInitializer = () => {
   const { fetchUser, userData, loading } = useAuthStore();
@@ -30,12 +54,12 @@ const AuthInitializer = () => {
   }, [userData, loading, pathname, router]);
 
 
-  // Expose __saveNotificationToken for Android/iOS WebView bridge
-  // Native apps call this after injecting the OneSignal subscription ID
-  // partnerId param allows native apps to tag the token with their restaurant
+  // Expose __saveNotificationToken for Android/iOS WebView bridge.
+  // Native just calls this with no args; we resolve partnerId from the URL.
   useEffect(() => {
-    (window as any).__saveNotificationToken = (partnerId?: string) => {
-      Notification.token.save(partnerId);
+    (window as any).__saveNotificationToken = async (partnerIdOverride?: string) => {
+      const partnerId = partnerIdOverride ?? (await resolvePartnerIdFromPath());
+      await Notification.token.save(partnerId);
     };
     return () => {
       delete (window as any).__saveNotificationToken;
@@ -53,8 +77,9 @@ const AuthInitializer = () => {
           const uuid = crypto.randomUUID();
           await setTempUserIdCookie("temp_" + uuid);
         }
-        // Always save token — handles returning users and Android app token injection
-        await Notification.token.save();
+        // Always save token — handles returning users and native app token injection
+        const partnerId = await resolvePartnerIdFromPath();
+        await Notification.token.save(partnerId);
       } catch (error) {
         console.error("Failed to initialize auth:", error);
       }
@@ -62,6 +87,21 @@ const AuthInitializer = () => {
 
     initializeAuth();
   }, [fetchUser]);
+
+  // Re-save token whenever auth state transitions (login/logout/account switch).
+  // Covers the case where a user logs in on a hotel page and the token row
+  // needs to be (re)inserted with the real user_id + partner_id.
+  useEffect(() => {
+    if (loading) return;
+    (async () => {
+      try {
+        const partnerId = await resolvePartnerIdFromPath();
+        await Notification.token.save(partnerId);
+      } catch (error) {
+        console.error("Failed to save token on auth change:", error);
+      }
+    })();
+  }, [userData?.id, loading]);
 
   const posthog = usePostHog();
 

@@ -28,7 +28,7 @@ export const setAuthCookie = async (data: {
   const encrypted = encryptText(data);
   (await cookies()).set("new_auth_token", encrypted, {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 24 * 30,
     path: "/",
     sameSite: "lax",
