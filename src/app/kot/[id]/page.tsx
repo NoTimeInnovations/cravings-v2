@@ -126,6 +126,7 @@ const PrintKOTPage = () => {
                 timeZone: tz,
               }).format(new Date(formattedOrder.created_at)),
               table_number: formattedOrder.tableNumber,
+              table_name: formattedOrder.tableName,
               type: getOrderTypeText(formattedOrder),
               notes: formattedOrder.notes,
               items: formattedOrder.items,
@@ -193,6 +194,15 @@ const PrintKOTPage = () => {
           KITCHEN ORDER TICKET
         </h2>
         <div className="border-b border-black my-2"></div>
+
+        {/* Table Name / Number */}
+        {order.tableNumber > 0 && (
+          <div className="text-center my-2">
+            <span className="text-lg font-bold">
+              {order.tableName || `Table ${order.tableNumber}`}
+            </span>
+          </div>
+        )}
 
         {/* Order Info */}
         <div className="grid grid-cols-2 gap-2 text-sm mb-2">
