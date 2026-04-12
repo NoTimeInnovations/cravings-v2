@@ -227,12 +227,16 @@ class PartnerNotification {
   async sendOrderNotification(order: Order) {
     try {
       const partnerId = order.partnerId;
+      const userId = order.userId;
 
       const { device_tokens } = await fetchFromHasura(
         `
-        query GetPartnerDeviceTokens($partnerId: String!) {
+        query GetCustomerDeviceTokens($userId: String!, $partnerId: uuid!) {
           device_tokens(
-            where: { user_id: { _eq: $partnerId } },
+            where: {
+              user_id: { _eq: $userId },
+              partner_id: { _eq: $partnerId }
+            },
             order_by: { created_at: desc },
             limit: 3
           ) {
@@ -241,6 +245,7 @@ class PartnerNotification {
         }
       `,
         {
+          userId,
           partnerId,
         }
       );
@@ -260,11 +265,11 @@ class PartnerNotification {
         .join(", ");
 
       const message = getMessage(
-        "New Order Of",
-        `You have a new order of ${orderItemsDesc}`,
+        "Order Placed",
+        `Your order of ${orderItemsDesc} has been placed successfully!`,
         tokens,
         {
-          url: "https://menuthere.com",
+          url: `https://menuthere.com/order/${order.id}`,
           channel_id: "cravings_channel_1",
           sound: "custom_sound.caf",
           order_id: order.id,
