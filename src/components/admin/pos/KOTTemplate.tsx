@@ -15,7 +15,7 @@ const KOTTemplate = ({ ref, order }: { ref: React.RefObject<HTMLDivElement | nul
       </div>
       <div className="flex justify-between mb-4">
         <span className="font-medium">Table:</span>
-        <span>{order.tableName || order.tableNumber || "Takeaway"}</span>
+        <span>{order.tableName || (order.tableNumber ? `Table ${order.tableNumber}` : "N/A")}</span>
       </div>
       {order.notes && (
         <div className="mb-4 p-2">
