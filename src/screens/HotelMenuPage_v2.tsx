@@ -22,6 +22,7 @@ import Sidebar from "@/components/hotelDetail/styles/Sidebar/Sidebar";
 import { saveUserLocation } from "@/lib/saveUserLocLocal";
 import { QrCode, useQrDataStore } from "@/store/qrDataStore";
 import DeliveryTimeCampain from "@/components/hotelDetail/DeliveryTimeCampain";
+import OnboardingFlow, { getOnboardingCompleted } from "@/components/onboarding/OnboardingFlow";
 
 export type MenuItem = {
   description: string;
@@ -74,6 +75,20 @@ const HotelMenuPage = ({
   const pathname = usePathname();
   const { setHotelId, genOrderId, open_place_order_modal } = useOrderStore();
   const { setQrData } = useQrDataStore();
+
+  // Onboarding state
+  const isUserLoggedIn = auth?.role === "user";
+  const features = getFeatures(hoteldata?.feature_flags || "");
+  const needsOnboarding = (features.delivery.enabled || features.ordering.enabled) && tableNumber === 0;
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (!needsOnboarding) return false;
+    if (typeof window === "undefined") return false;
+    return !getOnboardingCompleted(hoteldata?.id || "");
+  });
+
+  const handleOnboardingComplete = useCallback(() => {
+    setShowOnboarding(false);
+  }, []);
 
   const styles: Styles = useMemo(() => ({
     backgroundColor: theme?.colors?.bg || "#F5F5F5",
@@ -289,8 +304,6 @@ const HotelMenuPage = ({
     }
   };
 
-  const features = getFeatures(hoteldata?.feature_flags || "");
-
   const isWithinDeliveryTime = () => {
     if (!hoteldata?.delivery_rules?.delivery_time_allowed) {
       return true;
@@ -326,6 +339,21 @@ const HotelMenuPage = ({
         features?.delivery.enabled &&
         (hoteldata?.delivery_rules?.isDeliveryActive ?? true) &&
         isWithinDeliveryTime()));
+
+  if (showOnboarding) {
+    return (
+      <OnboardingFlow
+        isLoggedIn={isUserLoggedIn}
+        theme={theme}
+        featureFlags={hoteldata?.feature_flags || ""}
+        storeName={hoteldata?.store_name || ""}
+        storeBanner={hoteldata?.store_banner}
+        partnerId={hoteldata?.id || ""}
+        tableNumber={tableNumber}
+        onComplete={handleOnboardingComplete}
+      />
+    );
+  }
 
   return (
     <>

@@ -1666,11 +1666,36 @@ const PlaceOrderModal = ({
     setOpenPlaceOrderModal,
   ]);
 
+  // Read onboarding data from localStorage
   useEffect(() => {
     if (open_place_order_modal && tableNumber === 0 && !orderType) {
-      setOrderType("delivery");
+      try {
+        const savedType = localStorage.getItem("onboarding_order_type");
+        if (savedType === "delivery" || savedType === "takeaway") {
+          setOrderType(savedType);
+        } else {
+          setOrderType("delivery");
+        }
+      } catch {
+        setOrderType("delivery");
+      }
     }
   }, [open_place_order_modal, tableNumber, orderType, setOrderType]);
+
+  // Pre-fill address from onboarding
+  useEffect(() => {
+    if (open_place_order_modal && !address) {
+      try {
+        const savedAddr = localStorage.getItem("onboarding_address");
+        if (savedAddr) {
+          const parsed = JSON.parse(savedAddr);
+          if (parsed.address) {
+            setAddress(parsed.address);
+          }
+        }
+      } catch {}
+    }
+  }, [open_place_order_modal, address, setAddress]);
 
   useEffect(() => {
     const handleResize = () => {
