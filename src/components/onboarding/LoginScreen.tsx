@@ -2,14 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { getUserCountry, UserCountryInfo } from "@/lib/getUserCountry";
 
 interface LoginScreenProps {
   storeName: string;
   storeBanner?: string;
-  bgColor: string;
-  accentColor: string;
   onContinue: (phone: string, countryInfo: UserCountryInfo) => void;
   loading?: boolean;
 }
@@ -17,8 +15,6 @@ interface LoginScreenProps {
 export default function LoginScreen({
   storeName,
   storeBanner,
-  bgColor,
-  accentColor,
   onContinue,
   loading,
 }: LoginScreenProps) {
@@ -46,11 +42,16 @@ export default function LoginScreen({
   };
 
   return (
-    <div className="flex flex-col min-h-dvh" style={{ backgroundColor: bgColor }}>
-      {/* Top section with logo and food image */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 pt-8">
+    <div className="flex flex-col min-h-dvh bg-[#14532D]">
+      {/* Back arrow */}
+      <div className="px-4 pt-4">
+        <ArrowLeft className="w-6 h-6 text-white/80" />
+      </div>
+
+      {/* Top section with logo */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6">
         {storeBanner ? (
-          <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-white/20 mb-4">
+          <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-white/20 mb-4 bg-white">
             <Image
               src={storeBanner}
               alt={storeName}
@@ -60,31 +61,32 @@ export default function LoginScreen({
             />
           </div>
         ) : (
-          <div
-            className="w-24 h-24 rounded-full flex items-center justify-center mb-4 text-white text-3xl font-bold"
-            style={{ backgroundColor: accentColor }}
-          >
+          <div className="w-24 h-24 rounded-full flex items-center justify-center mb-4 text-white text-3xl font-bold bg-[#1E6B3A]">
             {storeName?.charAt(0) || "M"}
           </div>
         )}
-        <h1
-          className="text-2xl font-bold mb-2"
-          style={{ color: isDark(bgColor) ? "#fff" : "#111" }}
-        >
+        <h1 className="text-2xl font-bold text-white mb-2">
           {storeName}
         </h1>
       </div>
 
       {/* Bottom white card */}
-      <div className="bg-white rounded-t-3xl px-6 pt-8 pb-6 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
-        <p className="text-gray-800 font-semibold text-base mb-5">
+      <div className="bg-white rounded-t-3xl px-6 pt-8 pb-6">
+        <p className="text-[#1A1A1A] font-semibold text-base mb-5">
           Log in or sign up
         </p>
 
         {/* Phone input */}
-        <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden h-12 mb-2">
-          <div className="flex items-center gap-1.5 px-3 border-r border-gray-300 h-full bg-gray-50">
-            <span className="text-sm font-medium text-gray-600">
+        <div className="flex items-center border border-[#D1D5DB] rounded-xl overflow-hidden h-[50px] mb-2">
+          <div className="flex items-center gap-1.5 px-3 border-r border-[#D1D5DB] h-full bg-[#F9FAFB]">
+            <Image
+              src={`https://flagcdn.com/w20/${countryInfo.countryCode.toLowerCase()}.png`}
+              alt=""
+              width={20}
+              height={14}
+              className="rounded-sm"
+            />
+            <span className="text-sm font-medium text-[#4B5563]">
               {countryInfo.callingCode}
             </span>
           </div>
@@ -98,36 +100,27 @@ export default function LoginScreen({
               setError("");
             }}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-            className="flex-1 h-full px-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none bg-white"
+            className="flex-1 h-full px-3 text-sm text-[#111827] placeholder:text-[#9CA3AF] outline-none bg-white"
           />
         </div>
 
-        {error && <p className="text-red-500 text-xs mb-2">{error}</p>}
+        {error && <p className="text-[#EF4444] text-xs mb-2">{error}</p>}
 
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full h-12 rounded-xl text-white font-semibold text-sm mt-3 flex items-center justify-center transition-opacity disabled:opacity-60"
-          style={{ backgroundColor: accentColor }}
+          className="w-full h-[50px] rounded-xl text-white font-semibold text-sm mt-3 flex items-center justify-center transition-opacity disabled:opacity-60 bg-[#F26522]"
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Continue"}
         </button>
 
-        <p className="text-[10px] text-gray-400 text-center mt-4 leading-relaxed">
-          By continuing, you agree to our{" "}
-          <span className="underline">Terms of Service</span>{" "}
-          <span className="underline">Privacy Policy</span>{" "}
+        <p className="text-[11px] text-[#9CA3AF] text-center mt-5 leading-relaxed">
+          By continuing, you agree to our<br />
+          <span className="underline">Terms of Service</span>{"  "}
+          <span className="underline">Privacy Policy</span>{"  "}
           <span className="underline">Content Policy</span>
         </p>
       </div>
     </div>
   );
-}
-
-function isDark(hex: string): boolean {
-  const c = hex.replace("#", "");
-  const r = parseInt(c.substring(0, 2), 16);
-  const g = parseInt(c.substring(2, 4), 16);
-  const b = parseInt(c.substring(4, 6), 16);
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
 }

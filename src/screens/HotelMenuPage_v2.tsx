@@ -344,7 +344,6 @@ const HotelMenuPage = ({
     return (
       <OnboardingFlow
         isLoggedIn={isUserLoggedIn}
-        theme={theme}
         featureFlags={hoteldata?.feature_flags || ""}
         storeName={hoteldata?.store_name || ""}
         storeBanner={hoteldata?.store_banner}

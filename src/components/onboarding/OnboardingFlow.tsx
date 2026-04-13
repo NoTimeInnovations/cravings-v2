@@ -5,8 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useAuthStore } from "@/store/authStore";
 import useOrderStore from "@/store/orderStore";
 import { useWhatsAppOtp } from "@/hooks/useWhatsAppOtp";
-import { getFeatures, FeatureFlags } from "@/lib/getFeatures";
-import { ThemeConfig } from "@/components/hotelDetail/ThemeChangeButton";
+import { getFeatures } from "@/lib/getFeatures";
 import { UserCountryInfo } from "@/lib/getUserCountry";
 import LoginScreen from "./LoginScreen";
 import OTPScreen from "./OTPScreen";
@@ -17,7 +16,6 @@ type OnboardingStep = "login" | "otp" | "address" | "orderType";
 
 interface OnboardingFlowProps {
   isLoggedIn: boolean;
-  theme: ThemeConfig | null;
   featureFlags: string;
   storeName: string;
   storeBanner?: string;
@@ -51,7 +49,6 @@ function setOnboardingCompleted(partnerId: string) {
 
 export default function OnboardingFlow({
   isLoggedIn,
-  theme,
   featureFlags,
   storeName,
   storeBanner,
@@ -66,27 +63,21 @@ export default function OnboardingFlow({
   const needsAddress = hasDelivery && tableNumber === 0;
   const needsOrderType = (hasDelivery || hasOrdering) && tableNumber === 0;
 
-  // Determine initial step
   const getInitialStep = (): OnboardingStep => {
     if (!isLoggedIn) return "login";
     if (needsAddress) return "address";
     if (needsOrderType) return "orderType";
-    return "orderType"; // fallback, will auto-complete
+    return "orderType";
   };
 
   const [step, setStep] = useState<OnboardingStep>(getInitialStep);
   const [phone, setPhone] = useState("");
   const [countryInfo, setCountryInfo] = useState<UserCountryInfo | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
-  const [address, setAddress] = useState("");
-  const [addressCoords, setAddressCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const { signInWithPhone } = useAuthStore();
   const { setOrderType, setUserAddress, setUserCoordinates } = useOrderStore();
   const { sendOtp, verifyOtp, reset: resetOtp, isSending, isVerifying, error: otpError } = useWhatsAppOtp(partnerId);
-
-  const bgColor = theme?.colors?.bg || "#ffffff";
-  const accentColor = theme?.colors?.accent || "#EA580C";
 
   const handleLoginContinue = useCallback(async (phoneNum: string, ci: UserCountryInfo) => {
     setPhone(phoneNum);
@@ -103,7 +94,6 @@ export default function OnboardingFlow({
         setLoginLoading(false);
       }
     } else {
-      // Direct login without OTP
       setLoginLoading(true);
       try {
         await signInWithPhone(phoneNum, partnerId, ci);
@@ -125,7 +115,6 @@ export default function OnboardingFlow({
   const handleOtpVerify = useCallback(async (otp: string) => {
     try {
       await verifyOtp(otp);
-      // OTP verified, now sign in
       await signInWithPhone(phone, partnerId, countryInfo!);
       if (needsAddress) {
         setStep("address");
@@ -140,13 +129,10 @@ export default function OnboardingFlow({
   }, [verifyOtp, signInWithPhone, phone, partnerId, countryInfo, needsAddress, needsOrderType]);
 
   const handleAddressContinue = useCallback((addr: string, coords: { lat: number; lng: number } | null) => {
-    setAddress(addr);
-    setAddressCoords(coords);
     setUserAddress(addr);
     if (coords) {
       setUserCoordinates(coords);
     }
-    // Save to localStorage for checkout
     try {
       localStorage.setItem("onboarding_address", JSON.stringify({ address: addr, coords }));
     } catch {}
@@ -214,8 +200,6 @@ export default function OnboardingFlow({
             <LoginScreen
               storeName={storeName}
               storeBanner={storeBanner}
-              bgColor={bgColor}
-              accentColor={accentColor}
               onContinue={handleLoginContinue}
               loading={loginLoading || isSending}
             />
@@ -237,7 +221,6 @@ export default function OnboardingFlow({
               callingCode={countryInfo?.callingCode || "+91"}
               storeBanner={storeBanner}
               storeName={storeName}
-              accentColor={accentColor}
               onVerify={handleOtpVerify}
               onResend={handleResendOtp}
               onChangeNumber={handleChangeNumber}
@@ -260,7 +243,6 @@ export default function OnboardingFlow({
             <DeliveryAddressScreen
               storeBanner={storeBanner}
               storeName={storeName}
-              accentColor={accentColor}
               onContinue={handleAddressContinue}
             />
           </motion.div>
@@ -279,7 +261,6 @@ export default function OnboardingFlow({
             <OrderTypeScreen
               storeBanner={storeBanner}
               storeName={storeName}
-              accentColor={accentColor}
               hasDelivery={hasDelivery}
               hasOrdering={hasOrdering}
               onSelect={handleOrderTypeSelect}

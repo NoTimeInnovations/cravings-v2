@@ -9,7 +9,6 @@ interface OTPScreenProps {
   callingCode: string;
   storeBanner?: string;
   storeName: string;
-  accentColor: string;
   onVerify: (otp: string) => void;
   onResend: () => void;
   onChangeNumber: () => void;
@@ -22,7 +21,6 @@ export default function OTPScreen({
   callingCode,
   storeBanner,
   storeName,
-  accentColor,
   onVerify,
   onResend,
   onChangeNumber,
@@ -41,7 +39,7 @@ export default function OTPScreen({
       {/* Logo */}
       <div className="flex justify-center pt-10 pb-6">
         {storeBanner ? (
-          <div className="w-16 h-16 rounded-full overflow-hidden border border-gray-200">
+          <div className="w-16 h-16 rounded-full overflow-hidden border border-[#E5E7EB] bg-white">
             <Image
               src={storeBanner}
               alt={storeName}
@@ -51,20 +49,17 @@ export default function OTPScreen({
             />
           </div>
         ) : (
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold"
-            style={{ backgroundColor: accentColor }}
-          >
+          <div className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold bg-[#14532D]">
             {storeName?.charAt(0) || "M"}
           </div>
         )}
       </div>
 
       <div className="flex-1 px-6">
-        <p className="text-gray-700 text-center text-sm mb-1">
+        <p className="text-[#4B5563] text-center text-sm mb-1">
           Enter the OTP send to
         </p>
-        <p className="text-gray-900 text-center font-semibold text-base mb-8">
+        <p className="text-[#111827] text-center font-bold text-base mb-8">
           {callingCode}{phone}
         </p>
 
@@ -78,18 +73,17 @@ export default function OTPScreen({
           onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
           placeholder="XXXXXX"
           maxLength={6}
-          className="w-full h-14 text-center text-xl font-bold tracking-[0.4em] rounded-xl border-2 border-gray-300 bg-white outline-none transition-colors focus:border-gray-500 placeholder:text-gray-300 placeholder:tracking-[0.3em]"
+          className="w-full h-14 text-center text-xl font-bold tracking-[0.4em] rounded-xl border-2 border-[#D1D5DB] bg-white outline-none transition-colors focus:border-[#6B7280] placeholder:text-[#D1D5DB] placeholder:tracking-[0.3em] text-[#111827]"
         />
 
         {error && (
-          <p className="text-red-500 text-xs text-center mt-2">{error}</p>
+          <p className="text-[#EF4444] text-xs text-center mt-2">{error}</p>
         )}
 
         <button
           onClick={handleSubmit}
           disabled={loading || otp.length < 6}
-          className="w-full h-12 rounded-xl text-white font-semibold text-sm mt-6 flex items-center justify-center transition-opacity disabled:opacity-60"
-          style={{ backgroundColor: accentColor }}
+          className="w-full h-[50px] rounded-xl text-white font-semibold text-sm mt-6 flex items-center justify-center transition-opacity disabled:opacity-60 bg-[#F26522]"
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Continue"}
         </button>
@@ -98,14 +92,13 @@ export default function OTPScreen({
         <div className="flex items-center justify-between mt-5">
           <button
             onClick={onChangeNumber}
-            className="text-sm text-gray-500 hover:text-gray-700"
+            className="text-sm text-[#6B7280]"
           >
             Change number ?
           </button>
           <button
             onClick={onResend}
-            className="text-sm font-semibold"
-            style={{ color: accentColor }}
+            className="text-sm font-semibold text-[#F26522]"
           >
             Resend
           </button>
