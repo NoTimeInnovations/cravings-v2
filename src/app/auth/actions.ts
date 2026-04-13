@@ -255,3 +255,58 @@ export const trackQrScanAction = async (qrId: string, partnerId: string) => {
     }
   }
 };
+
+export const setOnboardingCookie = async (partnerId: string) => {
+  const cookieStore = await cookies();
+  const existing = cookieStore.get("onboarding_done")?.value;
+  let data: Record<string, boolean> = {};
+  try { if (existing) data = JSON.parse(existing); } catch {}
+  data[partnerId] = true;
+  cookieStore.set("onboarding_done", JSON.stringify(data), {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 365,
+    path: "/",
+    sameSite: "lax",
+  });
+};
+
+export const getOnboardingCookie = async (partnerId: string) => {
+  const cookie = (await cookies()).get("onboarding_done")?.value;
+  if (!cookie) return false;
+  try {
+    const data = JSON.parse(cookie);
+    return data[partnerId] === true;
+  } catch {
+    return false;
+  }
+};
+
+export const setOnboardingDataCookie = async (
+  partnerId: string,
+  data: { address?: string; coords?: { lat: number; lng: number } | null; orderType?: string }
+) => {
+  const cookieStore = await cookies();
+  const existing = cookieStore.get("onboarding_data")?.value;
+  let all: Record<string, any> = {};
+  try { if (existing) all = JSON.parse(existing); } catch {}
+  all[partnerId] = { ...(all[partnerId] || {}), ...data };
+  cookieStore.set("onboarding_data", JSON.stringify(all), {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 365,
+    path: "/",
+    sameSite: "lax",
+  });
+};
+
+export const getOnboardingDataCookie = async (partnerId: string) => {
+  const cookie = (await cookies()).get("onboarding_data")?.value;
+  if (!cookie) return null;
+  try {
+    const all = JSON.parse(cookie);
+    return all[partnerId] || null;
+  } catch {
+    return null;
+  }
+};

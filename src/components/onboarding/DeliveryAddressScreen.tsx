@@ -1,12 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
-import { Loader2, MapPin, Search, Navigation } from "lucide-react";
+import { Loader2, MapPin, Search, LocateFixed } from "lucide-react";
+import { useLoadScript } from "@react-google-maps/api";
+
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+const GOOGLE_MAPS_LIBRARIES: ["places"] = ["places"];
 
 interface DeliveryAddressScreenProps {
   storeBanner?: string;
   storeName: string;
+  themeBg?: string;
   onContinue: (address: string, coords: { lat: number; lng: number } | null) => void;
   loading?: boolean;
 }
@@ -14,6 +19,7 @@ interface DeliveryAddressScreenProps {
 export default function DeliveryAddressScreen({
   storeBanner,
   storeName,
+  themeBg,
   onContinue,
   loading,
 }: DeliveryAddressScreenProps) {
@@ -24,46 +30,77 @@ export default function DeliveryAddressScreen({
   const [suggestions, setSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const autocompleteRef = useRef<google.maps.places.AutocompleteService | null>(null);
   const placesRef = useRef<google.maps.places.PlacesService | null>(null);
+  const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dummyDivRef = useRef<HTMLDivElement>(null);
 
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
+  });
+
   useEffect(() => {
-    if (typeof google !== "undefined" && google.maps) {
+    if (isLoaded && typeof google !== "undefined") {
       autocompleteRef.current = new google.maps.places.AutocompleteService();
+      sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
       if (dummyDivRef.current) {
         placesRef.current = new google.maps.places.PlacesService(dummyDivRef.current);
       }
     }
-  }, []);
+  }, [isLoaded]);
 
-  const handleSearch = (query: string) => {
+  const handleSearch = useCallback((query: string) => {
     setAddress(query);
     setError("");
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
     if (!query || query.length < 3 || !autocompleteRef.current) {
       setSuggestions([]);
       return;
     }
-    autocompleteRef.current.getPlacePredictions(
-      { input: query, componentRestrictions: { country: "in" } },
-      (results) => {
-        setSuggestions(results || []);
-      }
-    );
-  };
 
-  const selectSuggestion = (placeId: string, description: string) => {
+    // Debounce 300ms to reduce API calls
+    debounceRef.current = setTimeout(() => {
+      autocompleteRef.current?.getPlacePredictions(
+        {
+          input: query,
+          componentRestrictions: { country: "in" },
+          sessionToken: sessionTokenRef.current || undefined,
+        },
+        (results) => {
+          setSuggestions(results || []);
+        }
+      );
+    }, 300);
+  }, []);
+
+  const selectSuggestion = useCallback((placeId: string, description: string) => {
     setAddress(description);
     setSuggestions([]);
     if (placesRef.current) {
-      placesRef.current.getDetails({ placeId, fields: ["geometry"] }, (place) => {
-        if (place?.geometry?.location) {
-          setCoords({
-            lat: place.geometry.location.lat(),
-            lng: place.geometry.location.lng(),
-          });
+      // Pass session token to group autocomplete + details into one billing session
+      placesRef.current.getDetails(
+        {
+          placeId,
+          fields: ["geometry"],
+          sessionToken: sessionTokenRef.current || undefined,
+        },
+        (place) => {
+          if (place?.geometry?.location) {
+            setCoords({
+              lat: place.geometry.location.lat(),
+              lng: place.geometry.location.lng(),
+            });
+          }
+          // Reset session token after place details (completes billing session)
+          if (typeof google !== "undefined") {
+            sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
+          }
         }
-      });
+      );
     }
-  };
+  }, []);
 
   const useCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -77,7 +114,7 @@ export default function DeliveryAddressScreen({
         setCoords({ lat: latitude, lng: longitude });
         try {
           const res = await fetch(
-            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}`
+            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
           );
           const data = await res.json();
           if (data.results?.[0]) {
@@ -105,29 +142,30 @@ export default function DeliveryAddressScreen({
   };
 
   return (
-    <div className="flex flex-col min-h-dvh bg-white">
+    <div className="flex flex-col min-h-dvh" style={{ backgroundColor: themeBg || '#14532D' }}>
       <div ref={dummyDivRef} className="hidden" />
 
-      {/* Logo */}
-      <div className="flex justify-center pt-10 pb-6">
+      {/* Top section with logo only */}
+      <div className="flex flex-col items-center justify-center px-6 pt-12 pb-8">
         {storeBanner ? (
-          <div className="w-16 h-16 rounded-full overflow-hidden border border-[#E5E7EB] bg-white">
+          <div className="w-20 h-20 rounded-[20px] overflow-hidden border-4 border-white/20 bg-white">
             <Image
               src={storeBanner}
               alt={storeName}
-              width={64}
-              height={64}
+              width={80}
+              height={80}
               className="w-full h-full object-cover"
             />
           </div>
         ) : (
-          <div className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold bg-[#14532D]">
+          <div className="w-20 h-20 rounded-[20px] flex items-center justify-center text-white text-2xl font-bold bg-[#1E6B3A]">
             {storeName?.charAt(0) || "M"}
           </div>
         )}
       </div>
 
-      <div className="flex-1 px-6">
+      {/* White card */}
+      <div className="flex-1 bg-white rounded-t-3xl px-6 pt-10 pb-8">
         <h2 className="text-[#111827] font-bold text-xl text-center mb-1">
           Delivery address
         </h2>
@@ -139,13 +177,13 @@ export default function DeliveryAddressScreen({
         <button
           onClick={useCurrentLocation}
           disabled={locating}
-          className="w-full flex items-center gap-3 border border-[#E5E7EB] rounded-xl p-4 mb-4 hover:bg-[#F9FAFB] transition-colors"
+          className="w-full flex items-center gap-3 border border-[#D6D6D6] rounded-2xl px-4 py-5 mb-4 hover:bg-[#F9FAFB] transition-colors shadow-sm shadow-black/20"
         >
-          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-[#ECFDF5]">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#ECFDF5]">
             {locating ? (
               <Loader2 className="w-5 h-5 animate-spin text-[#059669]" />
             ) : (
-              <Navigation className="w-5 h-5 text-[#059669]" />
+              <LocateFixed className="w-5 h-5 text-[#059669]" />
             )}
           </div>
           <div className="text-left">
@@ -167,7 +205,7 @@ export default function DeliveryAddressScreen({
 
         {/* Search input */}
         <div className="relative">
-          <div className="flex items-center border border-[#E5E7EB] rounded-xl h-12 px-3 gap-2">
+          <div className="flex items-center border border-[#D6D6D6] rounded-xl h-[50px] px-3 gap-2 shadow-sm shadow-black/20">
             <Search className="w-4 h-4 text-[#9CA3AF] flex-shrink-0" />
             <input
               type="text"
@@ -200,7 +238,7 @@ export default function DeliveryAddressScreen({
         <button
           onClick={handleContinue}
           disabled={loading || !address.trim()}
-          className="w-full h-[50px] rounded-xl text-white font-semibold text-sm mt-6 flex items-center justify-center transition-opacity disabled:opacity-60 bg-[#F26522]"
+          className="w-full h-[50px] rounded-xl text-white font-semibold text-base mt-6 flex items-center justify-center transition-opacity disabled:opacity-60 bg-[#FF5301]"
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Continue"}
         </button>

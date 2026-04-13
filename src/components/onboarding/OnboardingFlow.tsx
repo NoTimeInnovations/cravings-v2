@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuthStore } from "@/store/authStore";
 import useOrderStore from "@/store/orderStore";
 import { useWhatsAppOtp } from "@/hooks/useWhatsAppOtp";
 import { getFeatures } from "@/lib/getFeatures";
 import { UserCountryInfo } from "@/lib/getUserCountry";
+import { setOnboardingCookie, setOnboardingDataCookie, getOnboardingDataCookie } from "@/app/auth/actions";
 import LoginScreen from "./LoginScreen";
 import OTPScreen from "./OTPScreen";
 import DeliveryAddressScreen from "./DeliveryAddressScreen";
@@ -21,6 +22,7 @@ interface OnboardingFlowProps {
   storeBanner?: string;
   partnerId: string;
   tableNumber: number;
+  themeBg?: string;
   onComplete: () => void;
 }
 
@@ -38,13 +40,15 @@ export function getOnboardingCompleted(partnerId: string): boolean {
   }
 }
 
-function setOnboardingCompleted(partnerId: string) {
+async function setOnboardingCompleted(partnerId: string) {
   try {
     const data = localStorage.getItem(ONBOARDING_KEY);
     const parsed = data ? JSON.parse(data) : {};
     parsed[partnerId] = true;
     localStorage.setItem(ONBOARDING_KEY, JSON.stringify(parsed));
   } catch {}
+  // Set cookie so server can read it on next page load
+  await setOnboardingCookie(partnerId);
 }
 
 export default function OnboardingFlow({
@@ -54,6 +58,7 @@ export default function OnboardingFlow({
   storeBanner,
   partnerId,
   tableNumber,
+  themeBg,
   onComplete,
 }: OnboardingFlowProps) {
   const features = getFeatures(featureFlags);
@@ -79,6 +84,27 @@ export default function OnboardingFlow({
   const { setOrderType, setUserAddress, setUserCoordinates } = useOrderStore();
   const { sendOtp, verifyOtp, reset: resetOtp, isSending, isVerifying, error: otpError } = useWhatsAppOtp(partnerId);
 
+  // On mount, check if we have saved onboarding data and restore it
+  useEffect(() => {
+    getOnboardingDataCookie(partnerId).then((saved) => {
+      if (!saved) return;
+      if (saved.address) {
+        setUserAddress(saved.address);
+      }
+      if (saved.coords) {
+        setUserCoordinates(saved.coords);
+      }
+      if (saved.orderType) {
+        setOrderType(saved.orderType as "delivery" | "takeaway");
+      }
+    }).catch(() => {});
+  }, [partnerId]);
+
+  const finishOnboarding = useCallback(async () => {
+    await setOnboardingCompleted(partnerId);
+    onComplete();
+  }, [partnerId, onComplete]);
+
   const handleLoginContinue = useCallback(async (phoneNum: string, ci: UserCountryInfo) => {
     setPhone(phoneNum);
     setCountryInfo(ci);
@@ -102,7 +128,7 @@ export default function OnboardingFlow({
         } else if (needsOrderType) {
           setStep("orderType");
         } else {
-          finishOnboarding();
+          await finishOnboarding();
         }
       } catch {
         // error handled
@@ -110,7 +136,7 @@ export default function OnboardingFlow({
         setLoginLoading(false);
       }
     }
-  }, [hasWhatsappOtp, sendOtp, signInWithPhone, partnerId, needsAddress, needsOrderType]);
+  }, [hasWhatsappOtp, sendOtp, signInWithPhone, partnerId, needsAddress, needsOrderType, finishOnboarding]);
 
   const handleOtpVerify = useCallback(async (otp: string) => {
     try {
@@ -121,14 +147,14 @@ export default function OnboardingFlow({
       } else if (needsOrderType) {
         setStep("orderType");
       } else {
-        finishOnboarding();
+        await finishOnboarding();
       }
     } catch {
       // error handled by hook
     }
-  }, [verifyOtp, signInWithPhone, phone, partnerId, countryInfo, needsAddress, needsOrderType]);
+  }, [verifyOtp, signInWithPhone, phone, partnerId, countryInfo, needsAddress, needsOrderType, finishOnboarding]);
 
-  const handleAddressContinue = useCallback((addr: string, coords: { lat: number; lng: number } | null) => {
+  const handleAddressContinue = useCallback(async (addr: string, coords: { lat: number; lng: number } | null) => {
     setUserAddress(addr);
     if (coords) {
       setUserCoordinates(coords);
@@ -136,29 +162,28 @@ export default function OnboardingFlow({
     try {
       localStorage.setItem("onboarding_address", JSON.stringify({ address: addr, coords }));
     } catch {}
+    // Save to cookie and wait for it
+    await setOnboardingDataCookie(partnerId, { address: addr, coords });
 
     if (needsOrderType) {
       setStep("orderType");
     } else {
-      finishOnboarding();
+      await finishOnboarding();
     }
-  }, [setUserAddress, setUserCoordinates, needsOrderType]);
+  }, [setUserAddress, setUserCoordinates, needsOrderType, partnerId, finishOnboarding]);
 
-  const handleOrderTypeSelect = useCallback((type: "delivery" | "takeaway") => {
+  const handleOrderTypeSelect = useCallback(async (type: "delivery" | "takeaway") => {
     setOrderType(type);
     try {
       localStorage.setItem("onboarding_order_type", type);
     } catch {}
-    finishOnboarding();
-  }, [setOrderType]);
+    // Save to cookie and wait for it
+    await setOnboardingDataCookie(partnerId, { orderType: type });
+    await finishOnboarding();
+  }, [setOrderType, partnerId, finishOnboarding]);
 
-  const finishOnboarding = useCallback(() => {
-    setOnboardingCompleted(partnerId);
-    onComplete();
-  }, [partnerId, onComplete]);
-
-  const handleSkip = useCallback(() => {
-    finishOnboarding();
+  const handleSkip = useCallback(async () => {
+    await finishOnboarding();
   }, [finishOnboarding]);
 
   const handleChangeNumber = useCallback(() => {
@@ -200,6 +225,7 @@ export default function OnboardingFlow({
             <LoginScreen
               storeName={storeName}
               storeBanner={storeBanner}
+              themeBg={themeBg}
               onContinue={handleLoginContinue}
               loading={loginLoading || isSending}
             />
@@ -221,6 +247,7 @@ export default function OnboardingFlow({
               callingCode={countryInfo?.callingCode || "+91"}
               storeBanner={storeBanner}
               storeName={storeName}
+              themeBg={themeBg}
               onVerify={handleOtpVerify}
               onResend={handleResendOtp}
               onChangeNumber={handleChangeNumber}
@@ -243,6 +270,7 @@ export default function OnboardingFlow({
             <DeliveryAddressScreen
               storeBanner={storeBanner}
               storeName={storeName}
+              themeBg={themeBg}
               onContinue={handleAddressContinue}
             />
           </motion.div>
@@ -261,6 +289,7 @@ export default function OnboardingFlow({
             <OrderTypeScreen
               storeBanner={storeBanner}
               storeName={storeName}
+              themeBg={themeBg}
               hasDelivery={hasDelivery}
               hasOrdering={hasOrdering}
               onSelect={handleOrderTypeSelect}

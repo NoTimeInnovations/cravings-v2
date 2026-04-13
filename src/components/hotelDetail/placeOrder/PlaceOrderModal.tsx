@@ -3083,7 +3083,7 @@ const PlaceOrderModal = ({
         isPetpooja={!!hotelData.petpooja_restaurant_id}
         hasUpiQr={hasUpiQr}
         cashfreePaid={cashfreePaid}
-        orderId={orderId || localStorage?.getItem("last-order-id") || undefined}
+        orderId={orderId || (typeof localStorage !== "undefined" ? localStorage.getItem("last-order-id") : undefined) || undefined}
         failReason={paymentFailReason}
       />
 

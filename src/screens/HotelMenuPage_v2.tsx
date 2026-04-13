@@ -22,7 +22,7 @@ import Sidebar from "@/components/hotelDetail/styles/Sidebar/Sidebar";
 import { saveUserLocation } from "@/lib/saveUserLocLocal";
 import { QrCode, useQrDataStore } from "@/store/qrDataStore";
 import DeliveryTimeCampain from "@/components/hotelDetail/DeliveryTimeCampain";
-import OnboardingFlow, { getOnboardingCompleted } from "@/components/onboarding/OnboardingFlow";
+import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 
 export type MenuItem = {
   description: string;
@@ -58,6 +58,7 @@ interface HotelMenuPageProps {
   qrId?: string | null;
   selectedCategory?: string;
   qrData?: QrCode | null;
+  onboardingCompleted?: boolean;
 }
 
 const HotelMenuPage = ({
@@ -71,6 +72,7 @@ const HotelMenuPage = ({
   qrGroup,
   qrId,
   selectedCategory: selectedCategoryProp,
+  onboardingCompleted,
 }: HotelMenuPageProps) => {
   const pathname = usePathname();
   const { setHotelId, genOrderId, open_place_order_modal } = useOrderStore();
@@ -82,8 +84,8 @@ const HotelMenuPage = ({
   const needsOnboarding = (features.delivery.enabled || features.ordering.enabled) && tableNumber === 0;
   const [showOnboarding, setShowOnboarding] = useState(() => {
     if (!needsOnboarding) return false;
-    if (typeof window === "undefined") return false;
-    return !getOnboardingCompleted(hoteldata?.id || "");
+    // Use server-provided cookie state — no localStorage check needed
+    return !onboardingCompleted;
   });
 
   const handleOnboardingComplete = useCallback(() => {
@@ -349,6 +351,7 @@ const HotelMenuPage = ({
         storeBanner={hoteldata?.store_banner}
         partnerId={hoteldata?.id || ""}
         tableNumber={tableNumber}
+        themeBg={theme?.colors?.bg}
         onComplete={handleOnboardingComplete}
       />
     );

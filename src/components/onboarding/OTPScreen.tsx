@@ -9,6 +9,7 @@ interface OTPScreenProps {
   callingCode: string;
   storeBanner?: string;
   storeName: string;
+  themeBg?: string;
   onVerify: (otp: string) => void;
   onResend: () => void;
   onChangeNumber: () => void;
@@ -21,6 +22,7 @@ export default function OTPScreen({
   callingCode,
   storeBanner,
   storeName,
+  themeBg,
   onVerify,
   onResend,
   onChangeNumber,
@@ -35,28 +37,29 @@ export default function OTPScreen({
   };
 
   return (
-    <div className="flex flex-col min-h-dvh bg-white">
-      {/* Logo */}
-      <div className="flex justify-center pt-10 pb-6">
+    <div className="flex flex-col min-h-dvh" style={{ backgroundColor: themeBg || '#14532D' }}>
+      {/* Top section with logo only */}
+      <div className="flex flex-col items-center justify-center px-6 pt-12 pb-8">
         {storeBanner ? (
-          <div className="w-16 h-16 rounded-full overflow-hidden border border-[#E5E7EB] bg-white">
+          <div className="w-20 h-20 rounded-[20px] overflow-hidden border-4 border-white/20 bg-white">
             <Image
               src={storeBanner}
               alt={storeName}
-              width={64}
-              height={64}
+              width={80}
+              height={80}
               className="w-full h-full object-cover"
             />
           </div>
         ) : (
-          <div className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold bg-[#14532D]">
+          <div className="w-20 h-20 rounded-[20px] flex items-center justify-center text-white text-2xl font-bold bg-[#1E6B3A]">
             {storeName?.charAt(0) || "M"}
           </div>
         )}
       </div>
 
-      <div className="flex-1 px-6">
-        <p className="text-[#4B5563] text-center text-sm mb-1">
+      {/* White card taking most of the screen */}
+      <div className="flex-1 bg-white rounded-t-3xl px-6 pt-10 pb-8">
+        <p className="text-[#6a6a6a] font-medium text-center text-sm mb-1">
           Enter the OTP send to
         </p>
         <p className="text-[#111827] text-center font-bold text-base mb-8">
@@ -73,7 +76,7 @@ export default function OTPScreen({
           onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
           placeholder="XXXXXX"
           maxLength={6}
-          className="w-full h-14 text-center text-xl font-bold tracking-[0.4em] rounded-xl border-2 border-[#D1D5DB] bg-white outline-none transition-colors focus:border-[#6B7280] placeholder:text-[#D1D5DB] placeholder:tracking-[0.3em] text-[#111827]"
+          className="w-full h-[50px] text-center text-sm font-bold tracking-[0.4em] px-3 text-[#111827] placeholder:text-[#9CA3AF] placeholder:tracking-[0.3em] outline-none bg-white shadow-black/20 rounded-xl shadow-sm border border-[#D6D6D6]"
         />
 
         {error && (
@@ -83,7 +86,7 @@ export default function OTPScreen({
         <button
           onClick={handleSubmit}
           disabled={loading || otp.length < 6}
-          className="w-full h-[50px] rounded-xl text-white font-semibold text-sm mt-6 flex items-center justify-center transition-opacity disabled:opacity-60 bg-[#F26522]"
+          className="w-full h-[50px] rounded-xl text-white font-semibold text-base mt-6 flex items-center justify-center transition-opacity disabled:opacity-60 bg-[#FF5301]"
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Continue"}
         </button>
@@ -98,7 +101,7 @@ export default function OTPScreen({
           </button>
           <button
             onClick={onResend}
-            className="text-sm font-semibold text-[#F26522]"
+            className="text-sm font-semibold text-[#FF5301]"
           >
             Resend
           </button>
