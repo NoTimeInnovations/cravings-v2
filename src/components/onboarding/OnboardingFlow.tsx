@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuthStore } from "@/store/authStore";
 import useOrderStore from "@/store/orderStore";
 import { useWhatsAppOtp } from "@/hooks/useWhatsAppOtp";
 import { getFeatures } from "@/lib/getFeatures";
 import { UserCountryInfo } from "@/lib/getUserCountry";
-import { setOnboardingCookie, setOnboardingDataCookie, getOnboardingDataCookie } from "@/app/auth/actions";
+import { setOrderSessionCookie, setOnboardingDataCookie, getOnboardingDataCookie } from "@/app/auth/actions";
 import LoginScreen from "./LoginScreen";
 import OTPScreen from "./OTPScreen";
 import DeliveryAddressScreen from "./DeliveryAddressScreen";
@@ -23,32 +24,6 @@ interface OnboardingFlowProps {
   partnerId: string;
   tableNumber: number;
   themeBg?: string;
-  onComplete: () => void;
-}
-
-const ONBOARDING_KEY = "onboarding_completed";
-
-export function getOnboardingCompleted(partnerId: string): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const data = localStorage.getItem(ONBOARDING_KEY);
-    if (!data) return false;
-    const parsed = JSON.parse(data);
-    return parsed[partnerId] === true;
-  } catch {
-    return false;
-  }
-}
-
-async function setOnboardingCompleted(partnerId: string) {
-  try {
-    const data = localStorage.getItem(ONBOARDING_KEY);
-    const parsed = data ? JSON.parse(data) : {};
-    parsed[partnerId] = true;
-    localStorage.setItem(ONBOARDING_KEY, JSON.stringify(parsed));
-  } catch {}
-  // Set cookie so server can read it on next page load
-  await setOnboardingCookie(partnerId);
 }
 
 export default function OnboardingFlow({
@@ -59,8 +34,8 @@ export default function OnboardingFlow({
   partnerId,
   tableNumber,
   themeBg,
-  onComplete,
 }: OnboardingFlowProps) {
+  const router = useRouter();
   const features = getFeatures(featureFlags);
   const hasWhatsappOtp = features.whatsappnotifications.enabled;
   const hasDelivery = features.delivery.enabled;
@@ -100,10 +75,10 @@ export default function OnboardingFlow({
     }).catch(() => {});
   }, [partnerId]);
 
-  const finishOnboarding = useCallback(async () => {
-    await setOnboardingCompleted(partnerId);
-    onComplete();
-  }, [partnerId, onComplete]);
+  const finishOnboarding = useCallback(async (orderType: string = "none") => {
+    await setOrderSessionCookie(partnerId, orderType);
+    router.refresh();
+  }, [partnerId, router]);
 
   const handleLoginContinue = useCallback(async (phoneNum: string, ci: UserCountryInfo) => {
     setPhone(phoneNum);
@@ -174,12 +149,8 @@ export default function OnboardingFlow({
 
   const handleOrderTypeSelect = useCallback(async (type: "delivery" | "takeaway") => {
     setOrderType(type);
-    try {
-      localStorage.setItem("onboarding_order_type", type);
-    } catch {}
-    // Save to cookie and wait for it
     await setOnboardingDataCookie(partnerId, { orderType: type });
-    await finishOnboarding();
+    await finishOnboarding(type);
   }, [setOrderType, partnerId, finishOnboarding]);
 
   const handleSkip = useCallback(async () => {

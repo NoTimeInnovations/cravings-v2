@@ -256,6 +256,52 @@ export const trackQrScanAction = async (qrId: string, partnerId: string) => {
   }
 };
 
+export const setOrderSessionCookie = async (partnerId: string, orderType: string) => {
+  const cookieStore = await cookies();
+  const existing = cookieStore.get("order_session")?.value;
+  let data: Record<string, any> = {};
+  try { if (existing) data = JSON.parse(existing); } catch {}
+  data[partnerId] = { orderType, ts: Date.now() };
+  cookieStore.set("order_session", JSON.stringify(data), {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24, // 24 hours — cleared explicitly after order is placed
+    path: "/",
+    sameSite: "lax",
+  });
+};
+
+export const getOrderSessionCookie = async (partnerId: string) => {
+  const cookie = (await cookies()).get("order_session")?.value;
+  if (!cookie) return null;
+  try {
+    const data = JSON.parse(cookie);
+    return data[partnerId] || null;
+  } catch {
+    return null;
+  }
+};
+
+export const clearOrderSessionCookie = async (partnerId: string) => {
+  const cookieStore = await cookies();
+  const existing = cookieStore.get("order_session")?.value;
+  if (!existing) return;
+  let data: Record<string, any> = {};
+  try { data = JSON.parse(existing); } catch {}
+  delete data[partnerId];
+  if (Object.keys(data).length === 0) {
+    cookieStore.delete("order_session");
+  } else {
+    cookieStore.set("order_session", JSON.stringify(data), {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24,
+      path: "/",
+      sameSite: "lax",
+    });
+  }
+};
+
 export const setOnboardingCookie = async (partnerId: string) => {
   const cookieStore = await cookies();
   const existing = cookieStore.get("onboarding_done")?.value;

@@ -2,7 +2,7 @@ import { getPartnerByUsernameQuery } from "@/api/partners";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { processHotelPage, fetchHotelMetadata } from "@/lib/hotelDataFetcher";
 import HotelMenuPage from "@/screens/HotelMenuPage_v2";
-import { getAuthCookie, getOnboardingCookie } from "@/app/auth/actions";
+import { getAuthCookie, getOrderSessionCookie } from "@/app/auth/actions";
 import { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
@@ -116,7 +116,8 @@ const UsernamePage = async ({
     notFound();
   }
 
-  const onboardingCompleted = await getOnboardingCookie(partnerId);
+  const orderSession = await getOrderSessionCookie(partnerId);
+  const onboardingCompleted = !!orderSession;
 
   return (
     <HotelMenuPage

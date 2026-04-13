@@ -82,15 +82,7 @@ const HotelMenuPage = ({
   const isUserLoggedIn = auth?.role === "user";
   const features = getFeatures(hoteldata?.feature_flags || "");
   const needsOnboarding = (features.delivery.enabled || features.ordering.enabled) && tableNumber === 0;
-  const [showOnboarding, setShowOnboarding] = useState(() => {
-    if (!needsOnboarding) return false;
-    // Use server-provided cookie state — no localStorage check needed
-    return !onboardingCompleted;
-  });
-
-  const handleOnboardingComplete = useCallback(() => {
-    setShowOnboarding(false);
-  }, []);
+  const showOnboarding = needsOnboarding && !onboardingCompleted;
 
   const styles: Styles = useMemo(() => ({
     backgroundColor: theme?.colors?.bg || "#F5F5F5",
@@ -352,7 +344,6 @@ const HotelMenuPage = ({
         partnerId={hoteldata?.id || ""}
         tableNumber={tableNumber}
         themeBg={theme?.colors?.bg}
-        onComplete={handleOnboardingComplete}
       />
     );
   }

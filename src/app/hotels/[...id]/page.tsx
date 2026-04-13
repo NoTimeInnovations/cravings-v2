@@ -10,7 +10,7 @@ import { Offer } from "@/store/offerStore_hasura";
 import { unstable_cache } from "next/cache";
 import React from "react";
 import { Partner } from "@/store/authStore";
-import { getAuthCookie } from "@/app/auth/actions";
+import { getAuthCookie, getOrderSessionCookie } from "@/app/auth/actions";
 import { ThemeConfig, DEFAULT_THEME } from "@/components/hotelDetail/ThemeChangeButton";
 import { Metadata, Viewport } from "next";
 import { getSocialLinks } from "@/lib/getSocialLinks";
@@ -615,6 +615,7 @@ const HotelPage = async ({
         qrId={null}
         qrGroup={table0QrGroup}
         selectedCategory={cat}
+        onboardingCompleted={!!(await getOrderSessionCookie(hotelId!))}
       />
     </>
   );
