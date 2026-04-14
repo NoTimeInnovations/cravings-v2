@@ -24,6 +24,7 @@ interface OnboardingFlowProps {
   partnerId: string;
   tableNumber: number;
   themeBg?: string;
+  onboardingCompleted?: boolean;
 }
 
 export default function OnboardingFlow({
@@ -34,6 +35,7 @@ export default function OnboardingFlow({
   partnerId,
   tableNumber,
   themeBg,
+  onboardingCompleted = false,
 }: OnboardingFlowProps) {
   const router = useRouter();
   const features = getFeatures(featureFlags);
@@ -45,12 +47,13 @@ export default function OnboardingFlow({
 
   const getInitialStep = (): OnboardingStep => {
     if (!isLoggedIn) return "login";
-    if (needsAddress) return "address";
+    if (needsAddress && !onboardingCompleted) return "address";
     if (needsOrderType) return "orderType";
     return "orderType";
   };
 
   const [step, setStep] = useState<OnboardingStep>(getInitialStep);
+  const [dismissed, setDismissed] = useState(false);
   const [phone, setPhone] = useState("");
   const [countryInfo, setCountryInfo] = useState<UserCountryInfo | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
@@ -59,7 +62,8 @@ export default function OnboardingFlow({
   const { setOrderType, setUserAddress, setUserCoordinates } = useOrderStore();
   const { sendOtp, verifyOtp, reset: resetOtp, isSending, isVerifying, error: otpError } = useWhatsAppOtp(partnerId);
 
-  // On mount, check if we have saved onboarding data and restore it
+  // On mount, restore saved address/coords from cookie and any previously chosen
+  // order type from sessionStorage (per-tab only).
   useEffect(() => {
     getOnboardingDataCookie(partnerId).then((saved) => {
       if (!saved) return;
@@ -69,16 +73,24 @@ export default function OnboardingFlow({
       if (saved.coords) {
         setUserCoordinates(saved.coords);
       }
-      if (saved.orderType) {
-        setOrderType(saved.orderType as "delivery" | "takeaway");
-      }
     }).catch(() => {});
+    try {
+      const storedType = sessionStorage.getItem(`order_type_${partnerId}`);
+      if (storedType === "delivery" || storedType === "takeaway") {
+        setOrderType(storedType);
+      }
+    } catch {}
   }, [partnerId]);
 
   const finishOnboarding = useCallback(async (orderType: string = "none") => {
     await setOrderSessionCookie(partnerId, orderType);
     router.refresh();
   }, [partnerId, router]);
+
+  const markLoginAddressDone = useCallback(async () => {
+    // Persist login/address completion so reload skips straight to order type.
+    await setOrderSessionCookie(partnerId, "none");
+  }, [partnerId]);
 
   const handleLoginContinue = useCallback(async (phoneNum: string, ci: UserCountryInfo) => {
     setPhone(phoneNum);
@@ -101,6 +113,7 @@ export default function OnboardingFlow({
         if (needsAddress) {
           setStep("address");
         } else if (needsOrderType) {
+          await markLoginAddressDone();
           setStep("orderType");
         } else {
           await finishOnboarding();
@@ -111,7 +124,7 @@ export default function OnboardingFlow({
         setLoginLoading(false);
       }
     }
-  }, [hasWhatsappOtp, sendOtp, signInWithPhone, partnerId, needsAddress, needsOrderType, finishOnboarding]);
+  }, [hasWhatsappOtp, sendOtp, signInWithPhone, partnerId, needsAddress, needsOrderType, finishOnboarding, markLoginAddressDone]);
 
   const handleOtpVerify = useCallback(async (otp: string) => {
     try {
@@ -120,6 +133,7 @@ export default function OnboardingFlow({
       if (needsAddress) {
         setStep("address");
       } else if (needsOrderType) {
+        await markLoginAddressDone();
         setStep("orderType");
       } else {
         await finishOnboarding();
@@ -127,7 +141,7 @@ export default function OnboardingFlow({
     } catch {
       // error handled by hook
     }
-  }, [verifyOtp, signInWithPhone, phone, partnerId, countryInfo, needsAddress, needsOrderType, finishOnboarding]);
+  }, [verifyOtp, signInWithPhone, phone, partnerId, countryInfo, needsAddress, needsOrderType, finishOnboarding, markLoginAddressDone]);
 
   const handleAddressContinue = useCallback(async (addr: string, coords: { lat: number; lng: number } | null) => {
     setUserAddress(addr);
@@ -141,21 +155,24 @@ export default function OnboardingFlow({
     await setOnboardingDataCookie(partnerId, { address: addr, coords });
 
     if (needsOrderType) {
+      await markLoginAddressDone();
       setStep("orderType");
     } else {
       await finishOnboarding();
     }
-  }, [setUserAddress, setUserCoordinates, needsOrderType, partnerId, finishOnboarding]);
+  }, [setUserAddress, setUserCoordinates, needsOrderType, partnerId, finishOnboarding, markLoginAddressDone]);
 
-  const handleOrderTypeSelect = useCallback(async (type: "delivery" | "takeaway") => {
+  const handleOrderTypeSelect = useCallback((type: "delivery" | "takeaway") => {
     setOrderType(type);
-    await setOnboardingDataCookie(partnerId, { orderType: type });
-    await finishOnboarding(type);
-  }, [setOrderType, partnerId, finishOnboarding]);
+    try {
+      sessionStorage.setItem(`order_type_${partnerId}`, type);
+    } catch {}
+    setDismissed(true);
+  }, [setOrderType, partnerId]);
 
-  const handleSkip = useCallback(async () => {
-    await finishOnboarding();
-  }, [finishOnboarding]);
+  const handleSkip = useCallback(() => {
+    setDismissed(true);
+  }, []);
 
   const handleChangeNumber = useCallback(() => {
     resetOtp();
@@ -179,6 +196,8 @@ export default function OnboardingFlow({
     center: { x: 0, opacity: 1 },
     exit: { x: "-100%", opacity: 0 },
   };
+
+  if (dismissed) return null;
 
   return (
     <div className="fixed inset-0 z-[100] overflow-hidden">

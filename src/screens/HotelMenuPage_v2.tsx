@@ -82,7 +82,10 @@ const HotelMenuPage = ({
   const isUserLoggedIn = auth?.role === "user";
   const features = getFeatures(hoteldata?.feature_flags || "");
   const needsOnboarding = (features.delivery.enabled || features.ordering.enabled) && tableNumber === 0;
-  const showOnboarding = needsOnboarding && !onboardingCompleted;
+  // Always mount the onboarding overlay when needed; it dismisses itself once the
+  // user picks an order type and re-mounts on every reload so the order type screen
+  // shows again (value persists only in sessionStorage).
+  const showOnboarding = needsOnboarding;
 
   const styles: Styles = useMemo(() => ({
     backgroundColor: theme?.colors?.bg || "#F5F5F5",
@@ -334,20 +337,6 @@ const HotelMenuPage = ({
         (hoteldata?.delivery_rules?.isDeliveryActive ?? true) &&
         isWithinDeliveryTime()));
 
-  if (showOnboarding) {
-    return (
-      <OnboardingFlow
-        isLoggedIn={isUserLoggedIn}
-        featureFlags={hoteldata?.feature_flags || ""}
-        storeName={hoteldata?.store_name || ""}
-        storeBanner={hoteldata?.store_banner}
-        partnerId={hoteldata?.id || ""}
-        tableNumber={tableNumber}
-        themeBg={theme?.colors?.bg}
-      />
-    );
-  }
-
   return (
     <>
       {features?.delivery.enabled &&
@@ -378,6 +367,18 @@ const HotelMenuPage = ({
             tableNumber={tableNumber}
           />
         </section>
+      )}
+      {showOnboarding && (
+        <OnboardingFlow
+          isLoggedIn={isUserLoggedIn}
+          featureFlags={hoteldata?.feature_flags || ""}
+          storeName={hoteldata?.store_name || ""}
+          storeBanner={hoteldata?.store_banner}
+          partnerId={hoteldata?.id || ""}
+          tableNumber={tableNumber}
+          themeBg={theme?.colors?.bg}
+          onboardingCompleted={onboardingCompleted}
+        />
       )}
     </>
   );

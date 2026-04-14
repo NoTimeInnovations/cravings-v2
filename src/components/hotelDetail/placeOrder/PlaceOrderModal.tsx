@@ -42,7 +42,6 @@ import { Notification } from "@/app/actions/notification";
 import { useWhatsAppOtp } from "@/hooks/useWhatsAppOtp";
 import { OtpInput } from "@/components/ui/otp-input";
 import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
-import { clearOrderSessionCookie } from "@/app/auth/actions";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 
 // Helper: detect if a hex color is dark
@@ -2305,8 +2304,10 @@ const PlaceOrderModal = ({
           fetchFromHasura(incrementDiscountUsageMutation, { id: appliedDiscount.id }).catch(() => { });
         }
 
-        // Clear the order session so the order type screen shows on next visit
-        clearOrderSessionCookie(hotelData.id).catch(() => {});
+        // Clear only the sessionStorage order type so the order type screen re-prompts on reload.
+        try {
+          sessionStorage.removeItem(`order_type_${hotelData.id}`);
+        } catch {}
 
         if (onSuccessCallback) {
           onSuccessCallback();
