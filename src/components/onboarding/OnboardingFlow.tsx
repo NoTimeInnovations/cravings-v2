@@ -200,8 +200,8 @@ export default function OnboardingFlow({
   if (dismissed) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-hidden">
-      <AnimatePresence mode="wait">
+    <div className="fixed inset-0 z-[600] overflow-hidden">
+      <AnimatePresence mode="wait" initial={false}>
         {step === "login" && (
           <motion.div
             key="login"
