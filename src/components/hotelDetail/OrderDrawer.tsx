@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { FeatureFlags, getFeatures } from "@/lib/getFeatures";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import PlaceOrderModal from "./placeOrder/PlaceOrderModal";
+import PlaceOrderModalV2 from "./placeOrder/PlaceOrderModalV2";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import path from "path/win32";
 import { useQrDataStore } from "@/store/qrDataStore";
@@ -622,18 +623,43 @@ const OrderDrawer = ({
     }
   };
 
+  // Determine checkout style from partner theme
+  const partnerTheme = (() => {
+    const raw = (hotelData as any)?.theme;
+    if (!raw) return null;
+    if (typeof raw === "object") return raw as { checkoutStyle?: string };
+    try {
+      return JSON.parse(raw as string) as { checkoutStyle?: string };
+    } catch {
+      return null;
+    }
+  })();
+  const useV2Checkout = partnerTheme?.checkoutStyle === "v2";
+
   return (
     <>
       {/* Render PlaceOrderModal (controlled by store) */}
-      <PlaceOrderModal
-        qrGroup={qrGroup || null}
-        qrId={qrId || null}
-        getWhatsappLink={getWhatsappLink}
-        hotelData={hotelData}
-        tableNumber={tableNumber || 0}
-        tableName={qrData?.table_name || undefined}
-        styles={styles}
-      />
+      {useV2Checkout ? (
+        <PlaceOrderModalV2
+          qrGroup={qrGroup || null}
+          qrId={qrId || null}
+          getWhatsappLink={getWhatsappLink}
+          hotelData={hotelData}
+          tableNumber={tableNumber || 0}
+          tableName={qrData?.table_name || undefined}
+          styles={styles}
+        />
+      ) : (
+        <PlaceOrderModal
+          qrGroup={qrGroup || null}
+          qrId={qrId || null}
+          getWhatsappLink={getWhatsappLink}
+          hotelData={hotelData}
+          tableNumber={tableNumber || 0}
+          tableName={qrData?.table_name || undefined}
+          styles={styles}
+        />
+      )}
 
       {/* Bottom Drawer */}
       {(() => {

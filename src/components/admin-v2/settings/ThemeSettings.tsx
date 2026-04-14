@@ -18,7 +18,7 @@ import {
   DEFAULT_THEME,
 } from "@/components/hotelDetail/ThemeChangeButton";
 import { MENUSTYLES } from "@/components/hotelDetail/MenuStyleModal";
-import { Paintbrush, LayoutGrid, Check, Grid3X3, Crown } from "lucide-react";
+import { Paintbrush, LayoutGrid, Check, Grid3X3, Crown, ShoppingCart } from "lucide-react";
 import dynamic from "next/dynamic";
 import { MobilePreview } from "./MobilePreview";
 import { isFreePlan } from "@/lib/getPlanLimits";
@@ -77,6 +77,9 @@ export function ThemeSettings() {
     },
   );
   const [showGrid, setShowGrid] = useState(currentTheme.showGrid ?? false);
+  const [checkoutStyle, setCheckoutStyle] = useState<"default" | "v2">(
+    currentTheme.checkoutStyle || "default",
+  );
   const [activeColorPicker, setActiveColorPicker] = useState<
     "text" | "bg" | "accent" | null
   >(null);
@@ -90,6 +93,7 @@ export function ThemeSettings() {
         parsed.colors || { text: "#000000", bg: "#F5F5F5", accent: "#EA580C" },
       );
       setShowGrid(parsed.showGrid ?? false);
+      setCheckoutStyle(parsed.checkoutStyle || "default");
     }
   }, [userTheme]);
 
@@ -101,6 +105,7 @@ export function ThemeSettings() {
         menuStyle,
         fontFamily,
         showGrid,
+        checkoutStyle,
         infoAlignment: currentTheme.infoAlignment,
       };
       toast.loading("Saving theme...");
@@ -305,6 +310,44 @@ export function ThemeSettings() {
             </CardContent>
           </Card>
         )}
+
+        {/* Checkout Style */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5" />
+              Checkout Style
+            </CardTitle>
+            <CardDescription>
+              Choose the checkout experience your customers see when placing an order.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { id: "default" as const, name: "Classic" },
+                { id: "v2" as const, name: "New (V2)" },
+              ].map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => setCheckoutStyle(option.id)}
+                  className={`relative rounded-xl border-2 p-4 text-center transition-all ${
+                    checkoutStyle === option.id
+                      ? "border-orange-500 bg-orange-50 dark:bg-orange-500/10"
+                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+                  }`}
+                >
+                  {checkoutStyle === option.id && (
+                    <div className="absolute top-2 right-2 bg-orange-500 text-white rounded-full p-0.5">
+                      <Check className="h-3 w-3" />
+                    </div>
+                  )}
+                  <div className="text-sm font-semibold">{option.name}</div>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Save Button */}
         {onFreePlan ? (
