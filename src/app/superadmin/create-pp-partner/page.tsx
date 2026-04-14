@@ -317,6 +317,34 @@ const CreatePartnerPage = () => {
                   />
                 </button>
               </div>
+
+              {/* Menu Mapping Online/Offline Toggle */}
+              <div className="flex items-center justify-between pt-2">
+                <Label className="text-orange-900 flex items-center gap-2">
+                  Menu Mapping
+                </Label>
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-medium ${menuMapping === "Offline" ? "text-orange-900" : "text-gray-400"}`}>
+                    Offline
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setMenuMapping(menuMapping === "Online" ? "Offline" : "Online")}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      menuMapping === "Online" ? "bg-orange-600" : "bg-gray-400"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        menuMapping === "Online" ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                  <span className={`text-sm font-medium ${menuMapping === "Online" ? "text-orange-900" : "text-gray-400"}`}>
+                    Online
+                  </span>
+                </div>
+              </div>
             </CardContent>
             <CardFooter>
               <Button
@@ -403,15 +431,6 @@ const CreatePartnerPage = () => {
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm text-gray-600">Menu Mapping</Label>
-                  <Input
-                    value={menuMapping}
-                    onChange={(e) => setMenuMapping(e.target.value)}
-                    className="text-sm"
-                  />
                 </div>
 
                 <div className="space-y-2">
