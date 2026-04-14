@@ -43,6 +43,7 @@ const CreatePartnerPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sendEmail, setSendEmail] = useState(true);
   const [enableBackwardTax, setEnableBackwardTax] = useState(true);
+  const [onlySendEmail, setOnlySendEmail] = useState(false);
 
   const emailSubject = `New Restaurant Onboarding Of ${name || "[Restaurant Name]"} - Petpooja`;
 
@@ -59,7 +60,7 @@ const CreatePartnerPage = () => {
       alert("Please enter a valid email.");
       return false;
     }
-    if (!password) {
+    if (!onlySendEmail && !password) {
       alert("Please enter a valid password.");
       return false;
     }
@@ -85,6 +86,31 @@ const CreatePartnerPage = () => {
 
     setIsSubmitting(true);
     try {
+      if (onlySendEmail) {
+        const emailResult = await sendPetpoojaOnboardingEmailAction({
+          to: [email, ...toEmails].filter(Boolean).join(", "),
+          subject: emailSubject,
+          restaurantName: name,
+          restaurantId,
+          menuMapping,
+          senderName,
+          senderOrg,
+          enableBackwardTax,
+        });
+
+        if (emailResult.success) {
+          alert("Onboarding email sent successfully!");
+        } else {
+          alert("Failed to send email. Please try again.");
+        }
+
+        setName("");
+        setEmail("");
+        setRestaurantId("");
+        setPassword("");
+        return;
+      }
+
       // 1. Check if this email/id already exists
       const { partners } = await fetchFromHasura(getPartnerByPpidOrEmailQuery, {
         email,
@@ -237,14 +263,36 @@ const CreatePartnerPage = () => {
                 </Label>
                 <button
                   type="button"
+                  disabled={onlySendEmail}
                   onClick={() => setSendEmail(!sendEmail)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    sendEmail ? "bg-orange-600" : "bg-gray-300"
+                    sendEmail || onlySendEmail ? "bg-orange-600" : "bg-gray-300"
+                  } ${onlySendEmail ? "opacity-60 cursor-not-allowed" : ""}`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      sendEmail || onlySendEmail ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Only Send Email Toggle */}
+              <div className="flex items-center justify-between pt-2">
+                <Label className="text-orange-900 flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-orange-600" />
+                  Only send email (skip partner creation)
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => setOnlySendEmail(!onlySendEmail)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    onlySendEmail ? "bg-orange-600" : "bg-gray-300"
                   }`}
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      sendEmail ? "translate-x-6" : "translate-x-1"
+                      onlySendEmail ? "translate-x-6" : "translate-x-1"
                     }`}
                   />
                 </button>
@@ -277,7 +325,9 @@ const CreatePartnerPage = () => {
                 className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold"
               >
                 {isSubmitting ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...</>
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {onlySendEmail ? "Sending..." : "Creating..."}</>
+                ) : onlySendEmail ? (
+                  <><Send className="mr-2 h-4 w-4" /> Send Email Only</>
                 ) : sendEmail ? (
                   <><Send className="mr-2 h-4 w-4" /> Create Partner & Send Email</>
                 ) : (
