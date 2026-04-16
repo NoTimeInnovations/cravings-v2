@@ -25,6 +25,7 @@ export interface ThemeConfig {
     accent: string;
   };
   menuStyle: string;
+  checkoutStyle?: "default" | "v2";
   infoAlignment?: string;
   fontFamily?: string;
   showGrid?: boolean;

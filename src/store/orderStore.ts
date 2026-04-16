@@ -1530,6 +1530,10 @@ const useOrderStore = create(
     {
       name: "order-storage",
       storage: createJSONStorage(() => getSafeStorage()),
+      partialize: (state) => {
+        const { orderType: _orderType, ...rest } = state as any;
+        return rest;
+      },
     }
   )
 );

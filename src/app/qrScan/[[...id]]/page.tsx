@@ -9,7 +9,7 @@ import {
 } from "@/components/SubscriptionStatusCards";
 import { GET_QR_TABLE } from "@/api/qrcodes";
 import { ScanTracker } from "@/components/ScanTracker";
-import { getAuthCookie } from "@/app/auth/actions";
+import { getAuthCookie, getOrderSessionCookie } from "@/app/auth/actions";
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
 import { ThemeConfig, DEFAULT_THEME } from "@/components/hotelDetail/ThemeChangeButton";
 import { getFeatures } from "@/lib/getFeatures";
@@ -461,6 +461,7 @@ const page = async ({
           qrGroup={qr_codes[0].qr_group}
           qrId={validQrId}
           selectedCategory={cat}
+          onboardingCompleted={tableNumber !== 0 || !!(await getOrderSessionCookie(hotelId))}
         />
       </>
     );

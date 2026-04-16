@@ -43,6 +43,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
         is_price_as_per_size: item.is_price_as_per_size || false,
         is_top: item.is_top || false,
         show_on_delivery: item.show_on_delivery !== false,
+        show_on_takeaway: item.show_on_takeaway !== false,
     });
 
     const [variants, setVariants] = useState<Variant[]>(item.variants || []);
@@ -87,6 +88,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                 tags: editingItem.tags,
                 is_price_as_per_size: editingItem.is_price_as_per_size,
                 is_top: editingItem.is_top,
+                show_on_takeaway: editingItem.show_on_takeaway,
             });
             toast.success("Item updated successfully");
             onBack(item.id!);
@@ -336,6 +338,17 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                                     <Switch
                                         checked={editingItem.show_on_delivery}
                                         onCheckedChange={(checked) => setEditingItem({ ...editingItem, show_on_delivery: checked })}
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-between border rounded-lg p-3">
+                                    <div className="space-y-0.5">
+                                        <label className="text-sm font-medium">Show on Takeaway</label>
+                                        <p className="text-xs text-muted-foreground">Show this item for takeaway orders</p>
+                                    </div>
+                                    <Switch
+                                        checked={editingItem.show_on_takeaway}
+                                        onCheckedChange={(checked) => setEditingItem({ ...editingItem, show_on_takeaway: checked })}
                                     />
                                 </div>
                             </div>

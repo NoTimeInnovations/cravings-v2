@@ -28,6 +28,7 @@ export const getMenu = `
             pp_id
             delivery_price
             show_on_delivery
+            show_on_takeaway
         }
     }
 `;
@@ -109,6 +110,7 @@ export const updateMenu = `
             price
             delivery_price
             show_on_delivery
+            show_on_takeaway
             description
             is_top
             is_available

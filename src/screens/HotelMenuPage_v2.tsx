@@ -22,6 +22,7 @@ import Sidebar from "@/components/hotelDetail/styles/Sidebar/Sidebar";
 import { saveUserLocation } from "@/lib/saveUserLocLocal";
 import { QrCode, useQrDataStore } from "@/store/qrDataStore";
 import DeliveryTimeCampain from "@/components/hotelDetail/DeliveryTimeCampain";
+import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 
 export type MenuItem = {
   description: string;
@@ -57,6 +58,7 @@ interface HotelMenuPageProps {
   qrId?: string | null;
   selectedCategory?: string;
   qrData?: QrCode | null;
+  onboardingCompleted?: boolean;
 }
 
 const HotelMenuPage = ({
@@ -70,10 +72,20 @@ const HotelMenuPage = ({
   qrGroup,
   qrId,
   selectedCategory: selectedCategoryProp,
+  onboardingCompleted,
 }: HotelMenuPageProps) => {
   const pathname = usePathname();
-  const { setHotelId, genOrderId, open_place_order_modal } = useOrderStore();
+  const { setHotelId, genOrderId, open_place_order_modal, orderType } = useOrderStore();
   const { setQrData } = useQrDataStore();
+
+  // Onboarding state
+  const isUserLoggedIn = auth?.role === "user";
+  const features = getFeatures(hoteldata?.feature_flags || "");
+  const needsOnboarding = (features.delivery.enabled || features.ordering.enabled) && tableNumber === 0;
+  // Always mount the onboarding overlay when needed; it dismisses itself once the
+  // user picks an order type and re-mounts on every reload so the order type screen
+  // shows again (value persists only in sessionStorage).
+  const showOnboarding = needsOnboarding;
 
   const styles: Styles = useMemo(() => ({
     backgroundColor: theme?.colors?.bg || "#F5F5F5",
@@ -160,23 +172,33 @@ const HotelMenuPage = ({
     }
   }, [hoteldata?.id, setHotelId, genOrderId]);
 
+  // Filter menus by order type visibility
+  const filteredMenus = useMemo(() => {
+    if (!hoteldata?.menus) return [];
+    return hoteldata.menus.filter((item: any) => {
+      if (orderType === "delivery" && item.show_on_delivery === false) return false;
+      if (orderType === "takeaway" && item.show_on_takeaway === false) return false;
+      return true;
+    });
+  }, [hoteldata?.menus, orderType]);
+
   // ✅ Memoize offeredItems to avoid recalculating on every render
   const offeredItems = useMemo(() => {
-    if (!hoteldata?.menus || !offers) return [];
+    if (!filteredMenus || !offers) return [];
     const activeOfferMenuIds = new Set(offers.map((offer) => offer.menu?.id));
-    return hoteldata.menus.filter(
+    return filteredMenus.filter(
       (item) =>
         activeOfferMenuIds.has(item.id || "") &&
         (item.category.is_active === undefined || item.category.is_active)
     );
-  }, [hoteldata?.menus, offers]);
+  }, [filteredMenus, offers]);
 
   // ✅ Memoize categories to prevent recalculating unless the menu changes
   const categories = useMemo(() => {
-    if (!hoteldata?.menus) return [];
+    if (!filteredMenus.length) return [];
     const uniqueCategoriesMap = new Map<string, Category>();
 
-    hoteldata.menus.forEach((item) => {
+    filteredMenus.forEach((item) => {
       if (
         !uniqueCategoriesMap.has(item.category.name) &&
         (item.category.is_active === undefined || item.category.is_active)
@@ -199,19 +221,19 @@ const HotelMenuPage = ({
       return [offerCategory, ...uniqueCategories];
     }
     return uniqueCategories;
-  }, [hoteldata?.menus, offeredItems]);
+  }, [filteredMenus, offeredItems]);
 
   const [selectedCategory, setSelectedCat] = useState(selectedCategoryProp || "all");
 
   // ✅ Memoize the filtered and sorted items for the selected category
   const items = useMemo(() => {
-    if (!hoteldata?.menus) return [];
+    if (!filteredMenus.length) return [];
 
     let filteredItems = [];
 
     if (selectedCategory === "all") {
       filteredItems =
-        hoteldata.menus.filter(
+        filteredMenus.filter(
           (item) =>
             item.category.is_active === undefined || item.category.is_active
         ) || [];
@@ -219,7 +241,7 @@ const HotelMenuPage = ({
       filteredItems = offeredItems;
     } else {
       filteredItems =
-        hoteldata.menus.filter(
+        filteredMenus.filter(
           (item) =>
             item.category.name === selectedCategory &&
             (item.category.is_active === undefined || item.category.is_active)
@@ -234,18 +256,18 @@ const HotelMenuPage = ({
       if (!aHasImage && bHasImage) return 1;
       return 0;
     });
-  }, [selectedCategory, hoteldata?.menus, offeredItems]);
+  }, [selectedCategory, filteredMenus, offeredItems]);
 
   // ✅ Memoize top-selling items
   const topItems = useMemo(() => {
     return (
-      hoteldata?.menus?.filter(
+      filteredMenus.filter(
         (item) =>
           item.is_top === true &&
           (item.category.is_active === undefined || item.category.is_active)
       ) || []
     );
-  }, [hoteldata?.menus]);
+  }, [filteredMenus]);
 
   // ✅ Memoize the function passed as a prop to prevent child re-renders
   const setSelectedCategory = useCallback(
@@ -258,9 +280,17 @@ const HotelMenuPage = ({
   const hotelPlanId = (hoteldata as any)?.subscription_details?.plan?.id;
   const isHotelOnFreePlan = isFreePlan(hotelPlanId);
 
+  // Pass hoteldata with order-type-filtered menus to child components
+  // Keep allMenus (unfiltered) for checkout cart validation
+  const filteredHotelData = useMemo(() => ({
+    ...hoteldata,
+    menus: filteredMenus,
+    allMenus: hoteldata?.menus || [],
+  }), [hoteldata, filteredMenus]);
+
   const defaultProps = {
     offers,
-    hoteldata,
+    hoteldata: filteredHotelData,
     auth,
     theme,
     tableNumber,
@@ -288,8 +318,6 @@ const HotelMenuPage = ({
         return <Default {...defaultProps} />;
     }
   };
-
-  const features = getFeatures(hoteldata?.feature_flags || "");
 
   const isWithinDeliveryTime = () => {
     if (!hoteldata?.delivery_rules?.delivery_time_allowed) {
@@ -357,6 +385,18 @@ const HotelMenuPage = ({
             tableNumber={tableNumber}
           />
         </section>
+      )}
+      {showOnboarding && (
+        <OnboardingFlow
+          isLoggedIn={isUserLoggedIn}
+          featureFlags={hoteldata?.feature_flags || ""}
+          storeName={hoteldata?.store_name || ""}
+          storeBanner={hoteldata?.store_banner}
+          partnerId={hoteldata?.id || ""}
+          tableNumber={tableNumber}
+          themeBg={theme?.colors?.bg}
+          onboardingCompleted={onboardingCompleted}
+        />
       )}
     </>
   );

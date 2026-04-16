@@ -10,7 +10,7 @@ import { Offer } from "@/store/offerStore_hasura";
 import { unstable_cache } from "next/cache";
 import React from "react";
 import { Partner } from "@/store/authStore";
-import { getAuthCookie } from "@/app/auth/actions";
+import { getAuthCookie, getOrderSessionCookie } from "@/app/auth/actions";
 import { ThemeConfig, DEFAULT_THEME } from "@/components/hotelDetail/ThemeChangeButton";
 import { Metadata, Viewport } from "next";
 import { getSocialLinks } from "@/lib/getSocialLinks";
@@ -358,8 +358,7 @@ const HotelPage = async ({
   const partnerPriceAdjustment = hoteldata?.price_adjustment || 0;
 
   const menuItemWithOfferPrice = hoteldata?.menus
-    ?.filter((item: any) => item.show_on_delivery !== false)
-    .map((item: any) => {
+    ?.map((item: any) => {
       const deliveryBase = item.delivery_price ?? item.price;
       const offerPrice = item.offers?.[0]?.offer_price;
       // If offer exists, apply the same discount amount to delivery base price
@@ -615,6 +614,7 @@ const HotelPage = async ({
         qrId={null}
         qrGroup={table0QrGroup}
         selectedCategory={cat}
+        onboardingCompleted={!!(await getOrderSessionCookie(hotelId!))}
       />
     </>
   );

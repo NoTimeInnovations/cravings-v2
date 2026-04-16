@@ -1,6 +1,7 @@
 "use client";
 import { getFeatures } from "@/lib/getFeatures";
 import { Partner, useAuthStore } from "@/store/authStore";
+import useOrderStore from "@/store/orderStore";
 import {
   ShoppingBag,
   User,
@@ -17,6 +18,7 @@ import { useEffect, useState } from "react";
 
 const BottomNav = () => {
   const { userData } = useAuthStore();
+  const isCheckoutOpen = useOrderStore((s) => s.open_place_order_modal);
   const pathname = usePathname();
   const router = useRouter();
   const [isVisible, setIsVisible] = useState(true);
@@ -223,6 +225,7 @@ const BottomNav = () => {
   const isHotelSubRoute = pathname.startsWith("/hotels/");
   const shouldShow =
     items.length > 0 &&
+    !isCheckoutOpen &&
     !isUsernameRoute &&
     !isHotelSubRoute &&
     !pathname.startsWith("/captain") &&
@@ -248,7 +251,7 @@ const BottomNav = () => {
       {/* Bottom Navigation Bar */}
       <nav
         aria-label="Bottom navigation"
-        className={`fixed bottom-0 left-0 w-full px-4 py-3 flex justify-around z-[500] border-t transition-transform duration-300 ${
+        className={`fixed bottom-0 left-0 w-full px-4 py-3 flex justify-around z-[50] border-t transition-transform duration-300 ${
           isVisible ? "translate-y-0" : "translate-y-full"
         }`}
         style={{

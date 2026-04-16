@@ -850,6 +850,7 @@ const Compact = ({
   // Calculate if bottom nav should be shown
   const showBottomNav =
     auth?.role === "user" &&
+    !open_place_order_modal &&
     (getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled ==
       true ||
       getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled ==
