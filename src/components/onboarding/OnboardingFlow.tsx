@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "motion/react";
 import { useAuthStore } from "@/store/authStore";
 import useOrderStore from "@/store/orderStore";
 import { useWhatsAppOtp } from "@/hooks/useWhatsAppOtp";
@@ -25,6 +24,9 @@ interface OnboardingFlowProps {
   tableNumber: number;
   themeBg?: string;
   onboardingCompleted?: boolean;
+  deliveryTimeAllowed?: { from: string; to: string } | null;
+  takeawayTimeAllowed?: { from: string; to: string } | null;
+  isDeliveryActive?: boolean;
 }
 
 export default function OnboardingFlow({
@@ -36,6 +38,9 @@ export default function OnboardingFlow({
   tableNumber,
   themeBg,
   onboardingCompleted = false,
+  deliveryTimeAllowed,
+  takeawayTimeAllowed,
+  isDeliveryActive = true,
 }: OnboardingFlowProps) {
   const router = useRouter();
   const features = getFeatures(featureFlags);
@@ -54,6 +59,12 @@ export default function OnboardingFlow({
 
   const [step, setStep] = useState<OnboardingStep>(getInitialStep);
   const [dismissed, setDismissed] = useState(false);
+  const [closing, setClosing] = useState(false);
+
+  const dismissWithAnimation = useCallback(() => {
+    setClosing(true);
+    setTimeout(() => setDismissed(true), 400);
+  }, []);
   const [phone, setPhone] = useState("");
   const [countryInfo, setCountryInfo] = useState<UserCountryInfo | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
@@ -167,12 +178,12 @@ export default function OnboardingFlow({
     try {
       sessionStorage.setItem(`order_type_${partnerId}`, type);
     } catch {}
-    setDismissed(true);
-  }, [setOrderType, partnerId]);
+    dismissWithAnimation();
+  }, [setOrderType, partnerId, dismissWithAnimation]);
 
   const handleSkip = useCallback(() => {
-    setDismissed(true);
-  }, []);
+    dismissWithAnimation();
+  }, [dismissWithAnimation]);
 
   const handleChangeNumber = useCallback(() => {
     resetOtp();
@@ -191,104 +202,67 @@ export default function OnboardingFlow({
     setStep("address");
   }, []);
 
-  const slideVariants = {
-    enter: { x: "100%", opacity: 0 },
-    center: { x: 0, opacity: 1 },
-    exit: { x: "-100%", opacity: 0 },
-  };
-
   if (dismissed) return null;
 
   return (
-    <div className="fixed inset-0 overflow-hidden" style={{ zIndex: 9999 }}>
-      <AnimatePresence mode="wait" initial={false}>
+    <div
+      className={`fixed inset-0 overflow-hidden transition-all duration-400 ${closing ? "opacity-0 scale-95" : "opacity-100 scale-100"}`}
+      style={{ zIndex: 9999 }}
+    >
+      <div
+        key={step}
+        className="absolute inset-0 animate-slide-in-right"
+      >
         {step === "login" && (
-          <motion.div
-            key="login"
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="absolute inset-0"
-          >
-            <LoginScreen
-              storeName={storeName}
-              storeBanner={storeBanner}
-              themeBg={themeBg}
-              onContinue={handleLoginContinue}
-              loading={loginLoading || isSending}
-            />
-          </motion.div>
+          <LoginScreen
+            storeName={storeName}
+            storeBanner={storeBanner}
+            themeBg={themeBg}
+            onContinue={handleLoginContinue}
+            loading={loginLoading || isSending}
+          />
         )}
 
         {step === "otp" && (
-          <motion.div
-            key="otp"
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="absolute inset-0"
-          >
-            <OTPScreen
-              phone={phone}
-              callingCode={countryInfo?.callingCode || "+91"}
-              storeBanner={storeBanner}
-              storeName={storeName}
-              themeBg={themeBg}
-              onVerify={handleOtpVerify}
-              onResend={handleResendOtp}
-              onChangeNumber={handleChangeNumber}
-              loading={isVerifying}
-              error={otpError}
-            />
-          </motion.div>
+          <OTPScreen
+            phone={phone}
+            callingCode={countryInfo?.callingCode || "+91"}
+            storeBanner={storeBanner}
+            storeName={storeName}
+            themeBg={themeBg}
+            onVerify={handleOtpVerify}
+            onResend={handleResendOtp}
+            onChangeNumber={handleChangeNumber}
+            loading={isVerifying}
+            error={otpError}
+          />
         )}
 
         {step === "address" && (
-          <motion.div
-            key="address"
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="absolute inset-0"
-          >
-            <DeliveryAddressScreen
-              storeBanner={storeBanner}
-              storeName={storeName}
-              themeBg={themeBg}
-              onContinue={handleAddressContinue}
-            />
-          </motion.div>
+          <DeliveryAddressScreen
+            storeBanner={storeBanner}
+            storeName={storeName}
+            themeBg={themeBg}
+            onContinue={handleAddressContinue}
+          />
         )}
 
         {step === "orderType" && (
-          <motion.div
-            key="orderType"
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-            className="absolute inset-0"
-          >
-            <OrderTypeScreen
-              storeBanner={storeBanner}
-              storeName={storeName}
-              themeBg={themeBg}
-              hasDelivery={hasDelivery}
-              hasOrdering={hasOrdering}
-              onSelect={handleOrderTypeSelect}
-              onSkip={handleSkip}
-              onChangeLocation={handleChangeLocation}
-            />
-          </motion.div>
+          <OrderTypeScreen
+            storeBanner={storeBanner}
+            storeName={storeName}
+            themeBg={themeBg}
+            hasDelivery={hasDelivery}
+            hasOrdering={hasOrdering}
+            onSelect={handleOrderTypeSelect}
+            onSkip={handleSkip}
+            onChangeLocation={handleChangeLocation}
+            deliveryTimeAllowed={deliveryTimeAllowed}
+            takeawayTimeAllowed={takeawayTimeAllowed}
+            isDeliveryActive={isDeliveryActive}
+          />
         )}
-      </AnimatePresence>
+      </div>
     </div>
   );
 }

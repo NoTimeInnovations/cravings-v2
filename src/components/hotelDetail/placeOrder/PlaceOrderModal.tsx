@@ -730,28 +730,79 @@ const BillCard = ({
 const OrderTypeCard = ({
   orderType,
   setOrderType,
+  deliveryTimeAllowed,
+  takeawayTimeAllowed,
+  isDeliveryActive = true,
 }: {
   orderType: "takeaway" | "delivery" | null;
   setOrderType: (type: "takeaway" | "delivery") => void;
+  deliveryTimeAllowed?: { from: string; to: string } | null;
+  takeawayTimeAllowed?: { from: string; to: string } | null;
+  isDeliveryActive?: boolean;
 }) => {
+  const { isWithinTimeWindow, formatTime12h } = (() => {
+    const check = (tw: { from: string; to: string } | null | undefined) => {
+      if (!tw?.from || !tw?.to) return true;
+      const now = new Date();
+      const [fH, fM] = tw.from.split(":").map(Number);
+      const [tH, tM] = tw.to.split(":").map(Number);
+      const s = new Date(); s.setHours(fH, fM, 0, 0);
+      const e = new Date(); e.setHours(tH, tM, 0, 0);
+      return s > e ? (now >= s || now <= e) : (now >= s && now <= e);
+    };
+    const fmt = (t: string) => {
+      const [h, m] = t.split(":").map(Number);
+      const p = h >= 12 ? "PM" : "AM";
+      return `${h === 0 ? 12 : h > 12 ? h - 12 : h}:${m.toString().padStart(2, "0")} ${p}`;
+    };
+    return { isWithinTimeWindow: check, formatTime12h: fmt };
+  })();
+
+  const timeMap: Record<string, { allowed: boolean; window?: { from: string; to: string } | null; inactiveMsg?: string }> = {
+    delivery: {
+      allowed: isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed),
+      window: deliveryTimeAllowed,
+      inactiveMsg: !isDeliveryActive ? "Delivery is currently unavailable" : undefined,
+    },
+    takeaway: { allowed: isWithinTimeWindow(takeawayTimeAllowed), window: takeawayTimeAllowed },
+  };
+
   return (
-    <div className="flex gap-2">
-      {(["delivery", "takeaway"] as const).map((type) => (
-        <button
-          key={type}
-          onClick={() => setOrderType(type)}
-          className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${orderType === type
-            ? "text-white"
-            : ""
-            }`}
-          style={orderType === type
-            ? { backgroundColor: "var(--pom-accent, #ea580c)" }
-            : { backgroundColor: "color-mix(in srgb, var(--pom-accent, #ea580c) 12%, transparent)", color: "var(--pom-text-muted)" }
-          }
-        >
-          {type.charAt(0).toUpperCase() + type.slice(1)}
-        </button>
-      ))}
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-2">
+        {(["delivery", "takeaway"] as const).map((type) => {
+          const { allowed } = timeMap[type];
+          return (
+            <button
+              key={type}
+              onClick={() => allowed && setOrderType(type)}
+              disabled={!allowed}
+              className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
+                !allowed ? "opacity-40 cursor-not-allowed" : ""
+              } ${orderType === type ? "text-white" : ""}`}
+              style={orderType === type
+                ? { backgroundColor: "var(--pom-accent, #ea580c)" }
+                : { backgroundColor: "color-mix(in srgb, var(--pom-accent, #ea580c) 12%, transparent)", color: "var(--pom-text-muted)" }
+              }
+            >
+              {type.charAt(0).toUpperCase() + type.slice(1)}
+            </button>
+          );
+        })}
+      </div>
+      {(["delivery", "takeaway"] as const).map((type) => {
+        const { allowed, window: tw, inactiveMsg } = timeMap[type];
+        if (allowed) return null;
+        if (inactiveMsg) return (
+          <p key={type} className="text-[11px] text-red-500 px-1">{inactiveMsg}</p>
+        );
+        if (!tw) return null;
+        return (
+          <p key={type} className="text-[11px] text-red-500 px-1">
+            {type.charAt(0).toUpperCase() + type.slice(1)} available {formatTime12h(tw.from)} - {formatTime12h(tw.to)}
+          </p>
+        );
+      })}
     </div>
   );
 };
@@ -2693,7 +2744,13 @@ const PlaceOrderModal = ({
                 )}
                 {tableNumber === 0 && (
                   <div className="mt-3">
-                    <OrderTypeCard orderType={orderType} setOrderType={setOrderType} />
+                    <OrderTypeCard
+                      orderType={orderType}
+                      setOrderType={setOrderType}
+                      deliveryTimeAllowed={hotelData?.delivery_rules?.delivery_time_allowed}
+                      takeawayTimeAllowed={hotelData?.delivery_rules?.takeaway_time_allowed}
+                      isDeliveryActive={hotelData?.delivery_rules?.isDeliveryActive ?? true}
+                    />
                   </div>
                 )}
               </div>

@@ -313,6 +313,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signOut: async (skipTokenRemove?: boolean) => {
     const fcmToken = localStorage?.getItem("fcmToken");
     const isApp = localStorage?.getItem("isApp");
+    const hotelTheme = localStorage?.getItem("hotelTheme");
     const accounts = await getAllAccounts();
 
     // Preserve hotel-specific localStorage? items
@@ -334,6 +335,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     localStorage?.clear();
     if (fcmToken) localStorage?.setItem("fcmToken", fcmToken);
     if (isApp) localStorage?.setItem("isApp", isApp);
+    if (hotelTheme) localStorage?.setItem("hotelTheme", hotelTheme);
 
     // Restore hotel-specific items
     Object.entries(hotelLocationItems).forEach(([key, value]) => {

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
-import { motion } from "motion/react";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { getUserCountry, UserCountryInfo } from "@/lib/getUserCountry";
 
@@ -81,11 +80,8 @@ export default function LoginScreen({
         {/* items images collage */}
         <div className="relative w-full h-[100px] overflow-visible">
           {/* Dosa - left side */}
-          <motion.div
-            className="absolute -top-10 left-4 z-[2]"
-            initial={{ y: -120, opacity: 0 }}
-            animate={imagesLoaded ? { y: 0, opacity: 1 } : { y: 120, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
+          <div
+            className={`absolute -top-10 left-4 z-[2] opacity-0 ${imagesLoaded ? "animate-bounce-in-1" : ""}`}
           >
             <Image
               src="/dosa.png"
@@ -95,13 +91,10 @@ export default function LoginScreen({
               className="object-contain drop-shadow-lg -rotate-6"
               onLoad={handleImageLoad}
             />
-          </motion.div>
+          </div>
           {/* Juice Jar - center, prominent */}
-          <motion.div
-            className="absolute -top-20 left-28 -translate-x-1/2 z-[3]"
-            initial={{ y: -120, opacity: 0 }}
-            animate={imagesLoaded ? { y: 0, opacity: 1 } : { y: 120, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.2 }}
+          <div
+            className={`absolute -top-20 left-28 -translate-x-1/2 z-[3] opacity-0 ${imagesLoaded ? "animate-bounce-in-2" : ""}`}
           >
             <Image
               src="/juice jar.png"
@@ -111,13 +104,10 @@ export default function LoginScreen({
               className="object-contain drop-shadow-xl"
               onLoad={handleImageLoad}
             />
-          </motion.div>
+          </div>
           {/* Biriyani - right side */}
-          <motion.div
-            className="absolute -top-10 right-8 z-[1]"
-            initial={{ y: -120, opacity: 0 }}
-            animate={imagesLoaded ? { y: 0, opacity: 1 } : { y: 120, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.3 }}
+          <div
+            className={`absolute -top-10 right-8 z-[1] opacity-0 ${imagesLoaded ? "animate-bounce-in-3" : ""}`}
           >
             <Image
               src="/biriyani.png"
@@ -127,7 +117,7 @@ export default function LoginScreen({
               className="object-contain drop-shadow-lg"
               onLoad={handleImageLoad}
             />
-          </motion.div>
+          </div>
         </div>
 
         {/* Bottom white card */}

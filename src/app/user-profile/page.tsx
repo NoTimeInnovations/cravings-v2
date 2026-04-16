@@ -185,8 +185,9 @@ export default function UserProfilePage() {
   };
 
   const handleLogout = async () => {
+    const lastStore = theme.storePath || "/";
     await signOut();
-    router.replace("/");
+    router.replace(lastStore);
   };
 
   if (authLoading || !user) {

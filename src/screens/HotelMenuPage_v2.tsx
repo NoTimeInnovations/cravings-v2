@@ -103,7 +103,7 @@ const HotelMenuPage = ({
   //   saveUserLocation(false);
   // }, []);
 
-  // Save theme + last visited store to localStorage so other screens can use it
+  // Save theme + last visited store to localStorage and cookie for loading screens
   useEffect(() => {
     try {
       localStorage.setItem(
@@ -115,10 +115,19 @@ const HotelMenuPage = ({
           showGrid: theme?.showGrid,
           storeName: hoteldata?.store_name,
           storePath: pathname,
+          storeBanner: hoteldata?.store_banner || "",
         })
       );
+      // Set cookie for server-side loading screens
+      const banner = hoteldata?.store_banner;
+      const cookieData = JSON.stringify({
+        banner: banner && !banner.endsWith(".mp4") ? banner : undefined,
+        bg: styles.backgroundColor || undefined,
+        name: hoteldata?.store_name || undefined,
+      });
+      document.cookie = `store_theme=${encodeURIComponent(cookieData)}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
     } catch {}
-  }, [styles.accent, styles.backgroundColor, styles.color, theme?.showGrid, hoteldata?.store_name, pathname]);
+  }, [styles.accent, styles.backgroundColor, styles.color, theme?.showGrid, hoteldata?.store_name, pathname, hoteldata?.store_banner]);
 
   useEffect(() => {
     setQrData(qrData || null);
@@ -396,6 +405,9 @@ const HotelMenuPage = ({
           tableNumber={tableNumber}
           themeBg={theme?.colors?.bg}
           onboardingCompleted={onboardingCompleted}
+          deliveryTimeAllowed={hoteldata?.delivery_rules?.delivery_time_allowed}
+          takeawayTimeAllowed={hoteldata?.delivery_rules?.takeaway_time_allowed}
+          isDeliveryActive={hoteldata?.delivery_rules?.isDeliveryActive ?? true}
         />
       )}
     </>
