@@ -39,6 +39,7 @@ export function GeneralSettings() {
     const isOnFreePlan = isFreePlan(planId);
     const [isSaving, setIsSaving] = useState(false);
     const [storeName, setStoreName] = useState("");
+    const [storeTagline, setStoreTagline] = useState("");
     const [description, setDescription] = useState("");
     const [phone, setPhone] = useState("");
     const [whatsappNumber, setWhatsappNumber] = useState("");
@@ -116,6 +117,7 @@ export function GeneralSettings() {
     useEffect(() => {
         if (userData?.role === "partner") {
             setStoreName(userData.store_name || "");
+            setStoreTagline((userData as any).store_tagline || "");
             setDescription(userData.description || "");
             setPhone(userData.phone || "");
             setWhatsappNumber(userData.whatsapp_numbers?.[0]?.number || userData.phone || "");
@@ -368,6 +370,7 @@ export function GeneralSettings() {
         try {
             const updates: any = {
                 store_name: storeName,
+                store_tagline: storeTagline || null,
                 description,
                 phone,
                 footnote: footNote,
@@ -893,6 +896,18 @@ export function GeneralSettings() {
                                     onChange={(e) => setStoreName(e.target.value)}
                                     placeholder="Store Name"
                                 />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Store Tagline</Label>
+                                <Input
+                                    value={storeTagline}
+                                    onChange={(e) => {
+                                        if (e.target.value.length <= 60) setStoreTagline(e.target.value);
+                                    }}
+                                    placeholder={`Order Your Favorite Dishes from ${storeName}`}
+                                    maxLength={60}
+                                />
+                                <p className="text-xs text-muted-foreground">{storeTagline.length}/60 characters</p>
                             </div>
                             <div className="space-y-2">
                                 <Label>Phone Number</Label>

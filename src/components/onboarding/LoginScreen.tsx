@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { getUserCountry, UserCountryInfo } from "@/lib/getUserCountry";
@@ -9,6 +9,7 @@ interface LoginScreenProps {
   storeName: string;
   storeBanner?: string;
   themeBg?: string;
+  storeTagline?: string;
   onContinue: (phone: string, countryInfo: UserCountryInfo) => void;
   loading?: boolean;
 }
@@ -17,9 +18,11 @@ export default function LoginScreen({
   storeName,
   storeBanner,
   themeBg,
+  storeTagline,
   onContinue,
   loading,
 }: LoginScreenProps) {
+  const tagline = storeTagline || `Order Your Favorite Dishes from ${storeName}`;
   const [phone, setPhone] = useState("");
   const [countryInfo, setCountryInfo] = useState<UserCountryInfo>({
     country: "India",
@@ -28,11 +31,6 @@ export default function LoginScreen({
     callingCode: "+91",
   });
   const [error, setError] = useState("");
-  const [imagesLoaded, setImagesLoaded] = useState(false);
-
-  const handleImageLoad = useCallback(() => {
-    setImagesLoaded(true);
-  }, []);
 
   useEffect(() => {
     getUserCountry().then(setCountryInfo);
@@ -50,45 +48,40 @@ export default function LoginScreen({
 
   return (
     <div className="flex flex-col min-h-dvh" style={{ backgroundColor: themeBg || '#14532D' }}>
-      {/* Top section with logo */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
-        {storeBanner ? (
-          <div className="w-24 h-24 rounded-[24px] overflow-hidden border-4 border-white/20 mb-4 bg-white">
-            <Image
-              src={storeBanner}
-              alt={storeName}
-              width={96}
-              height={96}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        ) : (
-          <div className="w-24 h-24 rounded-[60px] flex items-center justify-center mb-4 text-white text-3xl font-bold bg-[#1E6B3A]">
-            {storeName?.charAt(0) || "M"}
-          </div>
-        )}
-        <h1 className="text-2xl font-bold text-white mb-2 capitalize">
-          {storeName?.toLowerCase()}
-        </h1>
-      </div>
-
-      <div className="relative">
-        {/* Hero image */}
-        <div className="flex justify-center -mb-6 relative z-[2]">
-          <div className={`opacity-0 ${imagesLoaded ? "animate-bounce-in-1" : ""}`}>
-            <Image
-              src="/loginscreenimage.png"
-              alt="Food"
-              width={320}
-              height={220}
-              className="object-contain drop-shadow-xl"
-              onLoad={handleImageLoad}
-            />
-          </div>
+      {/* Top section — tagline + image */}
+      <div className="relative flex-1 min-h-[280px]">
+        {/* Logo + Tagline — centered in top half */}
+        <div className="absolute top-0 left-0 right-0 bottom-1/3 flex flex-col items-center justify-center px-6 z-10 gap-3">
+          {storeBanner && (
+            <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-white/20 bg-white shadow-lg">
+              <Image
+                src={storeBanner}
+                alt={storeName}
+                width={64}
+                height={64}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+          <h1 className="text-3xl font-black text-white leading-tight text-center line-clamp-3 capitalize">
+            {tagline.toLowerCase()}
+          </h1>
         </div>
 
-        {/* Bottom white card */}
-        <div className="bg-white rounded-t-3xl px-6 pt-10 pb-32 z-10 relative">
+        {/* Hero image — anchored to bottom */}
+        <div className="absolute bottom-0 left-0 right-0 z-[2]">
+          <Image
+            src="/loginscreenimage.png"
+            alt="Food"
+            width={600}
+            height={400}
+            className="w-full object-cover"
+          />
+        </div>
+      </div>
+
+      {/* Bottom white card */}
+      <div className="bg-white rounded-t-3xl px-6 pt-10 pb-32 z-10 relative -mt-6">
           <p className="text-[#6a6a6a] font-medium text-center mb-5 text-sm">
             Log in or sign up
           </p>
@@ -148,7 +141,6 @@ export default function LoginScreen({
             {"  "}
             <span className="underline">Content Policy</span>
           </p>
-        </div>
       </div>
     </div>
   );

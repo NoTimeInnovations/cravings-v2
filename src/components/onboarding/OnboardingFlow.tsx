@@ -27,6 +27,7 @@ interface OnboardingFlowProps {
   deliveryTimeAllowed?: { from: string; to: string } | null;
   takeawayTimeAllowed?: { from: string; to: string } | null;
   isDeliveryActive?: boolean;
+  storeTagline?: string;
 }
 
 export default function OnboardingFlow({
@@ -41,6 +42,7 @@ export default function OnboardingFlow({
   deliveryTimeAllowed,
   takeawayTimeAllowed,
   isDeliveryActive = true,
+  storeTagline,
 }: OnboardingFlowProps) {
   const router = useRouter();
   const features = getFeatures(featureFlags);
@@ -218,6 +220,7 @@ export default function OnboardingFlow({
             storeName={storeName}
             storeBanner={storeBanner}
             themeBg={themeBg}
+            storeTagline={storeTagline}
             onContinue={handleLoginContinue}
             loading={loginLoading || isSending}
           />

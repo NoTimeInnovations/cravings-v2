@@ -408,6 +408,7 @@ const HotelMenuPage = ({
           deliveryTimeAllowed={hoteldata?.delivery_rules?.delivery_time_allowed}
           takeawayTimeAllowed={hoteldata?.delivery_rules?.takeaway_time_allowed}
           isDeliveryActive={hoteldata?.delivery_rules?.isDeliveryActive ?? true}
+          storeTagline={(hoteldata as any)?.store_tagline}
         />
       )}
     </>

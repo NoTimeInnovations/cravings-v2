@@ -69,6 +69,7 @@ export interface Partner extends BaseUser {
   password: string;
   store_name: string;
   store_banner?: string;
+  store_tagline?: string;
   location: string;
   status: string;
   upi_id: string;
