@@ -358,8 +358,7 @@ const HotelPage = async ({
   const partnerPriceAdjustment = hoteldata?.price_adjustment || 0;
 
   const menuItemWithOfferPrice = hoteldata?.menus
-    ?.filter((item: any) => item.show_on_delivery !== false)
-    .map((item: any) => {
+    ?.map((item: any) => {
       const deliveryBase = item.delivery_price ?? item.price;
       const offerPrice = item.offers?.[0]?.offer_price;
       // If offer exists, apply the same discount amount to delivery base price

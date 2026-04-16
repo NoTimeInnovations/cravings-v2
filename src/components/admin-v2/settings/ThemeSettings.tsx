@@ -312,6 +312,7 @@ export function ThemeSettings() {
         )}
 
         {/* Checkout Style */}
+        {/* Checkout Style — disabled for now
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -348,6 +349,7 @@ export function ThemeSettings() {
             </div>
           </CardContent>
         </Card>
+        */}
 
         {/* Save Button */}
         {onFreePlan ? (

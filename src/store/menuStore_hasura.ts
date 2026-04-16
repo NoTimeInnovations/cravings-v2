@@ -55,6 +55,7 @@ export interface MenuItem {
   pp_id?: string;
   delivery_price?: number;
   show_on_delivery?: boolean;
+  show_on_takeaway?: boolean;
 }
 
 interface MenuItem_withOffer_price {
@@ -232,6 +233,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
           pp_id: mi.pp_id,
           delivery_price: mi.delivery_price ?? undefined,
           show_on_delivery: mi.show_on_delivery,
+          show_on_takeaway: mi.show_on_takeaway,
         };
 
         // Add optional fields if they exist

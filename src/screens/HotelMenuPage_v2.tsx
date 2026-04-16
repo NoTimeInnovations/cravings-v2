@@ -75,7 +75,7 @@ const HotelMenuPage = ({
   onboardingCompleted,
 }: HotelMenuPageProps) => {
   const pathname = usePathname();
-  const { setHotelId, genOrderId, open_place_order_modal } = useOrderStore();
+  const { setHotelId, genOrderId, open_place_order_modal, orderType } = useOrderStore();
   const { setQrData } = useQrDataStore();
 
   // Onboarding state
@@ -172,23 +172,33 @@ const HotelMenuPage = ({
     }
   }, [hoteldata?.id, setHotelId, genOrderId]);
 
+  // Filter menus by order type visibility
+  const filteredMenus = useMemo(() => {
+    if (!hoteldata?.menus) return [];
+    return hoteldata.menus.filter((item: any) => {
+      if (orderType === "delivery" && item.show_on_delivery === false) return false;
+      if (orderType === "takeaway" && item.show_on_takeaway === false) return false;
+      return true;
+    });
+  }, [hoteldata?.menus, orderType]);
+
   // ✅ Memoize offeredItems to avoid recalculating on every render
   const offeredItems = useMemo(() => {
-    if (!hoteldata?.menus || !offers) return [];
+    if (!filteredMenus || !offers) return [];
     const activeOfferMenuIds = new Set(offers.map((offer) => offer.menu?.id));
-    return hoteldata.menus.filter(
+    return filteredMenus.filter(
       (item) =>
         activeOfferMenuIds.has(item.id || "") &&
         (item.category.is_active === undefined || item.category.is_active)
     );
-  }, [hoteldata?.menus, offers]);
+  }, [filteredMenus, offers]);
 
   // ✅ Memoize categories to prevent recalculating unless the menu changes
   const categories = useMemo(() => {
-    if (!hoteldata?.menus) return [];
+    if (!filteredMenus.length) return [];
     const uniqueCategoriesMap = new Map<string, Category>();
 
-    hoteldata.menus.forEach((item) => {
+    filteredMenus.forEach((item) => {
       if (
         !uniqueCategoriesMap.has(item.category.name) &&
         (item.category.is_active === undefined || item.category.is_active)
@@ -211,19 +221,19 @@ const HotelMenuPage = ({
       return [offerCategory, ...uniqueCategories];
     }
     return uniqueCategories;
-  }, [hoteldata?.menus, offeredItems]);
+  }, [filteredMenus, offeredItems]);
 
   const [selectedCategory, setSelectedCat] = useState(selectedCategoryProp || "all");
 
   // ✅ Memoize the filtered and sorted items for the selected category
   const items = useMemo(() => {
-    if (!hoteldata?.menus) return [];
+    if (!filteredMenus.length) return [];
 
     let filteredItems = [];
 
     if (selectedCategory === "all") {
       filteredItems =
-        hoteldata.menus.filter(
+        filteredMenus.filter(
           (item) =>
             item.category.is_active === undefined || item.category.is_active
         ) || [];
@@ -231,7 +241,7 @@ const HotelMenuPage = ({
       filteredItems = offeredItems;
     } else {
       filteredItems =
-        hoteldata.menus.filter(
+        filteredMenus.filter(
           (item) =>
             item.category.name === selectedCategory &&
             (item.category.is_active === undefined || item.category.is_active)
@@ -246,18 +256,18 @@ const HotelMenuPage = ({
       if (!aHasImage && bHasImage) return 1;
       return 0;
     });
-  }, [selectedCategory, hoteldata?.menus, offeredItems]);
+  }, [selectedCategory, filteredMenus, offeredItems]);
 
   // ✅ Memoize top-selling items
   const topItems = useMemo(() => {
     return (
-      hoteldata?.menus?.filter(
+      filteredMenus.filter(
         (item) =>
           item.is_top === true &&
           (item.category.is_active === undefined || item.category.is_active)
       ) || []
     );
-  }, [hoteldata?.menus]);
+  }, [filteredMenus]);
 
   // ✅ Memoize the function passed as a prop to prevent child re-renders
   const setSelectedCategory = useCallback(
@@ -270,9 +280,17 @@ const HotelMenuPage = ({
   const hotelPlanId = (hoteldata as any)?.subscription_details?.plan?.id;
   const isHotelOnFreePlan = isFreePlan(hotelPlanId);
 
+  // Pass hoteldata with order-type-filtered menus to child components
+  // Keep allMenus (unfiltered) for checkout cart validation
+  const filteredHotelData = useMemo(() => ({
+    ...hoteldata,
+    menus: filteredMenus,
+    allMenus: hoteldata?.menus || [],
+  }), [hoteldata, filteredMenus]);
+
   const defaultProps = {
     offers,
-    hoteldata,
+    hoteldata: filteredHotelData,
     auth,
     theme,
     tableNumber,

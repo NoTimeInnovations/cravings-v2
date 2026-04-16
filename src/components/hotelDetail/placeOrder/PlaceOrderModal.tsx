@@ -1460,6 +1460,22 @@ const PlaceOrderModal = ({
 
   const { userData: user } = useAuthStore();
 
+  // Check for cart items incompatible with current order type
+  // Use allMenus (unfiltered) since filtered menus already excludes incompatible items
+  const allMenus = (hotelData as any)?.allMenus || hotelData?.menus || [];
+  const incompatibleItems = useMemo(() => {
+    if (!orderType || !items?.length || !allMenus.length) return [];
+    return items.filter((cartItem) => {
+      const menuItem = allMenus.find((m: any) => m.id === cartItem.id);
+      if (!menuItem) return false;
+      if (orderType === "delivery" && menuItem.show_on_delivery === false) return true;
+      if (orderType === "takeaway" && menuItem.show_on_takeaway === false) return true;
+      return false;
+    });
+  }, [orderType, items, allMenus]);
+
+  const hasIncompatibleItems = incompatibleItems.length > 0;
+
   const [showLoginDrawer, setShowLoginDrawer] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [keyboardOpen, setKeyboardOpen] = useState(false);
@@ -2685,6 +2701,25 @@ const PlaceOrderModal = ({
               {/* Items Card */}
               <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
                 <h3 className="font-bold text-[15px] mb-1">Your Order</h3>
+                {hasIncompatibleItems && (
+                  <div className="mb-3 p-3 rounded-lg bg-red-50 border border-red-200">
+                    <p className="text-xs font-semibold text-red-700 mb-1">
+                      Some items are not available for {orderType}
+                    </p>
+                    {incompatibleItems.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between py-1">
+                        <span className="text-xs text-red-600">{item.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(item.id)}
+                          className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <ItemsCard
                   items={items || []}
                   increaseQuantity={increaseQuantity}
@@ -3031,6 +3066,7 @@ const PlaceOrderModal = ({
                     }}
                     disabled={
                       isPlaceOrderDisabled ||
+                      hasIncompatibleItems ||
                       !user ||
                       items?.length === 0 ||
                       (isDelivery && orderType === "delivery" && (totalPrice ?? 0) < minimumOrderAmount)
