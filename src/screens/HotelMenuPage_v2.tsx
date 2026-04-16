@@ -81,7 +81,7 @@ const HotelMenuPage = ({
   // Onboarding state
   const isUserLoggedIn = auth?.role === "user";
   const features = getFeatures(hoteldata?.feature_flags || "");
-  const needsOnboarding = (features.delivery.enabled || features.ordering.enabled) && tableNumber === 0;
+  const needsOnboarding = features.newonboarding.enabled && (features.delivery.enabled || features.ordering.enabled) && tableNumber === 0;
   // Always mount the onboarding overlay when needed; it dismisses itself once the
   // user picks an order type and re-mounts on every reload so the order type screen
   // shows again (value persists only in sessionStorage).
