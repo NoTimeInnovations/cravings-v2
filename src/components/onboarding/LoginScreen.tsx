@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { getUserCountry, UserCountryInfo } from "@/lib/getUserCountry";
@@ -29,13 +29,9 @@ export default function LoginScreen({
   });
   const [error, setError] = useState("");
   const [imagesLoaded, setImagesLoaded] = useState(false);
-  const loadedCount = useRef(0);
 
   const handleImageLoad = useCallback(() => {
-    loadedCount.current += 1;
-    if (loadedCount.current >= 3) {
-      setImagesLoaded(true);
-    }
+    setImagesLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -77,44 +73,15 @@ export default function LoginScreen({
       </div>
 
       <div className="relative">
-        {/* items images collage */}
-        <div className="relative w-full h-[100px] overflow-visible">
-          {/* Dosa - left side */}
-          <div
-            className={`absolute -top-10 left-4 z-[2] opacity-0 ${imagesLoaded ? "animate-bounce-in-1" : ""}`}
-          >
+        {/* Hero image */}
+        <div className="flex justify-center -mb-6 relative z-[2]">
+          <div className={`opacity-0 ${imagesLoaded ? "animate-bounce-in-1" : ""}`}>
             <Image
-              src="/dosa.png"
-              alt="Dosa"
-              width={180}
-              height={180}
-              className="object-contain drop-shadow-lg -rotate-6"
-              onLoad={handleImageLoad}
-            />
-          </div>
-          {/* Juice Jar - center, prominent */}
-          <div
-            className={`absolute -top-20 left-28 -translate-x-1/2 z-[3] opacity-0 ${imagesLoaded ? "animate-bounce-in-2" : ""}`}
-          >
-            <Image
-              src="/juice jar.png"
-              alt="Juice Jar"
-              width={200}
-              height={200}
+              src="/loginscreenimage.png"
+              alt="Food"
+              width={320}
+              height={220}
               className="object-contain drop-shadow-xl"
-              onLoad={handleImageLoad}
-            />
-          </div>
-          {/* Biriyani - right side */}
-          <div
-            className={`absolute -top-10 right-8 z-[1] opacity-0 ${imagesLoaded ? "animate-bounce-in-3" : ""}`}
-          >
-            <Image
-              src="/biriyani.png"
-              alt="Biriyani"
-              width={180}
-              height={180}
-              className="object-contain drop-shadow-lg"
               onLoad={handleImageLoad}
             />
           </div>
