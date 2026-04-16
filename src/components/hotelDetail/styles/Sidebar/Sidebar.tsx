@@ -136,6 +136,7 @@ const Sidebar = ({
 
   const showBottomNav =
     auth?.role === "user" &&
+    !open_place_order_modal &&
     (getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled == true ||
       getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled == true);
   const categorySidebarRef = useRef<HTMLDivElement>(null);

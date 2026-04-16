@@ -689,7 +689,7 @@ const OrderDrawer = ({
       {/* Full-Screen Login Modal - Mobile First */}
       {showLoginModal && (
         <div
-          className="fixed inset-0 z-[70] flex flex-col"
+          className="fixed inset-0 z-[200] flex flex-col"
           style={{
             backgroundColor: styles.backgroundColor || "#fff",
             color: styles.color || "#000",

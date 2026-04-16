@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -14,14 +14,22 @@ import {
   X,
   Check,
   ClipboardList,
+  MapPin,
+  Home,
+  Building2,
+  Navigation,
 } from "lucide-react";
 import useOrderStore from "@/store/orderStore";
 import { useAuthStore } from "@/store/authStore";
+import { useLocationStore } from "@/store/geolocationStore";
+import { type SavedAddress } from "./AddressManagementModal";
+import AddressPickerV2 from "./AddressPickerV2";
+import { updateUserAddressesMutation } from "@/api/auth";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
-import { getGstAmount } from "../OrderDrawer";
+import { getGstAmount, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
   validateDiscountQuery,
@@ -109,6 +117,27 @@ const PlaceOrderModalV2 = ({
   const [discountInput, setDiscountInput] = useState("");
   const [discountError, setDiscountError] = useState("");
   const [validatingCode, setValidatingCode] = useState(false);
+
+  // Address management state
+  const [showAddressSheet, setShowAddressSheet] = useState(false);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [pendingAddress, setPendingAddress] = useState<SavedAddress | null>(null);
+  const [addressFormData, setAddressFormData] = useState({
+    useAccountDetails: false,
+    receiverName: "",
+    receiverPhone: "",
+    locationType: "Other" as "House" | "Office" | "Other",
+    buildingFloor: "",
+    street: "",
+    saveAs: "",
+    deliveryInstructions: "",
+  });
+
+  const savedAddresses = useMemo(
+    () => ((user as any)?.addresses || []) as SavedAddress[],
+    [(user as any)?.addresses],
+  );
 
   const isQrScan = qrId !== null && tableNumber !== 0;
 
@@ -367,6 +396,99 @@ const PlaceOrderModalV2 = ({
     toast.success(`Applied ${d.code}`);
   };
 
+  // Address handling
+  const handleSelectSavedAddress = useCallback((addr: SavedAddress) => {
+    const fullAddress =
+      addr.address ||
+      [addr.flat_no, addr.house_no, addr.area, addr.city]
+        .filter(Boolean)
+        .join(", ");
+    useOrderStore.getState().setUserAddress(fullAddress);
+    if (addr.latitude && addr.longitude) {
+      const coords = { lat: addr.latitude, lng: addr.longitude };
+      useOrderStore.getState().setUserCoordinates(coords);
+      useLocationStore.getState().setCoords(coords);
+    }
+    setShowAddressSheet(false);
+    if (orderType === "delivery") {
+      calculateDeliveryDistanceAndCost(hotelData);
+    }
+  }, [hotelData, orderType]);
+
+  const saveAddressesForUser = useCallback(async (addresses: SavedAddress[]) => {
+    if (!user || (user as any).role !== "user") return false;
+    try {
+      await fetchFromHasura(updateUserAddressesMutation, {
+        id: user.id,
+        addresses,
+      });
+      useAuthStore.setState({
+        userData: { ...user, addresses } as any,
+      });
+      return true;
+    } catch {
+      toast.error("Failed to save address");
+      return false;
+    }
+  }, [user]);
+
+  const handleAddressModalSaved = useCallback((addr: SavedAddress) => {
+    // Address coming from map picker — show the details form
+    setPendingAddress(addr);
+    setAddressFormData({
+      useAccountDetails: false,
+      receiverName: "",
+      receiverPhone: "",
+      locationType: "Other",
+      buildingFloor: "",
+      street: "",
+      saveAs: "",
+      deliveryInstructions: "",
+    });
+    setShowAddressModal(false);
+    setShowAddressSheet(false);
+    setShowAddressForm(true);
+  }, []);
+
+  const handleSaveAddressForm = useCallback(async () => {
+    if (!pendingAddress) return;
+    const label =
+      addressFormData.saveAs.trim() ||
+      addressFormData.locationType;
+
+    const finalAddress: SavedAddress = {
+      ...pendingAddress,
+      label,
+      house_no: addressFormData.buildingFloor.trim() || undefined,
+      street: addressFormData.street.trim() || undefined,
+      customLabel: addressFormData.saveAs.trim() || undefined,
+    };
+
+    const existing = [...savedAddresses];
+    const idx = existing.findIndex((a) => a.id === finalAddress.id);
+    if (idx >= 0) existing[idx] = finalAddress;
+    else existing.push(finalAddress);
+
+    const success = await saveAddressesForUser(existing);
+    if (success) {
+      toast.success("Address saved");
+      handleSelectSavedAddress(finalAddress);
+    }
+    setShowAddressForm(false);
+    setPendingAddress(null);
+  }, [pendingAddress, addressFormData, savedAddresses, saveAddressesForUser, handleSelectSavedAddress]);
+
+  const handleDeleteAddress = useCallback(async (addressId: string) => {
+    const updated = savedAddresses.filter((a) => a.id !== addressId);
+    const success = await saveAddressesForUser(updated);
+    if (success) {
+      toast.success("Address deleted");
+      if (address === savedAddresses.find((a) => a.id === addressId)?.address) {
+        useOrderStore.getState().setUserAddress("");
+      }
+    }
+  }, [savedAddresses, saveAddressesForUser, address]);
+
   const handleClose = () => {
     setOpenPlaceOrderModal(false);
   };
@@ -518,7 +640,8 @@ const PlaceOrderModalV2 = ({
   const restaurantSubtitle = hotelData?.district || (hotelData as any)?.address || "";
 
   return (
-    <div className="fixed inset-0 z-[200] bg-gray-100 overflow-y-auto">
+    <>
+    <div className="fixed inset-0 z-[500] bg-gray-100 overflow-y-auto">
       {view === "main" ? (
         <>
           {/* Header */}
@@ -536,13 +659,22 @@ const PlaceOrderModalV2 = ({
             </button>
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-base truncate">{restaurantName || "Checkout"}</div>
-              {restaurantSubtitle && (
-                <div className="text-xs opacity-90 truncate flex items-center gap-1">
-                  <span>🏠</span>
-                  <span className="truncate">{restaurantSubtitle}</span>
+              {orderType === "delivery" ? (
+                <button
+                  type="button"
+                  onClick={() => setShowAddressSheet(true)}
+                  className="text-xs opacity-90 truncate flex items-center gap-1 w-full text-left"
+                >
+                  <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span className="truncate">{address || "Add delivery address"}</span>
                   <ChevronDown className="h-3.5 w-3.5 flex-shrink-0" />
+                </button>
+              ) : restaurantSubtitle ? (
+                <div className="text-xs opacity-90 truncate flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span className="truncate">{restaurantSubtitle}</span>
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -884,6 +1016,7 @@ const PlaceOrderModalV2 = ({
               </div>
             </div>
           )}
+
         </>
       ) : (
         <DiscountsView
@@ -901,6 +1034,274 @@ const PlaceOrderModalV2 = ({
         />
       )}
     </div>
+
+    {/* Address overlays — rendered outside scrollable container */}
+
+    {/* Choose delivery address bottom sheet */}
+    {showAddressSheet && (
+      <div
+        className="fixed inset-0 bg-black/30 z-[600]"
+        onClick={() => setShowAddressSheet(false)}
+      >
+        <div
+          className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[70vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-4 pt-5 pb-3">
+            <h3 className="text-lg font-bold text-gray-900">Choose a delivery address</h3>
+            <button type="button" onClick={() => setShowAddressSheet(false)}>
+              <X className="h-5 w-5 text-gray-500" />
+            </button>
+          </div>
+
+          {/* Add new address */}
+          <button
+            type="button"
+            onClick={() => {
+              setShowAddressSheet(false);
+              setShowAddressModal(true);
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3"
+          >
+            <div
+              className="h-10 w-10 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: `${accent}15` }}
+            >
+              <Plus className="h-5 w-5" style={{ color: accent }} />
+            </div>
+            <span className="text-[15px] font-semibold" style={{ color: accent }}>
+              Add new Address
+            </span>
+          </button>
+
+          {/* Saved addresses list */}
+          {savedAddresses.length > 0 && (
+            <div className="border-t border-gray-100">
+              {savedAddresses.map((addr) => {
+                const addrText =
+                  addr.address ||
+                  [addr.flat_no, addr.house_no, addr.area, addr.city]
+                    .filter(Boolean)
+                    .join(", ");
+                const isSelected = address === addrText || address === addr.address;
+                return (
+                  <button
+                    key={addr.id}
+                    type="button"
+                    onClick={() => handleSelectSavedAddress(addr)}
+                    className="w-full flex items-start gap-3 px-4 py-3.5 text-left border-b border-gray-50"
+                  >
+                    <div className="h-10 w-10 rounded-full flex items-center justify-center bg-gray-100 shrink-0 mt-0.5">
+                      {addr.label?.toLowerCase() === "home" ? (
+                        <Home className="h-4 w-4 text-gray-600" />
+                      ) : addr.label?.toLowerCase() === "office" ? (
+                        <Building2 className="h-4 w-4 text-gray-600" />
+                      ) : (
+                        <Navigation className="h-4 w-4 text-gray-600" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[15px] font-semibold text-gray-900">
+                          {addr.label}
+                        </span>
+                        {isSelected && (
+                          <span
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
+                            style={{ backgroundColor: accent }}
+                          >
+                            SELECTED
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+                        {addrText}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div className="h-safe-area-bottom pb-4" />
+        </div>
+      </div>
+    )}
+
+    {/* Address Picker V2 (map + search) */}
+    <AddressPickerV2
+      open={showAddressModal}
+      onClose={() => setShowAddressModal(false)}
+      onSaved={handleAddressModalSaved}
+      hotelData={hotelData}
+      accent={accent}
+    />
+
+    {/* Address details form (after saving from map) */}
+    {showAddressForm && pendingAddress && (
+      <div className="fixed inset-0 z-[600] bg-gray-50 overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setShowAddressForm(false);
+              setPendingAddress(null);
+            }}
+            className="p-1"
+          >
+            <ArrowLeft className="h-6 w-6 text-gray-900" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold text-gray-900 truncate">
+              {pendingAddress.area || pendingAddress.city || "Location"}{" "}
+              <span className="text-gray-400 font-normal">| </span>
+              <span className="text-gray-500 font-normal text-xs truncate">
+                {pendingAddress.address?.slice(0, 40)}...
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 space-y-5 pb-32">
+          {/* Receiver Details */}
+          <div>
+            <h4 className="text-base font-bold text-gray-900 mb-3">Receiver Details</h4>
+            <label className="flex items-center gap-2 mb-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={addressFormData.useAccountDetails}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setAddressFormData((prev) => ({
+                    ...prev,
+                    useAccountDetails: checked,
+                    receiverName: checked ? ((user as any)?.full_name || "") : "",
+                    receiverPhone: checked ? ((user as any)?.phone || "") : "",
+                  }));
+                }}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <span className="text-sm text-gray-700">Use my account details</span>
+            </label>
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="Receiver name *"
+                value={addressFormData.receiverName}
+                onChange={(e) =>
+                  setAddressFormData((prev) => ({ ...prev, receiverName: e.target.value }))
+                }
+                className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+              />
+              <input
+                type="tel"
+                placeholder="Receiver's number *"
+                value={addressFormData.receiverPhone}
+                onChange={(e) =>
+                  setAddressFormData((prev) => ({ ...prev, receiverPhone: e.target.value }))
+                }
+                className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+              />
+            </div>
+          </div>
+
+          {/* Location Details */}
+          <div>
+            <h4 className="text-base font-bold text-gray-900 mb-3">Location Details</h4>
+            <div className="flex gap-2 mb-4">
+              {(["House", "Office", "Other"] as const).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() =>
+                    setAddressFormData((prev) => ({ ...prev, locationType: type }))
+                  }
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                    addressFormData.locationType === type
+                      ? "bg-gray-900 text-white border-gray-900"
+                      : "bg-white text-gray-600 border-gray-200"
+                  }`}
+                >
+                  {type === "House" && <Home className="h-3.5 w-3.5" />}
+                  {type === "Office" && <Building2 className="h-3.5 w-3.5" />}
+                  {type === "Other" && <Navigation className="h-3.5 w-3.5" />}
+                  {type}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="Building / Floor *"
+                value={addressFormData.buildingFloor}
+                onChange={(e) =>
+                  setAddressFormData((prev) => ({ ...prev, buildingFloor: e.target.value }))
+                }
+                className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+              />
+              <input
+                type="text"
+                placeholder="Street (Recommended)"
+                value={addressFormData.street}
+                onChange={(e) =>
+                  setAddressFormData((prev) => ({ ...prev, street: e.target.value }))
+                }
+                className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+              />
+
+              {/* Area / Locality with Change */}
+              <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-gray-400">Area/Locality</div>
+                  <div className="text-sm text-gray-700 truncate mt-0.5">
+                    {pendingAddress.address || ""}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddressForm(false);
+                    setPendingAddress(null);
+                    setShowAddressModal(true);
+                  }}
+                  className="flex items-center gap-1 shrink-0"
+                  style={{ color: accent }}
+                >
+                  <MapPin className="h-4 w-4" />
+                  <span className="text-sm font-semibold">Change</span>
+                </button>
+              </div>
+
+              <input
+                type="text"
+                placeholder="Save address as *"
+                value={addressFormData.saveAs}
+                onChange={(e) =>
+                  setAddressFormData((prev) => ({ ...prev, saveAs: e.target.value }))
+                }
+                className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+              />
+            </div>
+          </div>
+
+        </div>
+
+        {/* Save button */}
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 z-20">
+          <button
+            type="button"
+            onClick={handleSaveAddressForm}
+            className="w-full rounded-xl py-3.5 font-semibold text-white"
+            style={{ backgroundColor: accent }}
+          >
+            Save Address
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 
