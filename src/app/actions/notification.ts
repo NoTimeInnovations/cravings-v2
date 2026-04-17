@@ -472,11 +472,11 @@ class UserNotification {
         console.error("Failed to send order status notification");
       }
 
-      // Send WhatsApp status update (only if feature flag enabled)
-      const features = getFeatures(featureFlags);
-      if (features.whatsappnotifications.access && features.whatsappnotifications.enabled) {
-        sendWhatsAppStatusUpdate(order, status, storeName);
-      }
+      // // Send WhatsApp status update (only if feature flag enabled)
+      // const features = getFeatures(featureFlags);
+      // if (features.whatsappnotifications.access && features.whatsappnotifications.enabled) {
+      //   sendWhatsAppStatusUpdate(order, status, storeName);
+      // }
     } catch (error) {
       console.error("Error sending order status notification:", error);
     }

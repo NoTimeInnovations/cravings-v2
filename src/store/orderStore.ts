@@ -1353,16 +1353,16 @@ const useOrderStore = create(
             }
           }
 
-          // Send WhatsApp order placed template (only if feature flag enabled)
-          const features = getFeatures(hotelData.feature_flags || null);
-          if (features.whatsappnotifications.access && features.whatsappnotifications.enabled) {
-            try {
-              const partnerPhone = `${hotelData.country_code || "+91"}${hotelData.phone}`;
-              await Notification.user.sendWhatsAppOrderPlaced(newOrder, hotelData.store_name, partnerPhone);
-            } catch (e) {
-              console.error("WhatsApp order placed notification failed:", e);
-            }
-          }
+          // // Send WhatsApp order placed template (only if feature flag enabled)
+          // const features = getFeatures(hotelData.feature_flags || null);
+          // if (features.whatsappnotifications.access && features.whatsappnotifications.enabled) {
+          //   try {
+          //     const partnerPhone = `${hotelData.country_code || "+91"}${hotelData.phone}`;
+          //     await Notification.user.sendWhatsAppOrderPlaced(newOrder, hotelData.store_name, partnerPhone);
+          //   } catch (e) {
+          //     console.error("WhatsApp order placed notification failed:", e);
+          //   }
+          // }
 
           return newOrder;
         } catch (error) {
