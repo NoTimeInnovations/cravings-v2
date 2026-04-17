@@ -88,11 +88,12 @@ const UsernamePage = async ({
   searchParams,
   params,
 }: {
-  searchParams: Promise<{ query: string; qrScan: boolean; cat: string }>;
+  searchParams: Promise<{ query: string; qrScan: boolean; cat: string; category: string }>;
   params: Promise<{ username: string }>;
 }) => {
   const { username } = await params;
-  const { query: search, cat } = await searchParams;
+  const { query: search, cat, category } = await searchParams;
+  const selectedCat = category || cat;
   const auth = await getAuthCookie();
 
   const partnerId = await getPartnerIdByUsername(username);
@@ -101,7 +102,8 @@ const UsernamePage = async ({
     notFound();
   }
 
-  const { pageStatus, data } = await processHotelPage(partnerId, search, cat);
+  const { pageStatus, data } = await processHotelPage(partnerId, search, selectedCat);
+  const hasSearchParams = !!(search || selectedCat);
 
   if (pageStatus.status === "scan_limit_reached") {
     return <ScanLimitReachedCard />;
@@ -131,6 +133,7 @@ const UsernamePage = async ({
       qrGroup={data.table0QrGroup}
       selectedCategory={data.selectedCategory}
       onboardingCompleted={onboardingCompleted}
+      skipNotices={hasSearchParams}
     />
   );
 };

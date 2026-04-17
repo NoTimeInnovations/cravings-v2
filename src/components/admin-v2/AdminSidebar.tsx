@@ -15,6 +15,7 @@ import {
   Receipt,
   Truck,
   Users,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ const sidebarItems: SidebarItem[] = [
   { title: "Orders", icon: ShoppingBag, id: "orders" },
   { title: "Menu", icon: UtensilsCrossed, id: "menu" },
   { title: "Offers", icon: Percent, id: "offers" },
+  { title: "Notices", icon: Bell, id: "notices" },
   { title: "Purchase & Inventory", icon: ShoppingBag, id: "inventory" },
   { title: "QrCodes", icon: QrCode, id: "qrcodes" },
   { title: "Captains", icon: UserCog, id: "captains" },

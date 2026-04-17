@@ -23,6 +23,7 @@ import { saveUserLocation } from "@/lib/saveUserLocLocal";
 import { QrCode, useQrDataStore } from "@/store/qrDataStore";
 import DeliveryTimeCampain from "@/components/hotelDetail/DeliveryTimeCampain";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
+import NoticesOverlay from "@/components/NoticesOverlay";
 
 export type MenuItem = {
   description: string;
@@ -59,6 +60,7 @@ interface HotelMenuPageProps {
   selectedCategory?: string;
   qrData?: QrCode | null;
   onboardingCompleted?: boolean;
+  skipNotices?: boolean;
 }
 
 const HotelMenuPage = ({
@@ -73,6 +75,7 @@ const HotelMenuPage = ({
   qrId,
   selectedCategory: selectedCategoryProp,
   onboardingCompleted,
+  skipNotices,
 }: HotelMenuPageProps) => {
   const pathname = usePathname();
   const { setHotelId, genOrderId, open_place_order_modal, orderType } = useOrderStore();
@@ -410,6 +413,9 @@ const HotelMenuPage = ({
           isDeliveryActive={hoteldata?.delivery_rules?.isDeliveryActive ?? true}
           storeTagline={(hoteldata as any)?.store_tagline}
         />
+      )}
+      {!skipNotices && hoteldata?.id && (hoteldata as any)?.notices?.length > 0 && (
+        <NoticesOverlay partnerId={hoteldata.id} notices={(hoteldata as any).notices} />
       )}
     </>
   );

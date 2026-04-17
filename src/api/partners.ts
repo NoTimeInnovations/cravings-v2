@@ -232,6 +232,15 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
       start_time
       variant
     }
+    notices(where: {is_active: {_eq: true}, _or: [{expires_at: {_is_null: true}}, {expires_at: {_gt: "now()"}}]}, order_by: {priority: asc_nulls_last}) {
+      id
+      image_url
+      type
+      show_always
+      button_text
+      button_link
+      priority
+    }
   }
 }
 `;

@@ -59,9 +59,9 @@ export default function LoginScreen({
   return (
     <div className="flex flex-col min-h-dvh" style={{ backgroundColor: themeBg || '#14532D' }}>
       {/* Top section — tagline + image */}
-      <div className="relative flex-1 min-h-[280px]">
-        {/* Logo + Tagline — centered in top half */}
-        <div className="absolute top-0 left-0 right-0 bottom-1/3 flex flex-col items-center justify-center px-6 z-10 gap-3">
+      <div className="relative flex-1 min-h-[250px]">
+        {/* Logo + Tagline — centered in top portion */}
+        <div className="absolute top-0 left-0 right-0 bottom-1/2 flex flex-col items-center justify-center px-6 z-10 gap-3">
           {storeBanner && (
             <div className={`w-16 h-16 rounded-2xl overflow-hidden border-2 bg-white shadow-lg ${lightBg ? "border-black/20" : "border-white/20"}`}>
               <Image
@@ -73,7 +73,7 @@ export default function LoginScreen({
               />
             </div>
           )}
-          <h1 className={`text-3xl font-black leading-tight text-center line-clamp-3 capitalize ${lightBg ? "text-black" : "text-white"}`}>
+          <h1 className={`text-xl font-black leading-tight text-center line-clamp-3 capitalize ${lightBg ? "text-black" : "text-white"}`}>
             {tagline.toLowerCase()}
           </h1>
         </div>
@@ -91,7 +91,7 @@ export default function LoginScreen({
       </div>
 
       {/* Bottom white card */}
-      <div className="bg-white rounded-t-3xl px-6 pt-10 pb-32 z-10 relative -mt-6">
+      <div className="bg-white rounded-t-3xl px-6 pt-8 pb-10 z-10 relative -mt-6">
           <p className="text-[#6a6a6a] font-medium text-center mb-5 text-sm">
             Log in or sign up
           </p>
