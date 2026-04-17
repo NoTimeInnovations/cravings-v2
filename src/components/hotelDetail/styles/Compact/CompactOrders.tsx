@@ -23,7 +23,7 @@ interface CompactOrdersProps {
   styles: any;
 }
 
-const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
+const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
   const { userOrders, subscribeUserOrders } = useOrderStore();
   const { userData } = useAuthStore();
   const [loading, setLoading] = useState(true);
@@ -83,15 +83,11 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
 
-  // Helper function to get WhatsApp number with country code
   const getWhatsAppNumber = () => {
-    // Prefer whatsapp_number from whatsapp_numbers array
     const whatsappNumbers = partnerPaymentInfo?.whatsapp_numbers;
     let whatsappNum: string | undefined;
 
-    // Handle different possible structures of whatsapp_numbers
     if (Array.isArray(whatsappNumbers) && whatsappNumbers.length > 0) {
-      // Could be array of strings or array of objects with 'number' field
       whatsappNum =
         typeof whatsappNumbers[0] === "string"
           ? whatsappNumbers[0]
@@ -104,16 +100,13 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
     let number = whatsappNum || phoneNum;
     if (!number) return null;
 
-    // Clean the number (remove non-digits)
     number = number.replace(/\D/g, "");
 
-    // If country code exists and number doesn't start with it, prepend it
     if (countryCode && !number.startsWith(countryCode.replace(/\D/g, ""))) {
       const cleanCountryCode = countryCode.replace(/\D/g, "");
       number = cleanCountryCode + number;
     }
 
-    // Add + prefix for international format
     return number.startsWith("+") ? number : `+${number}`;
   };
 
@@ -160,10 +153,7 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
   if (loading && partnerOrders.length === 0) {
     return (
       <div className="flex justify-center items-center h-[50vh]">
-        <Loader2
-          className="animate-spin h-8 w-8"
-          style={{ color: styles?.accent || "#ea580c" }}
-        />
+        <Loader2 className="animate-spin h-8 w-8 text-gray-400" />
       </div>
     );
   }
@@ -171,25 +161,11 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
   if (partnerOrders.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-[50vh] gap-4 text-center p-4">
-        <div
-          className="p-4 rounded-full"
-          style={{ backgroundColor: `${styles?.color || "#000"}10` }}
-        >
-          <ShoppingBag
-            size={40}
-            style={{ color: `${styles?.color || "#000"}80` }}
-          />
+        <div className="p-4 rounded-full bg-gray-100">
+          <ShoppingBag size={40} className="text-gray-400" />
         </div>
-        <h3
-          className="text-lg font-semibold"
-          style={{ color: styles?.color || "#000" }}
-        >
-          No orders yet
-        </h3>
-        <p
-          className="text-sm"
-          style={{ color: `${styles?.color || "#000"}80` }}
-        >
+        <h3 className="text-lg font-semibold text-gray-900">No orders yet</h3>
+        <p className="text-sm text-gray-500">
           You haven't placed any orders with this partner yet.
         </p>
       </div>
@@ -227,22 +203,13 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
           onClose={() => setUpiOrder(null)}
         />
       )}
-      <div
-        className="flex flex-col gap-4 pt-10 p-4 pb-24 min-h-screen"
-        style={{ backgroundColor: styles?.backgroundColor || "#fff" }}
-      >
-        {/* Header Section */}
+      <div className="flex flex-col gap-4 pt-10 p-4 pb-24 min-h-screen bg-white">
+        {/* Header */}
         <div className="flex justify-between items-center mb-2">
-          <h2
-            className="text-xl font-bold"
-            style={{ color: styles?.color || "#000" }}
-          >
-            Your Orders
-          </h2>
+          <h2 className="text-xl font-bold text-gray-900">Your Orders</h2>
           <a
             href="/my-orders"
-            className="text-sm font-medium underline"
-            style={{ color: styles?.accent || "#ea580c" }}
+            className="text-sm font-medium underline text-orange-500"
           >
             All Orders
           </a>
@@ -285,20 +252,13 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
           return (
             <div
               key={order.id}
-              className="rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow relative"
-              style={{
-                backgroundColor: `${styles?.color || "#000"}08`,
-                border: `1px solid ${styles?.color || "#000"}15`,
-              }}
+              className="rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow relative bg-white border border-gray-200"
             >
               <Link href={`/order/${order.id}`} className="block">
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <h3
-                        className="font-semibold text-lg"
-                        style={{ color: styles?.color || "#000" }}
-                      >
+                      <h3 className="font-semibold text-lg text-gray-900">
                         {order.partner?.store_name}
                       </h3>
                       <span
@@ -312,21 +272,12 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                         </span>
                       )}
                     </div>
-                    <p
-                      className="text-sm"
-                      style={{ color: `${styles?.color || "#000"}80` }}
-                    >
+                    <p className="text-sm text-gray-500">
                       #{order.id.slice(0, 8)} •{" "}
                       {format(new Date(order.createdAt), "MMM d, h:mm a")}
                     </p>
                   </div>
-                  <div
-                    className="p-2 rounded-full transition-colors"
-                    style={{
-                      backgroundColor: `${styles?.accent || "#ea580c"}15`,
-                      color: styles?.accent || "#ea580c",
-                    }}
-                  >
+                  <div className="p-2 rounded-full transition-colors bg-orange-50 text-orange-500">
                     <ExternalLink className="w-5 h-5" />
                   </div>
                 </div>
@@ -334,13 +285,10 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                 <div className="space-y-1 mb-4">
                   {order.items.map((item) => (
                     <div key={item.id} className="flex justify-between text-sm">
-                      <span style={{ color: `${styles?.color || "#000"}CC` }}>
+                      <span className="text-gray-600">
                         {item.quantity} × {item.name}
                       </span>
-                      <span
-                        className="font-medium"
-                        style={{ color: styles?.color || "#000" }}
-                      >
+                      <span className="font-medium text-gray-900">
                         {order.partner?.currency || "₹"}
                         {(item.price * item.quantity).toFixed(2)}
                       </span>
@@ -355,8 +303,7 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                     return chargeAmount > 0 ? (
                       <div
                         key={idx}
-                        className="flex justify-between text-sm"
-                        style={{ color: `${styles?.color || "#000"}80` }}
+                        className="flex justify-between text-sm text-gray-500"
                       >
                         <span>{charge.name}</span>
                         <span>
@@ -367,10 +314,7 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                     ) : null;
                   })}
                   {gstAmount > 0 && (
-                    <div
-                      className="flex justify-between text-sm"
-                      style={{ color: `${styles?.color || "#000"}80` }}
-                    >
+                    <div className="flex justify-between text-sm text-gray-500">
                       <span>
                         {isUAE ? "VAT" : "GST"} ({gstPercentage}%)
                       </span>
@@ -396,13 +340,7 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                   )}
                 </div>
 
-                <div
-                  className="border-t pt-3 flex justify-between items-center font-bold"
-                  style={{
-                    borderColor: `${styles?.color || "#000"}20`,
-                    color: styles?.color || "#000",
-                  }}
-                >
+                <div className="border-t border-gray-200 pt-3 flex justify-between items-center font-bold text-gray-900">
                   <span>Total</span>
                   <span>
                     {order.partner?.currency || "₹"}
@@ -436,8 +374,7 @@ const CompactOrders = ({ hotelId, styles }: CompactOrdersProps) => {
                         }
                       }}
                       disabled={cashfreeLoadingOrderId === order.id}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-white rounded-lg font-medium text-xs transition-colors disabled:opacity-50"
-                      style={{ backgroundColor: styles?.accent || "#ea580c" }}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-orange-500 text-white rounded-lg font-medium text-xs transition-colors disabled:opacity-50"
                     >
                       {cashfreeLoadingOrderId === order.id ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />

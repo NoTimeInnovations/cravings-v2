@@ -6,7 +6,6 @@ import {
   Loader2,
   ExternalLink,
   ArrowLeft,
-  UtensilsCrossed,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Partner, useAuthStore } from "@/store/authStore";
@@ -18,32 +17,12 @@ import Link from "next/link";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
 
-type StoredTheme = {
-  accent?: string;
-  bg?: string;
-  text?: string;
-  storeName?: string;
-  storePath?: string;
-};
-
 const Page = () => {
   const { userData } = useAuthStore();
   const { userOrders, subscribeUserOrders } = useOrderStore();
   const { setOrder, setEditOrderModalOpen } = usePOSStore();
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-
-  const [theme, setTheme] = useState<StoredTheme>({});
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("hotelTheme");
-      if (stored) setTheme(JSON.parse(stored));
-    } catch {}
-  }, []);
-
-  const accent = theme.accent || "#EA580C";
-  const bg = theme.bg || "#F5F5F5";
-  const text = theme.text || "#000000";
 
   useEffect(() => {
     if (userData?.id) {
@@ -92,37 +71,26 @@ const Page = () => {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: bg }}>
+    <div className="min-h-screen bg-white">
       {/* Top Navbar */}
-      <div className="border-b sticky top-0 z-50 px-4 py-3 flex items-center gap-3 shadow-sm" style={{ backgroundColor: bg, borderColor: `${text}15` }}>
-        {theme.storePath ? (
-          <Link
-            href={theme.storePath}
-            className="flex items-center gap-2 p-2 rounded-full transition-colors"
-            style={{ color: accent }}
-          >
-            <UtensilsCrossed size={20} />
-          </Link>
-        ) : (
-          <button
-            onClick={() => router.back()}
-            className="p-2 rounded-full transition-colors"
-            style={{ color: text }}
-          >
-            <ArrowLeft size={20} />
-          </button>
-        )}
-        <h1 className="font-semibold text-lg" style={{ color: text }}>My Orders</h1>
+      <div className="border-b border-gray-200 sticky top-0 z-50 px-4 py-3 flex items-center gap-3 shadow-sm bg-white">
+        <button
+          onClick={() => router.back()}
+          className="p-2 rounded-full transition-colors hover:bg-gray-100 text-gray-700"
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <h1 className="font-semibold text-lg text-gray-900">My Orders</h1>
       </div>
 
       <div className="container mx-auto px-4 pb-8 pt-4 max-w-3xl">
 
         {loading ? (
           <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin" style={{ color: accent }} />
+            <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
           </div>
         ) : userOrders.length === 0 ? (
-          <div className="text-center py-12" style={{ color: `${text}66` }}>
+          <div className="text-center py-12 text-gray-500">
             You haven&apos;t placed any orders yet.
           </div>
         ) : (
@@ -169,13 +137,12 @@ const Page = () => {
                   href={`/order/${order.id}`}
                   id={`order-${order.id}`}
                   key={order.id}
-                  className="block rounded-xl p-5 shadow-sm transition-shadow relative"
-                  style={{ backgroundColor: `${text}06`, border: `1px solid ${text}12` }}
+                  className="block rounded-xl p-5 shadow-sm transition-shadow relative bg-white border border-gray-200"
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-lg" style={{ color: text }}>
+                        <h3 className="font-semibold text-lg text-gray-900">
                           {order.partner?.store_name}
                         </h3>
                         <span
@@ -184,14 +151,11 @@ const Page = () => {
                           {statusDisplay.text}
                         </span>
                       </div>
-                      <p className="text-sm" style={{ color: `${text}66` }}>
+                      <p className="text-sm text-gray-500">
                         #{order.id.slice(0, 8)} • {format(new Date(order.createdAt), "MMM d, h:mm a")}
                       </p>
                     </div>
-                    <div
-                      className="p-2 rounded-full transition-colors"
-                      style={{ color: accent, backgroundColor: `${accent}15` }}
-                    >
+                    <div className="p-2 rounded-full transition-colors text-orange-500 bg-orange-50">
                       <ExternalLink className="w-5 h-5" />
                     </div>
                   </div>
@@ -199,10 +163,10 @@ const Page = () => {
                   <div className="space-y-1 mb-4">
                     {order.items.map((item: any) => (
                       <div key={item.id} className="flex justify-between text-sm">
-                        <span style={{ color: `${text}B3` }}>
+                        <span className="text-gray-600">
                           {item.quantity} × {item.name}
                         </span>
-                        <span className="font-medium" style={{ color: text }}>
+                        <span className="font-medium text-gray-900">
                           {(order.partner as Partner)?.currency || "₹"}
                           {(item.price * item.quantity).toFixed(2)}
                         </span>
@@ -219,7 +183,7 @@ const Page = () => {
                     )}
                   </div>
 
-                  <div className="border-t pt-3 flex justify-between items-center font-bold" style={{ color: text, borderColor: `${text}15` }}>
+                  <div className="border-t border-gray-200 pt-3 flex justify-between items-center font-bold text-gray-900">
                     <span>Total</span>
                     <span>
                       {(order.partner as Partner)?.currency || "₹"}
@@ -240,11 +204,10 @@ const Page = () => {
               size="sm"
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              style={{ borderColor: `${text}20`, color: text }}
             >
               Previous
             </Button>
-            <span className="text-sm font-medium" style={{ color: text }}>
+            <span className="text-sm font-medium text-gray-900">
               Page {currentPage} of {totalPages}
             </span>
             <Button
@@ -252,7 +215,6 @@ const Page = () => {
               size="sm"
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              style={{ borderColor: `${text}20`, color: text }}
             >
               Next
             </Button>

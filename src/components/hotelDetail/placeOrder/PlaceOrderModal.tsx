@@ -2695,21 +2695,15 @@ const PlaceOrderModal = ({
         className={`fixed inset-0 z-[1000] flex flex-col ${open_place_order_modal ? "flex" : "hidden"
           }`}
         style={(() => {
-          const bgColor = themeStyles?.backgroundColor || "#fafaf9";
-          const dark = themeStyles ? isDarkColor(bgColor) : false;
           return {
-            backgroundColor: bgColor,
-            color: themeStyles?.color || undefined,
-            ...(themeStyles && showGrid ? {
-              backgroundImage: `linear-gradient(${themeStyles.color}08 1px, transparent 1px), linear-gradient(90deg, ${themeStyles.color}08 1px, transparent 1px)`,
-              backgroundSize: "40px 40px",
-            } : {}),
-            "--pom-card-bg": dark ? "rgba(255,255,255,0.13)" : "rgba(0,0,0,0.04)",
-            "--pom-card-border": dark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.08)",
-            "--pom-accent": themeStyles?.accent || "#ea580c",
-            "--pom-card-shadow": dark ? "0 4px 16px rgba(0,0,0,0.25)" : "0 1px 4px rgba(0,0,0,0.06)",
-            "--pom-text-muted": dark ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.75)",
-            "--pom-modal-bg": dark ? "rgba(255,255,255,0.18)" : (themeStyles?.backgroundColor || "white"),
+            backgroundColor: "white",
+            color: "#000000",
+            "--pom-card-bg": "rgba(0,0,0,0.04)",
+            "--pom-card-border": "rgba(0,0,0,0.08)",
+            "--pom-accent": "#ea580c",
+            "--pom-card-shadow": "0 1px 4px rgba(0,0,0,0.06)",
+            "--pom-text-muted": "rgba(0,0,0,0.75)",
+            "--pom-modal-bg": "white",
           } as React.CSSProperties;
         })()}
       >
@@ -2717,7 +2711,7 @@ const PlaceOrderModal = ({
         <div
           className="shrink-0 z-10"
           style={{
-            backgroundColor: themeStyles?.backgroundColor || "white",
+            backgroundColor: "white",
             boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
           }}
         >
@@ -3022,30 +3016,30 @@ const PlaceOrderModal = ({
             <div
               className="relative w-full rounded-t-2xl p-5 pb-8"
               style={{
-                backgroundColor: themeStyles?.backgroundColor || "#ffffff",
+                backgroundColor: "#ffffff",
                 transition: "transform 0.25s ease",
                 transform: paymentSheetClosing ? "translateY(100%)" : "translateY(0)",
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ backgroundColor: "rgba(255,255,255,0.6)" }} />
-              <h3 className="font-bold text-[16px] mb-4" style={{ color: themeStyles?.color || "#1c1917" }}>Select payment method</h3>
+              <div className="w-10 h-1 rounded-full mx-auto mb-5 bg-gray-300" />
+              <h3 className="font-bold text-[16px] mb-4 text-gray-900">Select payment method</h3>
               <div className="flex flex-col gap-2">
                 {hasCod && (
                   <button
                     onClick={() => closePaymentSheet("cod")}
                     className="flex items-center gap-3 p-4 rounded-xl border-2 transition-all"
                     style={{
-                      borderColor: selectedPaymentMethod === "cod" ? "var(--pom-accent, #ea580c)" : "rgba(255,255,255,0.25)",
-                      backgroundColor: "rgba(255,255,255,0.12)",
+                      borderColor: selectedPaymentMethod === "cod" ? "#ea580c" : "#e5e5e5",
+                      backgroundColor: "#fafafa",
                     }}
                   >
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.15)" }}>
-                      <Banknote size={20} style={{ color: "var(--pom-accent, #ea580c)" }} />
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-orange-50">
+                      <Banknote size={20} className="text-orange-500" />
                     </div>
                     <div className="text-left">
-                      <p className="font-semibold text-[14px]" style={{ color: themeStyles?.color || "#1c1917" }}>Pay on delivery</p>
-                      <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.6)" }}>UPI/Cash</p>
+                      <p className="font-semibold text-[14px] text-gray-900">Pay on delivery</p>
+                      <p className="text-[12px] text-gray-500">UPI/Cash</p>
                     </div>
                     {selectedPaymentMethod === "cod" && (
                       <CheckCircle2 size={20} className="ml-auto shrink-0" style={{ color: "var(--pom-accent, #ea580c)" }} />
@@ -3057,16 +3051,16 @@ const PlaceOrderModal = ({
                     onClick={() => closePaymentSheet("cashfree")}
                     className="flex items-center gap-3 p-4 rounded-xl border-2 transition-all"
                     style={{
-                      borderColor: selectedPaymentMethod === "cashfree" ? "var(--pom-accent, #ea580c)" : "rgba(255,255,255,0.25)",
-                      backgroundColor: "rgba(255,255,255,0.12)",
+                      borderColor: selectedPaymentMethod === "cashfree" ? "#ea580c" : "#e5e5e5",
+                      backgroundColor: "#fafafa",
                     }}
                   >
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.15)" }}>
-                      <CreditCard size={20} style={{ color: "var(--pom-accent, #ea580c)" }} />
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-orange-50">
+                      <CreditCard size={20} className="text-orange-500" />
                     </div>
                     <div className="text-left">
-                      <p className="font-semibold text-[14px]" style={{ color: themeStyles?.color || "#1c1917" }}>Pay Online</p>
-                      <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.6)" }}>Cards/UPI/Net Banking</p>
+                      <p className="font-semibold text-[14px] text-gray-900">Pay Online</p>
+                      <p className="text-[12px] text-gray-500">Cards/UPI/Net Banking</p>
                     </div>
                     {selectedPaymentMethod === "cashfree" && (
                       <CheckCircle2 size={20} className="ml-auto shrink-0" style={{ color: "var(--pom-accent, #ea580c)" }} />

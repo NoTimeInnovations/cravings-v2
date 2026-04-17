@@ -22,10 +22,7 @@ import {
   Edit,
   Check,
   X,
-  UtensilsCrossed,
   ArrowLeft,
-  Home,
-  Tag,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,34 +30,23 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
 
-type StoredTheme = {
-  accent?: string;
-  bg?: string;
-  text?: string;
-  storeName?: string;
-  storePath?: string;
-};
-
 export default function UserProfilePage() {
   const { userData, signOut, loading: authLoading } = useAuthStore();
   const { userOrders, subscribeUserOrders } = useOrderStore();
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Theme
-  const [theme, setTheme] = useState<StoredTheme>({});
+  const [storePath, setStorePath] = useState<string | null>(null);
   useEffect(() => {
     try {
       const stored = localStorage.getItem("hotelTheme");
-      if (stored) setTheme(JSON.parse(stored));
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.storePath) setStorePath(parsed.storePath);
+      }
     } catch {}
   }, []);
 
-  const accent = theme.accent || "#EA580C";
-  const bg = theme.bg || "#F5F5F5";
-  const text = theme.text || "#000000";
-
-  // Edit states
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState("");
   const [savingName, setSavingName] = useState(false);
@@ -70,7 +56,6 @@ export default function UserProfilePage() {
 
   const user = userData?.role === "user" ? (userData as User) : null;
 
-  // Wait for auth to finish loading before deciding to redirect
   useEffect(() => {
     if (authLoading) return;
     if (!userData) {
@@ -94,7 +79,6 @@ export default function UserProfilePage() {
 
   const [showAllStores, setShowAllStores] = useState(false);
 
-  // Group orders by store, sorted by most recent order
   const ordersByStore = useMemo(() => {
     const grouped: Record<
       string,
@@ -115,7 +99,6 @@ export default function UserProfilePage() {
     return grouped;
   }, [userOrders]);
 
-  // Sort stores by most recent order, show only latest store unless "show all"
   const sortedStoreEntries = useMemo(() => {
     const entries = Object.entries(ordersByStore).sort(
       ([, a], [, b]) => new Date(b.latestOrder).getTime() - new Date(a.latestOrder).getTime()
@@ -185,88 +168,52 @@ export default function UserProfilePage() {
   };
 
   const handleLogout = async () => {
-    const lastStore = theme.storePath || "/";
     await signOut();
-    router.replace(lastStore);
+    router.replace(storePath || "/");
   };
 
   if (authLoading || !user) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: bg }}
-      >
-        <Loader2 className="h-8 w-8 animate-spin" style={{ color: accent }} />
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: bg, fontFamily: "'Open Sans', sans-serif" }}>
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <div
-        className="sticky top-0 z-50 px-4 py-3 flex items-center gap-3"
-        style={{ backgroundColor: accent }}
-      >
+      <div className="sticky top-0 z-50 px-4 py-3 flex items-center gap-3 bg-white border-b border-gray-200">
         <button
           onClick={() => router.back()}
-          className="p-2 rounded-full transition-colors hover:bg-white/10"
+          className="p-2 rounded-full transition-colors hover:bg-gray-100"
         >
-          <ArrowLeft size={20} className="text-white" />
+          <ArrowLeft size={20} className="text-gray-700" />
         </button>
-        <h1 className="font-semibold text-base text-white flex-1">
+        <h1 className="font-semibold text-base text-gray-900 flex-1">
           My Profile
         </h1>
-        {theme.storePath && (
-          <Link
-            href={theme.storePath}
-            className="p-2 rounded-full transition-colors hover:bg-white/10"
-          >
-            <UtensilsCrossed size={18} className="text-white" />
-          </Link>
-        )}
       </div>
 
       <div className="container mx-auto px-4 pb-24 pt-4 max-w-lg">
         {/* Profile Card */}
-        <div
-          className="rounded-xl p-5 mb-6 shadow-sm"
-          style={{
-            backgroundColor: `${text}06`,
-            border: `1px solid ${text}12`,
-          }}
-        >
-          {/* Avatar */}
+        <div className="rounded-xl p-5 mb-6 shadow-sm bg-white border border-gray-200">
           <div className="flex items-center gap-4 mb-5">
-            <div
-              className="h-14 w-14 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${accent}15` }}
-            >
-              <UserIcon className="h-7 w-7" style={{ color: accent }} />
+            <div className="h-14 w-14 rounded-full flex items-center justify-center bg-orange-50">
+              <UserIcon className="h-7 w-7 text-orange-500" />
             </div>
             <div className="flex-1 min-w-0">
-              <p
-                className="text-lg font-semibold truncate"
-                style={{ color: text }}
-              >
+              <p className="text-lg font-semibold truncate text-gray-900">
                 {user.full_name || "User"}
               </p>
-              <p className="text-sm" style={{ color: `${text}66` }}>
-                {user.phone}
-              </p>
+              <p className="text-sm text-gray-500">{user.phone}</p>
             </div>
           </div>
 
-          {/* Name */}
-          <div
-            className="border-t pt-4 space-y-4"
-            style={{ borderColor: `${text}15` }}
-          >
+          <div className="border-t border-gray-200 pt-4 space-y-4">
+            {/* Name */}
             <div>
-              <label
-                className="text-xs font-medium uppercase tracking-wider"
-                style={{ color: `${text}66` }}
-              >
+              <label className="text-xs font-medium uppercase tracking-wider text-gray-500">
                 Name
               </label>
               {editingName ? (
@@ -274,51 +221,25 @@ export default function UserProfilePage() {
                   <Input
                     value={nameValue}
                     onChange={(e) => setNameValue(e.target.value)}
-                    className="flex-1 placeholder:text-inherit placeholder:opacity-40"
-                    style={{
-                      backgroundColor: `${text}06`,
-                      color: text,
-                      borderColor: `${text}20`,
-                    }}
+                    className="flex-1"
                     autoFocus
                   />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={handleSaveName}
-                    disabled={savingName}
-                  >
+                  <Button size="icon" variant="ghost" onClick={handleSaveName} disabled={savingName}>
                     {savingName ? (
-                      <Loader2
-                        className="h-4 w-4 animate-spin"
-                        style={{ color: accent }}
-                      />
+                      <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
                     ) : (
                       <Check className="h-4 w-4 text-green-600" />
                     )}
                   </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => {
-                      setEditingName(false);
-                      setNameValue(user.full_name || "");
-                    }}
-                  >
+                  <Button size="icon" variant="ghost" onClick={() => { setEditingName(false); setNameValue(user.full_name || ""); }}>
                     <X className="h-4 w-4 text-red-500" />
                   </Button>
                 </div>
               ) : (
                 <div className="flex items-center justify-between mt-1">
-                  <p className="text-sm font-medium" style={{ color: text }}>
-                    {user.full_name || "Not set"}
-                  </p>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => setEditingName(true)}
-                  >
-                    <Edit className="h-4 w-4" style={{ color: `${text}66` }} />
+                  <p className="text-sm font-medium text-gray-900">{user.full_name || "Not set"}</p>
+                  <Button size="icon" variant="ghost" onClick={() => setEditingName(true)}>
+                    <Edit className="h-4 w-4 text-gray-400" />
                   </Button>
                 </div>
               )}
@@ -326,10 +247,7 @@ export default function UserProfilePage() {
 
             {/* Phone */}
             <div>
-              <label
-                className="text-xs font-medium uppercase tracking-wider"
-                style={{ color: `${text}66` }}
-              >
+              <label className="text-xs font-medium uppercase tracking-wider text-gray-500">
                 Phone
               </label>
               {editingPhone ? (
@@ -337,55 +255,29 @@ export default function UserProfilePage() {
                   <Input
                     value={phoneValue}
                     onChange={(e) => setPhoneValue(e.target.value)}
-                    className="flex-1 placeholder:text-inherit placeholder:opacity-40"
-                    style={{
-                      backgroundColor: `${text}06`,
-                      color: text,
-                      borderColor: `${text}20`,
-                    }}
+                    className="flex-1"
                     autoFocus
                     type="tel"
                   />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={handleSavePhone}
-                    disabled={savingPhone}
-                  >
+                  <Button size="icon" variant="ghost" onClick={handleSavePhone} disabled={savingPhone}>
                     {savingPhone ? (
-                      <Loader2
-                        className="h-4 w-4 animate-spin"
-                        style={{ color: accent }}
-                      />
+                      <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
                     ) : (
                       <Check className="h-4 w-4 text-green-600" />
                     )}
                   </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => {
-                      setEditingPhone(false);
-                      setPhoneValue(user.phone || "");
-                    }}
-                  >
+                  <Button size="icon" variant="ghost" onClick={() => { setEditingPhone(false); setPhoneValue(user.phone || ""); }}>
                     <X className="h-4 w-4 text-red-500" />
                   </Button>
                 </div>
               ) : (
                 <div className="flex items-center justify-between mt-1">
                   <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4" style={{ color: `${text}66` }} />
-                    <p className="text-sm font-medium" style={{ color: text }}>
-                      {user.phone}
-                    </p>
+                    <Phone className="h-4 w-4 text-gray-400" />
+                    <p className="text-sm font-medium text-gray-900">{user.phone}</p>
                   </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => setEditingPhone(true)}
-                  >
-                    <Edit className="h-4 w-4" style={{ color: `${text}66` }} />
+                  <Button size="icon" variant="ghost" onClick={() => setEditingPhone(true)}>
+                    <Edit className="h-4 w-4 text-gray-400" />
                   </Button>
                 </div>
               )}
@@ -395,8 +287,7 @@ export default function UserProfilePage() {
 
         {/* Logout */}
         <button
-          className="w-full mb-4 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
-          style={{ backgroundColor: `${text}08`, color: "#ef4444", border: `1px solid ${text}12` }}
+          className="w-full mb-4 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors bg-gray-100 text-red-500 border border-gray-200"
           onClick={handleLogout}
         >
           <LogOut className="h-4 w-4" />
@@ -412,10 +303,7 @@ export default function UserProfilePage() {
             Delete Account
           </button>
         ) : (
-          <div
-            className="rounded-xl p-4 mb-6 border border-red-200"
-            style={{ backgroundColor: "#FEF2F2" }}
-          >
+          <div className="rounded-xl p-4 mb-6 border border-red-200 bg-red-50">
             <p className="text-sm text-red-700 font-medium mb-1">
               Are you sure you want to delete your account?
             </p>
@@ -423,27 +311,11 @@ export default function UserProfilePage() {
               Your account will be deactivated. You can reactivate it by logging in again.
             </p>
             <div className="flex gap-2">
-              <Button
-                variant="destructive"
-                size="sm"
-                className="flex-1"
-                onClick={handleDeleteAccount}
-                disabled={deleting}
-              >
-                {deleting ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                ) : (
-                  <Trash2 className="h-4 w-4 mr-1" />
-                )}
+              <Button variant="destructive" size="sm" className="flex-1" onClick={handleDeleteAccount} disabled={deleting}>
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}
                 Yes, Delete
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1"
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={deleting}
-              >
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowDeleteConfirm(false)} disabled={deleting}>
                 Cancel
               </Button>
             </div>
@@ -452,58 +324,27 @@ export default function UserProfilePage() {
 
         {/* Orders by Store */}
         <div>
-          <h2
-            className="text-lg font-semibold mb-4 flex items-center gap-2"
-            style={{ color: text }}
-          >
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-gray-900">
             <ShoppingBag className="h-5 w-5" />
             My Orders
           </h2>
 
           {loading ? (
             <div className="flex justify-center py-8">
-              <Loader2
-                className="h-8 w-8 animate-spin"
-                style={{ color: accent }}
-              />
+              <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
             </div>
           ) : totalStoreCount === 0 ? (
-            <div
-              className="text-center py-12 rounded-xl"
-              style={{
-                color: `${text}66`,
-                backgroundColor: `${text}06`,
-                border: `1px solid ${text}12`,
-              }}
-            >
+            <div className="text-center py-12 rounded-xl text-gray-500 bg-gray-100 border border-gray-200">
               No orders yet
             </div>
           ) : (
             <div className="space-y-4">
               {sortedStoreEntries.map(
                 ([partnerId, { storeName, currency, orders }]) => (
-                  <div
-                    key={partnerId}
-                    className="rounded-xl overflow-hidden shadow-sm"
-                    style={{
-                      backgroundColor: `${text}06`,
-                      border: `1px solid ${text}12`,
-                    }}
-                  >
-                    <div
-                      className="px-4 py-3 border-b flex items-center justify-between"
-                      style={{
-                        backgroundColor: `${text}06`,
-                        borderColor: `${text}10`,
-                      }}
-                    >
-                      <h3
-                        className="font-semibold text-sm"
-                        style={{ color: text }}
-                      >
-                        {storeName}
-                      </h3>
-                      <span className="text-xs" style={{ color: `${text}66` }}>
+                  <div key={partnerId} className="rounded-xl overflow-hidden shadow-sm bg-white border border-gray-200">
+                    <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+                      <h3 className="font-semibold text-sm text-gray-900">{storeName}</h3>
+                      <span className="text-xs text-gray-500">
                         {orders.length} order{orders.length !== 1 ? "s" : ""}
                       </span>
                     </div>
@@ -511,58 +352,34 @@ export default function UserProfilePage() {
                       {orders.slice(0, 5).map((order, idx) => {
                         const statusDisplay = getStatusDisplay(order);
                         const foodTotal = (order.items || []).reduce(
-                          (sum: number, item: any) =>
-                            sum + item.price * item.quantity,
-                          0,
+                          (sum: number, item: any) => sum + item.price * item.quantity, 0
                         );
                         return (
                           <Link
                             key={order.id}
                             href={`/order/${order.id}`}
-                            className="px-4 py-3 flex items-center justify-between transition-colors"
-                            style={
-                              idx < Math.min(orders.length, 5) - 1
-                                ? { borderBottom: `1px solid ${text}10` }
-                                : undefined
-                            }
+                            className={`px-4 py-3 flex items-center justify-between transition-colors ${
+                              idx < Math.min(orders.length, 5) - 1 ? "border-b border-gray-100" : ""
+                            }`}
                           >
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <span
-                                  className="text-sm font-medium"
-                                  style={{ color: text }}
-                                >
+                                <span className="text-sm font-medium text-gray-900">
                                   #{order.id.slice(0, 8)}
                                 </span>
-                                <span
-                                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${statusDisplay.className}`}
-                                >
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${statusDisplay.className}`}>
                                   {statusDisplay.text}
                                 </span>
                               </div>
-                              <p
-                                className="text-xs mt-0.5"
-                                style={{ color: `${text}66` }}
-                              >
-                                {format(
-                                  new Date(order.createdAt),
-                                  "MMM d, h:mm a",
-                                )}{" "}
-                                - {order.items?.length || 0} items
+                              <p className="text-xs mt-0.5 text-gray-500">
+                                {format(new Date(order.createdAt), "MMM d, h:mm a")} - {order.items?.length || 0} items
                               </p>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span
-                                className="text-sm font-semibold"
-                                style={{ color: text }}
-                              >
-                                {currency}
-                                {foodTotal.toFixed(2)}
+                              <span className="text-sm font-semibold text-gray-900">
+                                {currency}{foodTotal.toFixed(2)}
                               </span>
-                              <ChevronRight
-                                className="h-4 w-4"
-                                style={{ color: `${text}40` }}
-                              />
+                              <ChevronRight className="h-4 w-4 text-gray-400" />
                             </div>
                           </Link>
                         );
@@ -570,11 +387,7 @@ export default function UserProfilePage() {
                       {orders.length > 5 && (
                         <Link
                           href="/my-orders"
-                          className="px-4 py-3 text-center text-sm font-medium transition-colors block"
-                          style={{
-                            color: accent,
-                            borderTop: `1px solid ${text}10`,
-                          }}
+                          className="px-4 py-3 text-center text-sm font-medium transition-colors block text-orange-500 border-t border-gray-100"
                         >
                           View all orders
                         </Link>
@@ -584,16 +397,10 @@ export default function UserProfilePage() {
                 ),
               )}
 
-              {/* Load more stores button */}
               {!showAllStores && totalStoreCount > 1 && (
                 <button
                   onClick={() => setShowAllStores(true)}
-                  className="w-full py-3 rounded-xl text-sm font-semibold transition-colors"
-                  style={{
-                    color: accent,
-                    backgroundColor: `${accent}10`,
-                    border: `1px solid ${accent}20`,
-                  }}
+                  className="w-full py-3 rounded-xl text-sm font-semibold transition-colors text-orange-500 bg-orange-50 border border-orange-100"
                 >
                   Show orders from {totalStoreCount - 1} other restaurant{totalStoreCount - 1 > 1 ? "s" : ""}
                 </button>
@@ -602,46 +409,6 @@ export default function UserProfilePage() {
           )}
         </div>
       </div>
-
-      {/* Bottom Navigation */}
-      {theme.storePath && (
-        <div
-          className="md:hidden fixed bottom-0 left-0 right-0 border-t z-[999] px-2 py-1.5 flex justify-around items-center max-w-xl mx-auto"
-          style={{ backgroundColor: bg, borderColor: `${text}15` }}
-        >
-          <Link
-            href={`${theme.storePath}?tab=food`}
-            className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors opacity-40"
-            style={{ color: text }}
-          >
-            <Home size={20} />
-            <span className="text-[10px] font-medium">Food</span>
-          </Link>
-          <Link
-            href={`${theme.storePath}?tab=offers`}
-            className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors opacity-40"
-            style={{ color: text }}
-          >
-            <Tag size={20} />
-            <span className="text-[10px] font-medium">Offers</span>
-          </Link>
-          <Link
-            href={`${theme.storePath}?tab=orders`}
-            className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors opacity-40"
-            style={{ color: text }}
-          >
-            <ShoppingBag size={20} />
-            <span className="text-[10px] font-medium">Orders</span>
-          </Link>
-          <div
-            className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg"
-            style={{ color: accent }}
-          >
-            <UserIcon size={20} />
-            <span className="text-[10px] font-medium">Profile</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
