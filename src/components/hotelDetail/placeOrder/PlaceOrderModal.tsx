@@ -43,6 +43,7 @@ import { useWhatsAppOtp } from "@/hooks/useWhatsAppOtp";
 import { OtpInput } from "@/components/ui/otp-input";
 import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
+import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 
 // Helper: detect if a hex color is dark
 function isDarkColor(hex: string): boolean {
@@ -1734,20 +1735,24 @@ const PlaceOrderModal = ({
   ]);
 
   // Read onboarding data from localStorage
+  const isDeliveryAvailable =
+    (hotelData?.delivery_rules?.isDeliveryActive ?? true) &&
+    isWithinTimeWindow(hotelData?.delivery_rules?.delivery_time_allowed);
+
   useEffect(() => {
     if (open_place_order_modal && tableNumber === 0 && !orderType) {
       try {
         const savedType = localStorage.getItem("onboarding_order_type");
         if (savedType === "delivery" || savedType === "takeaway") {
-          setOrderType(savedType);
+          setOrderType(!isDeliveryAvailable && savedType === "delivery" ? "takeaway" : savedType);
         } else {
-          setOrderType("delivery");
+          setOrderType(isDeliveryAvailable ? "delivery" : "takeaway");
         }
       } catch {
-        setOrderType("delivery");
+        setOrderType(isDeliveryAvailable ? "delivery" : "takeaway");
       }
     }
-  }, [open_place_order_modal, tableNumber, orderType, setOrderType]);
+  }, [open_place_order_modal, tableNumber, orderType, setOrderType, isDeliveryAvailable]);
 
   // Pre-fill address from onboarding
   useEffect(() => {
