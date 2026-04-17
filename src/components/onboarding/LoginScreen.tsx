@@ -14,6 +14,15 @@ interface LoginScreenProps {
   loading?: boolean;
 }
 
+function isLightColor(hex: string): boolean {
+  const c = hex.replace("#", "");
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6;
+}
+
 export default function LoginScreen({
   storeName,
   storeBanner,
@@ -23,6 +32,7 @@ export default function LoginScreen({
   loading,
 }: LoginScreenProps) {
   const tagline = storeTagline || `Order Your Favorite Dishes from ${storeName}`;
+  const lightBg = isLightColor(themeBg || "#14532D");
   const [phone, setPhone] = useState("");
   const [countryInfo, setCountryInfo] = useState<UserCountryInfo>({
     country: "India",
@@ -53,7 +63,7 @@ export default function LoginScreen({
         {/* Logo + Tagline — centered in top half */}
         <div className="absolute top-0 left-0 right-0 bottom-1/3 flex flex-col items-center justify-center px-6 z-10 gap-3">
           {storeBanner && (
-            <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-white/20 bg-white shadow-lg">
+            <div className={`w-16 h-16 rounded-2xl overflow-hidden border-2 bg-white shadow-lg ${lightBg ? "border-black/20" : "border-white/20"}`}>
               <Image
                 src={storeBanner}
                 alt={storeName}
@@ -63,7 +73,7 @@ export default function LoginScreen({
               />
             </div>
           )}
-          <h1 className="text-3xl font-black text-white leading-tight text-center line-clamp-3 capitalize">
+          <h1 className={`text-3xl font-black leading-tight text-center line-clamp-3 capitalize ${lightBg ? "text-black" : "text-white"}`}>
             {tagline.toLowerCase()}
           </h1>
         </div>
