@@ -641,7 +641,7 @@ const PlaceOrderModalV2 = ({
 
   return (
     <>
-    <div className="fixed inset-0 z-[500] bg-gray-100 overflow-y-auto">
+    <div className="fixed inset-0 z-[500] bg-gray-100 overflow-y-auto animate-fade-in">
       {view === "main" ? (
         <>
           {/* Header */}
@@ -943,11 +943,11 @@ const PlaceOrderModalV2 = ({
           {/* Payment method sheet */}
           {showPaymentMethods && (
             <div
-              className="fixed inset-0 bg-black/30 z-30"
+              className="fixed inset-0 bg-black/30 z-30 animate-fade-in"
               onClick={() => setShowPaymentMethods(false)}
             >
               <div
-                className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4 space-y-2"
+                className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4 space-y-2 animate-slide-up"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="text-sm font-semibold mb-2 text-gray-900">Choose Payment Method</div>
@@ -983,11 +983,11 @@ const PlaceOrderModalV2 = ({
           {/* Cooking requests modal */}
           {showCookingModal && (
             <div
-              className="fixed inset-0 bg-black/40 z-40 flex items-end sm:items-center justify-center"
+              className="fixed inset-0 bg-black/40 z-40 flex items-end sm:items-center justify-center animate-fade-in"
               onClick={() => setShowCookingModal(false)}
             >
               <div
-                className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-4 space-y-3"
+                className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-4 space-y-3 animate-slide-up"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between">
@@ -1040,11 +1040,11 @@ const PlaceOrderModalV2 = ({
     {/* Choose delivery address bottom sheet */}
     {showAddressSheet && (
       <div
-        className="fixed inset-0 bg-black/30 z-[600]"
+        className="fixed inset-0 bg-black/30 z-[600] animate-fade-in"
         onClick={() => setShowAddressSheet(false)}
       >
         <div
-          className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[70vh] overflow-y-auto"
+          className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[70vh] overflow-y-auto animate-slide-up"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between px-4 pt-5 pb-3">
@@ -1139,7 +1139,7 @@ const PlaceOrderModalV2 = ({
 
     {/* Address details form (after saving from map) */}
     {showAddressForm && pendingAddress && (
-      <div className="fixed inset-0 z-[600] bg-gray-50 overflow-y-auto">
+      <div className="fixed inset-0 z-[600] bg-gray-50 overflow-y-auto animate-slide-in-right">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
           <button

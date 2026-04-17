@@ -662,9 +662,10 @@ const Compact = ({
         text: localStyles?.color || "#000",
         storeName: hoteldata?.store_name || "",
         storePath: pathname,
+        storeBanner: hoteldata?.store_banner || "",
       }));
     } catch {}
-  }, [localStyles, hoteldata?.store_name]);
+  }, [localStyles, hoteldata?.store_name, hoteldata?.store_banner]);
 
   // Sync props to local state if not editing
   useEffect(() => {

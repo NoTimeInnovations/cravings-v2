@@ -62,6 +62,10 @@ export interface DeliveryRules {
     from: string;
     to: string;
   } | null;
+  takeaway_time_allowed: {
+    from: string;
+    to: string;
+  } | null;
   isDeliveryActive: boolean;
   needDeliveryLocation: boolean;
   need_user_name?: boolean;

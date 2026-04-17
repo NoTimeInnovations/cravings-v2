@@ -417,7 +417,7 @@ const AddressPickerV2 = ({
   // ============ LANDING SCREEN ============
   if (screen === "landing") {
     return (
-      <div className="fixed inset-0 z-[700] h-[100dvh] flex flex-col bg-white">
+      <div className="fixed inset-0 z-[700] h-[100dvh] flex flex-col bg-white animate-fade-in">
         {/* Map background (draggable) */}
         <div className="flex-1 relative">
           {isLoaded && !loadError ? (
@@ -539,7 +539,7 @@ const AddressPickerV2 = ({
 
   // ============ MAP CONFIRM SCREEN ============
   return (
-    <div className="fixed inset-0 z-[700] h-[100dvh] flex flex-col bg-white">
+    <div className="fixed inset-0 z-[700] h-[100dvh] flex flex-col bg-white animate-fade-in">
       <div className="flex-1 relative">
         {loadError ? (
           <div className="flex items-center justify-center h-full text-red-600">

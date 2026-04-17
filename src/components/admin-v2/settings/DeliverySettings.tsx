@@ -273,6 +273,7 @@ export function DeliverySettings() {
         is_fixed_rate: false,
         minimum_order_amount: 0,
         delivery_time_allowed: null,
+        takeaway_time_allowed: null,
         isDeliveryActive: true,
         needDeliveryLocation: true,
         need_user_name: false,
@@ -302,6 +303,7 @@ export function DeliverySettings() {
                 is_fixed_rate: userData.delivery_rules?.is_fixed_rate || false,
                 minimum_order_amount: userData.delivery_rules?.minimum_order_amount || 0,
                 delivery_time_allowed: userData.delivery_rules?.delivery_time_allowed || null,
+                takeaway_time_allowed: userData.delivery_rules?.takeaway_time_allowed || null,
                 isDeliveryActive: userData.delivery_rules?.isDeliveryActive ?? true,
                 needDeliveryLocation: userData.delivery_rules?.needDeliveryLocation ?? true,
                 need_user_name: userData.delivery_rules?.need_user_name ?? false,
@@ -394,6 +396,7 @@ export function DeliverySettings() {
             is_fixed_rate: data.delivery_rules?.is_fixed_rate || false,
             minimum_order_amount: data.delivery_rules?.minimum_order_amount || 0,
             delivery_time_allowed: data.delivery_rules?.delivery_time_allowed || null,
+            takeaway_time_allowed: data.delivery_rules?.takeaway_time_allowed || null,
             isDeliveryActive: data.delivery_rules?.isDeliveryActive ?? true,
             needDeliveryLocation: data.delivery_rules?.needDeliveryLocation ?? true,
             need_user_name: data.delivery_rules?.need_user_name ?? false,
@@ -682,6 +685,27 @@ export function DeliverySettings() {
                                 onChange={(val) => setDeliveryRules(prev => ({
                                     ...prev,
                                     delivery_time_allowed: { from: prev.delivery_time_allowed?.from || "00:00", to: val }
+                                }))}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Takeaway Time Window</Label>
+                        <div className="flex items-center gap-3">
+                            <TimePicker
+                                value={deliveryRules.takeaway_time_allowed?.from || "00:00"}
+                                onChange={(val) => setDeliveryRules(prev => ({
+                                    ...prev,
+                                    takeaway_time_allowed: { from: val, to: prev.takeaway_time_allowed?.to || "23:59" }
+                                }))}
+                            />
+                            <span className="text-sm text-muted-foreground">to</span>
+                            <TimePicker
+                                value={deliveryRules.takeaway_time_allowed?.to || "23:59"}
+                                onChange={(val) => setDeliveryRules(prev => ({
+                                    ...prev,
+                                    takeaway_time_allowed: { from: prev.takeaway_time_allowed?.from || "00:00", to: val }
                                 }))}
                             />
                         </div>

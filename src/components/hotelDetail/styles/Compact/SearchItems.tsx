@@ -29,7 +29,7 @@ const SearchResultItem = ({
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
 
   const hasOrderingFeature = getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled && tableNumber !== 0;
-  const hasDeliveryFeature = getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled && tableNumber === 0 && (hoteldata?.delivery_rules?.isDeliveryActive ?? true);
+  const hasDeliveryFeature = getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled && tableNumber === 0;
   const showAddButton = hasOrderingFeature || hasDeliveryFeature;
 
   const hasVariants = item.variants && item.variants.length > 0;

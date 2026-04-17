@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { Truck, ShoppingBag, Bike, Store } from "lucide-react";
+import { Bike, Store, Clock } from "lucide-react";
+import { isWithinTimeWindow, formatTime12h } from "@/lib/isWithinTimeWindow";
 
 interface OrderTypeScreenProps {
   storeBanner?: string;
@@ -13,6 +14,9 @@ interface OrderTypeScreenProps {
   onSkip: () => void;
   onChangeLocation?: () => void;
   deliveryAvailable?: boolean;
+  isDeliveryActive?: boolean;
+  takeawayTimeAllowed?: { from: string; to: string } | null;
+  deliveryTimeAllowed?: { from: string; to: string } | null;
 }
 
 export default function OrderTypeScreen({
@@ -25,7 +29,12 @@ export default function OrderTypeScreen({
   onSkip,
   onChangeLocation,
   deliveryAvailable = true,
+  isDeliveryActive = true,
+  takeawayTimeAllowed,
+  deliveryTimeAllowed,
 }: OrderTypeScreenProps) {
+  const isTakeawayOpen = isWithinTimeWindow(takeawayTimeAllowed);
+  const isDeliveryOpen = isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed);
   return (
     <div className="flex flex-col min-h-dvh" style={{ backgroundColor: themeBg || '#14532D' }}>
       {/* Top section with logo + skip */}
@@ -66,19 +75,34 @@ export default function OrderTypeScreen({
           {/* Delivery option */}
           {hasDelivery && (
             <button
-              onClick={() => onSelect("delivery")}
-              className="flex items-center gap-4 border border-[#D6D6D6] rounded-xl p-4 hover:border-[#FF5301]/40 transition-colors shadow-sm shadow-black/20"
+              onClick={() => isDeliveryOpen && onSelect("delivery")}
+              disabled={!isDeliveryOpen}
+              className={`flex items-center gap-4 border rounded-xl p-4 transition-colors shadow-sm shadow-black/20 ${
+                !isDeliveryOpen
+                  ? "border-gray-200 opacity-50 cursor-not-allowed"
+                  : "border-[#D6D6D6] hover:border-[#FF5301]/40"
+              }`}
             >
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#FF5301]">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${!isDeliveryOpen ? "bg-gray-400" : "bg-[#FF5301]"}`}>
                 <Bike className="w-6 h-6 text-white" />
               </div>
-              <div className="text-left">
+              <div className="text-left flex-1">
                 <p className="text-[#111827] font-semibold text-base">
                   Delivery
                 </p>
                 <p className="text-[#9CA3AF] text-xs">
                   Delivered to your doorstep
                 </p>
+                {!isDeliveryOpen && (
+                  <p className="text-[#EF4444] text-xs mt-1 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {!isDeliveryActive
+                      ? "Delivery is currently unavailable"
+                      : deliveryTimeAllowed
+                        ? `Available ${formatTime12h(deliveryTimeAllowed.from)} - ${formatTime12h(deliveryTimeAllowed.to)}`
+                        : "Currently unavailable"}
+                  </p>
+                )}
               </div>
             </button>
           )}
@@ -86,19 +110,30 @@ export default function OrderTypeScreen({
           {/* Takeaway option */}
           {hasOrdering && (
             <button
-              onClick={() => onSelect("takeaway")}
-              className="flex items-center gap-4 border border-[#D6D6D6] rounded-xl p-4 hover:border-[#FF5301]/40 transition-colors shadow-sm shadow-black/20"
+              onClick={() => isTakeawayOpen && onSelect("takeaway")}
+              disabled={!isTakeawayOpen}
+              className={`flex items-center gap-4 border rounded-xl p-4 transition-colors shadow-sm shadow-black/20 ${
+                !isTakeawayOpen
+                  ? "border-gray-200 opacity-50 cursor-not-allowed"
+                  : "border-[#D6D6D6] hover:border-[#FF5301]/40"
+              }`}
             >
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#FF5301]">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${!isTakeawayOpen ? "bg-gray-400" : "bg-[#FF5301]"}`}>
                 <Store className="w-6 h-6 text-white" />
               </div>
-              <div className="text-left">
+              <div className="text-left flex-1">
                 <p className="text-[#111827] font-semibold text-base">
                   Takeaway
                 </p>
                 <p className="text-[#9CA3AF] text-xs">
                   Pick up from an outlet
                 </p>
+                {!isTakeawayOpen && takeawayTimeAllowed && (
+                  <p className="text-[#EF4444] text-xs mt-1 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    Available {formatTime12h(takeawayTimeAllowed.from)} - {formatTime12h(takeawayTimeAllowed.to)}
+                  </p>
+                )}
               </div>
             </button>
           )}

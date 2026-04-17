@@ -92,14 +92,10 @@ const SidebarItemCard = ({
   };
 
   const hasOrderingFeature =
-    getFeatures(feature_flags || "")?.ordering.enabled &&
-    (hotelData?.delivery_rules?.isDeliveryActive ?? true) &&
-    isWithinDeliveryTime();
+    getFeatures(feature_flags || "")?.ordering.enabled;
   const hasDeliveryFeature =
     getFeatures(feature_flags || "")?.delivery.enabled &&
-    tableNumber === 0 &&
-    (hotelData?.delivery_rules?.isDeliveryActive ?? true) &&
-    isWithinDeliveryTime();
+    tableNumber === 0;
 
   const hasStockFeature =
     getFeatures(feature_flags || "")?.stockmanagement?.enabled;

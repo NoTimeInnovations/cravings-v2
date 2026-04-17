@@ -1,8 +1,7 @@
 import OfferLoadinPage from "@/components/OfferLoadinPage";
-import React from "react";
+import { getStoreThemeCookie } from "@/app/auth/actions";
 
-const Loading = () => {
-  return <OfferLoadinPage message="Loading Hotel Details...." />;
-};
-
-export default Loading;
+export default async function Loading() {
+  const theme = await getStoreThemeCookie();
+  return <OfferLoadinPage message="Loading menu..." storeBanner={theme?.banner} bg={theme?.bg} />;
+}

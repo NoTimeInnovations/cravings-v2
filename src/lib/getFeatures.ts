@@ -31,6 +31,10 @@ export type FeatureFlags = {
     access: boolean;
     enabled: boolean;
   };
+  newonboarding: {
+    access: boolean;
+    enabled: boolean;
+  };
 };
 
 export const revertFeatureToString = (features: FeatureFlags): string => {
@@ -66,6 +70,10 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
 
   if (features.whatsappnotifications.access) {
     parts.push(`whatsappnotifications-${features.whatsappnotifications.enabled}`);
+  }
+
+  if (features.newonboarding.access) {
+    parts.push(`newonboarding-${features.newonboarding.enabled}`);
   }
 
   return parts.join(",");
@@ -104,7 +112,11 @@ export const getFeatures = (perm: string | null) => {
     whatsappnotifications: {
       access: false,
       enabled: false,
-    }
+    },
+    newonboarding: {
+      access: false,
+      enabled: false,
+    },
   };
 
   if (!perm) {
@@ -141,6 +153,9 @@ export const getFeatures = (perm: string | null) => {
       } else if (key === "whatsappnotifications") {
         permissions.whatsappnotifications.access = true;
         permissions.whatsappnotifications.enabled = value === "true";
+      } else if (key === "newonboarding") {
+        permissions.newonboarding.access = true;
+        permissions.newonboarding.enabled = value === "true";
       }
     }
   }

@@ -328,6 +328,16 @@ export const getOnboardingCookie = async (partnerId: string) => {
   }
 };
 
+export const getStoreThemeCookie = async () => {
+  const cookie = (await cookies()).get("store_theme")?.value;
+  if (!cookie) return null;
+  try {
+    return JSON.parse(decodeURIComponent(cookie)) as { banner?: string; bg?: string; name?: string };
+  } catch {
+    return null;
+  }
+};
+
 export const setOnboardingDataCookie = async (
   partnerId: string,
   data: { address?: string; coords?: { lat: number; lng: number } | null; orderType?: string }

@@ -116,15 +116,11 @@ const ItemCard = ({
 
   const hasDeliveryFeature =
     getFeatures(feature_flags || "")?.delivery.enabled &&
-    tableNumber === 0 &&
-    (hoteldata?.delivery_rules?.isDeliveryActive ?? true) &&
-    isWithinDeliveryTime();
+    tableNumber === 0;
 
   const hasOrderingFeature =
     getFeatures(feature_flags || "")?.ordering.enabled &&
-    tableNumber !== 0 &&
-    (hoteldata?.delivery_rules?.isDeliveryActive ?? true) &&
-    isWithinDeliveryTime();
+    tableNumber !== 0;
 
   const isPartnersRole = auth?.role === "partner";
 

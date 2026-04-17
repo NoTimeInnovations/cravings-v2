@@ -47,7 +47,8 @@ const FeatureFlagManagement = () => {
     pos: "Enables POS feature for a partner.",
     stockmanagement: "Enables stock management feature for a partner.",
     captainordering: "Enables captain account creation and management for partners. Partners can create and manage captain accounts for taking orders.",
-    whatsappnotifications: "Sends WhatsApp order notifications to customers when an order is placed and status updates."
+    whatsappnotifications: "Sends WhatsApp order notifications to customers when an order is placed and status updates.",
+    newonboarding: "Enables the new onboarding flow with login, order type selection, and delivery address screens."
   };
 
   const getAllPartners = async () => {

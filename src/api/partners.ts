@@ -146,6 +146,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     footnote
     status
     store_name
+    store_tagline
     is_shop_open
     currency
     place_id
