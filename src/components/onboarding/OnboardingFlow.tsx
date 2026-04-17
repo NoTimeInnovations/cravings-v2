@@ -54,7 +54,6 @@ export default function OnboardingFlow({
 
   const getInitialStep = (): OnboardingStep => {
     if (!isLoggedIn) return "login";
-    if (needsAddress && !onboardingCompleted) return "address";
     if (needsOrderType) return "orderType";
     return "orderType";
   };
@@ -123,9 +122,7 @@ export default function OnboardingFlow({
       setLoginLoading(true);
       try {
         await signInWithPhone(phoneNum, partnerId, ci);
-        if (needsAddress) {
-          setStep("address");
-        } else if (needsOrderType) {
+        if (needsOrderType) {
           await markLoginAddressDone();
           setStep("orderType");
         } else {
@@ -137,15 +134,13 @@ export default function OnboardingFlow({
         setLoginLoading(false);
       }
     }
-  }, [hasWhatsappOtp, sendOtp, signInWithPhone, partnerId, needsAddress, needsOrderType, finishOnboarding, markLoginAddressDone]);
+  }, [hasWhatsappOtp, sendOtp, signInWithPhone, partnerId, needsOrderType, finishOnboarding, markLoginAddressDone]);
 
   const handleOtpVerify = useCallback(async (otp: string) => {
     try {
       await verifyOtp(otp);
       await signInWithPhone(phone, partnerId, countryInfo!);
-      if (needsAddress) {
-        setStep("address");
-      } else if (needsOrderType) {
+      if (needsOrderType) {
         await markLoginAddressDone();
         setStep("orderType");
       } else {
@@ -154,7 +149,7 @@ export default function OnboardingFlow({
     } catch {
       // error handled by hook
     }
-  }, [verifyOtp, signInWithPhone, phone, partnerId, countryInfo, needsAddress, needsOrderType, finishOnboarding, markLoginAddressDone]);
+  }, [verifyOtp, signInWithPhone, phone, partnerId, countryInfo, needsOrderType, finishOnboarding, markLoginAddressDone]);
 
   const handleAddressContinue = useCallback(async (addr: string, coords: { lat: number; lng: number } | null) => {
     setUserAddress(addr);
@@ -164,24 +159,35 @@ export default function OnboardingFlow({
     try {
       localStorage.setItem("onboarding_address", JSON.stringify({ address: addr, coords }));
     } catch {}
-    // Save to cookie and wait for it
     await setOnboardingDataCookie(partnerId, { address: addr, coords });
-
-    if (needsOrderType) {
-      await markLoginAddressDone();
-      setStep("orderType");
-    } else {
-      await finishOnboarding();
-    }
-  }, [setUserAddress, setUserCoordinates, needsOrderType, partnerId, finishOnboarding, markLoginAddressDone]);
+    dismissWithAnimation();
+  }, [setUserAddress, setUserCoordinates, partnerId, dismissWithAnimation]);
 
   const handleOrderTypeSelect = useCallback((type: "delivery" | "takeaway") => {
     setOrderType(type);
     try {
       sessionStorage.setItem(`order_type_${partnerId}`, type);
     } catch {}
+
+    if (type === "delivery" && needsAddress) {
+      try {
+        const saved = localStorage.getItem("onboarding_address");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.address) {
+            setUserAddress(parsed.address);
+            if (parsed.coords) setUserCoordinates(parsed.coords);
+            dismissWithAnimation();
+            return;
+          }
+        }
+      } catch {}
+      setStep("address");
+      return;
+    }
+
     dismissWithAnimation();
-  }, [setOrderType, partnerId, dismissWithAnimation]);
+  }, [setOrderType, partnerId, dismissWithAnimation, needsAddress, setUserAddress, setUserCoordinates]);
 
   const handleSkip = useCallback(() => {
     dismissWithAnimation();
@@ -201,6 +207,7 @@ export default function OnboardingFlow({
   }, [sendOtp, countryInfo, phone]);
 
   const handleChangeLocation = useCallback(() => {
+    try { localStorage.removeItem("onboarding_address"); } catch {}
     setStep("address");
   }, []);
 
