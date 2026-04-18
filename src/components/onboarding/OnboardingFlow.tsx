@@ -232,6 +232,8 @@ export default function OnboardingFlow({
             storeTagline={storeTagline}
             notices={notices}
             socialLinks={socialLinks}
+            hasDelivery={hasDelivery}
+            hasOrdering={hasOrdering}
             onContinue={() => {
               if (!isLoggedIn) setStep("login");
               else if (needsOrderType) setStep("orderType");

@@ -9,6 +9,8 @@ interface SplashScreenProps {
   storeTagline?: string;
   notices?: any[];
   socialLinks?: any;
+  hasDelivery?: boolean;
+  hasOrdering?: boolean;
   onContinue: () => void;
 }
 
@@ -30,6 +32,8 @@ export default function SplashScreen({
   storeTagline,
   notices = [],
   socialLinks,
+  hasDelivery = false,
+  hasOrdering = false,
   onContinue,
 }: SplashScreenProps) {
   const activeNotices = notices.filter((n) => n.is_active !== false);
@@ -145,7 +149,13 @@ export default function SplashScreen({
             <div className="flex items-center gap-2.5">
               <MapPin className="w-[15px] h-[15px] text-gray-900 shrink-0" />
               <span className="text-[13px] text-gray-900">
-                Delivery & takeaway available
+                {hasDelivery && hasOrdering
+                  ? "Delivery & takeaway available"
+                  : hasDelivery
+                    ? "Delivery available"
+                    : hasOrdering
+                      ? "Takeaway available"
+                      : "Browse menu"}
               </span>
             </div>
             <div className="h-px bg-gray-100" />
