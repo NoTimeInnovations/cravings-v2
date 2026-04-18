@@ -160,7 +160,7 @@ const V3 = ({
 
         {/* ===== STICKY HEADER (exact cravings-v3 style) ===== */}
         <header className="sticky top-0 z-40 w-full border-b border-gray-200/60 bg-white/90 backdrop-blur-xl">
-          <div className="mx-auto flex h-14 max-w-2xl items-center gap-2 px-3">
+          <div className="mx-auto flex h-14 max-w-2xl items-center gap-2 px-4">
             {/* Left: Location/Outlet info */}
             <button
               onClick={() => { if (orderType !== "takeaway" && tableNumber === 0) setAddressSheetOpen(true); }}
@@ -294,7 +294,7 @@ const V3 = ({
 
         {/* Announcement */}
         {hoteldata?.delivery_rules?.announcement && (
-          <div className="mx-3 mt-3 flex items-center gap-2.5 rounded-xl bg-blue-50 px-3 py-2 ring-1 ring-blue-100">
+          <div className="mx-4 mt-3 flex items-center gap-2.5 rounded-xl bg-blue-50 px-3 py-2 ring-1 ring-blue-100">
             <span className="text-base">📢</span>
             <p className="flex-1 truncate text-[11px] font-bold text-blue-800">{hoteldata.delivery_rules.announcement}</p>
           </div>
@@ -304,7 +304,7 @@ const V3 = ({
         <div className="sticky top-14 z-20 mt-3 border-b border-gray-200/60 bg-white/90 backdrop-blur-xl">
           <div
             ref={categoriesContainerRef}
-            className="flex gap-1.5 overflow-x-auto px-3 py-2 scrollbar-hide"
+            className="flex gap-1.5 overflow-x-auto px-4 py-2 scrollbar-hide"
           >
             {allCategories.map((category, index) => (
               <div
@@ -324,7 +324,7 @@ const V3 = ({
         </div>
 
         {/* Menu sections */}
-        <div className="px-3">
+        <div className="px-4">
           {allCategories.map((category, index) => {
             let itemsToDisplay: any[] = [];
 

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { Phone, Instagram, Globe, MapPin, Clock, Star } from "lucide-react";
+import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 
 interface SplashScreenProps {
   storeName: string;
@@ -11,6 +12,9 @@ interface SplashScreenProps {
   socialLinks?: any;
   hasDelivery?: boolean;
   hasOrdering?: boolean;
+  isDeliveryActive?: boolean;
+  deliveryTimeAllowed?: { from: string; to: string } | null;
+  takeawayTimeAllowed?: { from: string; to: string } | null;
   onContinue: () => void;
 }
 
@@ -34,8 +38,13 @@ export default function SplashScreen({
   socialLinks,
   hasDelivery = false,
   hasOrdering = false,
+  isDeliveryActive = true,
+  deliveryTimeAllowed,
+  takeawayTimeAllowed,
   onContinue,
 }: SplashScreenProps) {
+  const deliveryOpen = hasDelivery && isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed);
+  const takeawayOpen = hasOrdering && isWithinTimeWindow(takeawayTimeAllowed);
   const activeNotices = notices.filter((n) => n.is_active !== false);
   const parsedNotices = activeNotices
     .map((n) => parseNoticeData(n))
@@ -149,11 +158,11 @@ export default function SplashScreen({
             <div className="flex items-center gap-2.5">
               <MapPin className="w-[15px] h-[15px] text-gray-900 shrink-0" />
               <span className="text-[13px] text-gray-900">
-                {hasDelivery && hasOrdering
+                {deliveryOpen && takeawayOpen
                   ? "Delivery & takeaway available"
-                  : hasDelivery
+                  : deliveryOpen
                     ? "Delivery available"
-                    : hasOrdering
+                    : takeawayOpen
                       ? "Takeaway available"
                       : "Browse menu"}
               </span>

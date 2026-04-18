@@ -234,6 +234,9 @@ export default function OnboardingFlow({
             socialLinks={socialLinks}
             hasDelivery={hasDelivery}
             hasOrdering={hasOrdering}
+            isDeliveryActive={isDeliveryActive}
+            deliveryTimeAllowed={deliveryTimeAllowed}
+            takeawayTimeAllowed={takeawayTimeAllowed}
             onContinue={() => {
               if (!isLoggedIn) setStep("login");
               else if (needsOrderType) setStep("orderType");
