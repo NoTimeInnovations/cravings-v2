@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import Image from "next/image";
-import { Loader2, MapPin, Search, LocateFixed } from "lucide-react";
+import { Loader2, MapPin, Search, LocateFixed, ChevronLeft, ChevronRight } from "lucide-react";
 import { useLoadScript } from "@react-google-maps/api";
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
@@ -17,9 +16,7 @@ interface DeliveryAddressScreenProps {
 }
 
 export default function DeliveryAddressScreen({
-  storeBanner,
   storeName,
-  themeBg,
   onContinue,
   loading,
 }: DeliveryAddressScreenProps) {
@@ -52,15 +49,11 @@ export default function DeliveryAddressScreen({
   const handleSearch = useCallback((query: string) => {
     setAddress(query);
     setError("");
-
     if (debounceRef.current) clearTimeout(debounceRef.current);
-
     if (!query || query.length < 3 || !autocompleteRef.current) {
       setSuggestions([]);
       return;
     }
-
-    // Debounce 300ms to reduce API calls
     debounceRef.current = setTimeout(() => {
       autocompleteRef.current?.getPlacePredictions(
         {
@@ -68,9 +61,7 @@ export default function DeliveryAddressScreen({
           componentRestrictions: { country: "in" },
           sessionToken: sessionTokenRef.current || undefined,
         },
-        (results) => {
-          setSuggestions(results || []);
-        }
+        (results) => setSuggestions(results || []),
       );
     }, 300);
   }, []);
@@ -79,166 +70,133 @@ export default function DeliveryAddressScreen({
     setAddress(description);
     setSuggestions([]);
     if (placesRef.current) {
-      // Pass session token to group autocomplete + details into one billing session
       placesRef.current.getDetails(
-        {
-          placeId,
-          fields: ["geometry"],
-          sessionToken: sessionTokenRef.current || undefined,
-        },
+        { placeId, fields: ["geometry"], sessionToken: sessionTokenRef.current || undefined },
         (place) => {
           if (place?.geometry?.location) {
-            setCoords({
-              lat: place.geometry.location.lat(),
-              lng: place.geometry.location.lng(),
-            });
+            setCoords({ lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
           }
-          // Reset session token after place details (completes billing session)
           if (typeof google !== "undefined") {
             sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
           }
-        }
+        },
       );
     }
   }, []);
 
   const useCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      setError("Geolocation not supported");
-      return;
-    }
+    if (!navigator.geolocation) { setError("Geolocation not supported"); return; }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         setCoords({ lat: latitude, lng: longitude });
         try {
-          const res = await fetch(
-            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
-          );
+          const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`);
           const data = await res.json();
-          if (data.results?.[0]) {
-            setAddress(data.results[0].formatted_address);
-          }
+          if (data.results?.[0]) setAddress(data.results[0].formatted_address);
         } catch {
           setAddress(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
         }
         setLocating(false);
       },
-      () => {
-        setError("Location access denied");
-        setLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
+      () => { setError("Location access denied"); setLocating(false); },
+      { enableHighAccuracy: true, timeout: 10000 },
     );
   };
 
   const handleContinue = () => {
-    if (!address.trim()) {
-      setError("Please enter a delivery address");
-      return;
-    }
+    if (!address.trim()) { setError("Please enter a delivery address"); return; }
     onContinue(address, coords);
   };
 
   return (
-    <div className="flex flex-col min-h-dvh" style={{ backgroundColor: themeBg || '#14532D' }}>
+    <div className="flex flex-col h-dvh bg-white overflow-hidden" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <div ref={dummyDivRef} className="hidden" />
 
-      {/* Top section with logo only */}
-      <div className="flex flex-col items-center justify-center px-6 pt-12 pb-8">
-        {storeBanner ? (
-          <div className="w-20 h-20 rounded-[20px] overflow-hidden border-4 border-white/20 bg-white">
-            <Image
-              src={storeBanner}
-              alt={storeName}
-              width={80}
-              height={80}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        ) : (
-          <div className="w-20 h-20 rounded-[20px] flex items-center justify-center text-white text-2xl font-bold bg-[#1E6B3A]">
-            {storeName?.charAt(0) || "M"}
-          </div>
-        )}
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 py-3.5 sticky top-0 z-10 bg-white">
+        <button
+          onClick={() => onContinue("", null)}
+          className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0 transition active:opacity-60"
+        >
+          <ChevronLeft className="w-[18px] h-[18px] text-gray-900" />
+        </button>
       </div>
 
-      {/* White card */}
-      <div className="flex-1 bg-white rounded-t-3xl px-6 pt-10 pb-8">
-        <h2 className="text-[#111827] font-bold text-xl text-center mb-1">
+      {/* Content */}
+      <div className="px-6 flex-1 min-h-0 overflow-y-auto">
+        <h1 className="text-2xl font-semibold tracking-tight text-gray-900 leading-tight">
           Delivery address
-        </h2>
-        <p className="text-[#6B7280] text-sm text-center mb-8">
-          Where should we delivery your order?
+        </h1>
+        <p className="mt-2 text-[14px] text-gray-500 leading-relaxed">
+          Where should we deliver your order?
         </p>
 
         {/* Use current location */}
         <button
           onClick={useCurrentLocation}
           disabled={locating}
-          className="w-full flex items-center gap-3 border border-[#D6D6D6] rounded-2xl px-4 py-5 mb-4 hover:bg-[#F9FAFB] transition-colors shadow-sm shadow-black/20"
+          className="w-full mt-6 flex items-center gap-3 p-3.5 rounded-[14px] bg-gray-50 border-none cursor-pointer transition active:opacity-60"
         >
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#ECFDF5]">
+          <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center shrink-0">
             {locating ? (
-              <Loader2 className="w-5 h-5 animate-spin text-[#059669]" />
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
             ) : (
-              <LocateFixed className="w-5 h-5 text-[#059669]" />
+              <LocateFixed className="w-4 h-4 text-white" />
             )}
           </div>
-          <div className="text-left">
-            <p className="text-[#111827] font-semibold text-sm">
-              Use current location
-            </p>
-            <p className="text-[#9CA3AF] text-xs">
-              Allow GPS to detect your address
-            </p>
+          <div className="flex-1 text-left">
+            <p className="text-sm font-semibold text-gray-900">Use current location</p>
+            <p className="text-[12px] text-gray-400 mt-0.5">GPS enabled · precise to the street</p>
           </div>
+          <ChevronRight className="w-[18px] h-[18px] text-gray-400 shrink-0" />
         </button>
 
-        {/* OR divider */}
-        <div className="flex items-center gap-3 my-4">
-          <div className="flex-1 h-px bg-[#E5E7EB]" />
-          <span className="text-[#9CA3AF] text-xs font-medium">OR</span>
-          <div className="flex-1 h-px bg-[#E5E7EB]" />
-        </div>
-
         {/* Search input */}
-        <div className="relative">
-          <div className="flex items-center border border-[#D6D6D6] rounded-xl h-[50px] px-3 gap-2 shadow-sm shadow-black/20">
-            <Search className="w-4 h-4 text-[#9CA3AF] flex-shrink-0" />
+        <div className="relative mt-5">
+          <div className="flex items-center h-[50px] rounded-xl border border-gray-200 bg-white px-3.5 gap-2.5 focus-within:border-gray-900 focus-within:ring-1 focus-within:ring-gray-900/10 transition">
+            <Search className="w-4 h-4 text-gray-400 shrink-0" />
             <input
               type="text"
-              placeholder="Search for area, street, locality..."
+              placeholder="Search street, building, landmark"
               value={address}
               onChange={(e) => handleSearch(e.target.value)}
-              className="flex-1 h-full text-sm text-[#111827] placeholder:text-[#9CA3AF] outline-none bg-transparent"
+              className="flex-1 h-full text-[15px] text-gray-900 placeholder:text-gray-400 outline-none bg-transparent"
             />
           </div>
 
-          {/* Suggestions dropdown */}
+          {/* Suggestions */}
           {suggestions.length > 0 && (
-            <div className="absolute top-14 left-0 right-0 bg-white border border-[#E5E7EB] rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
+            <div className="absolute top-14 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
               {suggestions.map((s) => (
                 <button
                   key={s.place_id}
                   onClick={() => selectSuggestion(s.place_id, s.description)}
-                  className="w-full text-left px-4 py-3 text-sm text-[#374151] hover:bg-[#F9FAFB] border-b border-[#F3F4F6] last:border-0 flex items-start gap-2"
+                  className="w-full text-left px-4 py-3 text-sm text-gray-900 hover:bg-gray-50 border-b border-gray-100 last:border-0 flex items-start gap-2.5 transition active:opacity-60"
                 >
-                  <MapPin className="w-4 h-4 text-[#9CA3AF] mt-0.5 flex-shrink-0" />
-                  <span className="line-clamp-2">{s.description}</span>
+                  <div className="w-9 h-9 rounded-[10px] bg-gray-50 flex items-center justify-center shrink-0 mt-0.5">
+                    <MapPin className="w-4 h-4 text-gray-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-medium text-gray-900 truncate">{s.structured_formatting?.main_text || s.description}</p>
+                    <p className="text-[12px] text-gray-400 mt-0.5 truncate">{s.structured_formatting?.secondary_text || ""}</p>
+                  </div>
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {error && <p className="text-[#EF4444] text-xs mt-2">{error}</p>}
+        {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
+      </div>
 
+      {/* Sticky CTA */}
+      <div className="shrink-0 px-4 pt-2.5 pb-8 bg-white/95 backdrop-blur-lg border-t border-gray-100">
         <button
           onClick={handleContinue}
           disabled={loading || !address.trim()}
-          className="w-full h-[50px] rounded-xl text-white font-semibold text-base mt-6 flex items-center justify-center transition-opacity disabled:opacity-60 bg-[#FF5301]"
+          className="w-full h-[50px] rounded-[14px] bg-gray-900 text-white font-semibold text-[15px] flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Continue"}
         </button>

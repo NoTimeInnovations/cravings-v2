@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
-import { Bike, Store, Clock } from "lucide-react";
+import { useState } from "react";
+import { Bike, Store, Clock, ChevronLeft } from "lucide-react";
 import { isWithinTimeWindow, formatTime12h } from "@/lib/isWithinTimeWindow";
 
 interface OrderTypeScreenProps {
@@ -19,19 +19,7 @@ interface OrderTypeScreenProps {
   deliveryTimeAllowed?: { from: string; to: string } | null;
 }
 
-function isLightColor(hex: string): boolean {
-  const c = hex.replace("#", "");
-  const r = parseInt(c.substring(0, 2), 16);
-  const g = parseInt(c.substring(2, 4), 16);
-  const b = parseInt(c.substring(4, 6), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.6;
-}
-
 export default function OrderTypeScreen({
-  storeBanner,
-  storeName,
-  themeBg,
   hasDelivery,
   hasOrdering,
   onSelect,
@@ -44,141 +32,138 @@ export default function OrderTypeScreen({
 }: OrderTypeScreenProps) {
   const isTakeawayOpen = isWithinTimeWindow(takeawayTimeAllowed);
   const isDeliveryOpen = isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed);
-  const lightBg = isLightColor(themeBg || "#14532D");
+  const [mode, setMode] = useState<"delivery" | "takeaway">(
+    hasDelivery && isDeliveryOpen ? "delivery" : "takeaway"
+  );
 
   return (
-    <div className="flex flex-col min-h-dvh" style={{ backgroundColor: themeBg || '#14532D' }}>
-      {/* Top section — logo + image (same as login) */}
-      <div className="relative flex-1 min-h-[250px]">
-        {/* Logo + Store name */}
-        <div className="absolute top-0 left-0 right-0 bottom-1/2 flex flex-col items-center justify-center px-6 z-10 gap-3">
-          {storeBanner ? (
-            <div className={`w-16 h-16 rounded-2xl overflow-hidden border-2 bg-white shadow-lg ${lightBg ? "border-black/20" : "border-white/20"}`}>
-              <Image
-                src={storeBanner}
-                alt={storeName}
-                width={64}
-                height={64}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          ) : (
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold ${lightBg ? "bg-black/10 text-black" : "bg-white/10 text-white"}`}>
-              {storeName?.charAt(0) || "M"}
-            </div>
-          )}
-          <h1 className={`text-xl font-black leading-tight text-center ${lightBg ? "text-black" : "text-white"}`}>
-            How would you like your order?
-          </h1>
-        </div>
-
-        {/* Hero image — anchored to bottom */}
-        <div className="absolute bottom-0 left-0 right-0 z-[2]">
-          <Image
-            src="/loginscreenimage.png"
-            alt="Food"
-            width={600}
-            height={400}
-            className="w-full object-cover"
-          />
-        </div>
+    <div className="flex flex-col min-h-dvh bg-[#fafafa]" style={{ fontFamily: "'Inter', system-ui, sans-serif", paddingTop: 60 }}>
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 py-3.5 sticky top-0 z-10 bg-[#fafafa]">
+        <button
+          onClick={onSkip}
+          className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0 transition active:opacity-60"
+        >
+          <ChevronLeft className="w-[18px] h-[18px] text-gray-900" />
+        </button>
       </div>
 
-      {/* Bottom white card */}
-      <div className="bg-white rounded-t-3xl px-6 pt-8 pb-10 z-10 relative -mt-6">
-        <div className="flex items-center justify-between mb-5">
-          <p className="text-[#6B7280] text-sm font-medium">
-            Pick an option to get started
-          </p>
-          <button
-            onClick={onSkip}
-            className="text-xs font-semibold text-[#9CA3AF] hover:text-[#6B7280]"
-          >
-            SKIP
-          </button>
-        </div>
+      {/* Content */}
+      <div className="px-6 flex-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
+          How would you like your order?
+        </h1>
+        <p className="mt-2.5 text-sm text-gray-500">
+          You can change this anytime.
+        </p>
 
-        <div className="flex flex-col gap-3">
-          {/* Delivery option */}
+        <div className="mt-7 flex flex-col gap-3">
+          {/* Delivery */}
           {hasDelivery && (
             <button
-              onClick={() => isDeliveryOpen && onSelect("delivery")}
+              onClick={() => {
+                if (!isDeliveryOpen) return;
+                setMode("delivery");
+              }}
               disabled={!isDeliveryOpen}
-              className={`flex items-center gap-4 border rounded-xl p-4 transition-colors shadow-sm shadow-black/20 ${
+              className={`w-full p-[18px] rounded-[18px] cursor-pointer bg-white flex items-center gap-3.5 transition-all duration-150 ${
                 !isDeliveryOpen
-                  ? "border-gray-200 opacity-50 cursor-not-allowed"
-                  : "border-[#D6D6D6] hover:border-[#FF5301]/40"
+                  ? "opacity-50 cursor-not-allowed border-[1.5px] border-gray-200"
+                  : mode === "delivery"
+                    ? "border-[1.5px] border-gray-900 shadow-[0_0_0_3px_rgba(0,0,0,0.06)]"
+                    : "border-[1.5px] border-gray-200 shadow-sm"
               }`}
             >
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${!isDeliveryOpen ? "bg-gray-400" : "bg-[#FF5301]"}`}>
-                <Bike className="w-6 h-6 text-white" />
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                !isDeliveryOpen ? "bg-gray-200" : "bg-gray-100"
+              }`}>
+                <Bike className="w-[22px] h-[22px] text-gray-900" />
               </div>
-              <div className="text-left flex-1">
-                <p className="text-[#111827] font-semibold text-base">
-                  Delivery
-                </p>
-                <p className="text-[#9CA3AF] text-xs">
-                  Delivered to your doorstep
-                </p>
+              <div className="flex-1 text-left">
+                <p className="text-base font-semibold text-gray-900 tracking-tight">Delivery</p>
+                <p className="text-[13px] text-gray-500 mt-0.5">Delivered to your doorstep</p>
                 {!isDeliveryOpen && (
-                  <p className="text-[#EF4444] text-xs mt-1 flex items-center gap-1">
+                  <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     {!isDeliveryActive
-                      ? "Delivery is currently unavailable"
+                      ? "Currently unavailable"
                       : deliveryTimeAllowed
                         ? `Available ${formatTime12h(deliveryTimeAllowed.from)} - ${formatTime12h(deliveryTimeAllowed.to)}`
                         : "Currently unavailable"}
                   </p>
                 )}
               </div>
+              <div className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center bg-white shrink-0 ${
+                mode === "delivery" && isDeliveryOpen ? "border-gray-900" : "border-gray-300"
+              }`}>
+                {mode === "delivery" && isDeliveryOpen && (
+                  <div className="w-2.5 h-2.5 rounded-full bg-gray-900" />
+                )}
+              </div>
             </button>
           )}
 
-          {/* Takeaway option */}
+          {/* Takeaway */}
           {hasOrdering && (
             <button
-              onClick={() => isTakeawayOpen && onSelect("takeaway")}
+              onClick={() => {
+                if (!isTakeawayOpen) return;
+                setMode("takeaway");
+              }}
               disabled={!isTakeawayOpen}
-              className={`flex items-center gap-4 border rounded-xl p-4 transition-colors shadow-sm shadow-black/20 ${
+              className={`w-full p-[18px] rounded-[18px] cursor-pointer bg-white flex items-center gap-3.5 transition-all duration-150 ${
                 !isTakeawayOpen
-                  ? "border-gray-200 opacity-50 cursor-not-allowed"
-                  : "border-[#D6D6D6] hover:border-[#FF5301]/40"
+                  ? "opacity-50 cursor-not-allowed border-[1.5px] border-gray-200"
+                  : mode === "takeaway"
+                    ? "border-[1.5px] border-gray-900 shadow-[0_0_0_3px_rgba(0,0,0,0.06)]"
+                    : "border-[1.5px] border-gray-200 shadow-sm"
               }`}
             >
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${!isTakeawayOpen ? "bg-gray-400" : "bg-[#FF5301]"}`}>
-                <Store className="w-6 h-6 text-white" />
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                !isTakeawayOpen ? "bg-gray-200" : "bg-gray-100"
+              }`}>
+                <Store className="w-[22px] h-[22px] text-gray-900" />
               </div>
-              <div className="text-left flex-1">
-                <p className="text-[#111827] font-semibold text-base">
-                  Takeaway
-                </p>
-                <p className="text-[#9CA3AF] text-xs">
-                  Pick up from an outlet
-                </p>
+              <div className="flex-1 text-left">
+                <p className="text-base font-semibold text-gray-900 tracking-tight">Takeaway</p>
+                <p className="text-[13px] text-gray-500 mt-0.5">Pick up from an outlet</p>
                 {!isTakeawayOpen && takeawayTimeAllowed && (
-                  <p className="text-[#EF4444] text-xs mt-1 flex items-center gap-1">
+                  <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     Available {formatTime12h(takeawayTimeAllowed.from)} - {formatTime12h(takeawayTimeAllowed.to)}
                   </p>
+                )}
+              </div>
+              <div className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center bg-white shrink-0 ${
+                mode === "takeaway" && isTakeawayOpen ? "border-gray-900" : "border-gray-300"
+              }`}>
+                {mode === "takeaway" && isTakeawayOpen && (
+                  <div className="w-2.5 h-2.5 rounded-full bg-gray-900" />
                 )}
               </div>
             </button>
           )}
         </div>
 
-        {/* Delivery not available message */}
+        {/* Change location */}
         {hasDelivery && !deliveryAvailable && onChangeLocation && (
-          <p className="text-center text-[#6B7280] text-sm mt-6">
-            Delivery not available in your selected location.
-            <br />
-            <button
-              onClick={onChangeLocation}
-              className="font-semibold text-[#FF5301] mt-1"
-            >
-              Change Your Location
+          <p className="text-center text-gray-500 text-sm mt-8">
+            Delivery not available here.{" "}
+            <button onClick={onChangeLocation} className="font-semibold text-gray-900">
+              Change location
             </button>
           </p>
         )}
+      </div>
+
+      {/* Sticky CTA */}
+      <div className="absolute left-0 right-0 bottom-0 px-4 pt-3.5 pb-8 bg-[#fafafa]/95 backdrop-blur-lg border-t border-gray-100 z-30">
+        <button
+          onClick={() => onSelect(mode)}
+          className="w-full h-[52px] rounded-[14px] bg-gray-900 text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98]"
+        >
+          Continue with {mode === "delivery" ? "Delivery" : "Takeaway"}
+        </button>
       </div>
     </div>
   );

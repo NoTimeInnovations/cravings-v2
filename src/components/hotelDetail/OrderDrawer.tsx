@@ -184,6 +184,7 @@ const OrderDrawer = ({
   qrId,
   qrGroup,
   hasBottomNav = false, // Added prop
+  v3Style = false,
 }: {
   styles: Styles;
   hotelData: HotelData;
@@ -191,6 +192,7 @@ const OrderDrawer = ({
   qrId?: string;
   qrGroup?: QrGroup | null;
   hasBottomNav?: boolean; // Added type
+  v3Style?: boolean;
 }) => {
   const {
     userAddress,
@@ -666,6 +668,36 @@ const OrderDrawer = ({
         const totalQty = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
         const totalPrice = items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
         if (totalQty === 0) return null;
+
+        if (v3Style) {
+          return (
+            <div
+              onClick={handlePlaceOrder}
+              className={`fixed left-0 right-0 z-[200] px-3 pb-2 transition-all duration-300 cursor-pointer ${
+                open_drawer_bottom ? "translate-y-0" : "translate-y-[200%]"
+              } bottom-0`}
+            >
+              <div className="mx-auto flex max-w-2xl items-center justify-between rounded-xl bg-emerald-600 px-4 py-3 text-white shadow-xl shadow-emerald-600/25 transition active:scale-[0.99]">
+                <div className="flex items-center gap-2.5">
+                  <div className="relative">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" x2="21" y1="6" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                    <span className="absolute -top-1 -right-1.5 flex h-4 min-w-[14px] items-center justify-center rounded-full bg-white px-0.5 text-[9px] font-bold text-emerald-700">
+                      {totalQty}
+                    </span>
+                  </div>
+                  <span className="text-sm font-bold">
+                    {totalQty} item{totalQty > 1 ? "s" : ""} · {hotelData?.currency || "₹"}{totalPrice.toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-0.5 text-sm font-bold">
+                  View Cart
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
         return (
           <div
             onClick={handlePlaceOrder}

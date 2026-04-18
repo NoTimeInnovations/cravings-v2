@@ -125,6 +125,7 @@ interface SearchItemsProps {
   auth?: any;
   iconOnly?: boolean;
   inputStyle?: boolean;
+  onClose?: () => void;
 }
 
 const SearchItems = ({
@@ -135,8 +136,9 @@ const SearchItems = ({
   auth,
   iconOnly,
   inputStyle,
+  onClose,
 }: SearchItemsProps) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(!!onClose);
   const [searchQuery, setSearchQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -174,13 +176,14 @@ const SearchItems = ({
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => {
     setIsModalOpen(false);
-    setSearchQuery(""); // Reset search query on close
+    setSearchQuery("");
+    onClose?.();
   }
 
   return (
     <div>
-      {/* Search Trigger */}
-      {iconOnly && inputStyle ? (
+      {/* Search Trigger - hidden when externally controlled via onClose */}
+      {onClose ? null : iconOnly && inputStyle ? (
         <div
           onClick={openModal}
           className="flex items-center gap-2 border border-gray-200 rounded-full px-4 py-2 cursor-pointer hover:border-gray-300 transition-colors flex-shrink-0 bg-white/60 mt-1"

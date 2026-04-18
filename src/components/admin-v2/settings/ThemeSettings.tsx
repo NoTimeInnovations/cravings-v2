@@ -170,8 +170,8 @@ export function ThemeSettings() {
           </CardContent>
         </Card>
 
-        {/* Colors */}
-        <Card>
+        {/* Colors - hidden for V3 theme */}
+        {menuStyle !== "v3" && <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Paintbrush className="h-5 w-5" />
@@ -265,7 +265,7 @@ export function ThemeSettings() {
               ))}
             </div>
           </CardContent>
-        </Card>
+        </Card>}
 
         {/* Grid Background - only for sidebar layout */}
         {menuStyle === "sidebar" && (
@@ -312,7 +312,6 @@ export function ThemeSettings() {
         )}
 
         {/* Checkout Style */}
-        {/* Checkout Style — disabled for now
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -349,7 +348,6 @@ export function ThemeSettings() {
             </div>
           </CardContent>
         </Card>
-        */}
 
         {/* Save Button */}
         {onFreePlan ? (

@@ -19,6 +19,7 @@ import { INCREMENT_QR_CODE_SCAN_COUNT } from "@/api/qrcodes";
 import Default from "@/components/hotelDetail/styles/Default/Default";
 import Compact from "@/components/hotelDetail/styles/Compact/Compact";
 import Sidebar from "@/components/hotelDetail/styles/Sidebar/Sidebar";
+import V3 from "@/components/hotelDetail/styles/V3/V3";
 import { saveUserLocation } from "@/lib/saveUserLocLocal";
 import { QrCode, useQrDataStore } from "@/store/qrDataStore";
 import DeliveryTimeCampain from "@/components/hotelDetail/DeliveryTimeCampain";
@@ -326,6 +327,8 @@ const HotelMenuPage = ({
         return <Compact {...defaultProps} />;
       case "sidebar":
         return <Sidebar {...defaultProps} />;
+      case "v3":
+        return <V3 {...defaultProps} />;
       default:
         return <Default {...defaultProps} />;
     }
@@ -361,6 +364,7 @@ const HotelMenuPage = ({
   const showOrderDrawer =
     theme?.menuStyle !== "compact" &&
     theme?.menuStyle !== "sidebar" &&
+    theme?.menuStyle !== "v3" &&
     ((pathname.includes("qrScan") && features?.ordering.enabled) ||
       (!pathname.includes("qrScan") &&
         features?.delivery.enabled &&
@@ -412,11 +416,11 @@ const HotelMenuPage = ({
           takeawayTimeAllowed={hoteldata?.delivery_rules?.takeaway_time_allowed}
           isDeliveryActive={hoteldata?.delivery_rules?.isDeliveryActive ?? true}
           storeTagline={(hoteldata as any)?.store_tagline}
+          notices={(hoteldata as any)?.notices || []}
+          socialLinks={socialLinks}
         />
       )}
-      {!skipNotices && hoteldata?.id && (hoteldata as any)?.notices?.length > 0 && (
-        <NoticesOverlay partnerId={hoteldata.id} notices={(hoteldata as any).notices} />
-      )}
+      {/* Notices now shown in splash/storefront screen only */}
     </>
   );
 };

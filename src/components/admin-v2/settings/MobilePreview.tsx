@@ -1,6 +1,7 @@
 import { DefaultPreview } from "./previews/DefaultPreview";
 import { CompactPreview } from "./previews/CompactPreview";
 import { SidebarPreview } from "./previews/SidebarPreview";
+import { V3Preview } from "./previews/V3Preview";
 import type { PreviewStyles } from "./previews/sampleData";
 
 interface MobilePreviewProps {
@@ -58,7 +59,10 @@ export function MobilePreview({ menuStyle, colors, fontFamily, showGrid }: Mobil
           {menuStyle === "sidebar" && (
             <SidebarPreview styles={styles} fontFamily={fontFamily} showGrid={showGrid} />
           )}
-          {(menuStyle === "default" || (menuStyle !== "compact" && menuStyle !== "sidebar")) && (
+          {menuStyle === "v3" && (
+            <V3Preview styles={styles} fontFamily={fontFamily} showGrid={showGrid} />
+          )}
+          {(menuStyle === "default" || (menuStyle !== "compact" && menuStyle !== "sidebar" && menuStyle !== "v3")) && (
             <DefaultPreview styles={styles} fontFamily={fontFamily} showGrid={showGrid} />
           )}
         </div>

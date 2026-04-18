@@ -106,11 +106,13 @@ const PlaceOrderModalV2 = ({
   const currency = hotelData?.currency || "₹";
 
   const [view, setView] = useState<"main" | "discounts">("main");
-  const [showCookingModal, setShowCookingModal] = useState(false);
+  const [showOrderNoteInput, setShowOrderNoteInput] = useState(!!orderNote);
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">("cash");
   const [showBreakdown, setShowBreakdown] = useState(true);
   const [orderStatus, setOrderStatus] = useState<"idle" | "loading" | "success">("idle");
+  const [successClosing, setSuccessClosing] = useState(false);
+  const [savedOrderTotal, setSavedOrderTotal] = useState<number | null>(null);
 
   const [availableDiscounts, setAvailableDiscounts] = useState<AvailableDiscount[]>([]);
   const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(null);
@@ -489,14 +491,25 @@ const PlaceOrderModalV2 = ({
     }
   }, [savedAddresses, saveAddressesForUser, address]);
 
+  const [closing, setClosing] = useState(false);
+
   const handleClose = () => {
-    setOpenPlaceOrderModal(false);
+    setClosing(true);
+    setTimeout(() => {
+      setOpenPlaceOrderModal(false);
+      setOpenDrawerBottom(true);
+      setClosing(false);
+    }, 250);
   };
 
   const handleAddMoreItems = () => {
-    setOpenPlaceOrderModal(false);
-    setOpenOrderDrawer(false);
-    setOpenDrawerBottom(false);
+    setClosing(true);
+    setTimeout(() => {
+      setOpenPlaceOrderModal(false);
+      setOpenOrderDrawer(false);
+      setOpenDrawerBottom(true);
+      setClosing(false);
+    }, 250);
   };
 
   const handlePay = async () => {
@@ -513,6 +526,7 @@ const PlaceOrderModalV2 = ({
       return;
     }
 
+    setSavedOrderTotal(grandTotal);
     setOrderStatus("loading");
     try {
       const extraCharges: { name: string; amount: number; charge_type: string }[] = [];
@@ -610,11 +624,6 @@ const PlaceOrderModalV2 = ({
           sessionStorage.removeItem(`order_type_${hotelData.id}`);
         } catch {}
         setOrderStatus("success");
-        toast.success("Order placed successfully!");
-        setTimeout(() => {
-          setOpenPlaceOrderModal(false);
-          setOrderStatus("idle");
-        }, 1200);
       } else {
         toast.error("Failed to place order. Please try again.");
         setOrderStatus("idle");
@@ -626,7 +635,73 @@ const PlaceOrderModalV2 = ({
     }
   };
 
+  const handleSuccessClose = () => {
+    setSuccessClosing(true);
+    setTimeout(() => {
+      setOrderStatus("idle");
+      setSavedOrderTotal(null);
+      setSuccessClosing(false);
+      setOpenPlaceOrderModal(false);
+      setOpenOrderDrawer(false);
+      setOpenDrawerBottom(true);
+    }, 300);
+  };
+
   if (!open_place_order_modal) return null;
+
+  if (orderStatus === "success") {
+    return (
+      <div
+        className="fixed inset-0 z-[500] flex items-center justify-center bg-white transition-opacity duration-300"
+        style={{ opacity: successClosing ? 0 : 1 }}
+      >
+        <style>{`
+          @keyframes v3SuccessFadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+          }
+          @keyframes v3SuccessCheck {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          @keyframes v3SuccessRing {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+        `}</style>
+        <div
+          className="flex flex-col items-center gap-6 px-8 text-center"
+          style={{ animation: successClosing ? "none" : "v3SuccessFadeIn 400ms ease-out forwards" }}
+        >
+          <div
+            className="flex h-24 w-24 items-center justify-center rounded-full bg-emerald-100"
+            style={{ animation: successClosing ? "none" : "v3SuccessRing 500ms ease-out forwards" }}
+          >
+            <svg
+              className="h-12 w-12 text-emerald-600"
+              style={{ animation: successClosing ? "none" : "v3SuccessCheck 600ms ease-out 200ms both" }}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">Order Placed!</h2>
+            <p className="mt-2 text-sm text-gray-400">Your order of {currency}{(savedOrderTotal ?? 0).toFixed(0)} has been placed.</p>
+            <p className="mt-1 text-xs text-gray-400">You will be notified when it&apos;s ready.</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleSuccessClose}
+            className="mt-4 rounded-xl bg-emerald-600 px-8 py-3 text-sm font-bold text-white shadow-lg transition active:scale-[0.98]"
+          >
+            Back to Menu
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const freebieItems =
     appliedDiscount?.type === "freebie" && appliedDiscount.freebie_item_ids
@@ -641,37 +716,52 @@ const PlaceOrderModalV2 = ({
 
   return (
     <>
-    <div className="fixed inset-0 z-[500] bg-gray-100 overflow-y-auto animate-fade-in">
+    <div className="fixed inset-0 z-[500]">
+      <style>{`
+        @keyframes v3CheckoutIn {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+        @keyframes v3CheckoutOut {
+          from { transform: translateX(0); }
+          to { transform: translateX(100%); }
+        }
+      `}</style>
+    <div
+      className="absolute inset-0 bg-gray-100 overflow-y-auto pb-20"
+      style={{
+        animation: closing ? "v3CheckoutOut 250ms ease-in forwards" : "v3CheckoutIn 300ms ease-out forwards",
+      }}
+    >
       {view === "main" ? (
         <>
           {/* Header */}
           <div
-            className="sticky top-0 z-10 px-4 py-4 flex items-center gap-3"
-            style={{ backgroundColor: accent, color: "#fff" }}
+            className="sticky top-0 z-10 px-3 flex items-center gap-2 h-14 border-b border-gray-200/60 bg-white"
           >
             <button
               type="button"
               onClick={handleClose}
               aria-label="Back"
-              className="p-1"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-gray-100 transition"
             >
-              <ArrowLeft className="h-6 w-6" />
+              <ArrowLeft className="h-5 w-5 text-gray-900" />
             </button>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-base truncate">{restaurantName || "Checkout"}</div>
+              <div className="text-sm font-bold truncate text-gray-900">{restaurantName || "Checkout"}</div>
               {orderType === "delivery" ? (
                 <button
                   type="button"
                   onClick={() => setShowAddressSheet(true)}
-                  className="text-xs opacity-90 truncate flex items-center gap-1 w-full text-left"
+                  className="text-[11px] text-gray-400 truncate flex items-center gap-1 w-full text-left"
                 >
-                  <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                  <MapPin className="h-3 w-3 flex-shrink-0" />
                   <span className="truncate">{address || "Add delivery address"}</span>
-                  <ChevronDown className="h-3.5 w-3.5 flex-shrink-0" />
+                  <ChevronDown className="h-3 w-3 flex-shrink-0" />
                 </button>
               ) : restaurantSubtitle ? (
-                <div className="text-xs opacity-90 truncate flex items-center gap-1">
-                  <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                <div className="text-[11px] text-gray-400 truncate flex items-center gap-1">
+                  <MapPin className="h-3 w-3 flex-shrink-0" />
                   <span className="truncate">{restaurantSubtitle}</span>
                 </div>
               ) : null}
@@ -687,7 +777,7 @@ const PlaceOrderModalV2 = ({
                   className="flex items-center justify-between py-2"
                 >
                   <div className="flex-1 min-w-0 pr-3">
-                    <div className="text-[15px] text-gray-900 truncate">{item.name}</div>
+                    <div className="text-sm font-bold text-gray-900 truncate">{item.name}</div>
                   </div>
                   <div
                     className="flex items-center gap-2 rounded-lg border px-2 py-1 mr-3"
@@ -711,7 +801,7 @@ const PlaceOrderModalV2 = ({
                       <Plus className="h-4 w-4" />
                     </button>
                   </div>
-                  <div className="text-[15px] font-medium text-gray-900 min-w-[60px] text-right">
+                  <div className="text-xs font-bold text-gray-900 min-w-[60px] text-right">
                     {currency}
                     {(item.price * item.quantity).toFixed(0)}
                   </div>
@@ -723,7 +813,7 @@ const PlaceOrderModalV2 = ({
                 <div className="mt-2 pt-2 border-t border-dashed border-gray-200">
                   {freebieItems.map((fi: any) => (
                     <div key={fi.id} className="flex items-center justify-between py-1.5">
-                      <div className="text-[15px] text-gray-700">{fi.name}</div>
+                      <div className="text-sm text-gray-700">{fi.name}</div>
                       <div className="flex items-center gap-2">
                         <span
                           className="text-xs font-semibold px-2 py-0.5 rounded-md"
@@ -740,30 +830,55 @@ const PlaceOrderModalV2 = ({
                 </div>
               )}
 
-              <div className="flex gap-3 mt-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCookingModal(true)}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <Pencil className="h-4 w-4" />
-                  Cooking requests
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAddMoreItems}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add More Items
-                </button>
-              </div>
+              <div className="mt-3">
+                {/* Saved note display */}
+                {orderNote && !showOrderNoteInput && (
+                  <div className="mb-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-gray-700 italic transition-all duration-300 ease-out">
+                    &ldquo;{orderNote}&rdquo;
+                  </div>
+                )}
 
-              {orderNote && (
-                <div className="mt-3 text-xs text-gray-500 italic px-1">
-                  “{orderNote}”
+                {/* Inline input */}
+                <div
+                  className="overflow-hidden transition-all duration-300 ease-out"
+                  style={{
+                    maxHeight: showOrderNoteInput ? "50px" : "0px",
+                    opacity: showOrderNoteInput ? 1 : 0,
+                    marginBottom: showOrderNoteInput ? "8px" : "0px",
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={orderNote || ""}
+                    onChange={(e) => setOrderNote(e.target.value)}
+                    placeholder="Any special requests for the chef?"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-xs text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-gray-300"
+                  />
                 </div>
-              )}
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowOrderNoteInput((v) => !v)}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border text-xs font-bold hover:bg-gray-50 transition-colors ${
+                      showOrderNoteInput || orderNote
+                        ? "border-emerald-200 text-emerald-700 bg-emerald-50"
+                        : "border-gray-200 text-gray-700"
+                    }`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    {showOrderNoteInput ? "Done" : orderNote ? "Edit note" : "Order note"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddMoreItems}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-200 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add More Items
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Savings Corner */}
@@ -777,13 +892,12 @@ const PlaceOrderModalV2 = ({
                 className="w-full px-4 py-3 flex items-center gap-3"
               >
                 <div
-                  className="h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: accent }}
+                  className="h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-orange-500"
                 >
                   <Tag className="h-5 w-5 text-white" fill="currentColor" strokeWidth={0} />
                 </div>
                 <div className="flex-1 text-left">
-                  <div className="text-[15px] font-medium text-gray-900">
+                  <div className="text-sm font-bold text-gray-900">
                     {appliedDiscount?.has_coupon ? `Applied: ${appliedDiscount.code}` : "Apply Discounts"}
                   </div>
                 </div>
@@ -799,7 +913,7 @@ const PlaceOrderModalV2 = ({
                     <Tag className="h-5 w-5 text-white" fill="currentColor" strokeWidth={0} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[15px] font-medium text-gray-900 truncate">
+                    <div className="text-sm font-bold text-gray-900 truncate">
                       {appliedDiscount.description || appliedDiscount.code}
                     </div>
                   </div>
@@ -836,7 +950,7 @@ const PlaceOrderModalV2 = ({
                 >
                   <ClipboardList className="h-5 w-5 text-white" />
                 </div>
-                <div className="flex-1 text-left font-semibold text-gray-900">
+                <div className="flex-1 text-left text-sm font-bold text-gray-900">
                   To Pay {currency}
                   {grandTotal.toFixed(0)}
                 </div>
@@ -881,8 +995,8 @@ const PlaceOrderModalV2 = ({
                   )}
                   <div className="border-t border-dashed border-gray-200 pt-2" />
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-gray-900">To Pay</span>
-                    <span className="font-semibold text-gray-900">
+                    <span className="text-sm font-bold text-gray-900">To Pay</span>
+                    <span className="text-sm font-bold text-gray-900">
                       {currency}
                       {grandTotal.toFixed(0)}
                     </span>
@@ -901,122 +1015,6 @@ const PlaceOrderModalV2 = ({
             </div>
           </div>
 
-          {/* Footer Pay Bar */}
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-between gap-3 z-20">
-            <button
-              type="button"
-              onClick={() => setShowPaymentMethods((v) => !v)}
-              className="flex flex-col items-start"
-            >
-              <span className="text-[11px] text-gray-500 flex items-center gap-1 uppercase tracking-wide">
-                Pay using{" "}
-                {showPaymentMethods ? (
-                  <ChevronDown className="h-3 w-3" />
-                ) : (
-                  <ChevronUp className="h-3 w-3" />
-                )}
-              </span>
-              <span className="text-sm font-semibold text-gray-900">
-                {paymentMethod === "online" ? "Online Payment" : "Pay at Store"}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={handlePay}
-              disabled={orderStatus !== "idle" || !items || items.length === 0}
-              className="flex-1 max-w-[60%] rounded-xl py-3.5 font-semibold text-white disabled:opacity-60"
-              style={{ backgroundColor: accent }}
-            >
-              {orderStatus === "loading" ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Placing...
-                </span>
-              ) : orderStatus === "success" ? (
-                "Order Placed ✓"
-              ) : (
-                `Pay ${currency}${grandTotal.toFixed(0)}`
-              )}
-            </button>
-          </div>
-
-          {/* Payment method sheet */}
-          {showPaymentMethods && (
-            <div
-              className="fixed inset-0 bg-black/30 z-30 animate-fade-in"
-              onClick={() => setShowPaymentMethods(false)}
-            >
-              <div
-                className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4 space-y-2 animate-slide-up"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="text-sm font-semibold mb-2 text-gray-900">Choose Payment Method</div>
-                {(
-                  [
-                    { id: "cash", label: "Pay at Store / Cash" },
-                    { id: "online", label: "Online Payment" },
-                  ] as const
-                ).map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => {
-                      setPaymentMethod(opt.id);
-                      setShowPaymentMethods(false);
-                    }}
-                    className={`w-full flex items-center justify-between rounded-xl border p-3 text-sm ${
-                      paymentMethod === opt.id
-                        ? "border-gray-900 bg-gray-50"
-                        : "border-gray-200"
-                    }`}
-                  >
-                    <span className="font-medium text-gray-900">{opt.label}</span>
-                    {paymentMethod === opt.id && (
-                      <Check className="h-4 w-4" style={{ color: accent }} />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Cooking requests modal */}
-          {showCookingModal && (
-            <div
-              className="fixed inset-0 bg-black/40 z-40 flex items-end sm:items-center justify-center animate-fade-in"
-              onClick={() => setShowCookingModal(false)}
-            >
-              <div
-                className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-4 space-y-3 animate-slide-up"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="font-semibold text-gray-900">Cooking requests</div>
-                  <button type="button" onClick={() => setShowCookingModal(false)}>
-                    <X className="h-5 w-5 text-gray-500" />
-                  </button>
-                </div>
-                <textarea
-                  value={orderNote || ""}
-                  onChange={(e) => setOrderNote(e.target.value)}
-                  placeholder="Any special requests for the chef?"
-                  className="w-full min-h-[100px] border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2"
-                  style={{
-                    ["--tw-ring-color" as any]: accent,
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCookingModal(false)}
-                  className="w-full rounded-xl py-3 font-semibold text-white"
-                  style={{ backgroundColor: accent }}
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          )}
-
         </>
       ) : (
         <DiscountsView
@@ -1033,6 +1031,89 @@ const PlaceOrderModalV2 = ({
           accent={accent}
         />
       )}
+    </div>
+
+    {/* Footer Pay Bar — outside animated div so fixed positioning works */}
+    {view === "main" && (items?.length ?? 0) > 0 && (
+      <>
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-between gap-3 z-[510]">
+          <button
+            type="button"
+            onClick={() => setShowPaymentMethods((v) => !v)}
+            className="flex flex-col items-start"
+          >
+            <span className="text-[11px] text-gray-500 flex items-center gap-1 uppercase tracking-wide">
+              Pay using{" "}
+              {showPaymentMethods ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronUp className="h-3 w-3" />
+              )}
+            </span>
+            <span className="text-sm font-semibold text-gray-900">
+              {paymentMethod === "online" ? "Online Payment" : "Pay at Store"}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={handlePay}
+            disabled={orderStatus !== "idle" || !items || items.length === 0}
+            className="flex-1 max-w-[60%] rounded-xl py-3.5 font-semibold text-white disabled:opacity-60"
+            style={{ backgroundColor: accent }}
+          >
+            {orderStatus === "loading" ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Placing...
+              </span>
+            ) : paymentMethod === "online" ? (
+              `Pay ${currency}${grandTotal.toFixed(0)}`
+            ) : (
+              "Checkout"
+            )}
+          </button>
+        </div>
+
+        {showPaymentMethods && (
+          <div
+            className="fixed inset-0 bg-black/30 z-[520] animate-fade-in"
+            onClick={() => setShowPaymentMethods(false)}
+          >
+            <div
+              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4 space-y-2 animate-slide-up"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-sm font-semibold mb-2 text-gray-900">Choose Payment Method</div>
+              {(
+                [
+                  { id: "cash", label: "Pay at Store / Cash" },
+                  { id: "online", label: "Online Payment" },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    setPaymentMethod(opt.id);
+                    setShowPaymentMethods(false);
+                  }}
+                  className={`w-full flex items-center justify-between rounded-xl border p-3 text-sm ${
+                    paymentMethod === opt.id
+                      ? "border-gray-900 bg-gray-50"
+                      : "border-gray-200"
+                  }`}
+                >
+                  <span className="font-medium text-gray-900">{opt.label}</span>
+                  {paymentMethod === opt.id && (
+                    <Check className="h-4 w-4" style={{ color: accent }} />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </>
+    )}
     </div>
 
     {/* Address overlays — rendered outside scrollable container */}
@@ -1069,7 +1150,7 @@ const PlaceOrderModalV2 = ({
             >
               <Plus className="h-5 w-5" style={{ color: accent }} />
             </div>
-            <span className="text-[15px] font-semibold" style={{ color: accent }}>
+            <span className="text-sm font-extrabold" style={{ color: accent }}>
               Add new Address
             </span>
           </button>
@@ -1102,7 +1183,7 @@ const PlaceOrderModalV2 = ({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-[15px] font-semibold text-gray-900">
+                        <span className="text-sm font-extrabold text-gray-900">
                           {addr.label}
                         </span>
                         {isSelected && (

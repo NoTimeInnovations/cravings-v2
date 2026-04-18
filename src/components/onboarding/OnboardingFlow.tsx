@@ -8,12 +8,13 @@ import { useWhatsAppOtp } from "@/hooks/useWhatsAppOtp";
 import { getFeatures } from "@/lib/getFeatures";
 import { UserCountryInfo } from "@/lib/getUserCountry";
 import { setOrderSessionCookie, setOnboardingDataCookie, getOnboardingDataCookie } from "@/app/auth/actions";
+import SplashScreen from "./SplashScreen";
 import LoginScreen from "./LoginScreen";
 import OTPScreen from "./OTPScreen";
 import DeliveryAddressScreen from "./DeliveryAddressScreen";
 import OrderTypeScreen from "./OrderTypeScreen";
 
-type OnboardingStep = "login" | "otp" | "address" | "orderType";
+type OnboardingStep = "splash" | "login" | "otp" | "address" | "orderType";
 
 interface OnboardingFlowProps {
   isLoggedIn: boolean;
@@ -28,6 +29,8 @@ interface OnboardingFlowProps {
   takeawayTimeAllowed?: { from: string; to: string } | null;
   isDeliveryActive?: boolean;
   storeTagline?: string;
+  notices?: any[];
+  socialLinks?: any;
 }
 
 export default function OnboardingFlow({
@@ -43,6 +46,8 @@ export default function OnboardingFlow({
   takeawayTimeAllowed,
   isDeliveryActive = true,
   storeTagline,
+  notices = [],
+  socialLinks,
 }: OnboardingFlowProps) {
   const router = useRouter();
   const features = getFeatures(featureFlags);
@@ -53,9 +58,7 @@ export default function OnboardingFlow({
   const needsOrderType = (hasDelivery || hasOrdering) && tableNumber === 0;
 
   const getInitialStep = (): OnboardingStep => {
-    if (!isLoggedIn) return "login";
-    if (needsOrderType) return "orderType";
-    return "orderType";
+    return "splash";
   };
 
   const [step, setStep] = useState<OnboardingStep>(getInitialStep);
@@ -222,6 +225,21 @@ export default function OnboardingFlow({
         key={step}
         className="absolute inset-0 animate-slide-in-right"
       >
+        {step === "splash" && (
+          <SplashScreen
+            storeName={storeName}
+            storeBanner={storeBanner}
+            storeTagline={storeTagline}
+            notices={notices}
+            socialLinks={socialLinks}
+            onContinue={() => {
+              if (!isLoggedIn) setStep("login");
+              else if (needsOrderType) setStep("orderType");
+              else dismissWithAnimation();
+            }}
+          />
+        )}
+
         {step === "login" && (
           <LoginScreen
             storeName={storeName}
@@ -229,6 +247,7 @@ export default function OnboardingFlow({
             themeBg={themeBg}
             storeTagline={storeTagline}
             onContinue={handleLoginContinue}
+            onBack={() => setStep("splash")}
             loading={loginLoading || isSending}
           />
         )}

@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,17 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
-import {
-  Plus,
-  Trash2,
-  Loader2,
-  ImageIcon,
-  X,
-  Link as LinkIcon,
-  Calendar,
-  Clock,
-  Eye,
-} from "lucide-react";
+import { Plus, Trash2, Loader2, X, Tag, FileText } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
   getNoticesQuery,
@@ -32,7 +21,6 @@ import {
   updateNoticeMutation,
   deleteNoticeMutation,
 } from "@/api/notices";
-import { uploadFileToS3, deleteFileFromS3 } from "@/app/actions/aws-s3";
 import { revalidateTag } from "@/app/actions/revalidate";
 
 interface Notice {
@@ -50,6 +38,15 @@ interface Notice {
   created_at: string;
 }
 
+function parseNoticeData(notice: Notice): { title: string; description: string; tag: string } {
+  if (notice.image_url?.startsWith("json:")) {
+    try {
+      return JSON.parse(notice.image_url.slice(5));
+    } catch {}
+  }
+  return { title: notice.button_text || "Untitled", description: notice.button_link || "", tag: "" };
+}
+
 export function AdminV2Notices() {
   const { userData } = useAuthStore();
   const [notices, setNotices] = useState<Notice[]>([]);
@@ -58,24 +55,14 @@ export function AdminV2Notices() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Form state
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<string | null>(null);
-  const [noticeType, setNoticeType] = useState<"fixed" | "scheduled">("fixed");
-  const [showAlways, setShowAlways] = useState(true);
-  const [hasButton, setHasButton] = useState(false);
-  const [buttonText, setButtonText] = useState("");
-  const [buttonLink, setButtonLink] = useState("");
-  const [startsAt, setStartsAt] = useState("");
-  const [expiresAt, setExpiresAt] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [tag, setTag] = useState("");
 
   const fetchNotices = useCallback(async () => {
     if (!userData?.id) return;
     try {
-      const res = await fetchFromHasura(getNoticesQuery, {
-        partner_id: userData.id,
-      });
+      const res = await fetchFromHasura(getNoticesQuery, { partner_id: userData.id });
       setNotices(res?.notices || []);
     } catch {
       toast.error("Failed to load notices");
@@ -88,80 +75,30 @@ export function AdminV2Notices() {
     fetchNotices();
   }, [fetchNotices]);
 
-  const convertToWebp = (dataUrl: string, quality = 0.8): Promise<string> => {
-    return new Promise((resolve) => {
-      const img = new window.Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        canvas.getContext("2d")!.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL("image/webp", quality));
-      };
-      img.src = dataUrl;
-    });
-  };
-
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const dataUrl = reader.result as string;
-      setImagePreview(dataUrl);
-      const webp = await convertToWebp(dataUrl);
-      setImageFile(webp);
-    };
-    reader.readAsDataURL(file);
-  };
-
   const resetForm = () => {
-    setImagePreview(null);
-    setImageFile(null);
-    setNoticeType("fixed");
-    setShowAlways(true);
-    setHasButton(false);
-    setButtonText("");
-    setButtonLink("");
-    setStartsAt("");
-    setExpiresAt("");
+    setTitle("");
+    setDescription("");
+    setTag("");
     setShowForm(false);
   };
 
   const handleCreate = async () => {
-    if (!imageFile || !userData?.id) {
-      toast.error("Please select an image");
+    if (!title.trim() || !userData?.id) {
+      toast.error("Please enter a title");
       return;
     }
     setSaving(true);
     try {
-      const imageUrl = await uploadFileToS3(
-        imageFile,
-        `notices/${userData.id}/notice_${Date.now()}.webp`,
-      );
+      const noticeData = JSON.stringify({ title: title.trim(), description: description.trim(), tag: tag.trim() });
 
       const object: Record<string, any> = {
         partner_id: userData.id,
-        image_url: imageUrl,
-        type: noticeType,
+        image_url: `json:${noticeData}`,
+        type: "fixed",
         is_active: true,
-        show_always: showAlways,
+        show_always: true,
         priority: notices.length,
       };
-
-      if (hasButton && buttonText.trim() && buttonLink.trim()) {
-        object.button_text = buttonText.trim();
-        object.button_link = buttonLink.trim();
-      }
-
-      if (noticeType === "scheduled") {
-        if (startsAt) object.starts_at = new Date(startsAt).toISOString();
-        if (expiresAt) object.expires_at = new Date(expiresAt).toISOString();
-      }
 
       const res = await fetchFromHasura(createNoticeMutation, { object });
       if (res?.insert_notices_one) {
@@ -184,9 +121,7 @@ export function AdminV2Notices() {
         updates: { is_active: !notice.is_active },
       });
       setNotices((prev) =>
-        prev.map((n) =>
-          n.id === notice.id ? { ...n, is_active: !n.is_active } : n,
-        ),
+        prev.map((n) => (n.id === notice.id ? { ...n, is_active: !n.is_active } : n)),
       );
       if (userData?.id) revalidateTag(userData.id);
     } catch {
@@ -197,9 +132,6 @@ export function AdminV2Notices() {
   const handleDelete = async (notice: Notice) => {
     setDeletingId(notice.id);
     try {
-      if (notice.image_url?.includes("cravingsbucket")) {
-        await deleteFileFromS3(notice.image_url);
-      }
       await fetchFromHasura(deleteNoticeMutation, { id: notice.id });
       setNotices((prev) => prev.filter((n) => n.id !== notice.id));
       if (userData?.id) revalidateTag(userData.id);
@@ -225,7 +157,7 @@ export function AdminV2Notices() {
         <div>
           <h1 className="text-2xl font-bold">Notices</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Create poster notices that customers see when they visit your store
+            Create notices that customers see on your storefront
           </p>
         </div>
         {!showForm && (
@@ -249,163 +181,60 @@ export function AdminV2Notices() {
                 <X className="h-4 w-4" />
               </Button>
             </CardTitle>
-            <CardDescription>
-              Upload a 9:16 poster image for your notice
-            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-5">
-            {/* Image Upload */}
+          <CardContent className="space-y-4">
             <div>
-              <Label className="text-sm font-medium mb-2 block">
-                Poster Image (9:16 ratio)
-              </Label>
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept="image/*"
-                onChange={handleImageSelect}
-                className="hidden"
+              <Label className="text-sm font-medium mb-1.5 block">Title</Label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Weekend Brunch is back"
               />
-              {imagePreview ? (
-                <div className="relative w-48 rounded-xl overflow-hidden border border-gray-200">
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="w-full aspect-[9/16] object-cover"
-                  />
-                  <button
-                    onClick={() => {
-                      setImagePreview(null);
-                      setImageFile(null);
-                    }}
-                    className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-48 aspect-[9/16] border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-orange-400 transition-colors"
-                >
-                  <ImageIcon className="h-8 w-8 text-gray-400" />
-                  <span className="text-sm text-gray-500">Upload Image</span>
-                </button>
-              )}
             </div>
 
-            {/* Notice Type */}
             <div>
-              <Label className="text-sm font-medium mb-2 block">Type</Label>
-              <div className="flex gap-2">
-                {(["fixed", "scheduled"] as const).map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setNoticeType(type)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                      noticeType === type
-                        ? "bg-orange-600 text-white border-orange-600"
-                        : "bg-white text-gray-700 border-gray-200 hover:border-gray-300 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700"
-                    }`}
-                  >
-                    {type === "fixed" ? (
-                      <span className="flex items-center gap-1.5">
-                        <Eye className="h-3.5 w-3.5" />
-                        Fixed
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1.5">
-                        <Calendar className="h-3.5 w-3.5" />
-                        Scheduled
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
+              <Label className="text-sm font-medium mb-1.5 block">Description</Label>
+              <Input
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="e.g. Sat & Sun · 10am to 2pm"
+              />
             </div>
 
-            {/* Show Always */}
-            <div className="flex items-center gap-3">
-              <Switch checked={showAlways} onCheckedChange={setShowAlways} />
+            <div>
+              <Label className="text-sm font-medium mb-1.5 block">Tag</Label>
+              <Input
+                value={tag}
+                onChange={(e) => setTag(e.target.value)}
+                placeholder='e.g. NEW, 20% OFF, LIMITED'
+              />
+              <p className="text-xs text-muted-foreground mt-1">Short label shown on the notice card</p>
+            </div>
+
+            {/* Preview */}
+            {title && (
               <div>
-                <Label className="text-sm">Show every visit</Label>
-                <p className="text-xs text-muted-foreground">
-                  {showAlways
-                    ? "Notice shows every time a customer visits"
-                    : "Notice shows only once per session"}
-                </p>
-              </div>
-            </div>
-
-            {/* Scheduled dates */}
-            {noticeType === "scheduled" && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium mb-1 block">
-                    Start Date
-                  </Label>
-                  <Input
-                    type="datetime-local"
-                    value={startsAt}
-                    onChange={(e) => setStartsAt(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label className="text-sm font-medium mb-1 block">
-                    End Date
-                  </Label>
-                  <Input
-                    type="datetime-local"
-                    value={expiresAt}
-                    onChange={(e) => setExpiresAt(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Button toggle */}
-            <div className="flex items-center gap-3">
-              <Switch checked={hasButton} onCheckedChange={setHasButton} />
-              <Label className="text-sm">Add a button</Label>
-            </div>
-
-            {hasButton && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium mb-1 block">
-                    Button Text
-                  </Label>
-                  <Input
-                    value={buttonText}
-                    onChange={(e) => setButtonText(e.target.value)}
-                    placeholder="e.g. Order Now"
-                  />
-                </div>
-                <div>
-                  <Label className="text-sm font-medium mb-1 block">
-                    Button Link
-                  </Label>
-                  <div className="relative">
-                    <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                    <Input
-                      value={buttonLink}
-                      onChange={(e) => setButtonLink(e.target.value)}
-                      placeholder="https://..."
-                      className="pl-9"
-                    />
-                  </div>
+                <Label className="text-sm font-medium mb-1.5 block">Preview</Label>
+                <div className="rounded-[18px] p-[18px] bg-gray-900 text-white flex flex-col gap-2.5 max-w-[280px]">
+                  {tag && (
+                    <span className="self-start text-[10px] font-bold tracking-[0.08em] uppercase px-2 py-1 rounded-md bg-white/20">
+                      {tag}
+                    </span>
+                  )}
+                  <div className="text-[17px] font-semibold tracking-tight leading-[1.25]">{title}</div>
+                  {description && (
+                    <div className="text-[13px] opacity-80 leading-relaxed">{description}</div>
+                  )}
                 </div>
               </div>
             )}
 
             <Button
               onClick={handleCreate}
-              disabled={saving || !imageFile}
+              disabled={saving || !title.trim()}
               className="w-full bg-orange-600 hover:bg-orange-700 text-white"
             >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
+              {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               {saving ? "Creating..." : "Create Notice"}
             </Button>
           </CardContent>
@@ -416,7 +245,7 @@ export function AdminV2Notices() {
       {notices.length === 0 && !showForm ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <ImageIcon className="h-12 w-12 text-gray-300 mb-3" />
+            <FileText className="h-12 w-12 text-gray-300 mb-3" />
             <p className="text-gray-500 font-medium">No notices yet</p>
             <p className="text-sm text-gray-400 mt-1">
               Create your first notice to engage customers
@@ -424,75 +253,54 @@ export function AdminV2Notices() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {notices.map((notice) => (
-            <div
-              key={notice.id}
-              className={`relative rounded-xl overflow-hidden border transition-opacity ${
-                notice.is_active
-                  ? "border-gray-200"
-                  : "border-gray-200 opacity-50"
-              }`}
-            >
-              <img
-                src={notice.image_url}
-                alt="Notice"
-                className="w-full aspect-[9/16] object-cover"
-              />
-
-              {/* Overlay badges */}
-              <div className="absolute top-2 left-2 flex flex-col gap-1">
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full text-white ${
-                    notice.type === "scheduled"
-                      ? "bg-blue-500"
-                      : "bg-green-600"
-                  }`}
-                >
-                  {notice.type === "scheduled" ? (
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-2.5 w-2.5" />
-                      Scheduled
-                    </span>
-                  ) : (
-                    "Fixed"
+        <div className="space-y-3">
+          {notices.map((notice) => {
+            const data = parseNoticeData(notice);
+            return (
+              <div
+                key={notice.id}
+                className={`rounded-xl border p-4 flex items-center gap-4 transition-opacity ${
+                  notice.is_active ? "border-gray-200 bg-white dark:bg-gray-900" : "border-gray-200 opacity-50"
+                }`}
+              >
+                {/* Notice preview */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    {data.tag && (
+                      <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-gray-900 text-white dark:bg-white dark:text-gray-900">
+                        {data.tag}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{data.title}</p>
+                  {data.description && (
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">{data.description}</p>
                   )}
-                </span>
-                {notice.show_always && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-orange-500 text-white">
-                    Always
-                  </span>
-                )}
-                {notice.button_text && (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-black/60 text-white">
-                    Has Button
-                  </span>
-                )}
-              </div>
+                </div>
 
-              {/* Actions */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 flex items-end justify-between">
-                <Switch
-                  checked={notice.is_active}
-                  onCheckedChange={() => handleToggle(notice)}
-                  className="scale-75"
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDelete(notice)}
-                  disabled={deletingId === notice.id}
-                  className="text-white hover:text-red-300 hover:bg-transparent p-1 h-auto"
-                >
-                  {deletingId === notice.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                </Button>
+                {/* Actions */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <Switch
+                    checked={notice.is_active}
+                    onCheckedChange={() => handleToggle(notice)}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDelete(notice)}
+                    disabled={deletingId === notice.id}
+                    className="text-gray-400 hover:text-red-500 p-1 h-auto"
+                  >
+                    {deletingId === notice.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
