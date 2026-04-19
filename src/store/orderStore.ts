@@ -70,7 +70,8 @@ export interface DeliveryRules {
   needDeliveryLocation: boolean;
   need_user_name?: boolean;
   parcel_charge?: number;
-  parcel_charge_type?: "fixed" | "variable"; // fixed = flat amount, variable = per item
+  parcel_charge_type?: "fixed" | "variable" | "itemwise"; // fixed = flat amount, variable = per item, itemwise = per-item custom charges
+  parcel_charge_items?: Record<string, number>;
   hide_delivery_charge?: boolean;
   announcement?: string;
   banner_mode?: "single" | "carousel";

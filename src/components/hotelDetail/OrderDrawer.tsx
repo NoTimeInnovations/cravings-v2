@@ -302,12 +302,21 @@ const OrderDrawer = ({
 
     if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge) {
       const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
-      const itemCount =
-        items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
-      grandTotal +=
-        chargeType === "variable"
-          ? itemCount * hotelData.delivery_rules.parcel_charge
-          : hotelData.delivery_rules.parcel_charge;
+      if (chargeType === "itemwise") {
+        const defaultCharge = hotelData.delivery_rules.parcel_charge || 0;
+        const customCharges = hotelData.delivery_rules.parcel_charge_items || {};
+        grandTotal += (items || []).reduce((acc, item) => {
+          const charge = customCharges[item.id] ?? defaultCharge;
+          return acc + charge * item.quantity;
+        }, 0);
+      } else {
+        const itemCount =
+          items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+        grandTotal +=
+          chargeType === "variable"
+            ? itemCount * hotelData.delivery_rules.parcel_charge
+            : hotelData.delivery_rules.parcel_charge;
+      }
     }
 
     if (hotelData?.gst_percentage) {
@@ -375,12 +384,21 @@ const OrderDrawer = ({
       hotelData?.delivery_rules?.parcel_charge_type || "fixed";
     const parcelItemCount =
       items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
-    const parcelCharge =
-      tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge
-        ? parcelChargeType === "variable"
+    let parcelCharge = 0;
+    if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge) {
+      if (parcelChargeType === "itemwise") {
+        const defCharge = hotelData.delivery_rules.parcel_charge || 0;
+        const custCharges = hotelData.delivery_rules.parcel_charge_items || {};
+        parcelCharge = (items || []).reduce((acc, item) => {
+          const charge = custCharges[item.id] ?? defCharge;
+          return acc + charge * item.quantity;
+        }, 0);
+      } else {
+        parcelCharge = parcelChargeType === "variable"
           ? parcelItemCount * hotelData.delivery_rules.parcel_charge
-          : hotelData.delivery_rules.parcel_charge
-        : 0;
+          : hotelData.delivery_rules.parcel_charge;
+      }
+    }
     const gstAmount = hotelData?.gst_percentage
       ? getGstAmount(baseTotal, hotelData.gst_percentage)
       : 0;

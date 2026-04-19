@@ -614,12 +614,20 @@ const BillCard = ({
   const totalItemCount = items.reduce((acc, item) => acc + item.quantity, 0);
   const parcelChargeType = hotelData?.delivery_rules?.parcel_charge_type || "fixed";
   const parcelChargeValue = hotelData?.delivery_rules?.parcel_charge || 0;
-  const parcelCharge =
-    tableNumber === 0 && parcelChargeValue > 0
-      ? parcelChargeType === "variable"
+  let parcelCharge = 0;
+  if (tableNumber === 0 && parcelChargeValue > 0) {
+    if (parcelChargeType === "itemwise") {
+      const custCharges = hotelData?.delivery_rules?.parcel_charge_items || {};
+      parcelCharge = items.reduce((acc, item) => {
+        const charge = custCharges[item.id] ?? parcelChargeValue;
+        return acc + charge * item.quantity;
+      }, 0);
+    } else {
+      parcelCharge = parcelChargeType === "variable"
         ? totalItemCount * parcelChargeValue
-        : parcelChargeValue
-      : 0;
+        : parcelChargeValue;
+    }
+  }
 
   const gstAmount = (subtotal * (gstPercentage || 0)) / 100;
   // Calculate freebie item prices
@@ -2093,12 +2101,18 @@ const PlaceOrderModal = ({
         : 0;
     const parcelChargeType = hotelData?.delivery_rules?.parcel_charge_type || "fixed";
     const parcelItemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
-    const parcelCharge =
-      tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge
-        ? parcelChargeType === "variable"
+    let parcelCharge = 0;
+    if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge) {
+      if (parcelChargeType === "itemwise") {
+        const defC = hotelData.delivery_rules.parcel_charge || 0;
+        const custC = hotelData.delivery_rules.parcel_charge_items || {};
+        parcelCharge = (items || []).reduce((acc, item) => acc + (custC[item.id] ?? defC) * item.quantity, 0);
+      } else {
+        parcelCharge = parcelChargeType === "variable"
           ? parcelItemCount * hotelData.delivery_rules.parcel_charge
-          : hotelData.delivery_rules.parcel_charge
-        : 0;
+          : hotelData.delivery_rules.parcel_charge;
+      }
+    }
     const gstAmount = hotelData?.gst_percentage
       ? getGstAmount(baseTotal, hotelData.gst_percentage)
       : 0;
@@ -2305,9 +2319,16 @@ const PlaceOrderModal = ({
       ) {
         const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
         const itemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
-        const parcelAmount = chargeType === "variable"
-          ? itemCount * hotelData.delivery_rules.parcel_charge
-          : hotelData.delivery_rules.parcel_charge;
+        let parcelAmount: number;
+        if (chargeType === "itemwise") {
+          const defC = hotelData.delivery_rules.parcel_charge || 0;
+          const custC = hotelData.delivery_rules.parcel_charge_items || {};
+          parcelAmount = (items || []).reduce((acc, item) => acc + (custC[item.id] ?? defC) * item.quantity, 0);
+        } else {
+          parcelAmount = chargeType === "variable"
+            ? itemCount * hotelData.delivery_rules.parcel_charge
+            : hotelData.delivery_rules.parcel_charge;
+        }
         extraCharges.push({
           name: "Parcel Charge",
           amount: parcelAmount,
@@ -2442,7 +2463,14 @@ const PlaceOrderModal = ({
       if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge && hotelData.delivery_rules.parcel_charge > 0) {
         const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
         const itemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
-        const parcelAmount = chargeType === "variable" ? itemCount * hotelData.delivery_rules.parcel_charge : hotelData.delivery_rules.parcel_charge;
+        let parcelAmount: number;
+        if (chargeType === "itemwise") {
+          const defC = hotelData.delivery_rules.parcel_charge || 0;
+          const custC = hotelData.delivery_rules.parcel_charge_items || {};
+          parcelAmount = (items || []).reduce((acc, item) => acc + (custC[item.id] ?? defC) * item.quantity, 0);
+        } else {
+          parcelAmount = chargeType === "variable" ? itemCount * hotelData.delivery_rules.parcel_charge : hotelData.delivery_rules.parcel_charge;
+        }
         extraCharges.push({ name: "Parcel Charge", amount: parcelAmount, charge_type: "FLAT_FEE" });
       }
       const gstAmount = getGstAmount(subtotal, hotelData?.gst_percentage as number);
@@ -2596,7 +2624,14 @@ const PlaceOrderModal = ({
         if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge && hotelData.delivery_rules.parcel_charge > 0) {
           const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
           const itemCount = cfItems.reduce((acc, item) => acc + item.quantity, 0);
-          const parcelAmount = chargeType === "variable" ? itemCount * hotelData.delivery_rules.parcel_charge : hotelData.delivery_rules.parcel_charge;
+          let parcelAmount: number;
+          if (chargeType === "itemwise") {
+            const defC = hotelData.delivery_rules.parcel_charge || 0;
+            const custC = hotelData.delivery_rules.parcel_charge_items || {};
+            parcelAmount = cfItems.reduce((acc, item) => acc + (custC[item.id] ?? defC) * item.quantity, 0);
+          } else {
+            parcelAmount = chargeType === "variable" ? itemCount * hotelData.delivery_rules.parcel_charge : hotelData.delivery_rules.parcel_charge;
+          }
           cfExtraCharges.push({ name: "Parcel Charge", amount: parcelAmount, charge_type: "FLAT_FEE" });
         }
 
@@ -2682,9 +2717,16 @@ const PlaceOrderModal = ({
   const _barHideDelivery = hotelData?.delivery_rules?.hide_delivery_charge ?? false;
   const _barDeliveryCharge = !isQrScan && orderType === "delivery" && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && !_barHideDelivery ? deliveryInfo.cost : 0;
   const _barTotalItemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
-  const _barParcelCharge = tableNumber === 0 && (hotelData?.delivery_rules?.parcel_charge || 0) > 0
-    ? (hotelData?.delivery_rules?.parcel_charge_type === "variable" ? _barTotalItemCount * (hotelData?.delivery_rules?.parcel_charge || 0) : (hotelData?.delivery_rules?.parcel_charge || 0))
-    : 0;
+  const _barParcelCharge = (() => {
+    if (!(tableNumber === 0 && (hotelData?.delivery_rules?.parcel_charge || 0) > 0)) return 0;
+    const ct = hotelData?.delivery_rules?.parcel_charge_type || "fixed";
+    if (ct === "itemwise") {
+      const defC = hotelData?.delivery_rules?.parcel_charge || 0;
+      const custC = hotelData?.delivery_rules?.parcel_charge_items || {};
+      return (items || []).reduce((acc, item) => acc + (custC[item.id] ?? defC) * item.quantity, 0);
+    }
+    return ct === "variable" ? _barTotalItemCount * (hotelData?.delivery_rules?.parcel_charge || 0) : (hotelData?.delivery_rules?.parcel_charge || 0);
+  })();
   const _barGst = (_barSubtotal * (hotelData?.gst_percentage || 0)) / 100;
   const _barDiscountSavings = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
   const _barGrandTotal = Math.max(0, _barSubtotal + _barQrCharge + _barDeliveryCharge + _barParcelCharge + _barGst - _barDiscountSavings);

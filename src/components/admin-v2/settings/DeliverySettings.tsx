@@ -14,6 +14,7 @@ import { revalidateTag } from "@/app/actions/revalidate";
 import { Loader2, Save, Plus, Trash2, Clock, Keyboard } from "lucide-react";
 import { DeliveryRules, DeliveryRange } from "@/store/orderStore";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
+import { useMenuStore } from "@/store/menuStore_hasura";
 import { countryCodes } from "@/utils/countryCodes";
 
 function TimePicker({ value, onChange }: { value: string; onChange: (val: string) => void }) {
@@ -279,6 +280,7 @@ export function DeliverySettings() {
         need_user_name: false,
         parcel_charge: 0,
         parcel_charge_type: "fixed",
+        parcel_charge_items: {},
         hide_delivery_charge: false,
     });
     const [whatsappNumbers, setWhatsappNumbers] = useState<{ number: string; area: string }[]>([]);
@@ -309,6 +311,7 @@ export function DeliverySettings() {
                 need_user_name: userData.delivery_rules?.need_user_name ?? false,
                 parcel_charge: userData.delivery_rules?.parcel_charge || 0,
                 parcel_charge_type: userData.delivery_rules?.parcel_charge_type || "fixed",
+                parcel_charge_items: userData.delivery_rules?.parcel_charge_items || {},
                 hide_delivery_charge: userData.delivery_rules?.hide_delivery_charge ?? false,
             });
 
@@ -718,7 +721,7 @@ export function DeliverySettings() {
                                 value={deliveryRules.parcel_charge_type || "fixed"}
                                 onValueChange={(val) => setDeliveryRules(prev => ({
                                     ...prev,
-                                    parcel_charge_type: val as "fixed" | "variable"
+                                    parcel_charge_type: val as "fixed" | "variable" | "itemwise"
                                 }))}
                             >
                                 <SelectTrigger className="w-[140px]">
@@ -727,6 +730,7 @@ export function DeliverySettings() {
                                 <SelectContent>
                                     <SelectItem value="fixed">Fixed</SelectItem>
                                     <SelectItem value="variable">Per Item</SelectItem>
+                                    <SelectItem value="itemwise">Item-wise</SelectItem>
                                 </SelectContent>
                             </Select>
                             <div className="flex-1">
@@ -745,9 +749,22 @@ export function DeliverySettings() {
                         <p className="text-sm text-muted-foreground">
                             {(deliveryRules.parcel_charge_type || "fixed") === "fixed"
                                 ? `Flat ${currencySymbol}${deliveryRules.parcel_charge || 0} charge added to delivery and takeaway orders.`
-                                : `${currencySymbol}${deliveryRules.parcel_charge || 0} per item — total charge = item count × per-item charge.`
+                                : deliveryRules.parcel_charge_type === "itemwise"
+                                    ? `Default ${currencySymbol}${deliveryRules.parcel_charge || 0} per item. Override for specific items below.`
+                                    : `${currencySymbol}${deliveryRules.parcel_charge || 0} per item — total charge = item count × per-item charge.`
                             }
                         </p>
+                        {deliveryRules.parcel_charge_type === "itemwise" && (
+                            <ItemwiseParcelCharges
+                                customCharges={deliveryRules.parcel_charge_items || {}}
+                                defaultCharge={deliveryRules.parcel_charge || 0}
+                                currencySymbol={currencySymbol}
+                                onChange={(items) => setDeliveryRules(prev => ({
+                                    ...prev,
+                                    parcel_charge_items: items
+                                }))}
+                            />
+                        )}
                     </div>
                 </CardContent>
             </Card>
@@ -860,6 +877,97 @@ export function DeliverySettings() {
                 </CardContent>
             </Card>}
 
+        </div>
+    );
+}
+
+function ItemwiseParcelCharges({
+    customCharges,
+    defaultCharge,
+    currencySymbol,
+    onChange,
+}: {
+    customCharges: Record<string, number>;
+    defaultCharge: number;
+    currencySymbol: string;
+    onChange: (items: Record<string, number>) => void;
+}) {
+    const { items: menuItems, fetchMenu } = useMenuStore();
+    const [search, setSearch] = useState("");
+
+    useEffect(() => {
+        if (menuItems.length === 0) fetchMenu();
+    }, []);
+
+    const filtered = search
+        ? menuItems.filter((item) => item.name.toLowerCase().includes(search.toLowerCase()))
+        : menuItems;
+
+    const updateCharge = (itemId: string, value: string) => {
+        const num = Number(value);
+        const updated = { ...customCharges };
+        if (value === "" || num === defaultCharge) {
+            delete updated[itemId];
+        } else {
+            updated[itemId] = num;
+        }
+        onChange(updated);
+    };
+
+    const customCount = Object.keys(customCharges).length;
+
+    return (
+        <div className="space-y-3 rounded-lg border p-3">
+            <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground">
+                    Custom charges ({customCount} item{customCount !== 1 ? "s" : ""} overridden)
+                </p>
+                {customCount > 0 && (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-muted-foreground"
+                        onClick={() => onChange({})}
+                    >
+                        Reset all
+                    </Button>
+                )}
+            </div>
+            <Input
+                placeholder="Search items..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-8 text-sm"
+            />
+            <div className="max-h-[300px] overflow-y-auto space-y-1">
+                {filtered.map((item) => {
+                    const itemId = item.id || "";
+                    const hasCustom = itemId in customCharges;
+                    return (
+                        <div
+                            key={itemId}
+                            className={`flex items-center gap-2 rounded px-2 py-1.5 text-sm ${hasCustom ? "bg-orange-50" : ""}`}
+                        >
+                            <span className="flex-1 truncate">{item.name}</span>
+                            <div className="flex items-center gap-1 shrink-0">
+                                <span className="text-xs text-muted-foreground">{currencySymbol}</span>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    className="h-7 w-20 text-sm"
+                                    placeholder={String(defaultCharge)}
+                                    value={hasCustom ? customCharges[itemId] : ""}
+                                    onChange={(e) => updateCharge(itemId, e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    );
+                })}
+                {filtered.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-4">No items found</p>
+                )}
+            </div>
         </div>
     );
 }

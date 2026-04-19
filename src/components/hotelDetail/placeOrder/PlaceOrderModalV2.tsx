@@ -169,6 +169,14 @@ const PlaceOrderModalV2 = ({
       hotelData.delivery_rules.parcel_charge > 0
     ) {
       const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
+      if (chargeType === "itemwise") {
+        const defaultCharge = hotelData.delivery_rules.parcel_charge || 0;
+        const customCharges = hotelData.delivery_rules.parcel_charge_items || {};
+        return (items || []).reduce((acc, item) => {
+          const charge = customCharges[item.id] ?? defaultCharge;
+          return acc + charge * item.quantity;
+        }, 0);
+      }
       const itemCount = (items || []).reduce((acc, i) => acc + i.quantity, 0);
       return chargeType === "variable"
         ? itemCount * hotelData.delivery_rules.parcel_charge
