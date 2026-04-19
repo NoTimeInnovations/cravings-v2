@@ -32,6 +32,7 @@ interface OnboardingFlowProps {
   notices?: any[];
   socialLinks?: any;
   storefrontSettings?: string | null;
+  onDismiss?: () => void;
 }
 
 export default function OnboardingFlow({
@@ -50,6 +51,7 @@ export default function OnboardingFlow({
   notices = [],
   socialLinks,
   storefrontSettings,
+  onDismiss,
 }: OnboardingFlowProps) {
   const router = useRouter();
   const features = getFeatures(featureFlags);
@@ -82,10 +84,17 @@ export default function OnboardingFlow({
   const [dismissed, setDismissed] = useState(skipOnboarding);
   const [closing, setClosing] = useState(false);
 
+  useEffect(() => {
+    if (skipOnboarding) onDismiss?.();
+  }, []);
+
   const dismissWithAnimation = useCallback(() => {
     setClosing(true);
-    setTimeout(() => setDismissed(true), 400);
-  }, []);
+    setTimeout(() => {
+      setDismissed(true);
+      onDismiss?.();
+    }, 300);
+  }, [onDismiss]);
   const [phone, setPhone] = useState("");
   const [countryInfo, setCountryInfo] = useState<UserCountryInfo | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
@@ -235,7 +244,7 @@ export default function OnboardingFlow({
 
   return (
     <div
-      className={`fixed inset-0 overflow-y-auto transition-all duration-400 ${closing ? "opacity-0 scale-95" : "opacity-100 scale-100"}`}
+      className={`fixed inset-0 overflow-y-auto transition-all duration-300 ${closing ? "opacity-0 scale-95" : "opacity-100 scale-100"}`}
       style={{ zIndex: 9999, scrollbarWidth: "none" } as React.CSSProperties}
     >
       <div

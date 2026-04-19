@@ -90,6 +90,7 @@ const HotelMenuPage = ({
   // user picks an order type and re-mounts on every reload so the order type screen
   // shows again (value persists only in sessionStorage).
   const showOnboarding = needsOnboarding;
+  const [onboardingDismissed, setOnboardingDismissed] = useState(!showOnboarding);
 
   const styles: Styles = useMemo(() => ({
     backgroundColor: theme?.colors?.bg || "#F5F5F5",
@@ -373,34 +374,38 @@ const HotelMenuPage = ({
 
   return (
     <>
-      {features?.delivery.enabled &&
-        hoteldata?.delivery_rules?.delivery_time_allowed && (
-          <DeliveryTimeCampain deliveryRules={hoteldata.delivery_rules} />
-        )}
-      {renderPage()}
-      {isHotelOnFreePlan && (
-        <div className="w-full py-3 text-center text-xs text-gray-400 border-t border-gray-100 bg-white">
-          Powered by{" "}
-          <a
-            href="https://menuthere.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-orange-500 hover:text-orange-600 font-medium"
-          >
-            Menuthere
-          </a>
-        </div>
-      )}
-      {showOrderDrawer && (
-        <section>
-          <OrderDrawer
-            qrGroup={qrGroup}
-            styles={styles}
-            qrId={qrId || undefined}
-            hotelData={hoteldata}
-            tableNumber={tableNumber}
-          />
-        </section>
+      {!onboardingDismissed ? null : (
+        <>
+          {features?.delivery.enabled &&
+            hoteldata?.delivery_rules?.delivery_time_allowed && (
+              <DeliveryTimeCampain deliveryRules={hoteldata.delivery_rules} />
+            )}
+          {renderPage()}
+          {isHotelOnFreePlan && (
+            <div className="w-full py-3 text-center text-xs text-gray-400 border-t border-gray-100 bg-white">
+              Powered by{" "}
+              <a
+                href="https://menuthere.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-orange-500 hover:text-orange-600 font-medium"
+              >
+                Menuthere
+              </a>
+            </div>
+          )}
+          {showOrderDrawer && (
+            <section>
+              <OrderDrawer
+                qrGroup={qrGroup}
+                styles={styles}
+                qrId={qrId || undefined}
+                hotelData={hoteldata}
+                tableNumber={tableNumber}
+              />
+            </section>
+          )}
+        </>
       )}
       {showOnboarding && (
         <OnboardingFlow
@@ -419,6 +424,7 @@ const HotelMenuPage = ({
           notices={(hoteldata as any)?.notices || []}
           socialLinks={socialLinks}
           storefrontSettings={(hoteldata as any)?.storefront_settings}
+          onDismiss={() => setOnboardingDismissed(true)}
         />
       )}
       {/* Notices now shown in splash/storefront screen only */}
