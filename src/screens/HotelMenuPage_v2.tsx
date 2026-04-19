@@ -418,6 +418,7 @@ const HotelMenuPage = ({
           storeTagline={(hoteldata as any)?.store_tagline}
           notices={(hoteldata as any)?.notices || []}
           socialLinks={socialLinks}
+          storefrontSettings={(hoteldata as any)?.storefront_settings}
         />
       )}
       {/* Notices now shown in splash/storefront screen only */}

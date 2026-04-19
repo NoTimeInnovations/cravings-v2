@@ -237,6 +237,21 @@ export function FeatureSettings() {
                                     />
                                 </div>
                             )}
+
+                            {features.storefront?.access && (
+                                <div className="flex items-center justify-between p-4 border rounded-lg">
+                                    <div className="space-y-0.5">
+                                        <div className="font-medium">Storefront</div>
+                                        <div className="text-sm text-muted-foreground">
+                                            {features.storefront.enabled ? "Enabled — storefront page is published" : "Disabled — storefront page is hidden"}
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={features.storefront.enabled}
+                                        onCheckedChange={(checked) => handleFeatureToggle("storefront", checked)}
+                                    />
+                                </div>
+                            )}
                         </>
                     )}
                 </CardContent>

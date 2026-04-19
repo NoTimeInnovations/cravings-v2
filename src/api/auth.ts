@@ -64,6 +64,7 @@ export const partnerIdQuery = `
       cashfree_merchant_id
       accept_payments_via_cashfree
       accept_cod
+      storefront_settings
       qr_codes(limit: 1) {
         id
       }
@@ -114,6 +115,7 @@ export const partnerLoginQuery = `
       cashfree_merchant_id
       accept_payments_via_cashfree
       accept_cod
+      storefront_settings
       qr_codes(limit: 1) {
         id
       }

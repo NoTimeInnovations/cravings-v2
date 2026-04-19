@@ -170,6 +170,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     accept_cod
     price_adjustment
     subscription_details
+    storefront_settings
     menus(where: {
     deletion_status: {_eq: 0},
     _and: [
@@ -324,6 +325,7 @@ export const updatePartnerMutation = `
       cashfree_merchant_id
       accept_payments_via_cashfree
       accept_cod
+      storefront_settings
     }
   }
 `;

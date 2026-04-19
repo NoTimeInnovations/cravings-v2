@@ -35,6 +35,10 @@ export type FeatureFlags = {
     access: boolean;
     enabled: boolean;
   };
+  storefront: {
+    access: boolean;
+    enabled: boolean;
+  };
 };
 
 export const revertFeatureToString = (features: FeatureFlags): string => {
@@ -74,6 +78,10 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
 
   if (features.newonboarding.access) {
     parts.push(`newonboarding-${features.newonboarding.enabled}`);
+  }
+
+  if (features.storefront.access) {
+    parts.push(`storefront-${features.storefront.enabled}`);
   }
 
   return parts.join(",");
@@ -117,6 +125,10 @@ export const getFeatures = (perm: string | null) => {
       access: false,
       enabled: false,
     },
+    storefront: {
+      access: false,
+      enabled: false,
+    },
   };
 
   if (!perm) {
@@ -156,6 +168,9 @@ export const getFeatures = (perm: string | null) => {
       } else if (key === "newonboarding") {
         permissions.newonboarding.access = true;
         permissions.newonboarding.enabled = value === "true";
+      } else if (key === "storefront") {
+        permissions.storefront.access = true;
+        permissions.storefront.enabled = value === "true";
       }
     }
   }

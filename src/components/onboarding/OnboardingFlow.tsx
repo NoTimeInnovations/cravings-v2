@@ -8,7 +8,7 @@ import { useWhatsAppOtp } from "@/hooks/useWhatsAppOtp";
 import { getFeatures } from "@/lib/getFeatures";
 import { UserCountryInfo } from "@/lib/getUserCountry";
 import { setOrderSessionCookie, setOnboardingDataCookie, getOnboardingDataCookie } from "@/app/auth/actions";
-import SplashScreen from "./SplashScreen";
+import StorefrontScreen from "./StorefrontScreen";
 import LoginScreen from "./LoginScreen";
 import OTPScreen from "./OTPScreen";
 import DeliveryAddressScreen from "./DeliveryAddressScreen";
@@ -31,6 +31,7 @@ interface OnboardingFlowProps {
   storeTagline?: string;
   notices?: any[];
   socialLinks?: any;
+  storefrontSettings?: string | null;
 }
 
 export default function OnboardingFlow({
@@ -48,21 +49,37 @@ export default function OnboardingFlow({
   storeTagline,
   notices = [],
   socialLinks,
+  storefrontSettings,
 }: OnboardingFlowProps) {
   const router = useRouter();
   const features = getFeatures(featureFlags);
   const hasWhatsappOtp = features.whatsappnotifications.enabled;
   const hasDelivery = features.delivery.enabled;
+  const hasStorefront = features.storefront.enabled;
+
+  let parsedStorefront: any = null;
+  if (hasStorefront && storefrontSettings) {
+    try {
+      const data = typeof storefrontSettings === "string" ? JSON.parse(storefrontSettings) : storefrontSettings;
+      if (data?.enabled) parsedStorefront = data;
+    } catch {}
+  }
   const hasOrdering = features.ordering.enabled;
   const needsAddress = hasDelivery && tableNumber === 0;
   const needsOrderType = (hasDelivery || hasOrdering) && tableNumber === 0;
 
   const getInitialStep = (): OnboardingStep => {
+    if (parsedStorefront) return "splash";
+    if (!isLoggedIn) return "login";
+    if (needsOrderType) return "orderType";
     return "splash";
   };
 
-  const [step, setStep] = useState<OnboardingStep>(getInitialStep);
-  const [dismissed, setDismissed] = useState(false);
+  const initialStep = getInitialStep();
+  const skipOnboarding = !parsedStorefront && isLoggedIn && !needsOrderType;
+
+  const [step, setStep] = useState<OnboardingStep>(initialStep);
+  const [dismissed, setDismissed] = useState(skipOnboarding);
   const [closing, setClosing] = useState(false);
 
   const dismissWithAnimation = useCallback(() => {
@@ -218,31 +235,25 @@ export default function OnboardingFlow({
 
   return (
     <div
-      className={`fixed inset-0 overflow-hidden transition-all duration-400 ${closing ? "opacity-0 scale-95" : "opacity-100 scale-100"}`}
-      style={{ zIndex: 9999 }}
+      className={`fixed inset-0 overflow-y-auto transition-all duration-400 ${closing ? "opacity-0 scale-95" : "opacity-100 scale-100"}`}
+      style={{ zIndex: 9999, scrollbarWidth: "none" } as React.CSSProperties}
     >
       <div
         key={step}
-        className="absolute inset-0 animate-slide-in-right"
+        className={`${parsedStorefront && step === "splash" ? "" : "absolute inset-0 overflow-y-auto"} animate-slide-in-right`}
+        style={{ scrollbarWidth: "none" } as React.CSSProperties}
       >
-        {step === "splash" && (
-          <SplashScreen
-            storeName={storeName}
-            storeBanner={storeBanner}
-            storeTagline={storeTagline}
-            notices={notices}
-            socialLinks={socialLinks}
-            hasDelivery={hasDelivery}
-            hasOrdering={hasOrdering}
-            isDeliveryActive={isDeliveryActive}
-            deliveryTimeAllowed={deliveryTimeAllowed}
-            takeawayTimeAllowed={takeawayTimeAllowed}
-            onContinue={() => {
-              if (!isLoggedIn) setStep("login");
-              else if (needsOrderType) setStep("orderType");
-              else dismissWithAnimation();
-            }}
-          />
+        {step === "splash" && parsedStorefront && (
+            <StorefrontScreen
+              storefront={parsedStorefront}
+              storeName={storeName}
+              storeBanner={storeBanner}
+              onContinue={() => {
+                if (!isLoggedIn) setStep("login");
+                else if (needsOrderType) setStep("orderType");
+                else dismissWithAnimation();
+              }}
+            />
         )}
 
         {step === "login" && (

@@ -9,6 +9,7 @@ import { PaymentLegalSettings } from "./settings/PaymentLegalSettings";
 import { FeatureSettings } from "./settings/FeatureSettings";
 import { DiscountCodeSettings } from "./settings/DiscountCodeSettings";
 import { ThemeSettings } from "./settings/ThemeSettings";
+import { StorefrontSettings } from "./settings/StorefrontSettings";
 
 import { Button } from "@/components/ui/button";
 import { LogOut, ExternalLink } from "lucide-react";
@@ -98,6 +99,9 @@ export function AdminV2Settings() {
                         <TabsTrigger value="discounts">Discount Codes</TabsTrigger>
                     )}
                     <TabsTrigger value="theme">Theme</TabsTrigger>
+                    {features?.storefront?.access && (
+                        <TabsTrigger value="storefront">Storefront</TabsTrigger>
+                    )}
                     <TabsTrigger value="features">Features</TabsTrigger>
                 </TabsList>
 
@@ -126,6 +130,12 @@ export function AdminV2Settings() {
                 <TabsContent value="theme" className="space-y-4">
                     <ThemeSettings />
                 </TabsContent>
+
+                {features?.storefront?.access && (
+                    <TabsContent value="storefront" className="space-y-4">
+                        <StorefrontSettings />
+                    </TabsContent>
+                )}
 
                 <TabsContent value="features" className="space-y-4">
                     <FeatureSettings />
