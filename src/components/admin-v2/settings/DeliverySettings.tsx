@@ -947,7 +947,7 @@ function ItemwiseParcelCharges({
                     return (
                         <div
                             key={itemId}
-                            className={`flex items-center gap-2 rounded px-2 py-1.5 text-sm ${hasCustom ? "bg-orange-50" : ""}`}
+                            className={`flex items-center gap-2 rounded px-2 py-1.5 text-sm ${hasCustom ? "bg-orange-500/10" : ""}`}
                         >
                             <span className="flex-1 truncate">{item.name}</span>
                             <div className="flex items-center gap-1 shrink-0">
