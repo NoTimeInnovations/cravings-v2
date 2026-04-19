@@ -401,30 +401,32 @@ function FooterSection({
     brandName: string;
     storeBanner?: string;
 }) {
-    const { description, phone, email, copyright } = content || {};
+    const { description, phone, email, copyright, showLogo = true } = content || {};
 
     return (
         <footer className="bg-gray-900 text-white">
             <div className="mx-auto max-w-6xl px-6 py-12 lg:px-8 lg:py-16">
                 <div className="lg:flex lg:items-start lg:justify-between lg:gap-12">
                     <div className="lg:max-w-md">
-                        <div className="flex items-center gap-3">
-                            {storeBanner ? (
-                                <img
-                                    src={storeBanner}
-                                    alt=""
-                                    className="h-11 w-11 rounded-full object-cover ring-2 ring-white/20"
-                                />
-                            ) : (
-                                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-lg font-bold">
-                                    {(brandName || "R").charAt(0)}
-                                </span>
-                            )}
-                            <p className="text-xl font-extrabold">{brandName}</p>
-                        </div>
+                        {showLogo !== false && (
+                            <div className="flex items-center gap-3">
+                                {storeBanner ? (
+                                    <img
+                                        src={storeBanner}
+                                        alt=""
+                                        className="h-11 w-11 rounded-full object-cover ring-2 ring-white/20"
+                                    />
+                                ) : (
+                                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-lg font-bold">
+                                        {(brandName || "R").charAt(0)}
+                                    </span>
+                                )}
+                                <p className="text-xl font-extrabold">{brandName}</p>
+                            </div>
+                        )}
 
                         {description && (
-                            <Html html={description} as="div" className="mt-4 max-w-md text-sm leading-relaxed text-white/80" />
+                            <Html html={description} as="div" className={cn(showLogo !== false ? "mt-4" : "", "max-w-md text-sm leading-relaxed text-white/80")} />
                         )}
                     </div>
 

@@ -1089,6 +1089,16 @@ function AboutEditor({ content, set, partnerId }: { content: Record<string, any>
 function FooterEditor({ content, set }: { content: Record<string, any>; set: (p: Record<string, any>) => void }) {
     return (
         <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 rounded-lg border">
+                <div>
+                    <p className="text-sm font-medium">Show logo & store name</p>
+                    <p className="text-[11px] text-muted-foreground">Display in footer header</p>
+                </div>
+                <Switch
+                    checked={content.showLogo !== false}
+                    onCheckedChange={(v) => set({ showLogo: v })}
+                />
+            </div>
             <FieldRow label="Short description">
                 <Textarea
                     value={content.description || ""}
