@@ -274,15 +274,17 @@ function ImageTextBlock({ content, onContinue }: { content: Record<string, any>;
         </div>
     );
 
+    const isBottom = imagePosition === "bottom";
+
     return (
         <section className="bg-white">
             <div className={cn(
                 "mx-auto max-w-6xl",
-                image
-                    ? cn("lg:grid lg:grid-cols-2 lg:gap-0", imagePosition === "bottom" ? "flex flex-col-reverse" : "flex flex-col lg:flex-row")
-                    : cn(imagePosition === "bottom" ? "flex flex-col-reverse" : "flex flex-col")
+                isBottom
+                    ? "flex flex-col-reverse lg:flex-col-reverse"
+                    : image ? "flex flex-col lg:grid lg:grid-cols-2 lg:gap-0" : "flex flex-col"
             )}>
-                {imagePosition === "bottom" ? (
+                {isBottom ? (
                     <>{textBlock}{imageBlock}</>
                 ) : (
                     <>{imageBlock}{textBlock}</>
