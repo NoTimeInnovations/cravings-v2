@@ -29,6 +29,7 @@ import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { getGstAmount, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
@@ -1065,7 +1066,7 @@ const PlaceOrderModalV2 = ({
           <button
             type="button"
             onClick={handlePay}
-            disabled={orderStatus !== "idle" || !items || items.length === 0}
+            disabled={orderStatus !== "idle" || !items || items.length === 0 || (tableNumber === 0 && !isWithinTimeWindow(hotelData?.delivery_rules?.delivery_time_allowed) && !isWithinTimeWindow(hotelData?.delivery_rules?.takeaway_time_allowed))}
             className="flex-1 max-w-[60%] rounded-xl py-3.5 font-semibold text-white disabled:opacity-60"
             style={{ backgroundColor: accent }}
           >

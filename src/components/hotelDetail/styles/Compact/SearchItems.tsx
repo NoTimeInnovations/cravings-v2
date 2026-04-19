@@ -8,6 +8,7 @@ import ItemCard from "./ItemCard";
 import { DefaultHotelPageProps } from "../Default/Default";
 import useOrderStore from "@/store/orderStore";
 import { getFeatures } from "@/lib/getFeatures";
+import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 
 // Import shadcn/ui components
 import { Button } from "@/components/ui/button";
@@ -28,8 +29,11 @@ const SearchResultItem = ({
 }) => {
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
 
-  const hasOrderingFeature = getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled && tableNumber !== 0;
-  const hasDeliveryFeature = getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled && tableNumber === 0;
+  const _dr = hoteldata?.delivery_rules;
+  const _isDelOpen = _dr?.isDeliveryActive !== false && isWithinTimeWindow(_dr?.delivery_time_allowed);
+  const _isTakOpen = isWithinTimeWindow(_dr?.takeaway_time_allowed);
+  const hasOrderingFeature = getFeatures(hoteldata?.feature_flags || "")?.ordering.enabled && (tableNumber !== 0 || _isTakOpen);
+  const hasDeliveryFeature = getFeatures(hoteldata?.feature_flags || "")?.delivery.enabled && tableNumber === 0 && _isDelOpen;
   const showAddButton = hasOrderingFeature || hasDeliveryFeature;
 
   const hasVariants = item.variants && item.variants.length > 0;

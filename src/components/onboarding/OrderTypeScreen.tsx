@@ -158,12 +158,25 @@ export default function OrderTypeScreen({
 
       {/* Sticky CTA */}
       <div className="absolute left-0 right-0 bottom-0 px-4 pt-3.5 pb-8 bg-[#fafafa]/95 backdrop-blur-lg border-t border-gray-100 z-30">
-        <button
-          onClick={() => onSelect(mode)}
-          className="w-full h-[52px] rounded-[14px] bg-gray-900 text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98]"
-        >
-          Continue with {mode === "delivery" ? "Delivery" : "Takeaway"}
-        </button>
+        {(!isDeliveryOpen || !hasDelivery) && (!isTakeawayOpen || !hasOrdering) ? (
+          <button
+            onClick={onSkip}
+            className="w-full h-[52px] rounded-[14px] bg-gray-900 text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98]"
+          >
+            Explore Menu
+          </button>
+        ) : (
+          <button
+            onClick={() => onSelect(mode)}
+            disabled={
+              (mode === "delivery" && !isDeliveryOpen) ||
+              (mode === "takeaway" && !isTakeawayOpen)
+            }
+            className="w-full h-[52px] rounded-[14px] bg-gray-900 text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40"
+          >
+            Continue with {mode === "delivery" ? "Delivery" : "Takeaway"}
+          </button>
+        )}
       </div>
     </div>
   );

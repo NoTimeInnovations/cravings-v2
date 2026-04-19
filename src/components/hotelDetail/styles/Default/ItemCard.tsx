@@ -8,6 +8,7 @@ import ItemDetailsModal from "./ItemDetailsModal";
 import DescriptionWithTextBreak from "../../../DescriptionWithTextBreak";
 import useOrderStore from "@/store/orderStore";
 import { getFeatures } from "@/lib/getFeatures";
+import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { formatPrice, requiresThreeDecimalPlaces } from "@/lib/constants";
 
 import { getTagColor } from "@/data/foodTags";
@@ -89,10 +90,15 @@ const ItemCard = ({
   };
 
   // --- Feature Flags & Stock Logic ---
+  const _features = getFeatures(feature_flags || "");
+  const _deliveryRules = hotelData?.delivery_rules;
+  const _isDeliveryTimeOpen = _deliveryRules?.isDeliveryActive !== false &&
+    isWithinTimeWindow(_deliveryRules?.delivery_time_allowed);
+  const _isTakeawayTimeOpen = isWithinTimeWindow(_deliveryRules?.takeaway_time_allowed);
   const hasOrderingFeature =
-    getFeatures(feature_flags || "")?.ordering.enabled;
+    _features?.ordering.enabled && (tableNumber !== 0 || _isTakeawayTimeOpen);
   const hasDeliveryFeature =
-    getFeatures(feature_flags || "")?.delivery.enabled && tableNumber === 0;
+    _features?.delivery.enabled && tableNumber === 0 && _isDeliveryTimeOpen;
 
   const hasStockFeature =
     getFeatures(feature_flags || "")?.stockmanagement?.enabled

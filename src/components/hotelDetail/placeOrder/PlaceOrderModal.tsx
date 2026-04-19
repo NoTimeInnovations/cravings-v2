@@ -2697,7 +2697,11 @@ const PlaceOrderModal = ({
 
   const minimumOrderAmount = deliveryInfo?.minimumOrderAmount || 0;
 
+  const _noOrderingAvailable = tableNumber === 0 &&
+    !isWithinTimeWindow(hotelData?.delivery_rules?.delivery_time_allowed) &&
+    !isWithinTimeWindow(hotelData?.delivery_rules?.takeaway_time_allowed);
   const isPlaceOrderDisabled =
+    _noOrderingAvailable ||
     orderStatus === "loading" || orderStatus === "verifying" || orderStatus === "failed" ||
     (tableNumber === 0 && !orderType) ||
     (isDelivery &&

@@ -99,7 +99,7 @@ export function AdminV2Settings() {
                         <TabsTrigger value="discounts">Discount Codes</TabsTrigger>
                     )}
                     <TabsTrigger value="theme">Theme</TabsTrigger>
-                    {features?.storefront?.access && (
+                    {features?.storefront?.access && features?.storefront?.enabled && (
                         <TabsTrigger value="storefront">Storefront</TabsTrigger>
                     )}
                     <TabsTrigger value="features">Features</TabsTrigger>
@@ -131,7 +131,7 @@ export function AdminV2Settings() {
                     <ThemeSettings />
                 </TabsContent>
 
-                {features?.storefront?.access && (
+                {features?.storefront?.access && features?.storefront?.enabled && (
                     <TabsContent value="storefront" className="space-y-4">
                         <StorefrontSettings />
                     </TabsContent>

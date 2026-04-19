@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { getFeatures } from "@/lib/getFeatures";
+import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import useOrderStore from "@/store/orderStore";
 import { Offer } from "@/store/offerStore_hasura";
 import { useRouter } from "next/navigation";
@@ -163,10 +164,15 @@ const V3ItemCard = ({
   const { addItem, items, decreaseQuantity, removeItem } = useOrderStore();
   const router = useRouter();
 
+  const features = getFeatures(feature_flags || "");
+  const deliveryRules = hoteldata?.delivery_rules;
+  const isDeliveryTimeOpen = deliveryRules?.isDeliveryActive !== false &&
+    isWithinTimeWindow(deliveryRules?.delivery_time_allowed);
+  const isTakeawayTimeOpen = isWithinTimeWindow(deliveryRules?.takeaway_time_allowed);
   const hasDeliveryFeature =
-    getFeatures(feature_flags || "")?.delivery.enabled && tableNumber === 0;
+    features?.delivery.enabled && tableNumber === 0 && isDeliveryTimeOpen;
   const hasOrderingFeature =
-    getFeatures(feature_flags || "")?.ordering.enabled && tableNumber !== 0;
+    features?.ordering.enabled && (tableNumber !== 0 || isTakeawayTimeOpen);
   const isPartnersRole = auth?.role === "partner";
 
   const hasStockFeature = getFeatures(feature_flags || "")?.stockmanagement?.enabled;

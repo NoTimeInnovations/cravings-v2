@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -15,8 +15,9 @@ import { revalidateTag } from "@/app/actions/revalidate";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import {
     ExternalLink, Plus, ArrowUp, ArrowDown, Pencil, Trash2,
-    RotateCcw, Layout, X, Sparkles
+    RotateCcw, Layout, X, Sparkles, Upload, Loader2
 } from "lucide-react";
+import { uploadFileToS3 } from "@/app/actions/aws-s3";
 import {
     Dialog,
     DialogContent,
@@ -256,6 +257,7 @@ export function StorefrontSettings() {
     const firstQrCodeId = (userData as any)?.qr_codes?.[0]?.id;
     const hotelNameSlug = (userData as any)?.name?.replace(/ /g, "-");
     const storeBanner = (userData as any)?.store_banner;
+    const partnerId = (userData as any)?.id;
     const storeName = (userData as any)?.store_name || (userData as any)?.name || "";
 
     return (
@@ -474,6 +476,7 @@ export function StorefrontSettings() {
                 onUpdate={updateSection}
                 storefront={storefront}
                 setStorefront={setStorefront}
+                partnerId={partnerId}
             />
         </div>
     );
@@ -527,12 +530,14 @@ function SectionEditorDialog({
     onUpdate,
     storefront,
     setStorefront,
+    partnerId,
 }: {
     section: StorefrontSection | null;
     onClose: () => void;
     onUpdate: (id: string, patch: Record<string, any>) => void;
     storefront: StorefrontData;
     setStorefront: React.Dispatch<React.SetStateAction<StorefrontData>>;
+    partnerId?: string;
 }) {
     const meta = section ? SECTION_TYPES.find((t) => t.id === section.type) : null;
 
@@ -557,6 +562,7 @@ function SectionEditorDialog({
                                 onUpdate={onUpdate}
                                 storefront={storefront}
                                 setStorefront={setStorefront}
+                                partnerId={partnerId}
                             />
                         </div>
                     </div>
@@ -577,21 +583,23 @@ function SectionFormRouter({
     onUpdate,
     storefront,
     setStorefront,
+    partnerId,
 }: {
     section: StorefrontSection;
     onUpdate: (id: string, patch: Record<string, any>) => void;
     storefront: StorefrontData;
     setStorefront: React.Dispatch<React.SetStateAction<StorefrontData>>;
+    partnerId?: string;
 }) {
     const set = (patch: Record<string, any>) => onUpdate(section.id, patch);
 
     switch (section.type) {
-        case "hero": return <HeroEditor content={section.content} set={set} />;
-        case "carousel": return <CarouselEditor section={section} storefront={storefront} setStorefront={setStorefront} />;
-        case "imageText": return <ImageTextEditor content={section.content} set={set} />;
-        case "cta": return <CTAEditor content={section.content} set={set} />;
+        case "hero": return <HeroEditor content={section.content} set={set} partnerId={partnerId} />;
+        case "carousel": return <CarouselEditor section={section} storefront={storefront} setStorefront={setStorefront} partnerId={partnerId} />;
+        case "imageText": return <ImageTextEditor content={section.content} set={set} partnerId={partnerId} />;
+        case "cta": return <CTAEditor content={section.content} set={set} partnerId={partnerId} />;
         case "testimonials": return <TestimonialsEditor section={section} storefront={storefront} setStorefront={setStorefront} />;
-        case "about": return <AboutEditor content={section.content} set={set} />;
+        case "about": return <AboutEditor content={section.content} set={set} partnerId={partnerId} />;
         case "footer": return <FooterEditor content={section.content} set={set} />;
         default: return null;
     }
@@ -639,7 +647,7 @@ function SubCard({ children, onDelete, title }: { children: React.ReactNode; onD
 }
 
 /* ================== HERO ================== */
-function HeroEditor({ content, set }: { content: Record<string, any>; set: (p: Record<string, any>) => void }) {
+function HeroEditor({ content, set, partnerId }: { content: Record<string, any>; set: (p: Record<string, any>) => void; partnerId?: string }) {
     return (
         <Tabs defaultValue="content" className="space-y-4">
             <TabsList className="grid w-full grid-cols-3">
@@ -705,14 +713,13 @@ function HeroEditor({ content, set }: { content: Record<string, any>; set: (p: R
             </TabsContent>
 
             <TabsContent value="style" className="space-y-4">
-                <FieldRow label="Background image URL">
-                    <Input
-                        value={content.backgroundImage || ""}
-                        onChange={(e) => set({ backgroundImage: e.target.value })}
-                        placeholder="https://..."
-                    />
-                    <ImagePreview src={content.backgroundImage} />
-                </FieldRow>
+                <ImageUploadField
+                    label="Background image"
+                    value={content.backgroundImage || ""}
+                    onChange={(url) => set({ backgroundImage: url })}
+                    partnerId={partnerId}
+                    folder="storefront/hero"
+                />
                 <FieldRow label={`Overlay darkness - ${content.overlayOpacity ?? 55}%`}>
                     <Slider
                         value={[content.overlayOpacity ?? 55]}
@@ -732,8 +739,10 @@ function CarouselEditor({
     section,
     storefront,
     setStorefront,
+    partnerId,
 }: {
     section: StorefrontSection;
+    partnerId?: string;
     storefront: StorefrontData;
     setStorefront: React.Dispatch<React.SetStateAction<StorefrontData>>;
 }) {
@@ -793,16 +802,13 @@ function CarouselEditor({
                                 if (confirm("Delete slide?")) removeSlide(sl.id);
                             }}
                         >
-                            {sl.image && (
-                                <img src={sl.image} alt="" className="h-24 w-full rounded-lg object-cover ring-1 ring-black/5" />
-                            )}
-                            <FieldRow label="Image URL">
-                                <Input
-                                    value={sl.image}
-                                    onChange={(e) => updateSlide(sl.id, { image: e.target.value })}
-                                    placeholder="https://..."
-                                />
-                            </FieldRow>
+                            <ImageUploadField
+                                label="Image"
+                                value={sl.image}
+                                onChange={(url) => updateSlide(sl.id, { image: url })}
+                                partnerId={partnerId}
+                                folder="storefront/carousel"
+                            />
                             <FieldRow label="Heading">
                                 <Input
                                     value={sl.heading}
@@ -831,17 +837,16 @@ function CarouselEditor({
 }
 
 /* ================== IMAGE + TEXT ================== */
-function ImageTextEditor({ content, set }: { content: Record<string, any>; set: (p: Record<string, any>) => void }) {
+function ImageTextEditor({ content, set, partnerId }: { content: Record<string, any>; set: (p: Record<string, any>) => void; partnerId?: string }) {
     return (
         <div className="space-y-4">
-            <FieldRow label="Image URL">
-                <Input
-                    value={content.image || ""}
-                    onChange={(e) => set({ image: e.target.value })}
-                    placeholder="https://..."
-                />
-                <ImagePreview src={content.image} />
-            </FieldRow>
+            <ImageUploadField
+                label="Image"
+                value={content.image || ""}
+                onChange={(url) => set({ image: url })}
+                partnerId={partnerId}
+                folder="storefront/imagetext"
+            />
             <FieldRow label="Heading">
                 <Input value={content.heading || ""} onChange={(e) => set({ heading: e.target.value })} />
             </FieldRow>
@@ -886,7 +891,7 @@ function ImageTextEditor({ content, set }: { content: Record<string, any>; set: 
 }
 
 /* ================== CTA ================== */
-function CTAEditor({ content, set }: { content: Record<string, any>; set: (p: Record<string, any>) => void }) {
+function CTAEditor({ content, set, partnerId }: { content: Record<string, any>; set: (p: Record<string, any>) => void; partnerId?: string }) {
     return (
         <Tabs defaultValue="content" className="space-y-4">
             <TabsList className="grid w-full grid-cols-2">
@@ -916,10 +921,13 @@ function CTAEditor({ content, set }: { content: Record<string, any>; set: (p: Re
             </TabsContent>
 
             <TabsContent value="style" className="space-y-4">
-                <FieldRow label="Background image URL (optional)">
-                    <Input value={content.backgroundImage || ""} onChange={(e) => set({ backgroundImage: e.target.value })} />
-                    <ImagePreview src={content.backgroundImage} />
-                </FieldRow>
+                <ImageUploadField
+                    label="Background image (optional)"
+                    value={content.backgroundImage || ""}
+                    onChange={(url) => set({ backgroundImage: url })}
+                    partnerId={partnerId}
+                    folder="storefront/cta"
+                />
                 <FieldRow label="Color variant">
                     <div className="grid grid-cols-3 gap-2">
                         {[
@@ -1053,13 +1061,16 @@ function TestimonialsEditor({
 }
 
 /* ================== ABOUT ================== */
-function AboutEditor({ content, set }: { content: Record<string, any>; set: (p: Record<string, any>) => void }) {
+function AboutEditor({ content, set, partnerId }: { content: Record<string, any>; set: (p: Record<string, any>) => void; partnerId?: string }) {
     return (
         <div className="space-y-4">
-            <FieldRow label="Image URL (optional)">
-                <Input value={content.image || ""} onChange={(e) => set({ image: e.target.value })} />
-                <ImagePreview src={content.image} />
-            </FieldRow>
+            <ImageUploadField
+                label="Image (optional)"
+                value={content.image || ""}
+                onChange={(url) => set({ image: url })}
+                partnerId={partnerId}
+                folder="storefront/about"
+            />
             <FieldRow label="Heading">
                 <Input value={content.heading || ""} onChange={(e) => set({ heading: e.target.value })} />
             </FieldRow>
@@ -1098,5 +1109,100 @@ function FooterEditor({ content, set }: { content: Record<string, any>; set: (p:
                 <Input value={content.copyright || ""} onChange={(e) => set({ copyright: e.target.value })} />
             </FieldRow>
         </div>
+    );
+}
+
+/* ================== IMAGE UPLOAD WITH WEBP CONVERSION ================== */
+async function convertToWebp(file: File, quality = 0.85): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const img = new window.Image();
+        img.onload = () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return reject(new Error("Canvas not supported"));
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL("image/webp", quality));
+        };
+        img.onerror = () => reject(new Error("Failed to load image"));
+        img.src = URL.createObjectURL(file);
+    });
+}
+
+function ImageUploadField({
+    value,
+    onChange,
+    label,
+    hint,
+    partnerId,
+    folder = "storefront",
+}: {
+    value: string;
+    onChange: (url: string) => void;
+    label: string;
+    hint?: string;
+    partnerId?: string;
+    folder?: string;
+}) {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [uploading, setUploading] = useState(false);
+
+    const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploading(true);
+        try {
+            const webpData = await convertToWebp(file);
+            const filename = `${partnerId || "general"}/${folder}/${Date.now()}.webp`;
+            const url = await uploadFileToS3(webpData, filename);
+            onChange(url);
+            toast.success("Image uploaded");
+        } catch (err) {
+            console.error("Upload failed:", err);
+            toast.error("Failed to upload image");
+        } finally {
+            setUploading(false);
+            if (inputRef.current) inputRef.current.value = "";
+        }
+    };
+
+    return (
+        <FieldRow label={label} hint={hint}>
+            <input
+                ref={inputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleUpload}
+                className="hidden"
+            />
+            <div className="flex items-center gap-2">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={uploading}
+                    onClick={() => inputRef.current?.click()}
+                >
+                    {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                    {uploading ? "Uploading..." : "Upload"}
+                </Button>
+                {value && (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-600"
+                        onClick={() => onChange("")}
+                    >
+                        Remove
+                    </Button>
+                )}
+            </div>
+            {value && (
+                <img src={value} alt="" className="mt-2 h-32 w-full rounded-lg object-cover ring-1 ring-black/5" />
+            )}
+        </FieldRow>
     );
 }

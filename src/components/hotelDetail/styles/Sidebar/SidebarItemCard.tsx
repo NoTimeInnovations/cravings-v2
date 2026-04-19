@@ -5,6 +5,7 @@ import { Styles } from "@/screens/HotelMenuPage_v2";
 import { useEffect, useState } from "react";
 import useOrderStore from "@/store/orderStore";
 import { getFeatures } from "@/lib/getFeatures";
+import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { formatPrice } from "@/lib/constants";
 import { Minus, Plus, Star, UtensilsCrossed } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -91,11 +92,14 @@ const SidebarItemCard = ({
     return currentTime >= startTime && currentTime <= endTime;
   };
 
+  const _features = getFeatures(feature_flags || "");
+  const _dr = hotelData?.delivery_rules;
+  const _isDeliveryTimeOpen = _dr?.isDeliveryActive !== false && isWithinTimeWindow(_dr?.delivery_time_allowed);
+  const _isTakeawayTimeOpen = isWithinTimeWindow(_dr?.takeaway_time_allowed);
   const hasOrderingFeature =
-    getFeatures(feature_flags || "")?.ordering.enabled;
+    _features?.ordering.enabled && (tableNumber !== 0 || _isTakeawayTimeOpen);
   const hasDeliveryFeature =
-    getFeatures(feature_flags || "")?.delivery.enabled &&
-    tableNumber === 0;
+    _features?.delivery.enabled && tableNumber === 0 && _isDeliveryTimeOpen;
 
   const hasStockFeature =
     getFeatures(feature_flags || "")?.stockmanagement?.enabled;

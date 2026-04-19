@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { getFeatures } from "@/lib/getFeatures";
+import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import useOrderStore from "@/store/orderStore";
 import { Offer } from "@/store/offerStore_hasura";
 import { useRouter } from "next/navigation";
@@ -114,13 +115,14 @@ const ItemCard = ({
     else return currentTime >= startTime && currentTime <= endTime;
   };
 
+  const _features = getFeatures(feature_flags || "");
+  const _dr = hoteldata?.delivery_rules;
+  const _isDeliveryTimeOpen = _dr?.isDeliveryActive !== false && isWithinTimeWindow(_dr?.delivery_time_allowed);
+  const _isTakeawayTimeOpen = isWithinTimeWindow(_dr?.takeaway_time_allowed);
   const hasDeliveryFeature =
-    getFeatures(feature_flags || "")?.delivery.enabled &&
-    tableNumber === 0;
-
+    _features?.delivery.enabled && tableNumber === 0 && _isDeliveryTimeOpen;
   const hasOrderingFeature =
-    getFeatures(feature_flags || "")?.ordering.enabled &&
-    tableNumber !== 0;
+    _features?.ordering.enabled && (tableNumber !== 0 || _isTakeawayTimeOpen);
 
   const isPartnersRole = auth?.role === "partner";
 
