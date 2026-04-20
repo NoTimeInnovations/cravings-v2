@@ -18,6 +18,9 @@ import {
   Home,
   Building2,
   Navigation,
+  Bike,
+  ShoppingBag,
+  Clock,
 } from "lucide-react";
 import useOrderStore from "@/store/orderStore";
 import { useAuthStore } from "@/store/authStore";
@@ -29,6 +32,7 @@ import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import V3AddressSheet from "../styles/V3/V3AddressSheet";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { getGstAmount, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
 import { fetchFromHasura } from "@/lib/hasuraClient";
@@ -99,6 +103,7 @@ const PlaceOrderModalV2 = ({
     orderNote,
     setOrderNote,
     orderType,
+    setOrderType,
   } = useOrderStore();
 
   const { userData: user } = useAuthStore();
@@ -144,11 +149,40 @@ const PlaceOrderModalV2 = ({
 
   const isQrScan = qrId !== null && tableNumber !== 0;
 
+  const isDeliveryActive = hotelData?.delivery_rules?.isDeliveryActive ?? true;
+  const deliveryTimeAllowed = hotelData?.delivery_rules?.delivery_time_allowed;
+  const takeawayTimeAllowed = hotelData?.delivery_rules?.takeaway_time_allowed;
+  const isDeliveryOpen = isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed);
+  const isTakeawayOpen = isWithinTimeWindow(takeawayTimeAllowed);
+
+  const allMenus = (hotelData as any)?.allMenus || hotelData?.menus || [];
+  const incompatibleItems = useMemo(() => {
+    if (!orderType || !items?.length || !allMenus.length) return [];
+    return items.filter((cartItem) => {
+      const baseId = cartItem.id.split("|")[0];
+      const menuItem = allMenus.find((m: any) => m.id === baseId);
+      if (!menuItem) return false;
+      if (orderType === "delivery" && menuItem.show_on_delivery === false) return true;
+      if (orderType === "takeaway" && menuItem.show_on_takeaway === false) return true;
+      return false;
+    });
+  }, [orderType, items, allMenus]);
+
+  const minimumOrderAmount = deliveryInfo?.minimumOrderAmount || 0;
+
+  const formatTime12h = (t: string) => {
+    const [h, m] = t.split(":").map(Number);
+    const p = h >= 12 ? "PM" : "AM";
+    return `${h === 0 ? 12 : h > 12 ? h - 12 : h}:${m.toString().padStart(2, "0")} ${p}`;
+  };
+
   const subtotal = useMemo(
     () =>
       (items || []).reduce((acc, item) => acc + item.price * item.quantity, 0),
     [items],
   );
+
+  const isBelowMinimum = orderType === "delivery" && minimumOrderAmount > 0 && subtotal < minimumOrderAmount;
 
   const deliveryCharge = useMemo(() => {
     if (
@@ -530,9 +564,43 @@ const PlaceOrderModalV2 = ({
       toast.error("Please login first.");
       return;
     }
-    if (orderType === "delivery" && !address?.trim()) {
-      toast.error("Please set a delivery address.");
+    if (!isQrScan && !orderType) {
+      toast.error("Please select an order type.");
       return;
+    }
+    if (!isQrScan && orderType === "delivery" && !isDeliveryOpen) {
+      toast.error("Delivery is not available right now.");
+      return;
+    }
+    if (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) {
+      toast.error("Takeaway is not available right now.");
+      return;
+    }
+    if (incompatibleItems.length > 0) {
+      toast.error(`Some items are not available for ${orderType}. Please remove them.`);
+      return;
+    }
+    if (isBelowMinimum) {
+      toast.error(`Minimum order of ${currency}${minimumOrderAmount} required for delivery.`);
+      return;
+    }
+    if (orderType === "delivery") {
+      if (!address?.trim()) {
+        toast.error("Please set a delivery address.");
+        return;
+      }
+      const needLocation = hotelData?.delivery_rules?.needDeliveryLocation ?? true;
+      if (needLocation) {
+        const coords = useOrderStore.getState().coordinates;
+        if (hotelData?.geo_location && !coords) {
+          toast.error("Please select your location on the map.");
+          return;
+        }
+        if (deliveryInfo?.isOutOfRange) {
+          toast.error("Delivery is not available to your location.");
+          return;
+        }
+      }
     }
 
     setSavedOrderTotal(grandTotal);
@@ -805,6 +873,100 @@ const PlaceOrderModalV2 = ({
           </div>
 
           <div className="p-4 space-y-4 pb-40">
+            {/* Order Type Switcher */}
+            {!isQrScan && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <div className="text-xs font-semibold text-gray-500 tracking-wide mb-3">ORDER TYPE</div>
+                <div className="flex gap-2">
+                  {([
+                    { type: "delivery" as const, label: "Delivery", icon: Bike, open: isDeliveryOpen },
+                    { type: "takeaway" as const, label: "Takeaway", icon: ShoppingBag, open: isTakeawayOpen },
+                  ]).map(({ type, label, icon: Icon, open }) => {
+                    const selected = orderType === type;
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => {
+                          if (!open) return;
+                          setOrderType(type);
+                          if (type === "delivery") calculateDeliveryDistanceAndCost(hotelData);
+                        }}
+                        disabled={!open}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all border-2 ${
+                          !open
+                            ? "opacity-40 cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400"
+                            : selected
+                              ? "text-white border-transparent shadow-sm"
+                              : "border-gray-100 bg-gray-50 text-gray-700"
+                        }`}
+                        style={selected && open ? { backgroundColor: accent, borderColor: accent } : undefined}
+                      >
+                        <Icon className="h-4 w-4" />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {!isDeliveryOpen && deliveryTimeAllowed?.from && deliveryTimeAllowed?.to && (
+                  <p className="text-[11px] text-red-500 mt-2 px-1 flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {!isDeliveryActive
+                      ? "Delivery is currently unavailable"
+                      : `Delivery: ${formatTime12h(deliveryTimeAllowed.from)} – ${formatTime12h(deliveryTimeAllowed.to)}`}
+                  </p>
+                )}
+                {!isTakeawayOpen && takeawayTimeAllowed?.from && takeawayTimeAllowed?.to && (
+                  <p className="text-[11px] text-red-500 mt-1 px-1 flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Takeaway: {formatTime12h(takeawayTimeAllowed.from)} – {formatTime12h(takeawayTimeAllowed.to)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Delivery out of range warning */}
+            {orderType === "delivery" && deliveryInfo?.isOutOfRange && (
+              <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
+                <MapPin className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-red-700">Delivery not available</p>
+                  <p className="text-xs text-red-500 mt-0.5">Your location is outside the delivery area. Try a different address or switch to takeaway.</p>
+                </div>
+              </div>
+            )}
+
+            {/* Incompatible items warning */}
+            {incompatibleItems.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-sm">
+                <p className="text-sm font-semibold text-amber-800 mb-2">
+                  Not available for {orderType}
+                </p>
+                {incompatibleItems.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between py-1.5">
+                    <span className="text-sm text-amber-700">{item.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(item.id)}
+                      className="text-xs font-bold text-amber-800 bg-amber-100 px-2.5 py-1 rounded-lg"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Minimum order warning */}
+            {isBelowMinimum && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center gap-2.5">
+                <ShoppingBag className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                <p className="text-sm text-amber-700">
+                  Minimum order of <span className="font-bold">{currency}{minimumOrderAmount}</span> required for delivery. Add {currency}{(minimumOrderAmount - subtotal).toFixed(0)} more.
+                </p>
+              </div>
+            )}
+
             {/* Items Card */}
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               {(items || []).map((item) => (
@@ -1087,20 +1249,20 @@ const PlaceOrderModalV2 = ({
               )}
             </span>
             <span className="text-sm font-semibold text-gray-900">
-              {paymentMethod === "online" ? "Online Payment" : "Pay at Store"}
+              {paymentMethod === "online" ? "Pay Online" : orderType === "delivery" ? "Cash on Delivery" : "Pay at Store"}
             </span>
           </button>
           <button
             type="button"
             onClick={handlePay}
-            disabled={orderStatus !== "idle" || !items || items.length === 0 || (tableNumber === 0 && !isWithinTimeWindow(hotelData?.delivery_rules?.delivery_time_allowed) && !isWithinTimeWindow(hotelData?.delivery_rules?.takeaway_time_allowed))}
+            disabled={orderStatus !== "idle" || !items || items.length === 0 || (orderType === "delivery" && deliveryInfo?.isOutOfRange) || (!isQrScan && !orderType) || (!isQrScan && orderType === "delivery" && !isDeliveryOpen) || (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) || incompatibleItems.length > 0 || isBelowMinimum}
             className="flex-1 max-w-[60%] rounded-xl py-3.5 font-semibold text-white disabled:opacity-60"
             style={{ backgroundColor: accent }}
           >
             {paymentMethod === "online" ? (
               `Pay ${currency}${grandTotal.toFixed(0)}`
             ) : (
-              "Checkout"
+              "Place Order"
             )}
           </button>
         </div>
@@ -1117,8 +1279,8 @@ const PlaceOrderModalV2 = ({
               <div className="text-sm font-semibold mb-2 text-gray-900">Choose Payment Method</div>
               {(
                 [
-                  { id: "cash", label: "Pay at Store / Cash" },
-                  { id: "online", label: "Online Payment" },
+                  { id: "cash", label: orderType === "delivery" ? "Cash on Delivery" : "Pay at Store" },
+                  { id: "online", label: "Pay Online" },
                 ] as const
               ).map((opt) => (
                 <button
@@ -1149,95 +1311,25 @@ const PlaceOrderModalV2 = ({
 
     {/* Address overlays — rendered outside scrollable container */}
 
-    {/* Choose delivery address bottom sheet */}
+    {/* Delivery address sheet */}
     {showAddressSheet && (
-      <div
-        className="fixed inset-0 bg-black/30 z-[600] animate-fade-in"
-        onClick={() => setShowAddressSheet(false)}
-      >
-        <div
-          className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[70vh] overflow-y-auto animate-slide-up"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between px-4 pt-5 pb-3">
-            <h3 className="text-lg font-bold text-gray-900">Choose a delivery address</h3>
-            <button type="button" onClick={() => setShowAddressSheet(false)}>
-              <X className="h-5 w-5 text-gray-500" />
-            </button>
-          </div>
-
-          {/* Add new address */}
-          <button
-            type="button"
-            onClick={() => {
-              setShowAddressSheet(false);
-              setShowAddressModal(true);
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3"
-          >
-            <div
-              className="h-10 w-10 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: `${accent}15` }}
-            >
-              <Plus className="h-5 w-5" style={{ color: accent }} />
-            </div>
-            <span className="text-sm font-extrabold" style={{ color: accent }}>
-              Add new Address
-            </span>
-          </button>
-
-          {/* Saved addresses list */}
-          {savedAddresses.length > 0 && (
-            <div className="border-t border-gray-100">
-              {savedAddresses.map((addr) => {
-                const addrText =
-                  addr.address ||
-                  [addr.flat_no, addr.house_no, addr.area, addr.city]
-                    .filter(Boolean)
-                    .join(", ");
-                const isSelected = address === addrText || address === addr.address;
-                return (
-                  <button
-                    key={addr.id}
-                    type="button"
-                    onClick={() => handleSelectSavedAddress(addr)}
-                    className="w-full flex items-start gap-3 px-4 py-3.5 text-left border-b border-gray-50"
-                  >
-                    <div className="h-10 w-10 rounded-full flex items-center justify-center bg-gray-100 shrink-0 mt-0.5">
-                      {addr.label?.toLowerCase() === "home" ? (
-                        <Home className="h-4 w-4 text-gray-600" />
-                      ) : addr.label?.toLowerCase() === "office" ? (
-                        <Building2 className="h-4 w-4 text-gray-600" />
-                      ) : (
-                        <Navigation className="h-4 w-4 text-gray-600" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-extrabold text-gray-900">
-                          {addr.label}
-                        </span>
-                        {isSelected && (
-                          <span
-                            className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
-                            style={{ backgroundColor: accent }}
-                          >
-                            SELECTED
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
-                        {addrText}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          <div className="h-safe-area-bottom pb-4" />
-        </div>
-      </div>
+      <V3AddressSheet
+        currentAddress={address || ""}
+        onSelect={(addr, coords) => {
+          if (addr) {
+            useOrderStore.getState().setUserAddress(addr);
+            if (coords) {
+              useOrderStore.getState().setUserCoordinates(coords);
+              useLocationStore.getState().setCoords(coords);
+            }
+            if (orderType === "delivery") {
+              calculateDeliveryDistanceAndCost(hotelData);
+            }
+          }
+          setShowAddressSheet(false);
+        }}
+        onClose={() => setShowAddressSheet(false)}
+      />
     )}
 
     {/* Address Picker V2 (map + search) */}

@@ -95,10 +95,12 @@ const AddressPickerV2 = ({
     return DEFAULT_CENTER;
   }, [hotelData?.geo_location]);
 
-  const [mapCenter, _setMapCenter] = useState(initialCenter);
+  const [mapCenter] = useState(initialCenter);
   const updateMapCenter = useCallback((c: { lat: number; lng: number }) => {
-    _setMapCenter(c);
     mapCenterRef.current = c;
+    if (mapRef.current) {
+      mapRef.current.panTo(c);
+    }
   }, []);
 
   const [geocodedInfo, setGeocodedInfo] = useState<GeocodedInfo | null>(null);
@@ -552,12 +554,11 @@ const AddressPickerV2 = ({
         ) : (
           <GoogleMap
             mapContainerStyle={{ width: "100%", height: "100%" }}
-            center={mapCenter}
             zoom={17}
             onLoad={(map) => {
               mapRef.current = map;
               mapInitializedRef.current = false;
-              // Add hotel marker
+              map.setCenter(mapCenter);
               if (hotelCoords) {
                 hotelMarkerRef.current?.setMap(null);
                 hotelMarkerRef.current = new google.maps.Marker({
