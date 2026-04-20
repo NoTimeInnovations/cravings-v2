@@ -59,13 +59,13 @@ const getPost = unstable_cache(
 
     try {
       const res = await fetch(
-        process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT as string,
+        process.env.HASURA_GRAPHQL_ENDPOINT as string,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "x-hasura-admin-secret": process.env
-              .NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET as string,
+              .HASURA_GRAPHQL_ADMIN_SECRET as string,
           },
           body: JSON.stringify({ query, variables: { slug } }),
           cache: "no-store",
@@ -102,13 +102,13 @@ const getOtherPosts = unstable_cache(
 
     try {
       const res = await fetch(
-        process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT as string,
+        process.env.HASURA_GRAPHQL_ENDPOINT as string,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "x-hasura-admin-secret": process.env
-              .NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET as string,
+              .HASURA_GRAPHQL_ADMIN_SECRET as string,
           },
           body: JSON.stringify({ query, variables: { slug: currentSlug } }),
           cache: "no-store",

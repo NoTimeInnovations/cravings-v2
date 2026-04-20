@@ -26,8 +26,8 @@ const MENUTHERE_HOSTS = ["menuthere.com", "www.menuthere.com"];
 
 async function getPartnerUsernameByDomain(domain: string): Promise<string | null> {
   try {
-    const endpoint = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT!;
-    const secret = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET!;
+    const endpoint = process.env.HASURA_GRAPHQL_ENDPOINT!;
+    const secret = process.env.HASURA_GRAPHQL_ADMIN_SECRET!;
     const res = await fetch(endpoint, {
       method: "POST",
       headers: {

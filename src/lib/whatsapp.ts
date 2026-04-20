@@ -1,5 +1,5 @@
 const EVOLUTION_API_URL = "https://evolution-api.cravings.live";
-const EVOLUTION_API_KEY = "MySecurePassword123!";
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || "";
 const INSTANCE_NAME = "Menuthere";
 
 export async function sendWhatsAppMessage(phone: string, text: string) {

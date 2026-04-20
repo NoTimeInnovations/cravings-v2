@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Loader2, RefreshCw, Terminal, CheckCircle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { revalidateTag } from '@/app/actions/revalidate';
+import { fetchFromHasura } from '@/lib/hasuraClient';
 
 interface Partner {
   id: string;
@@ -163,21 +164,9 @@ export default function GoogleBusinessPage() {
         }
       `;
       
-      const res = await fetch(process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT || '/api/graphql', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-hasura-admin-secret': process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET || ''
-        },
-        body: JSON.stringify({
-          query,
-          variables: { term: `%${term}%` }
-        })
-      });
-      
-      const json = await res.json();
-      if (json.data?.partners) {
-        setPartners(json.data.partners);
+      const data = await fetchFromHasura(query, { term: `%${term}%` });
+      if (data?.partners) {
+        setPartners(data.partners);
       }
     } catch (e) {
       console.error(e);

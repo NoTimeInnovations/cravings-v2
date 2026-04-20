@@ -5,7 +5,7 @@ import Script from "next/script";
 import dynamic from "next/dynamic";
 import { headers } from "next/headers";
 import "./globals.css";
-import "@smastrom/react-rating/style.css";
+import "./react-rating.css";
 import { Toaster } from "@/components/ui/sonner";
 import BottomNav from "@/components/BottomNav";
 import { Navbar } from "@/components/Navbar";

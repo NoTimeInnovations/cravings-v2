@@ -1,0 +1,29 @@
+# Unused environment variables — moved from .env on 2026-04-20
+# These are not referenced anywhere in the source code.
+# Keep this file for reference. Do NOT commit secrets to git.
+
+# Old Hasura admin secret (was NEXT_PUBLIC_ — now removed from client-side, server-only version remains in .env)
+NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET=grK3WUtZW9mXGtYtjEqU44QfmFkWOMga9qQoa1uBvR03n7DXLkTodHH9cWDcN6cn
+
+# Old Hasura endpoint alias (not referenced in code)
+HASURA_GRAPHQL_ENDPOINT_HASURA=https://hasura-prod-v2.cravings.live
+
+# Database URL (may be used by Hasura Cloud, not in app code)
+DATABASE_URL=postgresql://neondb_owner:npg_ZcQM6o5Kemwl@ep-white-thunder-a7z8jes9-pooler.ap-southeast-2.aws.neon.tech/curious-ferret-93_db_8071907?sslmode=require
+
+# Old Firebase backend URL (not referenced)
+NEXT_PUBLIC_FIREBASE_BACKEND_URL=https://backend.cravings.notime.co.in
+
+# Brave API keys (not referenced in code)
+BRAVE_API_KEY=BSAn20qoBZkr3n_jntvJDZiGvDw14Gf
+NEXT_PUBLIC_BRAVE_API_KEY=BSAn20qoBZkr3n_jntvJDZiGvDw14Gf
+
+# Old Razorpay keys (replaced by RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET)
+RAZORPAY_KEY=rzp_test_y8RkByXRNeUbbn
+RAZORPAY_SECRET=wVd2589V38IUXxZ8PnsdciGU
+
+# MSG91 token (not referenced)
+NEXT_PUBLIC_MSG91_TOKEN=437114Tmw2nkMIl68adad12P1
+
+# Old WWJS API URL (not referenced)
+NEXT_PUBLIC_WWJS_API_URL=https://backend.cravings.live
