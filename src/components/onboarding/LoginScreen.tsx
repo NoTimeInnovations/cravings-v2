@@ -13,6 +13,7 @@ interface LoginScreenProps {
   onContinue: (phone: string, countryInfo: UserCountryInfo) => void;
   onBack?: () => void;
   loading?: boolean;
+  accent?: string;
 }
 
 export default function LoginScreen({
@@ -22,6 +23,7 @@ export default function LoginScreen({
   onContinue,
   onBack,
   loading,
+  accent = "#1f2937",
 }: LoginScreenProps) {
   const [phone, setPhone] = useState("");
   const [countryInfo, setCountryInfo] = useState<UserCountryInfo>({
@@ -113,7 +115,8 @@ export default function LoginScreen({
         <button
           onClick={handleSubmit}
           disabled={loading || !valid}
-          className="w-full h-[50px] rounded-[14px] bg-gray-900 text-white font-semibold text-[15px] flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+          className="w-full h-[50px] rounded-[14px] text-white font-semibold text-[15px] flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+          style={{ backgroundColor: accent }}
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Continue"}
         </button>

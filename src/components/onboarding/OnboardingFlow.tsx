@@ -59,6 +59,12 @@ export default function OnboardingFlow({
   const hasDelivery = features.delivery.enabled;
   const hasStorefront = features.storefront.enabled;
 
+  const BRAND_COLOR_MAP: Record<string, string> = {
+    "burnt-orange": "#e85d04", "obsidian-gold": "#b8860b", "royal-burgundy": "#8b1a4a",
+    "midnight-emerald": "#0d6b4e", "sapphire": "#1e4db7", "charcoal-noir": "#2c2c2c",
+    "deep-violet": "#6b21a8", "rose-blush": "#be185d", "teal-luxe": "#0f766e", "warm-copper": "#b45309",
+  };
+
   let parsedStorefront: any = null;
   if (hasStorefront && storefrontSettings) {
     try {
@@ -66,6 +72,9 @@ export default function OnboardingFlow({
       if (data?.enabled) parsedStorefront = data;
     } catch {}
   }
+  const bc = parsedStorefront?.brandColor || "burnt-orange";
+  const accent = bc.startsWith("custom:") ? bc.replace("custom:", "") : (BRAND_COLOR_MAP[bc] || "#e85d04");
+
   const hasOrdering = features.ordering.enabled;
   const needsAddress = hasDelivery && tableNumber === 0;
   const needsOrderType = (hasDelivery || hasOrdering) && tableNumber === 0;
@@ -274,6 +283,7 @@ export default function OnboardingFlow({
             onContinue={handleLoginContinue}
             onBack={() => setStep("splash")}
             loading={loginLoading || isSending}
+            accent={accent}
           />
         )}
 
@@ -289,6 +299,7 @@ export default function OnboardingFlow({
             onChangeNumber={handleChangeNumber}
             loading={isVerifying}
             error={otpError}
+            accent={accent}
           />
         )}
 
@@ -298,6 +309,7 @@ export default function OnboardingFlow({
             storeName={storeName}
             themeBg={themeBg}
             onContinue={handleAddressContinue}
+            accent={accent}
           />
         )}
 
@@ -314,6 +326,7 @@ export default function OnboardingFlow({
             deliveryTimeAllowed={deliveryTimeAllowed}
             takeawayTimeAllowed={takeawayTimeAllowed}
             isDeliveryActive={isDeliveryActive}
+            accent={accent}
           />
         )}
       </div>

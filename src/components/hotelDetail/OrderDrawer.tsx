@@ -306,7 +306,8 @@ const OrderDrawer = ({
         const defaultCharge = hotelData.delivery_rules.parcel_charge || 0;
         const customCharges = hotelData.delivery_rules.parcel_charge_items || {};
         grandTotal += (items || []).reduce((acc, item) => {
-          const charge = customCharges[item.id] ?? defaultCharge;
+          const baseId = item.id.split("|")[0];
+          const charge = customCharges[baseId] ?? defaultCharge;
           return acc + charge * item.quantity;
         }, 0);
       } else {
@@ -390,7 +391,8 @@ const OrderDrawer = ({
         const defCharge = hotelData.delivery_rules.parcel_charge || 0;
         const custCharges = hotelData.delivery_rules.parcel_charge_items || {};
         parcelCharge = (items || []).reduce((acc, item) => {
-          const charge = custCharges[item.id] ?? defCharge;
+          const baseId = item.id.split("|")[0];
+          const charge = custCharges[baseId] ?? defCharge;
           return acc + charge * item.quantity;
         }, 0);
       } else {

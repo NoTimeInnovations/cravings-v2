@@ -174,7 +174,7 @@ const PlaceOrderModalV2 = ({
         const defaultCharge = hotelData.delivery_rules.parcel_charge || 0;
         const customCharges = hotelData.delivery_rules.parcel_charge_items || {};
         return (items || []).reduce((acc, item) => {
-          const charge = customCharges[item.id] ?? defaultCharge;
+          const charge = customCharges[item.id.split("|")[0]] ?? defaultCharge;
           return acc + charge * item.quantity;
         }, 0);
       }

@@ -13,12 +13,14 @@ interface DeliveryAddressScreenProps {
   themeBg?: string;
   onContinue: (address: string, coords: { lat: number; lng: number } | null) => void;
   loading?: boolean;
+  accent?: string;
 }
 
 export default function DeliveryAddressScreen({
   storeName,
   onContinue,
   loading,
+  accent = "#1f2937",
 }: DeliveryAddressScreenProps) {
   const [address, setAddress] = useState("");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -139,7 +141,7 @@ export default function DeliveryAddressScreen({
           disabled={locating}
           className="w-full mt-6 flex items-center gap-3 p-3.5 rounded-[14px] bg-gray-50 border-none cursor-pointer transition active:opacity-60"
         >
-          <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: accent }}>
             {locating ? (
               <Loader2 className="w-4 h-4 animate-spin text-white" />
             ) : (
@@ -196,7 +198,8 @@ export default function DeliveryAddressScreen({
         <button
           onClick={handleContinue}
           disabled={loading || !address.trim()}
-          className="w-full h-[50px] rounded-[14px] bg-gray-900 text-white font-semibold text-[15px] flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+          className="w-full h-[50px] rounded-[14px] text-white font-semibold text-[15px] flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+          style={{ backgroundColor: accent }}
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Continue"}
         </button>

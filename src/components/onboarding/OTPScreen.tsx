@@ -14,6 +14,7 @@ interface OTPScreenProps {
   onChangeNumber: () => void;
   loading?: boolean;
   error?: string | null;
+  accent?: string;
 }
 
 export default function OTPScreen({
@@ -24,6 +25,7 @@ export default function OTPScreen({
   onChangeNumber,
   loading,
   error,
+  accent = "#1f2937",
 }: OTPScreenProps) {
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const [countdown, setCountdown] = useState(30);
@@ -152,7 +154,8 @@ export default function OTPScreen({
         <button
           onClick={() => allFilled && onVerify(otp)}
           disabled={loading || !allFilled}
-          className="w-full h-[52px] rounded-[14px] bg-gray-900 text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+          className="w-full h-[52px] rounded-[14px] text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+          style={{ backgroundColor: accent }}
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Verify & Continue"}
         </button>

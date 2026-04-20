@@ -619,7 +619,7 @@ const BillCard = ({
     if (parcelChargeType === "itemwise") {
       const custCharges = hotelData?.delivery_rules?.parcel_charge_items || {};
       parcelCharge = items.reduce((acc, item) => {
-        const charge = custCharges[item.id] ?? parcelChargeValue;
+        const charge = custCharges[item.id.split("|")[0]] ?? parcelChargeValue;
         return acc + charge * item.quantity;
       }, 0);
     } else {
@@ -2106,7 +2106,7 @@ const PlaceOrderModal = ({
       if (parcelChargeType === "itemwise") {
         const defC = hotelData.delivery_rules.parcel_charge || 0;
         const custC = hotelData.delivery_rules.parcel_charge_items || {};
-        parcelCharge = (items || []).reduce((acc, item) => acc + (custC[item.id] ?? defC) * item.quantity, 0);
+        parcelCharge = (items || []).reduce((acc, item) => acc + (custC[item.id.split("|")[0]] ?? defC) * item.quantity, 0);
       } else {
         parcelCharge = parcelChargeType === "variable"
           ? parcelItemCount * hotelData.delivery_rules.parcel_charge
@@ -2323,7 +2323,7 @@ const PlaceOrderModal = ({
         if (chargeType === "itemwise") {
           const defC = hotelData.delivery_rules.parcel_charge || 0;
           const custC = hotelData.delivery_rules.parcel_charge_items || {};
-          parcelAmount = (items || []).reduce((acc, item) => acc + (custC[item.id] ?? defC) * item.quantity, 0);
+          parcelAmount = (items || []).reduce((acc, item) => acc + (custC[item.id.split("|")[0]] ?? defC) * item.quantity, 0);
         } else {
           parcelAmount = chargeType === "variable"
             ? itemCount * hotelData.delivery_rules.parcel_charge
@@ -2467,7 +2467,7 @@ const PlaceOrderModal = ({
         if (chargeType === "itemwise") {
           const defC = hotelData.delivery_rules.parcel_charge || 0;
           const custC = hotelData.delivery_rules.parcel_charge_items || {};
-          parcelAmount = (items || []).reduce((acc, item) => acc + (custC[item.id] ?? defC) * item.quantity, 0);
+          parcelAmount = (items || []).reduce((acc, item) => acc + (custC[item.id.split("|")[0]] ?? defC) * item.quantity, 0);
         } else {
           parcelAmount = chargeType === "variable" ? itemCount * hotelData.delivery_rules.parcel_charge : hotelData.delivery_rules.parcel_charge;
         }
@@ -2628,7 +2628,7 @@ const PlaceOrderModal = ({
           if (chargeType === "itemwise") {
             const defC = hotelData.delivery_rules.parcel_charge || 0;
             const custC = hotelData.delivery_rules.parcel_charge_items || {};
-            parcelAmount = cfItems.reduce((acc, item) => acc + (custC[item.id] ?? defC) * item.quantity, 0);
+            parcelAmount = cfItems.reduce((acc, item) => acc + (custC[item.id.split("|")[0]] ?? defC) * item.quantity, 0);
           } else {
             parcelAmount = chargeType === "variable" ? itemCount * hotelData.delivery_rules.parcel_charge : hotelData.delivery_rules.parcel_charge;
           }
@@ -2727,7 +2727,7 @@ const PlaceOrderModal = ({
     if (ct === "itemwise") {
       const defC = hotelData?.delivery_rules?.parcel_charge || 0;
       const custC = hotelData?.delivery_rules?.parcel_charge_items || {};
-      return (items || []).reduce((acc, item) => acc + (custC[item.id] ?? defC) * item.quantity, 0);
+      return (items || []).reduce((acc, item) => acc + (custC[item.id.split("|")[0]] ?? defC) * item.quantity, 0);
     }
     return ct === "variable" ? _barTotalItemCount * (hotelData?.delivery_rules?.parcel_charge || 0) : (hotelData?.delivery_rules?.parcel_charge || 0);
   })();

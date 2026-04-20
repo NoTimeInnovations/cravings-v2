@@ -17,6 +17,7 @@ interface OrderTypeScreenProps {
   isDeliveryActive?: boolean;
   takeawayTimeAllowed?: { from: string; to: string } | null;
   deliveryTimeAllowed?: { from: string; to: string } | null;
+  accent?: string;
 }
 
 export default function OrderTypeScreen({
@@ -29,6 +30,7 @@ export default function OrderTypeScreen({
   isDeliveryActive = true,
   takeawayTimeAllowed,
   deliveryTimeAllowed,
+  accent = "#1f2937",
 }: OrderTypeScreenProps) {
   const isTakeawayOpen = isWithinTimeWindow(takeawayTimeAllowed);
   const isDeliveryOpen = isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed);
@@ -70,9 +72,10 @@ export default function OrderTypeScreen({
                 !isDeliveryOpen
                   ? "opacity-50 cursor-not-allowed border-[1.5px] border-gray-200"
                   : mode === "delivery"
-                    ? "border-[1.5px] border-gray-900 shadow-[0_0_0_3px_rgba(0,0,0,0.06)]"
+                    ? "border-[1.5px] shadow-[0_0_0_3px_rgba(0,0,0,0.06)]"
                     : "border-[1.5px] border-gray-200 shadow-sm"
               }`}
+              style={mode === "delivery" && isDeliveryOpen ? { borderColor: accent } : undefined}
             >
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
                 !isDeliveryOpen ? "bg-gray-200" : "bg-gray-100"
@@ -94,10 +97,10 @@ export default function OrderTypeScreen({
                 )}
               </div>
               <div className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center bg-white shrink-0 ${
-                mode === "delivery" && isDeliveryOpen ? "border-gray-900" : "border-gray-300"
-              }`}>
+                mode === "delivery" && isDeliveryOpen ? "" : "border-gray-300"
+              }`} style={mode === "delivery" && isDeliveryOpen ? { borderColor: accent } : undefined}>
                 {mode === "delivery" && isDeliveryOpen && (
-                  <div className="w-2.5 h-2.5 rounded-full bg-gray-900" />
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: accent }} />
                 )}
               </div>
             </button>
@@ -115,9 +118,10 @@ export default function OrderTypeScreen({
                 !isTakeawayOpen
                   ? "opacity-50 cursor-not-allowed border-[1.5px] border-gray-200"
                   : mode === "takeaway"
-                    ? "border-[1.5px] border-gray-900 shadow-[0_0_0_3px_rgba(0,0,0,0.06)]"
+                    ? "border-[1.5px] shadow-[0_0_0_3px_rgba(0,0,0,0.06)]"
                     : "border-[1.5px] border-gray-200 shadow-sm"
               }`}
+              style={mode === "takeaway" && isTakeawayOpen ? { borderColor: accent } : undefined}
             >
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
                 !isTakeawayOpen ? "bg-gray-200" : "bg-gray-100"
@@ -135,10 +139,10 @@ export default function OrderTypeScreen({
                 )}
               </div>
               <div className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center bg-white shrink-0 ${
-                mode === "takeaway" && isTakeawayOpen ? "border-gray-900" : "border-gray-300"
-              }`}>
+                mode === "takeaway" && isTakeawayOpen ? "" : "border-gray-300"
+              }`} style={mode === "takeaway" && isTakeawayOpen ? { borderColor: accent } : undefined}>
                 {mode === "takeaway" && isTakeawayOpen && (
-                  <div className="w-2.5 h-2.5 rounded-full bg-gray-900" />
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: accent }} />
                 )}
               </div>
             </button>
@@ -161,7 +165,8 @@ export default function OrderTypeScreen({
         {(!isDeliveryOpen || !hasDelivery) && (!isTakeawayOpen || !hasOrdering) ? (
           <button
             onClick={onSkip}
-            className="w-full h-[52px] rounded-[14px] bg-gray-900 text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98]"
+            className="w-full h-[52px] rounded-[14px] text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98]"
+            style={{ backgroundColor: accent }}
           >
             Explore Menu
           </button>
@@ -172,7 +177,8 @@ export default function OrderTypeScreen({
               (mode === "delivery" && !isDeliveryOpen) ||
               (mode === "takeaway" && !isTakeawayOpen)
             }
-            className="w-full h-[52px] rounded-[14px] bg-gray-900 text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40"
+            className="w-full h-[52px] rounded-[14px] text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40"
+            style={{ backgroundColor: accent }}
           >
             Continue with {mode === "delivery" ? "Delivery" : "Takeaway"}
           </button>
