@@ -17,6 +17,7 @@ import {
   setAuthCookie,
   removeAuthCookie,
   removeLocationCookie,
+  clearAllOrderSessionCookies,
 } from "@/app/auth/actions";
 import { sendRegistrationWhatsAppMsg } from "@/app/actions/sendWhatsappMsgs";
 import { FeatureFlags, getFeatures } from "@/lib/getFeatures";
@@ -318,7 +319,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const hotelTheme = localStorage?.getItem("hotelTheme");
     const accounts = await getAllAccounts();
 
-    // Preserve hotel-specific localStorage? items
+    // Preserve hotel-specific localStorage items
     const hotelLocationItems: { [key: string]: string | null } = {};
     for (let i = 0; i < localStorage?.length; i++) {
       const key = localStorage?.key(i);
@@ -327,12 +328,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     }
 
-    if (!skipTokenRemove) {
-      await Notification.token.remove();
-    }
-    await removeAuthCookie();
-    await removeLocationCookie();
-    // Clear partner country cookie (client-side, non-httpOnly)
+    // Clear state immediately for fast UI response
+    set({ userData: null, error: null, loading: false });
     document.cookie = "partner_country=; path=/; max-age=0";
     localStorage?.clear();
     if (fcmToken) localStorage?.setItem("fcmToken", fcmToken);
@@ -351,7 +348,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         addAccount({ ...account });
       });
     }
-    set({ userData: null, error: null });
+
+    // Remove httpOnly auth cookie (must await — can't delete from client JS)
+    await removeAuthCookie().catch(() => {});
+
+    // Fire remaining cleanup in background
+    Promise.all([
+      removeLocationCookie().catch(() => {}),
+      clearAllOrderSessionCookies().catch(() => {}),
+      !skipTokenRemove ? Notification.token.remove().catch(() => {}) : Promise.resolve(),
+    ]).catch(() => {});
   },
 
   signUpWithEmailForPartner: async (

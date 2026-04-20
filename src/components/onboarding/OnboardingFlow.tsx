@@ -93,9 +93,18 @@ export default function OnboardingFlow({
   const [dismissed, setDismissed] = useState(skipOnboarding);
   const [closing, setClosing] = useState(false);
 
+  const { userData } = useAuthStore();
+
   useEffect(() => {
     if (skipOnboarding) onDismiss?.();
   }, []);
+
+  useEffect(() => {
+    const clientLoggedIn = userData?.role === "user";
+    if (!isLoggedIn && !clientLoggedIn && step === "orderType") {
+      setStep(parsedStorefront ? "splash" : "login");
+    }
+  }, [userData, isLoggedIn]);
 
   const dismissWithAnimation = useCallback(() => {
     setClosing(true);

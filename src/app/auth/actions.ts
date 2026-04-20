@@ -302,6 +302,10 @@ export const clearOrderSessionCookie = async (partnerId: string) => {
   }
 };
 
+export const clearAllOrderSessionCookies = async () => {
+  (await cookies()).delete("order_session");
+};
+
 export const setOnboardingCookie = async (partnerId: string) => {
   const cookieStore = await cookies();
   const existing = cookieStore.get("onboarding_done")?.value;

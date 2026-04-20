@@ -1729,9 +1729,10 @@ export default function ProfilePage() {
                 Welcome back, {profile.name}!
               </CardTitle>
               <div
-                onClick={() => {
-                  signOut();
-                  router.push("/");
+                onClick={async () => {
+                  const lastHotel = document.cookie.split(";").find(c => c.trim().startsWith("pathname="))?.split("=")[1] || "/";
+                  await signOut();
+                  window.location.href = lastHotel;
                 }}
                 className="cursor-pointer hover:text-red-500 transition-all rounded-full flex flex-col items-center justify-center gap-1 text-gray-500"
               >

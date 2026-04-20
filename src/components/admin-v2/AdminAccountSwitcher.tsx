@@ -135,7 +135,7 @@ export function AdminAccountSwitcher() {
     const handleLogout = async () => {
         setIsOpen(false);
         await signOut();
-        router.push("/login");
+        window.location.href = "/login";
     };
 
     return (
