@@ -1,15 +1,11 @@
-"use client";
-
 interface SplashLoaderServerProps {
   initial: string;
+  storeName?: string;
+  storeBanner?: string;
 }
 
-export default function SplashLoaderServer({ initial: fallback }: SplashLoaderServerProps) {
-  let initial = fallback;
-  if (typeof window !== "undefined") {
-    const username = window.location.pathname.split("/").filter(Boolean)[0];
-    if (username) initial = username.charAt(0).toUpperCase();
-  }
+export default function SplashLoaderServer({ initial, storeName, storeBanner }: SplashLoaderServerProps) {
+  const isVideo = storeBanner?.endsWith(".mp4");
 
   return (
     <div
@@ -21,14 +17,26 @@ export default function SplashLoaderServer({ initial: fallback }: SplashLoaderSe
           className="w-20 h-20 rounded-full bg-white border border-gray-200 flex items-center justify-center overflow-hidden"
           style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.04)" }}
         >
-          <span
-            className="text-4xl font-medium text-gray-900"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-          >
-            {initial}
-          </span>
+          {storeBanner && !isVideo ? (
+            <img
+              src={storeBanner}
+              alt={storeName || ""}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span
+              className="text-4xl font-medium text-gray-900"
+              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            >
+              {initial}
+            </span>
+          )}
         </div>
-        <div className="h-5 w-32 rounded-lg bg-gray-200" />
+        {storeName ? (
+          <p className="text-lg font-semibold text-gray-900 tracking-tight">{storeName}</p>
+        ) : (
+          <div className="h-5 w-32 rounded-lg bg-gray-200" />
+        )}
         <p className="text-xs text-gray-400">Loading menu...</p>
       </div>
     </div>
