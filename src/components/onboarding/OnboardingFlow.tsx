@@ -217,18 +217,6 @@ export default function OnboardingFlow({
     } catch {}
 
     if (type === "delivery" && needsAddress) {
-      try {
-        const saved = localStorage.getItem("onboarding_address");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.address) {
-            setUserAddress(parsed.address);
-            if (parsed.coords) setUserCoordinates(parsed.coords);
-            dismissWithAnimation();
-            return;
-          }
-        }
-      } catch {}
       setStep("address");
       return;
     }
