@@ -111,7 +111,7 @@ const PlaceOrderModalV2 = ({
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">("cash");
   const [showBreakdown, setShowBreakdown] = useState(true);
-  const [orderStatus, setOrderStatus] = useState<"idle" | "loading" | "success">("idle");
+  const [orderStatus, setOrderStatus] = useState<"idle" | "loading" | "placing" | "success">("idle");
   const [successClosing, setSuccessClosing] = useState(false);
   const [savedOrderTotal, setSavedOrderTotal] = useState<number | null>(null);
 
@@ -536,7 +536,7 @@ const PlaceOrderModalV2 = ({
     }
 
     setSavedOrderTotal(grandTotal);
-    setOrderStatus("loading");
+    setOrderStatus("placing");
     try {
       const extraCharges: { name: string; amount: number; charge_type: string }[] = [];
       if (qrExtraCharge > 0 && qrGroup?.name) {
@@ -658,56 +658,83 @@ const PlaceOrderModalV2 = ({
 
   if (!open_place_order_modal) return null;
 
-  if (orderStatus === "success") {
+  if (orderStatus === "placing" || orderStatus === "success") {
     return (
       <div
         className="fixed inset-0 z-[500] flex items-center justify-center bg-white transition-opacity duration-300"
         style={{ opacity: successClosing ? 0 : 1 }}
       >
         <style>{`
+          @keyframes v3PlacingFadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes v3PlacingPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.06); }
+          }
+          @keyframes v3PlacingDot {
+            0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+            40% { transform: scale(1); opacity: 1; }
+          }
+          @keyframes v3PlacingSpin {
+            to { transform: rotate(360deg); }
+          }
+          @keyframes v3PlacingToSuccess {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.92); }
+          }
           @keyframes v3SuccessFadeIn {
-            from { opacity: 0; transform: scale(0.9); }
+            from { opacity: 0; transform: scale(0.85); }
             to { opacity: 1; transform: scale(1); }
           }
-          @keyframes v3SuccessCheck {
+          @keyframes v3SuccessRing {
             0% { transform: scale(0); opacity: 0; }
-            50% { transform: scale(1.2); }
+            60% { transform: scale(1.15); }
             100% { transform: scale(1); opacity: 1; }
           }
-          @keyframes v3SuccessRing {
-            0% { transform: scale(0.8); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
+          @keyframes v3SuccessCheck {
+            0% { stroke-dashoffset: 24; opacity: 0; }
+            50% { opacity: 1; }
+            100% { stroke-dashoffset: 0; opacity: 1; }
           }
         `}</style>
-        <div
-          className="flex flex-col items-center gap-6 px-8 text-center"
-          style={{ animation: successClosing ? "none" : "v3SuccessFadeIn 400ms ease-out forwards" }}
-        >
+
+        {orderStatus === "placing" && (
+          <PlacingScreen accent={accent} />
+        )}
+
+        {orderStatus === "success" && (
           <div
-            className="flex h-24 w-24 items-center justify-center rounded-full bg-emerald-100"
-            style={{ animation: successClosing ? "none" : "v3SuccessRing 500ms ease-out forwards" }}
+            className="flex flex-col items-center gap-6 px-8 text-center"
+            style={{ animation: successClosing ? "none" : "v3SuccessFadeIn 500ms ease-out forwards" }}
           >
-            <svg
-              className="h-12 w-12 text-emerald-600"
-              style={{ animation: successClosing ? "none" : "v3SuccessCheck 600ms ease-out 200ms both" }}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}
+            <div
+              className="flex h-24 w-24 items-center justify-center rounded-full bg-emerald-100"
+              style={{ animation: successClosing ? "none" : "v3SuccessRing 600ms ease-out forwards" }}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
+              <svg
+                className="h-12 w-12 text-emerald-600"
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}
+                style={{ strokeDasharray: 24, animation: successClosing ? "none" : "v3SuccessCheck 500ms ease-out 300ms both" }}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">Order Placed!</h2>
+              <p className="mt-2 text-sm text-gray-400">Your order of {currency}{(savedOrderTotal ?? 0).toFixed(0)} has been placed.</p>
+              <p className="mt-1 text-xs text-gray-400">You will be notified when it&apos;s ready.</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleSuccessClose}
+              className="mt-4 rounded-xl bg-emerald-600 px-8 py-3 text-sm font-bold text-white shadow-lg transition active:scale-[0.98]"
+            >
+              Back to Menu
+            </button>
           </div>
-          <div>
-            <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">Order Placed!</h2>
-            <p className="mt-2 text-sm text-gray-400">Your order of {currency}{(savedOrderTotal ?? 0).toFixed(0)} has been placed.</p>
-            <p className="mt-1 text-xs text-gray-400">You will be notified when it&apos;s ready.</p>
-          </div>
-          <button
-            type="button"
-            onClick={handleSuccessClose}
-            className="mt-4 rounded-xl bg-emerald-600 px-8 py-3 text-sm font-bold text-white shadow-lg transition active:scale-[0.98]"
-          >
-            Back to Menu
-          </button>
-        </div>
+        )}
       </div>
     );
   }
@@ -1070,12 +1097,7 @@ const PlaceOrderModalV2 = ({
             className="flex-1 max-w-[60%] rounded-xl py-3.5 font-semibold text-white disabled:opacity-60"
             style={{ backgroundColor: accent }}
           >
-            {orderStatus === "loading" ? (
-              <span className="flex items-center justify-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Placing...
-              </span>
-            ) : paymentMethod === "online" ? (
+            {paymentMethod === "online" ? (
               `Pay ${currency}${grandTotal.toFixed(0)}`
             ) : (
               "Checkout"
@@ -1553,5 +1575,53 @@ const DiscountsView = ({
     </div>
   );
 };
+
+function PlacingScreen({ accent }: { accent: string }) {
+  return (
+    <div
+      className="flex flex-col items-center gap-7 px-8 text-center"
+      style={{ animation: "v3PlacingFadeIn 400ms ease-out forwards" }}
+    >
+      <div className="relative flex h-28 w-28 items-center justify-center">
+        <div
+          className="absolute inset-0 rounded-full border-[3px] border-transparent"
+          style={{
+            borderTopColor: accent,
+            borderRightColor: `${accent}30`,
+            animation: "v3PlacingSpin 1s linear infinite",
+          }}
+        />
+        <div
+          className="flex h-20 w-20 items-center justify-center rounded-full"
+          style={{
+            backgroundColor: `${accent}12`,
+            animation: "v3PlacingPulse 1.8s ease-in-out infinite",
+          }}
+        >
+          <svg className="h-9 w-9" style={{ color: accent }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-lg font-bold text-gray-900 tracking-tight">Placing your order</h2>
+        <div className="flex items-center justify-center gap-1.5 mt-3">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-2 w-2 rounded-full"
+              style={{
+                backgroundColor: accent,
+                animation: `v3PlacingDot 1.4s ease-in-out ${i * 0.16}s infinite`,
+              }}
+            />
+          ))}
+        </div>
+        <p className="text-sm text-gray-400 mt-3">Please wait...</p>
+      </div>
+    </div>
+  );
+}
 
 export default PlaceOrderModalV2;
