@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const HASURA_ENDPOINT = process.env.HASURA_GRAPHQL_ENDPOINT as string;
-const HASURA_ADMIN_SECRET = process.env.HASURA_GRAPHQL_ADMIN_SECRET as string;
+const HASURA_ENDPOINT = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT as string;
+const HASURA_ADMIN_SECRET = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET as string;
 
 async function hasuraFetch(query: string, variables?: Record<string, unknown>) {
   const res = await fetch(HASURA_ENDPOINT, {

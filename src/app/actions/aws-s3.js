@@ -8,10 +8,10 @@ import {
 } from "@aws-sdk/client-s3";
 
 const s3Client = new S3Client({
-  region: process.env.S3_REGION,
+  region: process.env.NEXT_PUBLIC_S3_REGION,
   credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY,
-    secretAccessKey: process.env.S3_SECRET_KEY,
+    accessKeyId: process.env.NEXT_PUBLIC_S3_ACCESS_KEY,
+    secretAccessKey: process.env.NEXT_PUBLIC_S3_SECRET_KEY,
   },
   requestTimeout: 120000,
   maxAttempts: 3,
@@ -54,7 +54,7 @@ export async function uploadFileToS3(file, filename) {
 
     await s3Client.send(new PutObjectCommand(uploadParams));
 
-    return `https://${process.env.NEXT_PUBLIC_S3_BUCKET}.s3.${process.env.S3_REGION}.amazonaws.com/${fileName}`;
+    return `https://${process.env.NEXT_PUBLIC_S3_BUCKET}.s3.${process.env.NEXT_PUBLIC_S3_REGION}.amazonaws.com/${fileName}`;
   } catch (error) {
     console.error("Error in uploadFileToS3:", error);
     throw error;

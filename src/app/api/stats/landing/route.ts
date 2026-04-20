@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-const HASURA_ENDPOINT = process.env.HASURA_GRAPHQL_ENDPOINT!;
-const HASURA_SECRET = process.env.HASURA_GRAPHQL_ADMIN_SECRET!;
+const HASURA_ENDPOINT = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT!;
+const HASURA_SECRET = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET!;
 
 const QUERY = `
   query LandingStats($since: timestamptz!) {

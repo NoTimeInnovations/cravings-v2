@@ -95,9 +95,9 @@ async function saveTokensToHasura(data: {
     }
   `;
   
-  const checkRes = await fetch(process.env.HASURA_GRAPHQL_ENDPOINT!, {
+  const checkRes = await fetch(process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT!, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-hasura-admin-secret': process.env.HASURA_GRAPHQL_ADMIN_SECRET! },
+    headers: { 'Content-Type': 'application/json', 'x-hasura-admin-secret': process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET! },
     body: JSON.stringify({ query: checkQuery, variables: { partner_id: data.partner_id } })
   });
   const checkJson = await checkRes.json();
@@ -144,11 +144,11 @@ async function saveTokensToHasura(data: {
     };
   }
 
-  const response = await fetch(process.env.HASURA_GRAPHQL_ENDPOINT!, {
+  const response = await fetch(process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT!, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-hasura-admin-secret': process.env.HASURA_GRAPHQL_ADMIN_SECRET!
+      'x-hasura-admin-secret': process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET!
     },
     body: JSON.stringify({ query, variables })
   });

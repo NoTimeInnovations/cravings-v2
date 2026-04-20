@@ -1,55 +1,37 @@
 import { GraphQLClient } from "graphql-request";
 
-const isServer = typeof window === "undefined";
+export const client = new GraphQLClient(
+  process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT as string,
+  {
+    headers: {
+      "x-hasura-admin-secret": process.env
+        .NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET as string,
+    },
+  }
+);
+// const client = new GraphQLClient(process.env.HASURA_GRAPHQL_ENDPOINT as string, {
+//   headers: {
+//     'x-hasura-admin-secret': process.env.HASURA_GRAPHQL_ADMIN_SECRET as string,
+//   },
+// });
 
-const serverClient = isServer
-  ? new GraphQLClient(process.env.HASURA_GRAPHQL_ENDPOINT!, {
-      headers: {
-        "x-hasura-admin-secret": process.env.HASURA_GRAPHQL_ADMIN_SECRET!,
-      },
-    })
-  : null;
+// HASURA_GRAPHQL_ENDPOINT=https://curious-ferret-93.hasura.app/v1/graphql
+// HASURA_GRAPHQL_ADMIN_SECRET=grK3WUtZW9mXGtYtjEqU44QfmFkWOMga9qQoa1uBvR03n7DXLkTodHH9cWDcN6cn
 
-export const client = serverClient;
-
-export async function fetchFromHasura(
+export function fetchFromHasura(
   query: string,
   variables?: Record<string, unknown>
 ): Promise<any> {
-  if (isServer && serverClient) {
-    try {
-      const result = await serverClient.request(query, variables);
+  return client
+    .request(query, variables)
+    .then((result) => {
       if (process.env.NEXT_PUBLIC_ENV === "dev") {
         console.log("Hasura response: ", result);
       }
       return result;
-    } catch (error: any) {
+    })
+    .catch((error: any) => {
       console.error("Error from Hasura: ", error);
       throw error;
-    }
-  }
-
-  try {
-    const res = await fetch("/api/graphql", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query, variables }),
     });
-
-    const json = await res.json();
-
-    if (json.errors) {
-      console.error("Error from Hasura proxy: ", json.errors);
-      throw new Error(json.errors[0]?.message || "GraphQL error");
-    }
-
-    if (process.env.NEXT_PUBLIC_ENV === "dev") {
-      console.log("Hasura response: ", json.data);
-    }
-
-    return json.data;
-  } catch (error: any) {
-    console.error("Error from Hasura: ", error);
-    throw error;
-  }
 }

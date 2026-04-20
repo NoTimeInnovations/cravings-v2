@@ -129,9 +129,9 @@ async function getTokensFromHasura(partnerId: string) {
   const query = `query GetGoogleTokens($partner_id: uuid!) {
       google_business_integrations(where: {partner_id: {_eq: $partner_id}}) { access_token refresh_token }
     }`;
-  const response = await fetch(process.env.HASURA_GRAPHQL_ENDPOINT!, {
+  const response = await fetch(process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT!, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-hasura-admin-secret': process.env.HASURA_GRAPHQL_ADMIN_SECRET! },
+    headers: { 'Content-Type': 'application/json', 'x-hasura-admin-secret': process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET! },
     body: JSON.stringify({ query, variables: { partner_id: partnerId } })
   });
   const json = await response.json();

@@ -63,13 +63,13 @@ const getLatestPosts = unstable_cache(
 
     try {
       const res = await fetch(
-        process.env.HASURA_GRAPHQL_ENDPOINT as string,
+        process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT as string,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "x-hasura-admin-secret": process.env
-              .HASURA_GRAPHQL_ADMIN_SECRET as string,
+              .NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET as string,
           },
           body: JSON.stringify({ query }),
           cache: "no-store",

@@ -10,6 +10,7 @@ interface SubscriptionOptions {
 
 interface HasuraClientConfig {
   url: string;
+  adminSecret?: string;
   headers?: Record<string, string>;
 }
 
@@ -20,17 +21,13 @@ class HasuraSubscriptionClient {
   private constructor(config: HasuraClientConfig) {
     this.client = createClient({
       url: config.url,
-      connectionParams: async () => {
-        const res = await fetch('/api/graphql/ws-token');
-        const { token } = await res.json();
-        return {
-          headers: {
-            'x-hasura-admin-secret': token,
-            ...config.headers,
-            'Content-Type': 'application/json',
-          },
-        };
-      },
+      connectionParams: () => ({
+        headers: {
+          ...(config.adminSecret && { 'x-hasura-admin-secret': config.adminSecret }),
+          ...config.headers,
+          'Content-Type': 'application/json',
+        },
+      }),
     });
   }
 
@@ -54,19 +51,21 @@ class HasuraSubscriptionClient {
             message: error instanceof Error ? error.message : String(error),
             raw: JSON.stringify(error, null, 2)
           });
-
+          
+          // Try to extract a meaningful error message
           let errorMessage = 'Subscription error occurred';
           if (error instanceof Error) {
             errorMessage = error.message;
           } else if (typeof error === 'object' && error !== null) {
-            const graphqlError = (error as any)?.message ||
+            // Try to extract message from GraphQL error
+            const graphqlError = (error as any)?.message || 
                                (error as any)?.errors?.[0]?.message ||
                                JSON.stringify(error);
             errorMessage = graphqlError;
           } else {
             errorMessage = String(error);
           }
-
+          
           onError?.(new Error(errorMessage));
         },
         complete: () => {
@@ -78,12 +77,19 @@ class HasuraSubscriptionClient {
   }
 }
 
+// Initialize with your Hasura configuration
 const hasuraConfig: HasuraClientConfig = {
   url: process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT_WSS as string,
+  adminSecret: process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET as string,
 };
 
 export const hasuraClient = HasuraSubscriptionClient.getInstance(hasuraConfig);
 
+/**
+ * Subscribe to Hasura GraphQL subscriptions
+ * @param options Subscription options
+ * @returns Unsubscribe function
+ */
 export function subscribeToHasura(options: SubscriptionOptions) {
   return hasuraClient.subscribe(options);
 }

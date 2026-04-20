@@ -18,8 +18,6 @@ import {
   Home,
   Building2,
   Navigation,
-  Bike,
-  ShoppingBag,
 } from "lucide-react";
 import useOrderStore from "@/store/orderStore";
 import { useAuthStore } from "@/store/authStore";
@@ -101,7 +99,6 @@ const PlaceOrderModalV2 = ({
     orderNote,
     setOrderNote,
     orderType,
-    setOrderType,
   } = useOrderStore();
 
   const { userData: user } = useAuthStore();
@@ -114,7 +111,7 @@ const PlaceOrderModalV2 = ({
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">("cash");
   const [showBreakdown, setShowBreakdown] = useState(true);
-  const [orderStatus, setOrderStatus] = useState<"idle" | "loading" | "placing" | "success">("idle");
+  const [orderStatus, setOrderStatus] = useState<"idle" | "loading" | "success">("idle");
   const [successClosing, setSuccessClosing] = useState(false);
   const [savedOrderTotal, setSavedOrderTotal] = useState<number | null>(null);
 
@@ -635,8 +632,7 @@ const PlaceOrderModalV2 = ({
         try {
           sessionStorage.removeItem(`order_type_${hotelData.id}`);
         } catch {}
-        setOrderStatus("placing");
-        setTimeout(() => setOrderStatus("success"), 2000);
+        setOrderStatus("success");
       } else {
         toast.error("Failed to place order. Please try again.");
         setOrderStatus("idle");
@@ -660,79 +656,7 @@ const PlaceOrderModalV2 = ({
     }, 300);
   };
 
-  const isDeliveryActive = hotelData?.delivery_rules?.isDeliveryActive ?? true;
-  const deliveryTimeAllowed = hotelData?.delivery_rules?.delivery_time_allowed;
-  const takeawayTimeAllowed = hotelData?.delivery_rules?.takeaway_time_allowed;
-
-  const isDeliveryAvailable = isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed);
-  const isTakeawayAvailable = isWithinTimeWindow(takeawayTimeAllowed);
-
-  const formatTime12h = (t: string) => {
-    const [h, m] = t.split(":").map(Number);
-    const p = h >= 12 ? "PM" : "AM";
-    return `${h === 0 ? 12 : h > 12 ? h - 12 : h}:${m.toString().padStart(2, "0")} ${p}`;
-  };
-
   if (!open_place_order_modal) return null;
-
-  if (orderStatus === "placing") {
-    return (
-      <div className="fixed inset-0 z-[500] flex items-center justify-center bg-white">
-        <style>{`
-          @keyframes v3PlacingPulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.08); opacity: 0.85; }
-          }
-          @keyframes v3PlacingDots {
-            0%, 80%, 100% { transform: scale(0); opacity: 0.4; }
-            40% { transform: scale(1); opacity: 1; }
-          }
-          @keyframes v3PlacingFadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-          @keyframes v3PlacingRing {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-        <div className="flex flex-col items-center gap-6 px-8 text-center" style={{ animation: "v3PlacingFadeIn 400ms ease-out forwards" }}>
-          <div className="relative flex h-28 w-28 items-center justify-center">
-            <div
-              className="absolute inset-0 rounded-full border-[3px] border-transparent"
-              style={{
-                borderTopColor: accent,
-                borderRightColor: `${accent}40`,
-                animation: "v3PlacingRing 1.2s linear infinite",
-              }}
-            />
-            <div
-              className="flex h-20 w-20 items-center justify-center rounded-full"
-              style={{ backgroundColor: `${accent}15`, animation: "v3PlacingPulse 1.5s ease-in-out infinite" }}
-            >
-              <ClipboardList className="h-9 w-9" style={{ color: accent }} />
-            </div>
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 tracking-tight">Placing your order</h2>
-            <div className="flex items-center justify-center gap-1.5 mt-3">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="h-2 w-2 rounded-full"
-                  style={{
-                    backgroundColor: accent,
-                    animation: `v3PlacingDots 1.4s ease-in-out ${i * 0.16}s infinite`,
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-          <p className="text-sm text-gray-400 mt-1">Please wait while we confirm your order...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (orderStatus === "success") {
     return (
@@ -854,56 +778,6 @@ const PlaceOrderModalV2 = ({
           </div>
 
           <div className="p-4 space-y-4 pb-40">
-            {/* Order Type Switcher — only for non-QR (online ordering) */}
-            {!isQrScan && (
-              <div className="bg-white rounded-2xl p-4 shadow-sm">
-                <div className="text-xs font-semibold text-gray-500 tracking-wide mb-3">ORDER TYPE</div>
-                <div className="flex gap-2">
-                  {([
-                    { type: "delivery" as const, label: "Delivery", icon: Bike, available: isDeliveryAvailable },
-                    { type: "takeaway" as const, label: "Takeaway", icon: ShoppingBag, available: isTakeawayAvailable },
-                  ]).map(({ type, label, icon: Icon, available }) => {
-                    const selected = orderType === type;
-                    return (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => {
-                          if (!available) return;
-                          setOrderType(type);
-                          if (type === "delivery") calculateDeliveryDistanceAndCost(hotelData);
-                        }}
-                        disabled={!available}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all border-2 ${
-                          !available
-                            ? "opacity-40 cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400"
-                            : selected
-                              ? "text-white border-transparent shadow-sm"
-                              : "border-gray-100 bg-gray-50 text-gray-700 hover:bg-gray-100"
-                        }`}
-                        style={selected && available ? { backgroundColor: accent, borderColor: accent } : undefined}
-                      >
-                        <Icon className="h-4 w-4" />
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-                {!isDeliveryAvailable && deliveryTimeAllowed?.from && deliveryTimeAllowed?.to && (
-                  <p className="text-[11px] text-red-500 mt-2 px-1">
-                    {!isDeliveryActive
-                      ? "Delivery is currently unavailable"
-                      : `Delivery available ${formatTime12h(deliveryTimeAllowed.from)} - ${formatTime12h(deliveryTimeAllowed.to)}`}
-                  </p>
-                )}
-                {!isTakeawayAvailable && takeawayTimeAllowed?.from && takeawayTimeAllowed?.to && (
-                  <p className="text-[11px] text-red-500 mt-1 px-1">
-                    Takeaway available {formatTime12h(takeawayTimeAllowed.from)} - {formatTime12h(takeawayTimeAllowed.to)}
-                  </p>
-                )}
-              </div>
-            )}
-
             {/* Items Card */}
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               {(items || []).map((item) => (

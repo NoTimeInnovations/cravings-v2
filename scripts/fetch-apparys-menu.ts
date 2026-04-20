@@ -6,9 +6,9 @@
  */
 
 const HASURA_ENDPOINT =
-  process.env.HASURA_GRAPHQL_ENDPOINT || "https://hasura-prod-v2.cravings.live/v1/graphql";
+  "https://hasura-prod-v2.cravings.live/v1/graphql";
 const HASURA_ADMIN_SECRET =
-  process.env.HASURA_GRAPHQL_ADMIN_SECRET || "";
+  "grK3WUtZW9mXGtYtjEqU44QfmFkWOMga9qQoa1uBvR03n7DXLkTodHH9cWDcN6cn";
 
 const TARGET_CATEGORIES = ["cold_drinks", "mandi", "Dosa Specials", "Noodles"];
 

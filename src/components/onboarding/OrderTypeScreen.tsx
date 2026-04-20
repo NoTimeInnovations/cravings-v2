@@ -104,7 +104,7 @@ export default function OrderTypeScreen({
           )}
 
           {/* Takeaway */}
-          {(hasOrdering || hasDelivery) && (
+          {hasOrdering && (
             <button
               onClick={() => {
                 if (!isTakeawayOpen) return;
