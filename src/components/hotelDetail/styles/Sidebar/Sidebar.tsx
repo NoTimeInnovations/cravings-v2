@@ -131,7 +131,7 @@ const Sidebar = ({
 }: SidebarHotelPageProps) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"food" | "orders">("food");
-  const { addItem, removeItem, items: cartItems, setOpenPlaceOrderModal } = useOrderStore();
+  const { addItem, removeItem, items: cartItems, setOpenPlaceOrderModal, orderType } = useOrderStore();
   const selectedCategory = selectedCategoryProp || "all";
 
   const showBottomNav =
@@ -358,18 +358,41 @@ const Sidebar = ({
     >
       {!open_place_order_modal ? (
         <>
-          {/* Location Header (hide for QR scan / dine-in and when no ordering/delivery) */}
+          {/* Location Header / Pickup Header */}
           {tableNumber === 0 && (
             getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled ||
             getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled
           ) && (
-            <LocationHeader
-              hoteldata={hoteldata}
-              styles={styles}
-              accent={styles.accent || "#ea580c"}
-              bannerError={false}
-              setBannerError={() => {}}
-            />
+            orderType === "takeaway" ? (
+              <div
+                className="sticky top-0 z-30 px-4 py-3 flex items-center gap-3"
+                style={{ backgroundColor: styles.accent || "#ea580c" }}
+              >
+                <div className="w-10 h-10 rounded-full bg-white flex-shrink-0 overflow-hidden flex items-center justify-center shadow-sm">
+                  {hoteldata?.store_banner ? (
+                    <img src={hoteldata.store_banner} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-sm font-bold" style={{ color: styles.accent || "#ea580c" }}>
+                      {(hoteldata?.store_name || "S").charAt(0)}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-white text-[13px] font-medium opacity-80">Pickup from</span>
+                  <p className="text-white text-[14px] font-semibold truncate">
+                    {hoteldata?.location_details || hoteldata?.district || hoteldata?.store_name || "Store"}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <LocationHeader
+                hoteldata={hoteldata}
+                styles={styles}
+                accent={styles.accent || "#ea580c"}
+                bannerError={false}
+                setBannerError={() => {}}
+              />
+            )
           )}
 
           <ShopClosedModalWarning
