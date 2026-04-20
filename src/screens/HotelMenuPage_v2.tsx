@@ -147,12 +147,6 @@ const HotelMenuPage = ({
         name: hoteldata?.store_name || undefined,
       });
       document.cookie = `store_theme=${encodeURIComponent(cookieData)}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-      // Save per-store logo for loading screens
-      const username = pathname.split("/").filter(Boolean)[0];
-      if (username) {
-        const logoUrl = banner && !banner.endsWith(".mp4") ? banner : "";
-        localStorage.setItem(`store-logo-${username}`, JSON.stringify({ logo: logoUrl, name: hoteldata?.store_name || "" }));
-      }
     } catch {}
   }, [styles.accent, styles.backgroundColor, styles.color, theme?.showGrid, hoteldata?.store_name, pathname, hoteldata?.store_banner]);
 
