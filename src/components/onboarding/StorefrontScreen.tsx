@@ -163,7 +163,7 @@ function SectionRenderer({
         case "cta": return <CTASection content={section.content} onContinue={onContinue} accent={accent} />;
         case "testimonials": return <TestimonialsSection content={section.content} accent={accent} />;
         case "about": return <AboutSection content={section.content} />;
-        case "footer": return <FooterSection content={section.content} brandName={brandName} storeBanner={storeBanner} />;
+        case "footer": return <FooterSection content={section.content} brandName={brandName} storeBanner={storeBanner} accent={accent} />;
         default: return null;
     }
 }
@@ -418,60 +418,84 @@ function FooterSection({
     content,
     brandName,
     storeBanner,
+    accent,
 }: {
     content: Record<string, any>;
     brandName: string;
     storeBanner?: string;
+    accent: string;
 }) {
     const { description, phone, email, copyright, showLogo = true } = content || {};
+    const hasFullContent = (showLogo !== false) || phone || email;
+
+    if (!hasFullContent && !description && copyright) {
+        return (
+            <footer style={{ backgroundColor: accent }}>
+                <div className="mx-auto max-w-6xl px-6 py-4 lg:px-8">
+                    <Html html={copyright} as="p" className="text-center text-xs text-white/80" />
+                </div>
+            </footer>
+        );
+    }
 
     return (
-        <footer className="bg-gray-900 text-white">
-            <div className="mx-auto max-w-6xl px-6 py-12 lg:px-8 lg:py-16">
-                <div className="lg:flex lg:items-start lg:justify-between lg:gap-12">
-                    <div className="lg:max-w-md">
-                        {showLogo !== false && (
-                            <div className="flex items-center gap-3">
-                                {storeBanner ? (
-                                    <img
-                                        src={storeBanner}
-                                        alt=""
-                                        className="h-11 w-11 rounded-full object-cover ring-2 ring-white/20"
-                                    />
-                                ) : (
-                                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-lg font-bold">
-                                        {(brandName || "R").charAt(0)}
-                                    </span>
-                                )}
-                                <p className="text-xl font-extrabold">{brandName}</p>
-                            </div>
-                        )}
-
-                        {description && (
-                            <Html html={description} as="div" className={cn(showLogo !== false ? "mt-4" : "", "max-w-md text-sm leading-relaxed text-white/80")} />
-                        )}
-                    </div>
-
-                    {(phone || email) && (
-                        <div className="mt-7 space-y-2.5 text-sm lg:mt-0">
-                            <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/50 mb-3">Contact</p>
-                            {phone && (
-                                <a href={`tel:${phone}`} className="flex items-center gap-2.5 text-white/90 hover:text-white">
-                                    <Phone className="h-4 w-4" /> {phone}
-                                </a>
+        <footer style={{ backgroundColor: accent }}>
+            <div className={cn(
+                "mx-auto max-w-6xl px-6 lg:px-8",
+                hasFullContent ? "py-12 lg:py-16" : "py-6 lg:py-8"
+            )}>
+                {hasFullContent && (
+                    <div className="lg:flex lg:items-start lg:justify-between lg:gap-12">
+                        <div className="lg:max-w-md">
+                            {showLogo !== false && (
+                                <div className="flex items-center gap-3">
+                                    {storeBanner ? (
+                                        <img
+                                            src={storeBanner}
+                                            alt=""
+                                            className="h-11 w-11 rounded-full object-cover ring-2 ring-white/20"
+                                        />
+                                    ) : (
+                                        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-lg font-bold text-white">
+                                            {(brandName || "R").charAt(0)}
+                                        </span>
+                                    )}
+                                    <p className="text-xl font-extrabold text-white">{brandName}</p>
+                                </div>
                             )}
-                            {email && (
-                                <a href={`mailto:${email}`} className="flex items-center gap-2.5 text-white/90 hover:text-white">
-                                    <Mail className="h-4 w-4" /> {email}
-                                </a>
+
+                            {description && (
+                                <Html html={description} as="div" className={cn(showLogo !== false ? "mt-4" : "", "max-w-md text-sm leading-relaxed text-white/80")} />
                             )}
                         </div>
-                    )}
-                </div>
 
-                <div className="mt-10 border-t border-white/10 pt-5">
-                    <Html html={copyright || ""} as="p" className="text-xs text-white/60" />
-                </div>
+                        {(phone || email) && (
+                            <div className="mt-7 space-y-2.5 text-sm lg:mt-0">
+                                <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/50 mb-3">Contact</p>
+                                {phone && (
+                                    <a href={`tel:${phone}`} className="flex items-center gap-2.5 text-white/90 hover:text-white">
+                                        <Phone className="h-4 w-4" /> {phone}
+                                    </a>
+                                )}
+                                {email && (
+                                    <a href={`mailto:${email}`} className="flex items-center gap-2.5 text-white/90 hover:text-white">
+                                        <Mail className="h-4 w-4" /> {email}
+                                    </a>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {!hasFullContent && description && (
+                    <Html html={description} as="div" className="text-sm leading-relaxed text-white/80 text-center" />
+                )}
+
+                {copyright && (
+                    <div className={cn(hasFullContent ? "mt-10 border-t border-white/10 pt-5" : description ? "mt-4" : "")}>
+                        <Html html={copyright} as="p" className={cn("text-xs text-white/60", !hasFullContent && "text-center")} />
+                    </div>
+                )}
             </div>
         </footer>
     );
