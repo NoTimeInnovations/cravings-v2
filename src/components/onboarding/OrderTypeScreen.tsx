@@ -12,6 +12,7 @@ interface OrderTypeScreenProps {
   hasOrdering: boolean;
   onSelect: (type: "delivery" | "takeaway") => void;
   onSkip: () => void;
+  onBack?: () => void;
   onChangeLocation?: () => void;
   deliveryAvailable?: boolean;
   isDeliveryActive?: boolean;
@@ -25,6 +26,7 @@ export default function OrderTypeScreen({
   hasOrdering,
   onSelect,
   onSkip,
+  onBack,
   onChangeLocation,
   deliveryAvailable = true,
   isDeliveryActive = true,
@@ -43,7 +45,7 @@ export default function OrderTypeScreen({
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3.5 sticky top-0 z-10 bg-[#fafafa]">
         <button
-          onClick={onSkip}
+          onClick={onBack || onSkip}
           className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0 transition active:opacity-60"
         >
           <ChevronLeft className="w-[18px] h-[18px] text-gray-900" />

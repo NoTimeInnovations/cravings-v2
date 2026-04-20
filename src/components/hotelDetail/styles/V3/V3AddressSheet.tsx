@@ -11,9 +11,10 @@ interface V3AddressSheetProps {
   currentAddress: string;
   onSelect: (address: string, coords: { lat: number; lng: number } | null) => void;
   onClose: () => void;
+  accent?: string;
 }
 
-export default function V3AddressSheet({ currentAddress, onSelect, onClose }: V3AddressSheetProps) {
+export default function V3AddressSheet({ currentAddress, onSelect, onClose, accent = "#1f2937" }: V3AddressSheetProps) {
   const [address, setAddress] = useState("");
   const [locating, setLocating] = useState(false);
   const [suggestions, setSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
@@ -142,7 +143,7 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose }: V3
           disabled={locating}
           className="mx-4 mb-3 flex items-center gap-3 p-3 rounded-xl bg-gray-50 transition active:opacity-60"
         >
-          <div className="w-9 h-9 rounded-full bg-gray-900 flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: accent }}>
             {locating ? (
               <Loader2 className="w-4 h-4 animate-spin text-white" />
             ) : (

@@ -310,6 +310,7 @@ export default function OnboardingFlow({
             themeBg={themeBg}
             onContinue={handleAddressContinue}
             accent={accent}
+            onBack={() => setStep("orderType")}
           />
         )}
 
@@ -322,6 +323,7 @@ export default function OnboardingFlow({
             hasOrdering={hasOrdering}
             onSelect={handleOrderTypeSelect}
             onSkip={handleSkip}
+            onBack={parsedStorefront ? () => setStep("splash") : isLoggedIn ? handleSkip : () => setStep("login")}
             onChangeLocation={handleChangeLocation}
             deliveryTimeAllowed={deliveryTimeAllowed}
             takeawayTimeAllowed={takeawayTimeAllowed}

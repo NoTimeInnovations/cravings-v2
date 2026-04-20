@@ -1329,6 +1329,7 @@ const PlaceOrderModalV2 = ({
           setShowAddressSheet(false);
         }}
         onClose={() => setShowAddressSheet(false)}
+        accent={accent}
       />
     )}
 

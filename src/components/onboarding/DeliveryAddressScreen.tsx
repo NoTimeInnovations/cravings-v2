@@ -14,6 +14,7 @@ interface DeliveryAddressScreenProps {
   onContinue: (address: string, coords: { lat: number; lng: number } | null) => void;
   loading?: boolean;
   accent?: string;
+  onBack?: () => void;
 }
 
 export default function DeliveryAddressScreen({
@@ -21,6 +22,7 @@ export default function DeliveryAddressScreen({
   onContinue,
   loading,
   accent = "#1f2937",
+  onBack,
 }: DeliveryAddressScreenProps) {
   const [address, setAddress] = useState("");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -119,7 +121,7 @@ export default function DeliveryAddressScreen({
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3.5 sticky top-0 z-10 bg-white">
         <button
-          onClick={() => onContinue("", null)}
+          onClick={onBack || (() => onContinue("", null))}
           className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0 transition active:opacity-60"
         >
           <ChevronLeft className="w-[18px] h-[18px] text-gray-900" />

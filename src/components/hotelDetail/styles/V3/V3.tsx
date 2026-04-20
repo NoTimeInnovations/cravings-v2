@@ -475,6 +475,7 @@ const V3 = ({
               setAddressSheetOpen(false);
             }}
             onClose={() => setAddressSheetOpen(false)}
+            accent={styles?.accent}
           />
         )}
 
