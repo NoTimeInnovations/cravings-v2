@@ -28,6 +28,20 @@ import {
     DialogClose,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Check } from "lucide-react";
+
+const BRAND_COLORS = [
+    { id: "burnt-orange", name: "Burnt Orange", hex: "#e85d04" },
+    { id: "obsidian-gold", name: "Obsidian Gold", hex: "#b8860b" },
+    { id: "royal-burgundy", name: "Royal Burgundy", hex: "#8b1a4a" },
+    { id: "midnight-emerald", name: "Midnight Emerald", hex: "#0d6b4e" },
+    { id: "sapphire", name: "Sapphire", hex: "#1e4db7" },
+    { id: "charcoal-noir", name: "Charcoal Noir", hex: "#2c2c2c" },
+    { id: "deep-violet", name: "Deep Violet", hex: "#6b21a8" },
+    { id: "rose-blush", name: "Rose Blush", hex: "#be185d" },
+    { id: "teal-luxe", name: "Teal Luxe", hex: "#0f766e" },
+    { id: "warm-copper", name: "Warm Copper", hex: "#b45309" },
+];
 
 const SECTION_TYPES = [
     { id: "hero", label: "Hero", icon: "🎯", desc: "Big banner with headline & CTA" },
@@ -54,6 +68,7 @@ interface StorefrontData {
     logoEmoji: string;
     logoImage: string;
     brandName: string;
+    brandColor?: string;
     sections: StorefrontSection[];
 }
 
@@ -350,6 +365,95 @@ export function StorefrontSettings() {
                             <span className="text-sm text-muted-foreground">{storeBanner ? "Store banner" : "No banner set"}</span>
                         </div>
                     </div>
+                </CardContent>
+            </Card>
+
+            {/* Brand Color */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base">Brand Color</CardTitle>
+                    <CardDescription>Applied to buttons, accents & highlights on your storefront</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-2 gap-2">
+                        {BRAND_COLORS.map((c) => {
+                            const sel = (storefront.brandColor || "burnt-orange") === c.id;
+                            return (
+                                <button
+                                    key={c.id}
+                                    onClick={() => updateStorefront({ brandColor: c.id })}
+                                    className={cn(
+                                        "flex items-center gap-3 rounded-xl border-2 p-3 text-left transition",
+                                        sel
+                                            ? "border-foreground bg-foreground/5 shadow-sm"
+                                            : "border-border bg-secondary/30 hover:border-foreground/30"
+                                    )}
+                                >
+                                    <div
+                                        className="h-9 w-9 shrink-0 rounded-full ring-2 ring-black/10 ring-offset-2"
+                                        style={{ backgroundColor: c.hex }}
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-xs font-bold">{c.name}</p>
+                                        {sel && (
+                                            <p className="text-[10px] font-semibold text-emerald-600">Active</p>
+                                        )}
+                                    </div>
+                                    {sel && <Check className="h-4 w-4 shrink-0" />}
+                                </button>
+                            );
+                        })}
+                        {/* Custom color option */}
+                        <button
+                            onClick={() => updateStorefront({ brandColor: "custom" })}
+                            className={cn(
+                                "flex items-center gap-3 rounded-xl border-2 p-3 text-left transition",
+                                (storefront.brandColor || "").startsWith("custom")
+                                    ? "border-foreground bg-foreground/5 shadow-sm"
+                                    : "border-border bg-secondary/30 hover:border-foreground/30"
+                            )}
+                        >
+                            <div
+                                className="h-9 w-9 shrink-0 rounded-full ring-2 ring-black/10 ring-offset-2"
+                                style={{
+                                    background: "conic-gradient(#e85d04, #b8860b, #0d6b4e, #1e4db7, #6b21a8, #be185d, #e85d04)",
+                                }}
+                            />
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold">Custom</p>
+                                {(storefront.brandColor || "").startsWith("custom") && (
+                                    <p className="text-[10px] font-semibold text-emerald-600">Active</p>
+                                )}
+                            </div>
+                            {(storefront.brandColor || "").startsWith("custom") && <Check className="h-4 w-4 shrink-0" />}
+                        </button>
+                    </div>
+                    {(storefront.brandColor || "").startsWith("custom") && (
+                        <div className="mt-4 flex items-center gap-3">
+                            <input
+                                type="color"
+                                value={(storefront.brandColor || "").replace("custom:", "") || "#e85d04"}
+                                onChange={(e) => updateStorefront({ brandColor: `custom:${e.target.value}` })}
+                                className="h-10 w-10 cursor-pointer rounded-lg border-0 p-0"
+                            />
+                            <Input
+                                value={(storefront.brandColor || "").replace("custom:", "") || "#e85d04"}
+                                onChange={(e) => {
+                                    const v = e.target.value;
+                                    if (/^#[0-9a-fA-F]{0,6}$/.test(v)) {
+                                        updateStorefront({ brandColor: `custom:${v}` });
+                                    }
+                                }}
+                                placeholder="#e85d04"
+                                className="w-28 font-mono text-sm uppercase"
+                                maxLength={7}
+                            />
+                            <div
+                                className="h-10 flex-1 rounded-lg"
+                                style={{ backgroundColor: (storefront.brandColor || "").replace("custom:", "") || "#e85d04" }}
+                            />
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 

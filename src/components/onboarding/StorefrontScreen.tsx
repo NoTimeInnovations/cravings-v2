@@ -3,12 +3,26 @@
 import { useState } from "react";
 import { Phone, Mail, ArrowRight, Star, Menu as MenuIcon, X } from "lucide-react";
 
+const BRAND_COLOR_MAP: Record<string, string> = {
+    "burnt-orange": "#e85d04",
+    "obsidian-gold": "#b8860b",
+    "royal-burgundy": "#8b1a4a",
+    "midnight-emerald": "#0d6b4e",
+    "sapphire": "#1e4db7",
+    "charcoal-noir": "#2c2c2c",
+    "deep-violet": "#6b21a8",
+    "rose-blush": "#be185d",
+    "teal-luxe": "#0f766e",
+    "warm-copper": "#b45309",
+};
+
 interface StorefrontData {
     enabled: boolean;
     logoType: "emoji" | "image";
     logoEmoji: string;
     logoImage: string;
     brandName: string;
+    brandColor?: string;
     sections: StorefrontSection[];
 }
 
@@ -30,20 +44,22 @@ function cn(...classes: (string | boolean | undefined | null)[]) {
     return classes.filter(Boolean).join(" ");
 }
 
-function Html({ html, className, as: Tag = "div" }: { html: string; className?: string; as?: any }) {
-    return <Tag className={className} dangerouslySetInnerHTML={{ __html: html }} />;
+function Html({ html, className, style, as: Tag = "div" }: { html: string; className?: string; style?: React.CSSProperties; as?: any }) {
+    return <Tag className={className} style={style} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 export default function StorefrontScreen({ storefront, storeName, storeBanner, onContinue }: StorefrontScreenProps) {
     const brandName = storefront?.brandName || storeName;
     const sections = storefront?.sections || [];
+    const bc = storefront?.brandColor || "burnt-orange";
+    const accent = bc.startsWith("custom:") ? bc.replace("custom:", "") : (BRAND_COLOR_MAP[bc] || "#e85d04");
 
     return (
         <div className="min-h-dvh bg-white flex flex-col overflow-x-hidden">
-            <StorefrontHeader storefront={storefront} brandName={brandName} storeBanner={storeBanner} onContinue={onContinue} />
+            <StorefrontHeader storefront={storefront} brandName={brandName} storeBanner={storeBanner} onContinue={onContinue} accent={accent} />
             <main className="flex-1">
                 {sections.map((sec) => (
-                    <SectionRenderer key={sec.id} section={sec} storefront={storefront} brandName={brandName} storeBanner={storeBanner} onContinue={onContinue} />
+                    <SectionRenderer key={sec.id} section={sec} storefront={storefront} brandName={brandName} storeBanner={storeBanner} onContinue={onContinue} accent={accent} />
                 ))}
             </main>
         </div>
@@ -51,7 +67,7 @@ export default function StorefrontScreen({ storefront, storeName, storeBanner, o
 }
 
 /* ================== HEADER ================== */
-function StorefrontHeader({ storefront, brandName, storeBanner, onContinue }: { storefront: StorefrontData; brandName: string; storeBanner?: string; onContinue: () => void }) {
+function StorefrontHeader({ storefront, brandName, storeBanner, onContinue, accent }: { storefront: StorefrontData; brandName: string; storeBanner?: string; onContinue: () => void; accent: string }) {
     const [open, setOpen] = useState(false);
 
     return (
@@ -129,21 +145,23 @@ function SectionRenderer({
     brandName,
     storeBanner,
     onContinue,
+    accent,
 }: {
     section: StorefrontSection;
     storefront: StorefrontData;
     brandName: string;
     storeBanner?: string;
     onContinue: () => void;
+    accent: string;
 }) {
     if (!section?.enabled) return null;
 
     switch (section.type) {
-        case "hero": return <HeroSection content={section.content} onContinue={onContinue} />;
+        case "hero": return <HeroSection content={section.content} onContinue={onContinue} accent={accent} />;
         case "carousel": return <BannerCarousel content={section.content} />;
         case "imageText": return <ImageTextBlock content={section.content} onContinue={onContinue} />;
-        case "cta": return <CTASection content={section.content} onContinue={onContinue} />;
-        case "testimonials": return <TestimonialsSection content={section.content} />;
+        case "cta": return <CTASection content={section.content} onContinue={onContinue} accent={accent} />;
+        case "testimonials": return <TestimonialsSection content={section.content} accent={accent} />;
         case "about": return <AboutSection content={section.content} />;
         case "footer": return <FooterSection content={section.content} brandName={brandName} storeBanner={storeBanner} />;
         default: return null;
@@ -151,7 +169,7 @@ function SectionRenderer({
 }
 
 /* ================== HERO ================== */
-function HeroSection({ content, onContinue }: { content: Record<string, any>; onContinue: () => void }) {
+function HeroSection({ content, onContinue, accent }: { content: Record<string, any>; onContinue: () => void; accent: string }) {
     const {
         heading,
         subheading,
@@ -178,7 +196,7 @@ function HeroSection({ content, onContinue }: { content: Record<string, any>; on
 
             <div className="relative mx-auto flex min-h-[78vh] max-w-6xl flex-col justify-end px-6 pb-14 pt-28 text-white lg:px-8 lg:min-h-[85vh]">
                 {eyebrow && (
-                    <Html html={eyebrow} as="span" className="inline-flex w-fit items-center rounded-full bg-orange-600 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-white shadow-lg lg:text-xs lg:px-4 lg:py-2" />
+                    <Html html={eyebrow} as="span" className="inline-flex w-fit items-center rounded-full px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-white shadow-lg lg:text-xs lg:px-4 lg:py-2" style={{ backgroundColor: accent }} />
                 )}
                 <Html html={heading} as="h1" className="mt-5 text-[38px] font-extrabold leading-[1.05] tracking-tight drop-shadow-lg sm:text-5xl lg:text-6xl lg:max-w-2xl" />
                 {subheading && (
@@ -189,7 +207,8 @@ function HeroSection({ content, onContinue }: { content: Record<string, any>; on
                     {ctaPrimary?.label && (
                         <button
                             onClick={onContinue}
-                            className="inline-flex items-center justify-center rounded-full bg-orange-600 px-6 py-3 text-sm font-bold text-white shadow-xl hover:bg-orange-700 transition lg:px-8 lg:py-3.5 lg:text-base"
+                            className="inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-bold text-white shadow-xl transition lg:px-8 lg:py-3.5 lg:text-base"
+                            style={{ backgroundColor: accent }}
                         >
                             {ctaPrimary.label}
                         </button>
@@ -291,17 +310,20 @@ function ImageTextBlock({ content, onContinue }: { content: Record<string, any>;
 }
 
 /* ================== CTA ================== */
-function CTASection({ content, onContinue }: { content: Record<string, any>; onContinue: () => void }) {
+function CTASection({ content, onContinue, accent }: { content: Record<string, any>; onContinue: () => void; accent: string }) {
     const { heading, description, ctaLabel, backgroundImage, variant = "primary" } = content || {};
 
     const variants: Record<string, string> = {
-        primary: "bg-orange-600 text-white",
+        primary: "text-white",
         dark: "bg-gray-900 text-white",
         light: "bg-gray-100 text-gray-900",
     };
 
     return (
-        <section className={cn("relative overflow-hidden", variants[variant] || variants.primary)}>
+        <section
+            className={cn("relative overflow-hidden", variants[variant] || variants.primary)}
+            style={variant === "primary" ? { backgroundColor: accent } : undefined}
+        >
             {backgroundImage && (
                 <>
                     <img src={backgroundImage} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30" />
@@ -334,7 +356,7 @@ function CTASection({ content, onContinue }: { content: Record<string, any>; onC
 }
 
 /* ================== TESTIMONIALS ================== */
-function TestimonialsSection({ content }: { content: Record<string, any> }) {
+function TestimonialsSection({ content, accent }: { content: Record<string, any>; accent: string }) {
     const { title, quotes = [] } = content || {};
     if (!quotes.length) return null;
 
@@ -349,7 +371,7 @@ function TestimonialsSection({ content }: { content: Record<string, any> }) {
                         key={q.id}
                         className="flex w-[86%] sm:w-[70%] lg:w-auto shrink-0 lg:shrink snap-start flex-col gap-4 rounded-2xl border border-black/5 bg-white p-6 shadow-sm"
                     >
-                        <span className="text-2xl text-orange-500/70">&ldquo;</span>
+                        <span className="text-2xl" style={{ color: `${accent}B3` }}>&ldquo;</span>
                         <Html html={q.text} as="blockquote" className="text-[15px] leading-[1.7] text-gray-700" />
                         <figcaption className="mt-auto flex items-center justify-between border-t pt-4">
                             <span className="text-sm font-extrabold">{q.name}</span>
