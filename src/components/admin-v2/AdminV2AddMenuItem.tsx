@@ -444,7 +444,7 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
                                 <X className="h-5 w-5" />
                             </Button>
                         </div>
-                        <div className="p-6 overflow-y-auto space-y-6">
+                        <div className="p-4 sm:p-6 overflow-y-auto space-y-6">
                             {TAG_CATEGORIES.map((category) => (
                                 <div key={category.name} className="space-y-3">
                                     <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">

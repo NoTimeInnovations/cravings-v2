@@ -132,7 +132,7 @@ export default function AdminPage() {
                     </SheetContent>
 
                     {/* Main Content */}
-                    <main className={`flex-1 overflow-y-auto ${activeView === "POS" ? "p-0 md:p-2" : "p-6"}`}>
+                    <main className={`flex-1 overflow-y-auto ${activeView === "POS" ? "p-0 md:p-2" : "p-3 sm:p-4 md:p-6"}`}>
                         {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "Delivery Boys" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && activeView !== "POS" && activeView !== "Purchase & Inventory" && activeView !== "Dashboard" && activeView !== "Billing" && activeView !== "Customers" && activeView !== "Notices" && (
                             <h1 className="text-3xl font-bold mb-6">{activeView}</h1>
                         )}

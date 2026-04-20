@@ -63,7 +63,7 @@ export function AdminV2HelpSupport() {
 
             <div className="grid md:grid-cols-2 gap-8">
                 {/* Contact Form */}
-                <div className="bg-card text-card-foreground p-6 rounded-3xl border border-border shadow-sm space-y-6">
+                <div className="bg-card text-card-foreground p-4 sm:p-6 rounded-3xl border border-border shadow-sm space-y-6">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-3 bg-orange-100 dark:bg-orange-900/20 rounded-full text-orange-600 dark:text-orange-400">
                             <Mail size={24} />
@@ -133,7 +133,7 @@ export function AdminV2HelpSupport() {
 
                 {/* WhatsApp Support */}
                 <div className="space-y-6">
-                    <div className="bg-green-50 dark:bg-green-900/10 p-8 rounded-3xl border border-green-100 dark:border-green-900/20 flex flex-col items-center text-center space-y-6">
+                    <div className="bg-green-50 dark:bg-green-900/10 p-4 sm:p-6 md:p-8 rounded-3xl border border-green-100 dark:border-green-900/20 flex flex-col items-center text-center space-y-6">
                         <div className="p-4 bg-green-100 dark:bg-green-900/20 rounded-full text-green-600 dark:text-green-400">
                             <MessageSquare size={40} />
                         </div>
@@ -151,7 +151,7 @@ export function AdminV2HelpSupport() {
                         </Button>
                     </div>
 
-                    <div className="bg-card text-card-foreground p-6 rounded-3xl border border-border space-y-4">
+                    <div className="bg-card text-card-foreground p-4 sm:p-6 rounded-3xl border border-border space-y-4">
                         <h3 className="font-semibold text-foreground">Common Questions</h3>
                         <ul className="space-y-3 text-sm text-muted-foreground">
                             <li className="flex gap-2">

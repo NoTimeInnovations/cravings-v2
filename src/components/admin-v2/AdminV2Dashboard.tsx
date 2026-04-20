@@ -251,7 +251,7 @@ export function AdminV2Dashboard() {
       <DashboardTour />
       {/* Welcome Header + Monthly Scans */}
       <div
-        className="rounded-xl border bg-muted/40 p-6 sm:p-8 flex items-center justify-between gap-4 cursor-pointer hover:shadow-md transition-shadow"
+        className="rounded-xl border bg-muted/40 p-4 sm:p-6 md:p-8 flex items-center justify-between gap-4 cursor-pointer hover:shadow-md transition-shadow"
         onClick={() => setActiveView("Analytics")}
       >
         <div>

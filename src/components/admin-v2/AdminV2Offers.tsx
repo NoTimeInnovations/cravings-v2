@@ -187,7 +187,7 @@ export function AdminV2Offers() {
             </div>
 
             {isCreateOfferOpen ? (
-                <div className="bg-card rounded-lg border shadow-sm p-6">
+                <div className="bg-card rounded-lg border shadow-sm p-3 sm:p-6">
                     {step === "list" ? (
                         <AdminV2InteractiveOfferCreation
                             onCancel={() => {

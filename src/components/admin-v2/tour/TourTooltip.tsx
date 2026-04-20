@@ -151,7 +151,7 @@ export function TourTooltip({
         left: { duration: 0.4, ease: "easeInOut" },
         layout: { duration: 0.4, ease: "easeInOut" }
       }}
-      className="fixed z-[9999] bg-background border rounded-lg shadow-xl p-6 max-w-[320px] sm:max-w-[400px] pointer-events-auto"
+      className="fixed z-[9999] bg-background border rounded-lg shadow-xl p-4 sm:p-6 max-w-[320px] sm:max-w-[400px] pointer-events-auto"
     >
       <motion.div
         key={`step-${stepNumber}`}

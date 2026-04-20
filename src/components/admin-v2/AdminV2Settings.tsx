@@ -67,7 +67,7 @@ export function AdminV2Settings() {
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500 pb-20 w-full lg:max-w-[80%] mx-auto px-4 lg:px-0">
+        <div className="space-y-6 animate-in fade-in duration-500 pb-20 w-full lg:max-w-[80%] mx-auto px-2 sm:px-4 lg:px-0">
             <div className="flex items-center justify-between gap-5">
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
