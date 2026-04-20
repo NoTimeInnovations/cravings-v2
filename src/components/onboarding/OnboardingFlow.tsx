@@ -250,13 +250,12 @@ export default function OnboardingFlow({
 
   return (
     <div
-      className={`fixed inset-0 overflow-y-auto transition-all duration-300 ${closing ? "opacity-0 scale-95" : "opacity-100 scale-100"}`}
-      style={{ zIndex: 9999, scrollbarWidth: "none" } as React.CSSProperties}
+      className={`fixed inset-0 overflow-y-auto scrollbar-hidden transition-all duration-300 ${closing ? "opacity-0 scale-95" : "opacity-100 scale-100"}`}
+      style={{ zIndex: 9999 } as React.CSSProperties}
     >
       <div
         key={step}
-        className={`${parsedStorefront && step === "splash" ? "" : "absolute inset-0 overflow-y-auto"} animate-slide-in-right`}
-        style={{ scrollbarWidth: "none" } as React.CSSProperties}
+        className={`${parsedStorefront && step === "splash" ? "" : "absolute inset-0 overflow-y-auto scrollbar-hidden"} animate-slide-in-right`}
       >
         {step === "splash" && parsedStorefront && (
             <StorefrontScreen

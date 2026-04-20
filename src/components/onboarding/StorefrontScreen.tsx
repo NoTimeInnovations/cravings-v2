@@ -55,7 +55,7 @@ export default function StorefrontScreen({ storefront, storeName, storeBanner, o
     const accent = bc.startsWith("custom:") ? bc.replace("custom:", "") : (BRAND_COLOR_MAP[bc] || "#e85d04");
 
     return (
-        <div className="min-h-dvh bg-white flex flex-col overflow-x-hidden">
+        <div className="min-h-dvh bg-white flex flex-col overflow-x-hidden scrollbar-hidden">
             <StorefrontHeader storefront={storefront} brandName={brandName} storeBanner={storeBanner} onContinue={onContinue} accent={accent} />
             <main className="flex-1">
                 {sections.map((sec) => (
