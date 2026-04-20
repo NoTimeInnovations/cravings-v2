@@ -71,7 +71,7 @@ function StorefrontHeader({ storefront, brandName, storeBanner, onContinue, acce
     const [open, setOpen] = useState(false);
 
     return (
-        <header className="sticky top-0 z-40 w-full border-b border-black/5 bg-white/90 backdrop-blur-xl">
+        <header className="sticky top-0 z-40 w-full border-b border-black/5 bg-white/90 backdrop-blur-xl hidden">
             <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 lg:px-8">
                 <div className="flex items-center gap-2">
                     {storeBanner ? (
@@ -164,6 +164,7 @@ function SectionRenderer({
         case "testimonials": return <TestimonialsSection content={section.content} accent={accent} />;
         case "about": return <AboutSection content={section.content} />;
         case "footer": return <FooterSection content={section.content} brandName={brandName} storeBanner={storeBanner} accent={accent} />;
+        case "customHtml": return <CustomHtmlSection content={section.content} />;
         default: return null;
     }
 }
@@ -194,7 +195,7 @@ function HeroSection({ content, onContinue, accent }: { content: Record<string, 
                 style={{ opacity: overlayOpacity / 100 + 0.2 }}
             />
 
-            <div className="relative mx-auto flex min-h-[78vh] max-w-6xl flex-col justify-end px-6 pb-14 pt-28 text-white lg:px-8 lg:min-h-[85vh]">
+            <div className="relative mx-auto flex min-h-[100vh] max-w-6xl flex-col justify-end px-6 pb-14 pt-28 text-white lg:px-8 lg:min-h-[85vh]">
                 {eyebrow && (
                     <Html html={eyebrow} as="span" className="inline-flex w-fit items-center rounded-full px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-white shadow-lg lg:text-xs lg:px-4 lg:py-2" style={{ backgroundColor: accent }} />
                 )}
@@ -499,4 +500,10 @@ function FooterSection({
             </div>
         </footer>
     );
+}
+
+/* ================== CUSTOM HTML ================== */
+function CustomHtmlSection({ content }: { content: Record<string, any> }) {
+    if (!content?.html) return null;
+    return <div dangerouslySetInnerHTML={{ __html: content.html }} />;
 }

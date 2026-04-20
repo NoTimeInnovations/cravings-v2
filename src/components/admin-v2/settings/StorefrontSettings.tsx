@@ -51,9 +51,10 @@ const SECTION_TYPES = [
     { id: "testimonials", label: "Testimonials", icon: "💬", desc: "Customer reviews" },
     { id: "about", label: "About / Story", icon: "📖", desc: "Long-form about section" },
     { id: "footer", label: "Footer", icon: "🔗", desc: "Contact, socials, copyright" },
+    { id: "customHtml", label: "Custom HTML", icon: "🧩", desc: "Raw HTML & CSS block" },
 ];
 
-type SectionType = "hero" | "carousel" | "imageText" | "cta" | "testimonials" | "about" | "footer";
+type SectionType = "hero" | "carousel" | "imageText" | "cta" | "testimonials" | "about" | "footer" | "customHtml";
 
 interface StorefrontSection {
     id: string;
@@ -123,6 +124,9 @@ const DEFAULT_CONTENT: Record<string, Record<string, any>> = {
         email: "",
         copyright: `© ${new Date().getFullYear()} All rights reserved`,
     },
+    customHtml: {
+        html: "",
+    },
 };
 
 const DEFAULT_STOREFRONT: StorefrontData = {
@@ -155,6 +159,7 @@ function sectionSummary(sec: StorefrontSection) {
         case "testimonials": return `${(c.quotes || []).length} review(s)`;
         case "about": return c.heading || "(about)";
         case "footer": return c.phone || c.email || "Footer";
+        case "customHtml": return c.html ? "Custom HTML" : "(empty)";
         default: return "";
     }
 }
@@ -705,6 +710,7 @@ function SectionFormRouter({
         case "testimonials": return <TestimonialsEditor section={section} storefront={storefront} setStorefront={setStorefront} />;
         case "about": return <AboutEditor content={section.content} set={set} partnerId={partnerId} />;
         case "footer": return <FooterEditor content={section.content} set={set} />;
+        case "customHtml": return <CustomHtmlEditor content={section.content} set={set} />;
         default: return null;
     }
 }
@@ -1221,6 +1227,23 @@ function FooterEditor({ content, set }: { content: Record<string, any>; set: (p:
             </div>
             <FieldRow label="Copyright">
                 <Input value={content.copyright || ""} onChange={(e) => set({ copyright: e.target.value })} />
+            </FieldRow>
+        </div>
+    );
+}
+
+/* ================== CUSTOM HTML ================== */
+function CustomHtmlEditor({ content, set }: { content: Record<string, any>; set: (p: Record<string, any>) => void }) {
+    return (
+        <div className="space-y-4">
+            <FieldRow label="HTML & CSS" hint="Paste raw HTML (including <style> tags). Rendered without any wrapper padding or styles.">
+                <Textarea
+                    value={content.html || ""}
+                    onChange={(e) => set({ html: e.target.value })}
+                    rows={12}
+                    placeholder="<style>\n  .my-section { ... }\n</style>\n<div class='my-section'>...</div>"
+                    className="font-mono text-xs"
+                />
             </FieldRow>
         </div>
     );
