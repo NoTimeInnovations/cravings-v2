@@ -38,7 +38,7 @@ const COLOR_PRESETS = [
 ];
 
 export function ThemeSettings() {
-  const { userData } = useAuthStore();
+  const { userData, setState } = useAuthStore();
   const [isSaving, setIsSaving] = useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
 
@@ -109,7 +109,9 @@ export function ThemeSettings() {
         infoAlignment: currentTheme.infoAlignment,
       };
       toast.loading("Saving theme...");
-      await updatePartner(userData!.id, { theme: JSON.stringify(newTheme) });
+      const themeStr = JSON.stringify(newTheme);
+      await updatePartner(userData!.id, { theme: themeStr });
+      setState({ theme: themeStr } as any);
       toast.dismiss();
       toast.success("Theme saved successfully");
       revalidateTag(userData!.id);

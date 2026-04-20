@@ -130,7 +130,7 @@ const DEFAULT_CONTENT: Record<string, Record<string, any>> = {
 };
 
 const DEFAULT_STOREFRONT: StorefrontData = {
-    enabled: true,
+    enabled: false,
     logoType: "image",
     logoEmoji: "🍽️",
     logoImage: "",
