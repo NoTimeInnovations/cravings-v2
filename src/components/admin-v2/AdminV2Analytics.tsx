@@ -45,6 +45,18 @@ import { isFreePlan } from "@/lib/getPlanLimits";
 
 const formatDate = (date: Date) => format(date, "yyyy-MM-dd");
 
+const toLocalStartISO = (date: Date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+};
+
+const toLocalEndISO = (date: Date) => {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d.toISOString();
+};
+
 export function AdminV2Analytics() {
   const { userData } = useAuthStore();
   const planId = (userData as any)?.subscription_details?.plan?.id;
@@ -80,53 +92,53 @@ export function AdminV2Analytics() {
     features?.delivery.enabled ||
     features?.captainordering.enabled;
 
-  const TODAY_ORDERS_QUERY = (today: string) => `
+  const TODAY_ORDERS_QUERY = (startISO: string, endISO: string) => `
     query TodayOrders {
-      orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}) {
+      orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           sum { total_price }
           count
         }
       }
-      delivery_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
+      delivery_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate { count }
       }
-      cash_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
+      cash_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
-      upi_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
+      upi_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
-      card_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
+      card_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
-      null_payment_orders: orders_aggregate(where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
+      null_payment_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
       daily_sales: orders_aggregate(
-        where: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}
+        where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}
         order_by: {created_at: asc}
       ) {
         nodes { total_price, created_at }
       }
-      top_items: order_items(where: {order: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}) {
+      top_items: order_items(where: {order: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}) {
         menu { name, price, category { name } }
         quantity
       }
       category_stats: order_items(
-        where: {order: {created_at: {_gte: "${today}T00:00:00Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}
+        where: {order: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}
       ) {
         menu {
           category { name }
@@ -137,53 +149,53 @@ export function AdminV2Analytics() {
     }
   `;
 
-  const MONTHLY_ORDERS_QUERY = (startOfMonthDate: string, today: string) => `
+  const MONTHLY_ORDERS_QUERY = (startISO: string, endISO: string) => `
     query MonthlyOrders {
-      orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}) {
+      orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           sum { total_price }
           count
         }
       }
-      delivery_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
+      delivery_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate { count }
       }
-      cash_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
+      cash_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
-      upi_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
+      upi_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
-      card_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
+      card_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
-      null_payment_orders: orders_aggregate(where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
+      null_payment_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
       daily_sales: orders_aggregate(
-        where: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}
+        where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}
         order_by: {created_at: asc}
       ) {
         nodes { total_price, created_at }
       }
-      top_items: order_items(where: {order: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}) {
+      top_items: order_items(where: {order: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}) {
         menu { name, price, category { name } }
         quantity
       }
       category_stats: order_items(
-        where: {order: {created_at: {_gte: "${startOfMonthDate}T00:00:00Z", _lte: "${today}T23:59:59Z"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}
+        where: {order: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}
       ) {
         menu {
           category { name }
@@ -265,28 +277,27 @@ export function AdminV2Analytics() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const today = formatDate(new Date());
-      const startOfMonthDate = formatDate(startOfMonth(new Date()));
+      const now = new Date();
 
       let start, end;
 
       if (activeTab === "today") {
-        start = `${today}T00:00:00Z`;
-        end = `${today}T23:59:59Z`;
+        start = toLocalStartISO(now);
+        end = toLocalEndISO(now);
       } else if (activeTab === "month") {
-        start = `${startOfMonthDate}T00:00:00Z`;
-        end = `${today}T23:59:59Z`;
+        start = toLocalStartISO(startOfMonth(now));
+        end = toLocalEndISO(now);
       } else {
-        start = format(dateRange.startDate, "yyyy-MM-dd'T'00:00:00'Z'");
-        end = format(dateRange.endDate, "yyyy-MM-dd'T'23:59:59'Z'");
+        start = toLocalStartISO(dateRange.startDate);
+        end = toLocalEndISO(dateRange.endDate);
       }
 
       const fetchOrders = async () => {
         switch (activeTab) {
           case "today":
-            return await fetchFromHasura(TODAY_ORDERS_QUERY(today));
+            return await fetchFromHasura(TODAY_ORDERS_QUERY(start, end));
           case "month":
-            return await fetchFromHasura(MONTHLY_ORDERS_QUERY(startOfMonthDate, today));
+            return await fetchFromHasura(MONTHLY_ORDERS_QUERY(start, end));
           case "custom":
             return await fetchFromHasura(CUSTOM_DATE_ORDERS_QUERY, {
               startDate: start,
@@ -463,14 +474,14 @@ export function AdminV2Analytics() {
       let end;
 
       if (activeTab === "today") {
-        start = format(startOfDay(new Date()), "yyyy-MM-dd'T'00:00:00'Z'");
-        end = format(endOfDay(new Date()), "yyyy-MM-dd'T'23:59:59'Z'");
+        start = toLocalStartISO(new Date());
+        end = toLocalEndISO(new Date());
       } else if (activeTab === "month") {
-        start = format(startOfMonth(new Date()), "yyyy-MM-dd'T'00:00:00'Z'");
-        end = format(new Date(), "yyyy-MM-dd'T'23:59:59'Z'");
+        start = toLocalStartISO(startOfMonth(new Date()));
+        end = toLocalEndISO(new Date());
       } else {
-        start = format(dateRange.startDate, "yyyy-MM-dd'T'00:00:00'Z'");
-        end = format(dateRange.endDate, "yyyy-MM-dd'T'23:59:59'Z'");
+        start = toLocalStartISO(dateRange.startDate);
+        end = toLocalEndISO(dateRange.endDate);
       }
 
       const { orders } = await fetchFromHasura(allOrdersIn, {

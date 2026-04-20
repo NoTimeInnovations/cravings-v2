@@ -11,16 +11,13 @@ const TodaysEarnings = ({ orders } : { orders : Order[] }) => {
   const { userData } = useAuthStore();
 
   const fetchOrders = async () => {
-    const year = new Date().getFullYear();
-    const month = new Date().getMonth() + 1;
-    const day = new Date().getDate();
-    const date = `${year}-${month < 10 ? "0" + month : month}-${
-      day < 10 ? "0" + day : day
-    }`;
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const startISO = todayStart.toISOString();
 
     const query = `
         query Last24HoursCompletedOrders {
-            orders_aggregate(where: {_and: [{created_at: {_gte: "${date}"}}, {status: {_eq: "completed"}}], partner_id: {_eq: "${userData?.id}"}})  {
+            orders_aggregate(where: {_and: [{created_at: {_gte: "${startISO}"}}, {status: {_eq: "completed"}}], partner_id: {_eq: "${userData?.id}"}})  {
                 aggregate {
                 sum {
                     total_price

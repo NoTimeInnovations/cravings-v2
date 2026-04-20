@@ -123,8 +123,12 @@ export function AdminV2Dashboard() {
       setLoading(true);
       try {
         const now = new Date();
-        const start = format(startOfMonth(now), "yyyy-MM-dd'T'00:00:00'Z'");
-        const end = format(now, "yyyy-MM-dd'T'23:59:59'Z'");
+        const monthStart = new Date(startOfMonth(now));
+        monthStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(now);
+        dayEnd.setHours(23, 59, 59, 999);
+        const start = monthStart.toISOString();
+        const end = dayEnd.toISOString();
 
         const qrCodesRes = await fetchFromHasura(GET_QR_CODES_BY_PARTNER, {
           partner_id: userData.id,
