@@ -2746,7 +2746,7 @@ const PlaceOrderModal = ({
             color: "#000000",
             "--pom-card-bg": "rgba(0,0,0,0.04)",
             "--pom-card-border": "rgba(0,0,0,0.08)",
-            "--pom-accent": "#ea580c",
+            "--pom-accent": themeStyles?.accent || "#ea580c",
             "--pom-card-shadow": "0 1px 4px rgba(0,0,0,0.06)",
             "--pom-text-muted": "rgba(0,0,0,0.75)",
             "--pom-modal-bg": "white",

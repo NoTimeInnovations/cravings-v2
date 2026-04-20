@@ -92,17 +92,33 @@ const HotelMenuPage = ({
   const showOnboarding = needsOnboarding;
   const [onboardingDismissed, setOnboardingDismissed] = useState(!showOnboarding);
 
+  const brandAccent = useMemo(() => {
+    const BRAND_COLOR_MAP: Record<string, string> = {
+      "burnt-orange": "#e85d04", "obsidian-gold": "#b8860b", "royal-burgundy": "#8b1a4a",
+      "midnight-emerald": "#0d6b4e", "sapphire": "#1e4db7", "charcoal-noir": "#2c2c2c",
+      "deep-violet": "#6b21a8", "rose-blush": "#be185d", "teal-luxe": "#0f766e", "warm-copper": "#b45309",
+    };
+    try {
+      const raw = (hoteldata as any)?.storefront_settings;
+      if (!raw) return null;
+      const sf = typeof raw === "string" ? JSON.parse(raw) : raw;
+      const bc = sf?.brandColor;
+      if (!bc) return null;
+      return bc.startsWith("custom:") ? bc.replace("custom:", "") : (BRAND_COLOR_MAP[bc] || null);
+    } catch { return null; }
+  }, [(hoteldata as any)?.storefront_settings]);
+
   const styles: Styles = useMemo(() => ({
     backgroundColor: theme?.colors?.bg || "#F5F5F5",
     color: theme?.colors?.text || "#000",
-    accent: theme?.colors?.accent || "#EA580C",
+    accent: brandAccent || theme?.colors?.accent || "#EA580C",
     showGrid: theme?.showGrid === true,
     border: {
       borderColor: theme?.colors?.text ? `${theme.colors.text}1D` : "#0000001D",
       borderWidth: "1px",
       borderStyle: "solid",
     },
-  }), [theme?.colors?.bg, theme?.colors?.text, theme?.colors?.accent, theme?.showGrid]);
+  }), [theme?.colors?.bg, theme?.colors?.text, theme?.colors?.accent, theme?.showGrid, brandAccent]);
 
   // useEffect(() => {
   //   saveUserLocation(false);
