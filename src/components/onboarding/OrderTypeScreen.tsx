@@ -78,9 +78,9 @@ export default function OrderTypeScreen({
               style={mode === "delivery" && isDeliveryOpen ? { borderColor: accent } : undefined}
             >
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                !isDeliveryOpen ? "bg-gray-200" : "bg-gray-100"
-              }`}>
-                <Bike className="w-[22px] h-[22px] text-gray-900" />
+                !isDeliveryOpen ? "bg-gray-200" : mode === "delivery" ? "" : "bg-gray-100"
+              }`} style={mode === "delivery" && isDeliveryOpen ? { backgroundColor: accent } : undefined}>
+                <Bike className="w-[22px] h-[22px]" style={{ color: mode === "delivery" && isDeliveryOpen ? "#fff" : "#111827" }} />
               </div>
               <div className="flex-1 text-left">
                 <p className="text-base font-semibold text-gray-900 tracking-tight">Delivery</p>
@@ -124,9 +124,9 @@ export default function OrderTypeScreen({
               style={mode === "takeaway" && isTakeawayOpen ? { borderColor: accent } : undefined}
             >
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                !isTakeawayOpen ? "bg-gray-200" : "bg-gray-100"
-              }`}>
-                <Store className="w-[22px] h-[22px] text-gray-900" />
+                !isTakeawayOpen ? "bg-gray-200" : mode === "takeaway" ? "" : "bg-gray-100"
+              }`} style={mode === "takeaway" && isTakeawayOpen ? { backgroundColor: accent } : undefined}>
+                <Store className="w-[22px] h-[22px]" style={{ color: mode === "takeaway" && isTakeawayOpen ? "#fff" : "#111827" }} />
               </div>
               <div className="flex-1 text-left">
                 <p className="text-base font-semibold text-gray-900 tracking-tight">Takeaway</p>
