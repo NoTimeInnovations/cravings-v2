@@ -111,7 +111,7 @@ const HotelMenuPage = ({
   const styles: Styles = useMemo(() => ({
     backgroundColor: theme?.colors?.bg || "#F5F5F5",
     color: theme?.colors?.text || "#000",
-    accent: brandAccent || theme?.colors?.accent || "#EA580C",
+    accent: theme?.colors?.accent || "#EA580C",
     showGrid: theme?.showGrid === true,
     border: {
       borderColor: theme?.colors?.text ? `${theme.colors.text}1D` : "#0000001D",
