@@ -764,6 +764,23 @@ function SubCard({ children, onDelete, title }: { children: React.ReactNode; onD
 
 /* ================== HERO ================== */
 function HeroEditor({ content, set, partnerId }: { content: Record<string, any>; set: (p: Record<string, any>) => void; partnerId?: string }) {
+    if (!content.slides && content.heading) {
+        const migrated = {
+            slides: [{
+                id: uid(),
+                heading: content.heading || "",
+                subheading: content.subheading || "",
+                eyebrow: content.eyebrow || "",
+                backgroundImage: content.backgroundImage || "",
+                overlayOpacity: content.overlayOpacity ?? 55,
+            }],
+            ctaPrimary: content.ctaPrimary,
+            ctaSecondary: content.ctaSecondary,
+            autoScrollInterval: 5,
+        };
+        set(migrated);
+    }
+
     const slides: any[] = content.slides || [];
     const [activeSlide, setActiveSlide] = useState(0);
 
