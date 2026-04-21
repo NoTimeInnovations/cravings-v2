@@ -297,10 +297,23 @@ const SearchMenu = ({
                       return currentTime >= startTime || currentTime <= endTime;
                     return currentTime >= startTime && currentTime <= endTime;
                   };
+                  const isWithinTakeawayTime = () => {
+                    const takeawayTime = hotelData?.delivery_rules?.takeaway_time_allowed;
+                    if (!takeawayTime) return true;
+                    const convertTimeToMinutes = (timeStr: string) => {
+                      const [hours, minutes] = timeStr.split(":").map(Number);
+                      return hours * 60 + minutes;
+                    };
+                    const now = new Date();
+                    const currentTime = now.getHours() * 60 + now.getMinutes();
+                    const startTime = convertTimeToMinutes(takeawayTime.from ?? "00:00");
+                    const endTime = convertTimeToMinutes(takeawayTime.to ?? "23:59");
+                    if (startTime > endTime) return currentTime >= startTime || currentTime <= endTime;
+                    return currentTime >= startTime && currentTime <= endTime;
+                  };
                   const hasOrderingFeature =
                     features?.ordering?.enabled &&
-                    (hotelData?.delivery_rules?.isDeliveryActive ?? true) &&
-                    isWithinDeliveryTime();
+                    (tableNumber !== 0 || isWithinTakeawayTime());
                   const hasDeliveryFeature =
                     features?.delivery?.enabled &&
                     tableNumber === 0 &&
