@@ -208,29 +208,39 @@ function HeroSection({ content, onContinue, accent }: { content: Record<string, 
         return () => { if (timerRef.current) clearInterval(timerRef.current); };
     }, [resetTimer]);
 
-    const handleTouchStart = (e: React.TouchEvent) => {
-        touchStartRef.current = e.touches[0].clientX;
-        touchStartYRef.current = e.touches[0].clientY;
-    };
+    const sectionRef = useRef<HTMLElement>(null);
 
-    const handleTouchEnd = (e: React.TouchEvent) => {
-        const diffX = touchStartRef.current - e.changedTouches[0].clientX;
-        const diffY = touchStartYRef.current - e.changedTouches[0].clientY;
-        if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
-            goTo(diffX > 0 ? (current + 1) % slides.length : (current - 1 + slides.length) % slides.length);
-            resetTimer();
-        }
-    };
+    useEffect(() => {
+        if (slides.length <= 1) return;
+        const el = sectionRef.current;
+        if (!el) return;
+
+        const onStart = (e: TouchEvent) => {
+            touchStartRef.current = e.touches[0].clientX;
+            touchStartYRef.current = e.touches[0].clientY;
+        };
+        const onEnd = (e: TouchEvent) => {
+            const diffX = touchStartRef.current - e.changedTouches[0].clientX;
+            const diffY = touchStartYRef.current - e.changedTouches[0].clientY;
+            if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
+                setCurrent((prev) => diffX > 0 ? (prev + 1) % slides.length : (prev - 1 + slides.length) % slides.length);
+                resetTimer();
+            }
+        };
+
+        el.addEventListener("touchstart", onStart, { passive: true });
+        el.addEventListener("touchend", onEnd, { passive: true });
+        return () => {
+            el.removeEventListener("touchstart", onStart);
+            el.removeEventListener("touchend", onEnd);
+        };
+    }, [slides.length, resetTimer]);
 
     if (!slides.length) return null;
     const slide = slides[current] || slides[0];
 
     return (
-        <section
-            className="relative overflow-hidden"
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-        >
+        <section ref={sectionRef} className="relative overflow-hidden">
             {slides.map((s: any, i: number) => (
                 <img
                     key={s.id || i}
