@@ -277,7 +277,7 @@ export default function OnboardingFlow({
             themeBg={themeBg}
             storeTagline={storeTagline}
             onContinue={handleLoginContinue}
-            onBack={() => setStep("splash")}
+            onBack={parsedStorefront ? () => setStep("splash") : undefined}
             loading={loginLoading || isSending}
             accent={accent}
           />
