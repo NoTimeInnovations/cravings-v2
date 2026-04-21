@@ -1191,6 +1191,9 @@ const PlaceOrderModalV2 = ({
                   {gstAmount > 0 && (
                     <Row label="GST & Other Charges" value={`${currency}${gstAmount.toFixed(0)}`} />
                   )}
+                  {orderType === "delivery" && hotelData?.delivery_rules?.hide_delivery_charge && (
+                    <div className="text-xs text-gray-500">Delivery charge applicable</div>
+                  )}
                   <div className="border-t border-dashed border-gray-200 pt-2" />
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-gray-900">To Pay</span>
