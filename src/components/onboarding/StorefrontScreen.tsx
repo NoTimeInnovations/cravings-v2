@@ -185,6 +185,7 @@ function HeroSection({ content, onContinue, accent }: { content: Record<string, 
     const [isTransitioning, setIsTransitioning] = useState(false);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const touchStartRef = useRef<number>(0);
+    const touchStartYRef = useRef<number>(0);
 
     const goTo = useCallback((index: number) => {
         if (isTransitioning || slides.length <= 1) return;
@@ -209,12 +210,14 @@ function HeroSection({ content, onContinue, accent }: { content: Record<string, 
 
     const handleTouchStart = (e: React.TouchEvent) => {
         touchStartRef.current = e.touches[0].clientX;
+        touchStartYRef.current = e.touches[0].clientY;
     };
 
     const handleTouchEnd = (e: React.TouchEvent) => {
-        const diff = touchStartRef.current - e.changedTouches[0].clientX;
-        if (Math.abs(diff) > 50) {
-            goTo(diff > 0 ? (current + 1) % slides.length : (current - 1 + slides.length) % slides.length);
+        const diffX = touchStartRef.current - e.changedTouches[0].clientX;
+        const diffY = touchStartYRef.current - e.changedTouches[0].clientY;
+        if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
+            goTo(diffX > 0 ? (current + 1) % slides.length : (current - 1 + slides.length) % slides.length);
             resetTimer();
         }
     };
