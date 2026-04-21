@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Phone, Mail, ArrowRight, Star, Menu as MenuIcon, X } from "lucide-react";
 
 const BRAND_COLOR_MAP: Record<string, string> = {
@@ -171,40 +171,91 @@ function SectionRenderer({
 
 /* ================== HERO ================== */
 function HeroSection({ content, onContinue, accent }: { content: Record<string, any>; onContinue: () => void; accent: string }) {
-    const {
-        heading,
-        subheading,
-        eyebrow,
-        backgroundImage,
-        overlayOpacity = 55,
-        ctaPrimary,
-        ctaSecondary,
-    } = content || {};
+    const { ctaPrimary, ctaSecondary, autoScrollInterval = 5 } = content || {};
+
+    const slides: any[] = content.slides || (content.heading ? [{
+        heading: content.heading,
+        subheading: content.subheading,
+        eyebrow: content.eyebrow,
+        backgroundImage: content.backgroundImage,
+        overlayOpacity: content.overlayOpacity ?? 55,
+    }] : []);
+
+    const [current, setCurrent] = useState(0);
+    const [isTransitioning, setIsTransitioning] = useState(false);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const touchStartRef = useRef<number>(0);
+
+    const goTo = useCallback((index: number) => {
+        if (isTransitioning || slides.length <= 1) return;
+        setIsTransitioning(true);
+        setCurrent(index);
+        setTimeout(() => setIsTransitioning(false), 700);
+    }, [isTransitioning, slides.length]);
+
+    const resetTimer = useCallback(() => {
+        if (timerRef.current) clearInterval(timerRef.current);
+        if (slides.length > 1) {
+            timerRef.current = setInterval(() => {
+                setCurrent((prev) => (prev + 1) % slides.length);
+            }, autoScrollInterval * 1000);
+        }
+    }, [slides.length, autoScrollInterval]);
+
+    useEffect(() => {
+        resetTimer();
+        return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    }, [resetTimer]);
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        touchStartRef.current = e.touches[0].clientX;
+    };
+
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        const diff = touchStartRef.current - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 50) {
+            goTo(diff > 0 ? (current + 1) % slides.length : (current - 1 + slides.length) % slides.length);
+            resetTimer();
+        }
+    };
+
+    if (!slides.length) return null;
+    const slide = slides[current] || slides[0];
 
     return (
-        <section className="relative overflow-hidden">
-            {backgroundImage && (
+        <section
+            className="relative overflow-hidden"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+        >
+            {slides.map((s: any, i: number) => (
                 <img
-                    src={backgroundImage}
+                    key={s.id || i}
+                    src={s.backgroundImage}
                     alt=""
-                    className="absolute inset-0 h-full w-full object-cover"
+                    className={cn(
+                        "absolute inset-0 h-full w-full object-cover transition-opacity duration-700",
+                        i === current ? "opacity-100" : "opacity-0"
+                    )}
                 />
-            )}
+            ))}
             <div
                 className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/40 to-black/90"
-                style={{ opacity: overlayOpacity / 100 + 0.2 }}
+                style={{ opacity: (slide.overlayOpacity ?? 55) / 100 + 0.2 }}
             />
 
             <div className="relative mx-auto flex min-h-[100vh] max-w-6xl flex-col justify-end px-6 pb-14 pt-28 text-white lg:px-8 lg:min-h-[85vh]">
-                {eyebrow && (
-                    <Html html={eyebrow} as="span" className="inline-flex w-fit items-center rounded-full px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-white shadow-lg lg:text-xs lg:px-4 lg:py-2" style={{ backgroundColor: accent }} />
-                )}
-                <Html html={heading} as="h1" className="mt-5 text-[38px] font-extrabold leading-[1.05] tracking-tight drop-shadow-lg sm:text-5xl lg:text-6xl lg:max-w-2xl" />
-                {subheading && (
-                    <Html html={subheading} as="p" className="mt-4 max-w-md text-[15px] font-medium leading-relaxed text-white/90 drop-shadow sm:text-base lg:text-lg lg:max-w-xl" />
-                )}
+                <div key={current} className="animate-[fadeUp_0.6s_ease-out]">
+                    {slide.eyebrow && (
+                        <Html html={slide.eyebrow} as="span" className="inline-flex w-fit items-center rounded-full px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-white shadow-lg lg:text-xs lg:px-4 lg:py-2" style={{ backgroundColor: accent }} />
+                    )}
+                    <Html html={slide.heading} as="h1" className="mt-5 text-[38px] font-extrabold leading-[1.05] tracking-tight drop-shadow-lg sm:text-5xl lg:text-6xl lg:max-w-2xl" />
+                    {slide.subheading && (
+                        <Html html={slide.subheading} as="p" className="mt-4 max-w-md text-[15px] font-medium leading-relaxed text-white/90 drop-shadow sm:text-base lg:text-lg lg:max-w-xl" />
+                    )}
+                </div>
 
-                <div className="mt-7 flex flex-wrap gap-3">
+                <div className="mt-7 flex flex-wrap items-center gap-3">
                     {ctaPrimary?.label && (
                         <button
                             onClick={onContinue}
@@ -221,6 +272,21 @@ function HeroSection({ content, onContinue, accent }: { content: Record<string, 
                         >
                             {ctaSecondary.label}
                         </button>
+                    )}
+
+                    {slides.length > 1 && (
+                        <div className="ml-auto flex gap-1.5">
+                            {slides.map((_: any, i: number) => (
+                                <button
+                                    key={i}
+                                    onClick={() => { goTo(i); resetTimer(); }}
+                                    className={cn(
+                                        "h-2 rounded-full transition-all duration-300",
+                                        i === current ? "w-6 bg-white" : "w-2 bg-white/50"
+                                    )}
+                                />
+                            ))}
+                        </div>
                     )}
                 </div>
             </div>

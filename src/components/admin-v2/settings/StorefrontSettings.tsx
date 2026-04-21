@@ -77,13 +77,19 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 
 const DEFAULT_CONTENT: Record<string, Record<string, any>> = {
     hero: {
-        heading: "Welcome to our restaurant",
-        subheading: "Authentic flavors, crafted fresh daily",
-        eyebrow: "",
-        backgroundImage: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=1200",
-        overlayOpacity: 55,
+        slides: [
+            {
+                id: uid(),
+                heading: "Welcome to our restaurant",
+                subheading: "Authentic flavors, crafted fresh daily",
+                eyebrow: "",
+                backgroundImage: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=1200",
+                overlayOpacity: 55,
+            },
+        ],
         ctaPrimary: { label: "Order Now", link: "/" },
         ctaSecondary: { label: "View Menu", link: "/" },
+        autoScrollInterval: 5,
     },
     carousel: {
         title: "",
@@ -758,89 +764,154 @@ function SubCard({ children, onDelete, title }: { children: React.ReactNode; onD
 
 /* ================== HERO ================== */
 function HeroEditor({ content, set, partnerId }: { content: Record<string, any>; set: (p: Record<string, any>) => void; partnerId?: string }) {
+    const slides: any[] = content.slides || [];
+    const [activeSlide, setActiveSlide] = useState(0);
+
+    const setSlide = (index: number, patch: Record<string, any>) => {
+        const updated = slides.map((s: any, i: number) => i === index ? { ...s, ...patch } : s);
+        set({ slides: updated });
+    };
+
+    const addSlide = () => {
+        set({
+            slides: [...slides, {
+                id: uid(),
+                heading: "New Slide",
+                subheading: "",
+                eyebrow: "",
+                backgroundImage: "",
+                overlayOpacity: 55,
+            }],
+        });
+        setActiveSlide(slides.length);
+    };
+
+    const removeSlide = (index: number) => {
+        if (slides.length <= 1) return;
+        const updated = slides.filter((_: any, i: number) => i !== index);
+        set({ slides: updated });
+        setActiveSlide(Math.min(activeSlide, updated.length - 1));
+    };
+
+    const slide = slides[activeSlide] || {};
+
     return (
-        <Tabs defaultValue="content" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="content">Content</TabsTrigger>
-                <TabsTrigger value="cta">Buttons</TabsTrigger>
-                <TabsTrigger value="style">Style</TabsTrigger>
-            </TabsList>
+        <div className="space-y-4">
+            <div className="flex items-center gap-2 flex-wrap">
+                {slides.map((_: any, i: number) => (
+                    <button
+                        key={i}
+                        onClick={() => setActiveSlide(i)}
+                        className={cn(
+                            "px-3 py-1.5 rounded-md text-xs font-medium border transition-colors",
+                            activeSlide === i ? "bg-primary text-primary-foreground border-primary" : "bg-muted border-border hover:bg-accent"
+                        )}
+                    >
+                        Slide {i + 1}
+                    </button>
+                ))}
+                <Button variant="outline" size="sm" onClick={addSlide} className="h-7 gap-1">
+                    <Plus className="h-3 w-3" /> Add Slide
+                </Button>
+            </div>
 
-            <TabsContent value="content" className="space-y-4">
-                <FieldRow label="Eyebrow label" hint="Small pill shown above the heading">
-                    <Input
-                        value={content.eyebrow || ""}
-                        onChange={(e) => set({ eyebrow: e.target.value })}
-                        placeholder="e.g. Best Pizza in Henderson"
-                    />
-                </FieldRow>
-                <FieldRow label="Heading">
-                    <Textarea
-                        value={content.heading || ""}
-                        onChange={(e) => set({ heading: e.target.value })}
-                        rows={2}
-                    />
-                </FieldRow>
-                <FieldRow label="Subheading">
-                    <Textarea
-                        value={content.subheading || ""}
-                        onChange={(e) => set({ subheading: e.target.value })}
-                        rows={2}
-                    />
-                </FieldRow>
-            </TabsContent>
+            <Tabs defaultValue="content" className="space-y-4">
+                <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="content">Content</TabsTrigger>
+                    <TabsTrigger value="cta">Buttons</TabsTrigger>
+                    <TabsTrigger value="style">Style</TabsTrigger>
+                </TabsList>
 
-            <TabsContent value="cta" className="space-y-5">
-                <SubCard title="Primary Button">
-                    <FieldRow label="Label">
+                <TabsContent value="content" className="space-y-4">
+                    <FieldRow label="Eyebrow label" hint="Small pill shown above the heading">
                         <Input
-                            value={content.ctaPrimary?.label || ""}
-                            onChange={(e) => set({ ctaPrimary: { ...content.ctaPrimary, label: e.target.value } })}
+                            value={slide.eyebrow || ""}
+                            onChange={(e) => setSlide(activeSlide, { eyebrow: e.target.value })}
+                            placeholder="e.g. Best Pizza in Henderson"
                         />
                     </FieldRow>
-                    <FieldRow label="Link / URL">
-                        <Input
-                            value={content.ctaPrimary?.link || ""}
-                            onChange={(e) => set({ ctaPrimary: { ...content.ctaPrimary, link: e.target.value } })}
-                            placeholder="/ or https://..."
+                    <FieldRow label="Heading">
+                        <Textarea
+                            value={slide.heading || ""}
+                            onChange={(e) => setSlide(activeSlide, { heading: e.target.value })}
+                            rows={2}
                         />
                     </FieldRow>
-                </SubCard>
-                <SubCard title="Secondary Button">
-                    <FieldRow label="Label" hint="Leave empty to hide">
-                        <Input
-                            value={content.ctaSecondary?.label || ""}
-                            onChange={(e) => set({ ctaSecondary: { ...content.ctaSecondary, label: e.target.value } })}
+                    <FieldRow label="Subheading">
+                        <Textarea
+                            value={slide.subheading || ""}
+                            onChange={(e) => setSlide(activeSlide, { subheading: e.target.value })}
+                            rows={2}
                         />
                     </FieldRow>
-                    <FieldRow label="Link / URL">
-                        <Input
-                            value={content.ctaSecondary?.link || ""}
-                            onChange={(e) => set({ ctaSecondary: { ...content.ctaSecondary, link: e.target.value } })}
-                        />
-                    </FieldRow>
-                </SubCard>
-            </TabsContent>
+                </TabsContent>
 
-            <TabsContent value="style" className="space-y-4">
-                <ImageUploadField
-                    label="Background image"
-                    value={content.backgroundImage || ""}
-                    onChange={(url) => set({ backgroundImage: url })}
-                    partnerId={partnerId}
-                    folder="storefront/hero"
-                />
-                <FieldRow label={`Overlay darkness - ${content.overlayOpacity ?? 55}%`}>
-                    <Slider
-                        value={[content.overlayOpacity ?? 55]}
-                        min={0}
-                        max={90}
-                        step={5}
-                        onValueChange={([v]) => set({ overlayOpacity: v })}
+                <TabsContent value="cta" className="space-y-5">
+                    <SubCard title="Primary Button">
+                        <FieldRow label="Label">
+                            <Input
+                                value={content.ctaPrimary?.label || ""}
+                                onChange={(e) => set({ ctaPrimary: { ...content.ctaPrimary, label: e.target.value } })}
+                            />
+                        </FieldRow>
+                        <FieldRow label="Link / URL">
+                            <Input
+                                value={content.ctaPrimary?.link || ""}
+                                onChange={(e) => set({ ctaPrimary: { ...content.ctaPrimary, link: e.target.value } })}
+                                placeholder="/ or https://..."
+                            />
+                        </FieldRow>
+                    </SubCard>
+                    <SubCard title="Secondary Button">
+                        <FieldRow label="Label" hint="Leave empty to hide">
+                            <Input
+                                value={content.ctaSecondary?.label || ""}
+                                onChange={(e) => set({ ctaSecondary: { ...content.ctaSecondary, label: e.target.value } })}
+                            />
+                        </FieldRow>
+                        <FieldRow label="Link / URL">
+                            <Input
+                                value={content.ctaSecondary?.link || ""}
+                                onChange={(e) => set({ ctaSecondary: { ...content.ctaSecondary, link: e.target.value } })}
+                            />
+                        </FieldRow>
+                    </SubCard>
+                </TabsContent>
+
+                <TabsContent value="style" className="space-y-4">
+                    <ImageUploadField
+                        label="Background image"
+                        value={slide.backgroundImage || ""}
+                        onChange={(url) => setSlide(activeSlide, { backgroundImage: url })}
+                        partnerId={partnerId}
+                        folder="storefront/hero"
                     />
-                </FieldRow>
-            </TabsContent>
-        </Tabs>
+                    <FieldRow label={`Overlay darkness - ${slide.overlayOpacity ?? 55}%`}>
+                        <Slider
+                            value={[slide.overlayOpacity ?? 55]}
+                            min={0}
+                            max={90}
+                            step={5}
+                            onValueChange={([v]) => setSlide(activeSlide, { overlayOpacity: v })}
+                        />
+                    </FieldRow>
+                    <FieldRow label={`Auto-scroll interval - ${content.autoScrollInterval ?? 5}s`}>
+                        <Slider
+                            value={[content.autoScrollInterval ?? 5]}
+                            min={2}
+                            max={15}
+                            step={1}
+                            onValueChange={([v]) => set({ autoScrollInterval: v })}
+                        />
+                    </FieldRow>
+                    {slides.length > 1 && (
+                        <Button variant="destructive" size="sm" onClick={() => removeSlide(activeSlide)} className="gap-1">
+                            <Trash2 className="h-3.5 w-3.5" /> Remove Slide {activeSlide + 1}
+                        </Button>
+                    )}
+                </TabsContent>
+            </Tabs>
+        </div>
     );
 }
 
