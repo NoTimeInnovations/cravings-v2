@@ -257,7 +257,7 @@ function HeroSection({ content, onContinue, accent }: { content: Record<string, 
                 style={{ opacity: (slide.overlayOpacity ?? 55) / 100 + 0.2 }}
             />
 
-            <div className="relative mx-auto flex min-h-[100vh] max-w-6xl flex-col justify-end px-6 pb-14 pt-28 text-white lg:px-8 lg:min-h-[85vh]">
+            <div className="relative mx-auto flex min-h-[100dvh] max-w-6xl flex-col justify-end px-6 pb-14 pt-28 text-white lg:px-8 lg:min-h-[85dvh]">
                 <div key={current} className="animate-[fadeUp_0.6s_ease-out]">
                     {slide.eyebrow && (
                         <Html html={slide.eyebrow} as="span" className="inline-flex w-fit items-center rounded-full px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-white shadow-lg lg:text-xs lg:px-4 lg:py-2" style={{ backgroundColor: accent }} />

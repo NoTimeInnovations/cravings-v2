@@ -91,6 +91,7 @@ const HotelMenuPage = ({
   // shows again (value persists only in sessionStorage).
   const showOnboarding = needsOnboarding;
   const [onboardingDismissed, setOnboardingDismissed] = useState(!showOnboarding);
+  const [onboardingKey, setOnboardingKey] = useState(0);
 
   const brandAccent = useMemo(() => {
     const BRAND_COLOR_MAP: Record<string, string> = {
@@ -336,6 +337,7 @@ const HotelMenuPage = ({
     open_place_order_modal: open_place_order_modal,
     pathname: pathname,
     isOnFreePlan: isHotelOnFreePlan,
+    onShowStorefront: showOnboarding ? () => { setOnboardingDismissed(false); setOnboardingKey((k) => k + 1); } : undefined,
   };
 
   const renderPage = () => {
@@ -425,6 +427,7 @@ const HotelMenuPage = ({
       )}
       {showOnboarding && (
         <OnboardingFlow
+          key={onboardingKey}
           isLoggedIn={isUserLoggedIn}
           featureFlags={hoteldata?.feature_flags || ""}
           storeName={hoteldata?.store_name || ""}

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
-import { MapPin, Phone, Star, ChevronRight, ShoppingBag, Search, Store, ChevronDown, LocateFixed, Loader2, X } from "lucide-react";
+import { MapPin, Phone, Star, ChevronRight, ShoppingBag, Search, Store, ChevronDown, LocateFixed, Loader2, X, ArrowLeft } from "lucide-react";
 import { FaWhatsapp, FaInstagram } from "react-icons/fa";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { formatDisplayName } from "@/store/categoryStore_hasura";
@@ -33,6 +33,7 @@ const V3 = ({
   qrGroup,
   qrId,
   isOnFreePlan,
+  onShowStorefront,
 }: DefaultHotelPageProps) => {
   const [activeCatIndex, setActiveCatIndex] = useState<number>(0);
   const [bannerError, setBannerError] = useState(false);
@@ -161,6 +162,14 @@ const V3 = ({
         {/* ===== STICKY HEADER (exact cravings-v3 style) ===== */}
         <header className="sticky top-0 z-40 w-full border-b border-gray-200/60 bg-white/90 backdrop-blur-xl">
           <div className="mx-auto flex h-14 max-w-2xl items-center gap-2 px-4">
+            {onShowStorefront && (
+              <button
+                onClick={onShowStorefront}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-gray-100 transition"
+              >
+                <ArrowLeft className="h-[18px] w-[18px] text-gray-900" />
+              </button>
+            )}
             {/* Left: Location/Outlet info */}
             <button
               onClick={() => { if (orderType !== "takeaway" && tableNumber === 0) setAddressSheetOpen(true); }}

@@ -43,6 +43,7 @@ export interface DefaultHotelPageProps {
   qrGroup?: QrGroup | null;
   qrId?: string | null;
   isOnFreePlan?: boolean;
+  onShowStorefront?: () => void;
 }
 
 const Default = ({
