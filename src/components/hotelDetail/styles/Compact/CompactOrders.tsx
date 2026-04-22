@@ -224,7 +224,7 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
             (s: number, i: any) => s + i.price * i.quantity,
             0,
           );
-          const gstAmount = getGstAmount(foodTotal, gstPercentage);
+          const gstAmount = (order as any).gstIncluded ?? (foodTotal * gstPercentage) / 100;
           const extraCharges = order.extraCharges || [];
           const isUAE =
             (order.partner as Partner)?.country === "United Arab Emirates";

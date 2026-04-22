@@ -29,6 +29,33 @@ export const getGstAmount = (price: number, gstPercentage: number) => {
   return (price * gstPercentage) / 100;
 };
 
+export const calculateGstForItems = (
+  items: { price: number; quantity: number; tax_inclusive?: boolean }[],
+  gstPercentage: number,
+) => {
+  if (!gstPercentage || !items?.length) return { totalGst: 0, additionalGst: 0 };
+
+  let exclusiveTotal = 0;
+  let inclusiveTotal = 0;
+
+  for (const item of items) {
+    const amount = item.price * item.quantity;
+    if (item.tax_inclusive) {
+      inclusiveTotal += amount;
+    } else {
+      exclusiveTotal += amount;
+    }
+  }
+
+  const gstOnExclusive = (exclusiveTotal * gstPercentage) / 100;
+  const gstOnInclusive = (inclusiveTotal * gstPercentage) / (100 + gstPercentage);
+
+  return {
+    totalGst: gstOnExclusive + gstOnInclusive,
+    additionalGst: gstOnExclusive,
+  };
+};
+
 export const calculateDeliveryDistanceAndCost = async (
   hotelData: HotelData,
 ) => {

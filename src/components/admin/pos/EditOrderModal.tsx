@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { usePOSStore } from "@/store/posStore";
 import { Loader2, Plus, Minus, X } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import {
   getOrderByIdQuery,
   updateOrderMutation,
@@ -206,7 +207,10 @@ export const EditOrderModal = () => {
         )
       : 0;
 
-    const gstAmount = gstPercentage > 0 ? (subtotal * gstPercentage) / 100 : 0;
+    const { additionalGst: gstAmount } = calculateGstForItems(
+      currentItems.map((i: any) => ({ price: i.price, quantity: i.quantity, tax_inclusive: i.tax_inclusive })),
+      gstPercentage,
+    );
     return subtotal + extraChargesTotal + qrGroupCharges + gstAmount;
   };
 
@@ -472,15 +476,10 @@ export const EditOrderModal = () => {
                     {gstPercentage > 0 && (
                       <span className="text-xs text-muted-foreground ml-2">
                         (incl. {gstPercentage}% {(userData as Partner)?.country === "United Arab Emirates" ? "VAT" : "GST"}: {currency}
-                        {(
-                          (items.reduce(
-                            (sum, item) =>
-                              sum + item.menu.price * item.quantity,
-                            0
-                          ) *
-                            gstPercentage) /
-                          100
-                        ).toFixed(2)}
+                        {calculateGstForItems(
+                          items.map((i) => ({ price: i.menu.price, quantity: i.quantity, tax_inclusive: (i.menu as any).tax_inclusive })),
+                          gstPercentage,
+                        ).totalGst.toFixed(2)}
                         )
                       </span>
                     )}

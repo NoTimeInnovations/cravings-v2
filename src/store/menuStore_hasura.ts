@@ -56,6 +56,7 @@ export interface MenuItem {
   delivery_price?: number;
   show_on_delivery?: boolean;
   show_on_takeaway?: boolean;
+  tax_inclusive?: boolean;
 }
 
 interface MenuItem_withOffer_price {

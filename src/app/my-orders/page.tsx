@@ -12,7 +12,7 @@ import { Partner, useAuthStore } from "@/store/authStore";
 import { usePOSStore } from "@/store/posStore";
 import useOrderStore from "@/store/orderStore";
 import { EditOrderModal } from "@/components/admin/pos/EditOrderModal";
-import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
+import { getGstAmount, calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import Link from "next/link";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
@@ -128,7 +128,9 @@ const Page = () => {
 
               const discountedSubtotal = Math.max(0, subtotal - discountAmount);
               const discountedFoodTotal = Math.max(0, foodTotal - discountAmount);
-              const gstAmount = getGstAmount(discountedFoodTotal, gstPercentage);
+              const ratio = foodTotal > 0 ? discountedFoodTotal / foodTotal : 0;
+              const adjItems = (order.items || []).map((i: any) => ({ price: i.price * ratio, quantity: i.quantity, tax_inclusive: i.tax_inclusive }));
+              const { additionalGst: gstAmount } = calculateGstForItems(adjItems, gstPercentage);
               const grandTotal = discountedSubtotal + gstAmount;
               const statusDisplay = getStatusDisplay(order);
 

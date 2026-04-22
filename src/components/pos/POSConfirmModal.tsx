@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { GET_QR_CODES_BY_PARTNER } from "@/api/qrcodes";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -112,9 +113,6 @@ export const POSConfirmModal = ({
     fetchTableNumbers();
   }, [partnerData?.id]);
 
-  const getGstAmount = (price: number, gstPercentage: number) => {
-    return (price * gstPercentage) / 100;
-  };
 
   // Calculate totals
   const foodSubtotal = totalAmount;
@@ -123,9 +121,9 @@ export const POSConfirmModal = ({
     0
   );
 
-  const gstAmount = getGstAmount(
-    foodSubtotal,
-    partnerData?.gst_percentage || 0
+  const { additionalGst: gstAmount } = calculateGstForItems(
+    cartItems.map((i) => ({ price: i.price, quantity: i.quantity, tax_inclusive: i.tax_inclusive })),
+    partnerData?.gst_percentage || 0,
   );
   const grandTotal = foodSubtotal + gstAmount + extraChargesTotal;
 

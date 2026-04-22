@@ -5,6 +5,7 @@ import { ExtraCharge, usePOSStore } from "@/store/posStore";
 import { ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { Partner, useAuthStore } from "@/store/authStore";
+import { calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 
 interface POSCartProps {
   onViewOrder: () => void;
@@ -39,13 +40,12 @@ export const POSCart = ({ onViewOrder }: POSCartProps) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  const getGstAmount = (price: number, gstPercentage: number) => {
-    return (price * gstPercentage) / 100;
-  };
-
   // Calculate totals
   const foodSubtotal = totalAmount;
-  const gstAmount = getGstAmount(foodSubtotal, partnerData?.gst_percentage || 0);
+  const { additionalGst: gstAmount } = calculateGstForItems(
+    cartItems.map((i) => ({ price: i.price, quantity: i.quantity, tax_inclusive: i.tax_inclusive })),
+    partnerData?.gst_percentage || 0,
+  );
   const grandTotal = foodSubtotal + gstAmount;
 
   return (

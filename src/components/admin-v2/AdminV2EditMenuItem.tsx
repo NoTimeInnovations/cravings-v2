@@ -44,6 +44,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
         is_top: item.is_top || false,
         show_on_delivery: item.show_on_delivery !== false,
         show_on_takeaway: item.show_on_takeaway !== false,
+        tax_inclusive: item.tax_inclusive || false,
     });
 
     const [variants, setVariants] = useState<Variant[]>(item.variants || []);
@@ -89,6 +90,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                 is_price_as_per_size: editingItem.is_price_as_per_size,
                 is_top: editingItem.is_top,
                 show_on_takeaway: editingItem.show_on_takeaway,
+                tax_inclusive: editingItem.tax_inclusive,
             });
             toast.success("Item updated successfully");
             onBack(item.id!);
@@ -349,6 +351,17 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                                     <Switch
                                         checked={editingItem.show_on_takeaway}
                                         onCheckedChange={(checked) => setEditingItem({ ...editingItem, show_on_takeaway: checked })}
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-between border rounded-lg p-3">
+                                    <div className="space-y-0.5">
+                                        <label className="text-sm font-medium">Tax Inclusive</label>
+                                        <p className="text-xs text-muted-foreground">Price already includes GST/VAT</p>
+                                    </div>
+                                    <Switch
+                                        checked={editingItem.tax_inclusive}
+                                        onCheckedChange={(checked) => setEditingItem({ ...editingItem, tax_inclusive: checked })}
                                     />
                                 </div>
                             </div>

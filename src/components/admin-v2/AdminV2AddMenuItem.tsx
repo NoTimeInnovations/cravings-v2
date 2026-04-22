@@ -15,6 +15,7 @@ import { TAG_CATEGORIES, getTagColor } from "@/data/foodTags";
 import { useCategoryStore, formatDisplayName } from "@/store/categoryStore_hasura";
 import { useAuthStore } from "@/store/authStore";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 
 interface AdminV2AddMenuItemProps {
     onBack: () => void;
@@ -41,6 +42,7 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
         category: any;
         is_veg: boolean | undefined;
         tags: string[];
+        tax_inclusive: boolean;
     }>({
         name: "",
         price: "",
@@ -49,6 +51,7 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
         category: null,
         is_veg: undefined,
         tags: [],
+        tax_inclusive: false,
     });
 
     const [variants, setVariants] = useState<Variant[]>([]);
@@ -89,6 +92,7 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
                 variants: variants.length > 0 ? variants : [],
                 tags: newItem.tags,
                 is_available: true,
+                tax_inclusive: newItem.tax_inclusive,
             } as any); // Type assertion needed as addItem expects Omit<MenuItem, "id"> but category structure might differ slightly in store
             toast.success("Item added successfully");
             onBack();
@@ -269,6 +273,19 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
                                         />
                                         <span className="text-sm">⚪ Other</span>
                                     </label>
+                                </div>
+                            </div>
+
+                            <div className="pt-2">
+                                <div className="flex items-center justify-between border rounded-lg p-3">
+                                    <div className="space-y-0.5">
+                                        <label className="text-sm font-medium">Tax Inclusive</label>
+                                        <p className="text-xs text-muted-foreground">Price already includes GST/VAT</p>
+                                    </div>
+                                    <Switch
+                                        checked={newItem.tax_inclusive}
+                                        onCheckedChange={(checked) => setNewItem({ ...newItem, tax_inclusive: checked })}
+                                    />
                                 </div>
                             </div>
                         </CardContent>

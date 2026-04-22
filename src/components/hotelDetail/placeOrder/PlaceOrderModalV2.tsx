@@ -34,7 +34,7 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import V3AddressSheet from "../styles/V3/V3AddressSheet";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
-import { getGstAmount, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
+import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
   validateDiscountQuery,
@@ -239,9 +239,16 @@ const PlaceOrderModalV2 = ({
     return 0;
   }, [qrGroup, items, isQrScan, tableNumber, orderType]);
 
-  const gstAmount = useMemo(
-    () => getGstAmount(subtotal, Number(hotelData?.gst_percentage) || 0),
-    [subtotal, hotelData?.gst_percentage],
+  const { totalGst: gstAmount, additionalGst } = useMemo(
+    () => {
+      const enrichedItems = (items || []).map((item) => {
+        const baseId = item.id.split("|")[0];
+        const menuItem = allMenus.find((m: any) => m.id === baseId);
+        return { price: item.price, quantity: item.quantity, tax_inclusive: menuItem?.tax_inclusive ?? item.tax_inclusive };
+      });
+      return calculateGstForItems(enrichedItems, Number(hotelData?.gst_percentage) || 0);
+    },
+    [items, hotelData?.gst_percentage, allMenus],
   );
 
   const getFreebieItemsTotal = (disc: AppliedDiscount | null) => {
@@ -267,7 +274,7 @@ const PlaceOrderModalV2 = ({
   }, [appliedDiscount, subtotal, hotelData?.menus]);
 
   const extraChargesTotal = deliveryCharge + parcelCharge + qrExtraCharge;
-  const grandTotal = Math.max(0, subtotal + extraChargesTotal + gstAmount - discountSavings);
+  const grandTotal = Math.max(0, subtotal + extraChargesTotal + additionalGst - discountSavings);
 
   // Fetch available coupon discounts
   useEffect(() => {
@@ -633,7 +640,7 @@ const PlaceOrderModalV2 = ({
         hotelData,
         tableNumber,
         qrId as string,
-        gstAmount,
+        additionalGst,
         extraCharges.length > 0 ? extraCharges : null,
         undefined,
         orderNote || "",
@@ -1188,8 +1195,8 @@ const PlaceOrderModalV2 = ({
                   {qrExtraCharge > 0 && qrGroup?.name && (
                     <Row label={qrGroup.name} value={`${currency}${qrExtraCharge.toFixed(0)}`} />
                   )}
-                  {gstAmount > 0 && (
-                    <Row label="GST & Other Charges" value={`${currency}${gstAmount.toFixed(0)}`} />
+                  {additionalGst > 0 && (
+                    <Row label="GST & Other Charges" value={`${currency}${additionalGst.toFixed(0)}`} />
                   )}
                   {orderType === "delivery" && hotelData?.delivery_rules?.hide_delivery_charge && (
                     <div className="text-xs text-gray-500">Delivery charge applicable</div>

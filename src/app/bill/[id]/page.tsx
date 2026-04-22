@@ -1,7 +1,7 @@
 "use client";
 
 import { QrGroup } from "@/app/admin/qr-management/page";
-import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
+import { getGstAmount, calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import { getDateOnly } from "@/lib/formatDate";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { fetchFromHasura } from "@/lib/hasuraClient";

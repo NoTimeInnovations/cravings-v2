@@ -1,6 +1,7 @@
 import { QrGroup } from "@/app/admin/qr-management/page";
 import {
   getGstAmount,
+  calculateGstForItems,
 } from "@/components/hotelDetail/OrderDrawer";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getDateOnly } from "@/lib/formatDate";
@@ -59,7 +60,9 @@ const BillTemplate = React.forwardRef<HTMLDivElement, BillTemplateProps>(
 
     const discountedSubtotal = Math.max(0, subtotal - discountAmount);
     const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
-    const gstAmount = getGstAmount(discountedFoodSubtotal, gstPercentage);
+    const ratio = foodSubtotal > 0 ? discountedFoodSubtotal / foodSubtotal : 0;
+    const adjItems = order.items.map((i) => ({ price: i.price * ratio, quantity: i.quantity, tax_inclusive: (i as any).tax_inclusive }));
+    const { additionalGst: gstAmount } = calculateGstForItems(adjItems, gstPercentage);
     const grandTotal = discountedSubtotal + gstAmount;
 
 

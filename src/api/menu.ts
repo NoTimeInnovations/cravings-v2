@@ -29,6 +29,7 @@ export const getMenu = `
             delivery_price
             show_on_delivery
             show_on_takeaway
+            tax_inclusive
         }
     }
 `;
@@ -89,6 +90,7 @@ export const addMenu = `
             is_veg
             variants
             tags
+            tax_inclusive
         }
     }
 }`;
@@ -111,6 +113,7 @@ export const updateMenu = `
             delivery_price
             show_on_delivery
             show_on_takeaway
+            tax_inclusive
             description
             is_top
             is_available

@@ -219,7 +219,7 @@ const OrderClient = () => {
         0
     ) ?? 0;
     const gstPercentage = order?.partner?.gst_percentage || 0;
-    const gstAmount = (foodTotal * gstPercentage) / 100;
+    const gstAmount = order?.gstIncluded ?? (foodTotal * gstPercentage) / 100;
     const extraChargesTotal =
         order?.extraCharges?.reduce(
             (sum, charge) =>

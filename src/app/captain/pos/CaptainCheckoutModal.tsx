@@ -13,6 +13,7 @@ import { Printer, Edit, Loader2, X } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { useAuthStore, Captain, Partner } from "@/store/authStore";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import KOTTemplate from "@/components/admin/pos/KOTTemplate";
 import BillTemplate from "@/components/admin/pos/BillTemplate";
 import { getExtraCharge } from "@/lib/getExtraCharge";
@@ -54,10 +55,6 @@ export const CaptainCheckoutModal = () => {
   const currency = partnerData?.currency || "$";
   const gstPercentage = partnerData?.gst_percentage || 0;
 
-  const calculateGst = (amount: number) => {
-    return (amount * gstPercentage) / 100;
-  };
-
   // Calculate totals
   const foodSubtotal = order.items.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -69,7 +66,10 @@ export const CaptainCheckoutModal = () => {
   );
 
   const subtotal = foodSubtotal + extraChargesTotal;
-  const gstAmount = calculateGst(foodSubtotal);
+  const { additionalGst: gstAmount } = calculateGstForItems(
+    order.items.map((i) => ({ price: i.price, quantity: i.quantity, tax_inclusive: (i as any).tax_inclusive })),
+    gstPercentage,
+  );
   const grandTotal = subtotal + gstAmount;
 
   // Format order time using client's timezone (fallback to partner.timezone or UTC)

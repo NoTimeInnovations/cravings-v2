@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
-import { getGstAmount, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
+import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getFeatures } from "@/lib/getFeatures";
@@ -629,7 +629,14 @@ const BillCard = ({
     }
   }
 
-  const gstAmount = (subtotal * (gstPercentage || 0)) / 100;
+  const { additionalGst: gstAmount } = calculateGstForItems(
+    (items || []).map((item) => {
+      const baseId = item.id.split("|")[0];
+      const mi = hotelData?.menus?.find((m) => m.id === baseId);
+      return { price: item.price, quantity: item.quantity, tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive };
+    }),
+    gstPercentage || 0,
+  );
   // Calculate freebie item prices
   const freebieItems = discount?.type === "freebie" && discount.freebie_item_ids
     ? discount.freebie_item_ids.split(",").map((id) => {
@@ -698,7 +705,7 @@ const BillCard = ({
           </div>
         )}
 
-        {gstPercentage ? (
+        {gstAmount > 0 ? (
           <>
             <div className="border-t my-2" style={{ borderColor: "var(--pom-card-border, #e7e5e4)" }} />
             <div className="flex justify-between text-sm">
@@ -2113,12 +2120,16 @@ const PlaceOrderModal = ({
           : hotelData.delivery_rules.parcel_charge;
       }
     }
-    const gstAmount = hotelData?.gst_percentage
-      ? getGstAmount(baseTotal, hotelData.gst_percentage)
-      : 0;
+    const { totalGst: gstAmount, additionalGst: gstAdditional } = hotelData?.gst_percentage
+      ? calculateGstForItems((items || []).map((item) => {
+          const baseId = item.id.split("|")[0];
+          const mi = hotelData?.menus?.find((m) => m.id === baseId);
+          return { price: item.price, quantity: item.quantity, tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive };
+        }), hotelData.gst_percentage)
+      : { totalGst: 0, additionalGst: 0 };
 
     const discountSavingsAmount = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
-    const grandTotal = Math.max(0, baseTotal + qrCharge + deliveryCharge + parcelCharge + gstAmount - discountSavingsAmount);
+    const grandTotal = Math.max(0, baseTotal + qrCharge + deliveryCharge + parcelCharge + gstAdditional - discountSavingsAmount);
 
     const hasMultiWhatsapp = getFeatures(hotelData?.feature_flags || "")
       ?.multiwhatsapp?.enabled;
@@ -2153,7 +2164,7 @@ const PlaceOrderModal = ({
 
     const billingLines = [
       `*Subtotal:* ${hotelData.currency}${baseTotal.toFixed(2)}`,
-      hotelData?.gst_percentage ? `*${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${hotelData.gst_percentage}%):* ${hotelData.currency}${gstAmount.toFixed(2)}` : "",
+      hotelData?.gst_percentage && gstAdditional > 0 ? `*${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${hotelData.gst_percentage}%):* ${hotelData.currency}${gstAdditional.toFixed(2)}` : "",
       !isQrScan && orderType === "delivery" && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? `*Delivery Charge:* ${hotelData.currency}${deliveryInfo.cost.toFixed(2)}` : "",
       qrGroup?.extra_charge ? `*${qrGroup.name}:* ${hotelData.currency}${qrCharge.toFixed(2)}` : "",
       parcelCharge > 0 ? `*Parcel Charge:* ${hotelData.currency}${parcelCharge.toFixed(2)}` : "",
@@ -2336,14 +2347,18 @@ const PlaceOrderModal = ({
         });
       }
 
-      const gstAmount = getGstAmount(
-        subtotal,
+      const { totalGst: gstAmount, additionalGst: gstAdditionalOrder } = calculateGstForItems(
+        (items || []).map((item) => {
+          const baseId = item.id.split("|")[0];
+          const mi = hotelData?.menus?.find((m) => m.id === baseId);
+          return { price: item.price, quantity: item.quantity, tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive };
+        }),
         hotelData?.gst_percentage as number,
       );
 
       const extraChargesTotal = extraCharges.reduce((acc, c) => acc + c.amount, 0);
       const discountSavingsAmount = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
-      setFinalOrderAmount(Math.max(0, subtotal + extraChargesTotal + gstAmount - discountSavingsAmount));
+      setFinalOrderAmount(Math.max(0, subtotal + extraChargesTotal + gstAdditionalOrder - discountSavingsAmount));
 
       // Generate WhatsApp link BEFORE placing order to capture current state
       const whatsappLink = getWhatsappLink(orderId as string);
@@ -2353,7 +2368,7 @@ const PlaceOrderModal = ({
         hotelData,
         tableNumber,
         qrId as string,
-        gstAmount,
+        gstAdditionalOrder,
         extraCharges.length > 0 ? extraCharges : null,
         undefined,
         orderNote || "",
@@ -2473,10 +2488,17 @@ const PlaceOrderModal = ({
         }
         extraCharges.push({ name: "Parcel Charge", amount: parcelAmount, charge_type: "FLAT_FEE" });
       }
-      const gstAmount = getGstAmount(subtotal, hotelData?.gst_percentage as number);
+      const { additionalGst: gstAmountCalc } = calculateGstForItems(
+        (items || []).map((item) => {
+          const baseId = item.id.split("|")[0];
+          const mi = hotelData?.menus?.find((m) => m.id === baseId);
+          return { price: item.price, quantity: item.quantity, tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive };
+        }),
+        hotelData?.gst_percentage as number,
+      );
       const extraChargesTotal = extraCharges.reduce((acc, c) => acc + c.amount, 0);
       const discountSavingsAmount = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
-      const grandTotal = Math.max(0, subtotal + extraChargesTotal + gstAmount - discountSavingsAmount);
+      const grandTotal = Math.max(0, subtotal + extraChargesTotal + gstAmountCalc - discountSavingsAmount);
 
       // Create a temporary order ID for Cashfree
       const cfOrderId = `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -2635,11 +2657,19 @@ const PlaceOrderModal = ({
           cfExtraCharges.push({ name: "Parcel Charge", amount: parcelAmount, charge_type: "FLAT_FEE" });
         }
 
+        const { additionalGst: cfGst } = calculateGstForItems(
+          cfItems.map((item) => {
+            const baseId = item.id.split("|")[0];
+            const mi = hotelData?.menus?.find((m) => m.id === baseId);
+            return { price: item.price, quantity: item.quantity, tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive };
+          }),
+          hotelData?.gst_percentage as number,
+        );
         const result = await storeState.placeOrder(
           hotelData,
           tableNumber,
           qrId as string,
-          getGstAmount(cfSubtotal, hotelData?.gst_percentage as number),
+          cfGst,
           cfExtraCharges.length > 0 ? cfExtraCharges : null,
           undefined,
           pending.orderNote || "",
@@ -2731,7 +2761,14 @@ const PlaceOrderModal = ({
     }
     return ct === "variable" ? _barTotalItemCount * (hotelData?.delivery_rules?.parcel_charge || 0) : (hotelData?.delivery_rules?.parcel_charge || 0);
   })();
-  const _barGst = (_barSubtotal * (hotelData?.gst_percentage || 0)) / 100;
+  const { additionalGst: _barGst } = calculateGstForItems(
+    (items || []).map((item) => {
+      const baseId = item.id.split("|")[0];
+      const mi = hotelData?.menus?.find((m) => m.id === baseId);
+      return { price: item.price, quantity: item.quantity, tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive };
+    }),
+    hotelData?.gst_percentage || 0,
+  );
   const _barDiscountSavings = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
   const _barGrandTotal = Math.max(0, _barSubtotal + _barQrCharge + _barDeliveryCharge + _barParcelCharge + _barGst - _barDiscountSavings);
 

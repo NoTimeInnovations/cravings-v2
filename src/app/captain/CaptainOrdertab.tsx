@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { usePOSStore } from "@/store/posStore";
-import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
+import { getGstAmount, calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import OrderItemCard from "@/components/captain/OrderItemCard";
 import { revalidateTag } from "@/app/actions/revalidate";
 
@@ -223,7 +223,10 @@ const CaptainOrdersTab = () => {
                   return sum + item.price * item.quantity;
                 }, 0);
 
-                const gstAmount = getGstAmount(foodSubtotal, gstPercentage);
+                const { additionalGst: gstAmount } = calculateGstForItems(
+                  order.items.map((i: any) => ({ price: i.price, quantity: i.quantity, tax_inclusive: i.tax_inclusive })),
+                  gstPercentage,
+                );
                 const totalPriceWithGst = foodSubtotal + gstAmount;
 
                 // Calculate extra charges total

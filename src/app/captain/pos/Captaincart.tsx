@@ -5,6 +5,7 @@ import { ExtraCharge, usePOSStore } from "@/store/posStore";
 import { Plus, Minus, ShoppingCart, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Captain, useAuthStore } from "@/store/authStore";
+import { calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import { Input } from "@/components/ui/input";
 import { table } from "console";
 
@@ -66,9 +67,6 @@ export const Captaincart = () => {
     fetchTableNumbers();
   }, [captainData?.partner_id, getPartnerTables]);
 
-  const getGstAmount = (price: number, gstPercentage: number) => {
-    return (price * gstPercentage) / 100;
-  };
 
   // Calculate totals
   const foodSubtotal = totalAmount; // This is the subtotal of food items only
@@ -76,10 +74,10 @@ export const Captaincart = () => {
     (sum, charge) => sum + charge.amount,
     0
   );
-  const gstAmount = getGstAmount(
-    foodSubtotal,
-    captainData?.gst_percentage || 0
-  ); // GST only on food items
+  const { additionalGst: gstAmount } = calculateGstForItems(
+    cartItems.map((i) => ({ price: i.price, quantity: i.quantity, tax_inclusive: i.tax_inclusive })),
+    captainData?.gst_percentage || 0,
+  );
   const grandTotal = foodSubtotal + gstAmount + extraChargesTotal;
 
   const handleAddExtraCharge = () => {

@@ -4,6 +4,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Partner, Captain, useAuthStore } from "./authStore";
 import {
   getGstAmount,
+  calculateGstForItems,
 } from "@/components/hotelDetail/OrderDrawer";
 import {
   createOrderMutation,
@@ -510,7 +511,13 @@ export const usePOSStore = create<POSState>((set, get) => ({
 
       const discountedSubtotal = Math.max(0, subtotal - discountAmount);
       const discountedFoodAmount = Math.max(0, totalAmount - discountAmount);
-      const gstAmount = getGstAmount(discountedFoodAmount, gstPercentage);
+      const ratio = totalAmount > 0 ? discountedFoodAmount / totalAmount : 0;
+      const adjustedItems = cartItems.map((item) => ({
+        price: item.price * ratio,
+        quantity: item.quantity,
+        tax_inclusive: item.tax_inclusive,
+      }));
+      const { additionalGst: gstAmount } = calculateGstForItems(adjustedItems, gstPercentage);
       const grandTotal = discountedSubtotal + gstAmount;
 
       // Update order basic info
@@ -536,6 +543,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
             name: item.name,
             price: item.price,
             category: item.category,
+            ...(item.tax_inclusive && { tax_inclusive: true }),
           },
         })),
       });
@@ -619,14 +627,15 @@ export const usePOSStore = create<POSState>((set, get) => ({
     const discountedSubtotal = Math.max(0, subtotal - discountAmount);
     const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
 
-    // Calculate GST on food items only
-    const gstAmount = getGstAmount(
-      discountedFoodSubtotal,
-      gstPercentage
-    );
+    const ratio = foodSubtotal > 0 ? discountedFoodSubtotal / foodSubtotal : 0;
+    const adjustedItems = cartItems.map((item) => ({
+      price: item.price * ratio,
+      quantity: item.quantity,
+      tax_inclusive: item.tax_inclusive,
+    }));
+    const { additionalGst } = calculateGstForItems(adjustedItems, gstPercentage);
 
-    // Return grand total
-    return discountedSubtotal + gstAmount;
+    return discountedSubtotal + additionalGst;
   },
 
   checkout: async () => {
@@ -700,14 +709,15 @@ export const usePOSStore = create<POSState>((set, get) => ({
       const discountedSubtotal = Math.max(0, subtotal - discountAmount);
       const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);
 
-      const grandTotal =
-        discountedSubtotal +
-        getGstAmount(discountedFoodSubtotal, gstPercentage);
+      const discountRatio = foodSubtotal > 0 ? discountedFoodSubtotal / foodSubtotal : 0;
+      const discountAdjustedItems = cartItems.map((item) => ({
+        price: item.price * discountRatio,
+        quantity: item.quantity,
+        tax_inclusive: item.tax_inclusive,
+      }));
+      const { additionalGst: posAdditionalGst } = calculateGstForItems(discountAdjustedItems, gstPercentage);
 
-      // Determine order type and type string
-      // If posOrderType is takeaway, use "delivery" with no address.
-      // Else "pos" (or should we use "table_order"?)
-      // Stick to existing "pos" for dine-in unless directed otherwise, but ensure takeaway logic is applied.
+      const grandTotal = discountedSubtotal + posAdditionalGst;
 
       const isTakeaway = posOrderType === "takeaway";
       const orderTypeString = isTakeaway ? "delivery" : "pos";
@@ -727,7 +737,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         tableNumber: get().tableNumber,
         extraCharges: allExtraCharges,
         discounts: discounts,
-        gstIncluded: getGstAmount(discountedFoodSubtotal, gstPercentage),
+        gstIncluded: posAdditionalGst,
         captainId: isCaptainOrder ? userId : null,
         orderNote: orderNote,
         paymentMethod
@@ -756,7 +766,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
           phone: get().userPhone || null,
           notes: orderNote || null,
           payment_status: "pending",
-          gst_included: gstPercentage || 0,
+          gst_included: posAdditionalGst,
           extra_charges: allExtraCharges,
           discounts: discounts,
           delivery_location: null,
@@ -797,6 +807,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
                   category: item.category,
                   pp_id: item.pp_id,
                   ...(isFreebie && { is_freebie: true }),
+                  ...(item.tax_inclusive && { tax_inclusive: true }),
                 },
                 created_at: createdAt,
               };
@@ -828,7 +839,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
       const orderResponse = await fetchFromHasura(createOrderMutation, {
         id: orderId,
         totalPrice: grandTotal,
-        gst_included: getGstAmount(discountedFoodSubtotal, gstPercentage),
+        gst_included: posAdditionalGst,
         payment_method: paymentMethod || null,
         extra_charges: allExtraCharges.length > 0 ? allExtraCharges : null,
         discounts: discounts.length > 0 ? discounts : null,
@@ -861,7 +872,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
             tableNumber: get().tableNumber,
             extraCharges: allExtraCharges,
             discounts: discounts,
-            gstIncluded: getGstAmount(discountedFoodSubtotal, gstPercentage),
+            gstIncluded: posAdditionalGst,
             captainId: isCaptainOrder ? userId : null
           }
         });
@@ -897,6 +908,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
                 price: item.price,
                 category: item.category,
                 ...(freebieItemIds.has(item.pp_id || "") && { is_freebie: true }),
+                ...(item.tax_inclusive && { tax_inclusive: true }),
               },
             }));
           })(),

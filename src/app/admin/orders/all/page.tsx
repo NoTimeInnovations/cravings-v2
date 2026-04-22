@@ -205,7 +205,7 @@ const OrdersPage = () => {
                       0
                     );
                     const gstAmount = order.gstIncluded
-                      ? (foodTotal * gstPercentage) / 100
+                      ? order.gstIncluded
                       : 0;
 
                     return (
@@ -246,7 +246,7 @@ const OrdersPage = () => {
                     );
                     const gstPercentage = (userData as Partner)?.gst_percentage || 0;
                     const gstAmount = order.gstIncluded
-                      ? (foodTotal * gstPercentage) / 100
+                      ? order.gstIncluded
                       : 0;
 
                     return (
@@ -287,7 +287,7 @@ const OrdersPage = () => {
                     );
                     const gstPercentage = (userData as Partner)?.gst_percentage || 0;
                     const gstAmount = order.gstIncluded
-                      ? (foodTotal * gstPercentage) / 100
+                      ? order.gstIncluded
                       : 0;
 
                     return (

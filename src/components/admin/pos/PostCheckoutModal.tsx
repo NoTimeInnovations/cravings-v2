@@ -13,6 +13,7 @@ import { Printer, Edit, Loader2, X } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { useRef } from "react";
 import { Partner, useAuthStore } from "@/store/authStore";
+import { calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import KOTTemplate from "./KOTTemplate";
 import BillTemplate from "./BillTemplate";
 import { useRouter } from "next/navigation";
@@ -111,10 +112,6 @@ export const PostCheckoutModal = () => {
   const currency = (userData as Partner)?.currency || "$";
   const gstPercentage = (userData as Partner)?.gst_percentage || 0;
 
-  const calculateGst = (amount: number) => {
-    return (amount * gstPercentage) / 100;
-  };
-
   // Calculate totals
   const foodSubtotal = order.items.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -126,7 +123,10 @@ export const PostCheckoutModal = () => {
   );
 
   const subtotal = foodSubtotal + extraChargesTotal;
-  const gstAmount = calculateGst(foodSubtotal);
+  const { additionalGst: gstAmount } = calculateGstForItems(
+    order.items.map((i) => ({ price: i.price, quantity: i.quantity, tax_inclusive: (i as any).tax_inclusive })),
+    gstPercentage,
+  );
   const grandTotal = subtotal + gstAmount;
 
   // Determine timezone from userData (partner) or browser

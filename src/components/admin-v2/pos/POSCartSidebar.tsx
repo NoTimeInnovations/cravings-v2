@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Minus, Plus, Trash2, ShoppingCart, CreditCard, ChevronDown, ChevronUp, Utensils, ShoppingBag, Loader2, CheckCircle, Clock, Receipt, XCircle, FileText, Check, X, Save, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
+import { getGstAmount, calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import Img from "@/components/Img";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
@@ -296,7 +296,10 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
 
     const discountedSubtotal = Math.max(0, subtotal - discountAmount);
     const discountedFoodAmount = Math.max(0, totalAmount - discountAmount);
-    const gstAmount = getGstAmount(discountedFoodAmount, partnerData?.gst_percentage || 0);
+    const posCartItems = usePOSStore.getState().cartItems;
+    const discRatio = totalAmount > 0 ? discountedFoodAmount / totalAmount : 0;
+    const adjItems = posCartItems.map((item) => ({ price: item.price * discRatio, quantity: item.quantity, tax_inclusive: item.tax_inclusive }));
+    const { additionalGst: gstAmount } = calculateGstForItems(adjItems, partnerData?.gst_percentage || 0);
     const grandTotal = discountedSubtotal + gstAmount;
 
     const activeOrderDataSubtotal = activeOrderData

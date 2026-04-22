@@ -1281,6 +1281,7 @@ const useOrderStore = create(
                     price: item.price,
                     offers: item.offers,
                     category: item.category,
+                    ...(item.tax_inclusive && { tax_inclusive: true }),
                   },
                 })),
                 ...(discounts?.type === "freebie" && discounts.freebie_items?.length
