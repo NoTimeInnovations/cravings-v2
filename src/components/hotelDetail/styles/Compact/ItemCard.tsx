@@ -542,7 +542,7 @@ const ItemCard = ({
                     className="bg-white border rounded-lg px-5 py-1 font-semibold text-sm cursor-pointer shadow-sm"
                     style={{ color: styles.accent, borderColor: `${styles.accent}40` }}
                   >
-                    {(hasOrderingFeature || (!hasOrderingFeature && !hasDeliveryFeature)) ? "Options" : "Add"}
+                    Add
                   </div>
                 ) : null}
               </div>
