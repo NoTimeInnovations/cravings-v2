@@ -943,6 +943,21 @@ const PlaceOrderModalV2 = ({
               </div>
             )}
 
+            {/* Delivery charge notice */}
+            {orderType === "delivery" && hotelData?.delivery_rules?.hide_delivery_charge && (
+              <div
+                className="flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold"
+                style={{
+                  backgroundColor: `${accent}14`,
+                  color: accent,
+                  border: `1px solid ${accent}40`,
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                <span>Delivery charge applicable</span>
+              </div>
+            )}
+
             {/* Incompatible items warning */}
             {incompatibleItems.length > 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-sm">
@@ -1189,6 +1204,12 @@ const PlaceOrderModalV2 = ({
                       value={`${currency}${deliveryCharge.toFixed(0)}`}
                     />
                   )}
+                  {orderType === "delivery" && hotelData?.delivery_rules?.hide_delivery_charge && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Delivery Charge</span>
+                      <span className="font-semibold" style={{ color: accent }}>Informed at delivery</span>
+                    </div>
+                  )}
                   {parcelCharge > 0 && (
                     <Row label="Parcel Charge" value={`${currency}${parcelCharge.toFixed(0)}`} />
                   )}
@@ -1197,9 +1218,6 @@ const PlaceOrderModalV2 = ({
                   )}
                   {additionalGst > 0 && (
                     <Row label="GST & Other Charges" value={`${currency}${additionalGst.toFixed(0)}`} />
-                  )}
-                  {orderType === "delivery" && hotelData?.delivery_rules?.hide_delivery_charge && (
-                    <div className="text-xs text-gray-500">Delivery charge applicable</div>
                   )}
                   <div className="border-t border-dashed border-gray-200 pt-2" />
                   <div className="flex items-center justify-between">

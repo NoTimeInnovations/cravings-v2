@@ -690,10 +690,14 @@ const BillCard = ({
         )}
 
         {isDelivery && hideDeliveryCharge && (
-          <div className="text-sm" style={{ color: "var(--pom-text-muted)" }}>
-            Delivery charge applicable
+          <div className="flex justify-between text-sm">
+            <span style={{ color: "var(--pom-text-muted)" }}>Delivery Fee</span>
+            <span className="font-semibold" style={{ color: "var(--pom-accent, #ea580c)" }}>
+              Informed at delivery
+            </span>
           </div>
         )}
+
 
         {parcelCharge > 0 && (
           <div className="flex justify-between text-sm">
@@ -2924,7 +2928,7 @@ const PlaceOrderModal = ({
 
               {/* Delivery Address */}
               {!isQrScan && isDelivery && orderType === "delivery" && (
-                <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
+                <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
                   <UnifiedAddressSection
                     address={address || ""}
                     setAddress={setAddress}
@@ -2937,6 +2941,19 @@ const PlaceOrderModal = ({
                       showGrid: themeStyles.showGrid,
                     } : undefined}
                   />
+                  {hotelData?.delivery_rules?.hide_delivery_charge && (
+                    <div
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold"
+                      style={{
+                        backgroundColor: "color-mix(in srgb, var(--pom-accent, #ea580c) 12%, transparent)",
+                        color: "var(--pom-accent, #ea580c)",
+                        border: "1px solid color-mix(in srgb, var(--pom-accent, #ea580c) 30%, transparent)",
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                      <span>Delivery charge applicable</span>
+                    </div>
+                  )}
                 </div>
               )}
 
