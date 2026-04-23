@@ -303,7 +303,7 @@ async function getTokensFromHasura(partnerId: string) {
 async function getMenuFromHasura(partnerId: string) {
   const query = `
     query GetPartnerMenu($partner_id: uuid!) {
-      menu(where: {partner_id: {_eq: $partner_id}, is_available: {_eq: true}}) {
+      menu(where: {partner_id: {_eq: $partner_id}}) {
         id
         name
         description
