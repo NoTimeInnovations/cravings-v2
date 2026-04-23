@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // 1. Fetch tokens (Fallback to Master Account if partner not connected AND mode is not 'partner')
-    const MASTER_PARTNER_ID = '20f7e974-f19e-4c11-b6b7-4385f61f27bf'; // Thrisha/Menuthere
+    const MASTER_PARTNER_ID = '3fe4c05a-d5f2-400b-abef-dcaf52edb1d7'; // Thrisha/Menuthere (thrisha@cravings.live)
     
     let tokens = await getTokensFromHasura(partnerId);
     

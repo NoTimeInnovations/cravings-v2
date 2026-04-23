@@ -1119,10 +1119,10 @@ export function GeneralSettings() {
                                     className="w-full sm:w-auto"
                                 >
                                     {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    Request Management Access
+                                    Give Management Access
                                 </Button>
                                 <p className="text-xs text-muted-foreground">
-                                    This will send an invitation to your Google Business Profile. Once you (Admin) accept it, we will link your menu.
+                                    This will invite our MenuThere admin as manager of your Google Business location. Once we accept, your store joins the MenuThere organisation and we can sync your menu.
                                 </p>
                             </div>
                         )}
