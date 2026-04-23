@@ -499,7 +499,7 @@ export function DeliverySettings() {
                     <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
                             <Label className="text-base">Don&apos;t show delivery charge</Label>
-                            <p className="text-sm text-muted-foreground">Show &quot;Delivery charge applicable&quot; note instead of adding delivery charge to bill.</p>
+                            <p className="text-sm text-muted-foreground">Show &quot;Extra delivery charges apply&quot; note instead of adding delivery charge to bill.</p>
                         </div>
                         <Switch
                             checked={deliveryRules.hide_delivery_charge ?? false}

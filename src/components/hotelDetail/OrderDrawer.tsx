@@ -508,7 +508,7 @@ const OrderDrawer = ({
       deliveryInfo?.cost &&
       !deliveryInfo?.isOutOfRange
         ? (hideDeliveryCharge
-          ? `_Delivery charge applicable_`
+          ? `_Extra delivery charges apply_`
           : `*Delivery Charge:* ${hotelData.currency}${deliveryInfo.cost.toFixed(2)}`)
         : "",
       qrGroup?.extra_charge
