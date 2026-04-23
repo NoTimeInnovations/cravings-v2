@@ -11,11 +11,16 @@ export async function POST(request: NextRequest) {
 
     const query = `
       mutation LinkLocation($partner_id: uuid!, $location_id: String!) {
-        update_google_business_integrations(
-          where: {partner_id: {_eq: $partner_id}}, 
-          _set: {location_id: $location_id}
+        insert_google_business_integrations_one(
+          object: { partner_id: $partner_id, location_id: $location_id },
+          on_conflict: {
+            constraint: google_business_integrations_partner_id_key,
+            update_columns: [location_id]
+          }
         ) {
-          affected_rows
+          id
+          partner_id
+          location_id
         }
       }
     `;
@@ -32,7 +37,7 @@ export async function POST(request: NextRequest) {
     const json = await response.json();
     if (json.errors) throw new Error(JSON.stringify(json.errors));
 
-    return NextResponse.json({ success: true, message: 'Location linked successfully' });
+    return NextResponse.json({ success: true, message: 'Location linked successfully', data: json.data?.insert_google_business_integrations_one });
 
   } catch (error: any) {
     console.error('Link Error:', error);

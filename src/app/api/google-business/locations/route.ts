@@ -15,10 +15,10 @@ export async function GET(request: NextRequest) {
     const MASTER_PARTNER_ID = '3fe4c05a-d5f2-400b-abef-dcaf52edb1d7'; // Thrisha/Menuthere (thrisha@cravings.live)
     
     let tokens = await getTokensFromHasura(partnerId);
-    
-    // Fallback Logic
-    if (!tokens && mode !== 'partner') {
-        console.log(`No tokens for partner ${partnerId}, falling back to Master Account tokens for listing locations.`);
+
+    // Fallback Logic — fall back if no row OR row exists without access_token (link-only row)
+    if ((!tokens || !tokens.access_token) && mode !== 'partner') {
+        console.log(`No usable tokens for partner ${partnerId}, falling back to Master Account tokens for listing locations.`);
         tokens = await getTokensFromHasura(MASTER_PARTNER_ID);
     }
 

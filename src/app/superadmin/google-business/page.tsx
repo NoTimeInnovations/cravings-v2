@@ -202,7 +202,7 @@ export default function GoogleBusinessPage() {
             Google Integration
         </h1>
         {/* Master Connect Button (Hidden unless needed for setup) */}
-        <Button variant="outline" size="sm" onClick={() => window.location.href = `/api/google-business/auth/login?partnerId=20f7e974-f19e-4c11-b6b7-4385f61f27bf`}>
+        <Button variant="outline" size="sm" onClick={() => window.location.href = `/api/google-business/auth/login?partnerId=3fe4c05a-d5f2-400b-abef-dcaf52edb1d7`}>
             Reconnect Master
         </Button>
       </div>

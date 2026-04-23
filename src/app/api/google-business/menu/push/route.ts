@@ -59,8 +59,8 @@ export async function POST(request: NextRequest) {
     // ... rest of logic uses finalLocationId instead of locationId
 
     
-    if (!tokens) {
-        console.log(`No tokens for partner ${partnerId}, falling back to Master Account tokens.`);
+    if (!tokens || !tokens.access_token) {
+        console.log(`No usable tokens for partner ${partnerId}, falling back to Master Account tokens.`);
         tokens = await getTokensFromHasura(MASTER_PARTNER_ID);
     }
 
