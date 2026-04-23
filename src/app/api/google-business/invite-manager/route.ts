@@ -24,30 +24,26 @@ export async function POST(request: NextRequest) {
       refresh_token: tokens.refresh_token,
     });
 
-    // 2. Resolve Account ID (Partner's Account)
     const accountManagement = google.mybusinessaccountmanagement({ version: 'v1', auth });
 
-    // We need the Account Name that owns the location.
-    // Usually it's the parent in the locationId? 
-    // Location ID format: accounts/{accountId}/locations/{id}
-    // If the frontend sends the full resource name "accounts/123/locations/456", we can parse it.
-
-    let parentPath = locationId;
-    if (!locationId.includes('accounts/')) {
-      // If we only got the ID, we need to find the account.
-      // Let's assume the frontend sends the full resource name from the locations list.
-      return NextResponse.json({ error: 'Invalid Location ID format. Expected full resource name.' }, { status: 400 });
+    // Normalize to `locations/{id}` — v1 Business Information returns names in this form.
+    // Accept bare id, `locations/{id}`, or legacy `accounts/{x}/locations/{id}`.
+    let normalizedLocation = locationId;
+    const match = locationId.match(/locations\/([^/]+)/);
+    if (match) {
+      normalizedLocation = `locations/${match[1]}`;
+    } else if (/^[A-Za-z0-9_-]+$/.test(locationId)) {
+      normalizedLocation = `locations/${locationId}`;
+    } else {
+      return NextResponse.json({ error: 'Invalid Location ID format.' }, { status: 400 });
     }
 
-    // 3. Send Invite
-    // Invite Cravings Master Account (Thrisha/Menuthere)
-    // Resource Name: accounts/111617069787035102385
     const CRAVINGS_ACCOUNT = 'accounts/111617069787035102385';
 
-    console.log(`Inviting ${CRAVINGS_ACCOUNT} to manage ${locationId}`);
+    console.log(`Inviting ${CRAVINGS_ACCOUNT} to manage ${normalizedLocation}`);
 
     const res = await accountManagement.locations.admins.create({
-      parent: locationId,
+      parent: normalizedLocation,
       requestBody: {
         admin: CRAVINGS_ACCOUNT,
         role: 'MANAGER' // or ADMIN
