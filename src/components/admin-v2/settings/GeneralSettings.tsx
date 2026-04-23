@@ -1053,37 +1053,22 @@ export function GeneralSettings() {
                             />
                         ) : !googleConnected ? (
                             <div className="flex flex-col gap-4">
-                                {googleError && (
-                                    /quota exceeded|ratelimitexceeded|resource_exhausted/i.test(googleError) ? (
-                                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-1">
-                                            <p className="text-sm font-medium text-amber-900">
-                                                Business Profile API access pending Google approval
-                                            </p>
-                                            <p className="text-xs text-amber-800">
-                                                Your Google Cloud project doesn't have Business Profile API quota yet. Apply for access at{" "}
-                                                <a href="https://developers.google.com/my-business/content/prereqs" target="_blank" rel="noopener noreferrer" className="underline font-medium">
-                                                    Google's API access form
+                                {googleError && !/quota exceeded|ratelimitexceeded|resource_exhausted/i.test(googleError) && (
+                                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-1">
+                                        <p className="text-sm font-medium text-red-800">
+                                            {googleHasTokens ? "Google account linked, but we couldn't load your business profile" : "Google connection failed"}
+                                        </p>
+                                        <p className="text-xs text-red-700 break-words">{googleError}</p>
+                                        {/no google business accounts/i.test(googleError) && (
+                                            <p className="text-xs text-red-700 pt-1">
+                                                You don't have a Google Business Profile yet. Create or claim one at{" "}
+                                                <a href="https://business.google.com/create" target="_blank" rel="noopener noreferrer" className="underline font-medium">
+                                                    business.google.com
                                                 </a>
-                                                . Approval typically takes days to weeks. Once granted, reload this page.
+                                                , then click "Re-link Business Profile" below.
                                             </p>
-                                        </div>
-                                    ) : (
-                                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-1">
-                                            <p className="text-sm font-medium text-red-800">
-                                                {googleHasTokens ? "Google account linked, but we couldn't load your business profile" : "Google connection failed"}
-                                            </p>
-                                            <p className="text-xs text-red-700 break-words">{googleError}</p>
-                                            {/no google business accounts/i.test(googleError) && (
-                                                <p className="text-xs text-red-700 pt-1">
-                                                    You don't have a Google Business Profile yet. Create or claim one at{" "}
-                                                    <a href="https://business.google.com/create" target="_blank" rel="noopener noreferrer" className="underline font-medium">
-                                                        business.google.com
-                                                    </a>
-                                                    , then click "Re-link Business Profile" below.
-                                                </p>
-                                            )}
-                                        </div>
-                                    )
+                                        )}
+                                    </div>
                                 )}
                                 <p className="text-sm text-muted-foreground">Link your Google account to allow Menuthere to manage your menu automatically.</p>
                                 <Button disabled={isGoogleLoading} onClick={handleGoogleLogin} className="w-full sm:w-auto">
