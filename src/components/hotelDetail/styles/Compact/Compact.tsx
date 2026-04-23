@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { MyOrdersButton } from "./MyOrdersButton";
+import { isItemVisibleForStorefront } from "@/lib/visibility";
 import Link from "next/link";
 
 import CompactOrders from "./CompactOrders";
@@ -1039,6 +1040,7 @@ const Compact = ({
               {allCategories.map((category, index) => {
                   // Conditionally determine the list of items to render for other categories.
                   let itemsToDisplay = [];
+                  const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
 
                   switch (category.id) {
                     case "offers":
@@ -1053,6 +1055,7 @@ const Compact = ({
                         );
                         if (hoteldata.hide_unavailable && !item.is_available)
                           return false;
+                        if (!isItemVisibleForStorefront(item as any, tz)) return false;
                         if (vegFilter === "all" || !hasVegFilter)
                           return matchesOffer;
                         if (vegFilter === "veg")
@@ -1067,6 +1070,7 @@ const Compact = ({
                       itemsToDisplay = topItems.filter((item) => {
                         if (hoteldata.hide_unavailable && !item.is_available)
                           return false;
+                        if (!isItemVisibleForStorefront(item as any, tz)) return false;
                         if (vegFilter === "all" || !hasVegFilter) return true;
                         if (vegFilter === "veg") return item.is_veg === true;
                         if (vegFilter === "non-veg")
@@ -1080,6 +1084,7 @@ const Compact = ({
                           item.category.id === category.id;
                         if (hoteldata.hide_unavailable && !item.is_available)
                           return false;
+                        if (!isItemVisibleForStorefront(item as any, tz)) return false;
                         if (vegFilter === "all" || !hasVegFilter)
                           return matchesCategory;
                         if (vegFilter === "veg")

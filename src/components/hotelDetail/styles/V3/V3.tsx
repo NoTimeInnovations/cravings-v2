@@ -4,6 +4,7 @@ import Link from "next/link";
 import { MapPin, Phone, Star, ChevronRight, ShoppingBag, Search, Store, ChevronDown, LocateFixed, Loader2, X, ArrowLeft } from "lucide-react";
 import { FaWhatsapp, FaInstagram } from "react-icons/fa";
 import { DefaultHotelPageProps } from "../Default/Default";
+import { isItemVisibleForStorefront } from "@/lib/visibility";
 import { formatDisplayName } from "@/store/categoryStore_hasura";
 import V3ItemCard from "./V3ItemCard";
 import OrderDrawer from "../../OrderDrawer";
@@ -336,6 +337,7 @@ const V3 = ({
         <div className="px-4">
           {allCategories.map((category, index) => {
             let itemsToDisplay: any[] = [];
+            const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
 
             switch (category.id) {
               case "offers": {
@@ -343,6 +345,7 @@ const V3 = ({
                 itemsToDisplay = hoteldata?.menus?.filter((item) => {
                   const matchesOffer = offerMenuIdSet.has(item.id as string);
                   if (hoteldata.hide_unavailable && !item.is_available) return false;
+                  if (!isItemVisibleForStorefront(item as any, tz)) return false;
                   return matchesOffer;
                 }) || [];
                 break;
@@ -350,6 +353,7 @@ const V3 = ({
               case "must-try":
                 itemsToDisplay = topItems.filter((item) => {
                   if (hoteldata.hide_unavailable && !item.is_available) return false;
+                  if (!isItemVisibleForStorefront(item as any, tz)) return false;
                   return true;
                 });
                 break;
@@ -357,6 +361,7 @@ const V3 = ({
                 itemsToDisplay = hoteldata?.menus?.filter((item) => {
                   const matchesCategory = item.category.id === category.id;
                   if (hoteldata.hide_unavailable && !item.is_available) return false;
+                  if (!isItemVisibleForStorefront(item as any, tz)) return false;
                   return matchesCategory;
                 }) || [];
             }

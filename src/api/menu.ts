@@ -5,10 +5,12 @@ export const getMenu = `
         menu(where: {partner_id: {_eq: $partner_id} , deletion_status: {_eq: 0}} ) {
             id
             name
-            category { 
+            category {
                 id
                 name
                 priority
+                is_active
+                visibility_config
             }
             image_url
             image_source
@@ -30,20 +32,46 @@ export const getMenu = `
             show_on_delivery
             show_on_takeaway
             tax_inclusive
+            visibility_config
         }
     }
 `;
 
 export const update_category = `
-  mutation UpdateCategory($id: uuid!, $name: String, $priority: Int, $is_active: Boolean) {
+  mutation UpdateCategory($id: uuid!, $name: String, $priority: Int, $is_active: Boolean, $visibility_config: jsonb) {
     update_category_by_pk(
       pk_columns: { id: $id }
-      _set: { name: $name, priority: $priority, is_active: $is_active }
+      _set: { name: $name, priority: $priority, is_active: $is_active, visibility_config: $visibility_config }
     ) {
       id
       name
       priority
       is_active
+      visibility_config
+    }
+  }
+`;
+
+export const update_menu_visibility = `
+  mutation UpdateMenuVisibility($id: uuid!, $visibility_config: jsonb!) {
+    update_menu_by_pk(
+      pk_columns: { id: $id }
+      _set: { visibility_config: $visibility_config }
+    ) {
+      id
+      visibility_config
+    }
+  }
+`;
+
+export const update_category_visibility = `
+  mutation UpdateCategoryVisibility($id: uuid!, $visibility_config: jsonb!) {
+    update_category_by_pk(
+      pk_columns: { id: $id }
+      _set: { visibility_config: $visibility_config }
+    ) {
+      id
+      visibility_config
     }
   }
 `;

@@ -1,6 +1,7 @@
 "use client";
 
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
+import { isItemVisibleForStorefront } from "@/lib/visibility";
 import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import LocationHeader from "../../LocationHeader";
 import ThemeChangeButton, { ThemeConfig } from "../../ThemeChangeButton";
@@ -261,9 +262,11 @@ const Sidebar = ({
   };
 
   const getCategoryItems = (selectedCategory: string) => {
+    const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
+    const visible = (item: any) => isItemVisibleForStorefront(item, tz);
     if (selectedCategory === "Must Try") {
       return topItems.filter(
-        (item) => !hoteldata.hide_unavailable || item.is_available
+        (item) => (!hoteldata.hide_unavailable || item.is_available) && visible(item)
       );
     }
 
@@ -273,7 +276,8 @@ const Sidebar = ({
           (item) =>
             (item.category.is_active === undefined ||
               item.category.is_active === true) &&
-            (!hoteldata.hide_unavailable || item.is_available)
+            (!hoteldata.hide_unavailable || item.is_available) &&
+            visible(item)
         ) || []
       );
     }
@@ -286,7 +290,8 @@ const Sidebar = ({
             hasActiveOffer(item.id) &&
             (item.category.is_active === undefined ||
               item.category.is_active === true) &&
-            (!hoteldata.hide_unavailable || item.is_available)
+            (!hoteldata.hide_unavailable || item.is_available) &&
+            visible(item)
         ) || [];
       return [...offeredItems].sort((a, b) => {
         if (a.image_url.length && !b.image_url.length) return -1;
@@ -300,7 +305,8 @@ const Sidebar = ({
         item.category.name === selectedCategory &&
         (item.category.is_active === undefined ||
           item.category.is_active === true) &&
-        (!hoteldata.hide_unavailable || item.is_available)
+        (!hoteldata.hide_unavailable || item.is_available) &&
+        visible(item)
     );
     return [...filteredItems].sort((a, b) => {
       if (a.image_url.length && !b.image_url.length) return -1;

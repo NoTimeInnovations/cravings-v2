@@ -6,6 +6,7 @@ export const getPartnerCategories = `
             id
             name
             is_active
+            visibility_config
         }
     }
 `;

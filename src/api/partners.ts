@@ -180,6 +180,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     price_adjustment
     subscription_details
     storefront_settings
+    timezone
     menus(where: {
     deletion_status: {_eq: 0},
     _and: [
@@ -198,6 +199,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
         id
         priority
         is_active
+        visibility_config
       }
       priority
       description
@@ -211,6 +213,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
       is_price_as_per_size
       name
       price
+      visibility_config
       offers(where: {_and: [{ offer_type : { _in : $offer_types } } ,{end_time: {_gt: "now()"}}, {deletion_status: {_eq: 0}}]}) {
         offer_price
       }

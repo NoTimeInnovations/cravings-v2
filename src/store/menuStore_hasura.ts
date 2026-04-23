@@ -21,6 +21,7 @@ interface MenuItemCategory {
   name: string;
   priority: number;
   is_active: boolean;
+  visibility_config?: any;
 }
 
 export interface MenuItem {
@@ -57,6 +58,7 @@ export interface MenuItem {
   show_on_delivery?: boolean;
   show_on_takeaway?: boolean;
   tax_inclusive?: boolean;
+  visibility_config?: any;
 }
 
 interface MenuItem_withOffer_price {
