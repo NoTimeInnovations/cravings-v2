@@ -38,15 +38,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid Location ID format.' }, { status: 400 });
     }
 
-    const CRAVINGS_ACCOUNT = 'accounts/111617069787035102385';
+    const masterEmail = process.env.GOOGLE_BUSINESS_MASTER_EMAIL;
+    if (!masterEmail) {
+      return NextResponse.json({ error: 'GOOGLE_BUSINESS_MASTER_EMAIL not configured' }, { status: 500 });
+    }
 
-    console.log(`Inviting ${CRAVINGS_ACCOUNT} to manage ${normalizedLocation}`);
+    console.log(`Inviting ${masterEmail} to manage ${normalizedLocation}`);
 
     const res = await accountManagement.locations.admins.create({
       parent: normalizedLocation,
       requestBody: {
-        admin: CRAVINGS_ACCOUNT,
-        role: 'MANAGER' // or ADMIN
+        admin: masterEmail,
+        role: 'MANAGER'
       }
     });
 
