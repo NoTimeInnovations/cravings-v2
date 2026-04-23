@@ -83,6 +83,8 @@ export function GeneralSettings() {
 
     // Google Business State
     const [googleConnected, setGoogleConnected] = useState(false);
+    const [googleHasTokens, setGoogleHasTokens] = useState(false);
+    const [googleError, setGoogleError] = useState<string | null>(null);
     const [googleLocations, setGoogleLocations] = useState<any[]>([]);
     const [selectedGoogleLocation, setSelectedGoogleLocation] = useState("");
     const [linkedLocationId, setLinkedLocationId] = useState<string | null>(null);
@@ -168,13 +170,16 @@ export function GeneralSettings() {
 
     const checkGoogleConnection = async (partnerId: string) => {
         setIsGoogleLoading(true);
+        setGoogleError(null);
         try {
             // First try partner's own tokens
             const partnerRes = await fetch(`/api/google-business/locations?partnerId=${partnerId}&mode=partner`);
             const partnerData = await partnerRes.json();
+            console.log('[GoogleBusiness] Partner check:', partnerRes.status, partnerData);
 
             if (partnerRes.ok && partnerData.success) {
                 setGoogleConnected(true);
+                setGoogleHasTokens(true);
                 setGoogleLocations(partnerData.locations || []);
                 if (partnerData.linkedLocationId) {
                     setLinkedLocationId(partnerData.linkedLocationId);
@@ -182,20 +187,31 @@ export function GeneralSettings() {
                 return;
             }
 
+            // Partner API failed. Distinguish "no tokens" from "tokens exist but API failed".
+            const noTokens = partnerRes.status === 404 && partnerData.error === 'Partner not connected to Google';
+            setGoogleHasTokens(!noTokens);
+            if (!noTokens) {
+                setGoogleError(partnerData.error || `Google API error (${partnerRes.status})`);
+            }
+
             // Fallback: Check via Master Account (superadmin-linked partners)
             const masterRes = await fetch(`/api/google-business/locations?partnerId=${partnerId}`);
             const masterData = await masterRes.json();
+            console.log('[GoogleBusiness] Master check:', masterRes.status, masterData);
 
             if (masterRes.ok && masterData.success && masterData.linkedLocationId) {
                 // Partner is linked via Master Account
                 setGoogleConnected(true);
                 setGoogleLocations(masterData.locations || []);
                 setLinkedLocationId(masterData.linkedLocationId);
+                setGoogleError(null);
             } else {
                 setGoogleConnected(false);
             }
-        } catch (e) {
+        } catch (e: any) {
+            console.error('[GoogleBusiness] checkGoogleConnection error:', e);
             setGoogleConnected(false);
+            setGoogleError(e?.message || 'Connection check failed');
         } finally {
             setIsGoogleLoading(false);
         }
@@ -1037,10 +1053,27 @@ export function GeneralSettings() {
                             />
                         ) : !googleConnected ? (
                             <div className="flex flex-col gap-4">
+                                {googleError && (
+                                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-1">
+                                        <p className="text-sm font-medium text-red-800">
+                                            {googleHasTokens ? "Google account linked, but we couldn't load your business profile" : "Google connection failed"}
+                                        </p>
+                                        <p className="text-xs text-red-700 break-words">{googleError}</p>
+                                        {/no google business accounts/i.test(googleError) && (
+                                            <p className="text-xs text-red-700 pt-1">
+                                                You don't have a Google Business Profile yet. Create or claim one at{" "}
+                                                <a href="https://business.google.com/create" target="_blank" rel="noopener noreferrer" className="underline font-medium">
+                                                    business.google.com
+                                                </a>
+                                                , then click "Re-link Business Profile" below.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                                 <p className="text-sm text-muted-foreground">Link your Google account to allow Menuthere to manage your menu automatically.</p>
                                 <Button disabled={isGoogleLoading} onClick={handleGoogleLogin} className="w-full sm:w-auto">
                                     {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    Link Business Profile
+                                    {googleHasTokens ? "Re-link Business Profile" : "Link Business Profile"}
                                 </Button>
                             </div>
                         ) : linkedLocationId ? (
