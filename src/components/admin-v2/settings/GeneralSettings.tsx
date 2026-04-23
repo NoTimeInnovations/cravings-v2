@@ -114,6 +114,25 @@ export function GeneralSettings() {
         }
     }, []);
 
+    // Handle Google Business connection redirect params
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("google_connected") === "true" && userData?.id) {
+            toast.success("Google Business Account connected successfully!");
+            checkGoogleConnection(userData.id);
+            // Clean up URL
+            const url = new URL(window.location.href);
+            url.searchParams.delete("google_connected");
+            window.history.replaceState({}, "", url.toString());
+        }
+        if (params.get("google_error")) {
+            toast.error("Google connection failed: " + params.get("google_error"));
+            const url = new URL(window.location.href);
+            url.searchParams.delete("google_error");
+            window.history.replaceState({}, "", url.toString());
+        }
+    }, [userData?.id]);
+
     useEffect(() => {
         if (userData?.role === "partner") {
             setStoreName(userData.store_name || "");

@@ -7,14 +7,39 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
 
+  // Parse state early so it's available in both success and error paths
+  const state = searchParams.get('state');
+  let partnerId: string | null = state;
+  let redirectUrl: string | null = null;
+
+  try {
+      if (state && (state.startsWith('{') || state.includes('partnerId'))) {
+          const parsed = JSON.parse(state);
+          partnerId = parsed.partnerId;
+          redirectUrl = parsed.redirect;
+      }
+  } catch (e) {
+      partnerId = state;
+  }
+
+  const host = request.headers.get('host');
+  const protocol = host?.includes('localhost') ? 'http' : 'https';
+
+  const buildRedirect = (params: Record<string, string>) => {
+    if (!redirectUrl) return null;
+    const decodedRedirect = decodeURIComponent(redirectUrl);
+    const url = new URL(`${protocol}://${host}${decodedRedirect}`);
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+    return url.toString();
+  };
+
   if (!code) {
+    const redirectTo = buildRedirect({ google_error: 'No code provided' });
+    if (redirectTo) return NextResponse.redirect(redirectTo);
     return NextResponse.json({ error: 'No code provided' }, { status: 400 });
   }
 
   try {
-    // Dynamic Redirect URI based on Host
-    const host = request.headers.get('host');
-    const protocol = host?.includes('localhost') ? 'http' : 'https';
     const redirectUri = `${protocol}://${host}/api/google-business/auth/callback`;
 
     const oauth2Client = new google.auth.OAuth2(
@@ -24,28 +49,11 @@ export async function GET(request: NextRequest) {
     );
 
     const { tokens } = await oauth2Client.getToken(code);
-    
-    // Log tokens for verification (Do NOT do this in production logs)
+
     console.log('--- Google OAuth Success ---');
     console.log('Access Token:', tokens.access_token?.substring(0, 15) + '...');
     console.log('Refresh Token:', tokens.refresh_token ? 'Received ✅' : 'Missing ❌');
     console.log('Expiry:', tokens.expiry_date);
-
-    // Parse state
-    const state = searchParams.get('state'); 
-    let partnerId = state;
-    let redirectUrl = null;
-
-    try {
-        if (state && (state.startsWith('{') || state.includes('partnerId'))) {
-            const parsed = JSON.parse(state);
-            partnerId = parsed.partnerId;
-            redirectUrl = parsed.redirect;
-        }
-    } catch (e) {
-        // Fallback to raw state if parsing fails (legacy support)
-        partnerId = state;
-    }
 
     if (partnerId) {
       await saveTokensToHasura({
@@ -57,14 +65,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Redirect back to app if redirect URL is present
-    if (redirectUrl) {
-        const protocol = request.headers.get('x-forwarded-proto') || 'https';
-        const host = request.headers.get('host');
-        // Decode if needed, but it should be a path
-        const decodedRedirect = decodeURIComponent(redirectUrl);
-        return NextResponse.redirect(`${protocol}://${host}${decodedRedirect}`);
-    }
+    const redirectTo = buildRedirect({ google_connected: 'true' });
+    if (redirectTo) return NextResponse.redirect(redirectTo);
 
     return NextResponse.json({
       success: true,
@@ -75,6 +77,8 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Google OAuth Error:', error);
+    const redirectTo = buildRedirect({ google_error: error.message || 'Unknown error' });
+    if (redirectTo) return NextResponse.redirect(redirectTo);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
