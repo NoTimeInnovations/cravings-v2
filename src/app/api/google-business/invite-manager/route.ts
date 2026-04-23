@@ -1,66 +1,81 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 
+const MASTER_PARTNER_ID = '20f7e974-f19e-4c11-b6b7-4385f61f27bf';
+
 export async function POST(request: NextRequest) {
   try {
-    const { partnerId, locationId } = await request.json();
+    const { partnerId } = await request.json();
 
-    if (!partnerId || !locationId) {
-      return NextResponse.json({ error: 'Missing partnerId or locationId' }, { status: 400 });
+    if (!partnerId) {
+      return NextResponse.json({ error: 'Missing partnerId' }, { status: 400 });
     }
 
-    // 1. Get Partner Tokens
-    const tokens = await getTokensFromHasura(partnerId);
-    if (!tokens) {
+    const orgAccount = process.env.GOOGLE_BUSINESS_ORG_ACCOUNT;
+    if (!orgAccount) {
+      return NextResponse.json({ error: 'GOOGLE_BUSINESS_ORG_ACCOUNT not configured' }, { status: 500 });
+    }
+
+    const partnerTokens = await getTokensFromHasura(partnerId);
+    if (!partnerTokens) {
       return NextResponse.json({ error: 'Partner not connected to Google' }, { status: 403 });
     }
 
-    const auth = new google.auth.OAuth2(
+    const partnerEmail = await fetchEmail(partnerTokens.access_token, partnerTokens.refresh_token);
+    if (!partnerEmail) {
+      return NextResponse.json({ error: 'Could not resolve partner email from Google' }, { status: 502 });
+    }
+
+    const masterTokens = await getTokensFromHasura(MASTER_PARTNER_ID);
+    if (!masterTokens) {
+      return NextResponse.json({ error: 'Master account not connected to Google' }, { status: 500 });
+    }
+
+    const masterAuth = new google.auth.OAuth2(
       process.env.GOOGLE_BUSINESS_CLIENT_ID,
       process.env.GOOGLE_BUSINESS_CLIENT_SECRET
     );
-    auth.setCredentials({
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
+    masterAuth.setCredentials({
+      access_token: masterTokens.access_token,
+      refresh_token: masterTokens.refresh_token,
     });
 
-    const accountManagement = google.mybusinessaccountmanagement({ version: 'v1', auth });
+    const accountManagement = google.mybusinessaccountmanagement({ version: 'v1', auth: masterAuth });
 
-    // Normalize to `locations/{id}` — v1 Business Information returns names in this form.
-    // Accept bare id, `locations/{id}`, or legacy `accounts/{x}/locations/{id}`.
-    let normalizedLocation = locationId;
-    const match = locationId.match(/locations\/([^/]+)/);
-    if (match) {
-      normalizedLocation = `locations/${match[1]}`;
-    } else if (/^[A-Za-z0-9_-]+$/.test(locationId)) {
-      normalizedLocation = `locations/${locationId}`;
-    } else {
-      return NextResponse.json({ error: 'Invalid Location ID format.' }, { status: 400 });
-    }
+    console.log(`Inviting ${partnerEmail} as MANAGER of ${orgAccount}`);
 
-    const masterEmail = process.env.GOOGLE_BUSINESS_MASTER_EMAIL;
-    if (!masterEmail) {
-      return NextResponse.json({ error: 'GOOGLE_BUSINESS_MASTER_EMAIL not configured' }, { status: 500 });
-    }
-
-    console.log(`Inviting ${masterEmail} to manage ${normalizedLocation}`);
-
-    const res = await accountManagement.locations.admins.create({
-      parent: normalizedLocation,
+    const res = await accountManagement.accounts.admins.create({
+      parent: orgAccount,
       requestBody: {
-        admin: masterEmail,
+        admin: partnerEmail,
         role: 'MANAGER'
       }
     });
 
     return NextResponse.json({
       success: true,
+      invitedEmail: partnerEmail,
       invitation: res.data
     });
 
   } catch (error: any) {
     console.error('Invite Error:', error);
     return NextResponse.json({ error: error.message, details: error.response?.data }, { status: 500 });
+  }
+}
+
+async function fetchEmail(accessToken: string, refreshToken: string): Promise<string | null> {
+  const auth = new google.auth.OAuth2(
+    process.env.GOOGLE_BUSINESS_CLIENT_ID,
+    process.env.GOOGLE_BUSINESS_CLIENT_SECRET
+  );
+  auth.setCredentials({ access_token: accessToken, refresh_token: refreshToken });
+  try {
+    const userinfo = await google.oauth2({ version: 'v2', auth }).userinfo.get();
+    return userinfo.data.email || null;
+  } catch (e: any) {
+    console.error('userinfo fetch failed:', e.message);
+    return null;
   }
 }
 
