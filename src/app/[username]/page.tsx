@@ -6,7 +6,6 @@ import { getAuthCookie, getOrderSessionCookie } from "@/app/auth/actions";
 import { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
-import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import {
   ScanLimitReachedCard,
   SubscriptionExpiredCard,
@@ -124,12 +123,6 @@ const UsernamePage = async ({
   const orderSession = await getOrderSessionCookie(partnerId);
   const onboardingCompleted = !!orderSession;
 
-  const deliveryRules = (data.hotelData as any)?.delivery_rules;
-  const isDeliveryActive = deliveryRules?.isDeliveryActive ?? true;
-  const initialDeliveryOpen =
-    isDeliveryActive && isWithinTimeWindow(deliveryRules?.delivery_time_allowed);
-  const initialTakeawayOpen = isWithinTimeWindow(deliveryRules?.takeaway_time_allowed);
-
   return (
     <HotelMenuPage
       socialLinks={data.socialLinks}
@@ -145,8 +138,6 @@ const UsernamePage = async ({
       onboardingCompleted={onboardingCompleted}
       skipNotices={hasSearchParams}
       skipStorefront={hasSearchParams}
-      initialDeliveryOpen={initialDeliveryOpen}
-      initialTakeawayOpen={initialTakeawayOpen}
     />
   );
 };

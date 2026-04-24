@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Bike, Store, Clock, ChevronLeft } from "lucide-react";
 import { isWithinTimeWindow, formatTime12h } from "@/lib/isWithinTimeWindow";
 
@@ -18,8 +18,6 @@ interface OrderTypeScreenProps {
   isDeliveryActive?: boolean;
   takeawayTimeAllowed?: { from: string; to: string } | null;
   deliveryTimeAllowed?: { from: string; to: string } | null;
-  initialDeliveryOpen?: boolean;
-  initialTakeawayOpen?: boolean;
   accent?: string;
 }
 
@@ -34,15 +32,28 @@ export default function OrderTypeScreen({
   isDeliveryActive = true,
   takeawayTimeAllowed,
   deliveryTimeAllowed,
-  initialDeliveryOpen,
-  initialTakeawayOpen,
   accent = "#1f2937",
 }: OrderTypeScreenProps) {
-  const isTakeawayOpen = initialTakeawayOpen ?? isWithinTimeWindow(takeawayTimeAllowed);
-  const isDeliveryOpen = initialDeliveryOpen ?? (isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed));
+  // Defer the time-window check to the client so it uses the user's local
+  // timezone. Initialize to "open" so SSR and first client render agree
+  // (avoids hydration mismatch); the effect below corrects the value.
+  const [isTakeawayOpen, setIsTakeawayOpen] = useState(true);
+  const [isDeliveryOpen, setIsDeliveryOpen] = useState(true);
   const [mode, setMode] = useState<"delivery" | "takeaway">(
-    hasDelivery && isDeliveryOpen ? "delivery" : "takeaway"
+    hasDelivery ? "delivery" : "takeaway"
   );
+
+  useEffect(() => {
+    const takeawayOpen = isWithinTimeWindow(takeawayTimeAllowed);
+    const deliveryOpen = isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed);
+    setIsTakeawayOpen(takeawayOpen);
+    setIsDeliveryOpen(deliveryOpen);
+    setMode((prev) => {
+      if (prev === "delivery" && !deliveryOpen && takeawayOpen) return "takeaway";
+      if (prev === "takeaway" && !takeawayOpen && deliveryOpen) return "delivery";
+      return prev;
+    });
+  }, [takeawayTimeAllowed, deliveryTimeAllowed, isDeliveryActive]);
 
   return (
     <div className="flex flex-col min-h-dvh bg-[#fafafa]" style={{ fontFamily: "'Inter', system-ui, sans-serif", paddingTop: 60 }}>

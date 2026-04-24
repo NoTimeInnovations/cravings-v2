@@ -15,7 +15,6 @@ import { ThemeConfig, DEFAULT_THEME } from "@/components/hotelDetail/ThemeChange
 import { getFeatures } from "@/lib/getFeatures";
 import { getSocialLinks } from "@/lib/getSocialLinks";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import HotelMenuPage from "@/screens/HotelMenuPage_v2";
 import QrPayment from "@/screens/QrPayment";
 import { Offer } from "@/store/offerStore_hasura";
@@ -449,12 +448,6 @@ const page = async ({
     }
 
 
-    const deliveryRulesQ = (hotelDataWithOfferPrice as any)?.delivery_rules;
-    const isDeliveryActiveQ = deliveryRulesQ?.isDeliveryActive ?? true;
-    const initialDeliveryOpen =
-      isDeliveryActiveQ && isWithinTimeWindow(deliveryRulesQ?.delivery_time_allowed);
-    const initialTakeawayOpen = isWithinTimeWindow(deliveryRulesQ?.takeaway_time_allowed);
-
     // if (isOrderingEnabled || isDeliveryEnabled) {
     return (
       <>
@@ -472,8 +465,6 @@ const page = async ({
           selectedCategory={cat}
           onboardingCompleted={tableNumber !== 0 || !!(await getOrderSessionCookie(hotelId))}
           skipStorefront={hasSearchParams}
-          initialDeliveryOpen={initialDeliveryOpen}
-          initialTakeawayOpen={initialTakeawayOpen}
         />
       </>
     );

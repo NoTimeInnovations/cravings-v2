@@ -64,8 +64,6 @@ interface HotelMenuPageProps {
   onboardingCompleted?: boolean;
   skipNotices?: boolean;
   skipStorefront?: boolean;
-  initialDeliveryOpen?: boolean;
-  initialTakeawayOpen?: boolean;
 }
 
 const HotelMenuPage = ({
@@ -83,8 +81,6 @@ const HotelMenuPage = ({
   onboardingCompleted,
   skipNotices,
   skipStorefront,
-  initialDeliveryOpen,
-  initialTakeawayOpen,
 }: HotelMenuPageProps) => {
   const resolvedSelectedCategory = useMemo(() => {
     if (!selectedCategoryProp) return "";
@@ -467,8 +463,6 @@ const HotelMenuPage = ({
           socialLinks={socialLinks}
           storefrontSettings={(hoteldata as any)?.storefront_settings}
           skipStorefront={skipStorefront}
-          initialDeliveryOpen={initialDeliveryOpen}
-          initialTakeawayOpen={initialTakeawayOpen}
           onDismiss={() => setOnboardingDismissed(true)}
         />
       )}
