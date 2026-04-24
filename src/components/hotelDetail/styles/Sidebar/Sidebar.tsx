@@ -46,6 +46,7 @@ export interface SidebarHotelPageProps {
   qrGroup?: QrGroup | null;
   qrId?: string | null;
   isOnFreePlan?: boolean;
+  hideOtherCategories?: boolean;
 }
 
 const SidebarBannerCarousel = ({ banners, accent }: { banners: string[]; accent: string }) => {
@@ -128,6 +129,7 @@ const Sidebar = ({
   qrGroup,
   qrId,
   isOnFreePlan,
+  hideOtherCategories,
 }: SidebarHotelPageProps) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"food" | "orders">("food");
@@ -155,11 +157,12 @@ const Sidebar = ({
   const itemsRef = useRef<HTMLDivElement>(null);
   const allCats = useMemo(() => {
     const cats = categories.filter(c => c.name !== "Offer").map(c => c.name);
+    if (hideOtherCategories) return cats;
     if (topItems.length > 0) {
       return ["Must Try", ...cats, "all"];
     }
     return [...cats, "all"];
-  }, [categories, topItems.length]);
+  }, [categories, topItems.length, hideOtherCategories]);
 
   // Set first category as default on mount
   useEffect(() => {
@@ -921,42 +924,44 @@ const Sidebar = ({
               })}
 
               {/* All - at bottom */}
-              <button
-                data-category="all"
-                onClick={() => setSelectedCategory("all")}
-                className="w-full flex flex-col items-center gap-1 py-2.5 px-1 transition-all relative outline-none"
-              >
-                {selectedCategory === "all" && (
+              {!hideOtherCategories && (
+                <button
+                  data-category="all"
+                  onClick={() => setSelectedCategory("all")}
+                  className="w-full flex flex-col items-center gap-1 py-2.5 px-1 transition-all relative outline-none"
+                >
+                  {selectedCategory === "all" && (
+                    <div
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full"
+                      style={{ backgroundColor: styles.accent }}
+                    />
+                  )}
                   <div
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full"
-                    style={{ backgroundColor: styles.accent }}
-                  />
-                )}
-                <div
-                  className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center transition-all"
-                  style={{
-                    backgroundColor:
-                      selectedCategory === "all"
-                        ? styles.accent
-                        : `${styles.accent}10`,
-                    color: selectedCategory === "all" ? "white" : styles.accent,
-                    boxShadow:
-                      selectedCategory === "all"
-                        ? `0 4px 12px ${styles.accent}40`
-                        : "none",
-                  }}
-                >
-                  <LayoutGrid size={18} strokeWidth={2} />
-                </div>
-                <span
-                  className="text-[10px] font-semibold text-center leading-tight"
-                  style={{
-                    color: selectedCategory === "all" ? styles.accent : `${styles.color}99`,
-                  }}
-                >
-                  All
-                </span>
-              </button>
+                    className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center transition-all"
+                    style={{
+                      backgroundColor:
+                        selectedCategory === "all"
+                          ? styles.accent
+                          : `${styles.accent}10`,
+                      color: selectedCategory === "all" ? "white" : styles.accent,
+                      boxShadow:
+                        selectedCategory === "all"
+                          ? `0 4px 12px ${styles.accent}40`
+                          : "none",
+                    }}
+                  >
+                    <LayoutGrid size={18} strokeWidth={2} />
+                  </div>
+                  <span
+                    className="text-[10px] font-semibold text-center leading-tight"
+                    style={{
+                      color: selectedCategory === "all" ? styles.accent : `${styles.color}99`,
+                    }}
+                  >
+                    All
+                  </span>
+                </button>
+              )}
             </div>
 
             {/* Thin divider */}

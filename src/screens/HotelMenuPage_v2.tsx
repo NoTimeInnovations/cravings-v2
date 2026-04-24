@@ -3,7 +3,7 @@
 import { Offer } from "@/store/offerStore_hasura";
 import { HotelData, SocialLinks } from "@/app/hotels/[...id]/page";
 import { ThemeConfig } from "@/components/hotelDetail/ThemeChangeButton";
-import { Category } from "@/store/categoryStore_hasura";
+import { Category, formatStorageName } from "@/store/categoryStore_hasura";
 import OrderDrawer from "@/components/hotelDetail/OrderDrawer";
 import useOrderStore from "@/store/orderStore";
 // Import useMemo and useCallback
@@ -59,9 +59,11 @@ interface HotelMenuPageProps {
   qrGroup?: QrGroup | null;
   qrId?: string | null;
   selectedCategory?: string;
+  hideOtherCategories?: boolean;
   qrData?: QrCode | null;
   onboardingCompleted?: boolean;
   skipNotices?: boolean;
+  skipOnboarding?: boolean;
 }
 
 const HotelMenuPage = ({
@@ -75,9 +77,21 @@ const HotelMenuPage = ({
   qrGroup,
   qrId,
   selectedCategory: selectedCategoryProp,
+  hideOtherCategories,
   onboardingCompleted,
   skipNotices,
+  skipOnboarding,
 }: HotelMenuPageProps) => {
+  const resolvedSelectedCategory = useMemo(() => {
+    if (!selectedCategoryProp) return "";
+    if (selectedCategoryProp === "all" || selectedCategoryProp === "Offer") return selectedCategoryProp;
+    const normalized = formatStorageName(selectedCategoryProp);
+    const match = hoteldata?.menus?.find(
+      (m: any) => formatStorageName(m.category?.name || "") === normalized
+    );
+    return match?.category?.name || selectedCategoryProp;
+  }, [selectedCategoryProp, hoteldata?.menus]);
+  const lockedCategory = hideOtherCategories ? resolvedSelectedCategory || null : null;
   const pathname = usePathname();
   const { setHotelId, genOrderId, open_place_order_modal, orderType } = useOrderStore();
   const { setQrData } = useQrDataStore();
@@ -85,7 +99,7 @@ const HotelMenuPage = ({
   // Onboarding state
   const isUserLoggedIn = auth?.role === "user";
   const features = getFeatures(hoteldata?.feature_flags || "");
-  const needsOnboarding = features.newonboarding.enabled && (features.delivery.enabled || features.ordering.enabled) && tableNumber === 0;
+  const needsOnboarding = !skipOnboarding && features.newonboarding.enabled && (features.delivery.enabled || features.ordering.enabled) && tableNumber === 0;
   // Always mount the onboarding overlay when needed; it dismisses itself once the
   // user picks an order type and re-mounts on every reload so the order type screen
   // shows again (value persists only in sessionStorage).
@@ -209,9 +223,10 @@ const HotelMenuPage = ({
     return hoteldata.menus.filter((item: any) => {
       if (orderType === "delivery" && item.show_on_delivery === false) return false;
       if (orderType === "takeaway" && item.show_on_takeaway === false) return false;
+      if (lockedCategory && item.category?.name !== lockedCategory) return false;
       return true;
     });
-  }, [hoteldata?.menus, orderType]);
+  }, [hoteldata?.menus, orderType, lockedCategory]);
 
   // ✅ Memoize offeredItems to avoid recalculating on every render
   const offeredItems = useMemo(() => {
@@ -254,7 +269,9 @@ const HotelMenuPage = ({
     return uniqueCategories;
   }, [filteredMenus, offeredItems]);
 
-  const [selectedCategory, setSelectedCat] = useState(selectedCategoryProp || "all");
+  const [selectedCategory, setSelectedCat] = useState(
+    lockedCategory || resolvedSelectedCategory || "all"
+  );
 
   // ✅ Memoize the filtered and sorted items for the selected category
   const items = useMemo(() => {
@@ -303,9 +320,10 @@ const HotelMenuPage = ({
   // ✅ Memoize the function passed as a prop to prevent child re-renders
   const setSelectedCategory = useCallback(
     (category: string) => {
+      if (lockedCategory) return;
       setSelectedCat(category);
     },
-    []
+    [lockedCategory]
   );
 
   const hotelPlanId = (hoteldata as any)?.subscription_details?.plan?.id;
@@ -337,6 +355,7 @@ const HotelMenuPage = ({
     open_place_order_modal: open_place_order_modal,
     pathname: pathname,
     isOnFreePlan: isHotelOnFreePlan,
+    hideOtherCategories: !!lockedCategory,
     onShowStorefront: showOnboarding ? () => { setOnboardingDismissed(false); setOnboardingKey((k) => k + 1); } : undefined,
   };
 

@@ -816,16 +816,37 @@ function HeroEditor({ content, set, partnerId }: { content: Record<string, any>;
         <div className="space-y-4">
             <div className="flex items-center gap-2 flex-wrap">
                 {slides.map((_: any, i: number) => (
-                    <button
+                    <div
                         key={i}
-                        onClick={() => setActiveSlide(i)}
                         className={cn(
-                            "px-3 py-1.5 rounded-md text-xs font-medium border transition-colors",
+                            "inline-flex items-center rounded-md text-xs font-medium border transition-colors overflow-hidden",
                             activeSlide === i ? "bg-primary text-primary-foreground border-primary" : "bg-muted border-border hover:bg-accent"
                         )}
                     >
-                        Slide {i + 1}
-                    </button>
+                        <button
+                            onClick={() => setActiveSlide(i)}
+                            className="px-3 py-1.5"
+                        >
+                            Slide {i + 1}
+                        </button>
+                        {slides.length > 1 && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeSlide(i);
+                                }}
+                                aria-label={`Remove slide ${i + 1}`}
+                                className={cn(
+                                    "px-1.5 py-1.5 border-l transition-colors",
+                                    activeSlide === i
+                                        ? "border-primary-foreground/20 hover:bg-primary-foreground/10"
+                                        : "border-border hover:bg-destructive/10 hover:text-destructive"
+                                )}
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+                        )}
+                    </div>
                 ))}
                 <Button variant="outline" size="sm" onClick={addSlide} className="h-7 gap-1">
                     <Plus className="h-3 w-3" /> Add Slide

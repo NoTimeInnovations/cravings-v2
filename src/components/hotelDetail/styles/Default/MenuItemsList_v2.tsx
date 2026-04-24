@@ -17,6 +17,7 @@ const MenuItemsList = ({
   selectedCategory: selectedCategoryProp,
   currency,
   tableNumber,
+  hideOtherCategories,
 }: {
   styles: Styles;
   items: HotelDataMenus[];
@@ -26,6 +27,7 @@ const MenuItemsList = ({
   selectedCategory?: string;
   currency: string;
   tableNumber: number;
+  hideOtherCategories?: boolean;
 }) => {
   const selectedCat = selectedCategoryProp || "all";
   const isOfferCategory = selectedCat === "Offer";
@@ -144,25 +146,26 @@ const MenuItemsList = ({
         // className="flex gap-x-2 overflow-x-scroll scrollbar-hidden "
         className="flex gap-2 flex-wrap justify-start"
       >
-        <button
-          onClick={() => {
-            setSelectedCategory("all");
-            window.scrollTo({
-              top: document.getElementById("menu-items")?.offsetTop,
-              behavior: "smooth",
-            });
-          }}
-          style={{
-            ...styles.border,
-            color: selectedCat === "all" ? "white" : "black",
-            backgroundColor: selectedCat === "all" ? styles.accent : "white",
-          }}
-          // className="font-semibold capitalize text-nowrap rounded-full px-5 py-[10px] snap-start flex-shrink-0"
-          className="font-semibold capitalize text-xs text-nowrap rounded-full px-5 py-[10px] snap-start flex-shrink-0"
-          key={"all"}
-        >
-          All
-        </button>
+        {!hideOtherCategories && (
+          <button
+            onClick={() => {
+              setSelectedCategory("all");
+              window.scrollTo({
+                top: document.getElementById("menu-items")?.offsetTop,
+                behavior: "smooth",
+              });
+            }}
+            style={{
+              ...styles.border,
+              color: selectedCat === "all" ? "white" : "black",
+              backgroundColor: selectedCat === "all" ? styles.accent : "white",
+            }}
+            className="font-semibold capitalize text-xs text-nowrap rounded-full px-5 py-[10px] snap-start flex-shrink-0"
+            key={"all"}
+          >
+            All
+          </button>
+        )}
 
         {categories.map((category, index) => (
           <button

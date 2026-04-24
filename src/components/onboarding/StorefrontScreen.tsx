@@ -169,6 +169,43 @@ function SectionRenderer({
     }
 }
 
+/* ================== CTA ACTION ================== */
+function CtaAction({
+    link,
+    onContinue,
+    className,
+    style,
+    children,
+}: {
+    link?: string;
+    onContinue: () => void;
+    className?: string;
+    style?: React.CSSProperties;
+    children: React.ReactNode;
+}) {
+    const trimmed = (link || "").trim();
+    if (!trimmed || trimmed === "/") {
+        return (
+            <button onClick={onContinue} className={className} style={style}>
+                {children}
+            </button>
+        );
+    }
+    const isExternal = /^(https?:|tel:|mailto:)/i.test(trimmed);
+    const isHttp = /^https?:/i.test(trimmed);
+    return (
+        <a
+            href={trimmed}
+            target={isHttp ? "_blank" : undefined}
+            rel={isHttp ? "noopener noreferrer" : undefined}
+            className={className}
+            style={style}
+        >
+            {children}
+        </a>
+    );
+}
+
 /* ================== HERO ================== */
 function HeroSection({ content, onContinue, accent }: { content: Record<string, any>; onContinue: () => void; accent: string }) {
     const { ctaPrimary, ctaSecondary, autoScrollInterval = 5 } = content || {};
@@ -270,21 +307,23 @@ function HeroSection({ content, onContinue, accent }: { content: Record<string, 
 
                 <div className="mt-7 flex flex-wrap items-center gap-3">
                     {ctaPrimary?.label && (
-                        <button
-                            onClick={onContinue}
+                        <CtaAction
+                            link={ctaPrimary.link}
+                            onContinue={onContinue}
                             className="inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-bold text-white shadow-xl transition lg:px-8 lg:py-3.5 lg:text-base"
                             style={{ backgroundColor: accent }}
                         >
                             {ctaPrimary.label}
-                        </button>
+                        </CtaAction>
                     )}
                     {ctaSecondary?.label && (
-                        <button
-                            onClick={onContinue}
+                        <CtaAction
+                            link={ctaSecondary.link}
+                            onContinue={onContinue}
                             className="inline-flex items-center justify-center rounded-full border border-white/70 bg-white/10 px-6 py-3 text-sm font-bold text-white backdrop-blur hover:bg-white/20 transition lg:px-8 lg:py-3.5 lg:text-base"
                         >
                             {ctaSecondary.label}
-                        </button>
+                        </CtaAction>
                     )}
 
                     {slides.length > 1 && (
@@ -346,7 +385,7 @@ function BannerCarousel({ content }: { content: Record<string, any> }) {
 
 /* ================== IMAGE + TEXT ================== */
 function ImageTextBlock({ content, onContinue }: { content: Record<string, any>; onContinue: () => void }) {
-    const { image, heading, description, ctaLabel, imagePosition = "top" } = content || {};
+    const { image, heading, description, ctaLabel, ctaLink, imagePosition = "top" } = content || {};
 
     const imageBlock = image && (
         <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100 lg:aspect-auto lg:h-full lg:min-h-[400px]">
@@ -363,12 +402,13 @@ function ImageTextBlock({ content, onContinue }: { content: Record<string, any>;
                 <Html html={description} as="div" className="mt-4 text-[15px] leading-[1.7] text-gray-600 lg:text-base lg:max-w-lg" />
             )}
             {ctaLabel && (
-                <button
-                    onClick={onContinue}
+                <CtaAction
+                    link={ctaLink}
+                    onContinue={onContinue}
                     className="mt-6 inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-gray-800 transition lg:px-6 lg:py-3"
                 >
                     {ctaLabel} <ArrowRight className="h-4 w-4" />
-                </button>
+                </CtaAction>
             )}
         </div>
     );
@@ -391,7 +431,7 @@ function ImageTextBlock({ content, onContinue }: { content: Record<string, any>;
 
 /* ================== CTA ================== */
 function CTASection({ content, onContinue, accent }: { content: Record<string, any>; onContinue: () => void; accent: string }) {
-    const { heading, description, ctaLabel, backgroundImage, variant = "primary" } = content || {};
+    const { heading, description, ctaLabel, ctaLink, backgroundImage, variant = "primary" } = content || {};
 
     const variants: Record<string, string> = {
         primary: "text-white",
@@ -418,8 +458,9 @@ function CTASection({ content, onContinue, accent }: { content: Record<string, a
                     <Html html={description} as="div" className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed opacity-90 lg:text-base lg:max-w-xl" />
                 )}
                 {ctaLabel && (
-                    <button
-                        onClick={onContinue}
+                    <CtaAction
+                        link={ctaLink}
+                        onContinue={onContinue}
                         className={cn(
                             "mt-7 inline-flex items-center justify-center rounded-full px-7 py-3 text-sm font-bold shadow-xl transition lg:px-8 lg:py-3.5 lg:text-base",
                             (variant === "primary" || variant === "dark")
@@ -428,7 +469,7 @@ function CTASection({ content, onContinue, accent }: { content: Record<string, a
                         )}
                     >
                         {ctaLabel}
-                    </button>
+                    </CtaAction>
                 )}
             </div>
         </section>

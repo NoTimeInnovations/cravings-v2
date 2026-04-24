@@ -183,7 +183,9 @@ const HotelPage = async ({
   searchParams: Promise<{ query: string; qrScan: boolean; cat: string }>;
   params: Promise<{ [key: string]: string | undefined }>;
 }) => {
-  const { query: search, qrScan, cat } = await searchParams;
+  const sp = await searchParams;
+  const { query: search, qrScan, cat } = sp;
+  const hasSearchParams = Object.values(sp).some((v) => v != null && v !== "");
   const { id } = await params;
   const auth = await getAuthCookie();
 
@@ -615,6 +617,7 @@ const HotelPage = async ({
         qrGroup={table0QrGroup}
         selectedCategory={cat}
         onboardingCompleted={!!(await getOrderSessionCookie(hotelId!))}
+        skipOnboarding={hasSearchParams}
       />
     </>
   );

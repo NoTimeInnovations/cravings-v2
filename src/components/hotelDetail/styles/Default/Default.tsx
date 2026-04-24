@@ -43,6 +43,7 @@ export interface DefaultHotelPageProps {
   qrGroup?: QrGroup | null;
   qrId?: string | null;
   isOnFreePlan?: boolean;
+  hideOtherCategories?: boolean;
   onShowStorefront?: () => void;
 }
 
@@ -64,6 +65,7 @@ const Default = ({
   qrGroup,
   qrId,
   isOnFreePlan,
+  hideOtherCategories,
 }: DefaultHotelPageProps) => {
 
   const [isThemeDialogOpen, setIsThemeDialogOpen] = React.useState(false);
@@ -250,6 +252,7 @@ const Default = ({
               setSelectedCategory={setSelectedCategory}
               selectedCategory={selectedCategory}
               tableNumber={tableNumber}
+              hideOtherCategories={hideOtherCategories}
             />
           </section>
         </>

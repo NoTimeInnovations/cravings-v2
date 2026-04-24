@@ -181,7 +181,9 @@ const page = async ({
   // console.log("Table Number:", tableNumber);
 
   // if (tableNumber !== 0) {
-  const { query: search, cat } = await searchParams;
+  const sp = await searchParams;
+  const { query: search, cat } = sp;
+  const hasSearchParams = Object.values(sp).some((v) => v != null && v !== "");
   const auth = await getAuthCookie();
   const hotelId = qr_codes?.[0].partner_id;
 
@@ -462,6 +464,7 @@ const page = async ({
           qrId={validQrId}
           selectedCategory={cat}
           onboardingCompleted={tableNumber !== 0 || !!(await getOrderSessionCookie(hotelId))}
+          skipOnboarding={hasSearchParams}
         />
       </>
     );
