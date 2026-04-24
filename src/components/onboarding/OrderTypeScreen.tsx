@@ -18,6 +18,9 @@ interface OrderTypeScreenProps {
   isDeliveryActive?: boolean;
   takeawayTimeAllowed?: { from: string; to: string } | null;
   deliveryTimeAllowed?: { from: string; to: string } | null;
+  initialDeliveryOpen?: boolean;
+  initialTakeawayOpen?: boolean;
+  hotelTimezone?: string;
   accent?: string;
 }
 
@@ -32,20 +35,29 @@ export default function OrderTypeScreen({
   isDeliveryActive = true,
   takeawayTimeAllowed,
   deliveryTimeAllowed,
+  initialDeliveryOpen,
+  initialTakeawayOpen,
+  hotelTimezone,
   accent = "#1f2937",
 }: OrderTypeScreenProps) {
-  // Defer the time-window check to the client so it uses the user's local
-  // timezone. Initialize to "open" so SSR and first client render agree
-  // (avoids hydration mismatch); the effect below corrects the value.
-  const [isTakeawayOpen, setIsTakeawayOpen] = useState(true);
-  const [isDeliveryOpen, setIsDeliveryOpen] = useState(true);
+  // Server pre-computes open state in the hotel's timezone and passes it via
+  // initial props — first render matches SSR (no hydration mismatch). The
+  // effect below re-runs the check on the client so the state stays correct
+  // if the user keeps the screen open across a window boundary.
+  const [isTakeawayOpen, setIsTakeawayOpen] = useState(
+    initialTakeawayOpen ?? true,
+  );
+  const [isDeliveryOpen, setIsDeliveryOpen] = useState(
+    initialDeliveryOpen ?? true,
+  );
   const [mode, setMode] = useState<"delivery" | "takeaway">(
-    hasDelivery ? "delivery" : "takeaway"
+    hasDelivery && (initialDeliveryOpen ?? true) ? "delivery" : "takeaway",
   );
 
   useEffect(() => {
-    const takeawayOpen = isWithinTimeWindow(takeawayTimeAllowed);
-    const deliveryOpen = isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed);
+    const takeawayOpen = isWithinTimeWindow(takeawayTimeAllowed, hotelTimezone);
+    const deliveryOpen =
+      isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed, hotelTimezone);
     setIsTakeawayOpen(takeawayOpen);
     setIsDeliveryOpen(deliveryOpen);
     setMode((prev) => {
@@ -53,7 +65,7 @@ export default function OrderTypeScreen({
       if (prev === "takeaway" && !takeawayOpen && deliveryOpen) return "delivery";
       return prev;
     });
-  }, [takeawayTimeAllowed, deliveryTimeAllowed, isDeliveryActive]);
+  }, [takeawayTimeAllowed, deliveryTimeAllowed, isDeliveryActive, hotelTimezone]);
 
   return (
     <div className="flex flex-col min-h-dvh bg-[#fafafa]" style={{ fontFamily: "'Inter', system-ui, sans-serif", paddingTop: 60 }}>
