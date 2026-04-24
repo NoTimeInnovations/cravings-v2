@@ -1194,16 +1194,26 @@ const PlaceOrderModalV2 = ({
                       accent={accent}
                     />
                   )}
-                  {deliveryCharge > 0 && (
-                    <Row
-                      label={
-                        deliveryInfo?.distance
-                          ? `Delivery Charge | ${deliveryInfo.distance.toFixed(1)} Km`
-                          : "Delivery Charge"
-                      }
-                      value={`${currency}${deliveryCharge.toFixed(0)}`}
-                    />
-                  )}
+                  {orderType === "delivery" &&
+                    !hotelData?.delivery_rules?.hide_delivery_charge &&
+                    !deliveryInfo?.isOutOfRange &&
+                    deliveryInfo?.distance != null && (
+                      <div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Delivery Charges</span>
+                          {deliveryCharge > 0 ? (
+                            <span className="text-gray-900">{`${currency}${deliveryCharge.toFixed(0)}`}</span>
+                          ) : (
+                            <span className="font-semibold" style={{ color: accent }}>
+                              Free
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          {deliveryInfo.distance.toFixed(1)} kms
+                        </div>
+                      </div>
+                    )}
                   {orderType === "delivery" && hotelData?.delivery_rules?.hide_delivery_charge && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Delivery Charge</span>

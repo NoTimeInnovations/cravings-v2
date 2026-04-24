@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import useOrderStore from "@/store/orderStore";
+import { useLocationStore } from "@/store/geolocationStore";
 import { useWhatsAppOtp } from "@/hooks/useWhatsAppOtp";
 import { getFeatures } from "@/lib/getFeatures";
 import { UserCountryInfo } from "@/lib/getUserCountry";
@@ -141,6 +142,9 @@ export default function OnboardingFlow({
       }
       if (saved.coords) {
         setUserCoordinates(saved.coords);
+        // calculateDeliveryDistanceAndCost reads coords from useLocationStore,
+        // so mirror them there too.
+        useLocationStore.getState().setCoords(saved.coords);
       }
     }).catch(() => {});
     try {
@@ -212,6 +216,7 @@ export default function OnboardingFlow({
     setUserAddress(addr);
     if (coords) {
       setUserCoordinates(coords);
+      useLocationStore.getState().setCoords(coords);
     }
     try {
       localStorage.setItem("onboarding_address", JSON.stringify({ address: addr, coords }));
@@ -220,13 +225,25 @@ export default function OnboardingFlow({
     dismissWithAnimation();
   }, [setUserAddress, setUserCoordinates, partnerId, dismissWithAnimation]);
 
-  const handleOrderTypeSelect = useCallback((type: "delivery" | "takeaway") => {
+  const handleOrderTypeSelect = useCallback(async (type: "delivery" | "takeaway") => {
     setOrderType(type);
     try {
       sessionStorage.setItem(`order_type_${partnerId}`, type);
     } catch {}
 
     if (type === "delivery" && needsAddress) {
+      // If a delivery address from a prior session is already saved, skip
+      // the address step — the user shouldn't be re-prompted on every reload.
+      try {
+        const saved = await getOnboardingDataCookie(partnerId);
+        if (saved?.address && saved?.coords) {
+          setUserAddress(saved.address);
+          setUserCoordinates(saved.coords);
+          useLocationStore.getState().setCoords(saved.coords);
+          dismissWithAnimation();
+          return;
+        }
+      } catch {}
       setStep("address");
       return;
     }

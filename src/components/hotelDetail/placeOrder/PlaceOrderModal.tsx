@@ -680,21 +680,30 @@ const BillCard = ({
           </div>
         )}
 
-        {isDelivery && (deliveryInfo?.cost ?? 0) > 0 && !deliveryInfo?.isOutOfRange && !hideDeliveryCharge && (
-          <div className="flex justify-between text-sm">
-            <span style={{ color: "var(--pom-text-muted)" }}>
-              Delivery Fee | {deliveryInfo?.distance?.toFixed(1)} kms
-            </span>
-            <span className="text-inherit">{currency}{" "}{deliveryInfo?.cost?.toFixed(2)}</span>
-          </div>
-        )}
-
         {isDelivery && hideDeliveryCharge && (
           <div className="flex justify-between text-sm">
             <span style={{ color: "var(--pom-text-muted)" }}>Delivery Fee</span>
             <span className="font-semibold" style={{ color: "var(--pom-accent, #ea580c)" }}>
               Informed at delivery
             </span>
+          </div>
+        )}
+
+        {isDelivery && !hideDeliveryCharge && !deliveryInfo?.isOutOfRange && deliveryInfo?.distance != null && (
+          <div>
+            <div className="flex justify-between text-sm">
+              <span style={{ color: "var(--pom-text-muted)" }}>Delivery Charges</span>
+              {(deliveryInfo?.cost ?? 0) > 0 ? (
+                <span className="text-inherit">{currency}{" "}{deliveryInfo.cost.toFixed(2)}</span>
+              ) : (
+                <span className="font-semibold" style={{ color: "var(--pom-accent, #ea580c)" }}>
+                  Free
+                </span>
+              )}
+            </div>
+            <div className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
+              {deliveryInfo.distance.toFixed(1)} kms
+            </div>
           </div>
         )}
 
