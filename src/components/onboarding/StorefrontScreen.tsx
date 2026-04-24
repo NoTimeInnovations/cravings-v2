@@ -185,8 +185,14 @@ function CtaAction({
 }) {
     const trimmed = (link || "").trim();
     if (!trimmed || trimmed === "/") {
+        const handleClick = () => {
+            if (typeof window !== "undefined" && window.location.search) {
+                window.history.replaceState(null, "", window.location.pathname);
+            }
+            onContinue();
+        };
         return (
-            <button onClick={onContinue} className={className} style={style}>
+            <button onClick={handleClick} className={className} style={style}>
                 {children}
             </button>
         );
