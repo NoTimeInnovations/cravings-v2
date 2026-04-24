@@ -137,7 +137,7 @@ const UsernamePage = async ({
       hideOtherCategories={hideOtherCategories}
       onboardingCompleted={onboardingCompleted}
       skipNotices={hasSearchParams}
-      skipOnboarding={hasSearchParams}
+      skipStorefront={hasSearchParams}
     />
   );
 };

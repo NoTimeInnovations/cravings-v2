@@ -464,7 +464,7 @@ const page = async ({
           qrId={validQrId}
           selectedCategory={cat}
           onboardingCompleted={tableNumber !== 0 || !!(await getOrderSessionCookie(hotelId))}
-          skipOnboarding={hasSearchParams}
+          skipStorefront={hasSearchParams}
         />
       </>
     );

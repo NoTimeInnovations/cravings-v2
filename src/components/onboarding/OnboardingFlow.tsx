@@ -32,6 +32,7 @@ interface OnboardingFlowProps {
   notices?: any[];
   socialLinks?: any;
   storefrontSettings?: string | null;
+  skipStorefront?: boolean;
   onDismiss?: () => void;
 }
 
@@ -51,6 +52,7 @@ export default function OnboardingFlow({
   notices = [],
   socialLinks,
   storefrontSettings,
+  skipStorefront,
   onDismiss,
 }: OnboardingFlowProps) {
   const router = useRouter();
@@ -72,6 +74,8 @@ export default function OnboardingFlow({
       if (data?.enabled) parsedStorefront = data;
     } catch {}
   }
+  const hasStorefrontSplash = !!parsedStorefront;
+  const showStorefrontSplashInitially = hasStorefrontSplash && !skipStorefront;
   const bc = parsedStorefront?.brandColor || "burnt-orange";
   const accent = bc.startsWith("custom:") ? bc.replace("custom:", "") : (BRAND_COLOR_MAP[bc] || "#e85d04");
 
@@ -80,14 +84,14 @@ export default function OnboardingFlow({
   const needsOrderType = (hasDelivery || hasOrdering) && tableNumber === 0;
 
   const getInitialStep = (): OnboardingStep => {
-    if (parsedStorefront) return "splash";
+    if (showStorefrontSplashInitially) return "splash";
     if (!isLoggedIn) return "login";
     if (needsOrderType) return "orderType";
     return "splash";
   };
 
   const initialStep = getInitialStep();
-  const skipOnboarding = !parsedStorefront && isLoggedIn && !needsOrderType;
+  const skipOnboarding = !showStorefrontSplashInitially && isLoggedIn && !needsOrderType;
 
   const [step, setStep] = useState<OnboardingStep>(initialStep);
   const [dismissed, setDismissed] = useState(skipOnboarding);
@@ -102,7 +106,7 @@ export default function OnboardingFlow({
   useEffect(() => {
     const clientLoggedIn = userData?.role === "user";
     if (!isLoggedIn && !clientLoggedIn && step === "orderType") {
-      setStep(parsedStorefront ? "splash" : "login");
+      setStep(showStorefrontSplashInitially ? "splash" : "login");
     }
   }, [userData, isLoggedIn]);
 
@@ -255,9 +259,9 @@ export default function OnboardingFlow({
     >
       <div
         key={step}
-        className={`${parsedStorefront && step === "splash" ? "" : "absolute inset-0 overflow-y-auto scrollbar-hidden"} animate-slide-in-right`}
+        className={`${hasStorefrontSplash && step === "splash" ? "" : "absolute inset-0 overflow-y-auto scrollbar-hidden"} animate-slide-in-right`}
       >
-        {step === "splash" && parsedStorefront && (
+        {step === "splash" && hasStorefrontSplash && (
             <StorefrontScreen
               storefront={parsedStorefront}
               storeName={storeName}
@@ -277,7 +281,7 @@ export default function OnboardingFlow({
             themeBg={themeBg}
             storeTagline={storeTagline}
             onContinue={handleLoginContinue}
-            onBack={parsedStorefront ? () => setStep("splash") : undefined}
+            onBack={hasStorefrontSplash ? () => setStep("splash") : undefined}
             loading={loginLoading || isSending}
             accent={accent}
           />
@@ -319,7 +323,7 @@ export default function OnboardingFlow({
             hasOrdering={hasOrdering}
             onSelect={handleOrderTypeSelect}
             onSkip={handleSkip}
-            onBack={parsedStorefront ? () => setStep("splash") : isLoggedIn ? handleSkip : () => setStep("login")}
+            onBack={hasStorefrontSplash ? () => setStep("splash") : isLoggedIn ? handleSkip : () => setStep("login")}
             onChangeLocation={handleChangeLocation}
             deliveryTimeAllowed={deliveryTimeAllowed}
             takeawayTimeAllowed={takeawayTimeAllowed}

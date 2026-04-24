@@ -617,7 +617,7 @@ const HotelPage = async ({
         qrGroup={table0QrGroup}
         selectedCategory={cat}
         onboardingCompleted={!!(await getOrderSessionCookie(hotelId!))}
-        skipOnboarding={hasSearchParams}
+        skipStorefront={hasSearchParams}
       />
     </>
   );

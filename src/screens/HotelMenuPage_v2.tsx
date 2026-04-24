@@ -63,7 +63,7 @@ interface HotelMenuPageProps {
   qrData?: QrCode | null;
   onboardingCompleted?: boolean;
   skipNotices?: boolean;
-  skipOnboarding?: boolean;
+  skipStorefront?: boolean;
 }
 
 const HotelMenuPage = ({
@@ -80,7 +80,7 @@ const HotelMenuPage = ({
   hideOtherCategories,
   onboardingCompleted,
   skipNotices,
-  skipOnboarding,
+  skipStorefront,
 }: HotelMenuPageProps) => {
   const resolvedSelectedCategory = useMemo(() => {
     if (!selectedCategoryProp) return "";
@@ -99,7 +99,7 @@ const HotelMenuPage = ({
   // Onboarding state
   const isUserLoggedIn = auth?.role === "user";
   const features = getFeatures(hoteldata?.feature_flags || "");
-  const needsOnboarding = !skipOnboarding && features.newonboarding.enabled && (features.delivery.enabled || features.ordering.enabled) && tableNumber === 0;
+  const needsOnboarding = features.newonboarding.enabled && (features.delivery.enabled || features.ordering.enabled) && tableNumber === 0;
   // Always mount the onboarding overlay when needed; it dismisses itself once the
   // user picks an order type and re-mounts on every reload so the order type screen
   // shows again (value persists only in sessionStorage).
@@ -462,6 +462,7 @@ const HotelMenuPage = ({
           notices={(hoteldata as any)?.notices || []}
           socialLinks={socialLinks}
           storefrontSettings={(hoteldata as any)?.storefront_settings}
+          skipStorefront={skipStorefront}
           onDismiss={() => setOnboardingDismissed(true)}
         />
       )}
