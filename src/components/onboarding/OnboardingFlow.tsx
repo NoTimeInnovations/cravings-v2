@@ -33,6 +33,8 @@ interface OnboardingFlowProps {
   socialLinks?: any;
   storefrontSettings?: string | null;
   skipStorefront?: boolean;
+  initialDeliveryOpen?: boolean;
+  initialTakeawayOpen?: boolean;
   onDismiss?: () => void;
 }
 
@@ -53,6 +55,8 @@ export default function OnboardingFlow({
   socialLinks,
   storefrontSettings,
   skipStorefront,
+  initialDeliveryOpen,
+  initialTakeawayOpen,
   onDismiss,
 }: OnboardingFlowProps) {
   const router = useRouter();
@@ -328,6 +332,8 @@ export default function OnboardingFlow({
             deliveryTimeAllowed={deliveryTimeAllowed}
             takeawayTimeAllowed={takeawayTimeAllowed}
             isDeliveryActive={isDeliveryActive}
+            initialDeliveryOpen={initialDeliveryOpen}
+            initialTakeawayOpen={initialTakeawayOpen}
             accent={accent}
           />
         )}

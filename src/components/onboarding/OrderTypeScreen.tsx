@@ -18,6 +18,8 @@ interface OrderTypeScreenProps {
   isDeliveryActive?: boolean;
   takeawayTimeAllowed?: { from: string; to: string } | null;
   deliveryTimeAllowed?: { from: string; to: string } | null;
+  initialDeliveryOpen?: boolean;
+  initialTakeawayOpen?: boolean;
   accent?: string;
 }
 
@@ -32,10 +34,12 @@ export default function OrderTypeScreen({
   isDeliveryActive = true,
   takeawayTimeAllowed,
   deliveryTimeAllowed,
+  initialDeliveryOpen,
+  initialTakeawayOpen,
   accent = "#1f2937",
 }: OrderTypeScreenProps) {
-  const isTakeawayOpen = isWithinTimeWindow(takeawayTimeAllowed);
-  const isDeliveryOpen = isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed);
+  const isTakeawayOpen = initialTakeawayOpen ?? isWithinTimeWindow(takeawayTimeAllowed);
+  const isDeliveryOpen = initialDeliveryOpen ?? (isDeliveryActive && isWithinTimeWindow(deliveryTimeAllowed));
   const [mode, setMode] = useState<"delivery" | "takeaway">(
     hasDelivery && isDeliveryOpen ? "delivery" : "takeaway"
   );

@@ -16,6 +16,7 @@ import { Metadata, Viewport } from "next";
 import { getSocialLinks } from "@/lib/getSocialLinks";
 import { usePartnerStore } from "@/store/usePartnerStore";
 import { filterOffersByType } from "@/lib/offerFilters";
+import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { startOfMonth, endOfMonth } from "date-fns";
 // import getTimestampWithTimezone from "@/lib/getTimeStampWithTimezon";
 
@@ -600,6 +601,12 @@ const HotelPage = async ({
     }),
   };
 
+  const deliveryRules = (hotelDataWithOfferPrice as any)?.delivery_rules;
+  const isDeliveryActive = deliveryRules?.isDeliveryActive ?? true;
+  const initialDeliveryOpen =
+    isDeliveryActive && isWithinTimeWindow(deliveryRules?.delivery_time_allowed);
+  const initialTakeawayOpen = isWithinTimeWindow(deliveryRules?.takeaway_time_allowed);
+
   return (
     <>
       <script
@@ -618,6 +625,8 @@ const HotelPage = async ({
         selectedCategory={cat}
         onboardingCompleted={!!(await getOrderSessionCookie(hotelId!))}
         skipStorefront={hasSearchParams}
+        initialDeliveryOpen={initialDeliveryOpen}
+        initialTakeawayOpen={initialTakeawayOpen}
       />
     </>
   );
