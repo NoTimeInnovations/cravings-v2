@@ -8,7 +8,7 @@ import OrderDrawer from "@/components/hotelDetail/OrderDrawer";
 import useOrderStore from "@/store/orderStore";
 // Import useMemo and useCallback
 import { useEffect, useMemo, useCallback, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { getFeatures } from "@/lib/getFeatures";
 import { isFreePlan } from "@/lib/getPlanLimits";
 import { QrGroup } from "@/app/admin/qr-management/page";
@@ -80,7 +80,6 @@ const HotelMenuPage = ({
   qrGroup,
   qrId,
   selectedCategory: selectedCategoryProp,
-  hideOtherCategories,
   onboardingCompleted,
   skipNotices,
   skipStorefront,
@@ -88,16 +87,42 @@ const HotelMenuPage = ({
   initialTakeawayOpen,
   hotelTimezone,
 }: HotelMenuPageProps) => {
+  // Read URL params on the client. URL is the source of truth so navigating
+  // from /name?category=x&hide=others to /name correctly clears the filter,
+  // even if Next.js's router cache serves stale server props.
+  // hide=others — show ONLY the listed category (locks the filter)
+  // hide=this   — hide the listed category names (comma-separated supported)
+  const searchParams = useSearchParams();
+  const urlCategoryRaw = searchParams?.get("category") ?? searchParams?.get("cat") ?? "";
+  const urlHide = searchParams?.get("hide") ?? "";
+  const urlCategoryList = useMemo(
+    () => urlCategoryRaw.split(",").map((c) => c.trim()).filter(Boolean),
+    [urlCategoryRaw]
+  );
+  const effectiveSelectedCategoryProp = urlCategoryList[0] || selectedCategoryProp || "";
+  const effectiveHideOtherCategories = urlHide === "others" && urlCategoryList.length > 0;
   const resolvedSelectedCategory = useMemo(() => {
-    if (!selectedCategoryProp) return "";
-    if (selectedCategoryProp === "all" || selectedCategoryProp === "Offer") return selectedCategoryProp;
-    const normalized = formatStorageName(selectedCategoryProp);
+    if (!effectiveSelectedCategoryProp) return "";
+    if (effectiveSelectedCategoryProp === "all" || effectiveSelectedCategoryProp === "Offer") return effectiveSelectedCategoryProp;
+    const normalized = formatStorageName(effectiveSelectedCategoryProp);
     const match = hoteldata?.menus?.find(
       (m: any) => formatStorageName(m.category?.name || "") === normalized
     );
-    return match?.category?.name || selectedCategoryProp;
-  }, [selectedCategoryProp, hoteldata?.menus]);
-  const lockedCategory = hideOtherCategories ? resolvedSelectedCategory || null : null;
+    return match?.category?.name || effectiveSelectedCategoryProp;
+  }, [effectiveSelectedCategoryProp, hoteldata?.menus]);
+  const lockedCategory = effectiveHideOtherCategories ? resolvedSelectedCategory || null : null;
+  const hiddenCategoryNames = useMemo(() => {
+    if (urlHide !== "this" || urlCategoryList.length === 0) return null;
+    const names = new Set<string>();
+    for (const raw of urlCategoryList) {
+      const normalized = formatStorageName(raw);
+      const match = hoteldata?.menus?.find(
+        (m: any) => formatStorageName(m.category?.name || "") === normalized
+      );
+      names.add(match?.category?.name || raw);
+    }
+    return names;
+  }, [urlHide, urlCategoryList, hoteldata?.menus]);
   const pathname = usePathname();
   const { setHotelId, genOrderId, open_place_order_modal, orderType } = useOrderStore();
   const { setQrData } = useQrDataStore();
@@ -230,9 +255,10 @@ const HotelMenuPage = ({
       if (orderType === "delivery" && item.show_on_delivery === false) return false;
       if (orderType === "takeaway" && item.show_on_takeaway === false) return false;
       if (lockedCategory && item.category?.name !== lockedCategory) return false;
+      if (hiddenCategoryNames && hiddenCategoryNames.has(item.category?.name)) return false;
       return true;
     });
-  }, [hoteldata?.menus, orderType, lockedCategory]);
+  }, [hoteldata?.menus, orderType, lockedCategory, hiddenCategoryNames]);
 
   // ✅ Memoize offeredItems to avoid recalculating on every render
   const offeredItems = useMemo(() => {
@@ -278,6 +304,10 @@ const HotelMenuPage = ({
   const [selectedCategory, setSelectedCat] = useState(
     lockedCategory || resolvedSelectedCategory || "all"
   );
+
+  useEffect(() => {
+    setSelectedCat(lockedCategory || resolvedSelectedCategory || "all");
+  }, [lockedCategory, resolvedSelectedCategory]);
 
   // ✅ Memoize the filtered and sorted items for the selected category
   const items = useMemo(() => {
