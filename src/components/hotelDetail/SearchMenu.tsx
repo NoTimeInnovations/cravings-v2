@@ -352,13 +352,18 @@ const SearchMenu = ({
                             <img
                               src={item.image_url}
                               alt={item.name}
-                              className="w-full h-full object-cover"
+                              className={`w-full h-full object-cover ${!item.is_available ? "grayscale" : ""}`}
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
                               <span className="text-lg font-bold opacity-30">
                                 {item.name.charAt(0).toUpperCase()}
                               </span>
+                            </div>
+                          )}
+                          {!item.is_available && (
+                            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 bg-red-600 py-1 text-center text-[9px] font-extrabold uppercase tracking-wider text-white">
+                              Unavailable
                             </div>
                           )}
                         </div>

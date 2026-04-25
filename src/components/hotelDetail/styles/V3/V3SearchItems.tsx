@@ -112,13 +112,18 @@ const V3SearchResultItem = ({
       </div>
 
       <div className="relative shrink-0">
-        <div className="h-24 w-24 overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5 flex items-center justify-center bg-gray-100">
+        <div className="relative h-24 w-24 overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5 flex items-center justify-center bg-gray-100">
           {visible && (
             <img
               src={item.image_url || "/image_placeholder.png"}
               alt={item.name}
-              className={`h-full w-full object-cover ${!item.image_url ? "invert opacity-50" : ""}`}
+              className={`h-full w-full object-cover ${!item.image_url ? "invert opacity-50" : ""} ${!item.is_available ? "grayscale" : ""}`}
             />
+          )}
+          {!item.is_available && (
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 bg-red-600 py-1 text-center text-[10px] font-extrabold uppercase tracking-wider text-white">
+              Unavailable
+            </div>
           )}
         </div>
 

@@ -51,6 +51,7 @@ export function GeneralSettings() {
     const [talabatLink, setTalabatLink] = useState("");
     const [doordashLink, setDoordashLink] = useState("");
     const [isShopOpen, setIsShopOpen] = useState(true);
+    const [timezone, setTimezone] = useState("Asia/Kolkata");
 
 
     // Password State
@@ -145,6 +146,7 @@ export function GeneralSettings() {
             setFootNote(userData.footnote || "");
             setIsShopOpen(userData.is_shop_open);
             setBannerImage((userData as any).store_banner || null);
+            setTimezone((userData as any).timezone || "Asia/Kolkata");
 
             // Announcement & Banner Mode
             const rules = (userData as any).delivery_rules;
@@ -410,6 +412,7 @@ export function GeneralSettings() {
                 phone,
                 footnote: footNote,
                 is_shop_open: isShopOpen,
+                timezone,
                 whatsapp_numbers: [{ number: whatsappNumber, area: "default" }],
                 social_links: {
                     instagram: instaLink,
@@ -959,6 +962,29 @@ export function GeneralSettings() {
                                     onChange={(e) => setWhatsappNumber(e.target.value)}
                                     placeholder="+91..."
                                 />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Timezone</Label>
+                                <Input
+                                    list="timezone-options"
+                                    value={timezone}
+                                    onChange={(e) => setTimezone(e.target.value)}
+                                    placeholder="Asia/Kolkata"
+                                />
+                                <datalist id="timezone-options">
+                                    <option value="Asia/Kolkata" />
+                                    <option value="Asia/Dubai" />
+                                    <option value="Asia/Singapore" />
+                                    <option value="Asia/Bangkok" />
+                                    <option value="Asia/Tokyo" />
+                                    <option value="Europe/London" />
+                                    <option value="Europe/Paris" />
+                                    <option value="America/New_York" />
+                                    <option value="America/Los_Angeles" />
+                                    <option value="Australia/Sydney" />
+                                    <option value="UTC" />
+                                </datalist>
+                                <p className="text-xs text-muted-foreground">Used for scheduled menu visibility.</p>
                             </div>
                         </div>
                     </CardContent>

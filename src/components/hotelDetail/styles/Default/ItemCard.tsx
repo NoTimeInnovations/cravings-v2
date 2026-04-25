@@ -357,7 +357,7 @@ const ItemCard = ({
                 />
 
                 {!isOrderable && (
-                  <div className="absolute top-1/2 left-0 -translate-y-1/2 bg-red-500 text-white text-center text-sm font-semibold py-2 px-3 w-full">
+                  <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 bg-red-600 py-1.5 text-center text-xs font-extrabold uppercase tracking-wider text-white">
                     {!item.is_available ? "Unavailable" : "Out of Stock"}
                   </div>
                 )}

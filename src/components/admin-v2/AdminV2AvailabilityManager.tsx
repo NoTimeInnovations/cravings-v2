@@ -7,13 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, Search, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { isFreePlan } from "@/lib/getPlanLimits";
 import { UpgradePlanDialog } from "./UpgradePlanDialog";
 import { FreePlanBanner } from "./FreePlanBanner";
 import Img from "../Img";
+import { VisibilityEditor } from "./availability/VisibilityEditor";
+import { resolveVisibility, formatSchedule, VisibilityConfig, normalizeVisibility } from "@/lib/visibility";
 
 interface AdminV2AvailabilityManagerProps {
     onBack: () => void;
@@ -23,11 +25,15 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
     const { categories, fetchCategories, updateCategory } = useCategoryStore();
     const { items, fetchMenu, updateItem } = useMenuStore();
     const { userData } = useAuthStore();
-    const planId = (userData as Partner)?.subscription_details?.plan?.id;
+    const partner = userData as Partner | undefined;
+    const timezone = (partner as any)?.timezone || "Asia/Kolkata";
+    const planId = partner?.subscription_details?.plan?.id;
     const isOnFreePlan = isFreePlan(planId);
     const [searchQuery, setSearchQuery] = useState("");
     const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
     const [filteredData, setFilteredData] = useState<{ category: Category; items: MenuItem[] }[]>([]);
+    const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+    const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
     useEffect(() => {
         if (userData?.id) {
@@ -93,6 +99,26 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
         }
     };
 
+    const handleCategoryVisibilityChange = async (category: Category, next: VisibilityConfig) => {
+        try {
+            await updateCategory({ ...category, visibility_config: next });
+            toast.success("Category visibility updated");
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to update visibility");
+        }
+    };
+
+    const handleItemVisibilityChange = async (item: MenuItem, next: VisibilityConfig) => {
+        try {
+            await updateItem(item.id!, { visibility_config: next });
+            toast.success("Item visibility updated");
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to update visibility");
+        }
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <UpgradePlanDialog
@@ -110,7 +136,7 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
                     </Button>
                     <div>
                         <h2 className="text-xl sm:text-2xl font-bold">Manage Availability</h2>
-                        <p className="text-muted-foreground">Toggle availability for categories and items</p>
+                        <p className="text-muted-foreground">Toggle availability and visibility for categories and items</p>
                     </div>
                 </div>
                 <div className="relative w-full sm:w-64">
@@ -132,7 +158,14 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
                     </div>
                 ) : (
                     <Accordion type="multiple" className="space-y-4">
-                        {filteredData.map(({ category, items }) => (
+                        {filteredData.map(({ category, items }) => {
+                            const isCatExpanded = expandedCategory === category.id;
+                            const catVisibleNow = resolveVisibility(
+                                category.visibility_config,
+                                { type: "default", hidden: false },
+                                timezone
+                            ).visible;
+                            return (
                             <AccordionItem key={category.id} value={category.id} className="border rounded-lg bg-card px-4">
                                 <AccordionTrigger
                                     className="hover:no-underline py-4"
@@ -153,37 +186,100 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
                                         <span className="text-xs sm:text-sm font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full flex-shrink-0">
                                             {items.length} items
                                         </span>
+                                        {!catVisibleNow && (
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-200 text-gray-700 flex-shrink-0">Hidden now</span>
+                                        )}
                                     </div>
                                 </AccordionTrigger>
                                 <AccordionContent>
-                                    <div className="space-y-2 pt-2 pb-4">
-                                        {items.map(item => (
-                                            <div key={item.id} className="flex items-center justify-between p-3 border rounded-md bg-background">
-                                                <div className="flex items-center gap-3 overflow-hidden">
-                                                    <div className="h-10 w-10 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                                                        {item.image_url ? (
-                                                            <Img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
-                                                        ) : (
-                                                            <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground">No Img</div>
-                                                        )}
+                                    <div className="space-y-3 pt-2 pb-4">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-xs text-muted-foreground">
+                                                Category schedule: <span className="font-medium text-foreground">{formatSchedule(category.visibility_config)}</span>
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => setExpandedCategory(isCatExpanded ? null : category.id)}
+                                                className="text-xs text-primary hover:underline flex items-center gap-1"
+                                            >
+                                                {isCatExpanded ? <>Hide <ChevronUp className="h-3 w-3" /></> : <>Edit visibility <ChevronDown className="h-3 w-3" /></>}
+                                            </button>
+                                        </div>
+                                        {isCatExpanded && (
+                                            <VisibilityEditor
+                                                scope="category"
+                                                value={category.visibility_config}
+                                                onChange={(next) => handleCategoryVisibilityChange(category, next)}
+                                            />
+                                        )}
+
+                                        {items.map(item => {
+                                            const resolved = resolveVisibility(item.visibility_config, category.visibility_config, timezone);
+                                            const isItemExpanded = expandedItem === item.id;
+                                            const itemConfig = normalizeVisibility(item.visibility_config);
+                                            const itemHasOwnConfig = !(itemConfig.type === "default" && itemConfig.hidden === false);
+                                            return (
+                                            <div key={item.id} className="border rounded-md bg-background">
+                                                <div className="flex items-center justify-between p-3">
+                                                    <div className="flex items-center gap-3 overflow-hidden">
+                                                        <div className="h-10 w-10 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                                                            {item.image_url ? (
+                                                                <Img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
+                                                            ) : (
+                                                                <div className="h-full w-full flex items-center justify-center text-[10px] text-muted-foreground">No Img</div>
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="font-medium truncate text-sm sm:text-base max-w-[120px] sm:max-w-none">{item.name}</p>
+                                                            <p className="text-xs text-muted-foreground truncate">
+                                                                {item.is_veg ? "Veg" : item.is_veg === false ? "Non-Veg" : "Other"} • ₹{item.price}
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                    <div className="min-w-0">
-                                                        <p className="font-medium truncate text-sm sm:text-base max-w-[120px] sm:max-w-none">{item.name}</p>
-                                                        <p className="text-xs text-muted-foreground truncate">
-                                                            {item.is_veg ? "Veg" : item.is_veg === false ? "Non-Veg" : "Other"} • ₹{item.price}
-                                                        </p>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setExpandedItem(isItemExpanded ? null : (item.id ?? null))}
+                                                            className="text-xs text-primary hover:underline flex items-center gap-1"
+                                                        >
+                                                            {isItemExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                                        </button>
+                                                        <Switch
+                                                            checked={item.is_available}
+                                                            onCheckedChange={() => handleItemToggle(item)}
+                                                        />
                                                     </div>
                                                 </div>
-                                                <Switch
-                                                    checked={item.is_available}
-                                                    onCheckedChange={() => handleItemToggle(item)}
-                                                />
+                                                {(isItemExpanded || resolved.conflict) && (
+                                                    <div className="px-3 pb-3 space-y-2">
+                                                        {resolved.conflict && (
+                                                            <div className="flex items-start gap-2 text-xs p-2 rounded-md bg-amber-50 border border-amber-200 text-amber-800">
+                                                                <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                                                                <span>
+                                                                    This item's visibility is overridden by the category schedule. Category wins.
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                        {isItemExpanded && (
+                                                            <>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    {itemHasOwnConfig ? "Item schedule: " : "No item-level schedule. "}
+                                                                    <span className="font-medium text-foreground">{formatSchedule(item.visibility_config)}</span>
+                                                                </p>
+                                                                <VisibilityEditor
+                                                                    value={item.visibility_config}
+                                                                    onChange={(next) => handleItemVisibilityChange(item, next)}
+                                                                />
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
-                                        ))}
+                                        );})}
                                     </div>
                                 </AccordionContent>
                             </AccordionItem>
-                        ))}
+                        );})}
                     </Accordion>
                 )}
             </div>
