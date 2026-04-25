@@ -137,6 +137,9 @@ const HotelMenuPage = ({
   const showOnboarding = needsOnboarding;
   const [onboardingDismissed, setOnboardingDismissed] = useState(!showOnboarding);
   const [onboardingKey, setOnboardingKey] = useState(0);
+  // When the menu-page back button reopens onboarding, start at the storefront
+  // splash even if the URL has search params (which normally sets skipStorefront).
+  const [forceStorefront, setForceStorefront] = useState(false);
 
   const brandAccent = useMemo(() => {
     const BRAND_COLOR_MAP: Record<string, string> = {
@@ -392,7 +395,7 @@ const HotelMenuPage = ({
     pathname: pathname,
     isOnFreePlan: isHotelOnFreePlan,
     hideOtherCategories: !!lockedCategory,
-    onShowStorefront: showOnboarding ? () => { setOnboardingDismissed(false); setOnboardingKey((k) => k + 1); } : undefined,
+    onShowStorefront: showOnboarding ? () => { setForceStorefront(true); setOnboardingDismissed(false); setOnboardingKey((k) => k + 1); } : undefined,
   };
 
   const renderPage = () => {
@@ -498,11 +501,11 @@ const HotelMenuPage = ({
           notices={(hoteldata as any)?.notices || []}
           socialLinks={socialLinks}
           storefrontSettings={(hoteldata as any)?.storefront_settings}
-          skipStorefront={skipStorefront}
+          skipStorefront={forceStorefront ? false : skipStorefront}
           initialDeliveryOpen={initialDeliveryOpen}
           initialTakeawayOpen={initialTakeawayOpen}
           hotelTimezone={hotelTimezone}
-          onDismiss={() => setOnboardingDismissed(true)}
+          onDismiss={() => { setOnboardingDismissed(true); setForceStorefront(false); }}
         />
       )}
       {/* Notices now shown in splash/storefront screen only */}
