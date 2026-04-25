@@ -10,6 +10,7 @@ import V3ItemCard from "./V3ItemCard";
 import OrderDrawer from "../../OrderDrawer";
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import { getFeatures } from "@/lib/getFeatures";
+import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import DiscountBanner from "../../DiscountBanner";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 import useOrderStore from "@/store/orderStore";
@@ -162,10 +163,16 @@ const V3 = ({
       .filter(Boolean) as any[];
   }, [hoteldata]);
 
-  const hasOrderingOrDelivery = !!(
-    getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled ||
-    getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled
-  );
+  const features = getFeatures(hoteldata?.feature_flags as string);
+  const hasOrderingOrDelivery = !!(features?.ordering.enabled || features?.delivery.enabled);
+  const deliveryRules = (hoteldata as any)?.delivery_rules;
+  const isDeliveryActive = deliveryRules?.isDeliveryActive ?? true;
+  const deliveryWithinTime = isWithinTimeWindow(deliveryRules?.delivery_time_allowed);
+  const takeawayWithinTime = isWithinTimeWindow(deliveryRules?.takeaway_time_allowed);
+  const isDeliveryAvailable = !!features?.delivery.enabled && isDeliveryActive && deliveryWithinTime;
+  const isTakeawayAvailable = !!features?.ordering.enabled && takeawayWithinTime;
+  const isPickupMode = orderType === "takeaway" || tableNumber !== 0;
+  const showAppbarLocation = isPickupMode ? isTakeawayAvailable : isDeliveryAvailable;
 
   const showBottomNav =
     auth?.role === "user" &&
@@ -215,28 +222,30 @@ const V3 = ({
                 <ArrowLeft className="h-[18px] w-[18px] text-gray-900" />
               </button>
             )}
-            {/* Left: Location/Outlet info */}
-            <button
-              onClick={() => { if (orderType !== "takeaway" && tableNumber === 0) setAddressSheetOpen(true); }}
-              className="flex min-w-0 flex-1 items-center gap-2 text-left"
-            >
-              {orderType === "takeaway" || tableNumber !== 0 ? (
-                <Store className="h-4 w-4 shrink-0 text-gray-900" />
-              ) : (
-                <MapPin className="h-4 w-4 shrink-0 text-gray-900" />
-              )}
-              <div className="min-w-0 leading-tight">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                  {orderType === "takeaway" || tableNumber !== 0 ? "Pickup from" : "Deliver to"}
-                </p>
-                <p className="truncate text-sm font-bold text-gray-900">
-                  {orderType === "takeaway" || tableNumber !== 0
-                    ? outletName
-                    : userAddress || "Add delivery address"}
-                </p>
-              </div>
-              <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
-            </button>
+            {/* Left: Location/Outlet info — only when the matching feature is enabled */}
+            {showAppbarLocation ? (
+              <button
+                onClick={() => { if (orderType !== "takeaway" && tableNumber === 0) setAddressSheetOpen(true); }}
+                className="flex min-w-0 flex-1 items-center gap-2 text-left"
+              >
+                {isPickupMode ? (
+                  <Store className="h-4 w-4 shrink-0 text-gray-900" />
+                ) : (
+                  <MapPin className="h-4 w-4 shrink-0 text-gray-900" />
+                )}
+                <div className="min-w-0 leading-tight">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    {isPickupMode ? "Pickup from" : "Deliver to"}
+                  </p>
+                  <p className="truncate text-sm font-bold text-gray-900">
+                    {isPickupMode ? outletName : userAddress || "Add delivery address"}
+                  </p>
+                </div>
+                <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+              </button>
+            ) : (
+              <div className="flex-1" />
+            )}
 
             {/* Right: Search icon + Shopping bag icon */}
             <div className="ml-auto flex items-center gap-0.5">
