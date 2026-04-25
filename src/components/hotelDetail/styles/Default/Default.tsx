@@ -12,6 +12,7 @@ import MenuItemsList from "./MenuItemsList_v2";
 import PopularItemsList from "./PopularItemsList";
 import OrderDrawer from "../../OrderDrawer";
 import RateThis from "@/components/RateThis";
+import { applyVisibilityState } from "@/lib/visibility";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import {
   HotelData,
@@ -76,26 +77,31 @@ const Default = ({
 
   // getCategoryItems logic (updated to match HotelMenuPage_v2)
   const getCategoryItems = (selectedCategory: string) => {
+    const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
+    const hideUnav = (hoteldata as any)?.hide_unavailable;
+    const applyVis = <T extends any>(arr: T[]): T[] =>
+      (arr.map((item) => applyVisibilityState(item as any, tz, undefined, hideUnav)).filter(Boolean) as T[]);
+
     if (selectedCategory === "all") {
-      return (
+      return applyVis(
         hoteldata?.menus?.filter(
           (item) =>
-            (item.category.is_active === undefined ||
-              item.category.is_active === true) &&
-            (!hoteldata.hide_unavailable || item.is_available)
+            item.category.is_active === undefined ||
+            item.category.is_active === true
         ) || []
       );
     }
 
     // Handle the special "Offer" category
     if (selectedCategory === "Offer") {
-      const offeredItems = hoteldata?.menus.filter(
-        (item) =>
-          item.id && hasActiveOffer(item.id) &&
-          (item.category.is_active === undefined ||
-            item.category.is_active === true) &&
-          (!hoteldata.hide_unavailable || item.is_available)
-      ) || [];
+      const offeredItems = applyVis(
+        hoteldata?.menus.filter(
+          (item) =>
+            item.id && hasActiveOffer(item.id) &&
+            (item.category.is_active === undefined ||
+              item.category.is_active === true)
+        ) || []
+      );
 
       // Sort offered items with images first
       const sortedItems = [...offeredItems].sort((a, b) => {
@@ -106,12 +112,13 @@ const Default = ({
       return sortedItems;
     }
 
-    const filteredItems = hoteldata?.menus.filter(
-      (item) =>
-        item.category.name === selectedCategory &&
-        (item.category.is_active === undefined ||
-          item.category.is_active === true) &&
-        (!hoteldata.hide_unavailable || item.is_available)
+    const filteredItems = applyVis(
+      hoteldata?.menus.filter(
+        (item) =>
+          item.category.name === selectedCategory &&
+          (item.category.is_active === undefined ||
+            item.category.is_active === true)
+      ) || []
     );
     const sortedItems = [...filteredItems].sort((a, b) => {
       if (a.image_url.length && !b.image_url.length) return -1;
@@ -122,6 +129,14 @@ const Default = ({
   };
 
   const items = getCategoryItems(selectedCategory);
+
+  const searchableMenu = React.useMemo(() => {
+    const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
+    const hideUnav = (hoteldata as any)?.hide_unavailable;
+    return (hoteldata?.menus || [])
+      .map((item) => applyVisibilityState(item as any, tz, undefined, hideUnav))
+      .filter(Boolean) as any[];
+  }, [hoteldata]);
 
   return (
     <main
@@ -208,7 +223,7 @@ const Default = ({
               hotelData={hoteldata}
               currency={hoteldata?.currency}
               styles={styles}
-              menu={hoteldata.menus}
+              menu={searchableMenu}
               tableNumber={tableNumber}
               auth={auth}
             />

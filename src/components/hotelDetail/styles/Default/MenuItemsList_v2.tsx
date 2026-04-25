@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
-import { isItemVisibleForStorefront } from "@/lib/visibility";
+import { applyVisibilityState } from "@/lib/visibility";
 import { Category, formatDisplayName } from "@/store/categoryStore_hasura";
 import ItemCard from "./ItemCard";
 import { Offer } from "@/store/offerStore_hasura";
@@ -122,7 +122,10 @@ const MenuItemsList = ({
   // Filter items based on veg/non-veg selection + visibility config
   const filteredItems = useMemo(() => {
     const tz = (hotelData as any)?.timezone || "Asia/Kolkata";
-    const base = items.filter((item) => isItemVisibleForStorefront(item as any, tz));
+    const hideUnav = (hotelData as any)?.hide_unavailable;
+    const base = items
+      .map((item) => applyVisibilityState(item as any, tz, undefined, hideUnav))
+      .filter(Boolean) as typeof items;
     if (vegFilter === "all" || !hasVegFilter) return base;
     return base.filter((item) => {
       if (vegFilter === "veg") return item.is_veg === true;

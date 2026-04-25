@@ -447,7 +447,7 @@ const ItemCard = ({
 
             {/* Unavailable Overlay */}
             {(!item.is_available || isOutOfStock) && (
-              <div className="absolute top-1/2 left-0 -translate-y-1/2 bg-red-500/90 text-white text-center text-[10px] font-semibold py-0.5 w-full">
+              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 bg-red-600 py-1 text-center text-[10px] font-extrabold uppercase tracking-wider text-white">
                 {!item.is_available ? "Unavailable" : "Out of Stock"}
               </div>
             )}

@@ -207,6 +207,7 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
                                         </div>
                                         {isCatExpanded && (
                                             <VisibilityEditor
+                                                scope="category"
                                                 value={category.visibility_config}
                                                 onChange={(next) => handleCategoryVisibilityChange(category, next)}
                                             />

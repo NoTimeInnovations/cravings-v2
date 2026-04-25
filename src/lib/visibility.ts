@@ -1,12 +1,13 @@
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
 export type VisibilityConfig =
-  | { type: "default"; hidden: boolean }
+  | { type: "default"; hidden: boolean; hideItems?: boolean }
   | {
       type: "scheduled";
       days: Weekday[];
       from: string; // "HH:mm"
       to: string;   // "HH:mm"
+      hideItems?: boolean;
     };
 
 export const DEFAULT_VISIBILITY: VisibilityConfig = { type: "default", hidden: false };
@@ -16,10 +17,14 @@ const WEEKDAY_ORDER: Weekday[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat
 function normalize(config: unknown): VisibilityConfig {
   if (!config || typeof config !== "object") return DEFAULT_VISIBILITY;
   const c = config as any;
+  // hideItems defaults to true (the historical behavior is to hide items entirely
+  // when the category is not visible). Only `false` opts into the new
+  // "show items as unavailable" mode.
+  const hideItems = c.hideItems === false ? false : true;
   if (c.type === "scheduled" && Array.isArray(c.days) && typeof c.from === "string" && typeof c.to === "string") {
-    return { type: "scheduled", days: c.days, from: c.from, to: c.to };
+    return { type: "scheduled", days: c.days, from: c.from, to: c.to, hideItems };
   }
-  if (c.type === "default") return { type: "default", hidden: !!c.hidden };
+  if (c.type === "default") return { type: "default", hidden: !!c.hidden, hideItems };
   return DEFAULT_VISIBILITY;
 }
 
@@ -142,12 +147,78 @@ export function normalizeVisibility(config: unknown): VisibilityConfig {
   return normalize(config);
 }
 
-// Storefront helper: filter menu items by both their own and their category's visibility.
-export function isItemVisibleForStorefront(
-  item: { visibility_config?: unknown; category?: { visibility_config?: unknown; is_active?: boolean } | null },
+export type ItemDisplayState = "visible" | "hidden" | "unavailable";
+
+// Returns how an item should be rendered on the storefront:
+//   "visible"     — show normally
+//   "hidden"      — drop from menu
+//   "unavailable" — keep in menu but force is_available=false (show "Unavailable" badge)
+//
+// Resolution order (highest priority first):
+//   1. category.is_active === false  →  "hidden"
+//   2. item.is_available === false   →  governed by item's hideItems toggle
+//      (per-item override; falls back to hotel.hide_unavailable, then `true`)
+//   3. category schedule not visible →  governed by category's hideItems
+//   4. item schedule not visible     →  governed by item's hideItems toggle
+//   5. otherwise                     →  "visible"
+export function getItemDisplayState(
+  item: { visibility_config?: unknown; category?: { visibility_config?: unknown; is_active?: boolean } | null; is_available?: boolean },
   timezone: string = "Asia/Kolkata",
-  now: Date = new Date()
+  now: Date = new Date(),
+  hotelHideUnavailable?: boolean
+): ItemDisplayState {
+  if (item.category && item.category.is_active === false) return "hidden";
+
+  const itemHideExplicit = (item.visibility_config as any)?.hideItems;
+  const itemHide =
+    itemHideExplicit === false
+      ? false
+      : itemHideExplicit === true
+      ? true
+      : hotelHideUnavailable !== false; // default true preserves hide-when-unset
+
+  // Main availability toggle has top priority over schedules
+  if (item.is_available === false) {
+    return itemHide ? "hidden" : "unavailable";
+  }
+
+  // Category schedule
+  if (!isVisibleNow(item.category?.visibility_config, timezone, now)) {
+    const cat = normalize(item.category?.visibility_config);
+    return cat.hideItems === false ? "unavailable" : "hidden";
+  }
+
+  // Item schedule
+  if (!isVisibleNow(item.visibility_config, timezone, now)) {
+    return itemHide ? "hidden" : "unavailable";
+  }
+
+  return "visible";
+}
+
+// Storefront helper: filter menu items by both their own and their category's visibility.
+// Returns true for items that should remain in the menu list (visible OR unavailable).
+export function isItemVisibleForStorefront(
+  item: { visibility_config?: unknown; category?: { visibility_config?: unknown; is_active?: boolean } | null; is_available?: boolean },
+  timezone: string = "Asia/Kolkata",
+  now: Date = new Date(),
+  hotelHideUnavailable?: boolean
 ): boolean {
-  if (item.category && item.category.is_active === false) return false;
-  return resolveVisibility(item.visibility_config, item.category?.visibility_config, timezone, now).visible;
+  return getItemDisplayState(item, timezone, now, hotelHideUnavailable) !== "hidden";
+}
+
+// Storefront helper: drop hidden items and force is_available=false for items
+// in the "show as unavailable" state. Use in place of any explicit
+// `hide_unavailable && !is_available` filter — this helper centralises that
+// rule and respects per-item / per-category overrides.
+export function applyVisibilityState<T extends { visibility_config?: unknown; category?: any; is_available?: boolean }>(
+  item: T,
+  timezone: string = "Asia/Kolkata",
+  now: Date = new Date(),
+  hotelHideUnavailable?: boolean
+): T | null {
+  const state = getItemDisplayState(item as any, timezone, now, hotelHideUnavailable);
+  if (state === "hidden") return null;
+  if (state === "unavailable") return { ...item, is_available: false };
+  return item;
 }

@@ -353,10 +353,8 @@ const SidebarItemCard = ({
 
           {/* Out of stock */}
           {!isOrderable && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-              <span className="bg-white/90 text-red-500 text-[8px] font-semibold py-0.5 px-2 rounded-full">
-                {!item.is_available ? "Unavailable" : "Out of Stock"}
-              </span>
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 bg-red-600 py-1 text-center text-[9px] font-extrabold uppercase tracking-wider text-white">
+              {!item.is_available ? "Unavailable" : "Out of Stock"}
             </div>
           )}
 

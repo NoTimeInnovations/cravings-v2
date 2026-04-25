@@ -4,7 +4,7 @@ import Link from "next/link";
 import { MapPin, Phone, Star, ChevronRight, ShoppingBag, Search, Store, ChevronDown, LocateFixed, Loader2, X, ArrowLeft } from "lucide-react";
 import { FaWhatsapp, FaInstagram } from "react-icons/fa";
 import { DefaultHotelPageProps } from "../Default/Default";
-import { isItemVisibleForStorefront } from "@/lib/visibility";
+import { applyVisibilityState, getItemDisplayState } from "@/lib/visibility";
 import { formatDisplayName } from "@/store/categoryStore_hasura";
 import V3ItemCard from "./V3ItemCard";
 import OrderDrawer from "../../OrderDrawer";
@@ -103,7 +103,7 @@ const V3 = ({
     scrollCategoryIntoView(index);
   };
 
-  const allCategories = useMemo(() => {
+  const allCategoriesUnfiltered = useMemo(() => {
     let cats = [...categories];
     if (hasOffers) {
       cats = cats.filter((c) => {
@@ -117,6 +117,50 @@ const V3 = ({
     }
     return cats.sort((a, b) => (a.priority || 0) - (b.priority || 0));
   }, [categories, hasOffers, topItems]);
+
+  // Compute the items each category will render once. Drives both the chip
+  // list (categories with zero items disappear) and the section list. Items
+  // in "unavailable" state pass through with is_available forced to false so
+  // they show the Unavailable badge.
+  const categoriesWithItems = useMemo(() => {
+    const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
+    const offerMenuIdSet = new Set(offers.map((offer) => offer.menu.id));
+    const hideUnav = hoteldata?.hide_unavailable;
+    const result: { category: any; items: any[] }[] = [];
+    for (const category of allCategoriesUnfiltered) {
+      let pool: any[] = [];
+      if (category.id === "offers") {
+        pool = (hoteldata?.menus || []).filter((item) => offerMenuIdSet.has(item.id as string));
+      } else if (category.id === "must-try") {
+        pool = topItems;
+      } else {
+        pool = (hoteldata?.menus || []).filter((item) => item.category.id === category.id);
+      }
+      const items = pool
+        .map((item) => {
+          const state = getItemDisplayState(item as any, tz, undefined, hideUnav);
+          if (state === "hidden") return null;
+          return state === "unavailable" ? { ...item, is_available: false } : item;
+        })
+        .filter(Boolean) as any[];
+      items.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+      if (items.length > 0) result.push({ category, items });
+    }
+    return result;
+  }, [allCategoriesUnfiltered, hoteldata, offers, topItems]);
+
+  const allCategories = useMemo(() => categoriesWithItems.map((g) => g.category), [categoriesWithItems]);
+
+  // Search input feeds off the same visibility/availability rules so hidden
+  // items don't leak into search results, and unavailable items show with the
+  // Unavailable badge.
+  const searchableMenu = useMemo(() => {
+    const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
+    const hideUnav = hoteldata?.hide_unavailable;
+    return (hoteldata?.menus || [])
+      .map((item) => applyVisibilityState(item as any, tz, undefined, hideUnav))
+      .filter(Boolean) as any[];
+  }, [hoteldata]);
 
   const hasOrderingOrDelivery = !!(
     getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled ||
@@ -215,7 +259,7 @@ const V3 = ({
         {/* Search modal - rendered outside header to avoid backdrop-blur stacking context issues */}
         {searchOpen && (
           <V3SearchItems
-            menu={hoteldata?.menus}
+            menu={searchableMenu}
             hoteldata={hoteldata}
             tableNumber={tableNumber}
             onClose={() => setSearchOpen(false)}
@@ -335,41 +379,7 @@ const V3 = ({
 
         {/* Menu sections */}
         <div className="px-4">
-          {allCategories.map((category, index) => {
-            let itemsToDisplay: any[] = [];
-            const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
-
-            switch (category.id) {
-              case "offers": {
-                const offerMenuIdSet = new Set(offers.map((offer) => offer.menu.id));
-                itemsToDisplay = hoteldata?.menus?.filter((item) => {
-                  const matchesOffer = offerMenuIdSet.has(item.id as string);
-                  if (hoteldata.hide_unavailable && !item.is_available) return false;
-                  if (!isItemVisibleForStorefront(item as any, tz)) return false;
-                  return matchesOffer;
-                }) || [];
-                break;
-              }
-              case "must-try":
-                itemsToDisplay = topItems.filter((item) => {
-                  if (hoteldata.hide_unavailable && !item.is_available) return false;
-                  if (!isItemVisibleForStorefront(item as any, tz)) return false;
-                  return true;
-                });
-                break;
-              default:
-                itemsToDisplay = hoteldata?.menus?.filter((item) => {
-                  const matchesCategory = item.category.id === category.id;
-                  if (hoteldata.hide_unavailable && !item.is_available) return false;
-                  if (!isItemVisibleForStorefront(item as any, tz)) return false;
-                  return matchesCategory;
-                }) || [];
-            }
-
-            if (!itemsToDisplay || itemsToDisplay.length === 0) return null;
-
-            itemsToDisplay.sort((a, b) => (a.priority || 0) - (b.priority || 0));
-
+          {categoriesWithItems.map(({ category, items: itemsToDisplay }, index) => {
             return (
               <section
                 key={category.id}

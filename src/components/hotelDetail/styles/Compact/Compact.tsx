@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { MyOrdersButton } from "./MyOrdersButton";
-import { isItemVisibleForStorefront } from "@/lib/visibility";
+import { applyVisibilityState } from "@/lib/visibility";
 import Link from "next/link";
 
 import CompactOrders from "./CompactOrders";
@@ -843,6 +843,14 @@ const Compact = ({
     return cats.sort((a, b) => (a.priority || 0) - (b.priority || 0));
   }, [categories, hasOffers, topItems]);
 
+  const searchableMenu = useMemo(() => {
+    const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
+    const hideUnav = hoteldata?.hide_unavailable;
+    return (hoteldata?.menus || [])
+      .map((item) => applyVisibilityState(item as any, tz, undefined, hideUnav))
+      .filter(Boolean) as any[];
+  }, [hoteldata]);
+
   const hasOrderingOrDelivery = !!(
     getFeatures(hoteldata?.feature_flags as string)?.ordering.enabled ||
     getFeatures(hoteldata?.feature_flags as string)?.delivery.enabled
@@ -945,7 +953,7 @@ const Compact = ({
                 )}
               </div>
               <SearchItems
-                menu={hoteldata?.menus}
+                menu={searchableMenu}
                 hoteldata={hoteldata}
                 styles={localStyles}
                 tableNumber={tableNumber}
@@ -1042,6 +1050,7 @@ const Compact = ({
                   let itemsToDisplay = [];
                   const tz = (hoteldata as any)?.timezone || "Asia/Kolkata";
 
+                  const hideUnav = hoteldata?.hide_unavailable;
                   switch (category.id) {
                     case "offers":
                       // Create a Set of menu IDs for faster lookups.
@@ -1049,50 +1058,50 @@ const Compact = ({
                         offers.map((offer) => offer.menu.id),
                       );
                       // Filter 'hoteldata.menus' by checking for the item's ID in the Set.
-                      itemsToDisplay = hoteldata?.menus.filter((item) => {
-                        const matchesOffer = offerMenuIdSet.has(
-                          item.id as string,
-                        );
-                        if (hoteldata.hide_unavailable && !item.is_available)
-                          return false;
-                        if (!isItemVisibleForStorefront(item as any, tz)) return false;
-                        if (vegFilter === "all" || !hasVegFilter)
+                      itemsToDisplay = hoteldata?.menus
+                        .filter((item) => {
+                          const matchesOffer = offerMenuIdSet.has(
+                            item.id as string,
+                          );
+                          if (vegFilter === "all" || !hasVegFilter)
+                            return matchesOffer;
+                          if (vegFilter === "veg")
+                            return matchesOffer && item.is_veg === true;
+                          if (vegFilter === "non-veg")
+                            return matchesOffer && item.is_veg === false;
                           return matchesOffer;
-                        if (vegFilter === "veg")
-                          return matchesOffer && item.is_veg === true;
-                        if (vegFilter === "non-veg")
-                          return matchesOffer && item.is_veg === false;
-                        return matchesOffer;
-                      });
+                        })
+                        .map((item) => applyVisibilityState(item as any, tz, undefined, hideUnav))
+                        .filter(Boolean) as any[];
                       break;
                     case "must-try":
                       // If the category is "must_try", display the top items.
-                      itemsToDisplay = topItems.filter((item) => {
-                        if (hoteldata.hide_unavailable && !item.is_available)
-                          return false;
-                        if (!isItemVisibleForStorefront(item as any, tz)) return false;
-                        if (vegFilter === "all" || !hasVegFilter) return true;
-                        if (vegFilter === "veg") return item.is_veg === true;
-                        if (vegFilter === "non-veg")
-                          return item.is_veg === false;
-                        return true;
-                      });
+                      itemsToDisplay = topItems
+                        .filter((item) => {
+                          if (vegFilter === "all" || !hasVegFilter) return true;
+                          if (vegFilter === "veg") return item.is_veg === true;
+                          if (vegFilter === "non-veg")
+                            return item.is_veg === false;
+                          return true;
+                        })
+                        .map((item) => applyVisibilityState(item as any, tz, undefined, hideUnav))
+                        .filter(Boolean) as any[];
                       break;
                     default:
-                      itemsToDisplay = hoteldata?.menus.filter((item) => {
-                        const matchesCategory =
-                          item.category.id === category.id;
-                        if (hoteldata.hide_unavailable && !item.is_available)
-                          return false;
-                        if (!isItemVisibleForStorefront(item as any, tz)) return false;
-                        if (vegFilter === "all" || !hasVegFilter)
+                      itemsToDisplay = hoteldata?.menus
+                        .filter((item) => {
+                          const matchesCategory =
+                            item.category.id === category.id;
+                          if (vegFilter === "all" || !hasVegFilter)
+                            return matchesCategory;
+                          if (vegFilter === "veg")
+                            return matchesCategory && item.is_veg === true;
+                          if (vegFilter === "non-veg")
+                            return matchesCategory && item.is_veg === false;
                           return matchesCategory;
-                        if (vegFilter === "veg")
-                          return matchesCategory && item.is_veg === true;
-                        if (vegFilter === "non-veg")
-                          return matchesCategory && item.is_veg === false;
-                        return matchesCategory;
-                      });
+                        })
+                        .map((item) => applyVisibilityState(item as any, tz, undefined, hideUnav))
+                        .filter(Boolean) as any[];
                   }
 
                   // Do not render the category section if there are no items to display.

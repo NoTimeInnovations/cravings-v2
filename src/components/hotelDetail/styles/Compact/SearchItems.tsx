@@ -89,8 +89,17 @@ const SearchResultItem = ({
       </div>
       <div className="flex flex-col items-center flex-shrink-0">
         {item.image_url && (
-          <div className="w-20 h-20 rounded-lg overflow-hidden">
-            <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+          <div className="relative w-20 h-20 rounded-lg overflow-hidden">
+            <img
+              src={item.image_url}
+              alt={item.name}
+              className={`w-full h-full object-cover ${!item.is_available ? "grayscale" : ""}`}
+            />
+            {!item.is_available && (
+              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 bg-red-600 py-1 text-center text-[9px] font-extrabold uppercase tracking-wider text-white">
+                Unavailable
+              </div>
+            )}
           </div>
         )}
         {showAddButton && item.is_available && (

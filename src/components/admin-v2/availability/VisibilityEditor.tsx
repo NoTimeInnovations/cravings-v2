@@ -19,20 +19,23 @@ interface Props {
   value: unknown;
   onChange: (next: VisibilityConfig) => void;
   disabled?: boolean;
+  scope?: "category" | "item";
 }
 
-export function VisibilityEditor({ value, onChange, disabled }: Props) {
+export function VisibilityEditor({ value, onChange, disabled, scope = "item" }: Props) {
   const config = normalizeVisibility(value);
+  const hideItems = config.hideItems !== false;
 
   const setType = (type: "default" | "scheduled") => {
     if (type === "default") {
-      onChange({ type: "default", hidden: false });
+      onChange({ type: "default", hidden: false, hideItems });
     } else {
       onChange({
         type: "scheduled",
         days: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
         from: "09:00",
         to: "22:00",
+        hideItems,
       });
     }
   };
@@ -70,7 +73,7 @@ export function VisibilityEditor({ value, onChange, disabled }: Props) {
           <Switch
             checked={config.hidden}
             disabled={disabled}
-            onCheckedChange={(checked) => onChange({ type: "default", hidden: checked })}
+            onCheckedChange={(checked) => onChange({ type: "default", hidden: checked, hideItems })}
           />
         </div>
       )}
@@ -130,6 +133,24 @@ export function VisibilityEditor({ value, onChange, disabled }: Props) {
           )}
         </div>
       )}
+
+      <div className="flex items-center justify-between border-t pt-3">
+        <div>
+          <p className="text-sm">
+            {scope === "category" ? "Hide items when not visible" : "Hide item when not visible"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {scope === "category"
+              ? "Off: keep items in the menu but mark them as unavailable."
+              : "Off: keep this item in the menu marked as unavailable when its main availability is off or its schedule isn't met."}
+          </p>
+        </div>
+        <Switch
+          checked={hideItems}
+          disabled={disabled}
+          onCheckedChange={(checked) => onChange({ ...config, hideItems: checked } as VisibilityConfig)}
+        />
+      </div>
     </div>
   );
 }
