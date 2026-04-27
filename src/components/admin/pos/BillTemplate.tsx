@@ -10,7 +10,7 @@ import { Order } from "@/store/orderStore";
 import React from "react";
 
 interface BillTemplateProps {
-  ref: React.RefObject<HTMLDivElement | null>;
+  ref: React.RefObject<HTMLDivElement>;
   userData: Partner;
   order: Order;
   tz?: string;

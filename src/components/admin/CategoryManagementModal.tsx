@@ -82,7 +82,7 @@ export function CategoryManagementForm({
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [keyboardOpen, setKeyboardOpen] = useState(false);
-  const [inputRefs, setInputRefs] = useState<{[key: string]: React.RefObject<HTMLInputElement | null>}>({});
+  const [inputRefs, setInputRefs] = useState<{[key: string]: React.RefObject<HTMLInputElement>}>({});
   const { deleteCategoryAndItems } = useMenuStore();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -95,9 +95,9 @@ export function CategoryManagementForm({
   useEffect(() => {
     if (initialCategories.length > 0 && !categoriesInitialized) {
       // Create refs for each category
-      const refs: {[key: string]: React.RefObject<HTMLInputElement | null>} = {};
+      const refs: {[key: string]: React.RefObject<HTMLInputElement>} = {};
       initialCategories.forEach((cat: Category) => {
-        refs[cat.id] = createRef<HTMLInputElement | null>();
+        refs[cat.id] = createRef<HTMLInputElement>();
       });
       
       // Format the category names for display

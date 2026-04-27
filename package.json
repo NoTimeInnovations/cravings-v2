@@ -92,10 +92,10 @@
     "puppeteer": "^23.11.1",
     "qrcode": "^1.5.4",
     "razorpay": "^2.9.6",
-    "react": "19.2.1",
+    "react": "18.3.1",
     "react-colorful": "^5.6.1",
     "react-day-picker": "^8.10.1",
-    "react-dom": "19.2.1",
+    "react-dom": "18.3.1",
     "react-hook-form": "^7.53.0",
     "react-icons": "^5.5.0",
     "react-image-crop": "^11.0.10",
@@ -134,8 +134,8 @@
     "@types/mapbox-gl": "^3.4.1",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.5",
-    "@types/react": "19.2.7",
-    "@types/react-dom": "19.2.3",
+    "@types/react": "18.3.28",
+    "@types/react-dom": "18.3.7",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
     "cross-env": "^7.0.3",
@@ -150,8 +150,8 @@
     "typescript-eslint": "^8.7.0"
   },
   "overrides": {
-    "@types/react": "19.2.7",
-    "@types/react-dom": "19.2.3"
+    "@types/react": "18.3.28",
+    "@types/react-dom": "18.3.7"
   },
   "browserslist": [
     "chrome >= 100",

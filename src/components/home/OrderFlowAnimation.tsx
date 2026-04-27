@@ -125,7 +125,7 @@ function OrderFlowInner({ onComplete }: { onComplete: () => void }) {
   const [cursorPos, setCursorPos] = useState({ x: -30, y: -30 });
 
   const getCenter = useCallback(
-    (ref: React.RefObject<HTMLDivElement | null>) => {
+    (ref: React.RefObject<HTMLDivElement>) => {
       const c = containerRef.current;
       const el = ref.current;
       if (!c || !el) return { x: -30, y: -30 };
