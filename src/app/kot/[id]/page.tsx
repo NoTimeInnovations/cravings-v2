@@ -2,6 +2,7 @@
 
 import { getDateOnly } from "@/lib/formatDate";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { sanitizePrintText } from "@/lib/sanitizePrintText";
 import { ExtraCharge } from "@/store/posStore";
 import { useParams, useSearchParams } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
@@ -87,7 +88,7 @@ const PrintKOTPage = () => {
           tableNumber: orders_by_pk.table_number,
           tableName:
             orders_by_pk.qr_code?.table_name || orders_by_pk.table_name || null,
-          deliveryAddress: orders_by_pk.delivery_address,
+          deliveryAddress: sanitizePrintText(orders_by_pk.delivery_address),
           extra_charges: (orders_by_pk.extra_charges ?? []).map(
             (charge: any) => ({
               id: charge.id,
@@ -149,16 +150,11 @@ const PrintKOTPage = () => {
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
-    onAfterPrint: () => console.log("KOT printed successfully!"),
   });
 
   useEffect(() => {
-    if (!loading && order && printRef.current) {
-      if (!silentPrint) {
-        handlePrint();
-      } else {
-        console.log("Silent print mode enabled, waiting for user action...");
-      }
+    if (!loading && order && printRef.current && !silentPrint) {
+      handlePrint();
     }
   }, [loading, order, handlePrint]);
 

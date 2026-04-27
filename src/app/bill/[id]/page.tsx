@@ -5,6 +5,7 @@ import { getGstAmount, calculateGstForItems } from "@/components/hotelDetail/Ord
 import { getDateOnly } from "@/lib/formatDate";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { sanitizePrintText } from "@/lib/sanitizePrintText";
 import { OrderItem } from "@/store/orderStore";
 import { ExtraCharge } from "@/store/posStore";
 import { useParams, useSearchParams } from "next/navigation";
@@ -146,13 +147,7 @@ const PrintOrderPage = () => {
             );
             geoData = await response.json();
 
-            console.log(geoData?.features?.[0]?.properties?.place_formatted);
-
             if (geoData?.features?.[0]?.properties?.place_formatted) {
-              console.log(
-                "Updating partner address to: ",
-                geoData?.features?.[0]?.properties?.place_formatted
-              );
               // Update partner address in the database
               await fetchFromHasura(UPDATE_PARTNER_ADDRESS_MUTATION, {
                 id: orders_by_pk.partner_id,
@@ -185,14 +180,15 @@ const PrintOrderPage = () => {
           payment_method: orders_by_pk.payment_method,
           tableName:
             orders_by_pk.qr_code?.table_name || orders_by_pk.table_name || null, // Ensure this matches your usage
-          deliveryAddress: orders_by_pk.delivery_address, // Ensure this matches your usage
+          deliveryAddress: sanitizePrintText(orders_by_pk.delivery_address),
           qrCode: qrCodeUrl,
           notes: orders_by_pk.notes || "",
-          address:
+          address: sanitizePrintText(
             orders_by_pk.partner?.location_details ||
-            orders_by_pk.partner?.address ||
-            geoData?.features?.[0]?.properties?.place_formatted ||
-            null,
+              orders_by_pk.partner?.address ||
+              geoData?.features?.[0]?.properties?.place_formatted ||
+              ""
+          ),
           fssai_licence_no:
             orders_by_pk.partner?.fssai_licence_no || null,
         };
@@ -350,16 +346,11 @@ const PrintOrderPage = () => {
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
-    onAfterPrint: () => console.log("Printed successfully!"),
   });
 
   useEffect(() => {
-    if (!loading && order && printRef.current) {
-      if (!silentPrint) {
-        handlePrint();
-      } else {
-        console.log("Silent print mode enabled, waiting for user action...");
-      }
+    if (!loading && order && printRef.current && !silentPrint) {
+      handlePrint();
     }
   }, [loading, order, handlePrint]);
 

@@ -44,7 +44,7 @@ export default function UserProfilePage() {
         const parsed = JSON.parse(stored);
         if (parsed.storePath) setStorePath(parsed.storePath);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   const [editingName, setEditingName] = useState(false);
@@ -308,7 +308,7 @@ export default function UserProfilePage() {
               Are you sure you want to delete your account?
             </p>
             <p className="text-xs text-red-500 mb-3">
-              Your account will be deactivated. You can reactivate it by logging in again.
+              Your account will be permenantly deleted. Confirm before deletion.
             </p>
             <div className="flex gap-2">
               <Button variant="destructive" size="sm" className="flex-1" onClick={handleDeleteAccount} disabled={deleting}>
@@ -358,9 +358,8 @@ export default function UserProfilePage() {
                           <Link
                             key={order.id}
                             href={`/order/${order.id}`}
-                            className={`px-4 py-3 flex items-center justify-between transition-colors ${
-                              idx < Math.min(orders.length, 5) - 1 ? "border-b border-gray-100" : ""
-                            }`}
+                            className={`px-4 py-3 flex items-center justify-between transition-colors ${idx < Math.min(orders.length, 5) - 1 ? "border-b border-gray-100" : ""
+                              }`}
                           >
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">

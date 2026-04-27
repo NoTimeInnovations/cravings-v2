@@ -19,6 +19,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
+import { sanitizePrintText } from "@/lib/sanitizePrintText";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { toast } from "sonner";
 import { table } from "console";
@@ -762,7 +763,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
           partner_id: partnerId,
           user_id: null,
           type: orderTypeString,
-          delivery_address: isTakeaway ? null : (get().deliveryAddress || null),
+          delivery_address: isTakeaway ? null : (sanitizePrintText(get().deliveryAddress) || null),
           phone: get().userPhone || null,
           notes: orderNote || null,
           payment_status: "pending",
@@ -850,7 +851,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         userId: null,
         type: orderTypeString,
         status: "accepted" as "accepted",
-        delivery_address: isTakeaway ? null : (get().deliveryAddress || null), // Ensure null for takeaway
+        delivery_address: isTakeaway ? null : (sanitizePrintText(get().deliveryAddress) || null), // Ensure null for takeaway
         delivery_location: null,
         orderedby: isCaptainOrder ? "captain" : null,
         captain_id: isCaptainOrder ? userId : null,

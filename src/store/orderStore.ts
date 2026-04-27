@@ -1,5 +1,6 @@
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { sanitizePrintText } from "@/lib/sanitizePrintText";
 import { getFeatures } from "@/lib/getFeatures";
 import { getSafeStorage } from "@/lib/safeStorage";
 import { create } from "zustand";
@@ -1110,7 +1111,9 @@ const useOrderStore = create(
               },
               type,
               delivery_address:
-                type === "delivery" && !isTakeaway ? state.userAddress : null,
+                type === "delivery" && !isTakeaway
+                  ? sanitizePrintText(state.userAddress)
+                  : null,
               phone: userData.phone || null,
               customer_name: customerName || (userData as any).full_name || null,
               notes: notes || null,
@@ -1257,7 +1260,9 @@ const useOrderStore = create(
               type,
               status: "pending",
               delivery_address:
-                type === "delivery" && !isTakeaway ? state.userAddress : null,
+                type === "delivery" && !isTakeaway
+                  ? sanitizePrintText(state.userAddress)
+                  : null,
               delivery_location:
                 type === "delivery" && !isTakeaway
                   ? {
