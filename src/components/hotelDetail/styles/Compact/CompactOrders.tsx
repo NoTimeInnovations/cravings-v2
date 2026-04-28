@@ -7,7 +7,10 @@ import {
   ExternalLink,
   MessageCircle,
   CreditCard,
+  Star,
 } from "lucide-react";
+import { OrderReviewModal } from "@/components/OrderReviewModal";
+import type { Order as UserOrder } from "@/store/orderStore";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
 import { getExtraCharge } from "@/lib/getExtraCharge";
@@ -38,6 +41,8 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
     cashfree_merchant_id?: string;
   } | null>(null);
   const [cashfreeLoadingOrderId, setCashfreeLoadingOrderId] = useState<string | null>(null);
+  const [reviewOrder, setReviewOrder] = useState<UserOrder | null>(null);
+  const [justReviewedIds, setJustReviewedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (userData?.id) {
@@ -386,10 +391,34 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
                   )}
                 </div>
               )}
+              {order.status === "completed" && !order.review && !justReviewedIds.has(order.id) && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setReviewOrder(order);
+                  }}
+                  className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-orange-500 text-white rounded-lg font-medium text-xs hover:bg-orange-600 transition-colors"
+                >
+                  <Star className="w-3.5 h-3.5" />
+                  Add Review
+                </button>
+              )}
             </div>
           );
         })}
       </div>
+      {reviewOrder && (
+        <OrderReviewModal
+          key={reviewOrder.id}
+          order={reviewOrder}
+          onSubmitted={() => {
+            setJustReviewedIds((prev) => new Set(prev).add(reviewOrder.id));
+            setReviewOrder(null);
+          }}
+          onClose={() => setReviewOrder(null)}
+        />
+      )}
     </>
   );
 };

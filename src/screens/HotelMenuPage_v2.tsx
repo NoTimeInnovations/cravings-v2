@@ -8,7 +8,7 @@ import OrderDrawer from "@/components/hotelDetail/OrderDrawer";
 import useOrderStore from "@/store/orderStore";
 // Import useMemo and useCallback
 import { useEffect, useMemo, useCallback, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { getFeatures } from "@/lib/getFeatures";
 import { isFreePlan } from "@/lib/getPlanLimits";
 import { QrGroup } from "@/app/admin/qr-management/page";
@@ -124,6 +124,7 @@ const HotelMenuPage = ({
     return names;
   }, [urlHide, urlCategoryList, hoteldata?.menus]);
   const pathname = usePathname();
+  const router = useRouter();
   const { setHotelId, genOrderId, open_place_order_modal, orderType } = useOrderStore();
   const { setQrData } = useQrDataStore();
 
@@ -395,7 +396,18 @@ const HotelMenuPage = ({
     pathname: pathname,
     isOnFreePlan: isHotelOnFreePlan,
     hideOtherCategories: !!lockedCategory,
-    onShowStorefront: showOnboarding ? () => { setForceStorefront(true); setOnboardingDismissed(false); setOnboardingKey((k) => k + 1); } : undefined,
+    onShowStorefront: showOnboarding ? () => {
+      // Clear all search params so the storefront/onboarding flow renders fresh.
+      // Use window.history.replaceState for immediate effect (router.replace is
+      // async and useSearchParams in the remounted OnboardingFlow would still
+      // see the stale params for one render).
+      if (typeof window !== "undefined" && window.location.search) {
+        window.history.replaceState(null, "", pathname);
+      }
+      setForceStorefront(true);
+      setOnboardingDismissed(false);
+      setOnboardingKey((k) => k + 1);
+    } : undefined,
   };
 
   const renderPage = () => {
@@ -502,6 +514,7 @@ const HotelMenuPage = ({
           socialLinks={socialLinks}
           storefrontSettings={(hoteldata as any)?.storefront_settings}
           skipStorefront={forceStorefront ? false : skipStorefront}
+          forceStart={forceStorefront}
           initialDeliveryOpen={initialDeliveryOpen}
           initialTakeawayOpen={initialTakeawayOpen}
           hotelTimezone={hotelTimezone}

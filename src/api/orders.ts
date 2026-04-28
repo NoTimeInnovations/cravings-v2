@@ -513,6 +513,12 @@ subscription GetUserOrders($user_id: uuid!) {
         }
       }
     }
+    reviews {
+      id
+      rating
+      comment
+      created_at
+    }
   }
 }
 `;

@@ -76,6 +76,7 @@ const EditPartners = () => {
             state
             country
             username
+            petpooja_restaurant_id
           }
         }`
       );
@@ -191,6 +192,7 @@ const EditPartners = () => {
       country_code: selectedPartner.country_code,
       state: selectedPartner.state,
       username: newUsername,
+      petpooja_restaurant_id: selectedPartner.petpooja_restaurant_id || undefined,
     };
     updatePartner(selectedPartner.id, updates);
     setSelectedPartner(null);
@@ -382,6 +384,20 @@ const EditPartners = () => {
                       setSelectedPartner({
                         ...selectedPartner,
                         razorpay_linked_account_id: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="petpooja_restaurant_id">PetPooja Restaurant ID</Label>
+                  <Input
+                    id="petpooja_restaurant_id"
+                    placeholder="PetPooja restaurant identifier"
+                    value={selectedPartner.petpooja_restaurant_id || ""}
+                    onChange={(e) =>
+                      setSelectedPartner({
+                        ...selectedPartner,
+                        petpooja_restaurant_id: e.target.value,
                       })
                     }
                   />

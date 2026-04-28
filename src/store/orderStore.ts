@@ -156,6 +156,12 @@ export interface Order {
   | null;
   is_paid?: boolean;
   cashfree_payment_id?: string;
+  review?: {
+    id: string;
+    rating: number;
+    comment: string | null;
+    created_at: string;
+  } | null;
 }
 
 export interface DeliveryInfo {
@@ -535,6 +541,14 @@ const useOrderStore = create(
                 category: i.item?.category,
                 is_freebie: i.item?.is_freebie || false,
               })),
+              review: order.reviews?.[0]
+                ? {
+                    id: order.reviews[0].id,
+                    rating: order.reviews[0].rating,
+                    comment: order.reviews[0].comment,
+                    created_at: order.reviews[0].created_at,
+                  }
+                : null,
             }));
 
             if (allOrders) {

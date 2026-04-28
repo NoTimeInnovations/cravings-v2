@@ -5,6 +5,9 @@ object_relationships:
   - name: menu
     using:
       foreign_key_constraint_on: menu_id
+  - name: order
+    using:
+      foreign_key_constraint_on: order_id
   - name: partner
     using:
       foreign_key_constraint_on: partner_id

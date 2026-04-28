@@ -10,7 +10,8 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Order, OrderItem } from "@/store/orderStore";
 import OfferLoadinPage from "@/components/OfferLoadinPage";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
-import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2 } from "lucide-react";
+import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2, Star } from "lucide-react";
+import { OrderReviewModal } from "@/components/OrderReviewModal";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
@@ -51,6 +52,7 @@ const GET_ORDER_QUERY = `
         store_name
         country
         name
+        username
       }
       gst_included
       extra_charges
@@ -66,6 +68,12 @@ const GET_ORDER_QUERY = `
         id
         quantity
         item
+      }
+      reviews(limit: 1) {
+        id
+        rating
+        comment
+        created_at
       }
     }
   }
@@ -90,6 +98,8 @@ const OrderClient = () => {
     const [locationAgo, setLocationAgo] = useState<number | null>(null);
     const [cashfreeLoading, setCashfreeLoading] = useState(false);
     const [cashfreeVerifying, setCashfreeVerifying] = useState(false);
+    const [reviewOpen, setReviewOpen] = useState(false);
+    const [justReviewed, setJustReviewed] = useState(false);
 
     // Ticking timer for "Location updated Xs ago"
     useEffect(() => {
@@ -147,6 +157,14 @@ const OrderClient = () => {
                             price: i.item?.offers?.[0]?.offer_price || i.item?.price || 0,
                             category: i.menu?.category,
                         })),
+                        review: order?.reviews?.[0]
+                            ? {
+                                  id: order.reviews[0].id,
+                                  rating: order.reviews[0].rating,
+                                  comment: order.reviews[0].comment,
+                                  created_at: order.reviews[0].created_at,
+                              }
+                            : null,
                     });
                 } else {
                     setError("Order not found");
@@ -370,7 +388,14 @@ ${itemsText}
             {/* Top Navbar */}
             <div className="bg-white border-b sticky top-0 z-50 px-4 py-3 flex items-center gap-3 shadow-sm">
                 <button
-                    onClick={() => router.back()}
+                    onClick={() => {
+                        const username = (order?.partner as any)?.username;
+                        if (username) {
+                            router.push(`/${username}?back=true`);
+                        } else {
+                            router.back();
+                        }
+                    }}
                     className="p-2 rounded-full hover:bg-gray-100 transition-colors"
                 >
                     <ArrowLeft size={20} />
@@ -408,6 +433,22 @@ ${itemsText}
                                     )}
                                 </div>
                             </div>
+                            {order?.status === "completed" && !order.review && !justReviewed && (
+                                <button
+                                    type="button"
+                                    onClick={() => setReviewOpen(true)}
+                                    className="mt-4 inline-flex items-center justify-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+                                >
+                                    <Star className="h-4 w-4" />
+                                    Add Review
+                                </button>
+                            )}
+                            {order?.review && (
+                                <div className="mt-4 inline-flex items-center gap-1.5 text-sm text-gray-600">
+                                    <Star className="h-4 w-4 fill-orange-500 text-orange-500" />
+                                    You rated this order {order.review.rating}/5
+                                </div>
+                            )}
                         </div>
 
                         {/* Live Delivery Tracking */}
@@ -657,6 +698,16 @@ ${itemsText}
                         </div>
                     )}
                 </div>
+            )}
+            {reviewOpen && order && (
+                <OrderReviewModal
+                    order={order}
+                    onSubmitted={() => {
+                        setJustReviewed(true);
+                        setReviewOpen(false);
+                    }}
+                    onClose={() => setReviewOpen(false)}
+                />
             )}
         </div>
         </>

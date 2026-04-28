@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import useOrderStore from "@/store/orderStore";
 import { useLocationStore } from "@/store/geolocationStore";
@@ -38,6 +38,12 @@ interface OnboardingFlowProps {
   initialTakeawayOpen?: boolean;
   hotelTimezone?: string;
   onDismiss?: () => void;
+  /**
+   * When true, ignore the ?back=true URL flag and always render the flow.
+   * Set by the V3 menu back button so re-opening the storefront works even if
+   * the URL hasn't yet been cleaned up by the router.
+   */
+  forceStart?: boolean;
 }
 
 export default function OnboardingFlow({
@@ -61,8 +67,14 @@ export default function OnboardingFlow({
   initialTakeawayOpen,
   hotelTimezone,
   onDismiss,
+  forceStart,
 }: OnboardingFlowProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // ?back=true is set by /order/[id] (and other pages) when navigating back to
+  // the storefront. In that case, skip the entire storefront/onboarding flow.
+  // forceStart overrides this so the V3 menu back button can re-open the flow.
+  const isBackNav = !forceStart && searchParams?.get("back") === "true";
   const features = getFeatures(featureFlags);
   const hasWhatsappOtp = features.whatsappnotifications.enabled;
   const hasDelivery = features.delivery.enabled;
@@ -98,7 +110,8 @@ export default function OnboardingFlow({
   };
 
   const initialStep = getInitialStep();
-  const skipOnboarding = !showStorefrontSplashInitially && isLoggedIn && !needsOrderType;
+  const skipOnboarding =
+    isBackNav || (!showStorefrontSplashInitially && isLoggedIn && !needsOrderType);
 
   const [step, setStep] = useState<OnboardingStep>(initialStep);
   const [dismissed, setDismissed] = useState(skipOnboarding);
@@ -108,6 +121,19 @@ export default function OnboardingFlow({
 
   useEffect(() => {
     if (skipOnboarding) onDismiss?.();
+  }, []);
+
+  // When the user lands here via a back-navigation from /my-orders or
+  // /order/[id], skip the entire onboarding flow once. The originating page
+  // sets the sessionStorage flag right before calling router.back().
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("skip-storefront-onboarding-once") === "1") {
+        sessionStorage.removeItem("skip-storefront-onboarding-once");
+        setDismissed(true);
+        onDismiss?.();
+      }
+    } catch {}
   }, []);
 
   useEffect(() => {

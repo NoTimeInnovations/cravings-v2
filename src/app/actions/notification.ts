@@ -292,6 +292,59 @@ class PartnerNotification {
     }
   }
 
+  async sendReviewNotification(
+    partnerId: string,
+    orderDisplayId: string,
+    rating: number,
+    comment: string | null
+  ) {
+    try {
+      const { device_tokens } = await fetchFromHasura(
+        `
+        query GetPartnerDeviceTokens($partnerId: String!) {
+          device_tokens(
+            where: { user_id: { _eq: $partnerId } },
+            order_by: { created_at: desc },
+            limit: 3
+          ) {
+            device_token
+          }
+        }
+      `,
+        { partnerId }
+      );
+
+      const tokens = device_tokens?.map(
+        (t: { device_token: string }) => t.device_token
+      ) || [];
+      if (tokens.length === 0) return;
+
+      const stars = "★".repeat(rating) + "☆".repeat(Math.max(0, 5 - rating));
+      const body = comment
+        ? `${stars} for #${orderDisplayId}: ${comment.slice(0, 120)}`
+        : `${stars} for #${orderDisplayId}`;
+
+      const message = getMessage("New customer review", body, tokens, {
+        url: "https://menuthere.com",
+        channel_id: "cravings_channel_1",
+        sound: "custom_sound.caf",
+        type: "review",
+        order_id: orderDisplayId,
+      });
+
+      const response = await fetch(`${BASE_URL}/api/notifications/send`, {
+        method: "POST",
+        body: JSON.stringify({ message, partner_id: partnerId }),
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!response.ok) {
+        console.error("Failed to send review notification");
+      }
+    } catch (error) {
+      console.error("Error sending review notification:", error);
+    }
+  }
+
   async sendOfferNotification(
     offer: Offer,
     notificationMessage?: {

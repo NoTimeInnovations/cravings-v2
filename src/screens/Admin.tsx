@@ -3,6 +3,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MenuTab } from "@/components/admin/MenuTab";
 import { OffersTab } from "@/components/admin/OffersTab";
+import { ReviewsTab } from "@/components/admin/ReviewsTab";
 import { Partner } from "@/store/authStore";
 import { useEffect, useState } from "react";
 import { Notification } from "@/app/actions/notification";
@@ -24,12 +25,16 @@ export default function Admin({ userData }: { userData: Partner }) {
           <TabsList className="grid w-full grid-flow-col auto-cols-fr mb-8">
             <TabsTrigger value="menu">Menu</TabsTrigger>
             <TabsTrigger value="offers">Offers</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews</TabsTrigger>
           </TabsList>
           <TabsContent value="menu">
             <MenuTab />
           </TabsContent>
           <TabsContent value="offers">
             <OffersTab />
+          </TabsContent>
+          <TabsContent value="reviews">
+            <ReviewsTab />
           </TabsContent>
         </Tabs>
       </div>

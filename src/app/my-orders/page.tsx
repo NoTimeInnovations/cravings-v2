@@ -6,23 +6,41 @@ import {
   Loader2,
   ExternalLink,
   ArrowLeft,
+  Star,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { usePOSStore } from "@/store/posStore";
-import useOrderStore from "@/store/orderStore";
+import useOrderStore, { Order } from "@/store/orderStore";
 import { EditOrderModal } from "@/components/admin/pos/EditOrderModal";
 import { getGstAmount, calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import Link from "next/link";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
+import { OrderReviewModal } from "@/components/OrderReviewModal";
 
 const Page = () => {
   const { userData } = useAuthStore();
   const { userOrders, subscribeUserOrders } = useOrderStore();
   const { setOrder, setEditOrderModalOpen } = usePOSStore();
   const [loading, setLoading] = useState(true);
+  const [justReviewedIds, setJustReviewedIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [reviewOrder, setReviewOrder] = useState<Order | null>(null);
   const router = useRouter();
+
+  const isReviewEligible = (o: Order) =>
+    o.status === "completed" && !o.review && !justReviewedIds.has(o.id);
+
+  const handleReviewSubmitted = (orderId: string) => {
+    setJustReviewedIds((prev) => {
+      const next = new Set(prev);
+      next.add(orderId);
+      return next;
+    });
+    setReviewOrder(null);
+  };
 
   useEffect(() => {
     if (userData?.id) {
@@ -75,7 +93,12 @@ const Page = () => {
       {/* Top Navbar */}
       <div className="border-b border-gray-200 sticky top-0 z-50 px-4 py-3 flex items-center gap-3 shadow-sm bg-white">
         <button
-          onClick={() => router.back()}
+          onClick={() => {
+            try {
+              sessionStorage.setItem("skip-storefront-onboarding-once", "1");
+            } catch {}
+            router.back();
+          }}
           className="p-2 rounded-full transition-colors hover:bg-gray-100 text-gray-700"
         >
           <ArrowLeft size={20} />
@@ -192,6 +215,21 @@ const Page = () => {
                       {grandTotal.toFixed(2)}
                     </span>
                   </div>
+
+                  {isReviewEligible(order) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setReviewOrder(order);
+                      }}
+                      className="mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+                    >
+                      <Star className="h-4 w-4" />
+                      Add Review
+                    </button>
+                  )}
                 </Link>
               );
             })}
@@ -225,6 +263,15 @@ const Page = () => {
 
         <EditOrderModal />
       </div>
+
+      {reviewOrder && (
+        <OrderReviewModal
+          key={reviewOrder.id}
+          order={reviewOrder}
+          onSubmitted={() => handleReviewSubmitted(reviewOrder.id)}
+          onClose={() => setReviewOrder(null)}
+        />
+      )}
     </div>
   );
 };

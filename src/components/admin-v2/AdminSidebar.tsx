@@ -16,6 +16,7 @@ import {
   Truck,
   Users,
   Bell,
+  Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ const sidebarItems: SidebarItem[] = [
   { title: "Dashboard", icon: LayoutDashboard, id: "dashboard" },
   { title: "Analytics", icon: BarChart3, id: "analytics" },
   { title: "Orders", icon: ShoppingBag, id: "orders" },
+  { title: "Reviews", icon: Star, id: "reviews" },
   { title: "Menu", icon: UtensilsCrossed, id: "menu" },
   { title: "Offers", icon: Percent, id: "offers" },
   { title: "Notices", icon: Bell, id: "notices" },
@@ -54,6 +56,7 @@ const FREE_PLAN_LOCKED_IDS = [
   "qrcodes",
   "deliveryboys",
   "customers",
+  "reviews",
 ];
 
 interface AdminSidebarProps {
@@ -102,6 +105,11 @@ export function AdminSidebar({
       return features?.purchasemanagement?.enabled ? "visible" : "hidden";
     }
     if (item.id === "customers") {
+      return features?.ordering?.enabled || features?.delivery?.enabled
+        ? "visible"
+        : "hidden";
+    }
+    if (item.id === "reviews") {
       return features?.ordering?.enabled || features?.delivery?.enabled
         ? "visible"
         : "hidden";

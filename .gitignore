@@ -2,6 +2,8 @@
 
 /.history
 
+/.claude/Claude Skills
+
 # dependencies
 /node_modules
 /.pnp
