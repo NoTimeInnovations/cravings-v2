@@ -6,6 +6,7 @@ mutation InsertOrderReview(
   $user_id: uuid!
   $rating: Int!
   $comment: String
+  $photo_urls: jsonb
 ) {
   insert_reviews_one(
     object: {
@@ -15,6 +16,7 @@ mutation InsertOrderReview(
       user_id: $user_id
       rating: $rating
       comment: $comment
+      photo_urls: $photo_urls
       type: "order"
       created_at: "now()"
     }
@@ -22,6 +24,7 @@ mutation InsertOrderReview(
     id
     rating
     comment
+    photo_urls
     created_at
   }
 }
@@ -39,18 +42,34 @@ query GetPartnerReviews($partner_id: uuid!) {
     id
     rating
     comment
+    photo_urls
     created_at
     order_id
     user {
       full_name
       phone
+      email
     }
     order {
       id
       display_id
       type
       total_price
+      status
+      is_paid
       created_at
+      delivery_address
+      notes
+      table_number
+      phone
+      gst_included
+      extra_charges
+      discounts
+      order_items {
+        id
+        quantity
+        item
+      }
     }
   }
 }

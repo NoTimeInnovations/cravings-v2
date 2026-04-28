@@ -14,27 +14,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore, Partner } from "@/store/authStore";
 import { getPartnerReviewsQuery } from "@/api/reviews";
+import { AdminV2ReviewDetail, ReviewDetail } from "./AdminV2ReviewDetail";
 
-interface ReviewRow {
-  id: string;
-  rating: number;
-  comment: string | null;
-  created_at: string;
-  order_id: string | null;
-  user: {
-    full_name: string | null;
-    phone: string | null;
-  } | null;
-  order: {
-    id: string;
-    display_id: string | null;
-    type: string | null;
-    total_price: number | null;
-    created_at: string;
-  } | null;
-}
+type ReviewRow = ReviewDetail;
 
 function StarRow({ value }: { value: number }) {
   return (
@@ -66,6 +50,9 @@ export function AdminV2Reviews() {
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<ReviewRow | null>(null);
+  const partner = userData as Partner | null;
+  const currency = partner?.currency || "₹";
 
   useEffect(() => {
     if (!userData?.id) return;
@@ -95,6 +82,17 @@ export function AdminV2Reviews() {
     const sum = reviews.reduce((acc, r) => acc + (r.rating || 0), 0);
     return { avg: sum / reviews.length, count: reviews.length };
   }, [reviews]);
+
+  // When a review is selected, replace the list with the inline detail view.
+  if (selected) {
+    return (
+      <AdminV2ReviewDetail
+        review={selected}
+        currency={currency}
+        onBack={() => setSelected(null)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -162,11 +160,18 @@ export function AdminV2Reviews() {
                   <TableHead>Type</TableHead>
                   <TableHead>Rating</TableHead>
                   <TableHead>Comment</TableHead>
+                  <TableHead>Photos</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {reviews.map((r) => (
-                  <TableRow key={r.id}>
+                {reviews.map((r) => {
+                  const photos = Array.isArray(r.photo_urls) ? r.photo_urls : [];
+                  return (
+                  <TableRow
+                    key={r.id}
+                    onClick={() => setSelected(r)}
+                    className="cursor-pointer"
+                  >
                     <TableCell className="whitespace-nowrap text-sm">
                       {format(new Date(r.created_at), "MMM d, yyyy")}
                     </TableCell>
@@ -204,13 +209,36 @@ export function AdminV2Reviews() {
                         </span>
                       )}
                     </TableCell>
+                    <TableCell>
+                      {photos.length === 0 ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          {photos.slice(0, 3).map((url, i) => (
+                            <img
+                              key={i}
+                              src={url}
+                              alt=""
+                              className="h-9 w-9 rounded-md object-cover ring-1 ring-black/5"
+                            />
+                          ))}
+                          {photos.length > 3 && (
+                            <span className="text-xs font-medium text-muted-foreground">
+                              +{photos.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
+
     </div>
   );
 }
