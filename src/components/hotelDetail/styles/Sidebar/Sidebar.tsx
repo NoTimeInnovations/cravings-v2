@@ -125,7 +125,7 @@ const Sidebar = ({
   items: initialItems,
   pathname,
   categories,
-  setSelectedCategory,
+  setSelectedCategory: setSelectedCategoryProp,
   selectedCategory: selectedCategoryProp,
   qrGroup,
   qrId,
@@ -134,8 +134,28 @@ const Sidebar = ({
 }: SidebarHotelPageProps) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"food" | "orders">("food");
+  const [hasUserPicked, setHasUserPicked] = useState(false);
   const { addItem, removeItem, items: cartItems, setOpenPlaceOrderModal, orderType } = useOrderStore();
-  const selectedCategory = selectedCategoryProp || "all";
+
+  const setSelectedCategory = useCallback((cat: string) => {
+    setHasUserPicked(true);
+    setSelectedCategoryProp(cat);
+  }, [setSelectedCategoryProp]);
+
+  // Until the user explicitly picks, default to the first real category instead
+  // of "all". The parent's mount effect re-asserts "all" after ours, so resolving
+  // locally avoids the race.
+  const firstCategoryFallback = useMemo(() => {
+    const cats = categories.filter((c) => c.name !== "Offer").map((c) => c.name);
+    if (topItems.length > 0) return "Must Try";
+    if (cats.length > 0) return cats[0];
+    return "all";
+  }, [categories, topItems.length]);
+
+  const selectedCategory =
+    !hasUserPicked && (!selectedCategoryProp || selectedCategoryProp === "all")
+      ? firstCategoryFallback
+      : selectedCategoryProp || "all";
 
   const showBottomNav =
     auth?.role === "user" &&
@@ -164,13 +184,6 @@ const Sidebar = ({
     }
     return [...cats, "all"];
   }, [categories, topItems.length, hideOtherCategories]);
-
-  // Set first category as default on mount
-  useEffect(() => {
-    if (allCats.length > 0 && (!selectedCategoryProp || selectedCategoryProp === "all")) {
-      setSelectedCategory(allCats[0]);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-scroll category sidebar to keep active category visible (skip initial load)
   const hasInitialScrolled = useRef(false);
