@@ -326,8 +326,8 @@ class PartnerNotification {
 
       const message = getMessage("New customer review", body, tokens, {
         url: "https://menuthere.com",
-        channel_id: "cravings_channel_1",
-        sound: "custom_sound.caf",
+        channel_id: "cravings_channel_2",
+        sound: "default_sound",
         type: "review",
         order_id: orderDisplayId,
       });
