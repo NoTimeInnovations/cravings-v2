@@ -46,6 +46,24 @@ export function FeatureSettings() {
     const handleFeatureToggle = async (key: string, enabled: boolean) => {
         if (!userData || !features) return;
 
+        if (key === "growjet_delivery" && enabled) {
+            const geo = (userData as Partner)?.geo_location;
+            const coords =
+                geo && typeof geo === "object" && "coordinates" in geo
+                    ? geo.coordinates
+                    : null;
+            const valid =
+                Array.isArray(coords) &&
+                coords.length === 2 &&
+                typeof coords[0] === "number" &&
+                typeof coords[1] === "number" &&
+                !(coords[0] === 0 && coords[1] === 0);
+            if (!valid) {
+                toast.error("Set your store coordinates before enabling Growjet delivery.");
+                return;
+            }
+        }
+
         const updatedFeatures = {
             ...features,
             [key]: {
@@ -249,6 +267,23 @@ export function FeatureSettings() {
                                     <Switch
                                         checked={features.storefront.enabled}
                                         onCheckedChange={(checked) => handleFeatureToggle("storefront", checked)}
+                                    />
+                                </div>
+                            )}
+
+                            {features.growjet_delivery?.access && (
+                                <div className="flex items-center justify-between p-4 border rounded-lg">
+                                    <div className="space-y-0.5">
+                                        <div className="font-medium">Growjet Delivery</div>
+                                        <div className="text-sm text-muted-foreground">
+                                            {features.growjet_delivery.enabled
+                                                ? "Enabled — orders dispatch to Growjet on food ready"
+                                                : "Disabled — using internal delivery"}
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={features.growjet_delivery.enabled}
+                                        onCheckedChange={(checked) => handleFeatureToggle("growjet_delivery", checked)}
                                     />
                                 </div>
                             )}

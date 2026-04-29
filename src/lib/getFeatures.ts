@@ -39,6 +39,10 @@ export type FeatureFlags = {
     access: boolean;
     enabled: boolean;
   };
+  growjet_delivery: {
+    access: boolean;
+    enabled: boolean;
+  };
 };
 
 export const revertFeatureToString = (features: FeatureFlags): string => {
@@ -82,6 +86,10 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
 
   if (features.storefront.access) {
     parts.push(`storefront-${features.storefront.enabled}`);
+  }
+
+  if (features.growjet_delivery.access) {
+    parts.push(`growjet_delivery-${features.growjet_delivery.enabled}`);
   }
 
   return parts.join(",");
@@ -129,6 +137,10 @@ export const getFeatures = (perm: string | null) => {
       access: false,
       enabled: false,
     },
+    growjet_delivery: {
+      access: false,
+      enabled: false,
+    },
   };
 
   if (!perm) {
@@ -171,6 +183,9 @@ export const getFeatures = (perm: string | null) => {
       } else if (key === "storefront") {
         permissions.storefront.access = true;
         permissions.storefront.enabled = value === "true";
+      } else if (key === "growjet_delivery") {
+        permissions.growjet_delivery.access = true;
+        permissions.growjet_delivery.enabled = value === "true";
       }
     }
   }

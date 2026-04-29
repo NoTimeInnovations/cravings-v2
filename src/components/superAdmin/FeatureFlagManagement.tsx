@@ -31,7 +31,20 @@ import { Info, Menu, Search } from "lucide-react";
 
 interface PartnerWithFeatureFlags extends Partner {
   featureFlag: FeatureFlags;
+  growjet_user_id?: string | null;
 }
+
+const hasValidCoordinates = (geo: Partner["geo_location"] | null | undefined): boolean => {
+  if (!geo || typeof geo !== "object" || !("coordinates" in geo)) return false;
+  const coords = (geo as { coordinates?: [number, number] }).coordinates;
+  if (!Array.isArray(coords) || coords.length !== 2) return false;
+  const [lng, lat] = coords;
+  return (
+    typeof lng === "number" &&
+    typeof lat === "number" &&
+    !(lng === 0 && lat === 0)
+  );
+};
 
 const FeatureFlagManagement = () => {
   const [partners, setPartners] = useState<PartnerWithFeatureFlags[]>([]);
@@ -48,7 +61,8 @@ const FeatureFlagManagement = () => {
     stockmanagement: "Enables stock management feature for a partner.",
     captainordering: "Enables captain account creation and management for partners. Partners can create and manage captain accounts for taking orders.",
     whatsappnotifications: "Sends WhatsApp order notifications to customers when an order is placed and status updates.",
-    newonboarding: "Enables the new onboarding flow with login, order type selection, and delivery address screens."
+    newonboarding: "Enables the new onboarding flow with login, order type selection, and delivery address screens.",
+    growjet_delivery: "Routes delivery dispatch through Growjet (third-party). Requires partner geo_location and growjet_user_id."
   };
 
   const getAllPartners = async () => {
@@ -60,6 +74,8 @@ const FeatureFlagManagement = () => {
             id
             store_name
             feature_flags
+            geo_location
+            growjet_user_id
           }
         }`
       );
@@ -112,6 +128,14 @@ const FeatureFlagManagement = () => {
     type: "access" | "enabled",
     value: boolean
   ) => {
+    if (feature === "growjet_delivery" && value) {
+      const target = partners.find((p) => p.id === partnerId);
+      if (!hasValidCoordinates(target?.geo_location)) {
+        toast.error("Set partner coordinates before enabling Growjet delivery.");
+        return;
+      }
+    }
+
     try {
       setPartners(prev => prev.map(partner => {
         if (partner.id === partnerId) {
