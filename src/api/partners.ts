@@ -286,6 +286,24 @@ export const getAllPartnerUpiIdsQuery = `
   }
 `;
 
+export const getPartnerLegalByUsernameQuery = `
+  query GetPartnerLegalByUsername($username: String!) {
+    partners(where: {username: {_eq: $username}}, limit: 1) {
+      id
+      username
+      store_name
+      official_name
+      about_us
+      operating_address
+      official_email_id
+      official_phone_number
+      phone
+      email
+      theme
+    }
+  }
+`;
+
 export const getPartnerSubscriptionQuery = `
 query GetLastSubscription($partnerId: uuid!) {
   partner_subscriptions(
@@ -339,6 +357,11 @@ export const updatePartnerMutation = `
       accept_payments_via_cashfree
       accept_cod
       storefront_settings
+      official_name
+      about_us
+      operating_address
+      official_email_id
+      official_phone_number
     }
   }
 `;

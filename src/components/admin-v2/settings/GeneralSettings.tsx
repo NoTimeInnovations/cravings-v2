@@ -53,6 +53,13 @@ export function GeneralSettings() {
     const [isShopOpen, setIsShopOpen] = useState(true);
     const [timezone, setTimezone] = useState("Asia/Kolkata");
 
+    // Official Settings (used for legal pages — Cashfree KYC etc.)
+    const [officialName, setOfficialName] = useState("");
+    const [aboutUs, setAboutUs] = useState("");
+    const [operatingAddress, setOperatingAddress] = useState("");
+    const [officialEmailId, setOfficialEmailId] = useState("");
+    const [officialPhoneNumber, setOfficialPhoneNumber] = useState("");
+
 
     // Password State
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -147,6 +154,12 @@ export function GeneralSettings() {
             setIsShopOpen(userData.is_shop_open);
             setBannerImage((userData as any).store_banner || null);
             setTimezone((userData as any).timezone || "Asia/Kolkata");
+
+            setOfficialName((userData as any).official_name || "");
+            setAboutUs((userData as any).about_us || "");
+            setOperatingAddress((userData as any).operating_address || "");
+            setOfficialEmailId((userData as any).official_email_id || "");
+            setOfficialPhoneNumber((userData as any).official_phone_number || "");
 
             // Announcement & Banner Mode
             const rules = (userData as any).delivery_rules;
@@ -422,7 +435,11 @@ export function GeneralSettings() {
                     talabat: talabatLink,
                     doordash: doordashLink,
                 },
-
+                official_name: officialName || null,
+                about_us: aboutUs || null,
+                operating_address: operatingAddress || null,
+                official_email_id: officialEmailId || null,
+                official_phone_number: officialPhoneNumber || null,
             };
 
             await updatePartner(userData.id, updates);
@@ -436,7 +453,7 @@ export function GeneralSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, storeName, description, phone, footNote, isShopOpen, whatsappNumber, instaLink, facebookLink, zomatoLink, uberEatsLink, talabatLink, doordashLink, setState]);
+    }, [userData, storeName, description, phone, footNote, isShopOpen, whatsappNumber, instaLink, facebookLink, zomatoLink, uberEatsLink, talabatLink, doordashLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -471,6 +488,11 @@ export function GeneralSettings() {
         const initialUberEats = socialLinks.uberEats || "";
         const initialTalabat = socialLinks.talabat || "";
         const initialDoordash = socialLinks.doordash || "";
+        const initialOfficialName = data.official_name || "";
+        const initialAboutUs = data.about_us || "";
+        const initialOperatingAddress = data.operating_address || "";
+        const initialOfficialEmailId = data.official_email_id || "";
+        const initialOfficialPhoneNumber = data.official_phone_number || "";
 
         const hasChanges =
             storeName !== initialStoreName ||
@@ -484,7 +506,12 @@ export function GeneralSettings() {
             zomatoLink !== initialZomato ||
             uberEatsLink !== initialUberEats ||
             talabatLink !== initialTalabat ||
-            doordashLink !== initialDoordash;
+            doordashLink !== initialDoordash ||
+            officialName !== initialOfficialName ||
+            aboutUs !== initialAboutUs ||
+            operatingAddress !== initialOperatingAddress ||
+            officialEmailId !== initialOfficialEmailId ||
+            officialPhoneNumber !== initialOfficialPhoneNumber;
 
         setHasChanges(hasChanges);
 
@@ -501,6 +528,11 @@ export function GeneralSettings() {
         uberEatsLink,
         talabatLink,
         doordashLink,
+        officialName,
+        aboutUs,
+        operatingAddress,
+        officialEmailId,
+        officialPhoneNumber,
         userData,
         setHasChanges
     ]);
@@ -1444,6 +1476,61 @@ export function GeneralSettings() {
                         partnerId={userData?.id as string}
                         currentDomain={(userData as any)?.custom_domain}
                     />
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Official Settings</CardTitle>
+                    <CardDescription>
+                        Legal entity details displayed on your storefront's About, Contact, Terms, Privacy, Refund, and Shipping pages — required for Cashfree KYC.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label>Official Name (Legal Entity)</Label>
+                            <Input
+                                value={officialName}
+                                onChange={(e) => setOfficialName(e.target.value)}
+                                placeholder="e.g. Notime Services Pvt Ltd"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Official Email ID</Label>
+                            <Input
+                                type="email"
+                                value={officialEmailId}
+                                onChange={(e) => setOfficialEmailId(e.target.value)}
+                                placeholder="contact@yourbusiness.com"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Official Phone Number</Label>
+                            <Input
+                                value={officialPhoneNumber}
+                                onChange={(e) => setOfficialPhoneNumber(e.target.value)}
+                                placeholder="+91..."
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Operating Address</Label>
+                            <Input
+                                value={operatingAddress}
+                                onChange={(e) => setOperatingAddress(e.target.value)}
+                                placeholder="Full operating address"
+                            />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>About Us</Label>
+                        <Textarea
+                            value={aboutUs}
+                            onChange={(e) => setAboutUs(e.target.value)}
+                            placeholder="Tell customers about your business..."
+                            rows={5}
+                        />
+                    </div>
                 </CardContent>
             </Card>
 
