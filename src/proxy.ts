@@ -298,6 +298,7 @@ export async function proxy(request: NextRequest) {
         "/admin",
         "/profile",
         "/superadmin/create-partner",
+        "/test",
       ],
       redirect: "/",
     },
