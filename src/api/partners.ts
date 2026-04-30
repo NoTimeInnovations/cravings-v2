@@ -126,6 +126,43 @@ query GetPartnerByUsername($username: String!) {
 }
 `;
 
+export const getPartnerStorefrontByUsernameQuery = `
+query GetPartnerStorefrontByUsername($username: String!) {
+  partners(where: {username: {_eq: $username}}, limit: 1) {
+    id
+    username
+    store_name
+    store_banner
+    description
+    phone
+    location
+    location_details
+    storefront_config
+  }
+}
+`;
+
+export const getStorefrontConfigQuery = `
+query GetStorefrontConfig($partner_id: uuid!) {
+  partners_by_pk(id: $partner_id) {
+    id
+    storefront_config
+  }
+}
+`;
+
+export const updateStorefrontConfigMutation = `
+mutation UpdateStorefrontConfig($partner_id: uuid!, $storefront_config: jsonb!) {
+  update_partners_by_pk(
+    pk_columns: { id: $partner_id }
+    _set: { storefront_config: $storefront_config }
+  ) {
+    id
+    storefront_config
+  }
+}
+`;
+
 export const getPartnerSplashQuery = `
 query GetPartnerSplash($username: String!) {
   partners(where: {username: {_eq: $username}}, limit: 1) {
