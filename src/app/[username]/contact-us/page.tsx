@@ -7,9 +7,10 @@ import {
   getContactPhone,
 } from "@/lib/legalInfo";
 import { LegalPageLayout } from "@/components/legal/LegalPageLayout";
-import { Mail, Phone, MapPin } from "lucide-react";
+import { Mail, Phone, MapPin, Building2 } from "lucide-react";
 
 const SLUG = "contact-us";
+const LAST_UPDATED = "29 April 2026";
 
 export async function generateMetadata({
   params,
@@ -83,36 +84,54 @@ export default async function ContactUsPage({
   const address = partner.operating_address?.trim();
 
   return (
-    <LegalPageLayout partner={partner} title="Contact Us" currentSlug={SLUG}>
-      <p className="mb-6">
-        We&rsquo;d love to hear from you. Reach out to {name} using any of the
-        details below and we&rsquo;ll get back to you as soon as we can.
-      </p>
+    <LegalPageLayout
+      partner={partner}
+      title="Contact Us"
+      lastUpdated={LAST_UPDATED}
+      currentSlug={SLUG}
+    >
+      <p className="mb-6">You may contact us using the information below:</p>
 
       <div className="grid gap-3 not-prose">
+        <ContactRow
+          icon={Building2}
+          label="Merchant Legal Entity Name"
+          value={name}
+        />
         {address && (
-          <ContactRow icon={MapPin} label="Operating Address" value={address} />
-        )}
-        {email && (
           <ContactRow
-            icon={Mail}
-            label="Email"
-            value={email}
-            href={`mailto:${email}`}
+            icon={MapPin}
+            label="Registered Address"
+            value={address}
+          />
+        )}
+        {address && (
+          <ContactRow
+            icon={MapPin}
+            label="Operational Address"
+            value={address}
           />
         )}
         {phone && (
           <ContactRow
             icon={Phone}
-            label="Phone"
+            label="Telephone No"
             value={phone}
             href={`tel:${phone}`}
+          />
+        )}
+        {email && (
+          <ContactRow
+            icon={Mail}
+            label="E-Mail ID"
+            value={email}
+            href={`mailto:${email}`}
           />
         )}
       </div>
 
       {!address && !email && !phone && (
-        <p className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-6 text-center text-neutral-600">
+        <p className="mt-6 rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-6 text-center text-neutral-600">
           Contact details for this business have not been provided yet.
         </p>
       )}

@@ -39,3 +39,31 @@ export function getContactEmail(p: LegalPartnerInfo): string | null {
 export function getContactPhone(p: LegalPartnerInfo): string | null {
   return p.official_phone_number?.trim() || p.phone || null;
 }
+
+/**
+ * Best-effort extraction of "City, State" from operating_address for use as
+ * the Terms & Conditions jurisdiction. Indian addresses commonly end with
+ * "..., CITY, STATE, PIN: 682018" or "..., CITY, STATE - 682018".
+ * Falls back to "India" if a city/state pair can't be confidently parsed.
+ */
+export function getJurisdiction(p: LegalPartnerInfo): string {
+  const addr = p.operating_address?.trim();
+  if (!addr) return "India";
+
+  const cleaned = addr
+    .replace(/PIN[:\s]*\d{6}/i, "")
+    .replace(/\b\d{6}\b/g, "")
+    .replace(/[-–]\s*$/g, "");
+
+  const parts = cleaned
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 2) {
+    const state = parts[parts.length - 1];
+    const city = parts[parts.length - 2];
+    if (city && state) return `${city.toUpperCase()}, ${state.toUpperCase()}`;
+  }
+  return "India";
+}

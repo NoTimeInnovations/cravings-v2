@@ -3,6 +3,7 @@ import {
   getDisplayLegalName,
   getContactEmail,
   getContactPhone,
+  getJurisdiction,
 } from "@/lib/legalInfo";
 
 function Section({
@@ -60,96 +61,114 @@ function Contact({ partner }: { partner: LegalPartnerInfo }) {
 
 export function TermsContent({ partner }: { partner: LegalPartnerInfo }) {
   const name = getDisplayLegalName(partner);
+  const jurisdiction = getJurisdiction(partner);
   return (
     <>
-      <Section title="1. Acceptance of Terms">
+      <Section title="Overview">
         <p>
-          These Terms and Conditions (&ldquo;Terms&rdquo;) govern your access to
-          and use of the online ordering services offered by {name}{" "}
-          (&ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;). By placing
-          an order, browsing our menu, or otherwise using this website, you
-          agree to be bound by these Terms. If you do not agree, please refrain
-          from using our services.
+          These Terms and Conditions, along with privacy policy or other terms
+          (&ldquo;Terms&rdquo;) constitute a binding agreement by and between{" "}
+          {name}, (&ldquo;Website Owner&rdquo; or &ldquo;we&rdquo; or
+          &ldquo;us&rdquo; or &ldquo;our&rdquo;) and you (&ldquo;you&rdquo; or
+          &ldquo;your&rdquo;) and relate to your use of our website, goods (as
+          applicable) or services (as applicable) (collectively,
+          &ldquo;Services&rdquo;).
+        </p>
+        <p>
+          By using our website and availing the Services, you agree that you
+          have read and accepted these Terms (including the Privacy Policy). We
+          reserve the right to modify these Terms at any time and without
+          assigning any reason. It is your responsibility to periodically
+          review these Terms to stay informed of updates.
         </p>
       </Section>
 
-      <Section title="2. Services Offered">
+      <Section title="Terms of Use">
+        <p>The use of this website or availing of our Services is subject to the following terms of use:</p>
+        <ul className="ml-5 list-disc space-y-2">
+          <li>
+            To access and use the Services, you agree to provide true, accurate
+            and complete information to us during and after registration, and
+            you shall be responsible for all acts done through the use of your
+            registered account.
+          </li>
+          <li>
+            Neither we nor any third parties provide any warranty or guarantee
+            as to the accuracy, timeliness, performance, completeness or
+            suitability of the information and materials offered on this
+            website or through the Services, for any specific purpose. You
+            acknowledge that such information and materials may contain
+            inaccuracies or errors and we expressly exclude liability for any
+            such inaccuracies or errors to the fullest extent permitted by law.
+          </li>
+          <li>
+            Your use of our Services and the website is solely at your own
+            risk and discretion. You are required to independently assess and
+            ensure that the Services meet your requirements.
+          </li>
+          <li>
+            The contents of the Website and the Services are proprietary to us
+            and you will not have any authority to claim any intellectual
+            property rights, title, or interest in its contents.
+          </li>
+          <li>
+            You acknowledge that unauthorized use of the Website or the
+            Services may lead to action against you as per these Terms or
+            applicable laws.
+          </li>
+          <li>You agree to pay us the charges associated with availing the Services.</li>
+          <li>
+            You agree not to use the website and/or Services for any purpose
+            that is unlawful, illegal or forbidden by these Terms, or Indian
+            or local laws that might apply to you.
+          </li>
+          <li>
+            You agree and acknowledge that website and the Services may
+            contain links to other third party websites. On accessing these
+            links, you will be governed by the terms of use, privacy policy
+            and such other policies of such third party websites.
+          </li>
+          <li>
+            You understand that upon initiating a transaction for availing the
+            Services you are entering into a legally binding and enforceable
+            contract with us for the Services.
+          </li>
+          <li>
+            You shall be entitled to claim a refund of the payment made by you
+            in case we are not able to provide the Service. The timelines for
+            such return and refund will be according to the specific Service
+            you have availed or within the time period provided in our
+            policies (as applicable). In case you do not raise a refund claim
+            within the stipulated time, then this would make you ineligible
+            for a refund.
+          </li>
+          <li>
+            Notwithstanding anything contained in these Terms, the parties
+            shall not be liable for any failure to perform an obligation under
+            these Terms if performance is prevented or delayed by a force
+            majeure event.
+          </li>
+        </ul>
+      </Section>
+
+      <Section title="Governing Law & Jurisdiction">
         <p>
-          {name} operates an online platform that allows customers to view our
-          menu and place orders for food and beverages. All items, prices, and
-          availability are listed in Indian Rupees (INR) and are subject to
-          change without prior notice.
+          These Terms and any dispute or claim relating to it, or its
+          enforceability, shall be governed by and construed in accordance
+          with the laws of India.
+        </p>
+        <p>
+          All disputes arising out of or in connection with these Terms shall
+          be subject to the exclusive jurisdiction of the courts in{" "}
+          {jurisdiction}.
         </p>
       </Section>
 
-      <Section title="3. Orders and Pricing">
+      <Section title="Contact Us">
         <p>
-          By placing an order, you confirm that all information provided is
-          accurate and complete. We reserve the right to refuse or cancel any
-          order at our sole discretion, including in cases of suspected fraud,
-          incorrect pricing, or unavailability of items. Final pricing,
-          including applicable taxes and delivery charges (if any), will be
-          displayed at checkout before payment.
+          All concerns or communications relating to these Terms must be
+          communicated to us using the contact information provided below:
         </p>
-      </Section>
-
-      <Section title="4. Payments">
-        <p>
-          Payments are processed through secure third-party payment gateways. By
-          submitting payment information, you authorise us and our payment
-          processor to charge the specified amount. We do not store your full
-          card details on our servers.
-        </p>
-      </Section>
-
-      <Section title="5. User Conduct">
-        <p>
-          You agree not to misuse the platform, including but not limited to
-          attempting unauthorised access, interfering with the operation of the
-          website, or submitting fraudulent orders. We reserve the right to
-          suspend access for any user who violates these Terms.
-        </p>
-      </Section>
-
-      <Section title="6. Intellectual Property">
-        <p>
-          All content on this website &mdash; including logos, images, menu
-          descriptions, and design &mdash; is the property of {name} or its
-          licensors and is protected by applicable intellectual property laws.
-          You may not reproduce, distribute, or otherwise use this content
-          without our written permission.
-        </p>
-      </Section>
-
-      <Section title="7. Limitation of Liability">
-        <p>
-          To the maximum extent permitted by law, {name} shall not be liable
-          for any indirect, incidental, or consequential damages arising from
-          your use of the platform or any orders placed through it. Our total
-          liability for any claim shall not exceed the amount paid by you for
-          the order giving rise to such claim.
-        </p>
-      </Section>
-
-      <Section title="8. Changes to Terms">
-        <p>
-          We may revise these Terms from time to time. The most current version
-          will always be posted on this page. Continued use of the platform
-          after any changes constitutes your acceptance of the updated Terms.
-        </p>
-      </Section>
-
-      <Section title="9. Governing Law">
-        <p>
-          These Terms shall be governed by and construed in accordance with the
-          laws of India. Any disputes arising out of or in connection with
-          these Terms shall be subject to the exclusive jurisdiction of the
-          courts located in India.
-        </p>
-      </Section>
-
-      <Section title="10. Contact Us">
-        <p>If you have any questions about these Terms, please contact us:</p>
         <Contact partner={partner} />
       </Section>
     </>
@@ -268,66 +287,50 @@ export function RefundContent({ partner }: { partner: LegalPartnerInfo }) {
   const name = getDisplayLegalName(partner);
   return (
     <>
-      <Section title="1. Overview">
+      <Section title="Overview">
         <p>
-          At {name}, we strive to ensure that every order meets your
-          expectations. This policy outlines the conditions under which
-          cancellations, refunds, and replacements are processed.
+          {name} believes in helping its customers as far as possible, and has
+          therefore a liberal cancellation policy. Under this policy:
         </p>
-      </Section>
-
-      <Section title="2. Order Cancellation">
-        <p>
-          Orders may be cancelled by the customer only before the order has
-          been confirmed for preparation. Once preparation has begun,
-          cancellation requests cannot be accommodated as ingredients have
-          already been allocated to your order.
-        </p>
-        <p>
-          {name} reserves the right to cancel an order at any time due to
-          unforeseen circumstances such as item unavailability, technical
-          issues, or suspected fraudulent activity. In such cases, a full
-          refund will be initiated.
-        </p>
-      </Section>
-
-      <Section title="3. Refund Eligibility">
-        <p>You may be eligible for a refund or replacement in cases such as:</p>
-        <ul className="ml-5 list-disc space-y-1">
-          <li>You received an item that was significantly different from what was ordered</li>
-          <li>Your order was damaged or spilled during delivery</li>
-          <li>An item from your order was missing</li>
-          <li>An order you paid for was cancelled by us</li>
-        </ul>
-        <p>
-          To raise a refund request, please contact us within 24 hours of
-          receiving your order along with details and, where possible, photos
-          supporting your claim.
-        </p>
-      </Section>
-
-      <Section title="4. Non-Refundable Cases">
-        <p>Refunds will not be processed in the following situations:</p>
-        <ul className="ml-5 list-disc space-y-1">
-          <li>Customer is unavailable at the delivery address or refuses delivery</li>
-          <li>Incorrect delivery address provided by the customer</li>
-          <li>Change of mind after the order has been prepared or dispatched</li>
-          <li>Personal taste preferences that are not a quality issue</li>
+        <ul className="ml-5 list-disc space-y-3">
+          <li>
+            Cancellations will be considered only if the request is made
+            immediately after placing the order. However, the cancellation
+            request may not be entertained if the orders have been
+            communicated to the vendors/merchants and they have initiated the
+            process of shipping them.
+          </li>
+          <li>
+            {name} does not accept cancellation requests for perishable items
+            like flowers, eatables etc. However, refund/replacement can be
+            made if the customer establishes that the quality of product
+            delivered is not good.
+          </li>
+          <li>
+            In case of receipt of damaged or defective items please report the
+            same to our Customer Service team. The request will, however, be
+            entertained once the merchant has checked and determined the same
+            at his own end. This should be reported within the same day of
+            receipt of the products. In case you feel that the product
+            received is not as shown on the site or as per your expectations,
+            you must bring it to the notice of our customer service within
+            the same day of receiving the product. The Customer Service Team
+            after looking into your complaint will take an appropriate
+            decision.
+          </li>
+          <li>
+            In case of complaints regarding products that come with a
+            warranty from manufacturers, please refer the issue to them. In
+            case of any Refunds approved by {name}, it will take 1&ndash;2
+            days for the refund to be processed to the end customer.
+          </li>
         </ul>
       </Section>
 
-      <Section title="5. Refund Timeline">
+      <Section title="Contact for Cancellation or Refund">
         <p>
-          Approved refunds are processed back to the original payment method
-          within 5&ndash;7 business days. The exact time for the amount to
-          reflect in your account may vary depending on your bank or payment
-          provider.
-        </p>
-      </Section>
-
-      <Section title="6. Contact for Refund Requests">
-        <p>
-          For any cancellation or refund concerns, please contact us promptly:
+          For any cancellation or refund concerns, please contact us promptly
+          using the details below:
         </p>
         <Contact partner={partner} />
       </Section>
