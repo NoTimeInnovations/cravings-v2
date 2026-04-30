@@ -3,10 +3,12 @@ import { Search } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { Input } from "./ui/input";
 import { useRouter, useSearchParams } from "next/navigation";
+import { usePostHog } from "@/providers/posthog-provider";
 
 const SearchBox = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const posthog = usePostHog();
 
   const [query, setQuery] = useState(searchParams.get("query") || "");
 
@@ -21,10 +23,15 @@ const SearchBox = () => {
 
       window.scrollTo({ top: 0, behavior: "smooth" });
       router.replace("?" + params.toString());
+
+      const trimmed = query.trim();
+      if (trimmed.length >= 2) {
+        posthog?.capture?.("search", { q: trimmed.toLowerCase(), source: "searchbox" });
+      }
     }, 300);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [query, searchParams, router]);
+  }, [query, searchParams, router, posthog]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(e.target.value);
