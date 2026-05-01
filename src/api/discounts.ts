@@ -8,6 +8,7 @@ const discountFields = `
   min_order_value
   max_discount_amount
   usage_limit
+  per_user_usage_limit
   used_count
   is_active
   starts_at
@@ -90,6 +91,22 @@ export const incrementDiscountUsageMutation = `
     ) {
       id
       used_count
+    }
+  }
+`;
+
+export const getUserDiscountUsageQuery = `
+  query GetUserDiscountUsage($user_id: uuid!, $partner_id: uuid!, $code: String!) {
+    orders_aggregate(
+      where: {
+        user_id: { _eq: $user_id }
+        partner_id: { _eq: $partner_id }
+        discounts: { _contains: [{ code: $code }] }
+      }
+    ) {
+      aggregate {
+        count
+      }
     }
   }
 `;

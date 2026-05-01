@@ -32,6 +32,7 @@ type Discount = {
     min_order_value: number | null;
     max_discount_amount: number | null;
     usage_limit: number | null;
+    per_user_usage_limit: number | null;
     used_count: number;
     is_active: boolean;
     starts_at: string | null;
@@ -66,6 +67,7 @@ const emptyForm = {
     min_order_value: "",
     max_discount_amount: "",
     usage_limit: "",
+    per_user_usage_limit: "",
     starts_at: "",
     expires_at: "",
     valid_days: "All" as string,
@@ -171,6 +173,7 @@ export function DiscountCodeSettings() {
             if (form.min_order_value) object.min_order_value = Number(form.min_order_value);
             if (form.max_discount_amount && form.discount_type === "percentage") object.max_discount_amount = Number(form.max_discount_amount);
             if (form.usage_limit) object.usage_limit = Number(form.usage_limit);
+            if (form.per_user_usage_limit) object.per_user_usage_limit = Number(form.per_user_usage_limit);
             if (form.starts_at) object.starts_at = new Date(form.starts_at).toISOString();
             if (form.expires_at) object.expires_at = new Date(form.expires_at).toISOString();
             if (form.applicable_on !== "All" && form.category_item_ids.trim()) object.category_item_ids = form.category_item_ids.trim();
@@ -426,6 +429,22 @@ export function DiscountCodeSettings() {
                                         value={form.usage_limit}
                                         onChange={(e) => setForm({ ...form, usage_limit: e.target.value })}
                                         placeholder="e.g. 100"
+                                        autoComplete="off"
+                                        name="discount-usage-limit"
+                                    />
+                                </div>
+
+                                {/* Per-Customer Usage Limit */}
+                                <div className="space-y-2">
+                                    <Label>Per-Customer Usage Limit <span className="text-muted-foreground text-xs">(optional, blank = unlimited per customer)</span></Label>
+                                    <Input
+                                        type="number"
+                                        min="1"
+                                        value={form.per_user_usage_limit}
+                                        onChange={(e) => setForm({ ...form, per_user_usage_limit: e.target.value })}
+                                        placeholder="e.g. 5"
+                                        autoComplete="off"
+                                        name="discount-per-user-usage-limit"
                                     />
                                 </div>
 
@@ -644,6 +663,7 @@ export function DiscountCodeSettings() {
                                                 {disc.min_order_value && <span>Min: ₹{disc.min_order_value}</span>}
                                                 {disc.max_discount_amount && <span>Max: ₹{disc.max_discount_amount}</span>}
                                                 <span>Used: {disc.used_count}{disc.usage_limit ? ` / ${disc.usage_limit}` : ""}</span>
+                                                {disc.per_user_usage_limit && <span>Per customer: {disc.per_user_usage_limit}</span>}
                                                 {disc.discount_order_types && <span>Types: {formatOrderTypes(disc.discount_order_types)}</span>}
                                                 {disc.valid_days && disc.valid_days !== "All" && <span>Days: {disc.valid_days}</span>}
                                                 {disc.starts_at && (

@@ -34,7 +34,7 @@ import {
   getPhoneValidationError,
 } from "@/lib/getUserCountry";
 import { getPhoneDigitsForCountry } from "@/lib/countryPhoneMap";
-import { validateDiscountQuery, incrementDiscountUsageMutation } from "@/api/discounts";
+import { validateDiscountQuery, incrementDiscountUsageMutation, getUserDiscountUsageQuery } from "@/api/discounts";
 import { Tag } from "lucide-react";
 import { UpiPaymentScreen } from "./UpiPaymentScreen";
 import AddressManagementModal, { type SavedAddress, type AddressModalTheme } from "./AddressManagementModal";
@@ -1686,18 +1686,18 @@ const PlaceOrderModal = ({
           has_coupon applicable_on category_item_ids rank pp_discount_id
           freebie_item_count freebie_item_ids valid_days starts_at
           expires_at valid_time_from valid_time_to terms_conditions
-          usage_limit used_count
+          usage_limit per_user_usage_limit used_count
         }
       }`,
       { partner_id: hotelData.id }
-    ).then((res) => {
+    ).then(async (res) => {
       const discs = res?.discounts ?? [];
       const now = new Date();
       const currentOrderTypeMap: Record<string, string> = { delivery: "1", takeaway: "2" };
       const currentTypeCode = isQrScan ? "3" : (currentOrderTypeMap[orderType || "delivery"] || "1");
       const today = now.toLocaleDateString("en-US", { weekday: "short" });
 
-      const eligible = discs.find((disc: any) => {
+      const baseFiltered = discs.filter((disc: any) => {
         if (disc.starts_at && new Date(disc.starts_at) > now) return false;
         if (disc.usage_limit != null && disc.used_count >= disc.usage_limit) return false;
         if (disc.min_order_value && subtotal < Number(disc.min_order_value)) return false;
@@ -1711,6 +1711,25 @@ const PlaceOrderModal = ({
         }
         return true;
       });
+
+      let eligible: any = null;
+      for (const disc of baseFiltered) {
+        if (disc.per_user_usage_limit != null && (user as any)?.id) {
+          try {
+            const usageRes = await fetchFromHasura(getUserDiscountUsageQuery, {
+              user_id: (user as any).id,
+              partner_id: hotelData.id,
+              code: disc.code,
+            });
+            const userUsed = usageRes?.orders_aggregate?.aggregate?.count ?? 0;
+            if (userUsed >= Number(disc.per_user_usage_limit)) continue;
+          } catch {
+            continue;
+          }
+        }
+        eligible = disc;
+        break;
+      }
 
       if (eligible) {
         setAppliedDiscount({
@@ -2002,6 +2021,23 @@ const PlaceOrderModal = ({
       if (disc.min_order_value && subtotal < Number(disc.min_order_value)) {
         setDiscountError(`Minimum order of ${hotelData?.currency || "₹"}${disc.min_order_value} required.`);
         return;
+      }
+      if (disc.per_user_usage_limit != null && (user as any)?.id) {
+        try {
+          const usageRes = await fetchFromHasura(getUserDiscountUsageQuery, {
+            user_id: (user as any).id,
+            partner_id: hotelData.id,
+            code: disc.code,
+          });
+          const userUsed = usageRes?.orders_aggregate?.aggregate?.count ?? 0;
+          if (userUsed >= Number(disc.per_user_usage_limit)) {
+            setDiscountError(`You've already used this code ${userUsed} time${userUsed === 1 ? "" : "s"}.`);
+            return;
+          }
+        } catch {
+          setDiscountError("Failed to validate code. Please try again.");
+          return;
+        }
       }
       const discountValue = Number(disc.discount_value);
       setAppliedDiscount({
@@ -2424,6 +2460,11 @@ const PlaceOrderModal = ({
         if (appliedDiscount?.id) {
           fetchFromHasura(incrementDiscountUsageMutation, { id: appliedDiscount.id }).catch(() => { });
         }
+
+        setAppliedDiscount(null);
+        setDiscountInput("");
+        setDiscountError("");
+        useOrderStore.getState().notifyOrderPlaced();
 
         // Clear only the sessionStorage order type so the order type screen re-prompts on reload.
         try {

@@ -3,6 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Tag, Clock, Copy, Check } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { useAuthStore } from "@/store/authStore";
+import useOrderStore from "@/store/orderStore";
+import { getUserDiscountUsageQuery } from "@/api/discounts";
 
 type DiscountData = {
   id: string;
@@ -18,6 +21,9 @@ type DiscountData = {
   has_coupon: boolean;
   freebie_item_count: number | null;
   freebie_item_ids: string | null;
+  usage_limit: number | null;
+  used_count: number;
+  per_user_usage_limit: number | null;
 };
 
 const DiscountBanner = ({
@@ -32,7 +38,10 @@ const DiscountBanner = ({
   const [discounts, setDiscounts] = useState<DiscountData[]>([]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [freebieItemNames, setFreebieItemNames] = useState<Record<string, string>>({});
+  const [userUsageMap, setUserUsageMap] = useState<Record<string, number>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { userData: user } = useAuthStore();
+  const lastOrderPlacedAt = useOrderStore((s) => s.lastOrderPlacedAt);
 
   useEffect(() => {
     if (!partnerId) return;
@@ -52,20 +61,51 @@ const DiscountBanner = ({
           id code discount_type discount_value min_order_value
           max_discount_amount starts_at expires_at valid_time_from
           valid_time_to has_coupon freebie_item_count freebie_item_ids
+          usage_limit used_count per_user_usage_limit
         }
       }`,
       { partner_id: partnerId }
     )
-      .then((res) => {
+      .then(async (res) => {
         const now = new Date();
-        const active = (res?.discounts ?? []).filter((d: DiscountData) => {
+        const active: DiscountData[] = (res?.discounts ?? []).filter((d: DiscountData) => {
           if (d.starts_at && new Date(d.starts_at) > now) return false;
+          if (d.usage_limit != null && d.used_count >= d.usage_limit) return false;
           return true;
         });
-        setDiscounts(active);
+
+        // Resolve current user's usage for codes with a per-customer limit
+        const userId = (user as any)?.id;
+        const usageMap: Record<string, number> = {};
+        if (userId) {
+          const perUserLimited = active.filter((d) => d.per_user_usage_limit != null);
+          await Promise.all(
+            perUserLimited.map(async (d) => {
+              try {
+                const usageRes = await fetchFromHasura(getUserDiscountUsageQuery, {
+                  user_id: userId,
+                  partner_id: partnerId,
+                  code: d.code,
+                });
+                usageMap[d.id] = usageRes?.orders_aggregate?.aggregate?.count ?? 0;
+              } catch {
+                usageMap[d.id] = 0;
+              }
+            })
+          );
+        }
+
+        const visible = active.filter((d) => {
+          if (d.per_user_usage_limit == null) return true;
+          if (!userId) return true;
+          return (usageMap[d.id] ?? 0) < d.per_user_usage_limit;
+        });
+
+        setUserUsageMap(usageMap);
+        setDiscounts(visible);
 
         // Resolve freebie item names
-        const freebieIds = active
+        const freebieIds = visible
           .filter((d: DiscountData) => d.discount_type === "freebie" && d.freebie_item_ids)
           .flatMap((d: DiscountData) => d.freebie_item_ids!.split(",").map((id: string) => id.trim()))
           .filter(Boolean);
@@ -81,7 +121,7 @@ const DiscountBanner = ({
         }
       })
       .catch((err) => console.error("DiscountBanner fetch failed:", err));
-  }, [partnerId]);
+  }, [partnerId, (user as any)?.id, lastOrderPlacedAt]);
 
   if (discounts.length === 0) return null;
 
@@ -184,6 +224,14 @@ const DiscountBanner = ({
                         style={{ backgroundColor: accent + "20", color: accent }}
                       >
                         Auto Apply
+                      </span>
+                    )}
+                    {disc.per_user_usage_limit != null && (user as any)?.id && (
+                      <span
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                        style={{ backgroundColor: accent + "20", color: accent }}
+                      >
+                        Used {userUsageMap[disc.id] ?? 0}/{disc.per_user_usage_limit}
                       </span>
                     )}
                     {false && timeRange && (

@@ -203,6 +203,8 @@ interface OrderState {
   deliveryCost: number | null;
   open_place_order_modal: boolean;
   setOpenPlaceOrderModal: (open: boolean) => void;
+  lastOrderPlacedAt: number;
+  notifyOrderPlaced: () => void;
   orderType: "takeaway" | "delivery" | null;
   setOrderType: (type: "takeaway" | "delivery") => void;
   setOpenDrawerBottom: (open: boolean) => void;
@@ -292,6 +294,8 @@ const useOrderStore = create(
       open_drawer_bottom: false,
       open_place_order_modal: false,
       orderType: null,
+      lastOrderPlacedAt: 0,
+      notifyOrderPlaced: () => set({ lastOrderPlacedAt: Date.now() }),
 
       setOrderType: (type: "takeaway" | "delivery") => {
         set({ orderType: type });
