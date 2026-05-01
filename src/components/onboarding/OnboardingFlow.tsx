@@ -79,6 +79,7 @@ export default function OnboardingFlow({
   const hasWhatsappOtp = features.whatsappnotifications.enabled;
   const hasDelivery = features.delivery.enabled;
   const hasStorefront = features.storefront.enabled;
+  const hasNewOnboarding = features.newonboarding.enabled;
 
   const BRAND_COLOR_MAP: Record<string, string> = {
     "burnt-orange": "#e85d04", "obsidian-gold": "#b8860b", "royal-burgundy": "#8b1a4a",
@@ -99,19 +100,20 @@ export default function OnboardingFlow({
   const accent = bc.startsWith("custom:") ? bc.replace("custom:", "") : (BRAND_COLOR_MAP[bc] || "#e85d04");
 
   const hasOrdering = features.ordering.enabled;
-  const needsAddress = hasDelivery && tableNumber === 0;
-  const needsOrderType = (hasDelivery || hasOrdering) && tableNumber === 0;
+  const needsAddress = hasNewOnboarding && hasDelivery && tableNumber === 0;
+  const needsOrderType = hasNewOnboarding && (hasDelivery || hasOrdering) && tableNumber === 0;
+  const needsLogin = hasNewOnboarding && !isLoggedIn;
 
   const getInitialStep = (): OnboardingStep => {
     if (showStorefrontSplashInitially) return "splash";
-    if (!isLoggedIn) return "login";
+    if (needsLogin) return "login";
     if (needsOrderType) return "orderType";
     return "splash";
   };
 
   const initialStep = getInitialStep();
   const skipOnboarding =
-    isBackNav || (!showStorefrontSplashInitially && isLoggedIn && !needsOrderType);
+    isBackNav || (!showStorefrontSplashInitially && !needsLogin && !needsOrderType);
 
   const [step, setStep] = useState<OnboardingStep>(initialStep);
   const [dismissed, setDismissed] = useState(skipOnboarding);
@@ -138,10 +140,10 @@ export default function OnboardingFlow({
 
   useEffect(() => {
     const clientLoggedIn = userData?.role === "user";
-    if (!isLoggedIn && !clientLoggedIn && step === "orderType") {
+    if (hasNewOnboarding && !isLoggedIn && !clientLoggedIn && step === "orderType") {
       setStep(showStorefrontSplashInitially ? "splash" : "login");
     }
-  }, [userData, isLoggedIn]);
+  }, [userData, isLoggedIn, hasNewOnboarding]);
 
   const dismissWithAnimation = useCallback(() => {
     setClosing(true);
@@ -316,7 +318,7 @@ export default function OnboardingFlow({
               storeName={storeName}
               storeBanner={storeBanner}
               onContinue={() => {
-                if (!isLoggedIn) setStep("login");
+                if (needsLogin) setStep("login");
                 else if (needsOrderType) setStep("orderType");
                 else dismissWithAnimation();
               }}

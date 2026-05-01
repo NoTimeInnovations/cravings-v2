@@ -126,6 +126,43 @@ query GetPartnerByUsername($username: String!) {
 }
 `;
 
+export const getPartnerStorefrontByUsernameQuery = `
+query GetPartnerStorefrontByUsername($username: String!) {
+  partners(where: {username: {_eq: $username}}, limit: 1) {
+    id
+    username
+    store_name
+    store_banner
+    description
+    phone
+    location
+    location_details
+    storefront_config
+  }
+}
+`;
+
+export const getStorefrontConfigQuery = `
+query GetStorefrontConfig($partner_id: uuid!) {
+  partners_by_pk(id: $partner_id) {
+    id
+    storefront_config
+  }
+}
+`;
+
+export const updateStorefrontConfigMutation = `
+mutation UpdateStorefrontConfig($partner_id: uuid!, $storefront_config: jsonb!) {
+  update_partners_by_pk(
+    pk_columns: { id: $partner_id }
+    _set: { storefront_config: $storefront_config }
+  ) {
+    id
+    storefront_config
+  }
+}
+`;
+
 export const getPartnerSplashQuery = `
 query GetPartnerSplash($username: String!) {
   partners(where: {username: {_eq: $username}}, limit: 1) {
@@ -286,6 +323,24 @@ export const getAllPartnerUpiIdsQuery = `
   }
 `;
 
+export const getPartnerLegalByUsernameQuery = `
+  query GetPartnerLegalByUsername($username: String!) {
+    partners(where: {username: {_eq: $username}}, limit: 1) {
+      id
+      username
+      store_name
+      official_name
+      about_us
+      operating_address
+      official_email_id
+      official_phone_number
+      phone
+      email
+      theme
+    }
+  }
+`;
+
 export const getPartnerSubscriptionQuery = `
 query GetLastSubscription($partnerId: uuid!) {
   partner_subscriptions(
@@ -339,6 +394,11 @@ export const updatePartnerMutation = `
       accept_payments_via_cashfree
       accept_cod
       storefront_settings
+      official_name
+      about_us
+      operating_address
+      official_email_id
+      official_phone_number
     }
   }
 `;

@@ -60,6 +60,11 @@ export const partnerIdQuery = `
       subscription_details
       username
       custom_domain
+      official_name
+      about_us
+      operating_address
+      official_email_id
+      official_phone_number
       has_seen_tour
       cashfree_merchant_id
       accept_payments_via_cashfree
@@ -111,6 +116,11 @@ export const partnerLoginQuery = `
       subscription_details
       username
       custom_domain
+      official_name
+      about_us
+      operating_address
+      official_email_id
+      official_phone_number
       has_seen_tour
       cashfree_merchant_id
       accept_payments_via_cashfree

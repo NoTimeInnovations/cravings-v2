@@ -132,10 +132,21 @@ const HotelMenuPage = ({
   const isUserLoggedIn = auth?.role === "user";
   const features = getFeatures(hoteldata?.feature_flags || "");
   const needsOnboarding = features.newonboarding.enabled && (features.delivery.enabled || features.ordering.enabled) && tableNumber === 0;
+  // Storefront splash should also mount the overlay even when newonboarding is off,
+  // so a partner can use just the storefront feature without the rest of the flow.
+  const hasStorefrontSplash = useMemo(() => {
+    if (!features.storefront.enabled || tableNumber !== 0) return false;
+    const raw = (hoteldata as any)?.storefront_settings;
+    if (!raw) return false;
+    try {
+      const sf = typeof raw === "string" ? JSON.parse(raw) : raw;
+      return !!sf?.enabled;
+    } catch { return false; }
+  }, [features.storefront.enabled, tableNumber, (hoteldata as any)?.storefront_settings]);
   // Always mount the onboarding overlay when needed; it dismisses itself once the
   // user picks an order type and re-mounts on every reload so the order type screen
   // shows again (value persists only in sessionStorage).
-  const showOnboarding = needsOnboarding;
+  const showOnboarding = needsOnboarding || hasStorefrontSplash;
   const [onboardingDismissed, setOnboardingDismissed] = useState(!showOnboarding);
   const [onboardingKey, setOnboardingKey] = useState(0);
   // When the menu-page back button reopens onboarding, start at the storefront

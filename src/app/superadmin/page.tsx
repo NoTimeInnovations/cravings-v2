@@ -140,6 +140,12 @@ const page = async (props: { searchParams: SearchParams }) => {
       component: null,
       id: "onesignal-apps",
       href: "/superadmin/onesignal-apps",
+    },
+    {
+      name: "Remove Partner Full Data",
+      component: null,
+      id: "remove-partner-fulldata",
+      href: "/test/remove-partner-fulldata",
     }
   ];
 
