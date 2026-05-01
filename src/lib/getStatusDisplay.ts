@@ -54,7 +54,7 @@ export const getStatusDisplay = (
         };
       }
       return {
-        text: "Ready for pickup",
+        text: "Food Ready",
         className: "bg-orange-100 text-orange-800",
       };
     }
