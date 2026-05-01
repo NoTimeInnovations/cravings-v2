@@ -285,6 +285,7 @@ export async function proxy(request: NextRequest) {
     partner: {
       allowed: [
         "/admin",
+        "/admin-v2",
         "/partner",
         "/profile",
         "/admin/orders",
@@ -421,11 +422,11 @@ export async function proxy(request: NextRequest) {
       },
     });
   } catch (error) {
+    // Don't delete the cookie here — a single transient decryption failure
+    // would otherwise permanently log the user out. Just redirect; if the
+    // cookie is genuinely bad, the user can re-login.
     console.error("Auth verification failed:", error);
-    const redirectPath = "/";
-    const response = NextResponse.redirect(new URL(redirectPath, request.url));
-    response.cookies.delete("new_auth_token");
-    return response;
+    return NextResponse.redirect(new URL("/", request.url));
   }
 }
 

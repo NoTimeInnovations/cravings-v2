@@ -306,7 +306,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }
     } catch (error) {
-      await removeAuthCookie();
+      // Don't remove the auth cookie on transient errors — a single network
+      // blip would otherwise log the user out and trap them at `/` after
+      // their next server action redirected through middleware.
+      console.error("fetchUser failed:", error);
       set({ userData: null });
     } finally {
       set({ loading: false });
