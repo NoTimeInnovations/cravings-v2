@@ -430,8 +430,13 @@ export function Navbar() {
     }) ||
     (() => {
       // Hide navbar for partner username routes (single-segment paths like /burger_joint)
+      // and the /{username}/info storefront page.
       const segments = currentPath.split("/").filter(Boolean);
-      return segments.length === 1 && !KNOWN_STATIC_ROUTES.has(segments[0]);
+      if (segments.length === 1) return !KNOWN_STATIC_ROUTES.has(segments[0]);
+      if (segments.length === 2 && segments[1] === "info") {
+        return !KNOWN_STATIC_ROUTES.has(segments[0]);
+      }
+      return false;
     })();
 
   if (shouldHideNavbar) {

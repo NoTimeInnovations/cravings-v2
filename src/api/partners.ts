@@ -341,6 +341,27 @@ export const getPartnerLegalByUsernameQuery = `
   }
 `;
 
+export const getPartnerInfoByUsernameQuery = `
+  query GetPartnerInfoByUsername($username: String!) {
+    partners(where: {username: {_eq: $username}}, limit: 1) {
+      id
+      username
+      store_name
+      store_tagline
+      store_banner
+      description
+      phone
+      country_code
+      whatsapp_numbers
+      social_links
+      location
+      place_id
+      theme
+      storefront_settings
+    }
+  }
+`;
+
 export const getPartnerSubscriptionQuery = `
 query GetLastSubscription($partnerId: uuid!) {
   partner_subscriptions(

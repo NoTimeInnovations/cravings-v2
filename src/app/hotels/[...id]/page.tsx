@@ -175,6 +175,8 @@ export interface SocialLinks {
   uberEats?: string;
   talabat?: string;
   doordash?: string;
+  playstore?: string;
+  appstore?: string;
 }
 
 const HotelPage = async ({

@@ -31,5 +31,7 @@ export const getSocialLinks = (hoteldata: HotelData): SocialLinks => {
     uberEats: socialLinksData?.uberEats || undefined,
     talabat: socialLinksData?.talabat || undefined,
     doordash: socialLinksData?.doordash || undefined,
+    playstore: socialLinksData?.playstore || undefined,
+    appstore: socialLinksData?.appstore || undefined,
   };
 };
