@@ -45,6 +45,26 @@ export const getStatusDisplay = (
     };
   }
 
+  if (order?.status === "food_ready") {
+    if (orderType === "delivery") {
+      if (order.deliveryAddress && order.delivery_location) {
+        return {
+          text: "Food Ready",
+          className: "bg-orange-100 text-orange-800",
+        };
+      }
+      return {
+        text: "Ready for pickup",
+        className: "bg-orange-100 text-orange-800",
+      };
+    }
+
+    return {
+      text: "Ready to serve",
+      className: "bg-orange-100 text-orange-800",
+    };
+  }
+
   if (isAccepted || order?.status === "accepted") {
     return {
       text: "Accepted",

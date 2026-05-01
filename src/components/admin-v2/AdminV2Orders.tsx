@@ -223,6 +223,8 @@ export function AdminV2Orders() {
         return "bg-red-100 text-red-800";
       case "accepted":
         return "bg-blue-100 text-blue-800";
+      case "food_ready":
+        return "bg-orange-100 text-orange-800";
       case "dispatched":
         return "bg-purple-100 text-purple-900";
       default:
@@ -376,6 +378,7 @@ export function AdminV2Orders() {
                   <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="accepted">Accepted</SelectItem>
+                  <SelectItem value="food_ready">Food Ready</SelectItem>
                   <SelectItem value="dispatched">Dispatched</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -479,6 +482,7 @@ export function AdminV2Orders() {
                     <SelectContent>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="accepted">Accepted</SelectItem>
+                      <SelectItem value="food_ready">Food Ready</SelectItem>
                       <SelectItem value="dispatched">Dispatched</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>
@@ -584,6 +588,7 @@ export function AdminV2Orders() {
                     <SelectContent>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="accepted">Accepted</SelectItem>
+                      <SelectItem value="food_ready">Food Ready</SelectItem>
                       <SelectItem value="dispatched">Dispatched</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>
