@@ -40,14 +40,18 @@ export default function KpiCard({
   const sparkData = (spark ?? []).map((v, i) => ({ i, v }));
 
   return (
-    <Card className="relative overflow-hidden p-5 border bg-white">
-      <div className="flex items-start justify-between gap-2">
-        <div className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
-          {label}
+    <Card className="relative overflow-hidden p-4 border bg-white">
+      <div className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase truncate">
+        {label}
+      </div>
+
+      <div className="mt-2 flex items-baseline justify-between gap-2">
+        <div className="text-2xl font-semibold tracking-tight tabular-nums truncate">
+          {value}
         </div>
         <div
           className={cn(
-            "flex items-center gap-1 text-xs font-semibold rounded-full px-2 py-0.5",
+            "flex items-center gap-0.5 text-[11px] font-semibold rounded-full px-1.5 py-0.5 shrink-0",
             d.tone === "up" && "text-emerald-700 bg-emerald-50",
             d.tone === "down" && "text-rose-700 bg-rose-50",
             d.tone === "muted" && "text-muted-foreground bg-muted"
@@ -58,12 +62,8 @@ export default function KpiCard({
         </div>
       </div>
 
-      <div className="mt-3 text-3xl font-semibold tracking-tight tabular-nums">
-        {value}
-      </div>
-
       {sparkData.length > 1 && (
-        <div className="mt-2 -mx-1 h-12">
+        <div className="mt-2 -mx-1 h-10">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={sparkData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
               <defs>
@@ -86,7 +86,12 @@ export default function KpiCard({
       )}
 
       {caption && (
-        <div className="mt-1 text-xs text-muted-foreground">{caption}</div>
+        <div
+          className="mt-1 text-[11px] text-muted-foreground truncate"
+          title={caption}
+        >
+          {caption}
+        </div>
       )}
     </Card>
   );

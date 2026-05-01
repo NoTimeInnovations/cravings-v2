@@ -32,7 +32,7 @@ export default function OverviewSection({
         subtitle="Headline metrics across the Menuthere network"
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-4">
         <KpiCard
           label="Landing visits"
           value={

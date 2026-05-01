@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   Activity,
@@ -19,6 +18,9 @@ import {
   Building2,
   Clock,
   Loader2,
+  Check,
+  ChevronsUpDown,
+  Search,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { compact, rupees } from "../format";
@@ -117,26 +119,15 @@ export default function LiveOrdersSection() {
         subtitle="Delivery, takeaway and dine-in across active restaurants — refreshed every 10s"
         right={
           <div className="flex items-center gap-3">
-            <Select
+            <PartnerCombobox
               value={partnerId}
-              onValueChange={(v) => {
+              onChange={(v) => {
                 setLoading(true);
                 setPartnerId(v);
               }}
-            >
-              <SelectTrigger className="h-8 w-[220px] text-xs">
-                <SelectValue placeholder="All partners" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_PARTNERS}>All partners</SelectItem>
-                {partnerOptions.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                    {p.district ? ` · ${p.district}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={partnerOptions}
+              selected={selectedPartner}
+            />
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 className="size-3 animate-spin" />
               Live
@@ -334,5 +325,137 @@ function OrderRow({ o }: { o: LiveOrder }) {
         )}
       </div>
     </li>
+  );
+}
+
+function PartnerCombobox({
+  value,
+  onChange,
+  options,
+  selected,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: LivePartnerOption[];
+  selected: LivePartnerOption | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((p) => {
+      const haystack = `${p.name} ${p.district ?? ""}`.toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [query, options]);
+
+  const triggerLabel =
+    value === ALL_PARTNERS
+      ? "All partners"
+      : selected
+        ? `${selected.name}${selected.district ? ` · ${selected.district}` : ""}`
+        : "All partners";
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) {
+          setQuery("");
+          // Defer focus until popover content has mounted
+          setTimeout(() => inputRef.current?.focus(), 0);
+        }
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="flex h-8 w-[220px] items-center justify-between rounded-md border border-input bg-white px-3 text-xs shadow-sm hover:bg-neutral-50"
+        >
+          <span className="truncate text-left">{triggerLabel}</span>
+          <ChevronsUpDown className="ml-2 size-3.5 shrink-0 opacity-50" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-[260px] p-0 bg-white"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="flex items-center gap-2 border-b px-2 py-1.5">
+          <Search className="size-3.5 text-muted-foreground" />
+          <Input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search partners..."
+            className="h-7 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+          />
+        </div>
+        <ul className="max-h-[260px] overflow-y-auto py-1">
+          <li>
+            <PartnerOption
+              label="All partners"
+              active={value === ALL_PARTNERS}
+              onSelect={() => {
+                onChange(ALL_PARTNERS);
+                setOpen(false);
+              }}
+            />
+          </li>
+          {filtered.length === 0 ? (
+            <li className="px-3 py-4 text-center text-xs text-muted-foreground">
+              No partners match "{query}"
+            </li>
+          ) : (
+            filtered.map((p) => (
+              <li key={p.id}>
+                <PartnerOption
+                  label={p.name}
+                  sub={p.district}
+                  active={value === p.id}
+                  onSelect={() => {
+                    onChange(p.id);
+                    setOpen(false);
+                  }}
+                />
+              </li>
+            ))
+          )}
+        </ul>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function PartnerOption({
+  label,
+  sub,
+  active,
+  onSelect,
+}: {
+  label: string;
+  sub?: string | null;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        "flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-xs hover:bg-neutral-100",
+        active && "bg-neutral-100"
+      )}
+    >
+      <span className="truncate">
+        {label}
+        {sub && <span className="text-muted-foreground"> · {sub}</span>}
+      </span>
+      {active && <Check className="size-3.5 shrink-0" />}
+    </button>
   );
 }
