@@ -422,7 +422,7 @@ ${itemsText}
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span
-                                        className={`px-3 py-1 rounded-full text-sm font-medium ${statusDisplay.className}`}
+                                        className={`px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${statusDisplay.className}`}
                                     >
                                         {statusDisplay.text}
                                     </span>
