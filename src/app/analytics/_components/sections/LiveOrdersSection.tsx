@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
   Activity,
@@ -16,7 +23,9 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { compact, rupees } from "../format";
 import { SectionHeader } from "./OverviewSection";
-import type { LiveStats, LiveOrder } from "../types";
+import type { LiveStats, LiveOrder, LivePartnerOption } from "../types";
+
+const ALL_PARTNERS = "__all__";
 
 const REFRESH_MS = 10_000;
 
@@ -62,15 +71,26 @@ export default function LiveOrdersSection() {
   const [data, setData] = useState<LiveStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
+  const [partnerId, setPartnerId] = useState<string>(ALL_PARTNERS);
+  const [partnerOptions, setPartnerOptions] = useState<LivePartnerOption[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const r = await fetch(`/api/stats/live`, { cache: "no-store" });
+        const url =
+          partnerId === ALL_PARTNERS
+            ? `/api/stats/live`
+            : `/api/stats/live?partnerId=${encodeURIComponent(partnerId)}`;
+        const r = await fetch(url, { cache: "no-store" });
         const d = await r.json();
         if (!cancelled) {
           setData(d);
+          // Keep dropdown options stable across partner-scoped reloads —
+          // the response always returns the full active-partner list.
+          if (Array.isArray(d?.partners) && d.partners.length > 0) {
+            setPartnerOptions(d.partners);
+          }
           setLoading(false);
         }
       } catch {
@@ -83,7 +103,12 @@ export default function LiveOrdersSection() {
       cancelled = true;
       clearInterval(id);
     };
-  }, [tick]);
+  }, [tick, partnerId]);
+
+  const selectedPartner = useMemo(
+    () => partnerOptions.find((p) => p.id === partnerId) ?? null,
+    [partnerOptions, partnerId]
+  );
 
   return (
     <div className="space-y-6">
@@ -91,9 +116,31 @@ export default function LiveOrdersSection() {
         title="Live orders"
         subtitle="Delivery, takeaway and dine-in across active restaurants — refreshed every 10s"
         right={
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="size-3 animate-spin" />
-            Live
+          <div className="flex items-center gap-3">
+            <Select
+              value={partnerId}
+              onValueChange={(v) => {
+                setLoading(true);
+                setPartnerId(v);
+              }}
+            >
+              <SelectTrigger className="h-8 w-[220px] text-xs">
+                <SelectValue placeholder="All partners" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_PARTNERS}>All partners</SelectItem>
+                {partnerOptions.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                    {p.district ? ` · ${p.district}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="size-3 animate-spin" />
+              Live
+            </div>
           </div>
         }
       />
@@ -148,7 +195,15 @@ export default function LiveOrdersSection() {
       <Card className="p-5 bg-white">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <div className="text-base font-semibold">Recent orders</div>
+            <div className="text-base font-semibold">
+              Recent orders
+              {selectedPartner && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  · {selectedPartner.name}
+                  {selectedPartner.district ? ` (${selectedPartner.district})` : ""}
+                </span>
+              )}
+            </div>
             <div className="text-xs text-muted-foreground">
               Last hour, newest first ({data?.recentOrders.length ?? 0} shown)
             </div>

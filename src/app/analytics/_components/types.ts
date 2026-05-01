@@ -28,6 +28,12 @@ export type LiveOrder = {
   partnerId: string | null;
 };
 
+export type LivePartnerOption = {
+  id: string;
+  name: string;
+  district: string | null;
+};
+
 export type LiveStats = {
   recentOrders: LiveOrder[];
   activeRestaurantsToday: number;
@@ -38,6 +44,7 @@ export type LiveStats = {
     dinein: { count: number; gmv: number };
   };
   pendingNow: number;
+  partners: LivePartnerOption[];
   syncedAt: string;
 };
 
