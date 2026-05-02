@@ -106,10 +106,12 @@ export function AdminAccountSwitcher() {
             toast.success(`Switched to ${account.store_name || account.name}`);
             setIsOpen(false);
 
-            // Redirect to admin-v2 and refresh the page
+            // Full reload (not router.push) so AuthInitializer re-runs fetchUser
+            // and userData is fully hydrated. Without reload, partnerLoginQuery
+            // leaves fields like country/business_type/location_details missing,
+            // and server-action saves on /admin-v2 bounce to /login.
             setTimeout(() => {
-                router.push("/admin-v2");
-                router.refresh();
+                window.location.href = "/admin-v2";
             }, 500);
         } catch (error) {
             console.error("Failed to switch account:", error);

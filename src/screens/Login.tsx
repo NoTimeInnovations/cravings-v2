@@ -107,7 +107,12 @@ export default function Login() {
       );
       await Notification.token.save();
 
-      navigate.replace("/admin-v2");
+      // Force a full page reload so AuthInitializer re-runs fetchUser() and
+      // userData is hydrated via partnerIdQuery (the login query is missing
+      // fields like country/business_type/location_details). Client-side nav
+      // here leaves the store partially populated, which causes server-action
+      // saves on /admin-v2 to fail and bounce the user to /login until reload.
+      window.location.replace("/admin-v2");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to sign in");
       console.error("Sign in error:", error);

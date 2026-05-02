@@ -107,11 +107,14 @@ export const partnerLoginQuery = `
       currency
       place_id
       gst_no
+      country
       gst_percentage
+      business_type
       geo_location
       delivery_rate
       delivery_rules
       country_code
+      location_details
       hide_unavailable
       subscription_details
       username
