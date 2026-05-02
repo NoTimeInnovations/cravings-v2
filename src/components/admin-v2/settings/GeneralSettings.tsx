@@ -50,8 +50,6 @@ export function GeneralSettings() {
     const [uberEatsLink, setUberEatsLink] = useState("");
     const [talabatLink, setTalabatLink] = useState("");
     const [doordashLink, setDoordashLink] = useState("");
-    const [playstoreLink, setPlaystoreLink] = useState("");
-    const [appstoreLink, setAppstoreLink] = useState("");
     const [isShopOpen, setIsShopOpen] = useState(true);
     const [timezone, setTimezone] = useState("Asia/Kolkata");
 
@@ -182,8 +180,6 @@ export function GeneralSettings() {
             setUberEatsLink(socialLinks.uberEats || "");
             setTalabatLink(socialLinks.talabat || "");
             setDoordashLink(socialLinks.doordash || "");
-            setPlaystoreLink(socialLinks.playstore || "");
-            setAppstoreLink(socialLinks.appstore || "");
         }
     }, [userData]);
 
@@ -422,6 +418,8 @@ export function GeneralSettings() {
         if (!userData) return;
         setIsSaving(true);
         try {
+            // Preserve keys we don't manage here (e.g. playstore/appstore — owned by Info Page settings)
+            const existingSocialLinks = getSocialLinks(userData as HotelData);
             const updates: any = {
                 store_name: storeName,
                 store_tagline: storeTagline || null,
@@ -438,8 +436,8 @@ export function GeneralSettings() {
                     uberEats: uberEatsLink,
                     talabat: talabatLink,
                     doordash: doordashLink,
-                    playstore: playstoreLink,
-                    appstore: appstoreLink,
+                    playstore: existingSocialLinks.playstore || "",
+                    appstore: existingSocialLinks.appstore || "",
                 },
                 official_name: officialName || null,
                 about_us: aboutUs || null,
@@ -459,7 +457,7 @@ export function GeneralSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, storeName, description, phone, footNote, isShopOpen, whatsappNumber, instaLink, facebookLink, zomatoLink, uberEatsLink, talabatLink, doordashLink, playstoreLink, appstoreLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
+    }, [userData, storeName, description, phone, footNote, isShopOpen, whatsappNumber, instaLink, facebookLink, zomatoLink, uberEatsLink, talabatLink, doordashLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -494,8 +492,6 @@ export function GeneralSettings() {
         const initialUberEats = socialLinks.uberEats || "";
         const initialTalabat = socialLinks.talabat || "";
         const initialDoordash = socialLinks.doordash || "";
-        const initialPlaystore = socialLinks.playstore || "";
-        const initialAppstore = socialLinks.appstore || "";
         const initialOfficialName = data.official_name || "";
         const initialAboutUs = data.about_us || "";
         const initialOperatingAddress = data.operating_address || "";
@@ -515,8 +511,6 @@ export function GeneralSettings() {
             uberEatsLink !== initialUberEats ||
             talabatLink !== initialTalabat ||
             doordashLink !== initialDoordash ||
-            playstoreLink !== initialPlaystore ||
-            appstoreLink !== initialAppstore ||
             officialName !== initialOfficialName ||
             aboutUs !== initialAboutUs ||
             operatingAddress !== initialOperatingAddress ||
@@ -538,8 +532,6 @@ export function GeneralSettings() {
         uberEatsLink,
         talabatLink,
         doordashLink,
-        playstoreLink,
-        appstoreLink,
         officialName,
         aboutUs,
         operatingAddress,
@@ -1100,33 +1092,6 @@ export function GeneralSettings() {
                                     value={doordashLink}
                                     onChange={(e) => setDoordashLink(e.target.value)}
                                     placeholder="https://doordash.com/..."
-                                />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>App Store Links</CardTitle>
-                        <CardDescription>Link to your published mobile apps. Shown on your storefront info page.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="space-y-2">
-                                <Label>Play Store</Label>
-                                <Input
-                                    value={playstoreLink}
-                                    onChange={(e) => setPlaystoreLink(e.target.value)}
-                                    placeholder="https://play.google.com/store/apps/details?id=..."
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>App Store</Label>
-                                <Input
-                                    value={appstoreLink}
-                                    onChange={(e) => setAppstoreLink(e.target.value)}
-                                    placeholder="https://apps.apple.com/..."
                                 />
                             </div>
                         </div>

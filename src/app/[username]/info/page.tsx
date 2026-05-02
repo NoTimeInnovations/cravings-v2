@@ -1,8 +1,8 @@
 import { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { getPartnerInfoByUsernameQuery } from "@/api/partners";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import DownloadAppButton from "./DownloadAppButton";
 
 const BRAND_COLOR_MAP: Record<string, string> = {
   "burnt-orange": "#e85d04",
@@ -17,7 +17,22 @@ const BRAND_COLOR_MAP: Record<string, string> = {
   "warm-copper": "#b45309",
 };
 
-const FALLBACK_BG = "#1a1a1a";
+const FALLBACK_BRAND = "#ff6a13";
+const FALLBACK_BG = "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=1200";
+
+const TAG_KEYS = ["direct-order", "dine-in", "takeaway", "delivery", "no-fees"] as const;
+type TagKey = typeof TAG_KEYS[number];
+
+const SOCIAL_KEYS = ["whatsapp", "instagram", "location", "phone", "facebook"] as const;
+type SocialKey = typeof SOCIAL_KEYS[number];
+
+const TAG_LABELS: Record<TagKey, string> = {
+  "direct-order": "Direct order",
+  "dine-in": "Dine-in price",
+  takeaway: "Takeaway",
+  delivery: "Delivery",
+  "no-fees": "No service fees",
+};
 
 interface PartnerInfo {
   id: string;
@@ -36,6 +51,34 @@ interface PartnerInfo {
   storefront_settings: unknown;
 }
 
+interface InfoPageSettings {
+  bgImage?: string;
+  buttonColor?: string;
+  cuisine?: string;
+  city?: string;
+  ctaSubtitle?: string;
+  showOpenStatus?: boolean;
+  openStatusText?: string;
+  tags?: Partial<Record<TagKey, boolean>>;
+  socials?: Partial<Record<SocialKey, boolean>>;
+}
+
+interface SocialLinksData {
+  instagram?: string;
+  facebook?: string;
+  zomato?: string;
+  uberEats?: string;
+  talabat?: string;
+  doordash?: string;
+  playstore?: string;
+  appstore?: string;
+}
+
+function isValidUrl(u: string | undefined): boolean {
+  if (!u) return false;
+  return /^https?:\/\//i.test(u.trim());
+}
+
 function safeParseJson<T = any>(input: unknown): T | null {
   if (input == null) return null;
   if (typeof input !== "string") return input as T;
@@ -46,33 +89,29 @@ function safeParseJson<T = any>(input: unknown): T | null {
   }
 }
 
-function resolveBrandColor(partner: PartnerInfo): string {
-  const sf = safeParseJson<{ brandColor?: string }>(partner.storefront_settings);
+function resolveStorefrontSettings(partner: PartnerInfo): {
+  brandColor: string;
+  info: InfoPageSettings;
+} {
+  const sf = safeParseJson<{ brandColor?: string; infoPage?: InfoPageSettings }>(
+    partner.storefront_settings
+  );
+  let brandColor = FALLBACK_BRAND;
   const bc = sf?.brandColor;
   if (bc) {
     if (bc.startsWith("custom:")) {
       const hex = bc.slice("custom:".length).trim();
       if (/^#?[0-9a-fA-F]{3,8}$/.test(hex)) {
-        return hex.startsWith("#") ? hex : `#${hex}`;
+        brandColor = hex.startsWith("#") ? hex : `#${hex}`;
       }
+    } else if (BRAND_COLOR_MAP[bc]) {
+      brandColor = BRAND_COLOR_MAP[bc];
     }
-    if (BRAND_COLOR_MAP[bc]) return BRAND_COLOR_MAP[bc];
+  } else {
+    const theme = safeParseJson<{ colors?: { bg?: string } }>(partner.theme);
+    if (theme?.colors?.bg) brandColor = theme.colors.bg;
   }
-  const theme = safeParseJson<{ colors?: { bg?: string } }>(partner.theme);
-  if (theme?.colors?.bg) return theme.colors.bg;
-  return FALLBACK_BG;
-}
-
-function isLightColor(hex: string): boolean {
-  const m = hex.replace("#", "");
-  if (m.length !== 3 && m.length !== 6) return false;
-  const full = m.length === 3 ? m.split("").map((c) => c + c).join("") : m;
-  const r = parseInt(full.slice(0, 2), 16);
-  const g = parseInt(full.slice(2, 4), 16);
-  const b = parseInt(full.slice(4, 6), 16);
-  // Relative luminance (sRGB approximation)
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return lum > 0.6;
+  return { brandColor, info: sf?.infoPage || {} };
 }
 
 function buildWhatsappUrl(partner: PartnerInfo): string | null {
@@ -83,6 +122,14 @@ function buildWhatsappUrl(partner: PartnerInfo): string | null {
   if (!number) return null;
   const cleaned = number.replace(/[^\d+]/g, "");
   return `https://wa.me/${cc.replace("+", "")}${cleaned.replace("+", "")}`;
+}
+
+function buildPhoneUrl(partner: PartnerInfo): string | null {
+  const cc = partner.country_code || "";
+  const number = partner.phone?.toString().trim();
+  if (!number) return null;
+  const cleaned = number.replace(/[^\d+]/g, "");
+  return `tel:${cc}${cleaned}`;
 }
 
 async function getPartnerInfo(username: string): Promise<PartnerInfo | null> {
@@ -132,19 +179,94 @@ export async function generateViewport({
   const { username } = await params;
   const partner = await getPartnerInfo(username);
   if (!partner) return { themeColor: "#ffffff" };
-  return { themeColor: resolveBrandColor(partner) };
+  const { brandColor } = resolveStorefrontSettings(partner);
+  return { themeColor: brandColor };
 }
 
-interface SocialLinksData {
-  instagram?: string;
-  facebook?: string;
-  zomato?: string;
-  uberEats?: string;
-  talabat?: string;
-  doordash?: string;
-  playstore?: string;
-  appstore?: string;
-}
+/* ── Tiny inline SVG icons (server-rendered) ─────────────────────── */
+const TagIcon = ({ k, color }: { k: TagKey; color: string }) => {
+  const common = {
+    width: 12,
+    height: 12,
+    viewBox: "0 0 12 12",
+    fill: "none",
+    stroke: color,
+    strokeWidth: 1.6,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+  switch (k) {
+    case "direct-order":
+      return (
+        <svg {...common}>
+          <path d="M2 6h7M6 3l3 3-3 3" />
+        </svg>
+      );
+    case "dine-in":
+      return (
+        <svg {...common}>
+          <path d="M3 2v8M3 2c0 1.5 1 2 1.5 2S6 3.5 6 2M9 2v3a1.5 1.5 0 003 0V2M9 5v5" />
+        </svg>
+      );
+    case "takeaway":
+      return (
+        <svg {...common}>
+          <path d="M2.5 4h7l-.5 6h-6L2.5 4zM4 4V2.5h4V4" />
+        </svg>
+      );
+    case "delivery":
+      return (
+        <svg {...common}>
+          <path d="M1 8V4h6v4M7 6h2.5L11 7.5V8M3 10a1 1 0 100-2 1 1 0 000 2zM9 10a1 1 0 100-2 1 1 0 000 2z" />
+        </svg>
+      );
+    case "no-fees":
+      return (
+        <svg {...common}>
+          <circle cx="6" cy="6" r="4.5" />
+          <path d="M3.5 8.5l5-5" />
+        </svg>
+      );
+  }
+};
+
+const SocialIcon = ({ k, color }: { k: SocialKey; color: string }) => {
+  switch (k) {
+    case "whatsapp":
+      return (
+        <svg viewBox="0 0 24 24" width="100%" height="100%" fill={color} aria-hidden>
+          <path d="M17.5 14.4c-.3-.1-1.7-.8-2-.9-.3-.1-.4-.1-.6.1-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.3-1.4-.8-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5 0-.1-.6-1.5-.9-2-.2-.5-.5-.5-.6-.5h-.5c-.2 0-.5.1-.7.3-.3.3-.9.9-.9 2.2 0 1.3.9 2.6 1.1 2.7.1.2 1.8 2.8 4.4 3.9.6.3 1.1.4 1.5.5.6.2 1.2.2 1.7.1.5-.1 1.7-.7 1.9-1.3.2-.7.2-1.2.2-1.3-.1-.1-.3-.2-.6-.4zM12 2C6.5 2 2 6.5 2 12c0 1.8.5 3.5 1.3 5L2 22l5.2-1.4c1.4.8 3 1.2 4.8 1.2 5.5 0 10-4.5 10-10S17.5 2 12 2zm0 18.2c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3.2.8.8-3.1-.2-.3c-.9-1.4-1.4-3-1.4-4.7 0-4.5 3.7-8.2 8.2-8.2s8.2 3.7 8.2 8.2-3.6 8.2-8.2 8.2z" />
+        </svg>
+      );
+    case "instagram":
+      return (
+        <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke={color} strokeWidth={1.8} aria-hidden>
+          <rect x="3" y="3" width="18" height="18" rx="5" />
+          <circle cx="12" cy="12" r="4" />
+          <circle cx="17.5" cy="6.5" r="1" fill={color} stroke="none" />
+        </svg>
+      );
+    case "location":
+      return (
+        <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M12 22s7-7.5 7-13a7 7 0 10-14 0c0 5.5 7 13 7 13z" />
+          <circle cx="12" cy="9" r="2.5" />
+        </svg>
+      );
+    case "phone":
+      return (
+        <svg viewBox="0 0 24 24" width="100%" height="100%" fill={color} aria-hidden>
+          <path d="M20 15.5c-1.2 0-2.4-.2-3.5-.6-.3-.1-.7 0-1 .2l-2.2 2.2c-2.8-1.4-5.1-3.7-6.5-6.5l2.2-2.2c.3-.3.4-.7.2-1-.4-1.1-.6-2.3-.6-3.5C8.6 3.5 8.1 3 7.5 3H4c-.6 0-1 .4-1 1 0 9.4 7.6 17 17 17 .6 0 1-.4 1-1v-3.5c0-.5-.5-1-1-1z" />
+        </svg>
+      );
+    case "facebook":
+      return (
+        <svg viewBox="0 0 24 24" width="100%" height="100%" fill={color} aria-hidden>
+          <path d="M22 12c0-5.5-4.5-10-10-10S2 6.5 2 12c0 5 3.7 9.1 8.4 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.3v7C18.3 21.1 22 17 22 12z" />
+        </svg>
+      );
+  }
+};
 
 export default async function PartnerInfoPage({
   params,
@@ -155,216 +277,285 @@ export default async function PartnerInfoPage({
   const partner = await getPartnerInfo(username);
   if (!partner) notFound();
 
-  const brandColor = resolveBrandColor(partner);
-  const isLight = isLightColor(brandColor);
-  const fgColor = isLight ? "#1a1a1a" : "#ffffff";
-  const subtleFg = isLight ? "rgba(0,0,0,0.65)" : "rgba(255,255,255,0.8)";
-  const linkBg = isLight ? "rgba(0,0,0,0.92)" : "rgba(255,255,255,0.95)";
-  const linkFg = isLight ? "#ffffff" : "#2c2c2c";
+  const { brandColor, info } = resolveStorefrontSettings(partner);
+  const rawButtonColor = info.buttonColor?.trim() || "";
+  const buttonColor = /^#[0-9a-fA-F]{3,8}$/.test(rawButtonColor) ? rawButtonColor : brandColor;
 
-  let socials = safeParseJson<SocialLinksData | string>(partner.social_links);
-  if (typeof socials === "string") socials = { instagram: socials };
-  const s = (socials || {}) as SocialLinksData;
+  let socialsRaw = safeParseJson<SocialLinksData | string>(partner.social_links);
+  if (typeof socialsRaw === "string") socialsRaw = { instagram: socialsRaw };
+  const s = (socialsRaw || {}) as SocialLinksData;
 
-  const tagline = partner.store_tagline?.trim() || partner.description?.trim();
-  const initial = partner.store_name?.charAt(0)?.toUpperCase() || "M";
   const whatsappUrl = buildWhatsappUrl(partner);
-  const googleReviewUrl = partner.place_id
-    ? `https://search.google.com/local/writereview?placeid=${encodeURIComponent(partner.place_id)}`
-    : null;
+  const phoneUrl = buildPhoneUrl(partner);
 
-  const deliveryLinks: { label: string; href: string }[] = [];
-  if (s.zomato) deliveryLinks.push({ label: "Order on Zomato", href: s.zomato });
-  if (s.uberEats) deliveryLinks.push({ label: "Order on Uber Eats", href: s.uberEats });
-  if (s.talabat) deliveryLinks.push({ label: "Order on Talabat", href: s.talabat });
-  if (s.doordash) deliveryLinks.push({ label: "Order on DoorDash", href: s.doordash });
+  // Resolve which tags & socials to display (default = all on if URL/data exists)
+  const tagsEnabled = TAG_KEYS.filter((k) => info.tags?.[k] !== false);
 
-  const hasAppLinks = !!(s.playstore || s.appstore);
+  const socialResolved: { k: SocialKey; href: string }[] = [];
+  if (info.socials?.whatsapp !== false && whatsappUrl) socialResolved.push({ k: "whatsapp", href: whatsappUrl });
+  if (info.socials?.instagram !== false && s.instagram) socialResolved.push({ k: "instagram", href: s.instagram });
+  if (info.socials?.location !== false && partner.location) socialResolved.push({ k: "location", href: partner.location });
+  if (info.socials?.phone !== false && phoneUrl) socialResolved.push({ k: "phone", href: phoneUrl });
+  if (info.socials?.facebook !== false && s.facebook) socialResolved.push({ k: "facebook", href: s.facebook });
+
+  const heroImage = info.bgImage || partner.store_banner || FALLBACK_BG;
+  const logoImage = partner.store_banner || info.bgImage || null;
+  const initial = partner.store_name?.charAt(0)?.toUpperCase() || "M";
+
+  const cuisine = info.cuisine?.trim() || partner.store_tagline?.trim() || "";
+  const city = info.city?.trim() || "";
+  const subtitle = [cuisine, city].filter(Boolean).join(" · ");
+
+  const playstoreUrl = isValidUrl(s.playstore) ? s.playstore!.trim() : "";
+  const appstoreUrl = isValidUrl(s.appstore) ? s.appstore!.trim() : "";
+  const hasStoreLink = !!(playstoreUrl || appstoreUrl);
+  const ctaSubtitle =
+    info.ctaSubtitle?.trim() || "Order, pay, and earn rewards · iOS & Android";
+  const showOpenStatus = info.showOpenStatus !== false;
+  const openStatusText = info.openStatusText?.trim() || "Open now";
 
   return (
     <div
-      className="flex min-h-[100dvh] w-full items-center justify-center px-4 py-6 sm:px-5"
-      style={{ backgroundColor: brandColor }}
+      className="flex min-h-[100dvh] w-full items-stretch justify-center bg-neutral-900"
+      style={{ backgroundColor: "#0d0a08" }}
     >
+      {/* Inline keyframes + Fraunces font */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap');
+            @keyframes infoPulseDot { 0%,100%{opacity:1} 50%{opacity:.55} }
+            .info-btn-press { transition: transform .12s ease, filter .15s ease; }
+            .info-btn-press:active { transform: translateY(1px) scale(0.99); }
+            .info-social-btn { transition: transform .15s ease, background .15s ease; }
+            .info-social-btn:active { transform: scale(0.94); }
+            .info-tag-chip { transition: transform .12s ease; }
+            .info-tag-chip:active { transform: scale(0.96); }
+          `,
+        }}
+      />
+
       <div
-        className="relative flex w-full max-w-[420px] flex-col items-center overflow-hidden sm:min-h-[800px] sm:max-h-[900px]"
-        style={{ backgroundColor: brandColor }}
+        className="relative w-full max-w-[440px] overflow-hidden text-white"
+        style={{
+          background: "#0d0a08",
+          fontFamily: "var(--font-inter), Inter, -apple-system, system-ui, sans-serif",
+          minHeight: "100dvh",
+        }}
       >
-        <div className="flex w-full flex-1 flex-col items-center px-6 pb-10 pt-12 sm:px-[30px] sm:pt-[60px]">
-          {partner.store_banner ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={partner.store_banner}
-              alt={partner.store_name}
-              className="mb-[18px] h-[100px] w-[100px] rounded-full object-cover"
-            />
-          ) : (
+        {/* Hero photo */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={heroImage}
+          alt=""
+          className="pointer-events-none absolute left-0 top-0 w-full object-cover"
+          style={{ height: "62%" }}
+        />
+
+        {/* Top darken for status bar legibility */}
+        <div
+          className="pointer-events-none absolute left-0 right-0 top-0"
+          style={{
+            height: 160,
+            background:
+              "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 100%)",
+          }}
+        />
+
+        {/* Photo → sheet blend */}
+        <div
+          className="pointer-events-none absolute left-0 right-0"
+          style={{
+            top: "40%",
+            height: "28%",
+            background:
+              "linear-gradient(180deg, rgba(255,253,250,0) 0%, rgba(255,253,250,0.4) 50%, #fffdfa 100%)",
+          }}
+        />
+
+        {/* Open badge */}
+        {showOpenStatus && (
+          <div
+            className="absolute z-10"
+            style={{ top: 24, right: 16 }}
+          >
             <div
-              className="mb-[18px] flex h-[100px] w-[100px] items-center justify-center rounded-full text-3xl font-semibold"
+              className="inline-flex items-center gap-1.5 rounded-full text-white"
               style={{
-                backgroundColor: isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.15)",
-                color: fgColor,
+                padding: "5px 10px 5px 9px",
+                background: "rgba(0,0,0,0.5)",
+                backdropFilter: "blur(10px)",
+                fontSize: 11.5,
+                fontWeight: 600,
+                whiteSpace: "nowrap",
               }}
             >
-              {initial}
+              <span
+                className="inline-block rounded-full"
+                style={{
+                  width: 6,
+                  height: 6,
+                  background: "#22c55e",
+                  animation: "infoPulseDot 1.6s ease-in-out infinite",
+                }}
+              />
+              {openStatusText}
             </div>
-          )}
+          </div>
+        )}
 
-          <h1
-            className="mb-1 text-center text-[24px] font-semibold leading-tight"
-            style={{ color: fgColor }}
+        {/* Logo block — sits over photo's lower third */}
+        <div
+          className="absolute left-0 right-0 z-10 flex flex-col items-center"
+          style={{ top: "34%" }}
+        >
+          <div
+            className="flex items-center justify-center overflow-hidden"
+            style={{
+              width: 92,
+              height: 92,
+              borderRadius: 24,
+              background: brandColor,
+              padding: 4,
+              boxSizing: "border-box",
+              boxShadow:
+                "0 12px 32px rgba(0,0,0,0.35), 0 0 0 4px rgba(255,255,255,0.95)",
+            }}
           >
-            {partner.store_name}
-          </h1>
-          {tagline && (
-            <p
-              className="mb-10 text-center text-[15px] font-light"
-              style={{ color: subtleFg }}
-            >
-              {tagline}
-            </p>
-          )}
-          {!tagline && <div className="mb-10" />}
-
-          <div className="mb-10 flex w-full flex-col gap-4">
-            <Link
-              href={`/${partner.username}`}
-              className="block w-full rounded-full px-6 py-4 text-center text-base font-medium transition-transform hover:scale-[1.02] hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)] active:scale-[0.98]"
-              style={{ backgroundColor: linkBg, color: linkFg }}
-            >
-              Menu
-            </Link>
-            {deliveryLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full rounded-full px-6 py-4 text-center text-base font-medium transition-transform hover:scale-[1.02] hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)] active:scale-[0.98]"
-                style={{ backgroundColor: linkBg, color: linkFg }}
+            {logoImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoImage}
+                alt={partner.store_name}
+                className="h-full w-full object-cover"
+                style={{ borderRadius: 20 }}
+              />
+            ) : (
+              <div
+                className="flex h-full w-full items-center justify-center text-3xl font-bold text-white"
+                style={{ borderRadius: 20, background: brandColor }}
               >
-                {link.label}
-              </a>
-            ))}
-            {partner.location && (
-              <a
-                href={partner.location}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full rounded-full px-6 py-4 text-center text-base font-medium transition-transform hover:scale-[1.02] hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)] active:scale-[0.98]"
-                style={{ backgroundColor: linkBg, color: linkFg }}
-              >
-                Get Directions
-              </a>
+                {initial}
+              </div>
             )}
+          </div>
+        </div>
 
-            {hasAppLinks && (
-              <div className={`grid gap-3 ${s.playstore && s.appstore ? "grid-cols-2" : "grid-cols-1"}`}>
-                {s.playstore && (
-                  <a
-                    href={s.playstore}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Get it on Google Play"
-                    className="flex items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-medium transition-transform hover:scale-[1.02] hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)] active:scale-[0.98]"
-                    style={{ backgroundColor: linkBg, color: linkFg }}
-                  >
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 shrink-0" aria-hidden>
-                      <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.89l2.302 2.302-10.937 6.31 8.635-8.612zm3.199-3.199l2.769 1.598c.787.454.787 1.591 0 2.045l-2.77 1.599L15.299 12l2.399-2.495zM5.864 1.535l10.937 6.31-2.302 2.302L5.864 1.535z" />
-                    </svg>
-                    Play Store
-                  </a>
-                )}
-                {s.appstore && (
-                  <a
-                    href={s.appstore}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Download on the App Store"
-                    className="flex items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-medium transition-transform hover:scale-[1.02] hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)] active:scale-[0.98]"
-                    style={{ backgroundColor: linkBg, color: linkFg }}
-                  >
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 shrink-0" aria-hidden>
-                      <path d="M17.564 12.85c-.024-2.43 1.984-3.594 2.075-3.65-1.131-1.653-2.892-1.879-3.518-1.905-1.498-.151-2.923.882-3.683.882-.76 0-1.93-.86-3.171-.836-1.632.024-3.135.949-3.974 2.41-1.694 2.937-.434 7.288 1.214 9.674.806 1.166 1.766 2.476 3.027 2.43 1.214-.05 1.673-.785 3.143-.785 1.47 0 1.881.785 3.166.76 1.31-.024 2.135-1.19 2.934-2.36.925-1.355 1.305-2.668 1.327-2.736-.029-.014-2.547-.978-2.572-3.882zM15.13 5.797c.671-.812 1.123-1.939.999-3.062-.967.04-2.137.643-2.83 1.454-.621.717-1.166 1.864-1.018 2.965 1.078.083 2.178-.547 2.85-1.357z" />
-                    </svg>
-                    App Store
-                  </a>
-                )}
+        {/* Bottom sheet */}
+        <div
+          className="absolute bottom-0 left-0 right-0 z-[5] flex flex-col"
+          style={{
+            background: "#fffdfa",
+            padding: "12px 22px 40px",
+            gap: 14,
+            height: "46%",
+          }}
+        >
+          <div className="text-center">
+            <div
+              style={{
+                fontFamily: "Fraunces, Georgia, serif",
+                fontSize: 30,
+                fontWeight: 600,
+                color: "#1a1612",
+                letterSpacing: -0.5,
+                lineHeight: 1.05,
+                marginBottom: 4,
+              }}
+            >
+              {partner.store_name}
+            </div>
+            {subtitle && (
+              <div
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 500,
+                  color: "#8b7d6f",
+                  letterSpacing: 1.4,
+                  textTransform: "uppercase",
+                }}
+              >
+                {subtitle}
               </div>
             )}
           </div>
 
-          <div className="mt-auto flex gap-5 pb-10">
-            {s.facebook && (
-              <a
-                href={s.facebook}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Facebook"
-                className="transition-transform hover:scale-110 hover:opacity-80"
-                style={{ color: fgColor }}
-              >
-                <svg viewBox="0 0 24 24" fill="currentColor" className="h-7 w-7">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                </svg>
-              </a>
-            )}
-            {s.instagram && (
-              <a
-                href={s.instagram}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="transition-transform hover:scale-110 hover:opacity-80"
-                style={{ color: fgColor }}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.8}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-7 w-7"
+          {/* Tags */}
+          {tagsEnabled.length > 0 && (
+            <div className="flex flex-wrap justify-center" style={{ gap: 6 }}>
+              {tagsEnabled.map((k) => (
+                <span
+                  key={k}
+                  className="info-tag-chip inline-flex items-center"
+                  style={{
+                    gap: 5,
+                    padding: "5px 10px 5px 9px",
+                    borderRadius: 999,
+                    background: "#f3eee8",
+                    color: "#5a4a38",
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                  }}
                 >
-                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-                  <circle cx="12" cy="12" r="5" />
-                  <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
-                </svg>
-              </a>
-            )}
-            {whatsappUrl && (
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="WhatsApp"
-                className="transition-transform hover:scale-110 hover:opacity-80"
-                style={{ color: fgColor }}
+                  <TagIcon k={k} color="#7a6a55" />
+                  {TAG_LABELS[k]}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* CTA — picks Play Store or App Store based on the visitor's device */}
+          {hasStoreLink && (
+            <>
+              <DownloadAppButton
+                playstoreUrl={playstoreUrl}
+                appstoreUrl={appstoreUrl}
+                buttonColor={buttonColor}
+              />
+              <div
+                style={{
+                  textAlign: "center",
+                  fontSize: 11.5,
+                  color: "#a89882",
+                  fontWeight: 500,
+                  marginTop: -6,
+                }}
               >
-                <svg viewBox="0 0 24 24" fill="currentColor" className="h-7 w-7">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.52.149-.174.198-.298.297-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                </svg>
-              </a>
-            )}
-            {googleReviewUrl && (
-              <a
-                href={googleReviewUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Google Review"
-                className="transition-transform hover:scale-110 hover:opacity-80"
-                style={{ color: fgColor }}
-              >
-                <svg viewBox="0 0 24 24" fill="currentColor" className="h-7 w-7">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                </svg>
-              </a>
-            )}
-          </div>
+                {ctaSubtitle}
+              </div>
+            </>
+          )}
+
+          {/* Socials row */}
+          {socialResolved.length > 0 && (
+            <div
+              className="flex justify-center"
+              style={{ gap: 10, marginTop: "auto" }}
+            >
+              {socialResolved.map(({ k, href }) => (
+                <a
+                  key={k}
+                  href={href}
+                  target={k === "phone" ? undefined : "_blank"}
+                  rel={k === "phone" ? undefined : "noopener noreferrer"}
+                  aria-label={k}
+                  className="info-social-btn flex items-center justify-center"
+                  style={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: 14,
+                    border: "1px solid #ece4da",
+                    background: "#fffdfa",
+                    padding: 11,
+                    color: "#5a4a38",
+                  }}
+                >
+                  <SocialIcon k={k} color="#5a4a38" />
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
