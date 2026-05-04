@@ -129,7 +129,6 @@ const HotelMenuPage = ({
   const { setQrData } = useQrDataStore();
 
   // Onboarding state
-  const isUserLoggedIn = auth?.role === "user";
   const features = getFeatures(hoteldata?.feature_flags || "");
   const needsOnboarding = features.newonboarding.enabled && (features.delivery.enabled || features.ordering.enabled) && tableNumber === 0;
   // Storefront splash should also mount the overlay even when newonboarding is off,
@@ -509,7 +508,6 @@ const HotelMenuPage = ({
       {showOnboarding && (
         <OnboardingFlow
           key={onboardingKey}
-          isLoggedIn={isUserLoggedIn}
           featureFlags={hoteldata?.feature_flags || ""}
           storeName={hoteldata?.store_name || ""}
           storeBanner={hoteldata?.store_banner}

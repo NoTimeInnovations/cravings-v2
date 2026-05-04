@@ -68,20 +68,23 @@ export default function OrderTypeScreen({
   }, [takeawayTimeAllowed, deliveryTimeAllowed, isDeliveryActive, hotelTimezone]);
 
   return (
-    <div className="flex flex-col min-h-dvh bg-[#fafafa]" style={{ fontFamily: "'Inter', system-ui, sans-serif", paddingTop: 60 }}>
+    <div className="flex flex-col min-h-dvh bg-white pt-[60px] lg:pt-16 mx-auto w-full md:max-w-md relative" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3.5 sticky top-0 z-10 bg-[#fafafa]">
-        <button
-          onClick={onBack || onSkip}
-          className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0 transition active:opacity-60"
-        >
-          <ChevronLeft className="w-[18px] h-[18px] text-gray-900" />
-        </button>
+      <div className="sticky top-0 z-10 bg-white">
+        <div className="flex items-center gap-3 px-4 py-3.5 lg:max-w-md lg:mx-auto">
+          <button
+            onClick={onBack || onSkip}
+            className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0 transition active:opacity-60"
+          >
+            <ChevronLeft className="w-[18px] h-[18px] text-gray-900" />
+          </button>
+        </div>
       </div>
 
       {/* Content */}
-      <div className="px-6 flex-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
+      <div className="flex-1">
+       <div className="px-6 lg:max-w-md lg:mx-auto">
+        <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-gray-900">
           How would you like your order?
         </h1>
         <p className="mt-2.5 text-sm text-gray-500">
@@ -187,10 +190,12 @@ export default function OrderTypeScreen({
             </button>
           </p>
         )}
+       </div>
       </div>
 
       {/* Sticky CTA */}
-      <div className="absolute left-0 right-0 bottom-0 px-4 pt-3.5 pb-8 bg-[#fafafa]/95 backdrop-blur-lg border-t border-gray-100 z-30">
+      <div className="absolute left-0 right-0 bottom-0 bg-white/95 backdrop-blur-lg border-t border-gray-100 z-30">
+       <div className="px-4 pt-3.5 pb-8 lg:max-w-md lg:mx-auto">
         {(!isDeliveryOpen || !hasDelivery) && (!isTakeawayOpen || !hasOrdering) ? (
           <button
             onClick={onSkip}
@@ -212,6 +217,7 @@ export default function OrderTypeScreen({
             Continue with {mode === "delivery" ? "Delivery" : "Takeaway"}
           </button>
         )}
+       </div>
       </div>
     </div>
   );

@@ -872,7 +872,7 @@ const PlaceOrderModalV2 = ({
 
   return (
     <>
-    <div className="fixed inset-0 z-[500]">
+    <div className="fixed inset-0 z-[500] md:bg-black/40">
       <style>{`
         @keyframes v3CheckoutIn {
           from { transform: translateX(100%); }
@@ -882,9 +882,13 @@ const PlaceOrderModalV2 = ({
           from { transform: translateX(0); }
           to { transform: translateX(100%); }
         }
+        @media (min-width: 768px) {
+          .v2-checkout-column { max-width: 42rem !important; margin-left: auto !important; margin-right: auto !important; }
+          .v2-checkout-fixed { left: 50% !important; right: auto !important; transform: translateX(-50%) !important; max-width: 42rem !important; width: 100% !important; }
+        }
       `}</style>
     <div
-      className="absolute inset-0 bg-gray-100 overflow-y-auto pb-20"
+      className="v2-checkout-column w-full h-full bg-gray-100 overflow-y-auto pb-20"
       style={{
         animation: closing ? "v3CheckoutOut 250ms ease-in forwards" : "v3CheckoutIn 300ms ease-out forwards",
       }}
@@ -892,9 +896,8 @@ const PlaceOrderModalV2 = ({
       {view === "main" ? (
         <>
           {/* Header */}
-          <div
-            className="sticky top-0 z-10 px-3 flex items-center gap-2 h-14 border-b border-gray-200/60 bg-white"
-          >
+          <div className="sticky top-0 z-10 border-b border-gray-200/60 bg-white">
+           <div className="px-3 flex items-center gap-2 h-14">
             <button
               type="button"
               onClick={handleClose}
@@ -922,6 +925,7 @@ const PlaceOrderModalV2 = ({
                 </div>
               ) : null}
             </div>
+           </div>
           </div>
 
           <div className="p-4 space-y-4 pb-40">
@@ -1317,7 +1321,8 @@ const PlaceOrderModalV2 = ({
     {/* Footer Pay Bar — outside animated div so fixed positioning works */}
     {view === "main" && (items?.length ?? 0) > 0 && (
       <>
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-between gap-3 z-[510]">
+        <div className="v2-checkout-fixed fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[510]">
+         <div className="px-4 py-3 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => setShowPaymentMethods((v) => !v)}
@@ -1348,15 +1353,16 @@ const PlaceOrderModalV2 = ({
               "Place Order"
             )}
           </button>
+         </div>
         </div>
 
         {showPaymentMethods && (
           <div
-            className="fixed inset-0 bg-black/30 z-[520] animate-fade-in"
+            className="fixed inset-0 bg-black/30 z-[520] animate-fade-in flex items-end justify-center"
             onClick={() => setShowPaymentMethods(false)}
           >
             <div
-              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4 space-y-2 animate-slide-up"
+              className="w-full md:max-w-2xl bg-white rounded-t-2xl p-4 space-y-2 animate-slide-up"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="text-sm font-semibold mb-2 text-gray-900">Choose Payment Method</div>
@@ -1427,9 +1433,10 @@ const PlaceOrderModalV2 = ({
 
     {/* Address details form (after saving from map) */}
     {showAddressForm && pendingAddress && (
-      <div className="fixed inset-0 z-[600] bg-gray-50 overflow-y-auto animate-slide-in-right">
+      <div className="v2-checkout-fixed fixed inset-0 z-[600] bg-gray-50 overflow-y-auto animate-slide-in-right">
         {/* Header */}
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+         <div className="px-4 py-3 flex items-center gap-3">
           <button
             type="button"
             onClick={() => {
@@ -1449,6 +1456,7 @@ const PlaceOrderModalV2 = ({
               </span>
             </div>
           </div>
+         </div>
         </div>
 
         <div className="p-4 space-y-5 pb-32">
@@ -1577,7 +1585,8 @@ const PlaceOrderModalV2 = ({
         </div>
 
         {/* Save button */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 z-20">
+        <div className="v2-checkout-fixed fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-20">
+         <div className="px-4 py-3">
           <button
             type="button"
             onClick={handleSaveAddressForm}
@@ -1586,6 +1595,7 @@ const PlaceOrderModalV2 = ({
           >
             Save Address
           </button>
+         </div>
         </div>
       </div>
     )}

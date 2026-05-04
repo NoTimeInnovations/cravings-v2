@@ -115,22 +115,25 @@ export default function DeliveryAddressScreen({
   };
 
   return (
-    <div className="flex flex-col h-dvh bg-white overflow-hidden" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="flex flex-col h-dvh bg-white overflow-hidden mx-auto w-full md:max-w-md" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <div ref={dummyDivRef} className="hidden" />
 
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3.5 sticky top-0 z-10 bg-white">
-        <button
-          onClick={onBack || (() => onContinue("", null))}
-          className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0 transition active:opacity-60"
-        >
-          <ChevronLeft className="w-[18px] h-[18px] text-gray-900" />
-        </button>
+      <div className="sticky top-0 z-10 bg-white">
+        <div className="flex items-center gap-3 px-4 py-3.5 lg:max-w-md lg:mx-auto">
+          <button
+            onClick={onBack || (() => onContinue("", null))}
+            className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0 transition active:opacity-60"
+          >
+            <ChevronLeft className="w-[18px] h-[18px] text-gray-900" />
+          </button>
+        </div>
       </div>
 
       {/* Content */}
-      <div className="px-6 flex-1 min-h-0 overflow-y-auto">
-        <h1 className="text-2xl font-semibold tracking-tight text-gray-900 leading-tight">
+      <div className="flex-1 min-h-0 overflow-y-auto">
+       <div className="px-6 lg:max-w-md lg:mx-auto">
+        <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-gray-900 leading-tight">
           Delivery address
         </h1>
         <p className="mt-2 text-[14px] text-gray-500 leading-relaxed">
@@ -193,10 +196,12 @@ export default function DeliveryAddressScreen({
         </div>
 
         {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
+       </div>
       </div>
 
       {/* Sticky CTA */}
-      <div className="shrink-0 px-4 pt-2.5 pb-8 bg-white/95 backdrop-blur-lg border-t border-gray-100">
+      <div className="shrink-0 bg-white/95 backdrop-blur-lg border-t border-gray-100">
+       <div className="px-4 pt-2.5 pb-8 lg:max-w-md lg:mx-auto">
         <button
           onClick={handleContinue}
           disabled={loading || !address.trim()}
@@ -205,6 +210,7 @@ export default function DeliveryAddressScreen({
         >
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Continue"}
         </button>
+       </div>
       </div>
     </div>
   );

@@ -44,6 +44,7 @@ const BRAND_COLORS = [
 ];
 
 const SECTION_TYPES = [
+    { id: "navbar", label: "Navbar", icon: "🧭", desc: "Top navigation with links" },
     { id: "hero", label: "Hero", icon: "🎯", desc: "Big banner with headline & CTA" },
     { id: "carousel", label: "Banner Carousel", icon: "🖼️", desc: "Scrollable image slides" },
     { id: "imageText", label: "Image + Text", icon: "📰", desc: "Story block with image & copy" },
@@ -54,7 +55,7 @@ const SECTION_TYPES = [
     { id: "customHtml", label: "Custom HTML", icon: "🧩", desc: "Raw HTML & CSS block" },
 ];
 
-type SectionType = "hero" | "carousel" | "imageText" | "cta" | "testimonials" | "about" | "footer" | "customHtml";
+type SectionType = "navbar" | "hero" | "carousel" | "imageText" | "cta" | "testimonials" | "about" | "footer" | "customHtml";
 
 interface StorefrontSection {
     id: string;
@@ -76,6 +77,10 @@ interface StorefrontData {
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 const DEFAULT_CONTENT: Record<string, Record<string, any>> = {
+    navbar: {
+        showLogo: true,
+        sticky: true,
+    },
     hero: {
         slides: [
             {
@@ -158,6 +163,7 @@ function cn(...classes: (string | boolean | undefined)[]) {
 function sectionSummary(sec: StorefrontSection) {
     const c = sec.content || {};
     switch (sec.type) {
+        case "navbar": return c.sticky ? "Sticky navbar" : "Navbar";
         case "hero": return c.heading || "(hero)";
         case "carousel": return `${(c.slides || []).length} slide(s)`;
         case "imageText": return c.heading || "(image + text)";
@@ -709,6 +715,7 @@ function SectionFormRouter({
     const set = (patch: Record<string, any>) => onUpdate(section.id, patch);
 
     switch (section.type) {
+        case "navbar": return <NavbarEditor content={section.content} set={set} />;
         case "hero": return <HeroEditor content={section.content} set={set} partnerId={partnerId} />;
         case "carousel": return <CarouselEditor section={section} storefront={storefront} setStorefront={setStorefront} partnerId={partnerId} />;
         case "imageText": return <ImageTextEditor content={section.content} set={set} partnerId={partnerId} />;
@@ -1300,6 +1307,37 @@ function AboutEditor({ content, set, partnerId }: { content: Record<string, any>
                     rows={6}
                 />
             </FieldRow>
+        </div>
+    );
+}
+
+/* ================== NAVBAR ================== */
+function NavbarEditor({ content, set }: { content: Record<string, any>; set: (p: Record<string, any>) => void }) {
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 rounded-lg border">
+                <div>
+                    <p className="text-sm font-medium">Show logo & store name</p>
+                    <p className="text-[11px] text-muted-foreground">Display in the navbar</p>
+                </div>
+                <Switch
+                    checked={content.showLogo !== false}
+                    onCheckedChange={(v) => set({ showLogo: v })}
+                />
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg border">
+                <div>
+                    <p className="text-sm font-medium">Sticky on scroll</p>
+                    <p className="text-[11px] text-muted-foreground">Pin navbar to top while scrolling</p>
+                </div>
+                <Switch
+                    checked={content.sticky !== false}
+                    onCheckedChange={(v) => set({ sticky: v })}
+                />
+            </div>
+            <p className="rounded-xl border-2 border-dashed py-4 px-3 text-center text-[11px] text-muted-foreground">
+                Links shown in the navbar are managed in the <strong>Navbar &amp; Footer</strong> card above.
+            </p>
         </div>
     );
 }

@@ -2828,9 +2828,12 @@ const PlaceOrderModal = ({
 
   return (
     <>
+      {open_place_order_modal && (
+        <div className="fixed inset-0 z-[999] hidden md:block bg-black/40" />
+      )}
+      <div className={`fixed inset-0 z-[1000] md:flex md:justify-center ${open_place_order_modal ? "" : "hidden"}`}>
       <div
-        className={`fixed inset-0 z-[1000] flex flex-col ${open_place_order_modal ? "flex" : "hidden"
-          }`}
+        className="flex flex-col w-full h-full md:max-w-2xl"
         style={(() => {
           return {
             backgroundColor: "white",
@@ -3158,13 +3161,13 @@ const PlaceOrderModal = ({
         {/* Payment Method Bottom Sheet */}
         {showPaymentSheet && (
           <div
-            className="fixed inset-0 z-[60] flex items-end"
+            className="fixed inset-0 z-[60] flex items-end justify-center"
             onClick={() => closePaymentSheet()}
             style={{ transition: "opacity 0.25s ease", opacity: paymentSheetClosing ? 0 : 1 }}
           >
             <div className="absolute inset-0 bg-black/50" />
             <div
-              className="relative w-full rounded-t-2xl p-5 pb-8"
+              className="relative w-full lg:max-w-2xl rounded-t-2xl p-5 pb-8"
               style={{
                 backgroundColor: "#ffffff",
                 transition: "transform 0.25s ease",
@@ -3320,6 +3323,7 @@ const PlaceOrderModal = ({
           onLoginSuccess={handleLoginSuccess}
           requireOtp={!isQrScan && hotelFeatures.whatsappnotifications.access && hotelFeatures.whatsappnotifications.enabled}
         />
+      </div>
       </div>
 
       <OrderStatusDialog

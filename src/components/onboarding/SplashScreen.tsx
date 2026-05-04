@@ -51,7 +51,7 @@ export default function SplashScreen({
     .filter(Boolean) as { title: string; description: string; tag: string }[];
 
   return (
-    <div className="flex flex-col h-dvh bg-[#fafaf9] overflow-hidden" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="flex flex-col h-dvh bg-white overflow-hidden mx-auto w-full md:max-w-md" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`
         @keyframes splashFadeUp {
           from { opacity: 0; transform: translateY(8px); }
@@ -61,8 +61,9 @@ export default function SplashScreen({
       `}</style>
 
       <div className="flex-1 overflow-y-auto min-h-0">
+       <div className="lg:max-w-md lg:mx-auto">
         {/* Hero */}
-        <div className="splash-fade text-center px-5 pt-10">
+        <div className="splash-fade text-center px-5 pt-10 lg:pt-14">
           {/* Logo */}
           <div className="w-[72px] h-[72px] rounded-full mx-auto mb-3 bg-white border border-gray-200 flex items-center justify-center overflow-hidden" style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.04)" }}>
             {storeBanner ? (
@@ -75,12 +76,12 @@ export default function SplashScreen({
           </div>
 
           {/* Store name */}
-          <h1 className="text-[20px] font-semibold tracking-tight text-gray-900 leading-tight">
+          <h1 className="text-[20px] lg:text-2xl font-semibold tracking-tight text-gray-900 leading-tight">
             {storeName}
           </h1>
 
           {/* Tagline / description */}
-          <p className="mt-3 text-[13px] text-gray-500 max-w-[260px] mx-auto leading-relaxed">
+          <p className="mt-3 text-[13px] lg:text-sm text-gray-500 max-w-[260px] lg:max-w-sm mx-auto leading-relaxed">
             {storeTagline || "Order for pickup or delivery, every day."}
           </p>
         </div>
@@ -146,7 +147,7 @@ export default function SplashScreen({
         )}
 
         {/* Info card */}
-        <div className="splash-fade px-5 mt-4 pb-4" style={{ animationDelay: "0.2s" }}>
+        <div className="splash-fade px-5 mt-4 pb-4 lg:pb-8" style={{ animationDelay: "0.2s" }}>
           <div className="bg-white rounded-xl border border-gray-100 px-4 py-3 flex flex-col gap-2.5" style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.02)" }}>
             <div className="flex items-center gap-2.5">
               <Clock className="w-[15px] h-[15px] text-gray-900 shrink-0" />
@@ -176,10 +177,12 @@ export default function SplashScreen({
             </div>
           </div>
         </div>
+       </div>
       </div>
 
       {/* Sticky CTA */}
-      <div className="shrink-0 px-4 pt-2.5 pb-6 bg-[#fafaf9]/95 backdrop-blur-lg border-t border-gray-100">
+      <div className="shrink-0 px-4 pt-2.5 pb-6 bg-white/95 backdrop-blur-lg border-t border-gray-100">
+       <div className="lg:max-w-md lg:mx-auto">
         <button
           onClick={onContinue}
           className="splash-fade w-full h-[50px] rounded-[14px] bg-gray-900 text-white font-semibold text-[15px] flex items-center justify-center transition active:scale-[0.98]"
@@ -190,6 +193,7 @@ export default function SplashScreen({
         <p className="text-center mt-2 text-[10px] text-gray-400">
           By continuing you agree to our Terms & Privacy
         </p>
+       </div>
       </div>
     </div>
   );

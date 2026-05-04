@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Phone, Mail, ArrowRight, Star, Menu as MenuIcon, X } from "lucide-react";
+import { Phone, Mail, ArrowRight, Star, Menu as MenuIcon, X, ChevronDown } from "lucide-react";
 
 const BRAND_COLOR_MAP: Record<string, string> = {
     "burnt-orange": "#e85d04",
@@ -16,6 +16,13 @@ const BRAND_COLOR_MAP: Record<string, string> = {
     "warm-copper": "#b45309",
 };
 
+interface NavbarLink {
+    id: string;
+    label: string;
+    url: string;
+    children?: NavbarLink[];
+}
+
 interface StorefrontData {
     enabled: boolean;
     logoType: "emoji" | "image";
@@ -24,6 +31,27 @@ interface StorefrontData {
     brandName: string;
     brandColor?: string;
     sections: StorefrontSection[];
+}
+
+function buildNavLinks(): NavbarLink[] {
+    if (typeof window === "undefined") return [];
+    const username = window.location.pathname.split("/").filter(Boolean)[0] || "";
+    const base = username ? `/${username}` : "";
+    return [
+        { id: "about-us", label: "About Us", url: `${base}/about-us` },
+        { id: "contact-us", label: "Contact Us", url: `${base}/contact-us` },
+        {
+            id: "policies",
+            label: "Privacy Policy",
+            url: `${base}/privacy-policy`,
+            children: [
+                { id: "pp", label: "Privacy Policy", url: `${base}/privacy-policy` },
+                { id: "rc", label: "Refund & Cancellation", url: `${base}/refund-and-cancellation-policy` },
+                { id: "tc", label: "Terms & Conditions", url: `${base}/terms-and-conditions` },
+                { id: "sd", label: "Shipping & Delivery", url: `${base}/shipping-and-delivery-policy` },
+            ],
+        },
+    ];
 }
 
 interface StorefrontSection {
@@ -157,6 +185,7 @@ function SectionRenderer({
     if (!section?.enabled) return null;
 
     switch (section.type) {
+        case "navbar": return <NavbarSection content={section.content} brandName={brandName} storeBanner={storeBanner} onContinue={onContinue} accent={accent} />;
         case "hero": return <HeroSection content={section.content} onContinue={onContinue} accent={accent} />;
         case "carousel": return <BannerCarousel content={section.content} />;
         case "imageText": return <ImageTextBlock content={section.content} onContinue={onContinue} />;
@@ -209,6 +238,356 @@ function CtaAction({
         >
             {children}
         </a>
+    );
+}
+
+/* ================== NAV LINK ITEMS (desktop / mobile) ================== */
+function DesktopNavItem({ link, accent }: { link: NavbarLink; accent: string }) {
+    const [open, setOpen] = useState(false);
+    const childrenVisible = link.children || [];
+    const hasChildren = childrenVisible.length > 0;
+    const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleEnter = () => {
+        if (closeTimer.current) clearTimeout(closeTimer.current);
+        if (hasChildren) setOpen(true);
+    };
+    const handleLeave = () => {
+        if (!hasChildren) return;
+        closeTimer.current = setTimeout(() => setOpen(false), 120);
+    };
+
+    if (!hasChildren) {
+        return (
+            <a
+                href={link.url}
+                className="group relative inline-flex px-3 py-2 text-[13px] font-semibold text-gray-700 transition-colors hover:text-gray-900"
+            >
+                <span>{link.label}</span>
+                <span
+                    className="pointer-events-none absolute inset-x-3 -bottom-0.5 h-[2px] origin-center scale-x-0 rounded-full transition-transform duration-300 group-hover:scale-x-100"
+                    style={{ backgroundColor: accent }}
+                />
+            </a>
+        );
+    }
+
+    return (
+        <div className="relative" onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                aria-expanded={open}
+                aria-haspopup="menu"
+                className="group relative inline-flex items-center gap-1 px-3 py-2 text-[13px] font-semibold text-gray-700 transition-colors hover:text-gray-900"
+            >
+                <span>{link.label}</span>
+                <ChevronDown
+                    className={cn(
+                        "h-3.5 w-3.5 transition-transform duration-200",
+                        open && "rotate-180"
+                    )}
+                />
+                <span
+                    className="pointer-events-none absolute inset-x-3 -bottom-0.5 h-[2px] origin-center scale-x-0 rounded-full transition-transform duration-300 group-hover:scale-x-100"
+                    style={{ backgroundColor: accent }}
+                />
+            </button>
+            <div
+                role="menu"
+                className={cn(
+                    "absolute left-0 top-full mt-1 min-w-[220px] origin-top rounded-xl border border-black/5 bg-white p-1.5 shadow-xl ring-1 ring-black/5 transition-all duration-200",
+                    open
+                        ? "opacity-100 translate-y-0 pointer-events-auto"
+                        : "opacity-0 -translate-y-1 pointer-events-none"
+                )}
+            >
+                {childrenVisible.map((child) => (
+                    <a
+                        key={child.id}
+                        href={child.url}
+                        role="menuitem"
+                        className="flex items-center justify-between rounded-lg px-3 py-2 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
+                    >
+                        <span>{child.label}</span>
+                    </a>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function MobileNavItem({
+    link,
+    onLinkClick,
+}: {
+    link: NavbarLink;
+    onLinkClick: () => void;
+}) {
+    const [open, setOpen] = useState(false);
+    const childrenVisible = link.children || [];
+    const hasChildren = childrenVisible.length > 0;
+
+    if (!hasChildren) {
+        return (
+            <a
+                href={link.url}
+                onClick={onLinkClick}
+                className="flex items-center justify-between rounded-xl px-3 py-3.5 text-[15px] font-bold text-gray-900 transition hover:bg-gray-100 active:bg-gray-200"
+            >
+                <span>{link.label}</span>
+                <ArrowRight className="h-4 w-4 text-gray-400" />
+            </a>
+        );
+    }
+
+    return (
+        <div>
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                aria-expanded={open}
+                className="flex w-full items-center justify-between rounded-xl px-3 py-3.5 text-[15px] font-bold text-gray-900 transition hover:bg-gray-100 active:bg-gray-200"
+            >
+                <span>{link.label}</span>
+                <ChevronDown
+                    className={cn(
+                        "h-4 w-4 text-gray-400 transition-transform duration-200",
+                        open && "rotate-180"
+                    )}
+                />
+            </button>
+            <div
+                className={cn(
+                    "grid overflow-hidden transition-all duration-300 ease-out",
+                    open ? "grid-rows-[1fr] opacity-100 mt-0.5" : "grid-rows-[0fr] opacity-0"
+                )}
+            >
+                <div className="min-h-0">
+                    <ul className="ml-3 border-l-2 border-gray-100 pl-2 py-1 flex flex-col gap-0.5">
+                        {childrenVisible.map((child) => (
+                            <li key={child.id}>
+                                <a
+                                    href={child.url}
+                                    onClick={onLinkClick}
+                                    className="flex items-center justify-between rounded-lg px-3 py-2.5 text-[14px] font-semibold text-gray-700 transition hover:bg-gray-100 active:bg-gray-200"
+                                >
+                                    <span>{child.label}</span>
+                                    <ArrowRight className="h-3.5 w-3.5 text-gray-400" />
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/* ================== NAVBAR ================== */
+function NavbarSection({
+    content,
+    brandName,
+    storeBanner,
+    onContinue,
+    accent,
+}: {
+    content: Record<string, any>;
+    brandName: string;
+    storeBanner?: string;
+    onContinue: () => void;
+    accent: string;
+}) {
+    const showLogo = content?.showLogo !== false;
+    const sticky = content?.sticky !== false;
+    const [open, setOpen] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
+    const [navbarLinks, setNavbarLinks] = useState<NavbarLink[]>([]);
+
+    useEffect(() => {
+        setNavbarLinks(buildNavLinks());
+    }, []);
+
+    useEffect(() => {
+        if (!sticky) return;
+        const onScroll = () => setScrolled(window.scrollY > 8);
+        onScroll();
+        window.addEventListener("scroll", onScroll, { passive: true });
+        return () => window.removeEventListener("scroll", onScroll);
+    }, [sticky]);
+
+    useEffect(() => {
+        if (!open) return;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        return () => { document.body.style.overflow = prev; };
+    }, [open]);
+
+    const Logo = (
+        <>
+            {storeBanner ? (
+                <img
+                    src={storeBanner}
+                    alt={brandName}
+                    className="h-9 w-9 rounded-full object-cover ring-1 ring-black/10 shadow-sm"
+                />
+            ) : (
+                <span
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white shadow-sm ring-1 ring-black/10"
+                    style={{ backgroundColor: accent }}
+                >
+                    {(brandName || "R").charAt(0)}
+                </span>
+            )}
+            <span className="text-[15px] font-extrabold tracking-tight text-gray-900 leading-none">
+                {brandName}
+            </span>
+        </>
+    );
+
+    return (
+        <>
+            <header
+                className={cn(
+                    "z-40 w-full transition-all duration-300",
+                    sticky && "sticky top-0",
+                    scrolled
+                        ? "bg-white/95 backdrop-blur-xl border-b border-black/5 shadow-[0_2px_20px_-8px_rgba(0,0,0,0.12)]"
+                        : "bg-white/85 backdrop-blur-md border-b border-transparent"
+                )}
+            >
+                <div
+                    className={cn(
+                        "mx-auto flex max-w-6xl items-center gap-4 px-4 transition-all duration-300 lg:px-8",
+                        scrolled ? "h-14" : "h-16 lg:h-[68px]"
+                    )}
+                >
+                    {showLogo && (
+                        <a
+                            href="#top"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                window.scrollTo({ top: 0, behavior: "smooth" });
+                            }}
+                            className="flex shrink-0 items-center gap-2.5 transition-opacity hover:opacity-80"
+                        >
+                            {Logo}
+                        </a>
+                    )}
+
+                    {/* Desktop nav */}
+                    <nav className="ml-auto hidden items-center md:flex">
+                        <ul className="flex items-center gap-0.5">
+                            {navbarLinks.map((link) => (
+                                <li key={link.id}>
+                                    <DesktopNavItem link={link} accent={accent} />
+                                </li>
+                            ))}
+                        </ul>
+                        <button
+                            onClick={onContinue}
+                            className="ml-4 inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-[13px] font-bold text-white transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
+                            style={{ backgroundColor: accent, boxShadow: `0 8px 22px -10px ${accent}` }}
+                        >
+                            Order Online
+                            <ArrowRight className="h-3.5 w-3.5" />
+                        </button>
+                    </nav>
+
+                    {/* Mobile right cluster */}
+                    <div className="ml-auto flex items-center gap-2 md:hidden">
+                        <button
+                            onClick={onContinue}
+                            className="rounded-full px-4 py-2 text-xs font-bold text-white transition-transform active:scale-95"
+                            style={{ backgroundColor: accent, boxShadow: `0 6px 16px -8px ${accent}` }}
+                        >
+                            Order
+                        </button>
+                        <button
+                            onClick={() => setOpen((v) => !v)}
+                            className="flex h-10 w-10 items-center justify-center rounded-full text-gray-900 transition active:scale-95 hover:bg-gray-100"
+                            aria-label={open ? "Close menu" : "Open menu"}
+                            aria-expanded={open}
+                        >
+                            {open ? (
+                                <X className="h-5 w-5" strokeWidth={2.25} />
+                            ) : (
+                                <MenuIcon className="h-5 w-5" strokeWidth={2.25} />
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            {/* Mobile drawer */}
+            <div
+                className={cn(
+                    "fixed inset-0 z-50 md:hidden",
+                    open ? "pointer-events-auto" : "pointer-events-none"
+                )}
+                aria-hidden={!open}
+            >
+                <button
+                    onClick={() => setOpen(false)}
+                    aria-label="Close menu"
+                    tabIndex={open ? 0 : -1}
+                    className={cn(
+                        "absolute inset-0 bg-black/45 backdrop-blur-sm transition-opacity duration-300",
+                        open ? "opacity-100" : "opacity-0"
+                    )}
+                />
+                <aside
+                    className={cn(
+                        "absolute right-0 top-0 flex h-full w-[84%] max-w-sm flex-col bg-white shadow-2xl transition-transform duration-300 ease-out",
+                        open ? "translate-x-0" : "translate-x-full"
+                    )}
+                    role="dialog"
+                    aria-modal="true"
+                >
+                    <div className="flex items-center justify-between gap-3 border-b border-black/5 px-5 py-4">
+                        {showLogo ? (
+                            <div className="flex min-w-0 items-center gap-2.5">{Logo}</div>
+                        ) : <span />}
+                        <button
+                            onClick={() => setOpen(false)}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition hover:bg-gray-100"
+                            aria-label="Close menu"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
+                    </div>
+
+                    <div className="flex flex-1 flex-col overflow-y-auto px-5 py-5">
+                        <p className="px-2 pb-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-gray-400">
+                            Menu
+                        </p>
+                        <nav>
+                            <ul className="flex flex-col gap-0.5">
+                                {navbarLinks.map((link) => (
+                                    <li key={link.id}>
+                                        <MobileNavItem
+                                            link={link}
+                                            onLinkClick={() => setOpen(false)}
+                                        />
+                                    </li>
+                                ))}
+                            </ul>
+                        </nav>
+
+                        <div className="mt-auto pt-6">
+                            <button
+                                onClick={() => { setOpen(false); onContinue(); }}
+                                className="flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-bold text-white transition active:scale-[0.98]"
+                                style={{ backgroundColor: accent, boxShadow: `0 10px 28px -10px ${accent}` }}
+                            >
+                                Order Online
+                                <ArrowRight className="h-4 w-4" />
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </>
     );
 }
 
@@ -553,7 +932,12 @@ function FooterSection({
     accent: string;
 }) {
     const { description, phone, email, copyright, showLogo = true } = content || {};
-    const hasFullContent = (showLogo !== false) || phone || email;
+    const [footerLinks, setFooterLinks] = useState<NavbarLink[]>([]);
+    useEffect(() => {
+        setFooterLinks(buildNavLinks());
+    }, []);
+    const hasLinks = footerLinks.length > 0;
+    const hasFullContent = (showLogo !== false) || phone || email || hasLinks;
 
     if (!hasFullContent && !description && copyright) {
         return (
@@ -595,6 +979,46 @@ function FooterSection({
                                 <Html html={description} as="div" className={cn(showLogo !== false ? "mt-4" : "", "max-w-md text-sm leading-relaxed text-white/80")} />
                             )}
                         </div>
+
+                        {hasLinks && (
+                            <div className="mt-7 lg:mt-0">
+                                <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-white/50 mb-3">Quick Links</p>
+                                <ul className="space-y-2 text-sm">
+                                    {footerLinks.map((link) => {
+                                        const children = link.children || [];
+                                        const hasChildren = children.length > 0;
+                                        return (
+                                            <li key={link.id}>
+                                                {hasChildren ? (
+                                                    <div>
+                                                        <p className="font-semibold text-white">{link.label}</p>
+                                                        <ul className="mt-1.5 space-y-1.5 pl-3 border-l border-white/15">
+                                                            {children.map((child) => (
+                                                                <li key={child.id}>
+                                                                    <a
+                                                                        href={child.url}
+                                                                        className="text-white/80 hover:text-white"
+                                                                    >
+                                                                        {child.label}
+                                                                    </a>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                ) : (
+                                                    <a
+                                                        href={link.url}
+                                                        className="text-white/90 hover:text-white"
+                                                    >
+                                                        {link.label}
+                                                    </a>
+                                                )}
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </div>
+                        )}
 
                         {(phone || email) && (
                             <div className="mt-7 space-y-2.5 text-sm lg:mt-0">
