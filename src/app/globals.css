@@ -3,6 +3,17 @@
 @tailwind utilities;
 
 
+.no-image-save img {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: auto;
+}
+
 :root {
   line-height: 1.5;
   font-weight: 400;

@@ -872,7 +872,10 @@ const Compact = ({
         backgroundColor: localStyles?.backgroundColor || "#fff",
         fontFamily: "var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       }}
-      className="min-h-screen antialiased"
+      className="no-image-save min-h-screen antialiased"
+      onContextMenu={(e) => {
+        if ((e.target as HTMLElement).tagName === "IMG") e.preventDefault();
+      }}
     >
       <main
         style={{

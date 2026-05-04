@@ -381,7 +381,10 @@ const Sidebar = ({
           backgroundSize: "40px 40px",
         }),
       }}
-      className={`overflow-x-clip relative min-h-screen flex flex-col lg:px-[20%] ${(cartItems?.length ?? 0) > 0 ? "pb-24" : ""} ${activeTab !== "food" ? "hidden" : ""}`}
+      className={`no-image-save overflow-x-clip relative min-h-screen flex flex-col lg:px-[20%] ${(cartItems?.length ?? 0) > 0 ? "pb-24" : ""} ${activeTab !== "food" ? "hidden" : ""}`}
+      onContextMenu={(e) => {
+        if ((e.target as HTMLElement).tagName === "IMG") e.preventDefault();
+      }}
     >
       {!open_place_order_modal ? (
         <>

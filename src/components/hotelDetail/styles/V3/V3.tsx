@@ -206,7 +206,10 @@ const V3 = ({
   return (
     <div
       style={{ fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
-      className="min-h-screen bg-white antialiased"
+      className="no-image-save min-h-screen bg-white antialiased"
+      onContextMenu={(e) => {
+        if ((e.target as HTMLElement).tagName === "IMG") e.preventDefault();
+      }}
     >
       <main className="max-w-2xl mx-auto relative pb-24">
         <ShopClosedModalWarning hotelId={hoteldata?.id} isShopOpen={hoteldata?.is_shop_open} />
