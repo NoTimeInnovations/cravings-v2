@@ -100,7 +100,18 @@ export interface Order {
     whatsapp_number?: string;
     upi_id?: string;
     show_payment_qr?: boolean;
+    feature_flags?: string | null;
   };
+  delivery_agent?: {
+    provider?: string;
+    name?: string;
+    phone?: string;
+    location?: {
+      latitude?: number;
+      longitude?: number;
+      lastUpdated?: string;
+    };
+  } | null;
   phone?: string | null;
   userId?: string;
   user?: {

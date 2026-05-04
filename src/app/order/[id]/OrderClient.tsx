@@ -10,7 +10,8 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Order, OrderItem } from "@/store/orderStore";
 import OfferLoadinPage from "@/components/OfferLoadinPage";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
-import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2, Star } from "lucide-react";
+import { getFeatures } from "@/lib/getFeatures";
+import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2, Star, Bike } from "lucide-react";
 import { OrderReviewModal } from "@/components/OrderReviewModal";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
@@ -46,6 +47,7 @@ const GET_ORDER_QUERY = `
         current_lng
         location_updated_at
       }
+      delivery_agent
       partner {
         gst_percentage
         currency
@@ -53,6 +55,7 @@ const GET_ORDER_QUERY = `
         country
         name
         username
+        feature_flags
       }
       gst_included
       extra_charges
@@ -96,6 +99,7 @@ const OrderClient = () => {
         cashfree_merchant_id?: string;
     } | null>(null);
     const [locationAgo, setLocationAgo] = useState<number | null>(null);
+    const [agentLocationAgo, setAgentLocationAgo] = useState<number | null>(null);
     const [cashfreeLoading, setCashfreeLoading] = useState(false);
     const [cashfreeVerifying, setCashfreeVerifying] = useState(false);
     const [reviewOpen, setReviewOpen] = useState(false);
@@ -115,6 +119,21 @@ const OrderClient = () => {
         const interval = setInterval(update, 1000);
         return () => clearInterval(interval);
     }, [order?.delivery_boy?.location_updated_at]);
+
+    // Same ticker for the third-party delivery agent (e.g. Growjet)
+    useEffect(() => {
+        const updatedAt = order?.delivery_agent?.location?.lastUpdated;
+        if (!updatedAt) {
+            setAgentLocationAgo(null);
+            return;
+        }
+        const update = () => {
+            setAgentLocationAgo(Math.round((Date.now() - new Date(updatedAt).getTime()) / 1000));
+        };
+        update();
+        const interval = setInterval(update, 1000);
+        return () => clearInterval(interval);
+    }, [order?.delivery_agent?.location?.lastUpdated]);
 
     useEffect(() => {
         if (!orderId) return;
@@ -149,6 +168,7 @@ const OrderClient = () => {
                         delivery_boy_id: order?.delivery_boy_id,
                         assigned_at: order?.assigned_at,
                         delivery_boy: order?.delivery_boy,
+                        delivery_agent: order?.delivery_agent ?? null,
                         is_paid: order?.is_paid || false,
                         items: order?.order_items.map((i: any) => ({
                             id: i.item.id,
@@ -256,6 +276,29 @@ const OrderClient = () => {
     const statusDisplay = getStatusDisplay(order as Order);
     const isCompleted = order?.status === "completed" || order?.status === "cancelled";
     const isPaid = !!(order as any)?.is_paid;
+
+    // Third-party delivery agent (Growjet etc.) — show only when partner has
+    // the integration enabled, the poller has populated the agent record,
+    // and the order isn't already in a terminal state.
+    const partnerFlags = getFeatures(order?.partner?.feature_flags ?? null);
+    const agent = order?.delivery_agent ?? null;
+    const agentProvider = agent?.provider;
+    const showGrowjetAgent =
+        !!agent &&
+        agentProvider === "growjet" &&
+        partnerFlags.growjet_delivery.access &&
+        partnerFlags.growjet_delivery.enabled &&
+        !isCompleted;
+    const agentLat = agent?.location?.latitude;
+    const agentLng = agent?.location?.longitude;
+    const agentProviderLabel =
+        agentProvider === "growjet" ? "Growjet" : (agentProvider ?? "Partner");
+    const formatAgo = (sec: number): string =>
+        sec < 60
+            ? `${sec}s`
+            : sec < 3600
+                ? `${Math.floor(sec / 60)}m ${sec % 60}s`
+                : `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
 
     const buildWhatsappLink = () => {
         // Prefer whatsapp_number from whatsapp_numbers array
@@ -509,6 +552,94 @@ ${itemsText}
                                                 </p>
                                                 <p className="text-xs text-purple-600 mt-0.5">
                                                     Live tracking will appear once the delivery boy shares their location
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Third-party delivery agent (Growjet) live tracking */}
+                        {showGrowjetAgent && (
+                            <div className="p-6 border-b bg-orange-50">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Bike className="h-5 w-5 text-orange-600" />
+                                    <h2 className="text-lg font-semibold text-orange-900">
+                                        Your order is on the way!
+                                    </h2>
+                                    <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-200 text-orange-900">
+                                        via {agentProviderLabel}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <p className="text-sm text-orange-800">
+                                        {agent?.name ? (
+                                            <>Delivery by <span className="font-medium">{agent.name}</span></>
+                                        ) : (
+                                            <>Rider being assigned…</>
+                                        )}
+                                    </p>
+                                    {agent?.phone && (
+                                        <a
+                                            href={`tel:${agent.phone}`}
+                                            className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors"
+                                        >
+                                            <Phone className="h-4 w-4" />
+                                            Call
+                                        </a>
+                                    )}
+                                </div>
+
+                                {agentLat != null && agentLng != null && order?.delivery_location?.coordinates ? (
+                                    <div>
+                                        <div className="flex items-center justify-between text-xs text-orange-700 mb-1">
+                                            {agentLocationAgo != null && (
+                                                <span>
+                                                    Location updated {formatAgo(agentLocationAgo)} ago
+                                                </span>
+                                            )}
+                                            {(() => {
+                                                const lat1 = agentLat * Math.PI / 180;
+                                                const lat2 = order.delivery_location!.coordinates[1] * Math.PI / 180;
+                                                const dLat = lat2 - lat1;
+                                                const dLng = (order.delivery_location!.coordinates[0] - agentLng) * Math.PI / 180;
+                                                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+                                                const dist = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                                                const etaMinutes = Math.max(1, Math.round((dist / 25) * 60));
+                                                return (
+                                                    <span className="font-medium text-orange-900">
+                                                        ETA: ~{etaMinutes} min{etaMinutes > 1 ? "s" : ""}
+                                                    </span>
+                                                );
+                                            })()}
+                                        </div>
+                                        <DeliveryMap
+                                            deliveryLng={order.delivery_location.coordinates[0]}
+                                            deliveryLat={order.delivery_location.coordinates[1]}
+                                            driverLng={agentLng}
+                                            driverLat={agentLat}
+                                            onMapClick={() => {
+                                                const url = `https://www.google.com/maps/dir/${agentLat},${agentLng}/${order.delivery_location!.coordinates[1]},${order.delivery_location!.coordinates[0]}`;
+                                                window.open(url, "_blank");
+                                            }}
+                                        />
+                                        <p className="text-xs text-orange-700 mt-1">
+                                            Tap map to open in Google Maps
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="p-4 bg-orange-100 rounded-md border border-orange-200">
+                                        <div className="flex items-center gap-3">
+                                            <div className="animate-pulse">
+                                                <Bike className="h-6 w-6 text-orange-400" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-orange-800">
+                                                    Waiting for the rider&apos;s location…
+                                                </p>
+                                                <p className="text-xs text-orange-700 mt-0.5">
+                                                    Live tracking will appear once {agentProviderLabel} starts sharing the rider&apos;s location.
                                                 </p>
                                             </div>
                                         </div>
