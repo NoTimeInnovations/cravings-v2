@@ -88,7 +88,7 @@ export interface Order {
   notes?: string | null;
   tableNumber?: number | null;
   qrId?: string | null;
-  status: "pending" | "completed" | "cancelled" | "preparing" | "accepted" | "food_ready" | "dispatched";
+  status: "pending" | "completed" | "cancelled" | "preparing" | "accepted" | "food_ready" | "dispatched" | "in_transit";
   partnerId: string;
   display_id?: string;
   status_history?: OrderStatusStorage;
@@ -405,7 +405,7 @@ const useOrderStore = create(
       updateOrderStatus: async (
         orders: Order[],
         orderId: string,
-        newStatus: "completed" | "cancelled" | "pending" | "accepted" | "food_ready" | "dispatched",
+        newStatus: "completed" | "cancelled" | "pending" | "accepted" | "food_ready" | "dispatched" | "in_transit",
         setOrders: (orders: Order[]) => void
       ) => {
         const userData = useAuthStore.getState().userData;

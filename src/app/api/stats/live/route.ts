@@ -76,7 +76,7 @@ const LIVE_QUERY = `
     }) { aggregate { count, sum { total_price } } }
 
     pending_now: orders_aggregate(where: {
-      status: { _in: ["pending", "accepted", "ready", "dispatched"] },
+      status: { _in: ["pending", "accepted", "ready", "dispatched", "in_transit"] },
       partner_id: $partnerFilter,
       created_at: { _gte: $today }
     }) {

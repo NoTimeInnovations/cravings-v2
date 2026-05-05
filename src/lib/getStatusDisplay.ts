@@ -25,6 +25,13 @@ export const getStatusDisplay = (
     };
   }
 
+  if (order?.status === "in_transit") {
+    return {
+      text: "On the way",
+      className: "bg-sky-100 text-sky-900",
+    };
+  }
+
   if (isDispatched || order?.status === "dispatched") {
     if (orderType === "delivery") {
       if (order.deliveryAddress && order.delivery_location) {
