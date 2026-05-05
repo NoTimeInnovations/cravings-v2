@@ -196,6 +196,48 @@ class Token {
       window?.localStorage.setItem("savedTokenUserId", currentUserId);
       window?.localStorage.setItem("savedTokenPartnerId", partnerId || "");
     }
+
+    // Prune: keep only the newest 5 device tokens per user so dead/old rows
+    // can't crowd out the limit-5 send window in PartnerNotification.
+    try {
+      const { device_tokens: keepRows } = await fetchFromHasura(
+        `
+        query GetNewestUserTokens($user_id: String!) {
+          device_tokens(
+            where: { user_id: { _eq: $user_id } },
+            order_by: { created_at: desc },
+            limit: 5
+          ) {
+            id
+          }
+        }
+        `,
+        { user_id: currentUserId }
+      );
+
+      const keepIds: string[] =
+        keepRows?.map((r: { id: string }) => r.id) ?? [];
+
+      if (keepIds.length >= 5) {
+        await fetchFromHasura(
+          `
+          mutation PruneOldDeviceTokens($user_id: String!, $keep_ids: [uuid!]!) {
+            delete_device_tokens(
+              where: {
+                user_id: { _eq: $user_id },
+                id: { _nin: $keep_ids }
+              }
+            ) {
+              affected_rows
+            }
+          }
+          `,
+          { user_id: currentUserId, keep_ids: keepIds }
+        );
+      }
+    } catch (err) {
+      console.error("Failed to prune old device tokens:", err);
+    }
   }
 
   async remove() {
@@ -234,7 +276,7 @@ class PartnerNotification {
           device_tokens(
             where: { user_id: { _eq: $partnerId } },
             order_by: { created_at: desc },
-            limit: 3
+            limit: 5
           ) {
             device_token
           }
@@ -305,7 +347,7 @@ class PartnerNotification {
           device_tokens(
             where: { user_id: { _eq: $partnerId } },
             order_by: { created_at: desc },
-            limit: 3
+            limit: 5
           ) {
             device_token
           }
