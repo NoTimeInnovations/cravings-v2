@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
-import useOrderStore from "@/store/orderStore";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
+import { formatOrderShortId } from "@/lib/formatDate";
 import {
   Loader2,
   ShoppingBag,
@@ -18,6 +18,8 @@ import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
 import Link from "next/link";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { subscribeToHasura } from "@/lib/hasuraSubscription";
+import { userPartnerOrdersSubscription, userPartnerOrdersPageQuery } from "@/api/orders";
 import { createCashfreeOrderForPartner } from "@/app/actions/cashfree";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 
@@ -26,11 +28,54 @@ interface CompactOrdersProps {
   styles: any;
 }
 
+const PAGE_SIZE = 10;
+
+// Maps the GraphQL row shape into the existing UserOrder shape the rest of
+// the file already renders against. Trimmed: no delivery_boy, no
+// delivery_location, no status_history (none of those are read here).
+const mapRowToOrder = (row: any): UserOrder => ({
+  id: row.id,
+  totalPrice: row.total_price,
+  createdAt: row.created_at,
+  status: row.status,
+  display_id: row.display_id,
+  partnerId: row.partner_id,
+  partner: row.partner,
+  gstIncluded: row.gst_included,
+  extraCharges: row.extra_charges || [],
+  discounts: row.discounts || [],
+  is_paid: row.is_paid || false,
+  items: (row.order_items || []).map((i: any) => ({
+    id: i.item?.id,
+    quantity: i.quantity,
+    name: i.item?.name || "Unknown",
+    price: i.item?.offers?.[0]?.offer_price || i.item?.price || 0,
+    category: i.item?.category,
+    is_freebie: i.item?.is_freebie || false,
+  })),
+  review: row.reviews?.[0]
+    ? {
+        id: row.reviews[0].id,
+        rating: row.reviews[0].rating,
+        comment: row.reviews[0].comment,
+        created_at: row.reviews[0].created_at,
+      }
+    : null,
+} as UserOrder);
+
 const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
-  const { userOrders, subscribeUserOrders } = useOrderStore();
   const { userData } = useAuthStore();
+  const userId = userData?.id;
+
+  // Subscription holds the most recent PAGE_SIZE orders, live. Older pages
+  // are fetched one-shot below and don't churn on rider GPS updates.
+  const [recent, setRecent] = useState<UserOrder[]>([]);
+  const [older, setOlder] = useState<UserOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [upiOrder, setUpiOrder] = useState<(typeof userOrders)[0] | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
+  const [upiOrder, setUpiOrder] = useState<UserOrder | null>(null);
   const [partnerPaymentInfo, setPartnerPaymentInfo] = useState<{
     upi_id?: string;
     show_payment_qr?: boolean;
@@ -44,16 +89,107 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
   const [reviewOrder, setReviewOrder] = useState<UserOrder | null>(null);
   const [justReviewedIds, setJustReviewedIds] = useState<Set<string>>(new Set());
 
+  // First page: race HTTP fetch + WS subscription. HTTP wins on cold start
+  // (no WS handshake needed) so the user sees their orders fast; subscription
+  // catches up and takes over for live updates.
   useEffect(() => {
-    if (userData?.id) {
-      const unsubscribe = subscribeUserOrders(() => {
+    if (!userId || !hotelId) return;
+    let alive = true;
+    let subscriptionFired = false;
+
+    // (1) Fast HTTP first paint — typically 200-500ms vs ~1-2s for WS cold start
+    fetchFromHasura(userPartnerOrdersPageQuery, {
+      user_id: userId,
+      partner_id: hotelId,
+      limit: PAGE_SIZE,
+      offset: 0,
+    })
+      .then((data: any) => {
+        if (!alive || subscriptionFired) return;
+        const rows = data?.orders ?? [];
+        setRecent(rows.map(mapRowToOrder));
         setLoading(false);
+      })
+      .catch((err: any) => {
+        console.error("CompactOrders initial fetch error:", err);
       });
-      return () => {
-        unsubscribe();
-      };
+
+    // (2) Real-time subscription — overrides HTTP results once WS connects
+    const unsubscribe = subscribeToHasura({
+      query: userPartnerOrdersSubscription,
+      variables: { user_id: userId, partner_id: hotelId, limit: PAGE_SIZE },
+      onNext: (data: any) => {
+        if (!alive) return;
+        const rows = data?.data?.orders ?? [];
+        subscriptionFired = true;
+        setRecent(rows.map(mapRowToOrder));
+        setLoading(false);
+      },
+      onError: (err: any) => {
+        console.error("CompactOrders subscription error:", err);
+        if (alive) setLoading(false);
+      },
+    });
+
+    return () => {
+      alive = false;
+      unsubscribe();
+    };
+  }, [userId, hotelId]);
+
+  // Reset older pages when user/hotel changes
+  useEffect(() => {
+    setOlder([]);
+    setHasMore(true);
+  }, [userId, hotelId]);
+
+  const loadMore = useCallback(async () => {
+    if (!userId || !hotelId || loadingMore || !hasMore) return;
+    // Only start paginating once the first page is in
+    if (recent.length === 0) return;
+    setLoadingMore(true);
+    try {
+      const offset = recent.length + older.length;
+      const data = await fetchFromHasura(userPartnerOrdersPageQuery, {
+        user_id: userId,
+        partner_id: hotelId,
+        limit: PAGE_SIZE,
+        offset,
+      });
+      const rows = data?.orders ?? [];
+      const newOrders = rows.map(mapRowToOrder);
+      if (newOrders.length < PAGE_SIZE) setHasMore(false);
+      setOlder((prev) => [...prev, ...newOrders]);
+    } catch (err) {
+      console.error("CompactOrders loadMore error:", err);
+    } finally {
+      setLoadingMore(false);
     }
-  }, [userData, subscribeUserOrders]);
+  }, [userId, hotelId, loadingMore, hasMore, recent.length, older.length]);
+
+  // Combined list, recent always wins on dedupe so live updates trump cached pages
+  const partnerOrders = useMemo(() => {
+    const recentIds = new Set(recent.map((o) => o.id));
+    const olderFiltered = older.filter((o) => !recentIds.has(o.id));
+    return [...recent, ...olderFiltered];
+  }, [recent, older]);
+
+  // IntersectionObserver-based infinite scroll
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          loadMore();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   useEffect(() => {
     if (!hotelId) return;
@@ -80,13 +216,6 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
       })
       .catch(() => {});
   }, [hotelId]);
-
-  const partnerOrders = userOrders
-    .filter((order) => order.partnerId === hotelId)
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
 
   const getWhatsAppNumber = () => {
     const whatsappNumbers = partnerPaymentInfo?.whatsapp_numbers;
@@ -117,7 +246,7 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
 
   const hasCashfree = partnerPaymentInfo?.accept_payments_via_cashfree === true && !!partnerPaymentInfo?.cashfree_merchant_id;
 
-  const handleCashfreePayment = async (order: (typeof userOrders)[0]) => {
+  const handleCashfreePayment = async (order: UserOrder) => {
     setCashfreeLoadingOrderId(order.id);
     try {
       const cfOrderId = `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -157,13 +286,38 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
 
   if (loading && partnerOrders.length === 0) {
     return (
-      <div className="flex justify-center items-center h-[50vh]">
-        <Loader2 className="animate-spin h-8 w-8 text-gray-400" />
+      <div className="flex flex-col gap-3 pt-10 p-4 pb-24 min-h-screen bg-white">
+        <div className="flex justify-between items-center mb-2">
+          <div className="h-6 w-28 bg-gray-200 rounded animate-pulse" />
+          <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+        </div>
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="rounded-xl p-5 shadow-sm bg-white border border-gray-200 space-y-3"
+          >
+            <div className="flex justify-between items-start">
+              <div className="space-y-2 flex-1 min-w-0">
+                <div className="h-5 w-3/5 bg-gray-200 rounded animate-pulse" />
+                <div className="h-3 w-2/5 bg-gray-200 rounded animate-pulse" />
+              </div>
+              <div className="h-9 w-9 rounded-full bg-gray-200 animate-pulse" />
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 w-full bg-gray-100 rounded animate-pulse" />
+              <div className="h-3 w-4/5 bg-gray-100 rounded animate-pulse" />
+            </div>
+            <div className="border-t border-gray-200 pt-3 flex justify-between">
+              <div className="h-4 w-12 bg-gray-200 rounded animate-pulse" />
+              <div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
 
-  if (partnerOrders.length === 0) {
+  if (!loading && partnerOrders.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-[50vh] gap-4 text-center p-4">
         <div className="p-4 rounded-full bg-gray-100">
@@ -171,7 +325,7 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
         </div>
         <h3 className="text-lg font-semibold text-gray-900">No orders yet</h3>
         <p className="text-sm text-gray-500">
-          You haven't placed any orders with this partner yet.
+          You haven&apos;t placed any orders with this partner yet.
         </p>
       </div>
     );
@@ -261,10 +415,10 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
             >
               <Link href={`/order/${order.id}`} className="block">
                 <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <h3 className="font-semibold text-lg text-gray-900">
-                        {order.partner?.store_name}
+                        #{formatOrderShortId((order as any).display_id, order.id, order.createdAt)}
                       </h3>
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${statusDisplay.className}`}
@@ -277,8 +431,11 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-500">
-                      #{order.id.slice(0, 8)} •{" "}
+                    <p className="text-xs text-gray-400 font-mono leading-tight">
+                      {order.id.slice(0, 8)}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      {order.partner?.store_name} •{" "}
                       {format(new Date(order.createdAt), "MMM d, h:mm a")}
                     </p>
                   </div>
@@ -407,6 +564,18 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
             </div>
           );
         })}
+
+        {/* Infinite-scroll sentinel + status */}
+        <div ref={sentinelRef} className="py-4 flex justify-center">
+          {loadingMore ? (
+            <span className="inline-flex items-center gap-2 text-sm text-gray-500">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Loading more orders…
+            </span>
+          ) : !hasMore && partnerOrders.length > 0 ? (
+            <span className="text-xs text-gray-400">You&apos;re all caught up</span>
+          ) : null}
+        </div>
       </div>
       {reviewOrder && (
         <OrderReviewModal

@@ -523,6 +523,101 @@ subscription GetUserOrders($user_id: uuid!) {
 }
 `;
 
+// Real-time subscription for the user's most recent orders WITH a single
+// partner. Used by CompactOrders. Drops live-tracking fields (delivery_boy
+// gps) that fire on every rider tick — the list view doesn't show those.
+export const userPartnerOrdersSubscription = `
+subscription UserPartnerOrders($user_id: uuid!, $partner_id: uuid!, $limit: Int!) {
+  orders(
+    where: { user_id: { _eq: $user_id }, partner_id: { _eq: $partner_id } }
+    order_by: { created_at: desc }
+    limit: $limit
+  ) {
+    id
+    total_price
+    created_at
+    status
+    is_paid
+    display_id
+    partner_id
+    partner {
+      gst_percentage
+      currency
+      country
+      store_name
+      name
+    }
+    gst_included
+    extra_charges
+    discounts
+    order_items {
+      id
+      quantity
+      item
+      menu {
+        category {
+          name
+          id
+        }
+      }
+    }
+    reviews(limit: 1) {
+      id
+      rating
+      comment
+      created_at
+    }
+  }
+}
+`;
+
+// One-shot paginated fetch for older pages. Same shape as the subscription.
+export const userPartnerOrdersPageQuery = `
+query UserPartnerOrdersPage($user_id: uuid!, $partner_id: uuid!, $limit: Int!, $offset: Int!) {
+  orders(
+    where: { user_id: { _eq: $user_id }, partner_id: { _eq: $partner_id } }
+    order_by: { created_at: desc }
+    limit: $limit
+    offset: $offset
+  ) {
+    id
+    total_price
+    created_at
+    status
+    is_paid
+    display_id
+    partner_id
+    partner {
+      gst_percentage
+      currency
+      country
+      store_name
+      name
+    }
+    gst_included
+    extra_charges
+    discounts
+    order_items {
+      id
+      quantity
+      item
+      menu {
+        category {
+          name
+          id
+        }
+      }
+    }
+    reviews(limit: 1) {
+      id
+      rating
+      comment
+      created_at
+    }
+  }
+}
+`;
+
 // Add a new query to fetch captains
 export const getCaptainsQuery = `
   query GetCaptains($captain_ids: [uuid!]!) {

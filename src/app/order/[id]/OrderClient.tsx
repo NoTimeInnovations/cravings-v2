@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { formatDate, getDateOnly } from "@/lib/formatDate";
+import { formatDate, getDateOnly, formatOrderShortId } from "@/lib/formatDate";
 import { ExtraCharge } from "@/store/posStore";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { subscribeToHasura } from "@/lib/hasuraSubscription";
@@ -11,7 +11,7 @@ import { Order, OrderItem } from "@/store/orderStore";
 import OfferLoadinPage from "@/components/OfferLoadinPage";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
 import { getFeatures } from "@/lib/getFeatures";
-import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2, Star, Bike } from "lucide-react";
+import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2, Star, Bike, Store, MapPin, Receipt, Package, User, StickyNote, ShoppingBag } from "lucide-react";
 import { OrderReviewModal } from "@/components/OrderReviewModal";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
@@ -273,6 +273,11 @@ const OrderClient = () => {
     const discountInfo = (order as any)?.discounts?.[0];
     const discountSavings = discountInfo?.savings || 0;
 
+    const formattedOrderId = order
+        ? formatOrderShortId(order.display_id, order.id, order.createdAt)
+        : "";
+    const idTail = order?.id ? order.id.slice(0, 8) : "";
+
     const statusDisplay = getStatusDisplay(order as Order);
     const isCompleted = order?.status === "completed" || order?.status === "cancelled";
     const isPaid = !!(order as any)?.is_paid;
@@ -299,6 +304,30 @@ const OrderClient = () => {
             : sec < 3600
                 ? `${Math.floor(sec / 60)}m ${sec % 60}s`
                 : `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`;
+    const computeEtaMinutes = (
+        fromLat: number,
+        fromLng: number,
+        toLat: number,
+        toLng: number,
+    ): number => {
+        const lat1 = (fromLat * Math.PI) / 180;
+        const lat2 = (toLat * Math.PI) / 180;
+        const dLat = lat2 - lat1;
+        const dLng = ((toLng - fromLng) * Math.PI) / 180;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+        const distKm = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return Math.max(1, Math.round((distKm / 25) * 60));
+    };
+    const agentEta =
+        agentLat != null && agentLng != null && order?.delivery_location?.coordinates
+            ? computeEtaMinutes(
+                  agentLat,
+                  agentLng,
+                  order.delivery_location.coordinates[1],
+                  order.delivery_location.coordinates[0],
+              )
+            : null;
+    const agentInitial = (agent?.name ?? "?").trim().charAt(0).toUpperCase() || "?";
 
     const buildWhatsappLink = () => {
         // Prefer whatsapp_number from whatsapp_numbers array
@@ -333,11 +362,6 @@ const OrderClient = () => {
 
         const currency = order?.partner?.currency || "₹";
         const nowTime = new Intl.DateTimeFormat("en-GB", { hour: "numeric", minute: "numeric", hour12: true }).format(new Date(order?.createdAt || Date.now()));
-        const dateParts = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).formatToParts(new Date(order?.createdAt || Date.now()));
-        const day = dateParts.find(p => p.type === "day")?.value;
-        const month = dateParts.find(p => p.type === "month")?.value;
-        const shortId = (order?.display_id || order?.id?.slice(0, 4).toUpperCase() || "N/A");
-        const formattedOrderId = `${shortId}-${month} ${day}`;
         const orderTypeStr = order?.type === "table_order" && order?.tableNumber
             ? `*Table:* ${order.tableNumber}`
             : `*Order Type:* ${order?.type?.replace("_", " ") || "Delivery"}`;
@@ -427,9 +451,9 @@ ${itemsText}
                 onClose={() => setShowUpiScreen(false)}
             />
         )}
-        <div className="bg-gray-50 min-h-screen pb-16">
+        <div className="bg-gray-50 min-h-screen pb-40 sm:pb-28">
             {/* Top Navbar */}
-            <div className="bg-white border-b sticky top-0 z-50 px-4 py-3 flex items-center gap-3 shadow-sm">
+            <div className="bg-white border-b sticky top-0 z-50 px-3 sm:px-4 py-3 flex items-center gap-3 shadow-sm">
                 <button
                     onClick={() => {
                         const username = (order?.partner as any)?.username;
@@ -439,11 +463,18 @@ ${itemsText}
                             router.back();
                         }
                     }}
-                    className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                    className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors"
                 >
                     <ArrowLeft size={20} />
                 </button>
-                <h1 className="font-semibold text-lg">Order Status</h1>
+                <div className="min-w-0">
+                    <h1 className="font-semibold text-base leading-tight truncate">
+                        {order ? `#${formattedOrderId}` : "Order details"}
+                    </h1>
+                    {idTail && (
+                        <p className="text-[11px] text-gray-500 leading-tight">{idTail}</p>
+                    )}
+                </div>
             </div>
 
             {loading ? (
@@ -451,27 +482,34 @@ ${itemsText}
                     <OfferLoadinPage message="Loading Order.." />
                 </>
             ) : (
-                <div className="container mx-auto px-4 py-8">
-                    <div className="max-w-4xl mx-auto bg-white rounded-lg overflow-hidden">
-                        <div className="p-6 border-b">
-                            <div className="flex justify-between items-center">
-                                <div>
-                                    <h1 className="text-2xl font-bold">
-                                        Order #{order?.id.slice(0, 8)}
+                <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-6 max-w-3xl">
+                    <div className="space-y-3">
+
+                        {/* Card: Order header */}
+                        <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-5">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                    <h1 className="text-xl sm:text-2xl font-bold truncate">
+                                        Order #{formattedOrderId}
                                     </h1>
-                                    <p className="text-sm text-gray-500">
+                                    {idTail && (
+                                        <p className="text-[11px] text-gray-400 font-mono mt-0.5 truncate">
+                                            {idTail}
+                                        </p>
+                                    )}
+                                    <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
                                         {order?.createdAt && formatDate(order?.createdAt)}
                                     </p>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                                     <span
-                                        className={`px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${statusDisplay.className}`}
+                                        className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap ${statusDisplay.className}`}
                                     >
                                         {statusDisplay.text}
                                     </span>
                                     {isPaid && (
-                                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                                            Payment Complete
+                                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-green-100 text-green-700 whitespace-nowrap">
+                                            Paid
                                         </span>
                                     )}
                                 </div>
@@ -480,140 +518,162 @@ ${itemsText}
                                 <button
                                     type="button"
                                     onClick={() => setReviewOpen(true)}
-                                    className="mt-4 w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+                                    className="mt-4 w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 active:bg-orange-700 transition-colors"
                                 >
                                     <Star className="h-4 w-4" />
-                                    Add Review
+                                    Rate your order
                                 </button>
                             )}
                             {order?.review && (
-                                <div className="mt-4 inline-flex items-center gap-1.5 text-sm text-gray-600">
+                                <div className="mt-3 inline-flex items-center gap-1.5 text-sm text-gray-600">
                                     <Star className="h-4 w-4 fill-orange-500 text-orange-500" />
                                     You rated this order {order.review.rating}/5
                                 </div>
                             )}
                         </div>
 
-                        {/* Live Delivery Tracking */}
-                        {order?.status === "dispatched" && order?.delivery_boy_id && order?.delivery_boy && (
-                            <div className="p-6 border-b bg-purple-50">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Truck className="h-5 w-5 text-purple-600" />
-                                    <h2 className="text-lg font-semibold text-purple-900">Your order is on the way!</h2>
+                        {/* Card: Restaurant */}
+                        {order?.partner?.store_name && (
+                            <div className="bg-white rounded-2xl shadow-sm p-4 flex items-center gap-3">
+                                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                                    <Store className="h-5 w-5 text-orange-600" />
                                 </div>
-                                <div className="flex items-center justify-between mb-3">
-                                    <p className="text-sm text-purple-800">
-                                        Delivery by <span className="font-medium">{order.delivery_boy.name}</span>
+                                <div className="min-w-0">
+                                    <p className="text-[11px] uppercase tracking-wide text-gray-500 font-medium">
+                                        Ordered from
                                     </p>
-                                    <a
-                                        href={`tel:${order.delivery_boy.phone}`}
-                                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
-                                    >
-                                        <Phone className="h-4 w-4" />
-                                        Call
-                                    </a>
+                                    <p className="font-semibold text-gray-900 truncate">
+                                        {order.partner.store_name}
+                                    </p>
                                 </div>
-
-                                {order.delivery_boy.current_lat != null && order.delivery_boy.current_lng != null && order.delivery_location?.coordinates ? (
-                                    <div>
-                                        <div className="flex items-center justify-between text-xs text-purple-600 mb-1">
-                                            {locationAgo != null && (
-                                                <span>
-                                                    Location updated {locationAgo < 60
-                                                        ? `${locationAgo}s`
-                                                        : `${Math.floor(locationAgo / 60)}m ${locationAgo % 60}s`} ago
-                                                </span>
-                                            )}
-                                            {(() => {
-                                                const lat1 = order.delivery_boy.current_lat! * Math.PI / 180;
-                                                const lat2 = order.delivery_location!.coordinates[1] * Math.PI / 180;
-                                                const dLat = lat2 - lat1;
-                                                const dLng = (order.delivery_location!.coordinates[0] - order.delivery_boy.current_lng!) * Math.PI / 180;
-                                                const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng/2) * Math.sin(dLng/2);
-                                                const dist = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                                                const etaMinutes = Math.max(1, Math.round((dist / 25) * 60));
-                                                return (
-                                                    <span className="font-medium text-purple-900">
-                                                        ETA: ~{etaMinutes} min{etaMinutes > 1 ? "s" : ""}
-                                                    </span>
-                                                );
-                                            })()}
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="p-4 bg-purple-100 rounded-md border border-purple-200">
-                                        <div className="flex items-center gap-3">
-                                            <div className="animate-pulse">
-                                                <Truck className="h-6 w-6 text-purple-400" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium text-purple-800">
-                                                    Waiting for delivery boy&apos;s location...
-                                                </p>
-                                                <p className="text-xs text-purple-600 mt-0.5">
-                                                    Live tracking will appear once the delivery boy shares their location
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         )}
 
+                        {/* Live Delivery Tracking — partner's own rider */}
+                        {order?.status === "dispatched" && order?.delivery_boy_id && order?.delivery_boy && (() => {
+                            const boyLat = order.delivery_boy.current_lat;
+                            const boyLng = order.delivery_boy.current_lng;
+                            const dropCoords = order.delivery_location?.coordinates;
+                            const hasLocation = boyLat != null && boyLng != null && dropCoords != null;
+                            const boyEta = hasLocation
+                                ? computeEtaMinutes(boyLat!, boyLng!, dropCoords![1], dropCoords![0])
+                                : null;
+                            const boyInitial = (order.delivery_boy.name ?? "?").trim().charAt(0).toUpperCase() || "?";
+                            return (
+                                <div className="rounded-2xl shadow-sm overflow-hidden bg-gradient-to-br from-purple-50 to-violet-50 p-4 sm:p-5">
+                                    <div className="flex items-start gap-3 mb-4">
+                                        <div className="flex-shrink-0 w-11 h-11 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-sm">
+                                            <Truck className="h-5 w-5" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <h2 className="text-base font-bold text-gray-900">On the way</h2>
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-white text-purple-700 ring-1 ring-purple-200 whitespace-nowrap">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                    Partner rider
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-gray-600 mt-0.5">
+                                                {boyEta != null ? (
+                                                    <>
+                                                        Arriving in{" "}
+                                                        <span className="font-semibold text-gray-900">
+                                                            ~{boyEta} min{boyEta > 1 ? "s" : ""}
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <>Rider on the way…</>
+                                                )}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {!hasLocation && (
+                                        <div className="rounded-2xl bg-white p-5 shadow-sm flex items-center gap-3 mb-3">
+                                            <Truck className="h-6 w-6 text-purple-400 animate-pulse flex-shrink-0" />
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-semibold text-gray-900">
+                                                    Waiting for rider&apos;s location
+                                                </p>
+                                                <p className="text-xs text-gray-600 mt-0.5">
+                                                    Live tracking starts once the rider shares their location.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {hasLocation && locationAgo != null && (
+                                        <div className="inline-flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full shadow-sm text-[11px] mb-3">
+                                            <span className="relative flex h-2 w-2">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                            </span>
+                                            <span className="font-medium text-gray-800">
+                                                Live · {locationAgo < 60 ? `${locationAgo}s` : `${Math.floor(locationAgo / 60)}m ${locationAgo % 60}s`} ago
+                                            </span>
+                                        </div>
+                                    )}
+
+                                    <div className="bg-white rounded-2xl shadow-sm p-3 flex items-center gap-3">
+                                        <div className="flex-shrink-0 w-11 h-11 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-base">
+                                            {boyInitial}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-semibold text-gray-900 truncate">
+                                                {order.delivery_boy.name}
+                                            </p>
+                                            <p className="text-xs text-gray-500">Delivery Partner</p>
+                                        </div>
+                                        {order.delivery_boy.phone && (
+                                            <a
+                                                href={`tel:${order.delivery_boy.phone}`}
+                                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white rounded-full text-sm font-semibold shadow-sm transition-colors whitespace-nowrap"
+                                            >
+                                                <Phone className="h-4 w-4" />
+                                                Call
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
                         {/* Third-party delivery agent (Growjet) live tracking */}
                         {showGrowjetAgent && (
-                            <div className="p-6 border-b bg-orange-50">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Bike className="h-5 w-5 text-orange-600" />
-                                    <h2 className="text-lg font-semibold text-orange-900">
-                                        Your order is on the way!
-                                    </h2>
-                                    <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-200 text-orange-900">
-                                        via {agentProviderLabel}
-                                    </span>
-                                </div>
-                                <div className="flex items-center justify-between mb-3">
-                                    <p className="text-sm text-orange-800">
-                                        {agent?.name ? (
-                                            <>Delivery by <span className="font-medium">{agent.name}</span></>
-                                        ) : (
-                                            <>Rider being assigned…</>
-                                        )}
-                                    </p>
-                                    {agent?.phone && (
-                                        <a
-                                            href={`tel:${agent.phone}`}
-                                            className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors"
-                                        >
-                                            <Phone className="h-4 w-4" />
-                                            Call
-                                        </a>
-                                    )}
+                            <div className="rounded-2xl shadow-sm overflow-hidden bg-gradient-to-br from-orange-50 to-amber-50 p-4 sm:p-5">
+                                {/* Header */}
+                                <div className="flex items-start gap-3 mb-4">
+                                    <div className="flex-shrink-0 w-11 h-11 rounded-full bg-orange-500 text-white flex items-center justify-center shadow-sm">
+                                        <Bike className="h-5 w-5" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <h2 className="text-base font-bold text-gray-900">
+                                                On the way
+                                            </h2>
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-white text-orange-700 ring-1 ring-orange-200 whitespace-nowrap">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                                                via {agentProviderLabel}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-gray-600 mt-0.5">
+                                            {agentEta != null ? (
+                                                <>
+                                                    Arriving in{" "}
+                                                    <span className="font-semibold text-gray-900">
+                                                        ~{agentEta} min{agentEta > 1 ? "s" : ""}
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <>Rider being assigned…</>
+                                            )}
+                                        </p>
+                                    </div>
                                 </div>
 
+                                {/* Map (or waiting state) */}
                                 {agentLat != null && agentLng != null && order?.delivery_location?.coordinates ? (
-                                    <div>
-                                        <div className="flex items-center justify-between text-xs text-orange-700 mb-1">
-                                            {agentLocationAgo != null && (
-                                                <span>
-                                                    Location updated {formatAgo(agentLocationAgo)} ago
-                                                </span>
-                                            )}
-                                            {(() => {
-                                                const lat1 = agentLat * Math.PI / 180;
-                                                const lat2 = order.delivery_location!.coordinates[1] * Math.PI / 180;
-                                                const dLat = lat2 - lat1;
-                                                const dLng = (order.delivery_location!.coordinates[0] - agentLng) * Math.PI / 180;
-                                                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-                                                const dist = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                                                const etaMinutes = Math.max(1, Math.round((dist / 25) * 60));
-                                                return (
-                                                    <span className="font-medium text-orange-900">
-                                                        ETA: ~{etaMinutes} min{etaMinutes > 1 ? "s" : ""}
-                                                    </span>
-                                                );
-                                            })()}
-                                        </div>
+                                    <div className="relative rounded-2xl overflow-hidden shadow-sm bg-white">
                                         <DeliveryMap
                                             deliveryLng={order.delivery_location.coordinates[0]}
                                             deliveryLat={order.delivery_location.coordinates[1]}
@@ -624,210 +684,271 @@ ${itemsText}
                                                 window.open(url, "_blank");
                                             }}
                                         />
-                                        <p className="text-xs text-orange-700 mt-1">
-                                            Tap map to open in Google Maps
-                                        </p>
+                                        {agentLocationAgo != null && (
+                                            <div className="absolute top-2 left-2 inline-flex items-center gap-1.5 bg-white/95 backdrop-blur px-2.5 py-1 rounded-full shadow-sm text-[11px] whitespace-nowrap">
+                                                <span className="relative flex h-2 w-2">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                                </span>
+                                                <span className="font-medium text-gray-800">
+                                                    Live · {formatAgo(agentLocationAgo)} ago
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
-                                    <div className="p-4 bg-orange-100 rounded-md border border-orange-200">
-                                        <div className="flex items-center gap-3">
-                                            <div className="animate-pulse">
-                                                <Bike className="h-6 w-6 text-orange-400" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium text-orange-800">
-                                                    Waiting for the rider&apos;s location…
-                                                </p>
-                                                <p className="text-xs text-orange-700 mt-0.5">
-                                                    Live tracking will appear once {agentProviderLabel} starts sharing the rider&apos;s location.
-                                                </p>
-                                            </div>
+                                    <div className="rounded-2xl bg-white p-5 shadow-sm flex items-center gap-3">
+                                        <Bike className="h-6 w-6 text-orange-400 animate-pulse flex-shrink-0" />
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-gray-900">
+                                                Waiting for rider&apos;s location
+                                            </p>
+                                            <p className="text-xs text-gray-600 mt-0.5">
+                                                Live tracking starts when {agentProviderLabel} begins sharing the rider&apos;s position.
+                                            </p>
                                         </div>
                                     </div>
+                                )}
+
+                                {/* Rider card */}
+                                <div className="mt-3 bg-white rounded-2xl shadow-sm p-3 flex items-center gap-3">
+                                    <div className="flex-shrink-0 w-11 h-11 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold text-base">
+                                        {agentInitial}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-semibold text-gray-900 truncate">
+                                            {agent?.name || "Rider being assigned"}
+                                        </p>
+                                        <p className="text-xs text-gray-500">Delivery Partner</p>
+                                    </div>
+                                    {agent?.phone && (
+                                        <a
+                                            href={`tel:${agent.phone}`}
+                                            className="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-full text-sm font-semibold shadow-sm transition-colors whitespace-nowrap"
+                                        >
+                                            <Phone className="h-4 w-4" />
+                                            Call
+                                        </a>
+                                    )}
+                                </div>
+
+                                {agentLat != null && agentLng != null && (
+                                    <p className="text-[11px] text-gray-500 mt-2 text-center">
+                                        Tap the map to open directions in Google Maps
+                                    </p>
                                 )}
                             </div>
                         )}
 
-                        <div className="p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <h2 className="text-lg font-semibold mb-4">
-                                        Order Information
+                        {/* Card: Order Items */}
+                        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                            <div className="p-4 sm:p-5">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <ShoppingBag className="h-4 w-4 text-gray-700" />
+                                    <h2 className="text-base font-bold text-gray-900">
+                                        Order summary
                                     </h2>
-                                    <div className="space-y-2">
-                                        <div>
-                                            <p className="text-sm text-gray-500">Order Type</p>
-                                            <p className="capitalize">
-                                                {order?.type === "delivery" ? (order?.deliveryAddress != null || order?.delivery_location != null ? "Delivery" : "Take Away") : order?.type?.replace("_", " ")}
-                                            </p>
-                                        </div>
-                                        {order?.type === "table_order" && order?.tableNumber && (
-                                            <div>
-                                                <p className="text-sm text-gray-500">Table Number</p>
-                                                <p>{order?.tableNumber}</p>
-                                            </div>
-                                        )}
-                                        {order?.type === "delivery" && (
-                                            <div>
-                                                <p className="text-sm text-gray-500">
-                                                    Delivery Address
-                                                </p>
-                                                <p>{order?.deliveryAddress || "N/A"}</p>
-                                                {order.delivery_location &&
-                                                    (order.delivery_location?.coordinates?.length ?? 0) >
-                                                    0 && (
-                                                        <div className="mt-2">
-                                                            <DeliveryMap
-                                                                deliveryLng={order.delivery_location.coordinates[0]}
-                                                                deliveryLat={order.delivery_location.coordinates[1]}
-                                                                driverLng={order.delivery_boy?.current_lng}
-                                                                driverLat={order.delivery_boy?.current_lat}
-                                                                onMapClick={() => {
-                                                                    const url = order.delivery_boy?.current_lat != null && order.delivery_boy?.current_lng != null
-                                                                        ? `https://www.google.com/maps/dir/${order.delivery_boy.current_lat},${order.delivery_boy.current_lng}/${order.delivery_location!.coordinates[1]},${order.delivery_location!.coordinates[0]}`
-                                                                        : `https://www.google.com/maps?q=${order.delivery_location!.coordinates[1]},${order.delivery_location!.coordinates[0]}`;
-                                                                    window.open(url, "_blank");
-                                                                }}
-                                                            />
-                                                            <p className="text-xs text-gray-500 mt-1">
-                                                                Tap map to open in Google Maps
-                                                            </p>
-                                                        </div>
-                                                    )}
-                                            </div>
-                                        )}
-                                        <div>
-                                            <p className="text-sm text-gray-500">Customer Phone</p>
-                                            <p>{order?.user?.phone || order?.phone || "Unknown"}</p>
-                                        </div>
-
-                                        {order?.notes && (
-                                            <div className="text-orange-500">
-                                                <p className="text-sm opacity-70">Notes</p>
-                                                <p>{order?.notes}</p>
-                                            </div>
-                                        )}
-                                    </div>
+                                    <span className="ml-auto text-xs text-gray-500">
+                                        {order?.items?.length ?? 0} item{(order?.items?.length ?? 0) === 1 ? "" : "s"}
+                                    </span>
                                 </div>
-
-                                <div>
-                                    <h2 className="text-lg font-semibold mb-4">Order Items</h2>
-                                    <div className="border rounded-lg divide-y">
-                                        {order?.items.map((orderItem: OrderItem) => (
-                                            <div
-                                                key={orderItem.id}
-                                                className="p-3 flex justify-between"
-                                            >
-                                                <div>
-                                                    <p className="font-medium">{orderItem.name}</p>
-                                                    <p className="text-sm text-gray-500">
-                                                        {orderItem.category?.name && (
-                                                            <>{orderItem.category.name} × </>
-                                                        )}
-                                                        {orderItem.quantity}
-                                                    </p>
-                                                </div>
-                                                <p className="font-medium">
-                                                    {order?.partner?.currency || "₹"}
-                                                    {(orderItem.price * orderItem.quantity).toFixed(2)}
+                                <div className="divide-y divide-gray-100">
+                                    {order?.items.map((orderItem: OrderItem) => (
+                                        <div
+                                            key={orderItem.id}
+                                            className="py-3 flex items-start justify-between gap-3"
+                                        >
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-medium text-gray-900 leading-snug">{orderItem.name}</p>
+                                                <p className="text-xs text-gray-500 mt-0.5">
+                                                    {orderItem.category?.name && (
+                                                        <span className="capitalize">{orderItem.category.name} · </span>
+                                                    )}
+                                                    Qty {orderItem.quantity}
                                                 </p>
                                             </div>
-                                        ))}
-                                    </div>
-
-                                    <div className="mt-4 space-y-2">
-                                        {order?.extraCharges?.map((charge, index) => (
-                                            <div key={index} className="flex justify-between">
-                                                <p className="text-sm text-gray-500">{charge.name}</p>
-                                                <p className="text-sm">
-                                                    {order?.partner?.currency || "₹"}
-                                                    {charge.amount.toFixed(2)}
-                                                </p>
-                                            </div>
-                                        ))}
-
-                                        <div className="flex justify-between border-t pt-2">
-                                            <p className="text-sm text-gray-500">Subtotal</p>
-                                            <p className="text-sm">
+                                            <p className="font-semibold text-gray-900 whitespace-nowrap">
                                                 {order?.partner?.currency || "₹"}
-                                                {subtotal.toFixed(2)}
+                                                {(orderItem.price * orderItem.quantity).toFixed(2)}
                                             </p>
                                         </div>
-
-                                        <div className="flex justify-between">
-                                            <p className="text-sm text-gray-500">
-                                                {order?.partner?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%)
-                                            </p>
-                                            <p className="text-sm">
-                                                {order?.partner?.currency || "₹"}
-                                                {gstAmount.toFixed(2)}
-                                            </p>
-                                        </div>
-
-                                        {discountSavings > 0 && (
-                                            <div className="flex justify-between text-green-600">
-                                                <p className="text-sm">
-                                                    Discount {discountInfo?.code ? `(${discountInfo.code})` : ""}
-                                                </p>
-                                                <p className="text-sm">
-                                                    -{order?.partner?.currency || "₹"}
-                                                    {discountSavings.toFixed(2)}
-                                                </p>
-                                            </div>
-                                        )}
-
-                                        <div className="flex justify-between font-bold border-t pt-2">
-                                            <p>Grand Total</p>
-                                            <p>
-                                                {order?.partner?.currency || "₹"}
-                                                {grandTotal.toFixed(2)}
-                                            </p>
-                                        </div>
-                                    </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>
 
-                    </div>
+                        {/* Card: Bill details */}
+                        <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-5">
+                            <div className="flex items-center gap-2 mb-3">
+                                <Receipt className="h-4 w-4 text-gray-700" />
+                                <h2 className="text-base font-bold text-gray-900">Bill details</h2>
+                            </div>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between text-gray-700">
+                                    <span>Item total</span>
+                                    <span>{order?.partner?.currency || "₹"}{foodTotal.toFixed(2)}</span>
+                                </div>
 
-                    {/* Cashfree verification banner */}
-                    {cashfreeVerifying && (
-                        <div className="flex items-center justify-center gap-2 mt-6 p-4 bg-blue-50 rounded-xl text-blue-700 font-medium text-sm">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Verifying payment...
+                                {order?.extraCharges?.map((charge, index) => (
+                                    <div key={index} className="flex justify-between text-gray-700">
+                                        <span>{charge.name}</span>
+                                        <span>{order?.partner?.currency || "₹"}{getExtraCharge(order?.items, charge.amount, charge.charge_type as "FLAT_FEE" | "PER_ITEM").toFixed(2)}</span>
+                                    </div>
+                                ))}
+
+                                {gstPercentage > 0 && (
+                                    <div className="flex justify-between text-gray-700">
+                                        <span>
+                                            {order?.partner?.country === "United Arab Emirates" ? "VAT" : "GST"} ({gstPercentage}%)
+                                        </span>
+                                        <span>{order?.partner?.currency || "₹"}{gstAmount.toFixed(2)}</span>
+                                    </div>
+                                )}
+
+                                {discountSavings > 0 && (
+                                    <div className="flex justify-between text-green-600 font-medium">
+                                        <span>
+                                            Discount{discountInfo?.code ? ` (${discountInfo.code})` : ""}
+                                        </span>
+                                        <span>
+                                            −{order?.partner?.currency || "₹"}{discountSavings.toFixed(2)}
+                                        </span>
+                                    </div>
+                                )}
+
+                                <div className="border-t border-dashed mt-2 pt-2 flex justify-between text-base font-bold text-gray-900">
+                                    <span>To pay</span>
+                                    <span>{order?.partner?.currency || "₹"}{grandTotal.toFixed(2)}</span>
+                                </div>
+                            </div>
                         </div>
-                    )}
 
-                    {/* Action Buttons */}
-                    {!isCompleted && (
-                        <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                            {whatsappLink && (
-                                <a
-                                    href={whatsappLink}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-500 text-white rounded-xl font-medium text-sm hover:bg-green-600 transition-colors"
-                                >
-                                    <MessageCircle className="w-4 h-4" />
-                                    Send Order to WhatsApp
-                                </a>
-                            )}
-                            {!isPaid && (hasCashfree || hasUpiQr) && (
-                                <button
-                                    onClick={hasCashfree ? handleCashfreePayment : () => setShowUpiScreen(true)}
-                                    disabled={cashfreeLoading}
-                                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-xl font-medium text-sm hover:bg-orange-600 transition-colors disabled:opacity-50"
-                                >
-                                    {cashfreeLoading ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <CreditCard className="w-4 h-4" />
+                        {/* Card: Delivery details (delivery only) */}
+                        {order?.type === "delivery" && (
+                            <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-5">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <MapPin className="h-4 w-4 text-gray-700" />
+                                    <h2 className="text-base font-bold text-gray-900">Delivery details</h2>
+                                </div>
+                                <div className="space-y-3">
+                                    <div>
+                                        <p className="text-[11px] uppercase tracking-wide text-gray-500 font-medium">
+                                            Delivery to
+                                        </p>
+                                        <p className="text-sm text-gray-900 mt-0.5">{order?.deliveryAddress || "Not provided"}</p>
+                                    </div>
+                                    {order.delivery_location && (order.delivery_location?.coordinates?.length ?? 0) > 0 && !showGrowjetAgent && (!(order?.status === "dispatched" && order?.delivery_boy_id && order?.delivery_boy)) && (
+                                        <div className="rounded-xl overflow-hidden">
+                                            <DeliveryMap
+                                                deliveryLng={order.delivery_location.coordinates[0]}
+                                                deliveryLat={order.delivery_location.coordinates[1]}
+                                                driverLng={order.delivery_boy?.current_lng}
+                                                driverLat={order.delivery_boy?.current_lat}
+                                                onMapClick={() => {
+                                                    const url = order.delivery_boy?.current_lat != null && order.delivery_boy?.current_lng != null
+                                                        ? `https://www.google.com/maps/dir/${order.delivery_boy.current_lat},${order.delivery_boy.current_lng}/${order.delivery_location!.coordinates[1]},${order.delivery_location!.coordinates[0]}`
+                                                        : `https://www.google.com/maps?q=${order.delivery_location!.coordinates[1]},${order.delivery_location!.coordinates[0]}`;
+                                                    window.open(url, "_blank");
+                                                }}
+                                            />
+                                            <p className="text-[11px] text-gray-500 mt-1.5 text-center">
+                                                Tap map to open in Google Maps
+                                            </p>
+                                        </div>
                                     )}
-                                    {cashfreeLoading ? "Processing..." : "Pay Now"}
-                                </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Card: Customer / Order info */}
+                        <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-5">
+                            <div className="flex items-center gap-2 mb-3">
+                                <User className="h-4 w-4 text-gray-700" />
+                                <h2 className="text-base font-bold text-gray-900">Order info</h2>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div>
+                                    <p className="text-[11px] uppercase tracking-wide text-gray-500 font-medium">
+                                        Order type
+                                    </p>
+                                    <p className="capitalize text-gray-900 mt-0.5">
+                                        {order?.type === "delivery"
+                                            ? (order?.deliveryAddress != null || order?.delivery_location != null ? "Delivery" : "Take away")
+                                            : order?.type?.replace("_", " ")}
+                                    </p>
+                                </div>
+                                {order?.type === "table_order" && order?.tableNumber && (
+                                    <div>
+                                        <p className="text-[11px] uppercase tracking-wide text-gray-500 font-medium">
+                                            Table
+                                        </p>
+                                        <p className="text-gray-900 mt-0.5">{order.tableNumber}</p>
+                                    </div>
+                                )}
+                                <div>
+                                    <p className="text-[11px] uppercase tracking-wide text-gray-500 font-medium">
+                                        Phone
+                                    </p>
+                                    <p className="text-gray-900 mt-0.5">
+                                        {order?.user?.phone || order?.phone || "—"}
+                                    </p>
+                                </div>
+                            </div>
+                            {order?.notes && (
+                                <div className="mt-3 rounded-xl bg-orange-50 p-3 flex items-start gap-2">
+                                    <StickyNote className="h-4 w-4 text-orange-600 flex-shrink-0 mt-0.5" />
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] uppercase tracking-wide text-orange-700 font-semibold">
+                                            Notes
+                                        </p>
+                                        <p className="text-sm text-orange-900 mt-0.5 break-words">{order.notes}</p>
+                                    </div>
+                                </div>
                             )}
                         </div>
-                    )}
+
+                        {/* Cashfree verification banner */}
+                        {cashfreeVerifying && (
+                            <div className="flex items-center justify-center gap-2 p-4 bg-blue-50 rounded-2xl text-blue-700 font-medium text-sm shadow-sm">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Verifying payment…
+                            </div>
+                        )}
+
+                    </div>
+                </div>
+            )}
+
+            {/* Sticky bottom action bar */}
+            {!loading && !isCompleted && (whatsappLink || (!isPaid && (hasCashfree || hasUpiQr))) && (
+                <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-[0_-4px_12px_rgba(0,0,0,0.05)] z-40 px-3 sm:px-4 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+                    <div className="container mx-auto max-w-3xl flex gap-2">
+                        {whatsappLink && (
+                            <a
+                                href={whatsappLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-colors"
+                            >
+                                <MessageCircle className="w-4 h-4" />
+                                WhatsApp
+                            </a>
+                        )}
+                        {!isPaid && (hasCashfree || hasUpiQr) && (
+                            <button
+                                onClick={hasCashfree ? handleCashfreePayment : () => setShowUpiScreen(true)}
+                                disabled={cashfreeLoading}
+                                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-colors disabled:opacity-60"
+                            >
+                                {cashfreeLoading ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <CreditCard className="w-4 h-4" />
+                                )}
+                                {cashfreeLoading ? "Processing…" : `Pay ${order?.partner?.currency || "₹"}${grandTotal.toFixed(2)}`}
+                            </button>
+                        )}
+                    </div>
                 </div>
             )}
             {reviewOpen && order && (
