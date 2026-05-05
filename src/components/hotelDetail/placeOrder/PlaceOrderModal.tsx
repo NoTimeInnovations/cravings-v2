@@ -2831,7 +2831,7 @@ const PlaceOrderModal = ({
       {open_place_order_modal && (
         <div className="fixed inset-0 z-[999] hidden md:block bg-black/40" />
       )}
-      <div className={`fixed inset-0 z-[1000] md:flex md:justify-center ${open_place_order_modal ? "" : "hidden"}`}>
+      <div className={`fixed inset-0 z-[1000] md:justify-center ${open_place_order_modal ? "flex md:flex" : "hidden"}`}>
       <div
         className="flex flex-col w-full h-full md:max-w-2xl"
         style={(() => {
