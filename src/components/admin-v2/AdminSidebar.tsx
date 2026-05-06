@@ -17,6 +17,7 @@ import {
   Users,
   Bell,
   Star,
+  Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ const sidebarItems: SidebarItem[] = [
   { title: "Delivery Boys", icon: Truck, id: "deliveryboys" },
   { title: "POS", icon: CreditCard, id: "pos" },
   { title: "Customers", icon: Users, id: "customers" },
+  { title: "Website", icon: Globe, id: "website" },
   { title: "Settings", icon: Settings, id: "settings" },
   { title: "Billing", icon: Receipt, id: "billing" },
 ];

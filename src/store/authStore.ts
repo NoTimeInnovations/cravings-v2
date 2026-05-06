@@ -118,6 +118,7 @@ export interface Partner extends BaseUser {
   accept_payments_via_cashfree?: boolean;
   accept_cod?: boolean;
   storefront_settings?: string;
+  website_config?: any;
 }
 
 export interface SuperAdmin extends BaseUser {

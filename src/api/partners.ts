@@ -137,7 +137,14 @@ query GetPartnerStorefrontByUsername($username: String!) {
     phone
     location
     location_details
-    storefront_config
+    geo_location
+    storefront_settings
+    website_config
+    social_links
+    currency
+    country
+    country_code
+    theme
   }
 }
 `;

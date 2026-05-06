@@ -266,6 +266,19 @@ const KNOWN_STATIC_ROUTES = new Set([
   "whatsappQr",
 ]);
 
+// Partner-scoped subroutes (i.e. /<username>/<slug>) where the global
+// Menuthere navbar should be hidden in favor of the partner's own chrome.
+const PARTNER_SUBROUTES = new Set([
+  "home",
+  "info",
+  "about-us",
+  "contact-us",
+  "privacy-policy",
+  "terms-and-conditions",
+  "refund-and-cancellation-policy",
+  "shipping-and-delivery-policy",
+]);
+
 import { Partner, useAuthStore } from "@/store/authStore";
 import { ButtonV2 } from "@/components/ui/ButtonV2";
 
@@ -433,7 +446,10 @@ export function Navbar() {
       // and the /{username}/info storefront page.
       const segments = currentPath.split("/").filter(Boolean);
       if (segments.length === 1) return !KNOWN_STATIC_ROUTES.has(segments[0]);
-      if (segments.length === 2 && segments[1] === "info") {
+      if (
+        segments.length === 2 &&
+        PARTNER_SUBROUTES.has(segments[1])
+      ) {
         return !KNOWN_STATIC_ROUTES.has(segments[0]);
       }
       return false;
