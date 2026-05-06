@@ -81,8 +81,8 @@ export function MenuTabs({ categories, currency, note, ctaText, menuUrl }: Props
                 <div className="wb-menu-price">
                   {formatPrice(it.price, currency)}
                 </div>
-                <a className="wb-menu-add" href={menuUrl} aria-label={`Add ${it.name}`}>
-                  Add
+                <a className="wb-menu-add" href={menuUrl} aria-label={`Order ${it.name}`}>
+                  Order
                 </a>
               </div>
             </div>
