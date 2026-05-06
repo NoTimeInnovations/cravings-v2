@@ -80,7 +80,7 @@ interface WebsiteConfig {
     headline_accent: string;          // italic + brand color
     subheadline: string;
     cta_text: string;
-    cta_link: string;                 // empty → defaults to /<username>?back=true
+    cta_link: string;                 // ALWAYS set to "/<username>?back=true" — see Order CTA rule below
     collage_images: string[4];
     collage_labels: string[4];
     hours_label: string;              // e.g., "Hours" | "Open daily"
@@ -141,6 +141,9 @@ interface WebsiteConfig {
 - **Marquee tags**: 5–9 short phrases. Mix dish names and identity beats (e.g., `"Since 1952"`). Mark every other one `accent: true`.
 - **Hours**: use the `Mon – Sat`, `Sunday` format with en-dashes. Include sub-rows for breakfast/lunch windows when meaningful.
 - **CTA text**: `"Order online"` is the default; only change for something specifically warmer ("Book a table", "Reserve").
+- **Order CTA URL — always use `/<partnerusername>?back=true`** for every "order online" button:
+  - Set `hero.cta_link` to `/<partnerusername>?back=true` explicitly. (`menu.cta_text` and the per-item Order buttons inherit the same `menuUrl` from `WebsitePage.tsx`, which is already wired to `?back=true` — but the hero CTA reads from `cta_link` first, so spell it out in JSON to be safe.)
+  - The `?back=true` query param tells the storefront to skip the cover/intro and jump straight to the menu, which is the behaviour we want from the website. Never link to `/<username>` without `?back=true` from the website's CTAs.
 - **Theme**: warm cream `#FAF6EC` + dark ink `#1A1714` works for nearly every restaurant. Only override for strongly modern brands.
 - Don't fabricate phone numbers, hours, or addresses. If unsure, use what's in the partner row and flag uncertainty in your response to the user.
 
