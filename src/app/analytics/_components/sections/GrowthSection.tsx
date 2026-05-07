@@ -28,7 +28,7 @@ export default function GrowthSection({
         subtitle="New onboardings, customer acquisition and GMV trajectory"
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <KpiCard
           label="New restaurants"
           value={compact(k.newPartners.value)}

@@ -27,7 +27,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { GoogleGenerativeAI, Schema } from "@google/generative-ai";
-import { sendOtp, verifyOtp } from "@/app/actions/sendOtp";
 import { toast } from "sonner";
 import {
   CompactMenuPreview,
@@ -250,11 +249,8 @@ export default function GetStartedClient({
   const [authModalEmail, setAuthModalEmail] = useState("");
   const [authModalPassword, setAuthModalPassword] = useState("");
   const [authModalConfirmPassword, setAuthModalConfirmPassword] = useState("");
-  const [authModalStep, setAuthModalStep] = useState<1 | 2 | 3>(1);
+  const [authModalStep, setAuthModalStep] = useState<1 | 2>(1);
   const [showPassword, setShowPassword] = useState(false);
-  const [otpCode, setOtpCode] = useState("");
-  const [otpSending, setOtpSending] = useState(false);
-  const [otpVerifying, setOtpVerifying] = useState(false);
   const [pendingGooglePublish, setPendingGooglePublish] = useState(false);
   const [signinMethod, setSigninMethod] = useState<"email" | "google">("email");
 
@@ -960,49 +956,12 @@ export default function GetStartedClient({
       toast.error("Passwords do not match");
       return;
     }
-    setOtpSending(true);
-    const result = await sendOtp(authModalEmail);
-    setOtpSending(false);
-    if (!result.success) {
-      toast.error(result.error || "Failed to send verification code");
-      return;
-    }
-    toast.success("Verification code sent to your email");
-    setAuthModalStep(3);
-  };
-
-  const handleOtpVerify = async () => {
-    if (otpCode.length !== 6) {
-      toast.error("Please enter the 6-digit code");
-      return;
-    }
-    setOtpVerifying(true);
-    const result = await verifyOtp(authModalEmail, otpCode);
-    setOtpVerifying(false);
-    if (!result.success) {
-      toast.error(result.error || "Verification failed");
-      return;
-    }
-    toast.success("Email verified!");
     setAuthCredentials((prev) => ({ ...prev, email: authModalEmail, password: authModalPassword }));
     setShowAuthModal(false);
     setSigninMethod("email");
-    // Pass email and password directly to avoid stale state
     setTimeout(() => {
       handleFinalPublish(authModalEmail, authModalPassword);
     }, 100);
-  };
-
-  const handleResendOtp = async () => {
-    setOtpSending(true);
-    const result = await sendOtp(authModalEmail);
-    setOtpSending(false);
-    if (result.success) {
-      toast.success("New verification code sent");
-      setOtpCode("");
-    } else {
-      toast.error(result.error || "Failed to resend code");
-    }
   };
 
   const renderAuthModal = () => {
@@ -1014,7 +973,7 @@ export default function GetStartedClient({
             <div className="flex items-center gap-2">
               {authModalStep > 1 && (
                 <button
-                  onClick={() => setAuthModalStep((prev) => (prev === 3 ? 2 : 1) as 1 | 2 | 3)}
+                  onClick={() => setAuthModalStep(1)}
                   className="p-1.5 hover:bg-stone-100 rounded-full transition-colors"
                 >
                   <ArrowLeft size={20} />
@@ -1023,7 +982,6 @@ export default function GetStartedClient({
               <h2 className="text-xl font-semibold text-stone-900">
                 {authModalStep === 1 && "Sign in to publish"}
                 {authModalStep === 2 && "Create a password"}
-                {authModalStep === 3 && "Verify your email"}
               </h2>
             </div>
             <button
@@ -1032,7 +990,6 @@ export default function GetStartedClient({
                 setAuthModalStep(1);
                 setAuthModalPassword("");
                 setAuthModalConfirmPassword("");
-                setOtpCode("");
               }}
               className="p-1.5 hover:bg-stone-100 rounded-full transition-colors"
             >
@@ -1116,59 +1073,9 @@ export default function GetStartedClient({
                   onClick={handlePasswordContinue}
                   variant="primary"
                   className="w-full justify-center"
-                  disabled={otpSending}
                 >
-                  {otpSending ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin mr-2" />
-                      Sending code...
-                    </>
-                  ) : (
-                    "Continue"
-                  )}
+                  Continue
                 </ButtonV2>
-              </div>
-            </>
-          )}
-
-          {authModalStep === 3 && (
-            <>
-              <p className="text-sm text-stone-500 !mt-1">
-                We've sent a 6-digit code to <strong>{authModalEmail}</strong>
-              </p>
-              <div className="space-y-3">
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="Enter 6-digit code"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  onKeyDown={(e) => e.key === "Enter" && handleOtpVerify()}
-                  className="h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 text-center text-lg tracking-widest placeholder:text-stone-400 placeholder:text-sm placeholder:tracking-normal focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50"
-                  autoFocus
-                />
-                <ButtonV2
-                  onClick={handleOtpVerify}
-                  variant="primary"
-                  className="w-full justify-center"
-                  disabled={otpVerifying}
-                >
-                  {otpVerifying ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin mr-2" />
-                      Verifying...
-                    </>
-                  ) : (
-                    "Verify & Publish"
-                  )}
-                </ButtonV2>
-                <button
-                  onClick={handleResendOtp}
-                  disabled={otpSending}
-                  className="w-full text-sm text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50"
-                >
-                  {otpSending ? "Sending..." : "Resend code"}
-                </button>
               </div>
             </>
           )}
