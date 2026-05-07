@@ -212,7 +212,12 @@ const V3 = ({
       }}
     >
       <main className="max-w-2xl mx-auto relative pb-24">
-        <ShopClosedModalWarning hotelId={hoteldata?.id} isShopOpen={hoteldata?.is_shop_open} />
+        <ShopClosedModalWarning
+          hotelId={hoteldata?.id}
+          isShopOpen={hoteldata?.is_shop_open}
+          partnerPhone={hoteldata?.phone ?? null}
+          partnerName={hoteldata?.store_name ?? null}
+        />
 
         {/* ===== STICKY HEADER (exact cravings-v3 style) ===== */}
         <header className="sticky top-0 z-40 w-full border-b border-gray-200/60 bg-white/90 backdrop-blur-xl">

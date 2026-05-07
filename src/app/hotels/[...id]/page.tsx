@@ -490,7 +490,12 @@ const HotelPage = async ({
 
       // CHECK LIMIT
       if (!isUnlimited && currentTotalScans >= limit) {
-        return <ScanLimitReachedCard />;
+        return (
+          <ScanLimitReachedCard
+            partnerPhone={hoteldata?.phone ?? null}
+            partnerName={hoteldata?.store_name ?? null}
+          />
+        );
       }
     }
   }
@@ -500,11 +505,21 @@ const HotelPage = async ({
   const isExpired = expiryDateStr && new Date(expiryDateStr) < new Date();
 
   if (isExpired) {
-    return <SubscriptionExpiredCard />;
+    return (
+      <SubscriptionExpiredCard
+        partnerPhone={hoteldata?.phone ?? null}
+        partnerName={hoteldata?.store_name ?? null}
+      />
+    );
   }
 
   if (hoteldata?.status === "inactive") {
-    return <SubscriptionInactiveCard />;
+    return (
+      <SubscriptionInactiveCard
+        partnerPhone={hoteldata?.phone ?? null}
+        partnerName={hoteldata?.store_name ?? null}
+      />
+    );
   }
 
   let filteredMenus: HotelDataMenus[] = [];

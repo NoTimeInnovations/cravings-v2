@@ -170,6 +170,8 @@ const Default = ({
           <ShopClosedModalWarning
             hotelId={hoteldata?.id}
             isShopOpen={hoteldata?.is_shop_open}
+            partnerPhone={hoteldata?.phone ?? null}
+            partnerName={hoteldata?.store_name ?? null}
           />
 
           {/* top part  */}

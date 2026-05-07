@@ -2,39 +2,51 @@ import { useAuthStore } from "@/store/authStore";
 import React from "react";
 import Link from "next/link";
 
+const formatOwnerLabel = (name?: string | null) => {
+  const trimmed = (name || "").trim();
+  if (!trimmed) return "the owner";
+  return trimmed.endsWith("s") ? `${trimmed}'` : `${trimmed}'s`;
+};
+
 const ShopClosedModalWarning = ({
   isShopOpen,
   hotelId,
+  partnerPhone,
+  partnerName,
 }: {
   isShopOpen: boolean;
   hotelId: string;
+  partnerPhone?: string | null;
+  partnerName?: string | null;
 }) => {
   const { userData } = useAuthStore();
 
   if (isShopOpen) return null;
 
+  const ownerLabel = formatOwnerLabel(partnerName);
+
   return (
     <>
       {/* Background overlay with blur */}
       <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-[52]"></div>
-      
+
       {/* Centered modal */}
       <div className="fixed inset-0 flex items-center justify-center z-[54]">
         <div className="max-w-2xl w-full mx-4">
           {/* Banner with ribbon ends */}
           <div className="relative bg-red-600 text-white py-4 px-6 rounded-md shadow-xl animate-bounce">
             {/* Ribbon ends */}
-            <div className="absolute -top-2 left-0 w-0 h-0 
+            <div className="absolute -top-2 left-0 w-0 h-0
                 border-l-[15px] border-l-transparent
                 border-b-[15px] border-b-red-800
                 border-r-[15px] border-r-transparent">
             </div>
-            <div className="absolute -top-2 right-0 w-0 h-0 
+            <div className="absolute -top-2 right-0 w-0 h-0
                 border-l-[15px] border-l-transparent
                 border-b-[15px] border-b-red-800
                 border-r-[15px] border-r-transparent">
             </div>
-            
+
             <div className="flex flex-col items-center">
               <div className="flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -43,9 +55,23 @@ const ShopClosedModalWarning = ({
                 <h3 className="text-xl font-bold text-center">SHOP CURRENTLY CLOSED</h3>
               </div>
               <p className="mt-2 text-center">This hotel is not accepting orders at the moment</p>
-              
+
+              {partnerPhone && (
+                <div className="mt-3 text-center">
+                  <a
+                    href={`tel:${partnerPhone}`}
+                    className="inline-flex items-center gap-2 bg-white text-red-600 hover:bg-gray-100 font-semibold py-2 px-5 rounded-full shadow-md transition-all duration-200 transform hover:scale-105"
+                  >
+                    Call {partnerPhone}
+                  </a>
+                  <p className="text-xs text-white/90 mt-2">
+                    This is {ownerLabel} phone number
+                  </p>
+                </div>
+              )}
+
               {userData?.id === hotelId && (
-                <Link 
+                <Link
                   href="/profile"
                   className="mt-3 bg-white text-red-600 hover:bg-gray-100 font-semibold py-2 px-6 rounded-full shadow-md transition-all duration-200 transform hover:scale-105"
                 >
@@ -53,7 +79,7 @@ const ShopClosedModalWarning = ({
                 </Link>
               )}
             </div>
-            
+
           </div>
         </div>
       </div>
