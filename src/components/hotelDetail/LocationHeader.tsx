@@ -9,6 +9,10 @@ import { Styles } from "@/screens/HotelMenuPage_v2";
 import { createPortal } from "react-dom";
 import { calculateDeliveryDistanceAndCost } from "./OrderDrawer";
 import { isVideoUrl } from "@/lib/mediaUtils";
+import { useLoadScript } from "@react-google-maps/api";
+
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+const GOOGLE_MAPS_LIBRARIES: ["places"] = ["places"];
 
 interface LocationHeaderProps {
   hoteldata: HotelData;
@@ -35,18 +39,52 @@ const LocationHeader = ({
   const [showPicker, setShowPicker] = useState(false);
   const [showUnavailable, setShowUnavailable] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [recentLocations, setRecentLocations] = useState<RecentLocation[]>([]);
   const [displayAddress, setDisplayAddress] = useState<string>("");
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { coords, reverseGeocode, isLoading: isGeoLoading } = useLocationStore();
-  const { userAddress, deliveryInfo, setUserAddress, setUserCoordinates, setDeliveryInfo } = useOrderStore();
+  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
+  const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
+
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
+  });
+
+  const { coords, isLoading: isGeoLoading } = useLocationStore();
+  const { userAddress, setUserAddress, setUserCoordinates } = useOrderStore();
 
   const deliveryRadius = hoteldata?.delivery_rules?.delivery_radius || 0;
   const storeName = hoteldata?.store_name || "";
   const storeLocation = hoteldata?.location_details || hoteldata?.district || hoteldata?.country || "";
+
+  // Initialize Google services once the maps script is loaded
+  useEffect(() => {
+    if (isLoaded && !autocompleteServiceRef.current) {
+      autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
+      sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
+    }
+  }, [isLoaded]);
+
+  const googleReverseGeocode = useCallback(
+    (lat: number, lng: number): Promise<string | null> => {
+      if (!isLoaded) return Promise.resolve(null);
+      return new Promise((resolve) => {
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+          if (status === "OK" && results && results[0]) {
+            resolve(results[0].formatted_address);
+          } else {
+            resolve(null);
+          }
+        });
+      });
+    },
+    [isLoaded]
+  );
 
   // Load recent locations from localStorage
   useEffect(() => {
@@ -60,12 +98,12 @@ const LocationHeader = ({
   useEffect(() => {
     if (userAddress) {
       setDisplayAddress(userAddress);
-    } else if (coords) {
-      reverseGeocode(coords.lng, coords.lat).then((addr) => {
+    } else if (coords && isLoaded) {
+      googleReverseGeocode(coords.lat, coords.lng).then((addr) => {
         if (addr) setDisplayAddress(addr);
       });
     }
-  }, [userAddress, coords]);
+  }, [userAddress, coords, isLoaded, googleReverseGeocode]);
 
   const saveRecentLocation = (loc: RecentLocation) => {
     const updated = [loc, ...recentLocations.filter(
@@ -86,7 +124,7 @@ const LocationHeader = ({
     saveRecentLocation({ name, address, lat, lng });
     setShowPicker(false);
     setSearchQuery("");
-    setSearchResults([]);
+    setPredictions([]);
 
     // Check delivery radius
     await calculateDeliveryDistanceAndCost(hoteldata);
@@ -103,42 +141,76 @@ const LocationHeader = ({
   const handleUseCurrentLocation = async () => {
     const result = await useLocationStore.getState().refreshLocation();
     if (result) {
-      const addr = await reverseGeocode(result.lng, result.lat);
+      const addr = await googleReverseGeocode(result.lat, result.lng);
       await selectLocation(result.lat, result.lng, "Current Location", addr || "Your current location");
     }
   };
 
-  // Mapbox search
+  // Google Places Autocomplete search
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
 
-    if (!query.trim()) {
-      setSearchResults([]);
+    if (!query.trim() || !isLoaded || !autocompleteServiceRef.current) {
+      setPredictions([]);
       return;
     }
 
-    searchTimeout.current = setTimeout(async () => {
+    searchTimeout.current = setTimeout(() => {
       setIsSearching(true);
-      try {
-        const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-        if (!token) return;
 
-        // Bias search near the store location
-        const storeCoords = hoteldata?.geo_location?.coordinates;
-        const proximity = storeCoords ? `&proximity=${storeCoords[0]},${storeCoords[1]}` : "";
+      // Bias predictions toward the store location when available
+      const storeCoords = hoteldata?.geo_location?.coordinates;
+      const location = storeCoords
+        ? new google.maps.LatLng(storeCoords[1], storeCoords[0])
+        : undefined;
 
-        const res = await fetch(
-          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${token}&limit=5${proximity}`
-        );
-        const data = await res.json();
-        setSearchResults(data.features || []);
-      } catch {
-        setSearchResults([]);
-      } finally {
-        setIsSearching(false);
-      }
+      autocompleteServiceRef.current!.getPlacePredictions(
+        {
+          input: query,
+          sessionToken: sessionTokenRef.current || undefined,
+          ...(location && { location, radius: 50000 }),
+        },
+        (results, status) => {
+          setIsSearching(false);
+          if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+            setPredictions(results);
+          } else {
+            setPredictions([]);
+          }
+        }
+      );
     }, 300);
+  };
+
+  const handleSelectPrediction = (prediction: google.maps.places.AutocompletePrediction) => {
+    if (!isLoaded) return;
+
+    if (!placesServiceRef.current) {
+      const div = document.createElement("div");
+      placesServiceRef.current = new google.maps.places.PlacesService(div);
+    }
+
+    placesServiceRef.current.getDetails(
+      {
+        placeId: prediction.place_id,
+        fields: ["geometry", "name", "formatted_address"],
+        sessionToken: sessionTokenRef.current || undefined,
+      },
+      (place, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && place?.geometry?.location) {
+          const lat = place.geometry.location.lat();
+          const lng = place.geometry.location.lng();
+          const name = prediction.structured_formatting.main_text || place.name || prediction.description;
+          const address = place.formatted_address || prediction.description;
+
+          // Reset session token after place details fetch (closes the billing session)
+          sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
+
+          selectLocation(lat, lng, name, address);
+        }
+      }
+    );
   };
 
   const shortAddress = displayAddress
@@ -215,7 +287,7 @@ const LocationHeader = ({
                   autoFocus
                 />
                 {searchQuery && (
-                  <button onClick={() => { setSearchQuery(""); setSearchResults([]); }}>
+                  <button onClick={() => { setSearchQuery(""); setPredictions([]); }}>
                     <X size={16} className="text-gray-400" />
                   </button>
                 )}
@@ -226,7 +298,7 @@ const LocationHeader = ({
             <button
               onClick={handleUseCurrentLocation}
               className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors"
-              disabled={isGeoLoading}
+              disabled={isGeoLoading || !isLoaded}
             >
               <Navigation size={18} style={{ color: accent }} />
               <span className="text-sm font-medium" style={{ color: accent }}>
@@ -238,27 +310,22 @@ const LocationHeader = ({
 
             {/* Search Results or Recent Locations */}
             <div className="overflow-y-auto max-h-[45vh] pb-6">
-              {searchQuery && searchResults.length > 0 ? (
+              {searchQuery && predictions.length > 0 ? (
                 <div>
                   <p className="px-5 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase">Search Results</p>
-                  {searchResults.map((result) => (
+                  {predictions.map((p) => (
                     <button
-                      key={result.id}
-                      onClick={() => selectLocation(
-                        result.center[1],
-                        result.center[0],
-                        result.text || result.place_name?.split(",")[0],
-                        result.place_name
-                      )}
+                      key={p.place_id}
+                      onClick={() => handleSelectPrediction(p)}
                       className="w-full flex items-start gap-3 px-5 py-3 hover:bg-gray-50 text-left transition-colors"
                     >
                       <MapPin size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
-                          {result.text || result.place_name?.split(",")[0]}
+                          {p.structured_formatting?.main_text || p.description}
                         </p>
                         <p className="text-xs text-gray-500 truncate mt-0.5">
-                          {result.place_name}
+                          {p.structured_formatting?.secondary_text || p.description}
                         </p>
                       </div>
                     </button>
@@ -266,7 +333,7 @@ const LocationHeader = ({
                 </div>
               ) : searchQuery && isSearching ? (
                 <p className="px-5 py-6 text-sm text-gray-400 text-center">Searching...</p>
-              ) : searchQuery && !isSearching && searchResults.length === 0 ? (
+              ) : searchQuery && !isSearching && predictions.length === 0 ? (
                 <p className="px-5 py-6 text-sm text-gray-400 text-center">No results found</p>
               ) : (
                 <>
