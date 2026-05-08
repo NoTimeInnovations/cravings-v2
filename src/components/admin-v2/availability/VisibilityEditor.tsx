@@ -62,22 +62,6 @@ export function VisibilityEditor({ value, onChange, disabled, scope = "item" }: 
         </Select>
       </div>
 
-      {config.type === "default" && (
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm">Hide from menu</p>
-            <p className="text-xs text-muted-foreground">
-              When on, customers won't see this at all.
-            </p>
-          </div>
-          <Switch
-            checked={config.hidden}
-            disabled={disabled}
-            onCheckedChange={(checked) => onChange({ type: "default", hidden: checked, hideItems })}
-          />
-        </div>
-      )}
-
       {config.type === "scheduled" && (
         <div className="space-y-3">
           <div>
