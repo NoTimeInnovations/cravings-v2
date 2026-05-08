@@ -96,6 +96,8 @@ export interface Order {
     gst_percentage?: number;
     currency?: string;
     store_name?: string;
+    store_banner?: string | null;
+    theme?: any;
     country?: string;
     whatsapp_number?: string;
     upi_id?: string;

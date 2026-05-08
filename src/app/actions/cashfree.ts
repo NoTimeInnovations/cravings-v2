@@ -2,9 +2,17 @@
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
 
-const CASHFREE_BASE_URL = process.env.CASHFREE_ENV === "PRODUCTION"
+const IS_PRODUCTION = process.env.CASHFREE_ENV === "PRODUCTION";
+const CASHFREE_BASE_URL = IS_PRODUCTION
   ? "https://api.cashfree.com"
   : "https://sandbox.cashfree.com";
+
+// In non-production mode, force the test merchant ID. The partner's stored
+// merchant_id is only valid against production Cashfree.
+const resolveMerchantId = (partnerMerchantId: string | undefined | null) =>
+  IS_PRODUCTION
+    ? partnerMerchantId || ""
+    : process.env.TEST_MERCHANT_ID || partnerMerchantId || "";
 
 const getPartnerCashfreeId = `
   query GetPartnerCashfreeId($id: uuid!) {
@@ -30,13 +38,19 @@ export async function createCashfreeOrderForPartner(
     return { success: false, error: "Cashfree payments not enabled for this restaurant" };
   }
 
+  const merchantId = resolveMerchantId(partner.cashfree_merchant_id);
+  if (!merchantId) {
+    return { success: false, error: "Cashfree merchant id not configured for current environment" };
+  }
+  console.log("[cashfree] env=", IS_PRODUCTION ? "PROD" : "SANDBOX", "merchant=", merchantId);
+
   const res = await fetch(`${CASHFREE_BASE_URL}/pg/orders`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-api-version": "2025-01-01",
       "x-partner-apikey": partnerApiKey,
-      "x-partner-merchantid": partner.cashfree_merchant_id,
+      "x-partner-merchantid": merchantId,
     },
     body: JSON.stringify({
       order_id: orderId,
@@ -74,7 +88,8 @@ export async function verifyCashfreePayment(partnerId: string, orderId: string) 
   if (!partnerApiKey) throw new Error("CASHFREE_PARTNER_API_KEY not configured");
 
   const { partners_by_pk: partner } = await fetchFromHasura(getPartnerCashfreeId, { id: partnerId });
-  if (!partner?.cashfree_merchant_id) {
+  const merchantId = resolveMerchantId(partner?.cashfree_merchant_id);
+  if (!merchantId) {
     return { success: false, error: "Cashfree not configured" };
   }
 
@@ -83,7 +98,7 @@ export async function verifyCashfreePayment(partnerId: string, orderId: string) 
     headers: {
       "x-api-version": "2025-01-01",
       "x-partner-apikey": partnerApiKey,
-      "x-partner-merchantid": partner.cashfree_merchant_id,
+      "x-partner-merchantid": merchantId,
     },
   });
 
@@ -102,7 +117,7 @@ export async function verifyCashfreePayment(partnerId: string, orderId: string) 
         headers: {
           "x-api-version": "2025-01-01",
           "x-partner-apikey": partnerApiKey,
-          "x-partner-merchantid": partner.cashfree_merchant_id,
+          "x-partner-merchantid": merchantId,
         },
       });
       const payments = await paymentsRes.json();

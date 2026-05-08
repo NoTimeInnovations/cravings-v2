@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { formatDate, getDateOnly, formatOrderShortId } from "@/lib/formatDate";
 import { ExtraCharge } from "@/store/posStore";
@@ -13,6 +13,7 @@ import { getStatusDisplay } from "@/lib/getStatusDisplay";
 import { getFeatures } from "@/lib/getFeatures";
 import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2, Star, Bike, Store, MapPin, Receipt, Package, User, StickyNote, ShoppingBag } from "lucide-react";
 import { OrderReviewModal } from "@/components/OrderReviewModal";
+import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
@@ -52,6 +53,8 @@ const GET_ORDER_QUERY = `
         gst_percentage
         currency
         store_name
+        store_banner
+        theme
         country
         name
         username
@@ -102,6 +105,8 @@ const OrderClient = () => {
     const [agentLocationAgo, setAgentLocationAgo] = useState<number | null>(null);
     const [cashfreeLoading, setCashfreeLoading] = useState(false);
     const [cashfreeVerifying, setCashfreeVerifying] = useState(false);
+    const [showCashfreeEmbed, setShowCashfreeEmbed] = useState(false);
+    const cashfreeContainerRef = useRef<HTMLDivElement | null>(null);
     const [reviewOpen, setReviewOpen] = useState(false);
     const [justReviewed, setJustReviewed] = useState(false);
 
@@ -400,6 +405,8 @@ ${itemsText}
         setCashfreeLoading(true);
         try {
             const cfOrderId = `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+            // return_url is required by the API but won't be used in embedded mode;
+            // kept as a fallback in case Cashfree redirects (e.g. some UPI app flows).
             const returnUrl = `${window.location.origin}/order/${orderId}?cf_order=${cfOrderId}&back=true`;
 
             sessionStorage.setItem("cashfree_pending_payment", JSON.stringify({
@@ -422,14 +429,49 @@ ${itemsText}
 
             if (!cfRes.success) throw new Error(cfRes.error);
 
+            // Open the partner-branded modal so the embed container is mounted
+            setShowCashfreeEmbed(true);
+            // Wait one frame so the ref is attached before Cashfree mounts into it
+            await new Promise<void>((r) => requestAnimationFrame(() => r()));
+
+            if (!cashfreeContainerRef.current) {
+                throw new Error("Checkout container not ready");
+            }
+
             const cashfreeMode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "PRODUCTION" ? "production" : "sandbox";
             const cashfree = await loadCashfree({ mode: cashfreeMode as "sandbox" | "production" });
-            cashfree.checkout({
+
+            const result: any = await cashfree.checkout({
                 paymentSessionId: cfRes.paymentSessionId!,
-                redirectTarget: "_self",
-            });
+                redirectTarget: cashfreeContainerRef.current,
+                appearance: {
+                    width: `${window.innerWidth}px`,
+                    height: `${Math.max(window.innerHeight - 56, 500)}px`,
+                },
+            } as any);
+
+            // Embedded promise resolved — close modal, then verify
+            setShowCashfreeEmbed(false);
+            sessionStorage.removeItem("cashfree_pending_payment");
+
+            if (result?.error) {
+                console.error("Cashfree error:", result.error);
+                return;
+            }
+
+            setCashfreeVerifying(true);
+            try {
+                const verifyRes = await verifyCashfreePayment(order.partnerId, cfOrderId);
+                if (verifyRes.success && verifyRes.paid) {
+                    await markOrderAsPaid(orderId, verifyRes.cfPaymentId || undefined);
+                }
+            } finally {
+                setCashfreeVerifying(false);
+            }
         } catch (error) {
             console.error("Cashfree payment error:", error);
+            setShowCashfreeEmbed(false);
+        } finally {
             setCashfreeLoading(false);
         }
     };
@@ -961,6 +1003,16 @@ ${itemsText}
                     onClose={() => setReviewOpen(false)}
                 />
             )}
+
+            {/* Partner-branded embedded Cashfree checkout */}
+            <CashfreeEmbedModal
+                ref={cashfreeContainerRef}
+                open={showCashfreeEmbed}
+                onClose={() => setShowCashfreeEmbed(false)}
+                accent={order?.partner?.theme?.colors?.accent}
+                banner={order?.partner?.store_banner}
+                partnerName={order?.partner?.store_name || "Restaurant"}
+            />
         </div>
         </>
     );

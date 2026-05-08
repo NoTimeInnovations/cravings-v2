@@ -43,6 +43,7 @@ import { useWhatsAppOtp } from "@/hooks/useWhatsAppOtp";
 import { OtpInput } from "@/components/ui/otp-input";
 import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
+import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 
 // Helper: detect if a hex color is dark
@@ -379,10 +380,10 @@ const OrderStatusDialog = ({
           {status === "success" && (
             <motion.div
               key="success"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="text-center text-white p-8  rounded-2xl shadow-lg flex flex-col items-center max-w-md mx-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="text-center text-white flex flex-col items-center justify-center w-full h-full px-6"
             >
               <motion.div
                 initial={{ scale: 0 }}
@@ -442,10 +443,10 @@ const OrderStatusDialog = ({
           {status === "failed" && (
             <motion.div
               key="failed"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="text-center text-white p-8 rounded-2xl shadow-lg flex flex-col items-center max-w-md mx-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="text-center text-white flex flex-col items-center justify-center w-full h-full px-6"
             >
               <motion.div
                 initial={{ scale: 0 }}
@@ -1557,6 +1558,12 @@ const PlaceOrderModal = ({
   const hasIncompatibleItems = incompatibleItems.length > 0;
 
   const [showLoginDrawer, setShowLoginDrawer] = useState(false);
+  const [showCashfreeEmbed, setShowCashfreeEmbed] = useState(false);
+  const cashfreeContainerRef = useRef<HTMLDivElement | null>(null);
+  // Guards verifyAndPlaceCfOrder against running twice for the same cfOrderId
+  // (e.g. embed-flow + mount-time redirect-return both firing). The first call
+  // wins; the second short-circuits.
+  const verifyingCfOrderRef = useRef<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
@@ -2570,8 +2577,9 @@ const PlaceOrderModal = ({
         discountId: appliedDiscount?.id || null,
       }));
 
-      // Build return URL — current page URL so Cashfree redirects back here
-      const returnUrl = `${window.location.origin}${window.location.pathname}?cf_order=${cfOrderId}`;
+      // Build return URL — current page URL so Cashfree redirects back here.
+      // back=true suppresses the storefront/onboarding flow on re-entry.
+      const returnUrl = `${window.location.origin}${window.location.pathname}?cf_order=${cfOrderId}&back=true`;
 
       const cfRes = await createCashfreeOrderForPartner(
         hotelData.id,
@@ -2592,23 +2600,196 @@ const PlaceOrderModal = ({
         return;
       }
 
-      // Launch Cashfree checkout
+      // Launch Cashfree embedded checkout. Hide the place-order modal and
+      // dismiss the loading overlay so the full-screen embed is the only
+      // thing visible while the user pays.
+      setOrderStatus("idle");
+      setOpenPlaceOrderModal(false);
+      setShowCashfreeEmbed(true);
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      if (!cashfreeContainerRef.current) throw new Error("Checkout container not ready");
+
       const cashfreeMode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "PRODUCTION" ? "production" : "sandbox";
       const cashfree = await loadCashfree({ mode: cashfreeMode as "sandbox" | "production" });
-
-      cashfree.checkout({
+      const result: any = await cashfree.checkout({
         paymentSessionId: cfRes.paymentSessionId!,
-        redirectTarget: "_self",
+        redirectTarget: cashfreeContainerRef.current,
+        appearance: {
+          width: `${window.innerWidth}px`,
+          height: `${Math.max(window.innerHeight - 56, 500)}px`,
+        },
+      } as any);
+
+      setShowCashfreeEmbed(false);
+      // Re-open the place-order modal so the verifying / loading overlay is
+      // visible while we settle the payment server-side.
+      setOpenPlaceOrderModal(true);
+      // Embed flow doesn't redirect — clear the sessionStorage entry so the
+      // mount-time useEffect doesn't double-process this same payment if the
+      // user later navigates here.
+      sessionStorage.removeItem("cashfree_pending_order");
+
+      if (result?.error) {
+        console.error("Cashfree error:", result.error);
+        toast.error(result.error.message || "Payment failed. Please try again.");
+        setOrderStatus("idle");
+        return;
+      }
+
+      // Verify payment + place order inline. Auth & cart are already in
+      // memory (no redirect happened), so skipAuthWait avoids the 500ms
+      // polling delay.
+      await verifyAndPlaceCfOrder({
+        cfOrderId,
+        partnerId: hotelData.id,
+        orderType: orderType || null,
+        orderNote: orderNote || null,
+        customerName: customerName || null,
+        skipAuthWait: true,
       });
-      // Page will redirect — flow continues in useEffect below
     } catch (error) {
       console.error("Cashfree payment error:", error);
       toast.error("Payment failed. Please try again.");
+      setShowCashfreeEmbed(false);
+      setOpenPlaceOrderModal(true);
       setOrderStatus("idle");
     }
   };
 
-  // Handle return from Cashfree checkout redirect — runs on mount
+  // Reusable verify-and-place flow. Called from both the redirect-return path
+  // (sessionStorage handoff) and the embedded-checkout success path (in-memory).
+  const verifyAndPlaceCfOrder = async (pending: {
+    cfOrderId: string;
+    partnerId: string;
+    orderType?: string | null;
+    orderNote?: string | null;
+    customerName?: string | null;
+    skipAuthWait?: boolean;
+  }) => {
+    // Skip if this exact cfOrderId is already being verified — prevents the
+    // mount-time redirect-return useEffect from racing the embed-flow inline
+    // call, which previously caused a brief "Payment Failed" flash.
+    if (verifyingCfOrderRef.current === pending.cfOrderId) return;
+    verifyingCfOrderRef.current = pending.cfOrderId;
+
+    setOpenPlaceOrderModal(true);
+    setOrderStatus("verifying");
+    setCashfreePaid(true);
+
+    const waitForAuth = () => new Promise<void>((resolve) => {
+      const check = () => {
+        const authUser = useAuthStore.getState().userData;
+        if (authUser?.id) { resolve(); return; }
+        setTimeout(check, 300);
+      };
+      setTimeout(check, 500);
+      setTimeout(resolve, 15000);
+    });
+
+    try {
+      const verifyRes = await verifyCashfreePayment(pending.partnerId, pending.cfOrderId);
+
+      if (!verifyRes.success || !verifyRes.paid) {
+        const reason = !verifyRes.success
+          ? verifyRes.error
+          : verifyRes.orderStatus === "ACTIVE"
+            ? "Payment was not completed. You may have cancelled or dropped off during checkout."
+            : `Payment status: ${verifyRes.orderStatus || "unknown"}. Please try again.`;
+        setPaymentFailReason(reason || "Payment could not be completed.");
+        setOrderStatus("failed");
+        setCashfreePaid(false);
+        return;
+      }
+
+      setOrderStatus("loading");
+      if (!pending.skipAuthWait) await waitForAuth();
+
+      const storeState = useOrderStore.getState();
+      const authUser = useAuthStore.getState().userData;
+
+      if (!authUser?.id) {
+        toast.error("Session expired. Please login and try again.");
+        setOrderStatus("idle");
+        return;
+      }
+
+      if (!storeState.items || storeState.items.length === 0) {
+        toast.error("Cart is empty. Your order could not be restored.");
+        setOrderStatus("idle");
+        return;
+      }
+
+      const cfItems = storeState.items;
+      const cfExtraCharges: { name: string; amount: number; charge_type: string }[] = [];
+
+      if (isQrScan && qrGroup && qrGroup.name) {
+        const amt = getExtraCharge(cfItems, qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE");
+        if (amt > 0) cfExtraCharges.push({ name: qrGroup.name, amount: amt, charge_type: qrGroup.charge_type || "FLAT_FEE" });
+      }
+      if (!isQrScan && tableNumber === 0 && qrGroup && qrGroup.name) {
+        const amt = getExtraCharge(cfItems, qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE");
+        if (amt > 0) cfExtraCharges.push({ name: qrGroup.name, amount: amt, charge_type: qrGroup.charge_type || "FLAT_FEE" });
+      }
+
+      const cfDeliveryInfo = storeState.deliveryInfo;
+      if (!isQrScan && cfDeliveryInfo?.cost && !cfDeliveryInfo?.isOutOfRange && pending.orderType === "delivery" && !(hotelData?.delivery_rules?.hide_delivery_charge)) {
+        cfExtraCharges.push({ name: "Delivery Charge", amount: cfDeliveryInfo.cost, charge_type: "FLAT_FEE" });
+      }
+      if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge && hotelData.delivery_rules.parcel_charge > 0) {
+        const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
+        const itemCount = cfItems.reduce((acc, item) => acc + item.quantity, 0);
+        let parcelAmount: number;
+        if (chargeType === "itemwise") {
+          const defC = hotelData.delivery_rules.parcel_charge || 0;
+          const custC = hotelData.delivery_rules.parcel_charge_items || {};
+          parcelAmount = cfItems.reduce((acc, item) => acc + (custC[item.id.split("|")[0]] ?? defC) * item.quantity, 0);
+        } else {
+          parcelAmount = chargeType === "variable" ? itemCount * hotelData.delivery_rules.parcel_charge : hotelData.delivery_rules.parcel_charge;
+        }
+        cfExtraCharges.push({ name: "Parcel Charge", amount: parcelAmount, charge_type: "FLAT_FEE" });
+      }
+
+      const { additionalGst: cfGst } = calculateGstForItems(
+        cfItems.map((item) => {
+          const baseId = item.id.split("|")[0];
+          const mi = hotelData?.menus?.find((m) => m.id === baseId);
+          return { price: item.price, quantity: item.quantity, tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive };
+        }),
+        hotelData?.gst_percentage as number,
+      );
+      const result = await storeState.placeOrder(
+        hotelData,
+        tableNumber,
+        qrId as string,
+        cfGst,
+        cfExtraCharges.length > 0 ? cfExtraCharges : null,
+        undefined,
+        pending.orderNote || "",
+        tableName,
+        null,
+        pending.customerName || undefined,
+      );
+
+      if (result) {
+        if (result.id) {
+          localStorage?.setItem("last-order-id", result.id);
+          markOrderAsPaid(result.id, verifyRes.cfPaymentId || undefined).catch(() => {});
+        }
+        setOrderStatus("success");
+      } else {
+        toast.error("Failed to place order.");
+        setOrderStatus("idle");
+      }
+    } catch (error) {
+      console.error("Payment verification error:", error);
+      setPaymentFailReason("Could not verify payment. Please contact support.");
+      setOrderStatus("failed");
+    }
+  };
+
+  // Handle return from Cashfree checkout redirect — runs on mount.
+  // Only triggers when the user actually came back via redirect (sessionStorage
+  // has the entry). Embedded checkout calls verifyAndPlaceCfOrder directly.
   useEffect(() => {
     const pendingStr = sessionStorage.getItem("cashfree_pending_order");
     if (!pendingStr) return;
@@ -2616,140 +2797,21 @@ const PlaceOrderModal = ({
     const pending = JSON.parse(pendingStr);
     if (!pending?.cfOrderId || !pending?.partnerId) return;
 
-    // Clear immediately so we don't re-trigger
     sessionStorage.removeItem("cashfree_pending_order");
 
-    // Restore saved state
     if (pending.orderType) setOrderType(pending.orderType);
     if (pending.address) setAddress(pending.address);
     if (pending.customerName) setCustomerName(pending.customerName);
     if (pending.orderNote) setOrderNote(pending.orderNote);
     if (pending.selectedLocation) setSelectedLocation(pending.selectedLocation);
 
-    // Auto-open the place order modal and show verifying state
-    setOpenPlaceOrderModal(true);
-    setOrderStatus("verifying");
-    setCashfreePaid(true);
-
-    // Wait for auth store to hydrate (it's not persisted, needs cookie-based reauth)
-    const waitForAuth = () => new Promise<void>((resolve) => {
-      const check = () => {
-        const authUser = useAuthStore.getState().userData;
-        if (authUser?.id) { resolve(); return; }
-        setTimeout(check, 300);
-      };
-      // Start checking after a brief delay for initial page load
-      setTimeout(check, 500);
-      // Timeout after 15s
-      setTimeout(resolve, 15000);
+    verifyAndPlaceCfOrder({
+      cfOrderId: pending.cfOrderId,
+      partnerId: pending.partnerId,
+      orderType: pending.orderType,
+      orderNote: pending.orderNote,
+      customerName: pending.customerName,
     });
-
-    const verifyAndPlace = async () => {
-      try {
-        const verifyRes = await verifyCashfreePayment(pending.partnerId, pending.cfOrderId);
-
-        if (!verifyRes.success || !verifyRes.paid) {
-          const reason = !verifyRes.success
-            ? verifyRes.error
-            : verifyRes.orderStatus === "ACTIVE"
-              ? "Payment was not completed. You may have cancelled or dropped off during checkout."
-              : `Payment status: ${verifyRes.orderStatus || "unknown"}. Please try again.`;
-          setPaymentFailReason(reason || "Payment could not be completed.");
-          setOrderStatus("failed");
-          setCashfreePaid(false);
-          return;
-        }
-
-        // Payment verified — wait for auth then place order
-        setOrderStatus("loading");
-        await waitForAuth();
-
-        const storeState = useOrderStore.getState();
-        const authUser = useAuthStore.getState().userData;
-
-        if (!authUser?.id) {
-          toast.error("Session expired. Please login and try again.");
-          setOrderStatus("idle");
-          return;
-        }
-
-        if (!storeState.items || storeState.items.length === 0) {
-          toast.error("Cart is empty. Your order could not be restored.");
-          setOrderStatus("idle");
-          return;
-        }
-
-        // Compute extra charges (same logic as handlePlaceOrder)
-        const cfItems = storeState.items;
-        const cfSubtotal = cfItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-        const cfExtraCharges: { name: string; amount: number; charge_type: string }[] = [];
-
-        if (isQrScan && qrGroup && qrGroup.name) {
-          const amt = getExtraCharge(cfItems, qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE");
-          if (amt > 0) cfExtraCharges.push({ name: qrGroup.name, amount: amt, charge_type: qrGroup.charge_type || "FLAT_FEE" });
-        }
-        if (!isQrScan && tableNumber === 0 && qrGroup && qrGroup.name) {
-          const amt = getExtraCharge(cfItems, qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE");
-          if (amt > 0) cfExtraCharges.push({ name: qrGroup.name, amount: amt, charge_type: qrGroup.charge_type || "FLAT_FEE" });
-        }
-
-        const cfDeliveryInfo = storeState.deliveryInfo;
-        if (!isQrScan && cfDeliveryInfo?.cost && !cfDeliveryInfo?.isOutOfRange && pending.orderType === "delivery" && !(hotelData?.delivery_rules?.hide_delivery_charge)) {
-          cfExtraCharges.push({ name: "Delivery Charge", amount: cfDeliveryInfo.cost, charge_type: "FLAT_FEE" });
-        }
-        if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge && hotelData.delivery_rules.parcel_charge > 0) {
-          const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
-          const itemCount = cfItems.reduce((acc, item) => acc + item.quantity, 0);
-          let parcelAmount: number;
-          if (chargeType === "itemwise") {
-            const defC = hotelData.delivery_rules.parcel_charge || 0;
-            const custC = hotelData.delivery_rules.parcel_charge_items || {};
-            parcelAmount = cfItems.reduce((acc, item) => acc + (custC[item.id.split("|")[0]] ?? defC) * item.quantity, 0);
-          } else {
-            parcelAmount = chargeType === "variable" ? itemCount * hotelData.delivery_rules.parcel_charge : hotelData.delivery_rules.parcel_charge;
-          }
-          cfExtraCharges.push({ name: "Parcel Charge", amount: parcelAmount, charge_type: "FLAT_FEE" });
-        }
-
-        const { additionalGst: cfGst } = calculateGstForItems(
-          cfItems.map((item) => {
-            const baseId = item.id.split("|")[0];
-            const mi = hotelData?.menus?.find((m) => m.id === baseId);
-            return { price: item.price, quantity: item.quantity, tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive };
-          }),
-          hotelData?.gst_percentage as number,
-        );
-        const result = await storeState.placeOrder(
-          hotelData,
-          tableNumber,
-          qrId as string,
-          cfGst,
-          cfExtraCharges.length > 0 ? cfExtraCharges : null,
-          undefined,
-          pending.orderNote || "",
-          tableName,
-          null,
-          pending.customerName || undefined,
-        );
-
-        if (result) {
-          if (result.id) {
-            localStorage?.setItem("last-order-id", result.id);
-            markOrderAsPaid(result.id, verifyRes.cfPaymentId || undefined).catch(() => {});
-          }
-          setOrderStatus("success");
-        } else {
-          toast.error("Failed to place order.");
-          setOrderStatus("idle");
-        }
-      } catch (error) {
-        console.error("Payment verification error:", error);
-        setPaymentFailReason("Could not verify payment. Please contact support.");
-        setOrderStatus("failed");
-      }
-    };
-
-    verifyAndPlace();
   }, []);
 
   const handleLoginSuccess = () => {
@@ -3351,6 +3413,19 @@ const PlaceOrderModal = ({
           onClose={handleCloseUpiScreen}
         />
       )}
+      <CashfreeEmbedModal
+        ref={cashfreeContainerRef}
+        open={showCashfreeEmbed}
+        onClose={() => {
+          setShowCashfreeEmbed(false);
+          setOpenPlaceOrderModal(true);
+          setOrderStatus("idle");
+          sessionStorage.removeItem("cashfree_pending_order");
+        }}
+        accent={(hotelData as any)?.theme?.colors?.accent}
+        banner={(hotelData as any)?.store_banner}
+        partnerName={hotelData?.store_name || "Restaurant"}
+      />
     </>
   );
 };
