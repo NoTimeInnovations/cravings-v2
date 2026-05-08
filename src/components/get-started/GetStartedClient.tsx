@@ -1003,19 +1003,25 @@ export default function GetStartedClient({
                 We'll send your dashboard login details to your email.
               </p>
 
-              <button
-                onClick={handleGoogleSignIn}
-                className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors text-sm font-medium text-stone-700"
-              >
-                <FcGoogle size={20} />
-                Sign in with Google
-              </button>
+              {/* Google sign-in hidden for App Store Guideline 4.8 compliance.
+                  Flip the `false` to re-enable. */}
+              {false && (
+                <>
+                  <button
+                    onClick={handleGoogleSignIn}
+                    className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 transition-colors text-sm font-medium text-stone-700"
+                  >
+                    <FcGoogle size={20} />
+                    Sign in with Google
+                  </button>
 
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-stone-200" />
-                <span className="text-xs text-stone-400">or</span>
-                <div className="flex-1 h-px bg-stone-200" />
-              </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-px bg-stone-200" />
+                    <span className="text-xs text-stone-400">or</span>
+                    <div className="flex-1 h-px bg-stone-200" />
+                  </div>
+                </>
+              )}
 
               <div className="space-y-3">
                 <Input
