@@ -400,7 +400,7 @@ ${itemsText}
         setCashfreeLoading(true);
         try {
             const cfOrderId = `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-            const returnUrl = `${window.location.origin}/order/${orderId}?cf_order=${cfOrderId}`;
+            const returnUrl = `${window.location.origin}/order/${orderId}?cf_order=${cfOrderId}&back=true`;
 
             sessionStorage.setItem("cashfree_pending_payment", JSON.stringify({
                 cfOrderId,
