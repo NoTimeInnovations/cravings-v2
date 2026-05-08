@@ -21,6 +21,7 @@ import Compact from "@/components/hotelDetail/styles/Compact/Compact";
 import Sidebar from "@/components/hotelDetail/styles/Sidebar/Sidebar";
 import V3 from "@/components/hotelDetail/styles/V3/V3";
 import { saveUserLocation } from "@/lib/saveUserLocLocal";
+import { applyVisibilityState } from "@/lib/visibility";
 import { QrCode, useQrDataStore } from "@/store/qrDataStore";
 import DeliveryTimeCampain from "@/components/hotelDetail/DeliveryTimeCampain";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
@@ -262,27 +263,30 @@ const HotelMenuPage = ({
     }
   }, [hoteldata?.id, setHotelId, genOrderId]);
 
-  // Filter menus by order type visibility
+  // Filter menus by order type visibility, then resolve visibility state so items
+  // from inactive categories with hideItems=false remain (marked unavailable),
+  // while truly hidden items are dropped.
   const filteredMenus = useMemo(() => {
     if (!hoteldata?.menus) return [];
-    return hoteldata.menus.filter((item: any) => {
-      if (orderType === "delivery" && item.show_on_delivery === false) return false;
-      if (orderType === "takeaway" && item.show_on_takeaway === false) return false;
-      if (lockedCategory && item.category?.name !== lockedCategory) return false;
-      if (hiddenCategoryNames && hiddenCategoryNames.has(item.category?.name)) return false;
-      return true;
-    });
-  }, [hoteldata?.menus, orderType, lockedCategory, hiddenCategoryNames]);
+    const tz = (hoteldata as any)?.timezone || hotelTimezone || "Asia/Kolkata";
+    const hideUnav = (hoteldata as any)?.hide_unavailable;
+    return hoteldata.menus
+      .filter((item: any) => {
+        if (orderType === "delivery" && item.show_on_delivery === false) return false;
+        if (orderType === "takeaway" && item.show_on_takeaway === false) return false;
+        if (lockedCategory && item.category?.name !== lockedCategory) return false;
+        if (hiddenCategoryNames && hiddenCategoryNames.has(item.category?.name)) return false;
+        return true;
+      })
+      .map((item: any) => applyVisibilityState(item, tz, undefined, hideUnav))
+      .filter(Boolean) as any[];
+  }, [hoteldata?.menus, orderType, lockedCategory, hiddenCategoryNames, hotelTimezone]);
 
   // ✅ Memoize offeredItems to avoid recalculating on every render
   const offeredItems = useMemo(() => {
     if (!filteredMenus || !offers) return [];
     const activeOfferMenuIds = new Set(offers.map((offer) => offer.menu?.id));
-    return filteredMenus.filter(
-      (item) =>
-        activeOfferMenuIds.has(item.id || "") &&
-        (item.category.is_active === undefined || item.category.is_active)
-    );
+    return filteredMenus.filter((item) => activeOfferMenuIds.has(item.id || ""));
   }, [filteredMenus, offers]);
 
   // ✅ Memoize categories to prevent recalculating unless the menu changes
@@ -291,10 +295,7 @@ const HotelMenuPage = ({
     const uniqueCategoriesMap = new Map<string, Category>();
 
     filteredMenus.forEach((item) => {
-      if (
-        !uniqueCategoriesMap.has(item.category.name) &&
-        (item.category.is_active === undefined || item.category.is_active)
-      ) {
+      if (!uniqueCategoriesMap.has(item.category.name)) {
         uniqueCategoriesMap.set(item.category.name, item.category);
       }
     });
@@ -330,19 +331,13 @@ const HotelMenuPage = ({
     let filteredItems = [];
 
     if (selectedCategory === "all") {
-      filteredItems =
-        filteredMenus.filter(
-          (item) =>
-            item.category.is_active === undefined || item.category.is_active
-        ) || [];
+      filteredItems = filteredMenus;
     } else if (selectedCategory === "Offer") {
       filteredItems = offeredItems;
     } else {
       filteredItems =
         filteredMenus.filter(
-          (item) =>
-            item.category.name === selectedCategory &&
-            (item.category.is_active === undefined || item.category.is_active)
+          (item) => item.category.name === selectedCategory
         ) || [];
     }
 
@@ -358,13 +353,7 @@ const HotelMenuPage = ({
 
   // ✅ Memoize top-selling items
   const topItems = useMemo(() => {
-    return (
-      filteredMenus.filter(
-        (item) =>
-          item.is_top === true &&
-          (item.category.is_active === undefined || item.category.is_active)
-      ) || []
-    );
+    return filteredMenus.filter((item) => item.is_top === true) || [];
   }, [filteredMenus]);
 
   // ✅ Memoize the function passed as a prop to prevent child re-renders

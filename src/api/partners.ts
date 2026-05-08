@@ -225,19 +225,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     subscription_details
     storefront_settings
     timezone
-    menus(where: {
-    deletion_status: {_eq: 0},
-    _and: [
-      {
-        category: {
-          _or: [
-            {is_active: {_eq: true}},
-            {name: {_eq: "custom"}}
-          ]
-        }
-      }
-    ]
-  }) {
+    menus(where: { deletion_status: {_eq: 0} }) {
       category {
         name
         id

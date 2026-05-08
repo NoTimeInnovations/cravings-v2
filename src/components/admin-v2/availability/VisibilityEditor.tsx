@@ -24,7 +24,7 @@ interface Props {
 
 export function VisibilityEditor({ value, onChange, disabled, scope = "item" }: Props) {
   const config = normalizeVisibility(value);
-  const hideItems = config.hideItems !== false;
+  const hideItems = config.hideItems === true;
 
   const setType = (type: "default" | "scheduled") => {
     if (type === "default") {
