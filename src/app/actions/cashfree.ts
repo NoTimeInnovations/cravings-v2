@@ -64,7 +64,11 @@ export async function createCashfreeOrderForPartner(
       },
       order_meta: {
         return_url: returnUrl,
-        payment_methods: "cc,dc,upi,nb,app",
+        // `app` enables the "UPI Apps" / "Pay with apps" section in the
+        // Cashfree drop-in (GPay / PhonePe / Paytm intent buttons on mobile);
+        // `upi` keeps the QR + UPI ID flow. Cashfree only accepts these
+        // top-level method codes — granular per-app values are rejected.
+        payment_methods: "app,upi,cc,dc,nb",
       },
     }),
   });
