@@ -393,6 +393,8 @@ subscription GetPaginatedPartnerOrders(
     delivery_boy_id
     assigned_at
     delivered_at
+    growjet_order_number
+    delivery_agent
     delivery_boy {
       id
       name

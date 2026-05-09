@@ -142,6 +142,7 @@ export interface Order {
   delivery_boy_id?: string;
   assigned_at?: string;
   delivered_at?: string;
+  growjet_order_number?: string | null;
   delivery_boy?: {
     id: string;
     name: string;
@@ -1445,6 +1446,8 @@ const useOrderStore = create(
                   table_name
                 }
                 table_name
+                growjet_order_number
+                delivery_agent
                 captainid {
                   id
                   name
@@ -1529,6 +1532,8 @@ const useOrderStore = create(
               assigned_at: order.assigned_at,
               delivered_at: order.delivered_at,
               delivery_boy: order.delivery_boy,
+              growjet_order_number: order.growjet_order_number,
+              delivery_agent: order.delivery_agent,
               items: order.order_items.map((i: any) => ({
                 id: i.menu?.id,
                 quantity: i.quantity,
@@ -1624,6 +1629,8 @@ function transformOrderFromHasura(order: any): Order {
     assigned_at: order.assigned_at,
     delivered_at: order.delivered_at,
     delivery_boy: order.delivery_boy,
+    growjet_order_number: order.growjet_order_number,
+    delivery_agent: order.delivery_agent,
     extraCharges: order.extra_charges,
     is_paid: order.is_paid || false,
     cashfree_payment_id: order.cashfree_payment_id || null,

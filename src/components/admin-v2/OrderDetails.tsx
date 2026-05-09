@@ -1,7 +1,15 @@
 import React from "react";
+import dynamic from "next/dynamic";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Bike } from "lucide-react";
+
+// Mapbox-based live tracker reused from the customer order page. Lazy-loaded
+// (ssr: false) because mapbox-gl needs window/document.
+const DeliveryMap = dynamic(
+    () => import("@/app/order/[id]/DeliveryMap"),
+    { ssr: false },
+);
 import {
     Table,
     TableBody,
@@ -34,6 +42,7 @@ import {
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { getFeatures } from "@/lib/getFeatures";
 
 
 import { getExtraCharge } from "@/lib/getExtraCharge";
@@ -300,6 +309,104 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     <DeliveryBoyAssignment order={order} />
                 )}
             </div>
+
+            {getFeatures((userData as Partner)?.feature_flags || null).growjet_delivery.access && (() => {
+                const agent = order.delivery_agent;
+                const agentLat = agent?.location?.latitude;
+                const agentLng = agent?.location?.longitude;
+                const dropLng = order.delivery_location?.coordinates?.[0];
+                const dropLat = order.delivery_location?.coordinates?.[1];
+                const lastUpdated = agent?.location?.lastUpdated;
+                const lastUpdatedAgo = lastUpdated
+                    ? Math.max(0, Math.floor((Date.now() - new Date(lastUpdated).getTime()) / 1000))
+                    : null;
+                const formatAgo = (sec: number) =>
+                    sec < 60
+                        ? `${sec}s ago`
+                        : sec < 3600
+                            ? `${Math.floor(sec / 60)}m ago`
+                            : `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m ago`;
+                const canShowMap =
+                    agentLat != null && agentLng != null && dropLat != null && dropLng != null;
+
+                return (
+                    <div className="border rounded-lg bg-card p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <h3 className="font-semibold">Growjet Delivery</h3>
+                            {order.growjet_order_number ? (
+                                <Badge className="bg-green-100 text-green-800 font-mono">
+                                    ✓ {order.growjet_order_number}
+                                </Badge>
+                            ) : (
+                                <Badge variant="outline" className="text-muted-foreground font-mono">
+                                    Nil
+                                </Badge>
+                            )}
+                        </div>
+
+                        {agent ? (
+                            <>
+                                <div className="flex items-center gap-3 rounded-md border bg-muted/30 p-3">
+                                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-700">
+                                        <Bike className="h-5 w-5" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate font-medium">
+                                            {agent.name || "Rider being assigned"}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground capitalize">
+                                            {agent.provider || "growjet"} delivery partner
+                                        </p>
+                                    </div>
+                                    {agent.phone && (
+                                        <a
+                                            href={`tel:${agent.phone}`}
+                                            className="inline-flex items-center gap-1.5 rounded-full bg-orange-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-600"
+                                        >
+                                            <Phone className="h-3.5 w-3.5" />
+                                            {agent.phone}
+                                        </a>
+                                    )}
+                                </div>
+
+                                {canShowMap ? (
+                                    <div className="relative h-64 overflow-hidden rounded-md border">
+                                        <DeliveryMap
+                                            deliveryLng={dropLng!}
+                                            deliveryLat={dropLat!}
+                                            driverLng={agentLng}
+                                            driverLat={agentLat}
+                                            onMapClick={() => {
+                                                const url = `https://www.google.com/maps/dir/${agentLat},${agentLng}/${dropLat},${dropLng}`;
+                                                window.open(url, "_blank");
+                                            }}
+                                        />
+                                        {lastUpdatedAgo != null && (
+                                            <div className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-[11px] shadow">
+                                                <span className="relative flex h-2 w-2">
+                                                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                                                    <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                                                </span>
+                                                <span className="font-medium text-gray-800">
+                                                    Live · {formatAgo(lastUpdatedAgo)}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground">
+                                        Live location not yet available from Growjet.
+                                    </p>
+                                )}
+                            </>
+                        ) : (
+                            <p className="text-xs text-muted-foreground">
+                                Rider details will appear here once Growjet assigns one.
+                            </p>
+                        )}
+                    </div>
+                );
+            })()}
 
             {(order.payment_method || order.is_paid) && (
                 <div className="border rounded-lg bg-card p-4">

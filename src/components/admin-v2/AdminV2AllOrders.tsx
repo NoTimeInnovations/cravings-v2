@@ -56,6 +56,7 @@ import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { AdminV2EditOrder } from "./AdminV2EditOrder";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { getFeatures } from "@/lib/getFeatures";
 
 export function AdminV2AllOrders() {
   const {
@@ -317,6 +318,10 @@ export function AdminV2AllOrders() {
   };
 
   const filteredOrders = getFilteredAndSortedOrders();
+  // Show the Growjet booking column for any partner whose feature_flags string
+  // includes growjet_delivery (access=true), regardless of enabled state.
+  const partnerFeatures = getFeatures((userData as Partner)?.feature_flags || null);
+  const showGrowjetColumn = partnerFeatures.growjet_delivery.access;
   const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
   const paginatedOrders = filteredOrders.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
@@ -432,6 +437,7 @@ export function AdminV2AllOrders() {
                   <TableHead>Date</TableHead>
                   <TableHead>Time</TableHead>
                   <TableHead>Order type</TableHead>
+                  {showGrowjetColumn && <TableHead>Growjet</TableHead>}
                   <TableHead>Order status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -480,6 +486,19 @@ export function AdminV2AllOrders() {
                             : order.type}
                       </Badge>
                     </TableCell>
+                    {showGrowjetColumn && (
+                      <TableCell>
+                        {order.growjet_order_number ? (
+                          <Badge className="bg-green-100 text-green-800">
+                            ✓ {order.growjet_order_number}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground">
+                            Nil
+                          </Badge>
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Select
                         value={order.status}
@@ -557,7 +576,7 @@ export function AdminV2AllOrders() {
                 {paginatedOrders.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={9}
+                      colSpan={showGrowjetColumn ? 10 : 9}
                       className="text-center py-8 text-muted-foreground"
                     >
                       No orders found
@@ -649,6 +668,19 @@ export function AdminV2AllOrders() {
                       </Badge>
                     </div>
                   </div>
+                  {showGrowjetColumn && (
+                    <div className="flex items-center gap-2">
+                      {order.growjet_order_number ? (
+                        <Badge className="bg-green-100 text-green-800 text-xs">
+                          Growjet ✓ {order.growjet_order_number}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground text-xs">
+                          Growjet: Nil
+                        </Badge>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
                 <CardFooter
                   className="bg-muted/10 p-2 flex justify-between border-t"
