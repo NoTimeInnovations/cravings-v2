@@ -908,7 +908,7 @@ ${itemsText}
                                         </p>
                                         <p className="text-sm text-gray-900 mt-0.5">{order?.deliveryAddress || "Not provided"}</p>
                                     </div>
-                                    {order.delivery_location && (order.delivery_location?.coordinates?.length ?? 0) > 0 && !showGrowjetAgent && (!((order?.status === "dispatched" || order?.status === "in_transit") && order?.delivery_boy_id && order?.delivery_boy)) && (
+                                    {order.delivery_location && (order.delivery_location?.coordinates?.length ?? 0) > 0 && !showGrowjetAgent && (!((order?.status === "dispatched" || order?.status === "in_transit") && order?.delivery_boy_id && order?.delivery_boy)) && !isCompleted && (
                                         <div className="rounded-xl overflow-hidden">
                                             <DeliveryMap
                                                 deliveryLng={order.delivery_location.coordinates[0]}

@@ -305,7 +305,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 </div>
 
                 {/* Delivery Boy Assignment */}
-                {order.type === "delivery" && order.deliveryAddress && (
+                {order.type === "delivery" && order.deliveryAddress && order.status !== "completed" && order.status !== "cancelled" && (
                     <DeliveryBoyAssignment order={order} />
                 )}
             </div>
@@ -339,7 +339,8 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                             ? `${Math.floor(sec / 60)}m ago`
                             : `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m ago`;
                 const canShowMap =
-                    agentLat != null && agentLng != null && dropLat != null && dropLng != null;
+                    agentLat != null && agentLng != null && dropLat != null && dropLng != null
+                    && order.status !== "completed" && order.status !== "cancelled";
 
                 return (
                     <div className="border rounded-lg bg-card p-4 space-y-3">
