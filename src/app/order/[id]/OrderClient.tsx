@@ -59,6 +59,7 @@ const GET_ORDER_QUERY = `
         name
         username
         feature_flags
+        geo_location
       }
       gst_included
       extra_charges
@@ -333,6 +334,23 @@ const OrderClient = () => {
               )
             : null;
     const agentInitial = (agent?.name ?? "?").trim().charAt(0).toUpperCase() || "?";
+
+    // Hotel (partner) coordinates for the live tracking map. Used as the
+    // route endpoint while the rider hasn't picked up yet, and rendered as a
+    // small banner-circle marker whenever a rider is on the map.
+    const hotelGeo = order?.partner?.geo_location;
+    const hotelCoords =
+        hotelGeo && typeof hotelGeo === "object" && Array.isArray((hotelGeo as any).coordinates)
+            ? ((hotelGeo as any).coordinates as [number, number])
+            : null;
+    const hotelLng = hotelCoords?.[0] ?? null;
+    const hotelLat = hotelCoords?.[1] ?? null;
+    // Status flips after the rider has picked up. Pre-pickup, the map line
+    // routes rider → hotel; post-pickup, rider → destination.
+    const routeMode: "to_destination" | "to_hotel" =
+        order?.status === "dispatched" || order?.status === "in_transit"
+            ? "to_destination"
+            : "to_hotel";
 
     const buildWhatsappLink = () => {
         // Prefer whatsapp_number from whatsapp_numbers array
@@ -721,8 +739,19 @@ ${itemsText}
                                             deliveryLat={order.delivery_location.coordinates[1]}
                                             driverLng={agentLng}
                                             driverLat={agentLat}
+                                            hotelLng={hotelLng}
+                                            hotelLat={hotelLat}
+                                            hotelBanner={order?.partner?.store_banner ?? null}
+                                            hotelName={order?.partner?.store_name ?? null}
+                                            routeMode={routeMode}
                                             onMapClick={() => {
-                                                const url = `https://www.google.com/maps/dir/${agentLat},${agentLng}/${order.delivery_location!.coordinates[1]},${order.delivery_location!.coordinates[0]}`;
+                                                const destLat = routeMode === "to_hotel" && hotelLat != null
+                                                    ? hotelLat
+                                                    : order.delivery_location!.coordinates[1];
+                                                const destLng = routeMode === "to_hotel" && hotelLng != null
+                                                    ? hotelLng
+                                                    : order.delivery_location!.coordinates[0];
+                                                const url = `https://www.google.com/maps/dir/${agentLat},${agentLng}/${destLat},${destLng}`;
                                                 window.open(url, "_blank");
                                             }}
                                         />
@@ -886,10 +915,26 @@ ${itemsText}
                                                 deliveryLat={order.delivery_location.coordinates[1]}
                                                 driverLng={order.delivery_boy?.current_lng}
                                                 driverLat={order.delivery_boy?.current_lat}
+                                                hotelLng={order?.delivery_boy_id ? hotelLng : null}
+                                                hotelLat={order?.delivery_boy_id ? hotelLat : null}
+                                                hotelBanner={order?.partner?.store_banner ?? null}
+                                                hotelName={order?.partner?.store_name ?? null}
+                                                routeMode={routeMode}
                                                 onMapClick={() => {
-                                                    const url = order.delivery_boy?.current_lat != null && order.delivery_boy?.current_lng != null
-                                                        ? `https://www.google.com/maps/dir/${order.delivery_boy.current_lat},${order.delivery_boy.current_lng}/${order.delivery_location!.coordinates[1]},${order.delivery_location!.coordinates[0]}`
-                                                        : `https://www.google.com/maps?q=${order.delivery_location!.coordinates[1]},${order.delivery_location!.coordinates[0]}`;
+                                                    const driverLat = order.delivery_boy?.current_lat;
+                                                    const driverLng = order.delivery_boy?.current_lng;
+                                                    if (driverLat == null || driverLng == null) {
+                                                        const url = `https://www.google.com/maps?q=${order.delivery_location!.coordinates[1]},${order.delivery_location!.coordinates[0]}`;
+                                                        window.open(url, "_blank");
+                                                        return;
+                                                    }
+                                                    const destLat = routeMode === "to_hotel" && hotelLat != null
+                                                        ? hotelLat
+                                                        : order.delivery_location!.coordinates[1];
+                                                    const destLng = routeMode === "to_hotel" && hotelLng != null
+                                                        ? hotelLng
+                                                        : order.delivery_location!.coordinates[0];
+                                                    const url = `https://www.google.com/maps/dir/${driverLat},${driverLng}/${destLat},${destLng}`;
                                                     window.open(url, "_blank");
                                                 }}
                                             />

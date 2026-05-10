@@ -311,11 +311,23 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
             </div>
 
             {getFeatures((userData as Partner)?.feature_flags || null).growjet_delivery.access && (() => {
+                const partner = userData as Partner | null;
                 const agent = order.delivery_agent;
                 const agentLat = agent?.location?.latitude;
                 const agentLng = agent?.location?.longitude;
                 const dropLng = order.delivery_location?.coordinates?.[0];
                 const dropLat = order.delivery_location?.coordinates?.[1];
+                const hotelGeo = partner?.geo_location;
+                const hotelCoords =
+                    hotelGeo && typeof hotelGeo === "object" && Array.isArray((hotelGeo as any).coordinates)
+                        ? ((hotelGeo as any).coordinates as [number, number])
+                        : null;
+                const hotelLng = hotelCoords?.[0] ?? null;
+                const hotelLat = hotelCoords?.[1] ?? null;
+                const routeMode: "to_destination" | "to_hotel" =
+                    order.status === "dispatched" || order.status === "in_transit"
+                        ? "to_destination"
+                        : "to_hotel";
                 const lastUpdated = agent?.location?.lastUpdated;
                 const lastUpdatedAgo = lastUpdated
                     ? Math.max(0, Math.floor((Date.now() - new Date(lastUpdated).getTime()) / 1000))
@@ -376,8 +388,19 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                             deliveryLat={dropLat!}
                                             driverLng={agentLng}
                                             driverLat={agentLat}
+                                            hotelLng={hotelLng}
+                                            hotelLat={hotelLat}
+                                            hotelBanner={partner?.store_banner ?? null}
+                                            hotelName={partner?.store_name ?? null}
+                                            routeMode={routeMode}
                                             onMapClick={() => {
-                                                const url = `https://www.google.com/maps/dir/${agentLat},${agentLng}/${dropLat},${dropLng}`;
+                                                const destLat = routeMode === "to_hotel" && hotelLat != null
+                                                    ? hotelLat
+                                                    : dropLat;
+                                                const destLng = routeMode === "to_hotel" && hotelLng != null
+                                                    ? hotelLng
+                                                    : dropLng;
+                                                const url = `https://www.google.com/maps/dir/${agentLat},${agentLng}/${destLat},${destLng}`;
                                                 window.open(url, "_blank");
                                             }}
                                         />

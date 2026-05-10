@@ -103,6 +103,10 @@ export interface Order {
     upi_id?: string;
     show_payment_qr?: boolean;
     feature_flags?: string | null;
+    geo_location?: {
+      type?: string;
+      coordinates?: [number, number];
+    } | string | null;
   };
   delivery_agent?: {
     provider?: string;
