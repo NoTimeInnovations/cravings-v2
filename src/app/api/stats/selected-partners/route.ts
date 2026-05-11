@@ -10,12 +10,13 @@ export const dynamic = "force-dynamic";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_PARTNERS = 9;
 
-const DIRECT_TYPES = ["delivery", "table", "table_order"];
+const DIRECT_TYPES = ["delivery"];
 
 const PARTNERS_QUERY = `
   query SelectedPartners(
     $ids: [uuid!]!,
     $since: timestamptz!,
+    $monthStart: timestamptz!,
     $excludedUsers: [uuid!]!,
     $directTypes: [String!]!
   ) {
@@ -58,9 +59,15 @@ const PARTNERS_QUERY = `
         ]
       }) { aggregate { count } }
 
-      orders_dinein: orders_aggregate(where: {
+      orders_pos: orders_aggregate(where: {
         created_at: { _gte: $since },
-        type: { _in: ["table", "table_order"] },
+        source: { _eq: "pos" },
+        _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
+      }) { aggregate { count } }
+
+      month_total: orders_aggregate(where: {
+        created_at: { _gte: $monthStart },
+        type: { _in: $directTypes },
         _and: [
           { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
           { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
@@ -68,10 +75,27 @@ const PARTNERS_QUERY = `
         ]
       }) { aggregate { count } }
 
-      orders_pos: orders_aggregate(where: {
-        created_at: { _gte: $since },
-        source: { _eq: "pos" },
-        _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
+      month_delivery: orders_aggregate(where: {
+        _and: [
+          { created_at: { _gte: $monthStart } },
+          { type: { _eq: "delivery" } },
+          { delivery_address: { _is_null: false } },
+          { delivery_address: { _neq: "" } },
+          { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+          { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
+        ]
+      }) { aggregate { count } }
+
+      month_takeaway: orders_aggregate(where: {
+        _and: [
+          { created_at: { _gte: $monthStart } },
+          { type: { _eq: "delivery" } },
+          { _or: [{ delivery_address: { _is_null: true } }, { delivery_address: { _eq: "" } }] },
+          { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+          { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
+        ]
       }) { aggregate { count } }
     }
   }
@@ -94,6 +118,11 @@ async function hasura(query: string, variables: Record<string, unknown>) {
   return json.data ?? {};
 }
 
+function startOfCurrentMonth(): string {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+}
+
 export async function GET(req: NextRequest) {
   try {
     const raw = req.nextUrl.searchParams.get("ids") ?? "";
@@ -111,10 +140,12 @@ export async function GET(req: NextRequest) {
     }
 
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const monthStart = startOfCurrentMonth();
 
     const data = await hasura(PARTNERS_QUERY, {
       ids,
       since,
+      monthStart,
       excludedUsers: EXCLUDED_USER_IDS,
       directTypes: DIRECT_TYPES,
     });
@@ -126,13 +157,16 @@ export async function GET(req: NextRequest) {
       totalOrders: p.orders_total?.aggregate?.count ?? 0,
       delivery: p.orders_delivery?.aggregate?.count ?? 0,
       takeaway: p.orders_takeaway?.aggregate?.count ?? 0,
-      dinein: p.orders_dinein?.aggregate?.count ?? 0,
       pos: p.orders_pos?.aggregate?.count ?? 0,
+      monthTotal: p.month_total?.aggregate?.count ?? 0,
+      monthDelivery: p.month_delivery?.aggregate?.count ?? 0,
+      monthTakeaway: p.month_takeaway?.aggregate?.count ?? 0,
     }));
 
     return NextResponse.json({
       partners,
       windowStart: since,
+      monthStart,
       syncedAt: new Date().toISOString(),
     });
   } catch (e: any) {

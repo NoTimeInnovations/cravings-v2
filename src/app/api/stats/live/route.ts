@@ -9,8 +9,9 @@ export const dynamic = "force-dynamic";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Non-POS direct order types only — POS orders are excluded from /analytics.
-const DIRECT_TYPES = ["delivery", "table", "table_order"];
+// Customer-facing types shown in /analytics. Dine-in (table / table_order)
+// is intentionally excluded — analytics only tracks delivery + takeaway.
+const DIRECT_TYPES = ["delivery"];
 
 const LIVE_QUERY = `
   query LiveOrders($since: timestamptz!, $today: timestamptz!, $partnerFilter: uuid_comparison_exp!, $excludedUsers: [uuid!]!, $directTypes: [String!]!) {
@@ -89,17 +90,6 @@ const LIVE_QUERY = `
         { partner_id: $partnerFilter },
         { type: { _eq: "delivery" } },
         { _or: [{ delivery_address: { _is_null: true } }, { delivery_address: { _eq: "" } }] },
-        { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
-        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
-      ]
-    }) { aggregate { count, sum { total_price } } }
-
-    last_hour_dinein: orders_aggregate(where: {
-      created_at: { _gte: $since },
-      partner_id: $partnerFilter,
-      type: { _in: ["table", "table_order"] },
-      _and: [
         { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
         { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
         { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
@@ -231,10 +221,6 @@ export async function GET(req: NextRequest) {
         takeaway: {
           count: data.last_hour_takeaway?.aggregate?.count ?? 0,
           gmv: Math.round(data.last_hour_takeaway?.aggregate?.sum?.total_price ?? 0),
-        },
-        dinein: {
-          count: data.last_hour_dinein?.aggregate?.count ?? 0,
-          gmv: Math.round(data.last_hour_dinein?.aggregate?.sum?.total_price ?? 0),
         },
       },
       pendingNow: data.pending_now?.aggregate?.count ?? 0,

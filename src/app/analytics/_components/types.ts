@@ -11,7 +11,6 @@ export type SeriesPoint = {
   newPartners: number;
   delivery: number;
   takeaway: number;
-  dinein: number;
 };
 
 export type LiveOrder = {
@@ -42,8 +41,10 @@ export type SelectedPartner = {
   totalOrders: number;
   delivery: number;
   takeaway: number;
-  dinein: number;
   pos: number;
+  monthTotal: number;
+  monthDelivery: number;
+  monthTakeaway: number;
 };
 
 export type SelectedPartnerStats = {
@@ -59,7 +60,6 @@ export type LiveStats = {
     total: { count: number; gmv: number };
     delivery: { count: number; gmv: number };
     takeaway: { count: number; gmv: number };
-    dinein: { count: number; gmv: number };
   };
   pendingNow: number;
   partners: LivePartnerOption[];
@@ -95,7 +95,6 @@ export type Channel = {
 export type Channels = {
   directDelivery: Channel;
   directTakeaway: Channel;
-  directDinein: Channel;
 };
 
 export type ChannelTotals = {

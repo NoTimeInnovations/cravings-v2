@@ -13,7 +13,6 @@ import { cn } from "@/lib/utils";
 import {
   Bike,
   ShoppingBag,
-  UtensilsCrossed,
   Building2,
   Search,
   Plus,
@@ -168,8 +167,10 @@ export default function SelectedPartnersSection() {
         totalOrders: s?.totalOrders ?? 0,
         delivery: s?.delivery ?? 0,
         takeaway: s?.takeaway ?? 0,
-        dinein: s?.dinein ?? 0,
         pos: s?.pos ?? 0,
+        monthTotal: s?.monthTotal ?? 0,
+        monthDelivery: s?.monthDelivery ?? 0,
+        monthTakeaway: s?.monthTakeaway ?? 0,
       };
     });
 
@@ -190,7 +191,7 @@ export default function SelectedPartnersSection() {
     <div className="space-y-6">
       <SectionHeader
         title="Key partners"
-        subtitle="Pick up to 9 partners — last 24h counts, refreshed every 10s"
+        subtitle="Pick up to 9 partners — last 24h + current month counts, refreshed every 10s"
         right={
           <div className="flex items-center gap-3">
             <SortSelect value={sort} onChange={setSort} />
@@ -251,12 +252,16 @@ function PartnerCard({
     totalOrders: number;
     delivery: number;
     takeaway: number;
-    dinein: number;
     pos: number;
+    monthTotal: number;
+    monthDelivery: number;
+    monthTakeaway: number;
   };
   loading: boolean;
   onRemove: () => void;
 }) {
+  const monthLabel = new Date().toLocaleString(undefined, { month: "long" });
+
   return (
     <Card className="p-4 bg-white relative">
       <button
@@ -279,6 +284,7 @@ function PartnerCard({
         </div>
       </div>
 
+      {/* 24h block */}
       <div className="mt-4 flex items-baseline gap-2">
         <div className="text-3xl font-semibold tabular-nums">
           {loading ? <Skeleton className="h-9 w-16 inline-block" /> : compact(data.totalOrders)}
@@ -286,7 +292,7 @@ function PartnerCard({
         <div className="text-xs text-muted-foreground">total orders · 24h</div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      <div className="mt-3 grid grid-cols-3 gap-2">
         <Metric
           label="Delivery"
           value={data.delivery}
@@ -302,19 +308,40 @@ function PartnerCard({
           loading={loading}
         />
         <Metric
-          label="Dine-in"
-          value={data.dinein}
-          icon={<UtensilsCrossed className="size-3.5" />}
-          tone="text-emerald-700 bg-emerald-50"
-          loading={loading}
-        />
-        <Metric
           label="POS"
           value={data.pos}
           icon={<Building2 className="size-3.5" />}
           tone="text-violet-700 bg-violet-50"
           loading={loading}
         />
+      </div>
+
+      {/* This-month block */}
+      <div className="mt-4 pt-3 border-t">
+        <div className="flex items-baseline gap-2">
+          <div className="text-2xl font-semibold tabular-nums">
+            {loading ? <Skeleton className="h-7 w-14 inline-block" /> : compact(data.monthTotal)}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            total orders · {monthLabel}
+          </div>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Metric
+            label="Delivery"
+            value={data.monthDelivery}
+            icon={<Bike className="size-3.5" />}
+            tone="text-blue-700 bg-blue-50"
+            loading={loading}
+          />
+          <Metric
+            label="Takeaway"
+            value={data.monthTakeaway}
+            icon={<ShoppingBag className="size-3.5" />}
+            tone="text-amber-700 bg-amber-50"
+            loading={loading}
+          />
+        </div>
       </div>
     </Card>
   );

@@ -2,7 +2,6 @@
 
 import { Card } from "@/components/ui/card";
 import {
-  UtensilsCrossed,
   ShoppingBag,
   Bike,
   TrendingUp,
@@ -25,8 +24,6 @@ export default function ChannelBreakdown({ channels, totals }: Props) {
     grandOrders > 0 ? (channels.directDelivery.orders / grandOrders) * 100 : 0;
   const takeawayShare =
     grandOrders > 0 ? (channels.directTakeaway.orders / grandOrders) * 100 : 0;
-  const dineinShare =
-    grandOrders > 0 ? (channels.directDinein.orders / grandOrders) * 100 : 0;
 
   return (
     <div className="space-y-4">
@@ -39,8 +36,8 @@ export default function ChannelBreakdown({ channels, totals }: Props) {
         </div>
       </div>
 
-      {/* 3-channel breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* 2-channel breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <ChannelCard
           label="Delivery"
           accent="emerald"
@@ -52,12 +49,6 @@ export default function ChannelBreakdown({ channels, totals }: Props) {
           accent="amber"
           icon={<ShoppingBag className="size-4" />}
           channel={channels.directTakeaway}
-        />
-        <ChannelCard
-          label="Dine-in"
-          accent="sky"
-          icon={<UtensilsCrossed className="size-4" />}
-          channel={channels.directDinein}
         />
       </div>
 
@@ -72,10 +63,6 @@ export default function ChannelBreakdown({ channels, totals }: Props) {
             <span className="inline-block size-2 rounded-full bg-amber-500 mr-1.5 align-middle" />
             Takeaway {takeawayShare.toFixed(1)}%
           </span>
-          <span>
-            <span className="inline-block size-2 rounded-full bg-sky-500 mr-1.5 align-middle" />
-            Dine-in {dineinShare.toFixed(1)}%
-          </span>
         </div>
         <div className="h-2 w-full rounded-full bg-muted overflow-hidden flex">
           <div
@@ -85,10 +72,6 @@ export default function ChannelBreakdown({ channels, totals }: Props) {
           <div
             className="h-full bg-amber-500"
             style={{ width: `${takeawayShare}%` }}
-          />
-          <div
-            className="h-full bg-sky-500"
-            style={{ width: `${dineinShare}%` }}
           />
         </div>
         <div className="mt-2 text-xs text-muted-foreground text-center">

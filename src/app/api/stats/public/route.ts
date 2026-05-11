@@ -53,9 +53,10 @@ async function hasura(query: string, variables: Record<string, unknown>) {
   return json.data ?? {};
 }
 
-// Non-POS order types only — POS orders (dineinPOS / pos / takeawayPOS /
-// deliveryPOS) are excluded from every calculation in /analytics.
-const DIRECT_TYPES = ["delivery", "table", "table_order"];
+// Customer-facing fulfilment types we surface in /analytics. Dine-in
+// (table / table_order) is intentionally excluded — analytics only tracks
+// delivery and takeaway (which is just type=delivery with no address).
+const DIRECT_TYPES = ["delivery"];
 
 const KPI_QUERY = `
   query KpiQuery(
@@ -259,26 +260,6 @@ const KPI_QUERY = `
       ]
     }) { aggregate { count, sum { total_price } } }
 
-    direct_dinein: orders_aggregate(where: {
-      created_at: { _gte: $start, _lte: $end },
-      type: { _in: ["table", "table_order"] },
-      partner_id: { _nin: $excluded },
-      _and: [
-        { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
-        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
-      ]
-    }) { aggregate { count, sum { total_price } } }
-    direct_dinein_prev: orders_aggregate(where: {
-      created_at: { _gte: $prevStart, _lt: $prevEnd },
-      type: { _in: ["table", "table_order"] },
-      partner_id: { _nin: $excluded },
-      _and: [
-        { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
-        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
-      ]
-    }) { aggregate { count, sum { total_price } } }
   }
 `;
 
@@ -410,7 +391,6 @@ async function dailySeries(
     newPartners: number;
     delivery: number;
     takeaway: number;
-    dinein: number;
   }>
 > {
   const buckets: Record<
@@ -423,7 +403,6 @@ async function dailySeries(
       newPartners: number;
       delivery: number;
       takeaway: number;
-      dinein: number;
     }
   > = {};
   for (let i = 0; i < days; i++) {
@@ -438,7 +417,6 @@ async function dailySeries(
       newPartners: 0,
       delivery: 0,
       takeaway: 0,
-      dinein: 0,
     };
   }
 
@@ -484,17 +462,13 @@ async function dailySeries(
     directTypes: DIRECT_TYPES,
   });
 
-  const dineinTypes = new Set(["table", "table_order"]);
-
   for (const o of data.orders ?? []) {
     const d = new Date(o.created_at).toISOString().slice(0, 10);
     if (buckets[d]) {
       buckets[d].orders += 1;
       buckets[d].gmv += Number(o.total_price ?? 0);
       if (o.user_id) buckets[d].customers.add(o.user_id);
-      if (dineinTypes.has(o.type)) {
-        buckets[d].dinein += 1;
-      } else if (o.type === "delivery") {
+      if (o.type === "delivery") {
         // Delivery without an address is treated as takeaway.
         const addr = (o.delivery_address ?? "").toString().trim();
         if (addr) buckets[d].delivery += 1;
@@ -520,7 +494,6 @@ async function dailySeries(
     newPartners: v.newPartners,
     delivery: v.delivery,
     takeaway: v.takeaway,
-    dinein: v.dinein,
   }));
 }
 
@@ -658,28 +631,23 @@ export async function GET(req: NextRequest) {
     const channels = {
       directDelivery: channel(kpi.direct_delivery, kpi.direct_delivery_prev),
       directTakeaway: channel(kpi.direct_takeaway, kpi.direct_takeaway_prev),
-      directDinein: channel(kpi.direct_dinein, kpi.direct_dinein_prev),
     };
 
     const directTotal = {
       orders:
         channels.directDelivery.orders +
-        channels.directTakeaway.orders +
-        channels.directDinein.orders,
+        channels.directTakeaway.orders,
       gmv:
         channels.directDelivery.gmv +
-        channels.directTakeaway.gmv +
-        channels.directDinein.gmv,
+        channels.directTakeaway.gmv,
     };
     const directPrev = {
       orders:
         (kpi.direct_delivery_prev?.aggregate?.count ?? 0) +
-        (kpi.direct_takeaway_prev?.aggregate?.count ?? 0) +
-        (kpi.direct_dinein_prev?.aggregate?.count ?? 0),
+        (kpi.direct_takeaway_prev?.aggregate?.count ?? 0),
       gmv: Math.round(
         (kpi.direct_delivery_prev?.aggregate?.sum?.total_price ?? 0) +
-          (kpi.direct_takeaway_prev?.aggregate?.sum?.total_price ?? 0) +
-          (kpi.direct_dinein_prev?.aggregate?.sum?.total_price ?? 0)
+          (kpi.direct_takeaway_prev?.aggregate?.sum?.total_price ?? 0)
       ),
     };
 

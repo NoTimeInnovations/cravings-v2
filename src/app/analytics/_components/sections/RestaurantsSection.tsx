@@ -10,20 +10,18 @@ import { compact, rupees } from "../format";
 import { SectionHeader } from "./OverviewSection";
 import type { PublicStats, Range } from "../types";
 
-type ChannelMetric = "all" | "delivery" | "takeaway" | "dinein";
+type ChannelMetric = "all" | "delivery" | "takeaway";
 
 const CHANNEL_COLORS: Record<ChannelMetric, string> = {
   all: "#a78bfa",
   delivery: "#34d399",
   takeaway: "#fbbf24",
-  dinein: "#7dd3fc",
 };
 
 const CHANNEL_LABELS: Record<ChannelMetric, string> = {
   all: "All non-cancelled orders",
   delivery: "Delivery orders only",
   takeaway: "Takeaway orders only",
-  dinein: "Dine-in orders only",
 };
 
 export default function RestaurantsSection({
@@ -41,9 +39,7 @@ export default function RestaurantsSection({
         ? s.delivery
         : channelMetric === "takeaway"
           ? s.takeaway
-          : channelMetric === "dinein"
-            ? s.dinein
-            : s.orders;
+          : s.orders;
     return { d: s.d, v };
   });
 
@@ -79,7 +75,6 @@ export default function RestaurantsSection({
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="delivery">Delivery</TabsTrigger>
               <TabsTrigger value="takeaway">Takeaway</TabsTrigger>
-              <TabsTrigger value="dinein">Dine-in</TabsTrigger>
             </TabsList>
           </Tabs>
         }

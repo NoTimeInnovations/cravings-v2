@@ -37,7 +37,7 @@ export const TABS: Array<{
     id: "live",
     label: "Live orders",
     icon: Activity,
-    description: "Delivery, takeaway & dine-in right now",
+    description: "Delivery & takeaway right now",
   },
   {
     id: "selected",
