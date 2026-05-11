@@ -10,6 +10,7 @@ import RangeSelector from "./RangeSelector";
 import { DesktopSidebar, MobileTabs, TABS, type Tab } from "./Sidebar";
 import OverviewSection from "./sections/OverviewSection";
 import LiveOrdersSection from "./sections/LiveOrdersSection";
+import SelectedPartnersSection from "./sections/SelectedPartnersSection";
 import GrowthSection from "./sections/GrowthSection";
 import RestaurantsSection from "./sections/RestaurantsSection";
 import DiscoverySection from "./sections/DiscoverySection";
@@ -19,6 +20,7 @@ const REFRESH_MS = 30_000;
 const VALID_TABS = new Set<Tab>([
   "overview",
   "live",
+  "selected",
   "growth",
   "restaurants",
   "discovery",
@@ -104,13 +106,15 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-          {tab !== "live" && (
+          {tab !== "live" && tab !== "selected" && (
             <RangeSelector current={range} disabled={refreshing} />
           )}
-          {tab === "live" && (
+          {(tab === "live" || tab === "selected") && (
             <div className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-1.5 text-sm">
               <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-muted-foreground">Today, real-time</span>
+              <span className="text-muted-foreground">
+                {tab === "live" ? "Today, real-time" : "Last 24h, real-time"}
+              </span>
             </div>
           )}
         </div>
@@ -134,6 +138,7 @@ export default function Dashboard() {
               <OverviewSection hasura={hasura} posthog={posthog} range={range} />
             )}
             {tab === "live" && <LiveOrdersSection />}
+            {tab === "selected" && <SelectedPartnersSection />}
             {tab === "growth" && <GrowthSection hasura={hasura} range={range} />}
             {tab === "restaurants" && (
               <RestaurantsSection hasura={hasura} range={range} />

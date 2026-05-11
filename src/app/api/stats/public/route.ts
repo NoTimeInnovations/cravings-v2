@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { EXCLUDED_PARTNER_IDS } from "../_excluded";
+import { EXCLUDED_PARTNER_IDS, EXCLUDED_USER_IDS } from "../_excluded";
 
 const HASURA_ENDPOINT = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT!;
 const HASURA_SECRET = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET!;
@@ -53,6 +53,10 @@ async function hasura(query: string, variables: Record<string, unknown>) {
   return json.data ?? {};
 }
 
+// Non-POS order types only — POS orders (dineinPOS / pos / takeawayPOS /
+// deliveryPOS) are excluded from every calculation in /analytics.
+const DIRECT_TYPES = ["delivery", "table", "table_order"];
+
 const KPI_QUERY = `
   query KpiQuery(
     $start: timestamptz!,
@@ -62,13 +66,16 @@ const KPI_QUERY = `
     $startDate: date!,
     $endDate: date!,
     $excluded: [uuid!]!,
-    $excludedQrs: [uuid!]!
+    $excludedUsers: [uuid!]!,
+    $excludedQrs: [uuid!]!,
+    $directTypes: [String!]!
   ) {
     active_customers: orders(
       where: {
         created_at: { _gte: $start, _lte: $end },
-        user_id: { _is_null: false },
-        partner_id: { _nin: $excluded }
+        user_id: { _is_null: false, _nin: $excludedUsers },
+        partner_id: { _nin: $excluded },
+        type: { _in: $directTypes }
       }
       distinct_on: user_id
       order_by: { user_id: asc }
@@ -78,8 +85,9 @@ const KPI_QUERY = `
     active_customers_prev: orders(
       where: {
         created_at: { _gte: $prevStart, _lt: $prevEnd },
-        user_id: { _is_null: false },
-        partner_id: { _nin: $excluded }
+        user_id: { _is_null: false, _nin: $excludedUsers },
+        partner_id: { _nin: $excluded },
+        type: { _in: $directTypes }
       }
       distinct_on: user_id
       order_by: { user_id: asc }
@@ -89,28 +97,40 @@ const KPI_QUERY = `
     orders: orders_aggregate(where: {
       created_at: { _gte: $start, _lte: $end },
       partner_id: { _nin: $excluded },
-      _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
+      type: { _in: $directTypes },
+      _and: [
+        { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+      ]
     }) {
       aggregate { count, sum { total_price } }
     }
     orders_prev: orders_aggregate(where: {
       created_at: { _gte: $prevStart, _lt: $prevEnd },
       partner_id: { _nin: $excluded },
-      _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
+      type: { _in: $directTypes },
+      _and: [
+        { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+      ]
     }) {
       aggregate { count, sum { total_price } }
     }
     completed_orders: orders_aggregate(where: {
       created_at: { _gte: $start, _lte: $end },
       partner_id: { _nin: $excluded },
-      status: { _in: ["completed", "accepted"] }
+      type: { _in: $directTypes },
+      status: { _in: ["completed", "accepted"] },
+      _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }]
     }) {
       aggregate { count, sum { total_price } }
     }
     cancelled_orders: orders_aggregate(where: {
       created_at: { _gte: $start, _lte: $end },
       partner_id: { _nin: $excluded },
-      status: { _eq: "cancelled" }
+      type: { _in: $directTypes },
+      status: { _eq: "cancelled" },
+      _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }]
     }) {
       aggregate { count }
     }
@@ -129,7 +149,9 @@ const KPI_QUERY = `
     active_partners: orders(
       where: {
         created_at: { _gte: $start, _lte: $end },
-        partner_id: { _nin: $excluded }
+        partner_id: { _nin: $excluded },
+        type: { _in: $directTypes },
+        _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }]
       }
       distinct_on: partner_id
       order_by: { partner_id: asc }
@@ -139,7 +161,9 @@ const KPI_QUERY = `
     active_partners_prev: orders(
       where: {
         created_at: { _gte: $prevStart, _lt: $prevEnd },
-        partner_id: { _nin: $excluded }
+        partner_id: { _nin: $excluded },
+        type: { _in: $directTypes },
+        _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }]
       }
       distinct_on: partner_id
       order_by: { partner_id: asc }
@@ -172,81 +196,85 @@ const KPI_QUERY = `
     }
 
     direct_delivery: orders_aggregate(where: {
-      created_at: { _gte: $start, _lte: $end },
-      type: { _eq: "delivery" },
-      partner_id: { _nin: $excluded },
-      _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
+      _and: [
+        { created_at: { _gte: $start, _lte: $end } },
+        { type: { _eq: "delivery" } },
+        { partner_id: { _nin: $excluded } },
+        { delivery_address: { _is_null: false } },
+        { delivery_address: { _neq: "" } },
+        { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+      ]
     }) { aggregate { count, sum { total_price } } }
     direct_delivery_prev: orders_aggregate(where: {
-      created_at: { _gte: $prevStart, _lt: $prevEnd },
-      type: { _eq: "delivery" },
-      partner_id: { _nin: $excluded },
-      _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
+      _and: [
+        { created_at: { _gte: $prevStart, _lt: $prevEnd } },
+        { type: { _eq: "delivery" } },
+        { partner_id: { _nin: $excluded } },
+        { delivery_address: { _is_null: false } },
+        { delivery_address: { _neq: "" } },
+        { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+      ]
+    }) { aggregate { count, sum { total_price } } }
+
+    direct_takeaway: orders_aggregate(where: {
+      _and: [
+        { created_at: { _gte: $start, _lte: $end } },
+        { type: { _eq: "delivery" } },
+        { partner_id: { _nin: $excluded } },
+        { _or: [{ delivery_address: { _is_null: true } }, { delivery_address: { _eq: "" } }] },
+        { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+      ]
+    }) { aggregate { count, sum { total_price } } }
+    direct_takeaway_prev: orders_aggregate(where: {
+      _and: [
+        { created_at: { _gte: $prevStart, _lt: $prevEnd } },
+        { type: { _eq: "delivery" } },
+        { partner_id: { _nin: $excluded } },
+        { _or: [{ delivery_address: { _is_null: true } }, { delivery_address: { _eq: "" } }] },
+        { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+      ]
     }) { aggregate { count, sum { total_price } } }
 
     direct_dinein: orders_aggregate(where: {
       created_at: { _gte: $start, _lte: $end },
       type: { _in: ["table", "table_order"] },
       partner_id: { _nin: $excluded },
-      _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
+      _and: [
+        { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+      ]
     }) { aggregate { count, sum { total_price } } }
     direct_dinein_prev: orders_aggregate(where: {
       created_at: { _gte: $prevStart, _lt: $prevEnd },
       type: { _in: ["table", "table_order"] },
       partner_id: { _nin: $excluded },
-      _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
-    }) { aggregate { count, sum { total_price } } }
-
-    pos_dinein: orders_aggregate(where: {
-      created_at: { _gte: $start, _lte: $end },
-      type: { _in: ["dineinPOS", "pos"] },
-      partner_id: { _nin: $excluded },
-      _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
-    }) { aggregate { count, sum { total_price } } }
-    pos_dinein_prev: orders_aggregate(where: {
-      created_at: { _gte: $prevStart, _lt: $prevEnd },
-      type: { _in: ["dineinPOS", "pos"] },
-      partner_id: { _nin: $excluded },
-      _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
-    }) { aggregate { count, sum { total_price } } }
-
-    pos_takeaway: orders_aggregate(where: {
-      created_at: { _gte: $start, _lte: $end },
-      type: { _eq: "takeawayPOS" },
-      partner_id: { _nin: $excluded },
-      _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
-    }) { aggregate { count, sum { total_price } } }
-    pos_takeaway_prev: orders_aggregate(where: {
-      created_at: { _gte: $prevStart, _lt: $prevEnd },
-      type: { _eq: "takeawayPOS" },
-      partner_id: { _nin: $excluded },
-      _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
-    }) { aggregate { count, sum { total_price } } }
-
-    pos_delivery: orders_aggregate(where: {
-      created_at: { _gte: $start, _lte: $end },
-      type: { _eq: "deliveryPOS" },
-      partner_id: { _nin: $excluded },
-      _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
-    }) { aggregate { count, sum { total_price } } }
-    pos_delivery_prev: orders_aggregate(where: {
-      created_at: { _gte: $prevStart, _lt: $prevEnd },
-      type: { _eq: "deliveryPOS" },
-      partner_id: { _nin: $excluded },
-      _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
+      _and: [
+        { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+      ]
     }) { aggregate { count, sum { total_price } } }
   }
 `;
 
 const ALL_TIME_QUERY = `
-  query AllTime($excluded: [uuid!]!, $excludedQrs: [uuid!]!) {
+  query AllTime($excluded: [uuid!]!, $excludedUsers: [uuid!]!, $excludedQrs: [uuid!]!, $directTypes: [String!]!) {
     total_partners: partners_aggregate(where: { id: { _nin: $excluded } }) {
       aggregate { count }
     }
-    total_users: users_aggregate { aggregate { count } }
+    total_users: users_aggregate(where: { id: { _nin: $excludedUsers } }) {
+      aggregate { count }
+    }
     total_orders: orders_aggregate(where: {
       partner_id: { _nin: $excluded },
-      _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
+      type: { _in: $directTypes },
+      _and: [
+        { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+      ]
     }) {
       aggregate { count, sum { total_price }, avg { total_price } }
     }
@@ -262,11 +290,15 @@ const ALL_TIME_QUERY = `
 `;
 
 const TOP_PARTNERS_QUERY = `
-  query TopPartners($start: timestamptz!, $end: timestamptz!, $excluded: [uuid!]!) {
+  query TopPartners($start: timestamptz!, $end: timestamptz!, $excluded: [uuid!]!, $excludedUsers: [uuid!]!, $directTypes: [String!]!) {
     partners(
       where: {
         id: { _nin: $excluded },
-        orders: { created_at: { _gte: $start, _lte: $end } }
+        orders: {
+          created_at: { _gte: $start, _lte: $end },
+          type: { _in: $directTypes },
+          _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }]
+        }
       }
       limit: 100
     ) {
@@ -275,7 +307,11 @@ const TOP_PARTNERS_QUERY = `
       district
       orders_aggregate(where: {
         created_at: { _gte: $start, _lte: $end },
-        _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
+        type: { _in: $directTypes },
+        _and: [
+          { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+        ]
       }) {
         aggregate { count, sum { total_price } }
       }
@@ -345,8 +381,9 @@ async function dailySeries(
     customers: number;
     scans: number;
     newPartners: number;
-    direct: number;
-    pos: number;
+    delivery: number;
+    takeaway: number;
+    dinein: number;
   }>
 > {
   const buckets: Record<
@@ -357,8 +394,9 @@ async function dailySeries(
       customers: Set<string>;
       scans: number;
       newPartners: number;
-      direct: number;
-      pos: number;
+      delivery: number;
+      takeaway: number;
+      dinein: number;
     }
   > = {};
   for (let i = 0; i < days; i++) {
@@ -371,22 +409,28 @@ async function dailySeries(
       customers: new Set(),
       scans: 0,
       newPartners: 0,
-      direct: 0,
-      pos: 0,
+      delivery: 0,
+      takeaway: 0,
+      dinein: 0,
     };
   }
 
   const SERIES_QUERY = `
-    query Series($start: timestamptz!, $end: timestamptz!, $excluded: [uuid!]!, $excludedQrs: [uuid!]!) {
+    query Series($start: timestamptz!, $end: timestamptz!, $excluded: [uuid!]!, $excludedUsers: [uuid!]!, $excludedQrs: [uuid!]!, $directTypes: [String!]!) {
       orders(where: {
         created_at: { _gte: $start, _lte: $end },
         partner_id: { _nin: $excluded },
-        _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
+        type: { _in: $directTypes },
+        _and: [
+          { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+        ]
       }, limit: 50000) {
         created_at
         total_price
         user_id
         type
+        delivery_address
       }
       qr_scans(where: {
         created_at: { _gte: $start, _lte: $end },
@@ -407,10 +451,12 @@ async function dailySeries(
     start,
     end,
     excluded: EXCLUDED_PARTNER_IDS,
+    excludedUsers: EXCLUDED_USER_IDS,
     excludedQrs,
+    directTypes: DIRECT_TYPES,
   });
 
-  const directTypes = new Set(["delivery", "table", "table_order"]);
+  const dineinTypes = new Set(["table", "table_order"]);
 
   for (const o of data.orders ?? []) {
     const d = new Date(o.created_at).toISOString().slice(0, 10);
@@ -418,8 +464,14 @@ async function dailySeries(
       buckets[d].orders += 1;
       buckets[d].gmv += Number(o.total_price ?? 0);
       if (o.user_id) buckets[d].customers.add(o.user_id);
-      if (directTypes.has(o.type)) buckets[d].direct += 1;
-      else buckets[d].pos += 1;
+      if (dineinTypes.has(o.type)) {
+        buckets[d].dinein += 1;
+      } else if (o.type === "delivery") {
+        // Delivery without an address is treated as takeaway.
+        const addr = (o.delivery_address ?? "").toString().trim();
+        if (addr) buckets[d].delivery += 1;
+        else buckets[d].takeaway += 1;
+      }
     }
   }
   for (const s of data.qr_scans ?? []) {
@@ -438,8 +490,9 @@ async function dailySeries(
     customers: v.customers.size,
     scans: v.scans,
     newPartners: v.newPartners,
-    direct: v.direct,
-    pos: v.pos,
+    delivery: v.delivery,
+    takeaway: v.takeaway,
+    dinein: v.dinein,
   }));
 }
 
@@ -468,16 +521,22 @@ export async function GET(req: NextRequest) {
         startDate: w.startDate,
         endDate: w.endDate,
         excluded: EXCLUDED_PARTNER_IDS,
+        excludedUsers: EXCLUDED_USER_IDS,
         excludedQrs,
+        directTypes: DIRECT_TYPES,
       }),
       hasura(ALL_TIME_QUERY, {
         excluded: EXCLUDED_PARTNER_IDS,
+        excludedUsers: EXCLUDED_USER_IDS,
         excludedQrs,
+        directTypes: DIRECT_TYPES,
       }),
       hasura(TOP_PARTNERS_QUERY, {
         start: w.start,
         end: w.end,
         excluded: EXCLUDED_PARTNER_IDS,
+        excludedUsers: EXCLUDED_USER_IDS,
+        directTypes: DIRECT_TYPES,
       }),
       hasura(TOP_QR_QUERY, {
         start: w.start,
@@ -570,44 +629,29 @@ export async function GET(req: NextRequest) {
 
     const channels = {
       directDelivery: channel(kpi.direct_delivery, kpi.direct_delivery_prev),
+      directTakeaway: channel(kpi.direct_takeaway, kpi.direct_takeaway_prev),
       directDinein: channel(kpi.direct_dinein, kpi.direct_dinein_prev),
-      posDinein: channel(kpi.pos_dinein, kpi.pos_dinein_prev),
-      posTakeaway: channel(kpi.pos_takeaway, kpi.pos_takeaway_prev),
-      posDelivery: channel(kpi.pos_delivery, kpi.pos_delivery_prev),
     };
 
     const directTotal = {
-      orders: channels.directDelivery.orders + channels.directDinein.orders,
-      gmv: channels.directDelivery.gmv + channels.directDinein.gmv,
-    };
-    const posTotal = {
       orders:
-        channels.posDinein.orders +
-        channels.posTakeaway.orders +
-        channels.posDelivery.orders,
+        channels.directDelivery.orders +
+        channels.directTakeaway.orders +
+        channels.directDinein.orders,
       gmv:
-        channels.posDinein.gmv +
-        channels.posTakeaway.gmv +
-        channels.posDelivery.gmv,
+        channels.directDelivery.gmv +
+        channels.directTakeaway.gmv +
+        channels.directDinein.gmv,
     };
     const directPrev = {
       orders:
         (kpi.direct_delivery_prev?.aggregate?.count ?? 0) +
+        (kpi.direct_takeaway_prev?.aggregate?.count ?? 0) +
         (kpi.direct_dinein_prev?.aggregate?.count ?? 0),
       gmv: Math.round(
         (kpi.direct_delivery_prev?.aggregate?.sum?.total_price ?? 0) +
+          (kpi.direct_takeaway_prev?.aggregate?.sum?.total_price ?? 0) +
           (kpi.direct_dinein_prev?.aggregate?.sum?.total_price ?? 0)
-      ),
-    };
-    const posPrev = {
-      orders:
-        (kpi.pos_dinein_prev?.aggregate?.count ?? 0) +
-        (kpi.pos_takeaway_prev?.aggregate?.count ?? 0) +
-        (kpi.pos_delivery_prev?.aggregate?.count ?? 0),
-      gmv: Math.round(
-        (kpi.pos_dinein_prev?.aggregate?.sum?.total_price ?? 0) +
-          (kpi.pos_takeaway_prev?.aggregate?.sum?.total_price ?? 0) +
-          (kpi.pos_delivery_prev?.aggregate?.sum?.total_price ?? 0)
       ),
     };
 
@@ -639,11 +683,6 @@ export async function GET(req: NextRequest) {
           ...directTotal,
           ordersDelta: pctDelta(directTotal.orders, directPrev.orders),
           gmvDelta: pctDelta(directTotal.gmv, directPrev.gmv),
-        },
-        pos: {
-          ...posTotal,
-          ordersDelta: pctDelta(posTotal.orders, posPrev.orders),
-          gmvDelta: pctDelta(posTotal.gmv, posPrev.gmv),
         },
       },
       topPartnersByOrders: topPartnersList.slice(0, 10),

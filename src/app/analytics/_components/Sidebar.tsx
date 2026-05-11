@@ -10,9 +10,16 @@ import {
   Building2,
   Search,
   Wifi,
+  Star,
 } from "lucide-react";
 
-export type Tab = "overview" | "live" | "growth" | "restaurants" | "discovery";
+export type Tab =
+  | "overview"
+  | "live"
+  | "selected"
+  | "growth"
+  | "restaurants"
+  | "discovery";
 
 export const TABS: Array<{
   id: Tab;
@@ -31,6 +38,12 @@ export const TABS: Array<{
     label: "Live orders",
     icon: Activity,
     description: "Delivery, takeaway & dine-in right now",
+  },
+  {
+    id: "selected",
+    label: "Key partners",
+    icon: Star,
+    description: "Watchlist of up to 9 partners — live 24h counts",
   },
   {
     id: "growth",
