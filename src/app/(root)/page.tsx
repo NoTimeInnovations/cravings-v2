@@ -4,9 +4,6 @@ import dynamic from "next/dynamic";
 import Hero from "@/components/home/Hero";
 import { JsonLd } from "@/components/seo/JsonLd";
 
-const OrderFlowAnimation = dynamic(
-  () => import("@/components/home/OrderFlowAnimation")
-);
 const SocialProof = dynamic(
   () => import("@/components/home/SocialProof")
 );
@@ -140,13 +137,6 @@ export default function Home() {
 
       {/* HERO — headline, CTA, menu upload */}
       <Hero />
-
-      {/* ORDER FLOW — animated ordering story */}
-      <Suspense fallback={<div className="bg-[#fcfbf7] w-full h-[300px] md:h-[420px]" />}>
-        <section className="bg-[#fcfbf7]">
-          <OrderFlowAnimation />
-        </section>
-      </Suspense>
 
       {/* STATS — animated revenue/order counters */}
       <Suspense>

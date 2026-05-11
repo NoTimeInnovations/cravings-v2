@@ -1,5 +1,6 @@
 import React from "react";
 import Image from "next/image";
+import { EXCLUDED_PARTNER_IDS } from "@/app/api/stats/_excluded";
 
 interface Restaurant {
   url: string;
@@ -7,56 +8,73 @@ interface Restaurant {
   logo: string;
 }
 
-const restaurants: Restaurant[] = [
-  {
-    url: "https://menuthere.com/qrScan/CHICKING-OOTY/6ec40577-e2d5-4a47-80ec-5e63ab9f9677",
-    name: "CHICKING OOTY",
-    logo: "/logos/chicking.webp",
-  },
-  {
-    url: "https://menuthere.com/hotels/3305e7f2-7e35-4ddc-8ced-c57e164d9247",
-    name: "80's Malayalees",
-    logo: "/logos/malayalees.webp",
-  },
-  {
-    url: "https://menuthere.com/hotels/f58ebdef-b59b-435e-a3bf-90e562a456ed",
-    name: "Proyal",
-    logo: "/logos/proyal.webp",
-  },
-  {
-    url: "https://menuthere.com/hotels/9e159a20-8c81-4986-b471-3876de315fc7",
-    name: "Malabar Juice N Cafe",
-    logo: "/logos/malabar.webp",
-  },
-  {
-    url: "https://menuthere.com/hotels/9c23425d-7489-4a00-9a61-809e3e2b96cc",
-    name: "Chillies Restaurant",
-    logo: "/logos/chillies.webp",
-  },
-  {
-    url: "https://menuthere.com/hotels/e977b73a-c286-4572-bd1d-93345e960f7c",
-    name: "CUP OF COFFEE",
-    logo: "/logos/coc.webp",
-  },
-  {
-    url: "https://menuthere.com/hotels/e7cba2a1-4474-4841-84b1-e1538d938fc7",
-    name: "Bites Of Malabar",
-    logo: "/logos/bites.webp",
-  },
-  {
-    url: "https://menuthere.com/hotels/082a004a-a3f7-428d-89e0-f56d30e47ba0",
-    name: "BISTRIO",
-    logo: "/logos/bistrio.webp",
-  },
-];
+const HASURA_ENDPOINT = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT!;
+const HASURA_SECRET = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET!;
 
-export default function RestaurantMarquee() {
+const TOP_PARTNERS_QUERY = `
+  query TopOrderingPartners($excluded: [uuid!]!) {
+    partners(
+      where: {
+        id: { _nin: $excluded },
+        store_banner: { _is_null: false, _neq: "" },
+        orders: {}
+      }
+      order_by: { orders_aggregate: { count: desc } }
+      limit: 10
+    ) {
+      id
+      name
+      store_name
+      username
+      store_banner
+    }
+  }
+`;
+
+async function fetchTopRestaurants(): Promise<Restaurant[]> {
+  if (!HASURA_ENDPOINT || !HASURA_SECRET) return [];
+  try {
+    const res = await fetch(HASURA_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-hasura-admin-secret": HASURA_SECRET,
+      },
+      body: JSON.stringify({
+        query: TOP_PARTNERS_QUERY,
+        variables: { excluded: EXCLUDED_PARTNER_IDS },
+      }),
+      // Refresh once an hour — keeps the marquee responsive to live volume
+      // without hammering Hasura on every landing-page render.
+      next: { revalidate: 3600 },
+    });
+    const json = await res.json();
+    const partners = json?.data?.partners ?? [];
+    return partners
+      .filter((p: any) => p.id && p.store_banner)
+      .map((p: any) => ({
+        url: p.username
+          ? `https://menuthere.com/${p.username}`
+          : `https://menuthere.com/hotels/${p.id}`,
+        name: p.store_name || p.name || "Restaurant",
+        logo: p.store_banner,
+      }));
+  } catch (e) {
+    console.error("RestaurantMarquee: failed to fetch top partners", e);
+    return [];
+  }
+}
+
+export default async function RestaurantMarquee() {
+  const restaurants = await fetchTopRestaurants();
+  if (restaurants.length === 0) return null;
+
   // Duplicate for seamless loop
   const duplicated = [...restaurants, ...restaurants];
 
   return (
     <div className="overflow-hidden max-w-[70%] mx-auto my-20 ">
-<div
+      <div
         className="flex"
         style={{
           maskImage:
@@ -80,6 +98,8 @@ export default function RestaurantMarquee() {
                   src={r.logo}
                   alt={r.name}
                   fill
+                  sizes="96px"
+                  unoptimized
                   className="object-cover hover:scale-110 transition-transform duration-300 grayscale contrast-70 hover:contrast-100 hover:grayscale-0"
                 />
               </div>

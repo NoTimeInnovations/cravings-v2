@@ -4,6 +4,7 @@ export const EXCLUDED_PARTNER_IDS: string[] = [
   "20f7e974-f19e-4c11-b6b7-4385f61f27bf", // le_grand_cafe ("Paragon")
   "cc101d1f-eb37-42e1-9c6a-5384a3def37f", // oreodemo
   "a93d75c4-2505-4f54-9196-b7c39ea0edf2", // HILLTOWN
+  "373a15f9-9c58-4e34-ae07-b272e578928f", // Al Raidhan test store
   // All partners registered with phone 6282826684 (test / dev accounts).
   "f77e9e78-0dc1-4369-ae05-d116bb70fcc9", // TestPartner2
   "19fa3b04-c5b7-4894-8c1c-6296637cd37d", // TestPartner3
