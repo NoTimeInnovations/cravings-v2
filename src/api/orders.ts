@@ -56,7 +56,8 @@ export const createOrderMutation = `
     $display_id: String,
     $table_name: String,
     $payment_method: String,
-    $discounts: jsonb
+    $discounts: jsonb,
+    $source: String
   ) {
     insert_orders_one(object: {
       id: $id
@@ -80,6 +81,7 @@ export const createOrderMutation = `
       table_name: $table_name
       payment_method: $payment_method
       discounts: $discounts
+      source: $source
     }) {
       id
       total_price
@@ -119,7 +121,8 @@ export const createOrderWithItemsMutation = `
     $display_id: String,
     $table_name: String,
     $orderItems: [order_items_insert_input!]!,
-    $discounts: jsonb
+    $discounts: jsonb,
+    $source: String
   ) {
     insert_orders_one(object: {
       id: $id
@@ -143,6 +146,7 @@ export const createOrderWithItemsMutation = `
       display_id: $display_id
       table_name: $table_name
       discounts: $discounts
+      source: $source
 
       order_items: {
         data: $orderItems

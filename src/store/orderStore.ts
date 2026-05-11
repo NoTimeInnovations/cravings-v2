@@ -1312,6 +1312,7 @@ const useOrderStore = create(
               notes: notes || null,
               display_id: getNextDisplayOrderNumber.toString(),
               discounts: discounts ? [discounts] : null,
+              source: "customer",
               orderItems: [
                 ...currentOrder.items.map((item) => ({
                   menu_id: item.id.split("|")[0],
