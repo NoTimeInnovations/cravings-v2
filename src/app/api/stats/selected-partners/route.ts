@@ -10,7 +10,6 @@ export const dynamic = "force-dynamic";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_PARTNERS = 9;
 
-const POS_TYPES = ["dineinPOS", "pos", "takeawayPOS", "deliveryPOS"];
 const DIRECT_TYPES = ["delivery", "table", "table_order"];
 
 const PARTNERS_QUERY = `
@@ -18,8 +17,7 @@ const PARTNERS_QUERY = `
     $ids: [uuid!]!,
     $since: timestamptz!,
     $excludedUsers: [uuid!]!,
-    $directTypes: [String!]!,
-    $posTypes: [String!]!
+    $directTypes: [String!]!
   ) {
     partners(where: { id: { _in: $ids } }) {
       id
@@ -32,7 +30,8 @@ const PARTNERS_QUERY = `
         type: { _in: $directTypes },
         _and: [
           { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+          { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
         ]
       }) { aggregate { count } }
 
@@ -43,7 +42,8 @@ const PARTNERS_QUERY = `
           { delivery_address: { _is_null: false } },
           { delivery_address: { _neq: "" } },
           { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+          { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
         ]
       }) { aggregate { count } }
 
@@ -53,7 +53,8 @@ const PARTNERS_QUERY = `
           { type: { _eq: "delivery" } },
           { _or: [{ delivery_address: { _is_null: true } }, { delivery_address: { _eq: "" } }] },
           { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+          { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
         ]
       }) { aggregate { count } }
 
@@ -62,13 +63,14 @@ const PARTNERS_QUERY = `
         type: { _in: ["table", "table_order"] },
         _and: [
           { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+          { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
         ]
       }) { aggregate { count } }
 
       orders_pos: orders_aggregate(where: {
         created_at: { _gte: $since },
-        type: { _in: $posTypes },
+        source: { _eq: "pos" },
         _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
       }) { aggregate { count } }
     }
@@ -115,7 +117,6 @@ export async function GET(req: NextRequest) {
       since,
       excludedUsers: EXCLUDED_USER_IDS,
       directTypes: DIRECT_TYPES,
-      posTypes: POS_TYPES,
     });
 
     const partners = (data.partners ?? []).map((p: any) => ({

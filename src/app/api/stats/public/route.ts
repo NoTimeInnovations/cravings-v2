@@ -75,7 +75,8 @@ const KPI_QUERY = `
         created_at: { _gte: $start, _lte: $end },
         user_id: { _is_null: false, _nin: $excludedUsers },
         partner_id: { _nin: $excluded },
-        type: { _in: $directTypes }
+        type: { _in: $directTypes },
+        _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }]
       }
       distinct_on: user_id
       order_by: { user_id: asc }
@@ -87,7 +88,8 @@ const KPI_QUERY = `
         created_at: { _gte: $prevStart, _lt: $prevEnd },
         user_id: { _is_null: false, _nin: $excludedUsers },
         partner_id: { _nin: $excluded },
-        type: { _in: $directTypes }
+        type: { _in: $directTypes },
+        _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }]
       }
       distinct_on: user_id
       order_by: { user_id: asc }
@@ -100,7 +102,8 @@ const KPI_QUERY = `
       type: { _in: $directTypes },
       _and: [
         { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
       ]
     }) {
       aggregate { count, sum { total_price } }
@@ -111,7 +114,8 @@ const KPI_QUERY = `
       type: { _in: $directTypes },
       _and: [
         { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
       ]
     }) {
       aggregate { count, sum { total_price } }
@@ -121,7 +125,10 @@ const KPI_QUERY = `
       partner_id: { _nin: $excluded },
       type: { _in: $directTypes },
       status: { _in: ["completed", "accepted"] },
-      _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }]
+      _and: [
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
+      ]
     }) {
       aggregate { count, sum { total_price } }
     }
@@ -130,7 +137,10 @@ const KPI_QUERY = `
       partner_id: { _nin: $excluded },
       type: { _in: $directTypes },
       status: { _eq: "cancelled" },
-      _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }]
+      _and: [
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
+      ]
     }) {
       aggregate { count }
     }
@@ -151,7 +161,10 @@ const KPI_QUERY = `
         created_at: { _gte: $start, _lte: $end },
         partner_id: { _nin: $excluded },
         type: { _in: $directTypes },
-        _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }]
+        _and: [
+          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+          { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
+        ]
       }
       distinct_on: partner_id
       order_by: { partner_id: asc }
@@ -163,7 +176,10 @@ const KPI_QUERY = `
         created_at: { _gte: $prevStart, _lt: $prevEnd },
         partner_id: { _nin: $excluded },
         type: { _in: $directTypes },
-        _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }]
+        _and: [
+          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+          { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
+        ]
       }
       distinct_on: partner_id
       order_by: { partner_id: asc }
@@ -203,7 +219,8 @@ const KPI_QUERY = `
         { delivery_address: { _is_null: false } },
         { delivery_address: { _neq: "" } },
         { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
       ]
     }) { aggregate { count, sum { total_price } } }
     direct_delivery_prev: orders_aggregate(where: {
@@ -214,7 +231,8 @@ const KPI_QUERY = `
         { delivery_address: { _is_null: false } },
         { delivery_address: { _neq: "" } },
         { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
       ]
     }) { aggregate { count, sum { total_price } } }
 
@@ -225,7 +243,8 @@ const KPI_QUERY = `
         { partner_id: { _nin: $excluded } },
         { _or: [{ delivery_address: { _is_null: true } }, { delivery_address: { _eq: "" } }] },
         { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
       ]
     }) { aggregate { count, sum { total_price } } }
     direct_takeaway_prev: orders_aggregate(where: {
@@ -235,7 +254,8 @@ const KPI_QUERY = `
         { partner_id: { _nin: $excluded } },
         { _or: [{ delivery_address: { _is_null: true } }, { delivery_address: { _eq: "" } }] },
         { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
       ]
     }) { aggregate { count, sum { total_price } } }
 
@@ -245,7 +265,8 @@ const KPI_QUERY = `
       partner_id: { _nin: $excluded },
       _and: [
         { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
       ]
     }) { aggregate { count, sum { total_price } } }
     direct_dinein_prev: orders_aggregate(where: {
@@ -254,7 +275,8 @@ const KPI_QUERY = `
       partner_id: { _nin: $excluded },
       _and: [
         { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
       ]
     }) { aggregate { count, sum { total_price } } }
   }
@@ -273,7 +295,8 @@ const ALL_TIME_QUERY = `
       type: { _in: $directTypes },
       _and: [
         { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
       ]
     }) {
       aggregate { count, sum { total_price }, avg { total_price } }
@@ -297,7 +320,10 @@ const TOP_PARTNERS_QUERY = `
         orders: {
           created_at: { _gte: $start, _lte: $end },
           type: { _in: $directTypes },
-          _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }]
+          _and: [
+            { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+            { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
+          ]
         }
       }
       limit: 100
@@ -310,7 +336,8 @@ const TOP_PARTNERS_QUERY = `
         type: { _in: $directTypes },
         _and: [
           { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
         ]
       }) {
         aggregate { count, sum { total_price } }
@@ -423,7 +450,8 @@ async function dailySeries(
         type: { _in: $directTypes },
         _and: [
           { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
         ]
       }, limit: 50000) {
         created_at

@@ -21,7 +21,8 @@ const LIVE_QUERY = `
         type: { _in: $directTypes },
         _and: [
           { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
         ]
       }
       order_by: { created_at: desc }
@@ -48,7 +49,8 @@ const LIVE_QUERY = `
         type: { _in: $directTypes },
         _and: [
           { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
         ]
       }
       distinct_on: partner_id
@@ -61,7 +63,8 @@ const LIVE_QUERY = `
       type: { _in: $directTypes },
       _and: [
         { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
       ]
     }) {
       aggregate { count, sum { total_price } }
@@ -75,7 +78,8 @@ const LIVE_QUERY = `
         { delivery_address: { _is_null: false } },
         { delivery_address: { _neq: "" } },
         { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
       ]
     }) { aggregate { count, sum { total_price } } }
 
@@ -86,7 +90,8 @@ const LIVE_QUERY = `
         { type: { _eq: "delivery" } },
         { _or: [{ delivery_address: { _is_null: true } }, { delivery_address: { _eq: "" } }] },
         { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
       ]
     }) { aggregate { count, sum { total_price } } }
 
@@ -96,7 +101,8 @@ const LIVE_QUERY = `
       type: { _in: ["table", "table_order"] },
       _and: [
         { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
       ]
     }) { aggregate { count, sum { total_price } } }
 
@@ -105,7 +111,10 @@ const LIVE_QUERY = `
       partner_id: $partnerFilter,
       type: { _in: $directTypes },
       created_at: { _gte: $today },
-      _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }]
+      _and: [
+        { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
+        { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
+      ]
     }) {
       aggregate { count }
     }
