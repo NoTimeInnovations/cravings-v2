@@ -41,7 +41,6 @@ export type SelectedPartner = {
   totalOrders: number;
   delivery: number;
   takeaway: number;
-  pos: number;
   monthTotal: number;
   monthDelivery: number;
   monthTakeaway: number;

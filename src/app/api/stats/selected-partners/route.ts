@@ -59,12 +59,6 @@ const PARTNERS_QUERY = `
         ]
       }) { aggregate { count } }
 
-      orders_pos: orders_aggregate(where: {
-        created_at: { _gte: $since },
-        source: { _eq: "pos" },
-        _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
-      }) { aggregate { count } }
-
       month_total: orders_aggregate(where: {
         created_at: { _gte: $monthStart },
         type: { _in: $directTypes },
@@ -157,7 +151,6 @@ export async function GET(req: NextRequest) {
       totalOrders: p.orders_total?.aggregate?.count ?? 0,
       delivery: p.orders_delivery?.aggregate?.count ?? 0,
       takeaway: p.orders_takeaway?.aggregate?.count ?? 0,
-      pos: p.orders_pos?.aggregate?.count ?? 0,
       monthTotal: p.month_total?.aggregate?.count ?? 0,
       monthDelivery: p.month_delivery?.aggregate?.count ?? 0,
       monthTakeaway: p.month_takeaway?.aggregate?.count ?? 0,

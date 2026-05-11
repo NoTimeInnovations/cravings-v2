@@ -34,14 +34,12 @@ type SortKey =
   | "orders_desc"
   | "delivery_desc"
   | "takeaway_desc"
-  | "pos_desc"
   | "name_asc";
 
 const SORT_OPTIONS: { id: SortKey; label: string }[] = [
   { id: "orders_desc", label: "Total orders" },
   { id: "delivery_desc", label: "Delivery" },
   { id: "takeaway_desc", label: "Takeaway" },
-  { id: "pos_desc", label: "POS" },
   { id: "name_asc", label: "Name (A–Z)" },
 ];
 
@@ -167,7 +165,6 @@ export default function SelectedPartnersSection() {
         totalOrders: s?.totalOrders ?? 0,
         delivery: s?.delivery ?? 0,
         takeaway: s?.takeaway ?? 0,
-        pos: s?.pos ?? 0,
         monthTotal: s?.monthTotal ?? 0,
         monthDelivery: s?.monthDelivery ?? 0,
         monthTakeaway: s?.monthTakeaway ?? 0,
@@ -178,7 +175,6 @@ export default function SelectedPartnersSection() {
       orders_desc: (a, b) => b.totalOrders - a.totalOrders,
       delivery_desc: (a, b) => b.delivery - a.delivery,
       takeaway_desc: (a, b) => b.takeaway - a.takeaway,
-      pos_desc: (a, b) => b.pos - a.pos,
       name_asc: (a, b) => a.name.localeCompare(b.name),
     };
 
@@ -252,7 +248,6 @@ function PartnerCard({
     totalOrders: number;
     delivery: number;
     takeaway: number;
-    pos: number;
     monthTotal: number;
     monthDelivery: number;
     monthTakeaway: number;
@@ -292,7 +287,7 @@ function PartnerCard({
         <div className="text-xs text-muted-foreground">total orders · 24h</div>
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2">
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <Metric
           label="Delivery"
           value={data.delivery}
@@ -305,13 +300,6 @@ function PartnerCard({
           value={data.takeaway}
           icon={<ShoppingBag className="size-3.5" />}
           tone="text-amber-700 bg-amber-50"
-          loading={loading}
-        />
-        <Metric
-          label="POS"
-          value={data.pos}
-          icon={<Building2 className="size-3.5" />}
-          tone="text-violet-700 bg-violet-50"
           loading={loading}
         />
       </div>
