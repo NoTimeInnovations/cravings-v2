@@ -26,7 +26,8 @@ import {
   Mail,
   RefreshCw,
 } from "lucide-react";
-import { GoogleGenerativeAI, Schema } from "@google/generative-ai";
+import type { Schema } from "@google/generative-ai";
+import { aiGenerate, fileToBase64 } from "@/lib/ai/generateContent";
 import { toast } from "sonner";
 import {
   CompactMenuPreview,
@@ -82,8 +83,6 @@ interface HotelDetails {
 }
 
 // --- Constants ---
-const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
-const genAI = new GoogleGenerativeAI(API_KEY);
 const STORAGE_KEY = "cravings_onboarding_state";
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -544,38 +543,32 @@ export default function GetStartedClient({
     setIsExtractingMenu(true);
     setExtractionError(null);
     try {
-      const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash-lite",
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                price: { type: "number" },
-                description: { type: "string" },
-                category: { type: "string" },
-                variants: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      name: { type: "string" },
-                      price: { type: "number" },
-                    },
-                    required: ["name", "price"],
-                  },
+      const responseSchema: Schema = {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            price: { type: "number" },
+            description: { type: "string" },
+            category: { type: "string" },
+            variants: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  price: { type: "number" },
                 },
+                required: ["name", "price"],
               },
-              required: ["name", "price", "description", "category"],
             },
-          } as Schema,
+          },
+          required: ["name", "price", "description", "category"],
         },
-      });
+      } as Schema;
 
-      const prompt = `Extract each distinct dish as a separate item from the provided menu files (images or PDFs). 
+      const prompt = `Extract each distinct dish as a separate item from the provided menu files (images or PDFs).
       For each item, provide:
       - name: The name of the dish.
       - price: The minimum price.
@@ -583,26 +576,22 @@ export default function GetStartedClient({
       - category: The main heading.
       - variants: (Optional) Array of {name, price} for sizes.`;
 
-      const fileParts = await Promise.all(
-        menuFiles.map(async (file) => {
-          const base64 = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () =>
-              resolve((reader.result as string).split(",")[1]);
-            reader.readAsDataURL(file);
-          });
-          return {
-            inlineData: {
-              data: base64,
-              mimeType: file.type,
-            },
-          };
-        }),
+      const files = await Promise.all(
+        menuFiles.map(async (file) => ({
+          data: await fileToBase64(file),
+          mimeType: file.type,
+        })),
       );
 
-      const result = await model.generateContent([prompt, ...fileParts]);
+      const text = await aiGenerate({
+        model: "gemini-2.5-flash-lite",
+        prompt,
+        responseMimeType: "application/json",
+        responseSchema,
+        files,
+      });
 
-      const parsedMenu = JSON.parse(result.response.text());
+      const parsedMenu = JSON.parse(text);
       console.log("Extracted menu", parsedMenu);
       setExtractedItems(parsedMenu);
 

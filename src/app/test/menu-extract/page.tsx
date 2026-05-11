@@ -1,16 +1,7 @@
 "use client";
 import React from 'react';
-import { GoogleGenerativeAI, Schema ,  } from "@google/generative-ai";
-
-// --- Best Practice: Get the API key from environment variables ---
-const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-
-// Check if the API key is available
-if (!API_KEY) {
-  throw new Error("Missing Google Gemini API key. Please set NEXT_PUBLIC_GEMINI_API_KEY in your .env.local file.");
-}
-
-const genAI = new GoogleGenerativeAI(API_KEY);
+import type { Schema } from "@google/generative-ai";
+import { aiGenerate, fileToBase64 } from "@/lib/ai/generateContent";
 
 // Define a type for menu items for better type safety
 interface MenuItem {
@@ -75,15 +66,10 @@ const page = () => {
         }
     };
 
-    const fileToGenerativePart = async (file: File) => {
-        const base64EncodedData = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve((reader.result as string).split(',')[1]);
-            reader.onerror = (err) => reject(err);
-            reader.readAsDataURL(file);
-        });
-        return { inlineData: { data: base64EncodedData, mimeType: file.type } };
-    };
+    const fileToAiFile = async (file: File) => ({
+        data: await fileToBase64(file),
+        mimeType: file.type,
+    });
 
     const extractMenu = async () => {
         if (imageFiles.length === 0) {
@@ -99,37 +85,30 @@ const page = () => {
         setImageGenError(null);
 
         try {
-            // --- UPDATED: Use JSON Mode for a guaranteed clean JSON response ---
-            const model = genAI.getGenerativeModel({
-                model: "gemini-1.5-flash",
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema : {
-                        type: "array",
-                        items: {
-                            type: "object",
-                            properties: {
-                                name: { type: "string" },
-                                price: { type: "number" },
-                                description: { type: "string" },
-                                category: { type: "string" },
-                                variants: {
-                                    type: "array",
-                                    items: {
-                                        type: "object",
-                                        properties: {
-                                            name: { type: "string" },
-                                            price: { type: "number" }
-                                        },
-                                        required: ["name", "price"]
-                                    }
-                                }
-                            },
-                            required: ["name", "price", "description", "category"]
+            const responseSchema: Schema = {
+                type: "array",
+                items: {
+                    type: "object",
+                    properties: {
+                        name: { type: "string" },
+                        price: { type: "number" },
+                        description: { type: "string" },
+                        category: { type: "string" },
+                        variants: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                properties: {
+                                    name: { type: "string" },
+                                    price: { type: "number" }
+                                },
+                                required: ["name", "price"]
+                            }
                         }
-                    } as Schema
-                },
-            });
+                    },
+                    required: ["name", "price", "description", "category"]
+                }
+            } as Schema;
 
             const prompt = `
             You are an expert in extracting structured data from restaurant menu images.
@@ -144,12 +123,14 @@ const page = () => {
             * Use the correct price. Ignore struck-through or older prices if a newer one is written nearby. If a price is not available, set the price to 1.
             * Ensure consistency in formatting: Capitalize category and dish names properly. Use full words for sizes like Quarter, Half, Full.
             `;
-            const imageParts = await Promise.all(imageFiles.map(fileToGenerativePart));
-            const result = await model.generateContent([prompt, ...imageParts]);
-            const response = result.response;
-            
-            // No need to clean the text anymore, JSON mode handles it!
-            const text = response.text(); 
+            const aiFiles = await Promise.all(imageFiles.map(fileToAiFile));
+            const text = await aiGenerate({
+                model: "gemini-1.5-flash",
+                prompt,
+                responseMimeType: "application/json",
+                responseSchema,
+                files: aiFiles,
+            });
 
             console.log("Raw JSON response from Gemini:", text);
             

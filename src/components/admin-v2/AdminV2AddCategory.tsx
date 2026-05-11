@@ -33,10 +33,9 @@ import { TAG_CATEGORIES, getTagColor } from "@/data/foodTags";
 import { toast } from "sonner";
 import Img from "../Img";
 import axios from "axios";
-import { GoogleGenerativeAI, Schema } from "@google/generative-ai";
+import type { Schema } from "@google/generative-ai";
+import { aiGenerate, fileToBase64 } from "@/lib/ai/generateContent";
 
-const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
-const genAI = new GoogleGenerativeAI(API_KEY);
 const MAX_RETRIES = 3;
 
 interface AdminV2AddCategoryProps {
@@ -239,36 +238,30 @@ export function AdminV2AddCategory({ onBack }: AdminV2AddCategoryProps) {
                     : "Extracting menu items..."
             );
 
-            const model = genAI.getGenerativeModel({
-                model: "gemini-2.5-flash",
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: "array",
-                        items: {
-                            type: "object",
-                            properties: {
-                                name: { type: "string" },
-                                price: { type: "number" },
-                                description: { type: "string" },
-                                category: { type: "string" },
-                                variants: {
-                                    type: "array",
-                                    items: {
-                                        type: "object",
-                                        properties: {
-                                            name: { type: "string" },
-                                            price: { type: "number" },
-                                        },
-                                        required: ["name", "price"],
-                                    },
+            const responseSchema: Schema = {
+                type: "array",
+                items: {
+                    type: "object",
+                    properties: {
+                        name: { type: "string" },
+                        price: { type: "number" },
+                        description: { type: "string" },
+                        category: { type: "string" },
+                        variants: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                properties: {
+                                    name: { type: "string" },
+                                    price: { type: "number" },
                                 },
+                                required: ["name", "price"],
                             },
-                            required: ["name", "price", "description", "category"],
                         },
-                    } as Schema,
+                    },
+                    required: ["name", "price", "description", "category"],
                 },
-            });
+            } as Schema;
 
             const prompt = `Extract each distinct dish as a separate item from the provided images.
 A 'variant' applies *only* to different sizes (e.g., Quarter, Half, Full, Small, Large, Regular) or quantities of the *same specific menu item*.
@@ -282,20 +275,21 @@ For each item, provide:
 - category: The main heading under which the item is listed.
 - variants: (Optional) An array of objects, each with 'name' and 'price', if the item has different sizes/portions. Variants must be arranged in ascending order of price. Variants should not contain item names or descriptions, only sizes/quantities. If no variants exist, this field should be omitted.`;
 
-            const imageParts = await Promise.all(
-                menuImageFiles.map(async (file) => {
-                    const base64 = await new Promise<string>((resolve) => {
-                        const reader = new FileReader();
-                        reader.onload = () =>
-                            resolve((reader.result as string).split(",")[1]);
-                        reader.readAsDataURL(file);
-                    });
-                    return { inlineData: { data: base64, mimeType: file.type } };
-                })
+            const files = await Promise.all(
+                menuImageFiles.map(async (file) => ({
+                    data: await fileToBase64(file),
+                    mimeType: file.type,
+                }))
             );
 
-            const result = await model.generateContent([prompt, ...imageParts]);
-            const parsedMenu = JSON.parse(result.response.text());
+            const text = await aiGenerate({
+                model: "gemini-2.5-flash",
+                prompt,
+                responseMimeType: "application/json",
+                responseSchema,
+                files,
+            });
+            const parsedMenu = JSON.parse(text);
 
             const extracted: ExtractedItem[] = parsedMenu.map((item: any) => ({
                 name: item.name || "",
