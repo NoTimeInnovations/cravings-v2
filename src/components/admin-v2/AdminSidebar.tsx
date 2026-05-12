@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -11,7 +12,6 @@ import {
   LifeBuoy,
   Percent,
   CreditCard,
-  Crown,
   Receipt,
   Truck,
   Users,
@@ -19,6 +19,10 @@ import {
   Star,
   Globe,
   Megaphone,
+  Plug,
+  Bike,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,6 +33,7 @@ interface SidebarItem {
   title: string;
   icon: React.ElementType;
   id: string;
+  children?: SidebarItem[];
 }
 
 const sidebarItems: SidebarItem[] = [
@@ -50,6 +55,16 @@ const sidebarItems: SidebarItem[] = [
   { title: "Settings", icon: Settings, id: "settings" },
   { title: "Billing", icon: Receipt, id: "billing" },
 ];
+
+const integrationsItem: SidebarItem = {
+  title: "Integrations",
+  icon: Plug,
+  id: "integrations",
+  children: [
+    { title: "Petpooja Integration", icon: UtensilsCrossed, id: "petpooja-integration" },
+    { title: "Delivery Service Integration", icon: Bike, id: "delivery-integration" },
+  ],
+};
 
 // Items that are locked for free plan users
 const FREE_PLAN_LOCKED_IDS = [
@@ -73,7 +88,6 @@ interface AdminSidebarProps {
 export function AdminSidebar({
   activeView,
   onNavigate,
-  onUpgrade,
   className,
 }: AdminSidebarProps) {
   const { features, userData } = useAuthStore();
@@ -125,6 +139,13 @@ export function AdminSidebar({
     (item) => getItemState(item) !== "hidden",
   );
 
+  const isChildActive = (item: SidebarItem) =>
+    !!item.children?.some((c) => c.title === activeView);
+
+  const [isIntegrationsOpen, setIsIntegrationsOpen] = useState<boolean>(
+    () => isChildActive(integrationsItem),
+  );
+
   return (
     <div
       className={cn("flex flex-col h-full py-4", className)}
@@ -159,16 +180,48 @@ export function AdminSidebar({
       </div>
 
       <div className="mt-auto px-3 py-4 border-t border-border space-y-1">
-        {isOnFreePlan && onUpgrade && (
+        <div>
           <Button
             variant="default"
-            className="hidden lg:flex w-full justify-start bg-orange-600 hover:bg-orange-700 text-white font-medium"
-            onClick={onUpgrade}
+            className="w-full justify-start bg-orange-600 hover:bg-orange-700 text-white font-medium"
+            onClick={() => setIsIntegrationsOpen((v) => !v)}
+            aria-expanded={isIntegrationsOpen}
           >
-            <Crown className="mr-2 h-4 w-4" />
-            Upgrade Plan
+            <integrationsItem.icon className="mr-2 h-4 w-4" />
+            <span className="flex-1 text-left">{integrationsItem.title}</span>
+            {isIntegrationsOpen ? (
+              <ChevronDown className="h-4 w-4 opacity-90" />
+            ) : (
+              <ChevronRight className="h-4 w-4 opacity-90" />
+            )}
           </Button>
-        )}
+          {isIntegrationsOpen && integrationsItem.children && (
+            <div className="mt-1 ml-3 pl-3 border-l border-border space-y-1">
+              {integrationsItem.children.map((child) => (
+                <Button
+                  key={child.id}
+                  variant={activeView === child.title ? "secondary" : "ghost"}
+                  className={cn(
+                    "w-full justify-start text-sm",
+                    activeView === child.title &&
+                      "bg-orange-100 text-orange-600 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/40 font-medium",
+                  )}
+                  onClick={() => onNavigate(child.title)}
+                >
+                  <child.icon
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      activeView === child.title &&
+                        "text-orange-600 dark:text-orange-400",
+                    )}
+                  />
+                  {child.title}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <Button
           variant={activeView === "Help & Support" ? "secondary" : "ghost"}
           className={cn(
