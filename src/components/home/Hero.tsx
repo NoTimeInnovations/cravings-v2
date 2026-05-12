@@ -4,6 +4,21 @@ export default function Hero() {
   return (
     <section className="flex items-center justify-center px-5 pb-20 pt-32 md:pt-40 bg-[#fcfbf7]">
       <div className="w-full max-w-2xl mx-auto text-center flex flex-col items-center">
+        {/* Product Hunt badge */}
+        <a
+          href="https://www.producthunt.com/products/menuthere?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-menuthere"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mb-6 inline-block"
+        >
+          <img
+            src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1144350&theme=light&t=1778565657442"
+            alt="Menuthere - Skip the aggregator. Own every order | Product Hunt"
+            width={180}
+            height={39}
+          />
+        </a>
+
         {/* Heading */}
         <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-gray-900 tracking-tight">
           Your restaurant&apos;s own delivery app

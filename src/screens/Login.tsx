@@ -196,29 +196,23 @@ export default function Login() {
           </form>
         ) : (
           <div className="space-y-4">
-            {/* Google sign-in hidden for App Store Guideline 4.8 compliance.
-                Flip the `false` to re-enable. */}
-            {false && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleGoogleSignIn}
-                  className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-stone-200 bg-white px-4 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors"
-                >
-                  <FcGoogle className="text-xl" />
-                  Sign in with Google
-                </button>
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-stone-200 bg-white px-4 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors"
+            >
+              <FcGoogle className="text-xl" />
+              Sign in with Google
+            </button>
 
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-stone-200" />
-                  </div>
-                  <div className="relative flex justify-center text-xs">
-                    <span className="bg-white px-3 text-stone-400">or</span>
-                  </div>
-                </div>
-              </>
-            )}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-stone-200" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white px-3 text-stone-400">or</span>
+              </div>
+            </div>
 
             <form onSubmit={handlePartnerSignIn} className="space-y-4">
               <div className="space-y-2">
