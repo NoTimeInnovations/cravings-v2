@@ -27,6 +27,30 @@ import { addAccount, getAccounts, getAllAccounts } from "@/lib/addAccount";
 import { transferTempDataToUserAccount } from "@/lib/transferTempDataToUserAccount";
 import { CommonOffer } from "@/components/superAdmin/OfferUploadSuperAdmin";
 import { UserCountryInfo } from "@/lib/getUserCountry";
+import plansData from "@/data/plans.json";
+
+// New partner accounts created via self-serve signup get a 30-day trial:
+// ordering+delivery enabled out of the box, storefront+newonboarding access-only.
+// See /Users/abhinks/.claude/projects/-Users-abhinks-Documents-cravings-v2/memory/new-partner-trial-defaults.md
+const NEW_PARTNER_TRIAL_FEATURE_FLAGS =
+  "ordering-true,delivery-true,storefront-false,newonboarding-false";
+
+const buildNewPartnerTrialSubscription = (country?: string) => {
+  const isIndia = (country || "").trim().toLowerCase() === "india";
+  const planId = isIndia ? "in_trial_30d" : "intl_trial_30d";
+  const planArray = isIndia
+    ? (plansData as any).india
+    : (plansData as any).international;
+  const plan = planArray.find((p: any) => p.id === planId);
+  const now = new Date();
+  const expiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  return {
+    plan,
+    status: "active" as const,
+    startDate: now.toISOString(),
+    expiryDate: expiry.toISOString(),
+  };
+};
 
 interface BaseUser {
   id: string;
@@ -384,6 +408,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         throw new Error("A partner account with this email already exists");
       }
 
+      const trialSubscription = buildNewPartnerTrialSubscription(country);
+
       const response = (await fetchFromHasura(partnerMutation, {
         object: {
           email,
@@ -403,6 +429,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             type: "Point",
             coordinates: [geoLocation.longitude, geoLocation.latitude],
           },
+          feature_flags: NEW_PARTNER_TRIAL_FEATURE_FLAGS,
+          subscription_details: trialSubscription,
         },
       })) as { insert_partners_one: Partner };
 
@@ -414,7 +442,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       setAuthCookie({
         id: newPartner.id,
         role: "partner",
-        feature_flags: newPartner.feature_flags || "",
+        feature_flags: newPartner.feature_flags || NEW_PARTNER_TRIAL_FEATURE_FLAGS,
         status: "inactive",
         hasSubscription: !!newPartner.subscription_details,
       });
