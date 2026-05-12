@@ -427,7 +427,7 @@ export default async function PartnerInfoPage({
               <img
                 src={logoImage}
                 alt={partner.store_name}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
                 style={{ borderRadius: 20 }}
               />
             ) : (
