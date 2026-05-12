@@ -31,11 +31,11 @@ export default function Hero() {
 
         {/* CTA Buttons */}
         <div className="flex items-center gap-3 mt-8">
-          <ButtonV2 href="https://cal.id/menuthere" variant="primary">
-            Book a Demo
+          <ButtonV2 href="/get-started" variant="primary">
+            Start for free
           </ButtonV2>
-          <ButtonV2 href="/help-center" variant="secondary">
-            Contact Support
+          <ButtonV2 href="https://cal.id/menuthere" variant="secondary">
+            Book a Demo
           </ButtonV2>
         </div>
       </div>
