@@ -3,6 +3,7 @@
 import { Offer } from "@/store/offerStore_hasura";
 import { HotelData, SocialLinks } from "@/app/hotels/[...id]/page";
 import { ThemeConfig } from "@/components/hotelDetail/ThemeChangeButton";
+import { brandColorToHex } from "@/lib/brandColor";
 import { Category, formatStorageName } from "@/store/categoryStore_hasura";
 import OrderDrawer from "@/components/hotelDetail/OrderDrawer";
 import useOrderStore from "@/store/orderStore";
@@ -154,20 +155,22 @@ const HotelMenuPage = ({
   const [forceStorefront, setForceStorefront] = useState(false);
 
   const brandAccent = useMemo(() => {
-    const BRAND_COLOR_MAP: Record<string, string> = {
-      "burnt-orange": "#e85d04", "obsidian-gold": "#b8860b", "royal-burgundy": "#8b1a4a",
-      "midnight-emerald": "#0d6b4e", "sapphire": "#1e4db7", "charcoal-noir": "#2c2c2c",
-      "deep-violet": "#6b21a8", "rose-blush": "#be185d", "teal-luxe": "#0f766e", "warm-copper": "#b45309",
-    };
     try {
       const raw = (hoteldata as any)?.storefront_settings;
-      if (!raw) return null;
-      const sf = typeof raw === "string" ? JSON.parse(raw) : raw;
-      const bc = sf?.brandColor;
-      if (!bc) return null;
-      return bc.startsWith("custom:") ? bc.replace("custom:", "") : (BRAND_COLOR_MAP[bc] || null);
-    } catch { return null; }
-  }, [(hoteldata as any)?.storefront_settings]);
+      let sf: any = null;
+      if (raw) {
+        sf = typeof raw === "string" ? JSON.parse(raw) : raw;
+      }
+      // Theme is the new source of truth; storefront brandColor is legacy fallback.
+      const themeToken = (theme as any)?.brandColor;
+      const sfToken = sf?.brandColor;
+      const token = themeToken || sfToken;
+      if (!token) return null;
+      return brandColorToHex(token);
+    } catch {
+      return null;
+    }
+  }, [(hoteldata as any)?.storefront_settings, (theme as any)?.brandColor]);
 
   const styles: Styles = useMemo(() => ({
     backgroundColor: theme?.colors?.bg || "#F5F5F5",
@@ -511,6 +514,7 @@ const HotelMenuPage = ({
           notices={(hoteldata as any)?.notices || []}
           socialLinks={socialLinks}
           storefrontSettings={(hoteldata as any)?.storefront_settings}
+          themeBrandColor={(theme as any)?.brandColor || null}
           skipStorefront={forceStorefront ? false : skipStorefront}
           forceStart={forceStorefront}
           initialDeliveryOpen={initialDeliveryOpen}

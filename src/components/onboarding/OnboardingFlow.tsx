@@ -9,6 +9,7 @@ import { setOnboardingDataCookie, getOnboardingDataCookie } from "@/app/auth/act
 import StorefrontScreen from "./StorefrontScreen";
 import DeliveryAddressScreen from "./DeliveryAddressScreen";
 import OrderTypeScreen from "./OrderTypeScreen";
+import { brandColorToHex } from "@/lib/brandColor";
 
 type OnboardingStep = "splash" | "address" | "orderType";
 
@@ -27,6 +28,8 @@ interface OnboardingFlowProps {
   notices?: any[];
   socialLinks?: any;
   storefrontSettings?: string | null;
+  /** Theme-level brandColor token. Takes precedence over storefront.brandColor. */
+  themeBrandColor?: string | null;
   skipStorefront?: boolean;
   initialDeliveryOpen?: boolean;
   initialTakeawayOpen?: boolean;
@@ -55,6 +58,7 @@ export default function OnboardingFlow({
   notices = [],
   socialLinks,
   storefrontSettings,
+  themeBrandColor,
   skipStorefront,
   initialDeliveryOpen,
   initialTakeawayOpen,
@@ -72,12 +76,6 @@ export default function OnboardingFlow({
   const hasStorefront = features.storefront.enabled;
   const hasNewOnboarding = features.newonboarding.enabled;
 
-  const BRAND_COLOR_MAP: Record<string, string> = {
-    "burnt-orange": "#e85d04", "obsidian-gold": "#b8860b", "royal-burgundy": "#8b1a4a",
-    "midnight-emerald": "#0d6b4e", "sapphire": "#1e4db7", "charcoal-noir": "#2c2c2c",
-    "deep-violet": "#6b21a8", "rose-blush": "#be185d", "teal-luxe": "#0f766e", "warm-copper": "#b45309",
-  };
-
   let parsedStorefront: any = null;
   if (hasStorefront && storefrontSettings) {
     try {
@@ -85,10 +83,19 @@ export default function OnboardingFlow({
       if (data?.enabled) parsedStorefront = data;
     } catch {}
   }
+  // For the storefront *splash*, we also need to peek at the raw config even
+  // when its `enabled` flag is unset — but for the *accent color* we always
+  // honour the new theme.brandColor first so it applies even with the
+  // storefront unpublished or the feature disabled.
+  let rawStorefront: any = null;
+  if (storefrontSettings) {
+    try {
+      rawStorefront = typeof storefrontSettings === "string" ? JSON.parse(storefrontSettings) : storefrontSettings;
+    } catch {}
+  }
   const hasStorefrontSplash = !!parsedStorefront;
   const showStorefrontSplashInitially = hasStorefrontSplash && !skipStorefront;
-  const bc = parsedStorefront?.brandColor || "burnt-orange";
-  const accent = bc.startsWith("custom:") ? bc.replace("custom:", "") : (BRAND_COLOR_MAP[bc] || "#e85d04");
+  const accent = brandColorToHex(themeBrandColor || rawStorefront?.brandColor);
 
   const hasOrdering = features.ordering.enabled;
   const needsAddress = hasNewOnboarding && hasDelivery && tableNumber === 0;
