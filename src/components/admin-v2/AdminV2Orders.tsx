@@ -441,7 +441,7 @@ export function AdminV2Orders() {
               <TableHead>Date</TableHead>
               <TableHead>Time</TableHead>
               <TableHead>Order type</TableHead>
-              {showGrowjetColumn && <TableHead>Growjet</TableHead>}
+              {showGrowjetColumn && <TableHead>Delivery Agent</TableHead>}
               <TableHead>Order status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>

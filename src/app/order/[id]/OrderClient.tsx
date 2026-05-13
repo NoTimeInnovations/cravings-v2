@@ -743,10 +743,6 @@ ${itemsText}
                                             <h2 className="text-base font-bold text-gray-900">
                                                 On the way
                                             </h2>
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-white text-orange-700 ring-1 ring-orange-200 whitespace-nowrap">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-                                                via {agentProviderLabel}
-                                            </span>
                                         </div>
                                         <p className="text-sm text-gray-600 mt-0.5">
                                             {agentEta != null ? (

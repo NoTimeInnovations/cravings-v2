@@ -374,7 +374,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 return (
                     <div className="border rounded-lg bg-card p-4 space-y-3">
                         <div className="flex items-center justify-between">
-                            <h3 className="font-semibold">Growjet Delivery</h3>
+                            <h3 className="font-semibold">Delivery Agent</h3>
                             {order.growjet_order_number ? (
                                 <Badge className="bg-green-100 text-green-800 font-mono">
                                     ✓ {order.growjet_order_number}
