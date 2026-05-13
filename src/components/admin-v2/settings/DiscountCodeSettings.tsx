@@ -19,7 +19,7 @@ import {
     updateDiscountMutation,
     deleteDiscountMutation,
 } from "@/api/discounts";
-import { Loader2, Plus, Trash2, Tag, Copy, Check, Search } from "lucide-react";
+import { Loader2, Plus, Trash2, Tag, Copy, Check, Search, Pencil } from "lucide-react";
 import { getMenu } from "@/api/menu";
 
 type Discount = {
@@ -98,8 +98,9 @@ export function DiscountCodeSettings() {
     const { userData } = useAuthStore();
     const [discounts, setDiscounts] = useState<Discount[]>([]);
     const [loading, setLoading] = useState(true);
-    const [creating, setCreating] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [showForm, setShowForm] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState(emptyForm);
     const [togglingId, setTogglingId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -140,7 +141,108 @@ export function DiscountCodeSettings() {
         }
     };
 
-    const handleCreate = async () => {
+    const resetForm = () => {
+        setForm(emptyForm);
+        setSelectedDays([]);
+        setAllDays(true);
+        setSelectedFreebieItems([]);
+        setFreebieSearch("");
+        setEditingId(null);
+        setShowForm(false);
+    };
+
+    const buildPayload = (forUpdate: boolean) => {
+        const isPct = form.discount_type === "percentage";
+        const isFreebie = form.discount_type === "freebie";
+        const payload: any = {
+            code: form.code.trim().toUpperCase(),
+            discount_type: form.discount_type,
+            discount_value: isFreebie ? 0 : Number(form.discount_value),
+            discount_on_total: form.discount_on_total,
+            has_coupon: form.has_coupon,
+            applicable_on: form.applicable_on,
+            valid_days: allDays ? "All" : selectedDays.join(","),
+            discount_order_types: form.discount_order_types.join(","),
+            description: form.description.trim() || null,
+            terms_conditions: form.terms_conditions.trim() || null,
+            min_order_value: form.min_order_value ? Number(form.min_order_value) : null,
+            max_discount_amount: isPct && form.max_discount_amount ? Number(form.max_discount_amount) : null,
+            usage_limit: form.usage_limit ? Number(form.usage_limit) : null,
+            per_user_usage_limit: form.per_user_usage_limit ? Number(form.per_user_usage_limit) : null,
+            starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : null,
+            expires_at: form.expires_at ? new Date(form.expires_at).toISOString() : null,
+            rank: form.rank ? Number(form.rank) : null,
+            category_item_ids:
+                form.applicable_on !== "All" && form.category_item_ids.trim()
+                    ? form.category_item_ids.trim()
+                    : null,
+            freebie_item_ids: isFreebie ? form.freebie_item_ids.trim() : null,
+            freebie_item_count: isFreebie
+                ? form.freebie_item_count
+                    ? Number(form.freebie_item_count)
+                    : 1
+                : null,
+        };
+        if (!forUpdate) {
+            payload.partner_id = userData!.id;
+            payload.is_active = true;
+            payload.used_count = 0;
+        }
+        return payload;
+    };
+
+    const startEdit = (disc: Discount) => {
+        const days = disc.valid_days && disc.valid_days !== "All" ? disc.valid_days.split(",").map((d) => d.trim()) : [];
+        const types = disc.discount_order_types
+            ? disc.discount_order_types.split(",").map((t) => t.trim()).filter(Boolean)
+            : ["1", "2", "3"];
+
+        setForm({
+            code: disc.code,
+            description: disc.description ?? "",
+            terms_conditions: disc.terms_conditions ?? "",
+            discount_type: disc.discount_type,
+            discount_value: disc.discount_type === "freebie" ? "" : String(disc.discount_value ?? ""),
+            min_order_value: disc.min_order_value != null ? String(disc.min_order_value) : "",
+            max_discount_amount: disc.max_discount_amount != null ? String(disc.max_discount_amount) : "",
+            usage_limit: disc.usage_limit != null ? String(disc.usage_limit) : "",
+            per_user_usage_limit: disc.per_user_usage_limit != null ? String(disc.per_user_usage_limit) : "",
+            starts_at: toLocalDatetime(disc.starts_at),
+            expires_at: toLocalDatetime(disc.expires_at),
+            valid_days: disc.valid_days ?? "All",
+            discount_order_types: types,
+            discount_on_total: disc.discount_on_total,
+            has_coupon: disc.has_coupon,
+            applicable_on: disc.applicable_on ?? "All",
+            category_item_ids: disc.category_item_ids ?? "",
+            rank: disc.rank != null ? String(disc.rank) : "",
+            freebie_item_ids: disc.freebie_item_ids ?? "",
+            freebie_item_count: disc.freebie_item_count != null ? String(disc.freebie_item_count) : "",
+        });
+        setAllDays(!disc.valid_days || disc.valid_days === "All");
+        setSelectedDays(days);
+
+        // Hydrate freebie chips by matching IDs against the menu cache.
+        if (disc.discount_type === "freebie" && disc.freebie_item_ids) {
+            const ids = disc.freebie_item_ids.split(",").map((s) => s.trim()).filter(Boolean);
+            const matched = ids
+                .map((id) => menuItems.find((m) => m.id === id))
+                .filter((m): m is { id: string; name: string; price: number } => !!m)
+                .map((m) => ({ id: m.id, name: m.name }));
+            setSelectedFreebieItems(matched);
+        } else {
+            setSelectedFreebieItems([]);
+        }
+        setFreebieSearch("");
+
+        setEditingId(disc.id);
+        setShowForm(true);
+        if (typeof window !== "undefined") {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+    };
+
+    const handleSave = async () => {
         if (!userData?.id) return;
         if (!form.code.trim()) return toast.error("Code is required");
         if (form.discount_type !== "freebie") {
@@ -149,53 +251,29 @@ export function DiscountCodeSettings() {
         }
         if (form.discount_type === "freebie" && !form.freebie_item_ids.trim()) return toast.error("Freebie item IDs are required");
 
-        setCreating(true);
+        setSaving(true);
         try {
-            const object: any = {
-                partner_id: userData.id,
-                code: form.code.trim().toUpperCase(),
-                discount_type: form.discount_type,
-                discount_value: form.discount_type === "freebie" ? 0 : Number(form.discount_value),
-                is_active: true,
-                used_count: 0,
-                discount_on_total: form.discount_on_total,
-                has_coupon: form.has_coupon,
-                applicable_on: form.applicable_on,
-                valid_days: allDays ? "All" : selectedDays.join(","),
-                discount_order_types: form.discount_order_types.join(","),
-            };
-            if (form.discount_type === "freebie") {
-                object.freebie_item_ids = form.freebie_item_ids.trim();
-                object.freebie_item_count = form.freebie_item_count ? Number(form.freebie_item_count) : 1;
+            if (editingId) {
+                const updates = buildPayload(true);
+                const res = await fetchFromHasura(updateDiscountMutation, { id: editingId, updates });
+                const updated: Discount = res.update_discounts_by_pk;
+                setDiscounts((prev) => prev.map((d) => (d.id === editingId ? { ...d, ...updated } : d)));
+                toast.success("Discount updated");
+            } else {
+                const object = buildPayload(false);
+                const res = await fetchFromHasura(createDiscountMutation, { object });
+                setDiscounts((prev) => [res.insert_discounts_one, ...prev]);
+                toast.success("Discount created");
             }
-            if (form.description.trim()) object.description = form.description.trim();
-            if (form.terms_conditions.trim()) object.terms_conditions = form.terms_conditions.trim();
-            if (form.min_order_value) object.min_order_value = Number(form.min_order_value);
-            if (form.max_discount_amount && form.discount_type === "percentage") object.max_discount_amount = Number(form.max_discount_amount);
-            if (form.usage_limit) object.usage_limit = Number(form.usage_limit);
-            if (form.per_user_usage_limit) object.per_user_usage_limit = Number(form.per_user_usage_limit);
-            if (form.starts_at) object.starts_at = new Date(form.starts_at).toISOString();
-            if (form.expires_at) object.expires_at = new Date(form.expires_at).toISOString();
-            if (form.applicable_on !== "All" && form.category_item_ids.trim()) object.category_item_ids = form.category_item_ids.trim();
-            if (form.rank) object.rank = Number(form.rank);
-
-            const res = await fetchFromHasura(createDiscountMutation, { object });
-            setDiscounts((prev) => [res.insert_discounts_one, ...prev]);
-            setForm(emptyForm);
-            setSelectedDays([]);
-            setAllDays(true);
-            setSelectedFreebieItems([]);
-            setFreebieSearch("");
-            setShowForm(false);
-            toast.success("Discount created");
+            resetForm();
         } catch (err: any) {
             if (err?.message?.includes("Uniqueness violation") || err?.message?.includes("unique")) {
                 toast.error("A discount with this code already exists");
             } else {
-                toast.error("Failed to create discount");
+                toast.error(editingId ? "Failed to update discount" : "Failed to create discount");
             }
         } finally {
-            setCreating(false);
+            setSaving(false);
         }
     };
 
@@ -254,7 +332,14 @@ export function DiscountCodeSettings() {
                         </div>
                         <Button
                             size="sm"
-                            onClick={() => setShowForm((v) => !v)}
+                            onClick={() => {
+                                if (showForm) {
+                                    resetForm();
+                                } else {
+                                    setEditingId(null);
+                                    setShowForm(true);
+                                }
+                            }}
                             className="bg-orange-600 hover:bg-orange-700 text-white"
                         >
                             <Plus className="h-4 w-4 mr-1" />
@@ -266,6 +351,16 @@ export function DiscountCodeSettings() {
                 {showForm && (
                     <CardContent className="border-t pt-6">
                         <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-sm font-semibold text-foreground">
+                                    {editingId ? "Edit discount" : "New discount"}
+                                </h3>
+                                {editingId && (
+                                    <span className="text-xs text-muted-foreground">
+                                        Editing existing code
+                                    </span>
+                                )}
+                            </div>
                             <div className="grid gap-4 sm:grid-cols-2">
                                 {/* Code */}
                                 <div className="space-y-2">
@@ -599,17 +694,17 @@ export function DiscountCodeSettings() {
 
                             <div className="flex gap-2 pt-2">
                                 <Button
-                                    onClick={handleCreate}
-                                    disabled={creating}
+                                    onClick={handleSave}
+                                    disabled={saving}
                                     className="bg-orange-600 hover:bg-orange-700 text-white"
                                 >
-                                    {creating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                                    Create Discount
+                                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                                    {editingId ? "Save changes" : "Create Discount"}
                                 </Button>
                                 <Button
                                     variant="outline"
-                                    onClick={() => { setShowForm(false); setForm(emptyForm); setSelectedDays([]); setAllDays(true); setSelectedFreebieItems([]); setFreebieSearch(""); }}
-                                    disabled={creating}
+                                    onClick={resetForm}
+                                    disabled={saving}
                                 >
                                     Cancel
                                 </Button>
@@ -689,6 +784,15 @@ export function DiscountCodeSettings() {
                                                 {copiedId === disc.id
                                                     ? <Check className="h-4 w-4 text-green-500" />
                                                     : <Copy className="h-4 w-4" />}
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => startEdit(disc)}
+                                                className={`h-8 w-8 ${editingId === disc.id ? "text-orange-600" : "text-muted-foreground hover:text-foreground"}`}
+                                                title="Edit discount"
+                                            >
+                                                <Pencil className="h-4 w-4" />
                                             </Button>
                                             <Switch
                                                 checked={disc.is_active}
