@@ -63,6 +63,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getFeatures } from "@/lib/getFeatures";
 
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
+import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 
 export function AdminV2Orders() {
   const { userData } = useAuthStore();
@@ -101,6 +102,8 @@ export function AdminV2Orders() {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [orderToPrint, setOrderToPrint] = useState<string | null>(null);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const cancellingOrder = orders.find((o) => o.id === cancellingOrderId) || null;
   const editingOrder = orders.find((o) => o.id === editingOrderId) || null;
 
   const handleDeleteOrder = async (order: Order) => {
@@ -146,6 +149,17 @@ export function AdminV2Orders() {
     const order = orders.find((o) => o.id === orderId);
 
     if (!order) return;
+
+    if (status === "cancelled") {
+      if (order.status !== "pending") {
+        toast.error(
+          `Only pending orders can be cancelled (current status: ${order.status})`,
+        );
+        return;
+      }
+      setCancellingOrderId(orderId);
+      return;
+    }
 
     if (order.status === "completed") {
       setPendingAction(() => async () => {
@@ -752,6 +766,17 @@ export function AdminV2Orders() {
         onSuccess={() => pendingAction?.()}
         actionDescription={actionDescription}
       />
+
+      {cancellingOrder && (
+        <CancelOrderDialog
+          open={!!cancellingOrderId}
+          onOpenChange={(o) => {
+            if (!o) setCancellingOrderId(null);
+          }}
+          orderId={cancellingOrder.id}
+          orderShortId={cancellingOrder.display_id || cancellingOrder.id.slice(0, 8)}
+        />
+      )}
     </div>
   );
 }

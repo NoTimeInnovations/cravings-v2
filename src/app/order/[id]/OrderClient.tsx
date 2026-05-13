@@ -11,8 +11,10 @@ import { Order, OrderItem } from "@/store/orderStore";
 import OfferLoadinPage from "@/components/OfferLoadinPage";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
 import { getFeatures } from "@/lib/getFeatures";
-import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2, Star, Bike, Store, MapPin, Receipt, Package, User, StickyNote, ShoppingBag } from "lucide-react";
+import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2, Star, Bike, Store, MapPin, Receipt, Package, User, StickyNote, ShoppingBag, XCircle } from "lucide-react";
 import { OrderReviewModal } from "@/components/OrderReviewModal";
+import { CancelOrderDialog } from "@/components/CancelOrderDialog";
+import { useAuthStore } from "@/store/authStore";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
@@ -35,6 +37,8 @@ const GET_ORDER_QUERY = `
       delivery_location
       status
       status_history
+      cancel_reason
+      cancelled_by
       is_paid
       display_id
       partner_id
@@ -110,6 +114,8 @@ const OrderClient = () => {
     const cashfreeContainerRef = useRef<HTMLDivElement | null>(null);
     const [reviewOpen, setReviewOpen] = useState(false);
     const [justReviewed, setJustReviewed] = useState(false);
+    const [cancelOpen, setCancelOpen] = useState(false);
+    const { userData } = useAuthStore();
 
     // Ticking timer for "Location updated Xs ago"
     useEffect(() => {
@@ -545,6 +551,23 @@ ${itemsText}
                 <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-6 max-w-3xl">
                     <div className="space-y-3">
 
+                        {order?.status === "cancelled" && order?.cancel_reason && (
+                            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 flex items-start gap-3 shadow-sm">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                                    <XCircle className="h-5 w-5" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
+                                        Order cancelled
+                                        {order.cancelled_by ? ` · by ${order.cancelled_by}` : ""}
+                                    </p>
+                                    <p className="mt-1 text-sm sm:text-base text-red-900 break-words">
+                                        {order.cancel_reason}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Card: Order header */}
                         <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-5">
                             <div className="flex items-start justify-between gap-3">
@@ -574,6 +597,15 @@ ${itemsText}
                                     )}
                                 </div>
                             </div>
+                            {order?.status === "pending" && order?.userId && userData?.id === order.userId && (
+                                <button
+                                    type="button"
+                                    onClick={() => setCancelOpen(true)}
+                                    className="mt-4 w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-300 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 active:bg-red-100 transition-colors"
+                                >
+                                    Cancel order
+                                </button>
+                            )}
                             {order?.status === "completed" && !order.review && !justReviewed && (
                                 <button
                                     type="button"
@@ -1046,6 +1078,14 @@ ${itemsText}
                         setReviewOpen(false);
                     }}
                     onClose={() => setReviewOpen(false)}
+                />
+            )}
+            {order && (
+                <CancelOrderDialog
+                    open={cancelOpen}
+                    onOpenChange={setCancelOpen}
+                    orderId={order.id}
+                    orderShortId={idTail}
                 />
             )}
 

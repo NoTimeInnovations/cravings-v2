@@ -174,6 +174,8 @@ export interface Order {
   | null;
   is_paid?: boolean;
   cashfree_payment_id?: string;
+  cancel_reason?: string | null;
+  cancelled_by?: "user" | "partner" | null;
   review?: {
     id: string;
     rating: number;

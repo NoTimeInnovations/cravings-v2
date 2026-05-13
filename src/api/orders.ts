@@ -285,6 +285,8 @@ subscription GetPartnerOrders($partner_id: uuid!, $today_start: timestamptz!, $t
     delivery_location
     status
     status_history
+    cancel_reason
+    cancelled_by
     partner_id
     gst_included
     extra_charges
@@ -374,6 +376,8 @@ subscription GetPaginatedPartnerOrders(
     delivery_location
     status
     status_history
+    cancel_reason
+    cancelled_by
     partner_id
     gst_included
     extra_charges
@@ -476,6 +480,8 @@ subscription GetUserOrders($user_id: uuid!) {
     notes
     status
     status_history
+    cancel_reason
+    cancelled_by
     is_paid
     display_id
     partner_id

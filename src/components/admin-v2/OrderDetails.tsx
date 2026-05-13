@@ -2,7 +2,7 @@ import React from "react";
 import dynamic from "next/dynamic";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Bike } from "lucide-react";
+import { ArrowLeft, Bike, XCircle } from "lucide-react";
 
 // Mapbox-based live tracker reused from the customer order page. Lazy-loaded
 // (ssr: false) because mapbox-gl needs window/document.
@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
+import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getFeatures } from "@/lib/getFeatures";
 
@@ -61,10 +62,21 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
     const [paymentModalOpen, setPaymentModalOpen] = React.useState(false);
     const [passwordModalOpen, setPasswordModalOpen] = React.useState(false);
     const [pendingAction, setPendingAction] = React.useState<(() => void) | null>(null);
+    const [cancelOpen, setCancelOpen] = React.useState(false);
 
     if (!order) return null;
 
     const handleUpdateOrderStatus = async (status: string) => {
+        if (status === "cancelled") {
+            if (order.status !== "pending") {
+                toast.error(
+                    `Only pending orders can be cancelled (current status: ${order.status})`,
+                );
+                return;
+            }
+            setCancelOpen(true);
+            return;
+        }
         if (order.status === "completed") {
             setPendingAction(() => async () => {
                 try {
@@ -232,6 +244,23 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     )}
                 </div>
             </div>
+
+            {order.status === "cancelled" && order.cancel_reason && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                        <XCircle className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
+                            Cancellation reason
+                            {order.cancelled_by ? ` · by ${order.cancelled_by}` : ""}
+                        </p>
+                        <p className="mt-1 text-sm sm:text-base text-red-900 break-words">
+                            {order.cancel_reason}
+                        </p>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="p-4 border rounded-lg bg-card">
@@ -579,6 +608,13 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 onClose={() => setPasswordModalOpen(false)}
                 onSuccess={() => pendingAction?.()}
                 actionDescription="edit this completed order"
+            />
+
+            <CancelOrderDialog
+                open={cancelOpen}
+                onOpenChange={setCancelOpen}
+                orderId={order.id}
+                orderShortId={order.display_id || order.id.slice(0, 8)}
             />
         </div >
     );
