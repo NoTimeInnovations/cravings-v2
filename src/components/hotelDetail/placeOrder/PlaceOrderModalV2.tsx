@@ -1167,8 +1167,15 @@ const PlaceOrderModalV2 = ({
                 </div>
                 <div className="flex-1 text-left">
                   <div className="text-sm font-bold text-gray-900">
-                    {appliedDiscount?.has_coupon ? `Applied: ${appliedDiscount.code}` : "Apply Discounts"}
+                    {appliedDiscount
+                      ? `Applied: ${appliedDiscount.code}`
+                      : "Apply Discounts"}
                   </div>
+                  {appliedDiscount && discountSavings > 0 && (
+                    <div className="text-xs font-medium mt-0.5" style={{ color: accent }}>
+                      You save {currency}{discountSavings.toFixed(0)}
+                    </div>
+                  )}
                 </div>
                 <ChevronDown className="h-5 w-5 -rotate-90 text-gray-400" />
               </button>
@@ -1183,8 +1190,19 @@ const PlaceOrderModalV2 = ({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-bold text-gray-900 truncate">
-                      {appliedDiscount.description || appliedDiscount.code}
+                      {appliedDiscount.code}
                     </div>
+                    {(appliedDiscount.description || discountSavings > 0) && (
+                      <div className="text-xs text-gray-500 truncate mt-0.5">
+                        {appliedDiscount.description ? `${appliedDiscount.description}` : ""}
+                        {appliedDiscount.description && discountSavings > 0 ? " · " : ""}
+                        {discountSavings > 0 ? (
+                          <span style={{ color: accent }} className="font-semibold">
+                            Saved {currency}{discountSavings.toFixed(0)}
+                          </span>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-1" style={{ color: accent }}>
                     <Check className="h-4 w-4" />

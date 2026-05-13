@@ -579,7 +579,7 @@ interface BillCardProps {
   hotelData: HotelData;
   qrGroup: QrGroup | null;
   tableNumber: number;
-  discount?: { type: "percentage" | "flat" | "freebie"; value: number; max_discount_amount?: number; freebie_item_count?: number; freebie_item_ids?: string; freebie_item_names?: string } | null;
+  discount?: { code?: string; type: "percentage" | "flat" | "freebie"; value: number; max_discount_amount?: number; freebie_item_count?: number; freebie_item_ids?: string; freebie_item_names?: string } | null;
 }
 
 const BillCard = ({
@@ -732,11 +732,14 @@ const BillCard = ({
         ) : null}
 
         {discountSavings > 0 && (
-          <div className="flex justify-between text-sm opacity-70">
+          <div className="flex justify-between text-sm opacity-80">
             <span className="font-medium">
               {discount?.type === "freebie" ? "Freebie Discount" : "Discount"}
+              {discount?.code ? ` (${discount.code})` : ""}
             </span>
-            <span>-{currency}{" "}{discountSavings.toFixed(2)}</span>
+            <span style={{ color: "var(--pom-accent, #ea580c)" }}>
+              -{currency}{" "}{discountSavings.toFixed(2)}
+            </span>
           </div>
         )}
 
@@ -3190,7 +3193,7 @@ const PlaceOrderModal = ({
                   qrGroup={qrGroup}
                   hotelData={hotelData}
                   tableNumber={tableNumber}
-                  discount={appliedDiscount ? { type: appliedDiscount.type, value: appliedDiscount.value, max_discount_amount: appliedDiscount.max_discount_amount, freebie_item_count: appliedDiscount.freebie_item_count, freebie_item_ids: appliedDiscount.freebie_item_ids, freebie_item_names: appliedDiscount.freebie_item_ids?.split(",").map((id) => hotelData?.menus?.find((m) => m.id === id.trim())?.name).filter(Boolean).join(", ") } : null}
+                  discount={appliedDiscount ? { code: appliedDiscount.code, type: appliedDiscount.type, value: appliedDiscount.value, max_discount_amount: appliedDiscount.max_discount_amount, freebie_item_count: appliedDiscount.freebie_item_count, freebie_item_ids: appliedDiscount.freebie_item_ids, freebie_item_names: appliedDiscount.freebie_item_ids?.split(",").map((id) => hotelData?.menus?.find((m) => m.id === id.trim())?.name).filter(Boolean).join(", ") } : null}
                 />
               </div>
 
