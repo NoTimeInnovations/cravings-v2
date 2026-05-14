@@ -174,9 +174,16 @@ export default function WebsitePage({ partner, config, menuItems }: Props) {
   const marqueeTags = merged.marquee.tags.filter((t) => t.text.trim());
   const marqueeEnabled = merged.marquee.enabled && marqueeTags.length > 0;
   const storyEnabled = merged.story.enabled;
+  const reviewItems = merged.reviews.items.filter((r) => r.text?.trim());
+  const reviewsEnabled = merged.reviews.enabled && reviewItems.length > 0;
   const menuEnabled = merged.menu.enabled && menuCategories.length > 0;
   const visitEnabled = merged.visit.enabled;
   const footerEnabled = merged.footer.enabled;
+
+  const renderStars = (rating: number) => {
+    const filled = Math.round(rating);
+    return "★★★★★☆☆☆☆☆".slice(5 - filled, 10 - filled);
+  };
 
   const visitHours = merged.visit.hours.filter((h) => h.label && h.value);
 
@@ -212,6 +219,7 @@ export default function WebsitePage({ partner, config, menuItems }: Props) {
           <div className="wb-nav-links">
             {menuEnabled && <a href="#menu">Menu</a>}
             {storyEnabled && <a href="#about">About Us</a>}
+            {reviewsEnabled && <a href="#reviews">Reviews</a>}
             {visitEnabled && <a href="#visit">Contact Us</a>}
           </div>
           <div className="wb-nav-cta">
@@ -346,6 +354,71 @@ export default function WebsitePage({ partner, config, menuItems }: Props) {
                     <p key={i}>{p}</p>
                   ))}
               </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {reviewsEnabled && (
+        <section id="reviews" className="wb-section">
+          <div className="wb-container">
+            <div className="wb-sec-head">
+              <div>
+                {merged.reviews.eyebrow && (
+                  <span className="wb-eyebrow">{merged.reviews.eyebrow}</span>
+                )}
+                {(merged.reviews.title || merged.reviews.title_accent) && (
+                  <h2 className="wb-display">
+                    {merged.reviews.title}
+                    {merged.reviews.title_accent && (
+                      <>
+                        {merged.reviews.title && <br />}
+                        <span className="wb-it">
+                          {merged.reviews.title_accent}
+                        </span>
+                      </>
+                    )}
+                  </h2>
+                )}
+              </div>
+            </div>
+
+            {merged.reviews.rating > 0 && (
+              <div className="wb-reviews-summary">
+                <span className="wb-reviews-rating">
+                  {merged.reviews.rating.toFixed(1)}
+                </span>
+                <span className="wb-reviews-stars">
+                  {renderStars(merged.reviews.rating)}
+                </span>
+                <span className="wb-reviews-count">
+                  {merged.reviews.total_ratings > 0
+                    ? `${merged.reviews.total_ratings.toLocaleString()} on `
+                    : ""}
+                  {merged.reviews.source_label}
+                </span>
+              </div>
+            )}
+
+            <div className="wb-reviews-grid">
+              {reviewItems.map((rev, i) => (
+                <article key={i} className="wb-review-card">
+                  <div className="wb-review-head">
+                    <div className="wb-review-meta">
+                      <div className="wb-review-name">{rev.author_name}</div>
+                      {rev.relative_time && (
+                        <div className="wb-review-time">
+                          {rev.relative_time}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="wb-review-stars">
+                    {renderStars(rev.rating)}
+                  </div>
+                  <p className="wb-review-text">{rev.text}</p>
+                </article>
+              ))}
             </div>
           </div>
         </section>

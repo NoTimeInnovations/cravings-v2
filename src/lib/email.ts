@@ -107,7 +107,7 @@ export async function sendOtpEmail(to: string, code: string) {
     const resend = new Resend(EMAIL_CONFIG.apiKey);
 
     try {
-        await resend.emails.send({
+        const result = await resend.emails.send({
             from: EMAIL_CONFIG.fromEmail,
             to,
             subject: `Your verification code: ${code}`,
@@ -117,6 +117,15 @@ export async function sendOtpEmail(to: string, code: string) {
                 logoUrl: EMAIL_CONFIG.logoUrl,
             }),
         });
+        // Resend SDK v4+ returns { data, error } instead of throwing on API
+        // errors (unverified domain, suppressed recipient, rate limit, etc.).
+        // Surface them so the caller can react.
+        if (result?.error) {
+            console.error("Resend rejected OTP email:", result.error);
+            throw new Error(
+                (result.error as any)?.message || "Resend rejected the email",
+            );
+        }
     } catch (error) {
         console.error('Failed to send OTP email', error);
         throw error;

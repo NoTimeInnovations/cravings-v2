@@ -145,6 +145,7 @@ query GetPartnerStorefrontByUsername($username: String!) {
     country
     country_code
     theme
+    subscription_details
   }
 }
 `;

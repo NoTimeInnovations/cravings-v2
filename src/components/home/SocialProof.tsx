@@ -96,7 +96,7 @@ export default function SocialProof() {
   ];
 
   return (
-    <section ref={ref} className="py-16 bg-[#fcfbf7]">
+    <section ref={ref} className="py-16 bg-white">
       <div className="max-w-5xl mx-auto px-6">
         <p className="text-center text-sm text-stone-400 uppercase tracking-widest mb-10">
           Real numbers from the last 30 days

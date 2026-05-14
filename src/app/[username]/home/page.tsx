@@ -5,7 +5,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getPartnerStorefrontByUsernameQuery } from "@/api/partners";
 import { getMenu } from "@/api/menu";
 import { WebsiteConfig, mergeWebsiteConfig } from "@/types/website";
-import WebsitePage from "@/screens/WebsitePage";
+import WebsitePageV4 from "@/screens/WebsitePageV4";
 import { Button } from "@/components/ui/button";
 
 interface PartnerRow {
@@ -25,6 +25,7 @@ interface PartnerRow {
   country?: string;
   country_code?: string;
   theme?: any;
+  subscription_details?: any;
 }
 
 function parseJson(raw: any): any {
@@ -113,12 +114,16 @@ export default async function Page({
   const menuRes = config.menu.enabled
     ? await fetchFromHasura(getMenu, { partner_id: partner.id })
     : null;
+  const menuItems = menuRes?.menu ?? [];
 
+  // Single layout across the product — v4 is now the only renderer. Older
+  // partners on layout="default" get auto-migrated visually; missing v4
+  // sections (Highlights/Gallery/etc.) just stay hidden until populated.
   return (
-    <WebsitePage
+    <WebsitePageV4
       partner={partner}
       config={config}
-      menuItems={menuRes?.menu ?? []}
+      menuItems={menuItems}
     />
   );
 }
