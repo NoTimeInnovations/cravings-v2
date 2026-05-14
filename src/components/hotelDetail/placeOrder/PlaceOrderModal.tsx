@@ -45,6 +45,7 @@ import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid }
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
+import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 
 // Helper: detect if a hex color is dark
 function isDarkColor(hex: string): boolean {
@@ -580,6 +581,14 @@ interface BillCardProps {
   qrGroup: QrGroup | null;
   tableNumber: number;
   discount?: { code?: string; type: "percentage" | "flat" | "freebie"; value: number; max_discount_amount?: number; freebie_item_count?: number; freebie_item_ids?: string; freebie_item_names?: string } | null;
+  /** When set, the bill uses the 3PL agent quote instead of `deliveryInfo`. */
+  agentQuote?: {
+    available: boolean;
+    estimatedPrice?: number;
+    distanceKm?: number;
+    etaToPickupMin?: number;
+  } | null;
+  useAgentForCharge?: boolean;
 }
 
 const BillCard = ({
@@ -592,6 +601,8 @@ const BillCard = ({
   qrGroup,
   tableNumber,
   discount,
+  agentQuote,
+  useAgentForCharge,
 }: BillCardProps) => {
   const subtotal = items.reduce(
     (acc, item) => acc + item.price * item.quantity,
@@ -607,8 +618,12 @@ const BillCard = ({
     : 0;
 
   const hideDeliveryCharge = hotelData?.delivery_rules?.hide_delivery_charge ?? false;
-  const deliveryCharges =
-    isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && !hideDeliveryCharge
+  const useAgent = !!useAgentForCharge && !!agentQuote?.available;
+  const agentPrice = useAgent && typeof agentQuote?.estimatedPrice === "number" ? agentQuote.estimatedPrice : 0;
+  const agentDistance = useAgent && typeof agentQuote?.distanceKm === "number" ? agentQuote.distanceKm : null;
+  const deliveryCharges = useAgent
+    ? (isDelivery ? agentPrice : 0)
+    : isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && !hideDeliveryCharge
       ? deliveryInfo.cost
       : 0;
 
@@ -681,7 +696,7 @@ const BillCard = ({
           </div>
         )}
 
-        {isDelivery && hideDeliveryCharge && (
+        {isDelivery && hideDeliveryCharge && !useAgent && (
           <div className="flex justify-between text-sm">
             <span style={{ color: "var(--pom-text-muted)" }}>Delivery Fee</span>
             <span className="font-semibold" style={{ color: "var(--pom-accent, #ea580c)" }}>
@@ -690,7 +705,27 @@ const BillCard = ({
           </div>
         )}
 
-        {isDelivery && !hideDeliveryCharge && !deliveryInfo?.isOutOfRange && deliveryInfo?.distance != null && (
+        {isDelivery && useAgent && (
+          <div>
+            <div className="flex justify-between text-sm">
+              <span style={{ color: "var(--pom-text-muted)" }}>Delivery Charges</span>
+              {agentPrice > 0 ? (
+                <span className="text-inherit">{currency}{" "}{agentPrice.toFixed(2)}</span>
+              ) : (
+                <span className="font-semibold" style={{ color: "var(--pom-accent, #ea580c)" }}>
+                  Free
+                </span>
+              )}
+            </div>
+            {agentDistance != null && (
+              <div className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
+                {agentDistance.toFixed(1)} kms (3PL agent)
+              </div>
+            )}
+          </div>
+        )}
+
+        {isDelivery && !useAgent && !hideDeliveryCharge && !deliveryInfo?.isOutOfRange && deliveryInfo?.distance != null && (
           <div>
             <div className="flex justify-between text-sm">
               <span style={{ color: "var(--pom-text-muted)" }}>Delivery Charges</span>
@@ -1653,6 +1688,95 @@ const PlaceOrderModal = ({
   const showDiscountSection =
     (isQrScan ? hotelFeatures?.ordering?.enabled : hotelFeatures?.delivery?.enabled);
 
+  /* ---------------- 3PL delivery-agent serviceability + quote -------------
+   * Default-on: when the partner has the `delivery_agent` feature enabled and
+   * has NOT explicitly set `use_delivery_agent_charge = false`, treat it as
+   * on. Lets new 3PL stores get auto-calc out of the box. */
+  const useAgentForCharge =
+    !!hotelFeatures?.delivery_agent?.access &&
+    !!hotelFeatures?.delivery_agent?.enabled &&
+    hotelData?.delivery_rules?.use_delivery_agent_charge !== false;
+
+  const partnerCoords = useMemo(() => {
+    const geo: any = hotelData?.geo_location;
+    if (geo && typeof geo === "object" && Array.isArray(geo.coordinates) && geo.coordinates.length === 2) {
+      return { lat: geo.coordinates[1] as number, lng: geo.coordinates[0] as number };
+    }
+    return null;
+  }, [hotelData?.geo_location]);
+
+  const [agentQuote, setAgentQuote] = useState<{
+    available: boolean;
+    etaToPickupMin?: number;
+    distanceKm?: number;
+    estimatedPrice?: number;
+    reason?: "UNSERVICEABLE" | "DISTANCE_TOO_LONG" | "OTHER";
+  } | null>(null);
+  const [agentQuoteLoading, setAgentQuoteLoading] = useState(false);
+
+  useEffect(() => {
+    if (!useAgentForCharge || !isDelivery || isQrScan || orderType !== "delivery") {
+      setAgentQuote(null);
+      return;
+    }
+    if (!partnerCoords || !selectedCoords) {
+      setAgentQuote(null);
+      return;
+    }
+    let cancelled = false;
+    setAgentQuoteLoading(true);
+    const t = setTimeout(async () => {
+      const res = await checkDeliveryAgentAvailability({
+        pickup: { lat: partnerCoords.lat, lng: partnerCoords.lng },
+        drop: { lat: selectedCoords.lat, lng: selectedCoords.lng },
+        paymentMethod: "online",
+      });
+      if (cancelled) return;
+      setAgentQuoteLoading(false);
+      if (res.ok) {
+        const d = res.data as any;
+        setAgentQuote({
+          available: !!d.available,
+          ...(d.etaToPickupMin !== undefined ? { etaToPickupMin: d.etaToPickupMin } : {}),
+          ...(d.distanceKm !== undefined ? { distanceKm: d.distanceKm } : {}),
+          ...(d.estimatedPrice !== undefined ? { estimatedPrice: d.estimatedPrice } : {}),
+          ...(d.reason ? { reason: d.reason } : {}),
+        });
+      } else {
+        const reason =
+          res.status === 422
+            ? ((res as any).code === "DISTANCE_TOO_LONG" ? "DISTANCE_TOO_LONG" : "UNSERVICEABLE")
+            : "OTHER";
+        setAgentQuote({ available: false, reason: reason as any });
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      setAgentQuoteLoading(false);
+      clearTimeout(t);
+    };
+  }, [
+    useAgentForCharge,
+    isDelivery,
+    isQrScan,
+    orderType,
+    partnerCoords?.lat,
+    partnerCoords?.lng,
+    selectedCoords?.lat,
+    selectedCoords?.lng,
+  ]);
+
+  // Block placement until we have an `available: true` quote. While the
+  // quote is loading or hasn't run yet (coords missing), the place-order
+  // button stays disabled — the existing `selectedCoords` guard handles the
+  // missing-coords case, this just enforces "must have a successful quote".
+  const agentBlocksOrder =
+    useAgentForCharge &&
+    isDelivery &&
+    orderType === "delivery" &&
+    !!selectedCoords &&
+    (agentQuoteLoading || !agentQuote?.available);
+
   // Fetch active coupon discounts for this partner
   useEffect(() => {
     if (!showDiscountSection || !hotelData?.id) return;
@@ -2158,13 +2282,16 @@ const PlaceOrderModal = ({
         qrGroup.charge_type || "FLAT_FEE"
       )
       : 0;
-    const deliveryCharge =
-      !isQrScan &&
-        orderType === "delivery" &&
-        deliveryInfo?.cost &&
-        !deliveryInfo?.isOutOfRange
-        ? deliveryInfo.cost
-        : 0;
+    const deliveryCharge = (() => {
+      if (isQrScan || orderType !== "delivery") return 0;
+      if (hotelData?.delivery_rules?.hide_delivery_charge) return 0;
+      if (useAgentForCharge) {
+        return agentQuote?.available && typeof agentQuote.estimatedPrice === "number"
+          ? agentQuote.estimatedPrice
+          : 0;
+      }
+      return deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0;
+    })();
     const parcelChargeType = hotelData?.delivery_rules?.parcel_charge_type || "fixed";
     const parcelItemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
     let parcelCharge = 0;
@@ -2224,7 +2351,7 @@ const PlaceOrderModal = ({
     const billingLines = [
       `*Subtotal:* ${hotelData.currency}${baseTotal.toFixed(2)}`,
       hotelData?.gst_percentage && gstAdditional > 0 ? `*${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${hotelData.gst_percentage}%):* ${hotelData.currency}${gstAdditional.toFixed(2)}` : "",
-      !isQrScan && orderType === "delivery" && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? `*Delivery Charge:* ${hotelData.currency}${deliveryInfo.cost.toFixed(2)}` : "",
+      !isQrScan && orderType === "delivery" && deliveryCharge > 0 ? `*Delivery Charge:* ${hotelData.currency}${deliveryCharge.toFixed(2)}` : "",
       qrGroup?.extra_charge ? `*${qrGroup.name}:* ${hotelData.currency}${qrCharge.toFixed(2)}` : "",
       parcelCharge > 0 ? `*Parcel Charge:* ${hotelData.currency}${parcelCharge.toFixed(2)}` : "",
       discountSavingsAmount > 0 ? `*Discount:* -${hotelData.currency}${discountSavingsAmount.toFixed(2)}` : "",
@@ -2309,8 +2436,27 @@ const PlaceOrderModal = ({
           return;
         }
 
-        if (deliveryInfo?.isOutOfRange) {
+        if (!useAgentForCharge && deliveryInfo?.isOutOfRange) {
           toast.error("Delivery is not available to your location");
+          return;
+        }
+      }
+
+      if (useAgentForCharge) {
+        if (agentQuoteLoading) {
+          toast.error("Checking delivery partner availability — please wait a moment");
+          return;
+        }
+        if (!agentQuote) {
+          toast.error("Could not check delivery partner availability. Try again");
+          return;
+        }
+        if (!agentQuote.available) {
+          toast.error(
+            agentQuote.reason === "DISTANCE_TOO_LONG"
+              ? "Selected address is too far for our delivery partner"
+              : "Delivery partner can't serve this address right now",
+          );
           return;
         }
       }
@@ -2370,16 +2516,19 @@ const PlaceOrderModal = ({
 
       if (
         !isQrScan &&
-        deliveryInfo?.cost &&
-        !deliveryInfo?.isOutOfRange &&
         orderType === "delivery" &&
         !(hotelData?.delivery_rules?.hide_delivery_charge)
       ) {
-        extraCharges.push({
-          name: "Delivery Charge",
-          amount: deliveryInfo.cost,
-          charge_type: "FLAT_FEE",
-        });
+        const amt = useAgentForCharge
+          ? (agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice : 0)
+          : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
+        if (amt > 0) {
+          extraCharges.push({
+            name: "Delivery Charge",
+            amount: amt,
+            charge_type: "FLAT_FEE",
+          });
+        }
       }
 
       if (
@@ -2460,6 +2609,7 @@ const PlaceOrderModal = ({
             : undefined,
         } : null,
         needUserName ? customerName.trim() : undefined,
+        (user as any)?.phone || undefined,
       );
 
       if (result) {
@@ -2536,8 +2686,11 @@ const PlaceOrderModal = ({
         const amt = getExtraCharge(items || [], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE");
         if (amt > 0) extraCharges.push({ name: qrGroup.name, amount: amt, charge_type: qrGroup.charge_type || "FLAT_FEE" });
       }
-      if (!isQrScan && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && orderType === "delivery" && !(hotelData?.delivery_rules?.hide_delivery_charge)) {
-        extraCharges.push({ name: "Delivery Charge", amount: deliveryInfo.cost, charge_type: "FLAT_FEE" });
+      if (!isQrScan && orderType === "delivery" && !(hotelData?.delivery_rules?.hide_delivery_charge)) {
+        const amt = useAgentForCharge
+          ? (agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice : 0)
+          : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
+        if (amt > 0) extraCharges.push({ name: "Delivery Charge", amount: amt, charge_type: "FLAT_FEE" });
       }
       if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge && hotelData.delivery_rules.parcel_charge > 0) {
         const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
@@ -2771,6 +2924,7 @@ const PlaceOrderModal = ({
         tableName,
         null,
         pending.customerName || undefined,
+        (useAuthStore.getState().userData as any)?.phone || undefined,
       );
 
       if (result) {
@@ -2859,7 +3013,8 @@ const PlaceOrderModal = ({
       (!address ||
         ((hotelData?.delivery_rules?.needDeliveryLocation ?? true) &&
           !selectedCoords))) ||
-    (isDelivery && deliveryInfo?.isOutOfRange) ||
+    (isDelivery && !useAgentForCharge && deliveryInfo?.isOutOfRange) ||
+    agentBlocksOrder ||
     (hasMultiWhatsapp && !selectedLocation);
 
   const { qrData } = useQrDataStore();
@@ -2868,7 +3023,13 @@ const PlaceOrderModal = ({
   const _barSubtotal = items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
   const _barQrCharge = qrGroup?.extra_charge ? getExtraCharge(items || [], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE") : 0;
   const _barHideDelivery = hotelData?.delivery_rules?.hide_delivery_charge ?? false;
-  const _barDeliveryCharge = !isQrScan && orderType === "delivery" && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && !_barHideDelivery ? deliveryInfo.cost : 0;
+  const _barDeliveryCharge = (() => {
+    if (isQrScan || orderType !== "delivery" || _barHideDelivery) return 0;
+    if (useAgentForCharge) {
+      return agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice : 0;
+    }
+    return deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0;
+  })();
   const _barTotalItemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
   const _barParcelCharge = (() => {
     if (!(tableNumber === 0 && (hotelData?.delivery_rules?.parcel_charge || 0) > 0)) return 0;
@@ -3194,6 +3355,8 @@ const PlaceOrderModal = ({
                   hotelData={hotelData}
                   tableNumber={tableNumber}
                   discount={appliedDiscount ? { code: appliedDiscount.code, type: appliedDiscount.type, value: appliedDiscount.value, max_discount_amount: appliedDiscount.max_discount_amount, freebie_item_count: appliedDiscount.freebie_item_count, freebie_item_ids: appliedDiscount.freebie_item_ids, freebie_item_names: appliedDiscount.freebie_item_ids?.split(",").map((id) => hotelData?.menus?.find((m) => m.id === id.trim())?.name).filter(Boolean).join(", ") } : null}
+                  agentQuote={agentQuote}
+                  useAgentForCharge={useAgentForCharge}
                 />
               </div>
 
@@ -3205,9 +3368,46 @@ const PlaceOrderModal = ({
               )}
 
               {/* Warnings */}
-              {isDelivery && !isQrScan && orderType === "delivery" && deliveryInfo?.isOutOfRange && (
+              {isDelivery && !isQrScan && orderType === "delivery" && !useAgentForCharge && deliveryInfo?.isOutOfRange && (
                 <div className="text-sm p-3 rounded-xl text-center" style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#fca5a5" }}>
                   Delivery is not available to your selected location
+                </div>
+              )}
+
+              {/* 3PL agent serviceability panel */}
+              {isDelivery && !isQrScan && orderType === "delivery" && useAgentForCharge && selectedCoords && (
+                <div className="text-sm p-3 rounded-xl" style={{ backgroundColor: "var(--pom-card-bg, white)", border: "1px solid var(--pom-card-border, #e7e5e4)", boxShadow: "var(--pom-card-shadow)" }}>
+                  {agentQuoteLoading ? (
+                    <div className="flex items-center gap-2 text-inherit opacity-80">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Checking 3PL serviceability…</span>
+                    </div>
+                  ) : agentQuote && !agentQuote.available ? (
+                    <div className="text-center" style={{ color: "#fca5a5" }}>
+                      {agentQuote.reason === "DISTANCE_TOO_LONG"
+                        ? "Selected address is too far for our delivery partner."
+                        : "Delivery partner can't serve this address right now."}
+                    </div>
+                  ) : agentQuote && agentQuote.available ? (
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-inherit">Delivery partner available</div>
+                        <div className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
+                          {[
+                            agentQuote.distanceKm !== undefined ? `${agentQuote.distanceKm.toFixed(1)} km` : null,
+                            agentQuote.etaToPickupMin !== undefined ? `~${agentQuote.etaToPickupMin} min pickup ETA` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                      </div>
+                      {agentQuote.estimatedPrice !== undefined && !hotelData?.delivery_rules?.hide_delivery_charge && (
+                        <div className="text-sm font-semibold text-inherit whitespace-nowrap">
+                          {hotelData?.currency || "₹"}{agentQuote.estimatedPrice.toFixed(0)}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               )}
 

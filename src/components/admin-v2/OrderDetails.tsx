@@ -333,13 +333,19 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     </div>
                 </div>
 
-                {/* Delivery Boy Assignment */}
-                {order.type === "delivery" && order.status !== "completed" && order.status !== "cancelled" && (
-                    <DeliveryBoyAssignment order={order} />
-                )}
+                {/* Delivery Boy Assignment — hidden when partner uses a 3PL delivery agent */}
+                {order.type === "delivery" &&
+                    order.status !== "completed" &&
+                    order.status !== "cancelled" &&
+                    !getFeatures((userData as Partner)?.feature_flags || null).delivery_agent.enabled && (
+                        <DeliveryBoyAssignment order={order} />
+                    )}
             </div>
 
-            {getFeatures((userData as Partner)?.feature_flags || null).growjet_delivery.access && (() => {
+            {(() => {
+                const f = getFeatures((userData as Partner)?.feature_flags || null);
+                return f.growjet_delivery.access || f.delivery_agent.access;
+            })() && (() => {
                 const partner = userData as Partner | null;
                 const agent = order.delivery_agent;
                 const agentLat = agent?.location?.latitude;
@@ -373,18 +379,35 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
 
                 return (
                     <div className="border rounded-lg bg-card p-4 space-y-3">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
                             <h3 className="font-semibold">Delivery Agent</h3>
-                            {order.growjet_order_number ? (
-                                <Badge className="bg-green-100 text-green-800 font-mono">
-                                    ✓ {order.growjet_order_number}
-                                </Badge>
-                            ) : (
-                                <Badge variant="outline" className="text-muted-foreground font-mono">
-                                    Nil
-                                </Badge>
-                            )}
+                            <div className="flex items-center gap-2">
+                                {order.delivery_provider === "adloggs" && order.delivery_provider_order_id && (
+                                    <Badge className="bg-blue-100 text-blue-800 font-mono">
+                                        adloggs · {order.delivery_provider_state ?? "—"}
+                                    </Badge>
+                                )}
+                                {order.growjet_order_number ? (
+                                    <Badge className="bg-green-100 text-green-800 font-mono">
+                                        ✓ {order.growjet_order_number}
+                                    </Badge>
+                                ) : !order.delivery_provider_order_id ? (
+                                    <Badge variant="outline" className="text-muted-foreground font-mono">
+                                        Nil
+                                    </Badge>
+                                ) : null}
+                            </div>
                         </div>
+                        {order.delivery_provider === "adloggs" && order.delivery_provider_meta?.trackUrl && (
+                            <a
+                                href={order.delivery_provider_meta.trackUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 underline"
+                            >
+                                Open Adloggs tracking page →
+                            </a>
+                        )}
 
                         {agent ? (
                             <>

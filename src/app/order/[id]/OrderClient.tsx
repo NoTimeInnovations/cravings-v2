@@ -53,6 +53,11 @@ const GET_ORDER_QUERY = `
         location_updated_at
       }
       delivery_agent
+      delivery_provider
+      delivery_provider_order_id
+      delivery_provider_state
+      delivery_provider_meta
+      delivery_provider_last_event_at
       partner {
         gst_percentage
         currency
@@ -132,20 +137,24 @@ const OrderClient = () => {
         return () => clearInterval(interval);
     }, [order?.delivery_boy?.location_updated_at]);
 
-    // Same ticker for the third-party delivery agent (e.g. Growjet)
+    // Same ticker for the third-party delivery agent (Growjet legacy shape uses
+    // `location.lastUpdated`; delivery-agents-server hub uses `lastUpdatedMs`).
     useEffect(() => {
-        const updatedAt = order?.delivery_agent?.location?.lastUpdated;
+        const a = order?.delivery_agent as any;
+        const updatedAt: string | number | undefined =
+            a?.location?.lastUpdated ?? a?.lastUpdatedMs;
         if (!updatedAt) {
             setAgentLocationAgo(null);
             return;
         }
         const update = () => {
-            setAgentLocationAgo(Math.round((Date.now() - new Date(updatedAt).getTime()) / 1000));
+            const t = typeof updatedAt === "number" ? updatedAt : new Date(updatedAt).getTime();
+            setAgentLocationAgo(Math.round((Date.now() - t) / 1000));
         };
         update();
         const interval = setInterval(update, 1000);
         return () => clearInterval(interval);
-    }, [order?.delivery_agent?.location?.lastUpdated]);
+    }, [(order?.delivery_agent as any)?.location?.lastUpdated, (order?.delivery_agent as any)?.lastUpdatedMs]);
 
     useEffect(() => {
         if (!orderId) return;
@@ -294,22 +303,36 @@ const OrderClient = () => {
     const isCompleted = order?.status === "completed" || order?.status === "cancelled";
     const isPaid = !!(order as any)?.is_paid;
 
-    // Third-party delivery agent (Growjet etc.) — show only when partner has
-    // the integration enabled, the poller has populated the agent record,
-    // and the order isn't already in a terminal state.
+    // Third-party delivery agent (Growjet or Adloggs) — show only when the
+    // partner has an LSP integration enabled, the agent record has been
+    // populated (either by the Growjet poller or by the delivery-agents-server
+    // webhook handler), and the order isn't already in a terminal state.
     const partnerFlags = getFeatures(order?.partner?.feature_flags ?? null);
-    const agent = order?.delivery_agent ?? null;
-    const agentProvider = agent?.provider;
+    const agent = order?.delivery_agent as any | null;
+    // The hub writes { name, phone, lat, lng, lastUpdatedMs }. Legacy Growjet
+    // writes { provider, location: { latitude, longitude, lastUpdated } }.
+    // Normalize both shapes here so the rest of the page works unchanged.
+    const agentLat: number | undefined = agent?.location?.latitude ?? agent?.lat;
+    const agentLng: number | undefined = agent?.location?.longitude ?? agent?.lng;
+    const agentLastUpdated: string | number | undefined =
+        agent?.location?.lastUpdated ?? agent?.lastUpdatedMs;
+    const agentProvider: string | undefined =
+        agent?.provider ?? (order as any)?.delivery_provider;
     const showGrowjetAgent =
         !!agent &&
-        agentProvider === "growjet" &&
-        partnerFlags.growjet_delivery.access &&
-        partnerFlags.growjet_delivery.enabled &&
+        ((agentProvider === "growjet" &&
+            partnerFlags.growjet_delivery.access &&
+            partnerFlags.growjet_delivery.enabled) ||
+            (agentProvider === "adloggs" &&
+                partnerFlags.delivery_agent.access &&
+                partnerFlags.delivery_agent.enabled)) &&
         !isCompleted;
-    const agentLat = agent?.location?.latitude;
-    const agentLng = agent?.location?.longitude;
     const agentProviderLabel =
-        agentProvider === "growjet" ? "Growjet" : (agentProvider ?? "Partner");
+        agentProvider === "growjet"
+            ? "Growjet"
+            : agentProvider === "adloggs"
+                ? "Adloggs"
+                : (agentProvider ?? "Partner");
     const formatAgo = (sec: number): string =>
         sec < 60
             ? `${sec}s`
@@ -567,6 +590,23 @@ ${itemsText}
                                 </div>
                             </div>
                         )}
+
+                        {/* Adloggs delivery OTP — surfaced only while the order is live and we have it. */}
+                        {(order as any)?.delivery_provider === "adloggs" &&
+                            (order as any)?.delivery_provider_meta?.otps?.delivery_otp &&
+                            !isCompleted && (
+                                <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 flex items-center gap-3 shadow-sm">
+                                    <Bike className="h-5 w-5 text-orange-700" />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-orange-700">
+                                            Show this OTP to the delivery rider
+                                        </p>
+                                        <p className="mt-1 text-2xl font-bold tracking-[0.3em] font-mono text-orange-900">
+                                            {(order as any).delivery_provider_meta.otps.delivery_otp}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
 
                         {/* Card: Order header */}
                         <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-5">

@@ -477,6 +477,17 @@ export function DeliverySettings() {
         });
     };
 
+    // When BOTH the delivery_agent feature is on AND the partner has opted
+    // into "let the 3PL calculate the charge", we hide the internal rate /
+    // range / radius config. Customer-side checkout reads the live quote
+    // from delivery-agents-server instead.
+    // Default-on: if `use_delivery_agent_charge` is undefined and the feature
+    // is enabled, treat as on. Partner must explicitly set `false` to turn off.
+    const agentChargeEnabled =
+        !!features?.delivery_agent?.access &&
+        !!features?.delivery_agent?.enabled &&
+        deliveryRules.use_delivery_agent_charge !== false;
+
     return (
         <div className="space-y-6">
             <Card>
@@ -496,16 +507,33 @@ export function DeliverySettings() {
                         />
                     </div>
 
-                    <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                            <Label className="text-base">Don&apos;t show delivery charge</Label>
-                            <p className="text-sm text-muted-foreground">Show &quot;Extra delivery charges apply&quot; note instead of adding delivery charge to bill.</p>
+                    {features?.delivery_agent?.access && features?.delivery_agent?.enabled && (
+                        <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50/40 p-3">
+                            <div className="space-y-0.5">
+                                <Label className="text-base">Auto calculate delivery charge</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Fetches a live price and serviceability check from your 3PL provider (Adloggs) at checkout. When on, all other delivery-charge settings below are hidden and ignored. Recommended for 3PL-enabled stores.
+                                </p>
+                            </div>
+                            <Switch
+                                checked={deliveryRules.use_delivery_agent_charge !== false}
+                                onCheckedChange={(checked) => setDeliveryRules(prev => ({ ...prev, use_delivery_agent_charge: checked }))}
+                            />
                         </div>
-                        <Switch
-                            checked={deliveryRules.hide_delivery_charge ?? false}
-                            onCheckedChange={(checked) => setDeliveryRules(prev => ({ ...prev, hide_delivery_charge: checked }))}
-                        />
-                    </div>
+                    )}
+
+                    {!agentChargeEnabled && (
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label className="text-base">Don&apos;t show delivery charge</Label>
+                                <p className="text-sm text-muted-foreground">Show &quot;Extra delivery charges apply&quot; note instead of adding delivery charge to bill.</p>
+                            </div>
+                            <Switch
+                                checked={deliveryRules.hide_delivery_charge ?? false}
+                                onCheckedChange={(checked) => setDeliveryRules(prev => ({ ...prev, hide_delivery_charge: checked }))}
+                            />
+                        </div>
+                    )}
 
                     <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
@@ -539,7 +567,7 @@ export function DeliverySettings() {
                         </div>
                     </div>
 
-                    {deliveryRules.needDeliveryLocation && (
+                    {deliveryRules.needDeliveryLocation && !agentChargeEnabled && (
                         <>
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div className="space-y-2">

@@ -36,6 +36,9 @@ export type SavedAddress = {
   longitude?: number;
   isDefault?: boolean;
   customLocation?: string;
+  /** Receiver name and phone for the order — used by V2 checkout + 3PL booking. */
+  receiverName?: string;
+  receiverPhone?: string;
 };
 
 type RecentSearch = {

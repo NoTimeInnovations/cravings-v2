@@ -43,6 +43,16 @@ export type FeatureFlags = {
     access: boolean;
     enabled: boolean;
   };
+  /**
+   * Routes order dispatch through delivery-agents-server (provider-agnostic
+   * hub; Adloggs is the first/only plugin shipped). Fires on the `accepted`
+   * status transition. Independent of `growjet_delivery`, which is locked to
+   * one Petpooja-coupled partner and triggers on `food_ready`.
+   */
+  delivery_agent: {
+    access: boolean;
+    enabled: boolean;
+  };
 };
 
 export const revertFeatureToString = (features: FeatureFlags): string => {
@@ -90,6 +100,10 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
 
   if (features.growjet_delivery.access) {
     parts.push(`growjet_delivery-${features.growjet_delivery.enabled}`);
+  }
+
+  if (features.delivery_agent.access) {
+    parts.push(`delivery_agent-${features.delivery_agent.enabled}`);
   }
 
   return parts.join(",");
@@ -141,6 +155,10 @@ export const getFeatures = (perm: string | null) => {
       access: false,
       enabled: false,
     },
+    delivery_agent: {
+      access: false,
+      enabled: false,
+    },
   };
 
   if (!perm) {
@@ -186,6 +204,9 @@ export const getFeatures = (perm: string | null) => {
       } else if (key === "growjet_delivery") {
         permissions.growjet_delivery.access = true;
         permissions.growjet_delivery.enabled = value === "true";
+      } else if (key === "delivery_agent") {
+        permissions.delivery_agent.access = true;
+        permissions.delivery_agent.enabled = value === "true";
       }
     }
   }

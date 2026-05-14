@@ -287,6 +287,23 @@ export function FeatureSettings() {
                                     />
                                 </div>
                             )}
+
+                            {features.delivery_agent?.access && (
+                                <div className="flex items-center justify-between p-4 border rounded-lg">
+                                    <div className="space-y-0.5">
+                                        <div className="font-medium">3PL Delivery Agents</div>
+                                        <div className="text-sm text-muted-foreground">
+                                            {features.delivery_agent.enabled
+                                                ? "Enabled — orders dispatch to a 3PL provider (Adloggs) when accepted"
+                                                : "Disabled — orders won't be sent to a 3PL provider"}
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={features.delivery_agent.enabled}
+                                        onCheckedChange={(checked) => handleFeatureToggle("delivery_agent", checked)}
+                                    />
+                                </div>
+                            )}
                         </>
                     )}
                 </CardContent>
