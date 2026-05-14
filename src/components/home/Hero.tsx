@@ -269,8 +269,9 @@ export default function Hero() {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="inline-flex items-center bg-[#0B0B0C] text-white rounded-[10px] px-4 py-2.5 text-[14px] font-medium hover:bg-[#1A1A1C] transition-colors disabled:opacity-60 shrink-0"
+                      className="inline-flex items-center gap-1.5 bg-[#0B0B0C] text-white rounded-[10px] px-4 py-2.5 text-[14px] font-medium hover:bg-[#1A1A1C] transition-colors disabled:opacity-60 shrink-0"
                     >
+                      <Sparkles className="h-3.5 w-3.5" fill="currentColor" />
                       {submitting ? "Working..." : "Generate"}
                     </button>
                   </div>
@@ -305,8 +306,9 @@ export default function Hero() {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="inline-flex items-center bg-[#0B0B0C] text-white rounded-[10px] px-4 py-2.5 text-[14px] font-medium hover:bg-[#1A1A1C] transition-colors disabled:opacity-60 shrink-0"
+                      className="inline-flex items-center gap-1.5 bg-[#0B0B0C] text-white rounded-[10px] px-4 py-2.5 text-[14px] font-medium hover:bg-[#1A1A1C] transition-colors disabled:opacity-60 shrink-0"
                     >
+                      <Sparkles className="h-3.5 w-3.5" fill="currentColor" />
                       Generate
                     </button>
                   </div>
