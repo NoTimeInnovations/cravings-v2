@@ -361,26 +361,14 @@ export default function Hero() {
 
           </div>
 
-          {/* RIGHT — product demo video with floating cards */}
+          {/* RIGHT — phone mockup with floating cards */}
           <div className="flex-1 relative hidden md:block min-h-[600px]">
-            {/* Demo video — sized to match the original phone mockup */}
+            {/* Phone — tilted */}
             <div
-              className="absolute top-0 right-12 w-[286px] h-[600px] rounded-[44px] overflow-hidden bg-[#0B0B0C]"
-              style={{
-                boxShadow:
-                  "0 30px 80px -30px rgba(11,11,12,0.45), 0 12px 24px -12px rgba(11,11,12,0.25)",
-              }}
+              className="absolute top-0 right-12"
+              style={{ transform: "rotate(-4deg)", transformOrigin: "center" }}
             >
-              <video
-                src="/demomenuthere.webm"
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="auto"
-                aria-label="Menuthere product demo"
-                className="w-full h-full object-cover"
-              />
+              <PhoneMockup />
             </div>
 
             {/* Floating — Live order (top-left overlap) */}
@@ -512,3 +500,206 @@ function FloatingCard({
   );
 }
 
+function PhoneMockup() {
+  return (
+    <div
+      className="relative w-[286px] h-[600px] rounded-[48px] p-[3px]"
+      style={{
+        background:
+          "linear-gradient(135deg, #2A2A2D 0%, #0B0B0C 40%, #1A1A1C 100%)",
+        boxShadow:
+          "0 30px 80px -30px rgba(11,11,12,0.45), 0 12px 24px -12px rgba(11,11,12,0.25), inset 0 0 0 1px rgba(255,255,255,0.04)",
+      }}
+    >
+      {/* Side buttons — left */}
+      <div className="absolute -left-[3px] top-[96px] w-[3px] h-[28px] rounded-l bg-[#1A1A1C] shadow-[inset_-1px_0_0_rgba(0,0,0,0.6)]" />
+      <div className="absolute -left-[3px] top-[140px] w-[3px] h-[52px] rounded-l bg-[#1A1A1C] shadow-[inset_-1px_0_0_rgba(0,0,0,0.6)]" />
+      <div className="absolute -left-[3px] top-[206px] w-[3px] h-[52px] rounded-l bg-[#1A1A1C] shadow-[inset_-1px_0_0_rgba(0,0,0,0.6)]" />
+
+      {/* Side button — right (power) */}
+      <div className="absolute -right-[3px] top-[160px] w-[3px] h-[78px] rounded-r bg-[#1A1A1C] shadow-[inset_1px_0_0_rgba(0,0,0,0.6)]" />
+
+      {/* Inner bezel */}
+      <div
+        className="w-full h-full rounded-[44px] bg-[#0B0B0C] p-[5px]"
+        style={{
+          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.03)",
+        }}
+      >
+        {/* Screen */}
+        <div className="w-full h-full rounded-[39px] bg-white overflow-hidden relative">
+          {/* Dynamic Island */}
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[112px] h-[30px] bg-[#0B0B0C] rounded-full z-30 flex items-center justify-end pr-2.5 gap-1.5">
+            {/* Camera lens */}
+            <span className="w-2 h-2 rounded-full bg-[#1A1A1C] ring-1 ring-[#26262A] shadow-[inset_0_0_0_1px_rgba(140,170,200,0.18)]" />
+          </div>
+
+          {/* Status bar */}
+          <div className="flex items-center justify-between px-7 pt-3.5 text-[12px] font-semibold text-[#0B0B0C]">
+            <span>9:41</span>
+            <span className="flex items-center gap-1">
+              <svg width="14" height="10" viewBox="0 0 14 10" fill="#0B0B0C">
+                <rect x="0" y="6" width="2.5" height="4" rx="0.5" />
+                <rect x="3.5" y="4" width="2.5" height="6" rx="0.5" />
+                <rect x="7" y="2" width="2.5" height="8" rx="0.5" />
+                <rect x="10.5" y="0" width="2.5" height="10" rx="0.5" />
+              </svg>
+              <svg width="22" height="11" viewBox="0 0 22 11" fill="none">
+                <rect
+                  x="0.5"
+                  y="0.5"
+                  width="18"
+                  height="10"
+                  rx="2.5"
+                  stroke="#0B0B0C"
+                />
+                <rect x="2" y="2" width="15" height="7" rx="1.5" fill="#0B0B0C" />
+                <rect
+                  x="19.5"
+                  y="3.5"
+                  width="1.5"
+                  height="4"
+                  rx="0.5"
+                  fill="#0B0B0C"
+                />
+              </svg>
+            </span>
+          </div>
+
+          {/* Restaurant header */}
+          <div className="px-5 pt-11">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="text-[18px] font-semibold tracking-tight text-[#0B0B0C] leading-tight">
+                  Spice Garden
+                </div>
+                <div className="text-[12px] text-[#76767B] mt-0.5">
+                  Delivers in 25–35 min · 0.8 mi
+                </div>
+              </div>
+              <button className="w-8 h-8 rounded-full bg-[#F3EFE5] border border-[rgba(11,11,12,0.06)] grid place-items-center shrink-0">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <circle
+                    cx="7"
+                    cy="7"
+                    r="5.5"
+                    stroke="#0B0B0C"
+                    strokeWidth="1.3"
+                  />
+                  <path
+                    d="M7 4v3l2 1.5"
+                    stroke="#0B0B0C"
+                    strokeWidth="1.3"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Category pills */}
+          <div className="mt-4 px-5 flex items-center gap-2 overflow-hidden">
+            {[
+              { label: "Biryani", active: true },
+              { label: "Dosa" },
+              { label: "Drinks" },
+              { label: "Combos" },
+            ].map((c) => (
+              <span
+                key={c.label}
+                className={`px-3 py-1.5 rounded-full text-[12px] font-medium whitespace-nowrap ${
+                  c.active
+                    ? "bg-[#0B0B0C] text-white"
+                    : "bg-[#F3EFE5] text-[#2A2A2D] border border-[rgba(11,11,12,0.06)]"
+                }`}
+              >
+                {c.label}
+              </span>
+            ))}
+          </div>
+
+          {/* Featured product card */}
+          <div className="mt-3 mx-5 rounded-2xl bg-[#FAF5EC] border border-[rgba(11,11,12,0.05)] overflow-hidden">
+            {/* Food photo */}
+            <div className="relative h-[150px] bg-gradient-to-br from-[#F8E3C8] via-[#EFCAA0] to-[#D9A56F]">
+              <img
+                src="/biriyani.png"
+                alt="Royal Biriyani"
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[140px] object-contain drop-shadow-[0_8px_12px_rgba(80,40,10,0.18)]"
+              />
+              <span className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#1F7A4A] text-white text-[10px] font-semibold tracking-wide">
+                <span className="w-1.5 h-1.5 bg-white rounded-full" />
+                Bestseller
+              </span>
+            </div>
+
+            <div className="px-3.5 pt-3 pb-3.5">
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-[14px] font-semibold tracking-tight text-[#0B0B0C]">
+                  Royal Biriyani
+                </span>
+                <span className="text-[14px] font-semibold text-[#0B0B0C]">
+                  $14.50
+                </span>
+              </div>
+              <div className="text-[11px] text-[#76767B] mt-0.5 leading-snug">
+                Aromatic basmati, tender chicken, saffron
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 bg-white rounded-full border border-[rgba(11,11,12,0.08)] px-2 py-1">
+                  <button className="w-5 h-5 grid place-items-center text-[#0B0B0C] text-[13px]">
+                    −
+                  </button>
+                  <span className="text-[12px] font-semibold w-3 text-center">
+                    2
+                  </span>
+                  <button className="w-5 h-5 grid place-items-center text-[#0B0B0C] text-[13px]">
+                    +
+                  </button>
+                </div>
+                <button className="flex-1 bg-[#ED5717] text-white text-[12px] font-semibold py-2 rounded-full">
+                  Add — $29.00
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Secondary item row */}
+          <div className="mt-2.5 mx-5 rounded-2xl bg-[#FAF5EC] border border-[rgba(11,11,12,0.05)] p-2.5 flex items-center gap-3">
+            <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-[#F8E3C8] via-[#EFCAA0] to-[#D9A56F] shrink-0 overflow-hidden">
+              <img
+                src="/dosa.png"
+                alt="Crispy Masala Dosa"
+                className="absolute inset-0 w-full h-full object-contain p-0.5"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[13px] font-semibold text-[#0B0B0C]">
+                  Crispy Masala Dosa
+                </span>
+                <span className="text-[13px] font-semibold text-[#0B0B0C]">
+                  $6.50
+                </span>
+              </div>
+              <div className="text-[11px] text-[#76767B] mt-0.5">
+                Rice crepe · potato masala
+              </div>
+            </div>
+          </div>
+
+          {/* Cart bar */}
+          <div className="absolute bottom-3 left-3 right-3 bg-[#0B0B0C] text-white rounded-full pl-1.5 pr-4 py-1.5 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <span className="w-8 h-8 rounded-full bg-[#ED5717] text-white grid place-items-center text-[12px] font-semibold">
+                3
+              </span>
+              <span className="text-[13px] font-medium">View cart</span>
+            </div>
+            <span className="text-[13px] font-semibold">$35.50</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
