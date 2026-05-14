@@ -4,11 +4,7 @@ import { GoogleGenerativeAI, type Schema } from "@google/generative-ai";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Prefer the server-only var; fall back to the public one if the server-only
-// var is unset — older deployments may still ship the key via the NEXT_PUBLIC_
-// name. Either env value works for this server route.
-const API_KEY =
-  process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+const API_KEY = process.env.GEMINI_API_KEY;
 
 type InlineFile = { data: string; mimeType: string };
 
