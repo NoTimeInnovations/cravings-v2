@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,11 +48,128 @@ import { getFeatures } from "@/lib/getFeatures";
 
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { DeliveryBoyAssignment } from "./DeliveryBoyAssignment";
+import { checkAllProvidersAvailability } from "@/app/actions/deliveryAgent";
 
 interface OrderDetailsProps {
     order: Order | null;
     onBack: () => void;
     onEdit?: () => void;
+}
+
+/**
+ * Small sub-panel that probes every registered 3PL provider for this
+ * order's pickup→drop pair and shows the count of available partners.
+ * Mounts only when the order is in `pending` or `accepted` (the window
+ * where the partner can still decide how to dispatch). Cached on the hub
+ * (60 s per rounded coord pair), so re-mounts are cheap.
+ */
+function ProviderAvailabilityPanel({
+    pickup,
+    drop,
+    status,
+}: {
+    pickup: { lat: number; lng: number } | null;
+    drop: { lat: number; lng: number } | null;
+    status: string | undefined;
+}) {
+    const eligible = status === "pending" || status === "accepted";
+
+    const [data, setData] = useState<{
+        totalProviders: number;
+        availableCount: number;
+        providers: Array<{
+            provider: string;
+            displayName: string;
+            available: boolean;
+            etaToPickupMin?: number;
+            distanceKm?: number;
+            estimatedPrice?: number;
+            reason?: string;
+        }>;
+    } | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (!eligible || !pickup || !drop) {
+            setData(null);
+            return;
+        }
+        let cancelled = false;
+        setLoading(true);
+        (async () => {
+            const res = await checkAllProvidersAvailability({
+                pickup,
+                drop,
+                paymentMethod: "online",
+            });
+            if (cancelled) return;
+            setLoading(false);
+            if (res.ok) setData(res.data as any);
+            else setData(null);
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [eligible, pickup?.lat, pickup?.lng, drop?.lat, drop?.lng]);
+
+    if (!eligible) return null;
+    if (!pickup || !drop) return null;
+    if (loading && !data) {
+        return (
+            <div className="rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground">
+                Checking 3PL serviceability…
+            </div>
+        );
+    }
+    if (!data) return null;
+
+    const tone =
+        data.availableCount === 0
+            ? "border-red-200 bg-red-50"
+            : "border-emerald-200 bg-emerald-50";
+    return (
+        <div className={`rounded-md border p-3 ${tone}`}>
+            <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">
+                    {data.availableCount} of {data.totalProviders} delivery partner
+                    {data.totalProviders === 1 ? "" : "s"} can serve this address
+                </p>
+            </div>
+            {data.providers.length > 0 && (
+                <ul className="mt-2 space-y-1 text-xs">
+                    {data.providers.map((p) => (
+                        <li
+                            key={p.provider}
+                            className="flex items-center justify-between gap-2"
+                        >
+                            <span className="capitalize">
+                                {p.displayName || p.provider}
+                            </span>
+                            {p.available ? (
+                                <span className="font-medium text-emerald-700">
+                                    available
+                                    {p.estimatedPrice !== undefined
+                                        ? ` · ₹${p.estimatedPrice.toFixed(0)}`
+                                        : ""}
+                                    {p.distanceKm !== undefined
+                                        ? ` · ${p.distanceKm.toFixed(1)} km`
+                                        : ""}
+                                </span>
+                            ) : (
+                                <span className="text-muted-foreground">
+                                    {p.reason === "DISTANCE_TOO_LONG"
+                                        ? "too far"
+                                        : p.reason === "ERROR"
+                                            ? "error"
+                                            : "unserviceable"}
+                                </span>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
 }
 
 export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
@@ -398,6 +515,21 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                 ) : null}
                             </div>
                         </div>
+                        {getFeatures((userData as Partner)?.feature_flags || null).delivery_agent.access && (
+                            <ProviderAvailabilityPanel
+                                pickup={
+                                    hotelLat != null && hotelLng != null
+                                        ? { lat: hotelLat, lng: hotelLng }
+                                        : null
+                                }
+                                drop={
+                                    dropLat != null && dropLng != null
+                                        ? { lat: dropLat, lng: dropLng }
+                                        : null
+                                }
+                                status={order.status}
+                            />
+                        )}
                         {order.delivery_provider === "adloggs" && order.delivery_provider_meta?.trackUrl && (
                             <a
                                 href={order.delivery_provider_meta.trackUrl}
@@ -492,6 +624,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                             hotelBanner={partner?.store_banner ?? null}
                                             hotelName={partner?.store_name ?? null}
                                             routeMode={routeMode}
+                                            radiusKm={partner?.delivery_rules?.delivery_radius ?? null}
                                             onMapClick={() => {
                                                 const destLat = routeMode === "to_hotel" && hotelLat != null
                                                     ? hotelLat
@@ -515,15 +648,11 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                             </div>
                                         )}
                                     </div>
-                                ) : (
-                                    <p className="text-xs text-muted-foreground">
-                                        Live location not yet available from Growjet.
-                                    </p>
-                                )}
+                                ) : null}
                             </>
                         ) : (
                             <p className="text-xs text-muted-foreground">
-                                Rider details will appear here once Growjet assigns one.
+                                Rider details will appear once the delivery partner assigns one.
                             </p>
                         )}
                     </div>

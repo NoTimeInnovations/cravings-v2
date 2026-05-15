@@ -719,7 +719,7 @@ const BillCard = ({
             </div>
             {agentDistance != null && (
               <div className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
-                {agentDistance.toFixed(1)} kms (3PL agent)
+                {agentDistance.toFixed(1)} kms
               </div>
             )}
           </div>

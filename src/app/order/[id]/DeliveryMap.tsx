@@ -19,7 +19,43 @@ interface DeliveryMapProps {
   // "to_hotel" before pickup (rider heading to restaurant);
   // "to_destination" after pickup (rider heading to customer).
   routeMode?: "to_destination" | "to_hotel";
+  /**
+   * Partner-configured delivery radius in km. When set together with a
+   * hotel point, the map draws a filled circle around the pickup so the
+   * viewer can see the configured service area at a glance.
+   */
+  radiusKm?: number | null;
   onMapClick?: () => void;
+}
+
+const RADIUS_SOURCE = "radius";
+const RADIUS_FILL_LAYER = "radius-fill";
+const RADIUS_LINE_LAYER = "radius-line";
+
+/**
+ * Generate a circle polygon (GeoJSON) around `center` with the given
+ * radius in kilometres. Uses an equirectangular projection — good enough
+ * up to a few-km radius at any latitude outside the poles.
+ */
+function circlePolygon(
+  centerLng: number,
+  centerLat: number,
+  radiusKm: number,
+  points = 64,
+): GeoJSON.Feature<GeoJSON.Polygon> {
+  const coords: [number, number][] = [];
+  const distanceX = radiusKm / (111.32 * Math.cos((centerLat * Math.PI) / 180));
+  const distanceY = radiusKm / 110.574;
+  for (let i = 0; i < points; i++) {
+    const theta = (i / points) * (2 * Math.PI);
+    coords.push([centerLng + distanceX * Math.cos(theta), centerLat + distanceY * Math.sin(theta)]);
+  }
+  coords.push(coords[0]!);
+  return {
+    type: "Feature",
+    properties: {},
+    geometry: { type: "Polygon", coordinates: [coords] },
+  };
 }
 
 const ROUTE_SOURCE = "route";
@@ -35,6 +71,7 @@ export default function DeliveryMap({
   hotelBanner,
   hotelName,
   routeMode = "to_destination",
+  radiusKm,
   onMapClick,
 }: DeliveryMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -93,6 +130,36 @@ export default function DeliveryMap({
           "line-opacity": 0.85,
         },
       });
+      // Delivery-radius circle — empty polygon by default. The radius
+      // effect below populates this with a real ring when both
+      // `radiusKm` and a hotel point are present.
+      map.current.addSource(RADIUS_SOURCE, {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.current.addLayer(
+        {
+          id: RADIUS_FILL_LAYER,
+          type: "fill",
+          source: RADIUS_SOURCE,
+          paint: { "fill-color": "#f97316", "fill-opacity": 0.08 },
+        },
+        ROUTE_LAYER,
+      );
+      map.current.addLayer(
+        {
+          id: RADIUS_LINE_LAYER,
+          type: "line",
+          source: RADIUS_SOURCE,
+          paint: {
+            "line-color": "#f97316",
+            "line-width": 2,
+            "line-opacity": 0.6,
+            "line-dasharray": [3, 2],
+          },
+        },
+        ROUTE_LAYER,
+      );
     });
 
     map.current.on("click", () => onMapClick?.());
@@ -219,6 +286,26 @@ export default function DeliveryMap({
     fetchRoute(driverLng, driverLat);
     fitBounds();
   }, [routeMode, hotelLng, hotelLat]);
+
+  // Delivery-radius ring around the partner. Re-renders on hotel coord or
+  // radius change. Hidden when either is missing.
+  useEffect(() => {
+    const apply = () => {
+      const m = map.current;
+      if (!m) return;
+      const source = m.getSource(RADIUS_SOURCE) as mapboxgl.GeoJSONSource | undefined;
+      if (!source) return;
+      if (radiusKm == null || radiusKm <= 0 || hotelLng == null || hotelLat == null) {
+        source.setData({ type: "FeatureCollection", features: [] });
+        return;
+      }
+      source.setData(circlePolygon(hotelLng, hotelLat, radiusKm));
+    };
+    const m = map.current;
+    if (!m) return;
+    if (m.isStyleLoaded()) apply();
+    else m.once("load", apply);
+  }, [hotelLng, hotelLat, radiusKm]);
 
   async function fetchRoute(fromLng: number, fromLat: number) {
     if (!map.current) return;

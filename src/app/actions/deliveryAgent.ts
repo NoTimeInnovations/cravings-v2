@@ -94,6 +94,31 @@ export async function checkDeliveryAgentAvailability(input: {
   return postJson("/v1/delivery/availability", body);
 }
 
+/**
+ * Probe every registered 3PL provider in parallel. Used by admin-v2
+ * OrderDetails to show "X of N delivery partners can serve this address"
+ * on live orders.
+ *
+ * Response shape: `{ totalProviders, availableCount, providers: [{provider,
+ * displayName, available, etaToPickupMin?, distanceKm?, estimatedPrice?,
+ * reason?}] }`.
+ */
+export async function checkAllProvidersAvailability(input: {
+  pickup: { lat: number; lng: number; pincode?: string };
+  drop: { lat: number; lng: number; pincode?: string };
+  paymentMethod?: "cod" | "online";
+  utcOffsetMinutes?: number;
+  partnerMerchantId?: string;
+}): Promise<Result> {
+  return postJson("/v1/delivery/availability/all", {
+    pickup: input.pickup,
+    drop: input.drop,
+    paymentMethod: input.paymentMethod ?? "online",
+    utcOffsetMinutes: input.utcOffsetMinutes ?? 330,
+    ...(input.partnerMerchantId ? { partnerMerchantId: input.partnerMerchantId } : {}),
+  });
+}
+
 export async function getDeliveryAgentLocation(
   orderId: string,
   provider = "adloggs",

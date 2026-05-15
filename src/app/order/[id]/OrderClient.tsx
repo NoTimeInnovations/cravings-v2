@@ -11,7 +11,7 @@ import { Order, OrderItem } from "@/store/orderStore";
 import OfferLoadinPage from "@/components/OfferLoadinPage";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
 import { getFeatures } from "@/lib/getFeatures";
-import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2, Star, Bike, Store, MapPin, Receipt, Package, User, StickyNote, ShoppingBag, XCircle } from "lucide-react";
+import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2, Star, Bike, Store, MapPin, Receipt, Package, User, StickyNote, ShoppingBag, XCircle, ChevronDown } from "lucide-react";
 import { OrderReviewModal } from "@/components/OrderReviewModal";
 import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 import { useAuthStore } from "@/store/authStore";
@@ -804,8 +804,49 @@ ${itemsText}
                                     </div>
                                 </div>
 
-                                {/* Map (or waiting state) */}
-                                {agentLat != null && agentLng != null && order?.delivery_location?.coordinates ? (
+                                {/* Tracking surface. Adloggs only sends rider coords at
+                                    state transitions (assigned / picked_up / etc.), not
+                                    continuously, so our inline map would look frozen.
+                                    Surface their hosted live-tracking page instead.
+                                    Growjet keeps the inline map since it polls
+                                    continuously. */}
+                                {agentProvider === "adloggs" ? (
+                                    (order as any)?.delivery_provider_meta?.trackUrl ? (
+                                        <a
+                                            href={(order as any).delivery_provider_meta.trackUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="block rounded-2xl bg-white p-4 shadow-sm hover:shadow-md transition-shadow"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex-shrink-0 w-11 h-11 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center">
+                                                    <MapPin className="h-5 w-5" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-semibold text-gray-900">
+                                                        Track rider live
+                                                    </p>
+                                                    <p className="text-xs text-gray-600 mt-0.5">
+                                                        Opens the delivery partner&apos;s tracking page
+                                                    </p>
+                                                </div>
+                                                <ChevronDown className="h-5 w-5 text-gray-400 -rotate-90 flex-shrink-0" />
+                                            </div>
+                                        </a>
+                                    ) : (
+                                        <div className="rounded-2xl bg-white p-5 shadow-sm flex items-center gap-3">
+                                            <Bike className="h-6 w-6 text-orange-400 animate-pulse flex-shrink-0" />
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-semibold text-gray-900">
+                                                    Waiting for tracking link
+                                                </p>
+                                                <p className="text-xs text-gray-600 mt-0.5">
+                                                    Tracking opens once the delivery partner assigns a rider.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )
+                                ) : agentLat != null && agentLng != null && order?.delivery_location?.coordinates ? (
                                     <div className="relative rounded-2xl overflow-hidden shadow-sm bg-white">
                                         <DeliveryMap
                                             deliveryLng={order.delivery_location.coordinates[0]}
@@ -876,7 +917,7 @@ ${itemsText}
                                     )}
                                 </div>
 
-                                {agentLat != null && agentLng != null && (
+                                {agentProvider !== "adloggs" && agentLat != null && agentLng != null && (
                                     <p className="text-[11px] text-gray-500 mt-2 text-center">
                                         Tap the map to open directions in Google Maps
                                     </p>

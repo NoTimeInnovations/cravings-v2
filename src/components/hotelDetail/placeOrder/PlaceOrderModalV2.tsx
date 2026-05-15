@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -143,6 +144,9 @@ const PlaceOrderModalV2 = ({
   >(hasCashfreeReturn ? "verifying" : "idle");
   const [successClosing, setSuccessClosing] = useState(false);
   const [savedOrderTotal, setSavedOrderTotal] = useState<number | null>(null);
+  /** Captures the placed order's id so the success screen can deep-link to /order/[id]. */
+  const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
+  const router = useRouter();
   const [cashfreePaid, setCashfreePaid] = useState(hasCashfreeReturn);
   const [paymentFailReason, setPaymentFailReason] = useState("");
   const [showCashfreeEmbed, setShowCashfreeEmbed] = useState(false);
@@ -263,7 +267,10 @@ const PlaceOrderModalV2 = ({
       const res = await checkDeliveryAgentAvailability({
         pickup: { lat: partnerCoords.lat, lng: partnerCoords.lng },
         drop: { lat: userCoordinates.lat, lng: userCoordinates.lng },
-        paymentMethod: paymentMethod === "online" ? "online" : "cod",
+        // Book-time also hardcodes online (Adloggs merchant doesn't allow
+        // COD); keep availability aligned so the quote isn't falsely
+        // rejected before the user even picks a payment method.
+        paymentMethod: "online",
       });
       if (cancelled) return;
       setAgentQuoteLoading(false);
@@ -298,18 +305,23 @@ const PlaceOrderModalV2 = ({
     partnerCoords?.lng,
     userCoordinates?.lat,
     userCoordinates?.lng,
-    paymentMethod,
   ]);
+
+  // `hide_delivery_charge` is a stale "Extra delivery charges apply" toggle.
+  // When the partner has auto-3PL on, the live agent quote IS the price, so
+  // ignore the old hide flag entirely.
+  const effectiveHideDeliveryCharge =
+    !!hotelData?.delivery_rules?.hide_delivery_charge && !useAgentForCharge;
 
   const deliveryCharge = useMemo(() => {
     if (isQrScan || orderType !== "delivery") return 0;
-    if (hotelData?.delivery_rules?.hide_delivery_charge) return 0;
     if (useAgentForCharge) {
       if (agentQuote?.available && typeof agentQuote.estimatedPrice === "number") {
         return agentQuote.estimatedPrice;
       }
       return 0;
     }
+    if (hotelData?.delivery_rules?.hide_delivery_charge) return 0;
     if (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange) return deliveryInfo.cost;
     return 0;
   }, [
@@ -761,18 +773,26 @@ const PlaceOrderModalV2 = ({
           });
       }
     }
-    if (
-      !isQrScan &&
-      ot === "delivery" &&
-      deliveryInfo?.cost &&
-      !deliveryInfo?.isOutOfRange &&
-      !hotelData?.delivery_rules?.hide_delivery_charge
-    ) {
-      list.push({
-        name: "Delivery Charge",
-        amount: deliveryInfo.cost,
-        charge_type: "FLAT_FEE",
-      });
+    if (!isQrScan && ot === "delivery") {
+      let charge = 0;
+      if (useAgentForCharge) {
+        if (agentQuote?.available && typeof agentQuote.estimatedPrice === "number") {
+          charge = agentQuote.estimatedPrice;
+        }
+      } else if (
+        deliveryInfo?.cost &&
+        !deliveryInfo?.isOutOfRange &&
+        !hotelData?.delivery_rules?.hide_delivery_charge
+      ) {
+        charge = deliveryInfo.cost;
+      }
+      if (charge > 0) {
+        list.push({
+          name: "Delivery Charge",
+          amount: charge,
+          charge_type: "FLAT_FEE",
+        });
+      }
     }
     if (
       tableNumber === 0 &&
@@ -904,6 +924,7 @@ const PlaceOrderModalV2 = ({
       if (result) {
         if (result.id) {
           localStorage?.setItem("last-order-id", result.id);
+          setPlacedOrderId(result.id);
           markOrderAsPaid(result.id, verifyRes.cfPaymentId || undefined).catch(
             () => {},
           );
@@ -1248,7 +1269,10 @@ const PlaceOrderModalV2 = ({
       );
 
       if (result) {
-        if (result.id) localStorage?.setItem("last-order-id", result.id);
+        if (result.id) {
+          localStorage?.setItem("last-order-id", result.id);
+          setPlacedOrderId(result.id);
+        }
         if (appliedDiscount?.id) {
           fetchFromHasura(incrementDiscountUsageMutation, { id: appliedDiscount.id }).catch(() => {});
         }
@@ -1276,11 +1300,27 @@ const PlaceOrderModalV2 = ({
     setTimeout(() => {
       setOrderStatus("idle");
       setSavedOrderTotal(null);
+      setPlacedOrderId(null);
       setSuccessClosing(false);
       setOpenPlaceOrderModal(false);
       setOpenOrderDrawer(false);
       setOpenDrawerBottom(true);
     }, 300);
+  };
+
+  /** Same teardown as "Back to Menu" but routes to the order details page. */
+  const handleSuccessOpenOrder = () => {
+    const id = placedOrderId || localStorage?.getItem("last-order-id");
+    if (!id) {
+      handleSuccessClose();
+      return;
+    }
+    setOrderStatus("idle");
+    setSavedOrderTotal(null);
+    setPlacedOrderId(null);
+    setOpenPlaceOrderModal(false);
+    setOpenOrderDrawer(false);
+    router.push(`/order/${id}`);
   };
 
   if (!open_place_order_modal) return null;
@@ -1407,13 +1447,22 @@ const PlaceOrderModalV2 = ({
               <p className="mt-2 text-sm text-gray-400">Your order of {currency}{(savedOrderTotal ?? 0).toFixed(0)} has been placed.</p>
               <p className="mt-1 text-xs text-gray-400">You will be notified when it&apos;s ready.</p>
             </div>
-            <button
-              type="button"
-              onClick={handleSuccessClose}
-              className="mt-4 rounded-xl bg-emerald-600 px-8 py-3 text-sm font-bold text-white shadow-lg transition active:scale-[0.98]"
-            >
-              Back to Menu
-            </button>
+            <div className="mt-4 flex w-full max-w-xs flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={handleSuccessClose}
+                className="flex-1 rounded-xl border border-gray-300 bg-white px-6 py-3 text-sm font-bold text-gray-900 shadow-sm transition active:scale-[0.98]"
+              >
+                Back to Menu
+              </button>
+              <button
+                type="button"
+                onClick={handleSuccessOpenOrder}
+                className="flex-1 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-lg transition active:scale-[0.98]"
+              >
+                Order Details
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -1600,7 +1649,7 @@ const PlaceOrderModalV2 = ({
                         .join(" · ")}
                     </p>
                   </div>
-                  {agentQuote.estimatedPrice !== undefined && !hotelData?.delivery_rules?.hide_delivery_charge && (
+                  {agentQuote.estimatedPrice !== undefined && !effectiveHideDeliveryCharge && (
                     <span className="text-sm font-bold" style={{ color: accent }}>
                       {currency}
                       {agentQuote.estimatedPrice.toFixed(0)}
@@ -1611,7 +1660,7 @@ const PlaceOrderModalV2 = ({
             )}
 
             {/* Delivery charge notice */}
-            {orderType === "delivery" && hotelData?.delivery_rules?.hide_delivery_charge && (
+            {orderType === "delivery" && effectiveHideDeliveryCharge && (
               <div
                 className="flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold"
                 style={{
@@ -1880,7 +1929,7 @@ const PlaceOrderModalV2 = ({
                     />
                   )}
                   {orderType === "delivery" &&
-                    !hotelData?.delivery_rules?.hide_delivery_charge &&
+                    !effectiveHideDeliveryCharge &&
                     useAgentForCharge &&
                     agentQuote?.available && (
                       <div>
@@ -1896,13 +1945,13 @@ const PlaceOrderModalV2 = ({
                         </div>
                         {agentQuote.distanceKm !== undefined && (
                           <div className="text-xs text-gray-400 mt-0.5">
-                            {agentQuote.distanceKm.toFixed(1)} kms via delivery partner
+                            {agentQuote.distanceKm.toFixed(1)} kms
                           </div>
                         )}
                       </div>
                     )}
                   {orderType === "delivery" &&
-                    !hotelData?.delivery_rules?.hide_delivery_charge &&
+                    !effectiveHideDeliveryCharge &&
                     !useAgentForCharge &&
                     !deliveryInfo?.isOutOfRange &&
                     deliveryInfo?.distance != null && (
@@ -1922,7 +1971,7 @@ const PlaceOrderModalV2 = ({
                         </div>
                       </div>
                     )}
-                  {orderType === "delivery" && hotelData?.delivery_rules?.hide_delivery_charge && (
+                  {orderType === "delivery" && effectiveHideDeliveryCharge && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Delivery Charge</span>
                       <span className="font-semibold" style={{ color: accent }}>Informed at delivery</span>
