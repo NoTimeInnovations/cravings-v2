@@ -18,6 +18,7 @@ import {
   Settings,
   BarChart3,
   ExternalLink,
+  Globe,
   Lightbulb,
   Loader2,
   Download,
@@ -216,6 +217,11 @@ export function AdminV2Dashboard() {
       : `/hotels/${partner?.id}`;
 
   const allQuickActions: (QuickAction & { hidden?: boolean })[] = [
+    {
+      title: "View Website",
+      icon: Globe,
+      href: partner?.username ? `/${partner.username}/home` : "/",
+    },
     {
       title: "View Menu",
       icon: ExternalLink,

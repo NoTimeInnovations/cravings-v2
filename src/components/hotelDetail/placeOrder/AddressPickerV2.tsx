@@ -57,8 +57,21 @@ function saveRecentSearch(item: RecentSearch) {
   } catch {}
 }
 
-const GREEN_PIN_SVG = `data:image/svg+xml,${encodeURIComponent(
-  '<svg width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 26 16 26s16-14 16-26C32 7.2 24.8 0 16 0z" fill="#16a34a"/><circle cx="16" cy="14.5" r="6" fill="white"/></svg>',
+const SHOP_PIN_SVG = `data:image/svg+xml,${encodeURIComponent(
+  '<svg width="40" height="50" viewBox="0 0 40 50" xmlns="http://www.w3.org/2000/svg">' +
+    // pin teardrop
+    '<path d="M20 1.5C10.1 1.5 2 9.4 2 19c0 12.8 18 29 18 29s18-16.2 18-29C38 9.4 29.9 1.5 20 1.5z" fill="#EA580C" stroke="#1f2937" stroke-width="1.2" stroke-linejoin="round"/>' +
+    // white inner badge
+    '<circle cx="20" cy="18" r="10.5" fill="white"/>' +
+    // lucide Store icon, scaled into the badge
+    '<g transform="translate(13 11) scale(0.58)" fill="none" stroke="#EA580C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/>' +
+      '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>' +
+      '<path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/>' +
+      '<path d="M2 7h20"/>' +
+      '<path d="M22 7v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/>' +
+    '</g>' +
+    "</svg>",
 )}`;
 
 const AddressPickerV2 = ({
@@ -67,12 +80,14 @@ const AddressPickerV2 = ({
   onSaved,
   hotelData,
   accent = "#EA580C",
+  initialPick,
 }: {
   open: boolean;
   onClose: () => void;
   onSaved: (addr: SavedAddress) => void;
   hotelData: HotelData;
   accent?: string;
+  initialPick?: { address?: string; coords: { lat: number; lng: number } } | null;
 }) => {
   // Screens: "landing" or "map"
   const [screen, setScreen] = useState<"landing" | "map">("landing");
@@ -157,6 +172,9 @@ const AddressPickerV2 = ({
   // Check geolocation permission and skip landing if granted
   useEffect(() => {
     if (!open) return;
+    // If caller already provided a pick (search result / current location from
+    // the bottom sheet), skip permission probing — we'll center on initialPick.
+    if (initialPick?.coords) return;
     navigator.permissions?.query({ name: "geolocation" }).then((result) => {
       const granted = result.state === "granted";
       setLocationGranted(granted);
@@ -177,12 +195,11 @@ const AddressPickerV2 = ({
       }
       result.onchange = () => setLocationGranted(result.state === "granted");
     }).catch(() => {});
-  }, [open]);
+  }, [open, initialPick?.coords]);
 
   // Reset on open
   useEffect(() => {
     if (open) {
-      setScreen("landing");
       setSearchValue("");
       setPredictions([]);
       setGeocodedInfo(null);
@@ -196,9 +213,16 @@ const AddressPickerV2 = ({
         sessionTokenRef.current =
           new google.maps.places.AutocompleteSessionToken();
       }
-      if (hotelCoords) updateMapCenter(hotelCoords);
+      if (initialPick?.coords) {
+        // Jump straight to the map screen, centered on the chosen point.
+        setScreen("map");
+        updateMapCenter(initialPick.coords);
+      } else {
+        setScreen("landing");
+        if (hotelCoords) updateMapCenter(hotelCoords);
+      }
     }
-  }, [open]);
+  }, [open, initialPick?.coords?.lat, initialPick?.coords?.lng]);
 
   // Debounced search
   useEffect(() => {
@@ -558,16 +582,16 @@ const AddressPickerV2 = ({
             onLoad={(map) => {
               mapRef.current = map;
               mapInitializedRef.current = false;
-              map.setCenter(mapCenter);
+              map.setCenter(mapCenterRef.current);
               if (hotelCoords) {
                 hotelMarkerRef.current?.setMap(null);
                 hotelMarkerRef.current = new google.maps.Marker({
                   position: hotelCoords,
                   map,
                   icon: {
-                    url: GREEN_PIN_SVG,
-                    scaledSize: new google.maps.Size(32, 42),
-                    anchor: new google.maps.Point(16, 42),
+                    url: SHOP_PIN_SVG,
+                    scaledSize: new google.maps.Size(36, 45),
+                    anchor: new google.maps.Point(18, 45),
                   },
                   title: hotelData?.store_name || "Restaurant",
                   zIndex: 5,
@@ -586,12 +610,12 @@ const AddressPickerV2 = ({
           />
         )}
 
-        {/* Center pin */}
+        {/* Center pin (customer location) */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full pointer-events-none z-10">
           <svg width="40" height="50" viewBox="0 0 40 50" fill="none">
             <path
               d="M20 0C9 0 0 9 0 20c0 15 20 30 20 30s20-15 20-30C40 9 31 0 20 0z"
-              fill={accent}
+              fill="#16a34a"
             />
             <circle cx="20" cy="18" r="7" fill="white" />
           </svg>

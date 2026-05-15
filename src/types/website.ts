@@ -60,6 +60,108 @@ export interface WebsiteVisitConfig {
   map_link: string;
 }
 
+export interface WebsiteReviewItem {
+  author_name: string;
+  author_url: string;
+  profile_photo_url: string;
+  rating: number;
+  relative_time: string;
+  text: string;
+}
+
+export interface BrilaQuoteAuthor {
+  name: string;
+  photo_url: string;
+}
+
+export interface BrilaFeatureCard {
+  title: string;
+  description: string;
+  quote: string;
+  author: BrilaQuoteAuthor;
+}
+
+export interface BrilaDishCard {
+  name: string;
+  quote: string;
+  author: BrilaQuoteAuthor;
+}
+
+export interface BrilaSpecialCard {
+  title: string;
+  description: string;
+}
+
+export interface BrilaTipCard {
+  emoji: string;
+  title: string;
+  description: string;
+}
+
+export interface BrilaGalleryItem {
+  image_url: string;
+  caption: string;
+}
+
+export interface WebsiteWhyChooseUsConfig {
+  enabled: boolean;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  items: BrilaFeatureCard[];
+}
+
+export interface WebsiteGalleryConfig {
+  enabled: boolean;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  items: BrilaGalleryItem[];
+}
+
+export interface WebsiteMostOrderedConfig {
+  enabled: boolean;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  items: BrilaDishCard[];
+}
+
+export interface WebsiteMoreFavoritesConfig {
+  enabled: boolean;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  items: BrilaDishCard[];
+}
+
+export interface WebsiteSpecialTouchesConfig {
+  enabled: boolean;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  items: BrilaSpecialCard[];
+}
+
+export interface WebsiteTipsConfig {
+  enabled: boolean;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  items: BrilaTipCard[];
+}
+
+export interface WebsiteReviewsConfig {
+  enabled: boolean;
+  eyebrow: string;
+  title: string;
+  title_accent: string;
+  rating: number;
+  total_ratings: number;
+  source_label: string;
+  items: WebsiteReviewItem[];
+}
+
 export interface WebsitePolicyLink {
   label: string;
   url: string;
@@ -76,19 +178,30 @@ export interface WebsiteTheme {
   ink_color: string;
 }
 
+export type WebsiteLayout = "default" | "brila";
+
 export interface WebsiteConfig {
   enabled: boolean;
+  layout: WebsiteLayout;
   theme: WebsiteTheme;
   hero: WebsiteHeroConfig;
   marquee: WebsiteMarqueeConfig;
   story: WebsiteStoryConfig;
+  reviews: WebsiteReviewsConfig;
   menu: WebsiteMenuConfig;
   visit: WebsiteVisitConfig;
   footer: WebsiteFooterConfig;
+  why_choose_us: WebsiteWhyChooseUsConfig;
+  gallery: WebsiteGalleryConfig;
+  most_ordered: WebsiteMostOrderedConfig;
+  more_favorites: WebsiteMoreFavoritesConfig;
+  special_touches: WebsiteSpecialTouchesConfig;
+  tips: WebsiteTipsConfig;
 }
 
 export const DEFAULT_WEBSITE_CONFIG: WebsiteConfig = {
   enabled: false,
+  layout: "default",
   theme: {
     bg_color: "#FFFFFF",
     ink_color: "#1A1714",
@@ -120,6 +233,16 @@ export const DEFAULT_WEBSITE_CONFIG: WebsiteConfig = {
     paragraphs: [""],
     image_url: "",
     image_label: "",
+  },
+  reviews: {
+    enabled: false,
+    eyebrow: "Loved",
+    title: "What guests are saying",
+    title_accent: "",
+    rating: 0,
+    total_ratings: 0,
+    source_label: "Google reviews",
+    items: [],
   },
   menu: {
     enabled: true,
@@ -155,6 +278,48 @@ export const DEFAULT_WEBSITE_CONFIG: WebsiteConfig = {
     policies: [],
     copyright: "",
   },
+  why_choose_us: {
+    enabled: false,
+    eyebrow: "Highlights",
+    title: "What sets us apart",
+    subtitle: "",
+    items: [],
+  },
+  gallery: {
+    enabled: false,
+    eyebrow: "Gallery",
+    title: "A look inside",
+    subtitle: "",
+    items: [],
+  },
+  most_ordered: {
+    enabled: false,
+    eyebrow: "Favourites",
+    title: "Crowd favourites",
+    subtitle: "The dishes guests come back for.",
+    items: [],
+  },
+  more_favorites: {
+    enabled: false,
+    eyebrow: "Also loved",
+    title: "Worth ordering",
+    subtitle: "Other plates regulars keep going back to.",
+    items: [],
+  },
+  special_touches: {
+    enabled: false,
+    eyebrow: "The extras",
+    title: "Little things we do",
+    subtitle: "Small details that make every visit count.",
+    items: [],
+  },
+  tips: {
+    enabled: false,
+    eyebrow: "Good to know",
+    title: "Insider tips",
+    subtitle: "Things regulars wish they'd known on their first visit.",
+    items: [],
+  },
 };
 
 export function mergeWebsiteConfig(
@@ -168,8 +333,30 @@ export function mergeWebsiteConfig(
     hero: { ...DEFAULT_WEBSITE_CONFIG.hero, ...(partial.hero || {}) },
     marquee: { ...DEFAULT_WEBSITE_CONFIG.marquee, ...(partial.marquee || {}) },
     story: { ...DEFAULT_WEBSITE_CONFIG.story, ...(partial.story || {}) },
+    reviews: { ...DEFAULT_WEBSITE_CONFIG.reviews, ...(partial.reviews || {}) },
     menu: { ...DEFAULT_WEBSITE_CONFIG.menu, ...(partial.menu || {}) },
     visit: { ...DEFAULT_WEBSITE_CONFIG.visit, ...(partial.visit || {}) },
     footer: { ...DEFAULT_WEBSITE_CONFIG.footer, ...(partial.footer || {}) },
+    why_choose_us: {
+      ...DEFAULT_WEBSITE_CONFIG.why_choose_us,
+      ...(partial.why_choose_us || {}),
+    },
+    gallery: {
+      ...DEFAULT_WEBSITE_CONFIG.gallery,
+      ...(partial.gallery || {}),
+    },
+    most_ordered: {
+      ...DEFAULT_WEBSITE_CONFIG.most_ordered,
+      ...(partial.most_ordered || {}),
+    },
+    more_favorites: {
+      ...DEFAULT_WEBSITE_CONFIG.more_favorites,
+      ...(partial.more_favorites || {}),
+    },
+    special_touches: {
+      ...DEFAULT_WEBSITE_CONFIG.special_touches,
+      ...(partial.special_touches || {}),
+    },
+    tips: { ...DEFAULT_WEBSITE_CONFIG.tips, ...(partial.tips || {}) },
   };
 }

@@ -193,10 +193,11 @@ export function AdminV2Website() {
       <Tabs defaultValue="hero" className="space-y-4">
         <TabsList className="flex w-full sm:w-auto overflow-x-auto justify-start">
           <TabsTrigger value="hero">Hero</TabsTrigger>
-          <TabsTrigger value="marquee">Marquee</TabsTrigger>
-          <TabsTrigger value="story">Our Story</TabsTrigger>
           <TabsTrigger value="menu">Menu</TabsTrigger>
-          <TabsTrigger value="visit">Visit</TabsTrigger>
+          <TabsTrigger value="why_choose_us">Highlights</TabsTrigger>
+          <TabsTrigger value="gallery">Gallery</TabsTrigger>
+          <TabsTrigger value="most_ordered">Favourites</TabsTrigger>
+          <TabsTrigger value="visit">Contact</TabsTrigger>
           <TabsTrigger value="footer">Footer</TabsTrigger>
           <TabsTrigger value="theme">Theme</TabsTrigger>
         </TabsList>
@@ -205,20 +206,6 @@ export function AdminV2Website() {
           <HeroEditor
             value={config.hero}
             onChange={(v) => updateField("hero", v)}
-          />
-        </TabsContent>
-
-        <TabsContent value="marquee">
-          <MarqueeEditor
-            value={config.marquee}
-            onChange={(v) => updateField("marquee", v)}
-          />
-        </TabsContent>
-
-        <TabsContent value="story">
-          <StoryEditor
-            value={config.story}
-            onChange={(v) => updateField("story", v)}
           />
         </TabsContent>
 
@@ -241,6 +228,28 @@ export function AdminV2Website() {
           <FooterEditor
             value={config.footer}
             onChange={(v) => updateField("footer", v)}
+          />
+        </TabsContent>
+
+        <TabsContent value="why_choose_us">
+          <WhyChooseUsEditor
+            value={config.why_choose_us}
+            onChange={(v) => updateField("why_choose_us", v)}
+          />
+        </TabsContent>
+
+        <TabsContent value="gallery">
+          <GalleryEditor
+            value={config.gallery}
+            onChange={(v) => updateField("gallery", v)}
+          />
+        </TabsContent>
+
+        <TabsContent value="most_ordered">
+          <DishGridEditor
+            value={config.most_ordered}
+            onChange={(v) => updateField("most_ordered", v)}
+            sectionLabel="Crowd favourites"
           />
         </TabsContent>
 
@@ -304,14 +313,6 @@ function HeroEditor({
           onChange={(v) => onChange({ enabled: v })}
           label="Show hero section"
         />
-        <div>
-          <Label>Eyebrow</Label>
-          <Input
-            value={value.eyebrow}
-            onChange={(e) => onChange({ eyebrow: e.target.value })}
-            placeholder="Small label above headline"
-          />
-        </div>
         <div>
           <Label>Headline</Label>
           <Input
@@ -511,13 +512,6 @@ function StoryEditor({
           label="Show story section"
         />
         <div>
-          <Label>Eyebrow</Label>
-          <Input
-            value={value.eyebrow}
-            onChange={(e) => onChange({ eyebrow: e.target.value })}
-          />
-        </div>
-        <div>
           <Label>Title</Label>
           <Input
             value={value.title}
@@ -624,13 +618,6 @@ function MenuEditor({
           onChange={(v) => onChange({ enabled: v })}
           label="Show menu section"
         />
-        <div>
-          <Label>Eyebrow</Label>
-          <Input
-            value={value.eyebrow}
-            onChange={(e) => onChange({ eyebrow: e.target.value })}
-          />
-        </div>
         <div>
           <Label>Title</Label>
           <Input
@@ -744,13 +731,6 @@ function VisitEditor({
           onChange={(v) => onChange({ enabled: v })}
           label="Show visit section"
         />
-        <div>
-          <Label>Eyebrow</Label>
-          <Input
-            value={value.eyebrow}
-            onChange={(e) => onChange({ eyebrow: e.target.value })}
-          />
-        </div>
         <div>
           <Label>Title</Label>
           <Input
@@ -973,6 +953,492 @@ function ThemeEditor({
         <div className="text-xs text-muted-foreground">
           Try a dark background like <code>#0E0F0C</code> with light text{" "}
           <code>#F4EFE6</code>, or invert for a light theme.
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SectionHeading({
+  value,
+  onChange,
+}: {
+  value: { eyebrow: string; title: string; subtitle: string };
+  onChange: (v: Partial<{ eyebrow: string; title: string; subtitle: string }>) => void;
+}) {
+  return (
+    <>
+      <div>
+        <Label>Title</Label>
+        <Input
+          value={value.title}
+          onChange={(e) => onChange({ title: e.target.value })}
+        />
+      </div>
+      <div>
+        <Label>Subtitle</Label>
+        <Textarea
+          value={value.subtitle}
+          onChange={(e) => onChange({ subtitle: e.target.value })}
+          rows={2}
+        />
+      </div>
+    </>
+  );
+}
+
+function WhyChooseUsEditor({
+  value,
+  onChange,
+}: {
+  value: WebsiteConfig["why_choose_us"];
+  onChange: (v: Partial<WebsiteConfig["why_choose_us"]>) => void;
+}) {
+  const updateItem = (i: number, patch: Partial<typeof value.items[number]>) => {
+    const next = value.items.map((it, idx) =>
+      idx === i ? { ...it, ...patch } : it,
+    );
+    onChange({ items: next });
+  };
+  const updateAuthor = (i: number, patch: Partial<typeof value.items[number]["author"]>) => {
+    const next = value.items.map((it, idx) =>
+      idx === i ? { ...it, author: { ...it.author, ...patch } } : it,
+    );
+    onChange({ items: next });
+  };
+  const addItem = () =>
+    onChange({
+      items: [
+        ...value.items,
+        {
+          title: "",
+          description: "",
+          quote: "",
+          author: { name: "", photo_url: "" },
+        },
+      ],
+    });
+  const removeItem = (i: number) =>
+    onChange({ items: value.items.filter((_, idx) => idx !== i) });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Highlights (Why Choose Us)</CardTitle>
+        <CardDescription>
+          3–6 cards highlighting what makes your business stand out, each with a
+          supporting quote.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <SectionToggle
+          enabled={value.enabled}
+          onChange={(v) => onChange({ enabled: v })}
+          label="Show highlights section"
+        />
+        <SectionHeading value={value} onChange={onChange} />
+
+        <div className="space-y-3">
+          <Label>Cards</Label>
+          {value.items.map((item, i) => (
+            <div
+              key={i}
+              className="rounded-lg border p-3 space-y-2 bg-muted/30"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Card {i + 1}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeItem(i)}
+                  type="button"
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+              <Input
+                placeholder="Title (e.g. Spicy Chicken Mandi)"
+                value={item.title}
+                onChange={(e) => updateItem(i, { title: e.target.value })}
+              />
+              <Textarea
+                placeholder="Description (2–3 sentences)"
+                value={item.description}
+                onChange={(e) => updateItem(i, { description: e.target.value })}
+                rows={3}
+              />
+              <Textarea
+                placeholder="Supporting quote from a review"
+                value={item.quote}
+                onChange={(e) => updateItem(i, { quote: e.target.value })}
+                rows={2}
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Input
+                  placeholder="Reviewer name"
+                  value={item.author.name}
+                  onChange={(e) => updateAuthor(i, { name: e.target.value })}
+                />
+                <Input
+                  placeholder="Reviewer photo URL"
+                  value={item.author.photo_url}
+                  onChange={(e) =>
+                    updateAuthor(i, { photo_url: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          ))}
+          <Button onClick={addItem} type="button" variant="outline" size="sm">
+            <Plus className="h-4 w-4 mr-1" /> Add card
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function GalleryEditor({
+  value,
+  onChange,
+}: {
+  value: WebsiteConfig["gallery"];
+  onChange: (v: Partial<WebsiteConfig["gallery"]>) => void;
+}) {
+  const updateItem = (
+    i: number,
+    patch: Partial<typeof value.items[number]>,
+  ) => {
+    const next = value.items.map((it, idx) =>
+      idx === i ? { ...it, ...patch } : it,
+    );
+    onChange({ items: next });
+  };
+  const addItem = () =>
+    onChange({ items: [...value.items, { image_url: "", caption: "" }] });
+  const removeItem = (i: number) =>
+    onChange({ items: value.items.filter((_, idx) => idx !== i) });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Gallery</CardTitle>
+        <CardDescription>
+          Photo grid shown to visitors. Each photo gets a short caption.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <SectionToggle
+          enabled={value.enabled}
+          onChange={(v) => onChange({ enabled: v })}
+          label="Show gallery section"
+        />
+        <SectionHeading value={value} onChange={onChange} />
+
+        <div className="space-y-3">
+          <Label>Photos</Label>
+          {value.items.map((item, i) => (
+            <div
+              key={i}
+              className="rounded-lg border p-3 space-y-2 bg-muted/30"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Photo {i + 1}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeItem(i)}
+                  type="button"
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+              <ImageUpload
+                value={item.image_url}
+                onChange={(url) => updateItem(i, { image_url: url })}
+                folder="website-gallery"
+              />
+              <Input
+                placeholder="Caption (e.g. Outdoor seating)"
+                value={item.caption}
+                onChange={(e) => updateItem(i, { caption: e.target.value })}
+              />
+            </div>
+          ))}
+          <Button onClick={addItem} type="button" variant="outline" size="sm">
+            <Plus className="h-4 w-4 mr-1" /> Add photo
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DishGridEditor({
+  value,
+  onChange,
+  sectionLabel,
+}: {
+  value: WebsiteConfig["most_ordered"] | WebsiteConfig["more_favorites"];
+  onChange: (
+    v: Partial<WebsiteConfig["most_ordered"] | WebsiteConfig["more_favorites"]>,
+  ) => void;
+  sectionLabel: string;
+}) {
+  const updateItem = (i: number, patch: Partial<typeof value.items[number]>) => {
+    const next = value.items.map((it, idx) =>
+      idx === i ? { ...it, ...patch } : it,
+    );
+    onChange({ items: next });
+  };
+  const updateAuthor = (i: number, patch: Partial<typeof value.items[number]["author"]>) => {
+    const next = value.items.map((it, idx) =>
+      idx === i ? { ...it, author: { ...it.author, ...patch } } : it,
+    );
+    onChange({ items: next });
+  };
+  const addItem = () =>
+    onChange({
+      items: [
+        ...value.items,
+        { name: "", quote: "", author: { name: "", photo_url: "" } },
+      ],
+    });
+  const removeItem = (i: number) =>
+    onChange({ items: value.items.filter((_, idx) => idx !== i) });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{sectionLabel}</CardTitle>
+        <CardDescription>
+          Dish cards with a customer quote. 4–8 cards renders best.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <SectionToggle
+          enabled={value.enabled}
+          onChange={(v) => onChange({ enabled: v })}
+          label={`Show ${sectionLabel.toLowerCase()} section`}
+        />
+        <SectionHeading value={value} onChange={onChange} />
+
+        <div className="space-y-3">
+          <Label>Dishes</Label>
+          {value.items.map((item, i) => (
+            <div
+              key={i}
+              className="rounded-lg border p-3 space-y-2 bg-muted/30"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Dish {i + 1}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeItem(i)}
+                  type="button"
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+              <Input
+                placeholder="Dish name"
+                value={item.name}
+                onChange={(e) => updateItem(i, { name: e.target.value })}
+              />
+              <Textarea
+                placeholder="Quote from a review"
+                value={item.quote}
+                onChange={(e) => updateItem(i, { quote: e.target.value })}
+                rows={2}
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Input
+                  placeholder="Reviewer name"
+                  value={item.author.name}
+                  onChange={(e) => updateAuthor(i, { name: e.target.value })}
+                />
+                <Input
+                  placeholder="Reviewer photo URL"
+                  value={item.author.photo_url}
+                  onChange={(e) =>
+                    updateAuthor(i, { photo_url: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          ))}
+          <Button onClick={addItem} type="button" variant="outline" size="sm">
+            <Plus className="h-4 w-4 mr-1" /> Add dish
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SpecialTouchesEditor({
+  value,
+  onChange,
+}: {
+  value: WebsiteConfig["special_touches"];
+  onChange: (v: Partial<WebsiteConfig["special_touches"]>) => void;
+}) {
+  const updateItem = (i: number, patch: Partial<typeof value.items[number]>) => {
+    const next = value.items.map((it, idx) =>
+      idx === i ? { ...it, ...patch } : it,
+    );
+    onChange({ items: next });
+  };
+  const addItem = () =>
+    onChange({ items: [...value.items, { title: "", description: "" }] });
+  const removeItem = (i: number) =>
+    onChange({ items: value.items.filter((_, idx) => idx !== i) });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Little things we do (Extras)</CardTitle>
+        <CardDescription>
+          Service or experience details that set you apart. 3–6 cards.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <SectionToggle
+          enabled={value.enabled}
+          onChange={(v) => onChange({ enabled: v })}
+          label="Show extras section"
+        />
+        <SectionHeading value={value} onChange={onChange} />
+
+        <div className="space-y-3">
+          <Label>Cards</Label>
+          {value.items.map((item, i) => (
+            <div
+              key={i}
+              className="rounded-lg border p-3 space-y-2 bg-muted/30"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Card {i + 1}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeItem(i)}
+                  type="button"
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+              <Input
+                placeholder="Title (e.g. Unlimited rice refills)"
+                value={item.title}
+                onChange={(e) => updateItem(i, { title: e.target.value })}
+              />
+              <Textarea
+                placeholder="Description"
+                value={item.description}
+                onChange={(e) => updateItem(i, { description: e.target.value })}
+                rows={3}
+              />
+            </div>
+          ))}
+          <Button onClick={addItem} type="button" variant="outline" size="sm">
+            <Plus className="h-4 w-4 mr-1" /> Add card
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TipsEditor({
+  value,
+  onChange,
+}: {
+  value: WebsiteConfig["tips"];
+  onChange: (v: Partial<WebsiteConfig["tips"]>) => void;
+}) {
+  const updateItem = (i: number, patch: Partial<typeof value.items[number]>) => {
+    const next = value.items.map((it, idx) =>
+      idx === i ? { ...it, ...patch } : it,
+    );
+    onChange({ items: next });
+  };
+  const addItem = () =>
+    onChange({
+      items: [...value.items, { emoji: "", title: "", description: "" }],
+    });
+  const removeItem = (i: number) =>
+    onChange({ items: value.items.filter((_, idx) => idx !== i) });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Insider tips</CardTitle>
+        <CardDescription>
+          Tips for first-time visitors. Each has an emoji icon. 3–6 cards.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <SectionToggle
+          enabled={value.enabled}
+          onChange={(v) => onChange({ enabled: v })}
+          label="Show tips section"
+        />
+        <SectionHeading value={value} onChange={onChange} />
+
+        <div className="space-y-3">
+          <Label>Tips</Label>
+          {value.items.map((item, i) => (
+            <div
+              key={i}
+              className="rounded-lg border p-3 space-y-2 bg-muted/30"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Tip {i + 1}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeItem(i)}
+                  type="button"
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-[80px_1fr] gap-2">
+                <Input
+                  placeholder="🍴"
+                  value={item.emoji}
+                  onChange={(e) => updateItem(i, { emoji: e.target.value })}
+                  maxLength={4}
+                />
+                <Input
+                  placeholder="Tip title (imperative phrase)"
+                  value={item.title}
+                  onChange={(e) => updateItem(i, { title: e.target.value })}
+                />
+              </div>
+              <Textarea
+                placeholder="Tip description"
+                value={item.description}
+                onChange={(e) => updateItem(i, { description: e.target.value })}
+                rows={3}
+              />
+            </div>
+          ))}
+          <Button onClick={addItem} type="button" variant="outline" size="sm">
+            <Plus className="h-4 w-4 mr-1" /> Add tip
+          </Button>
         </div>
       </CardContent>
     </Card>

@@ -15,13 +15,30 @@ const PARTNER_BY_EMAIL_QUERY = `
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
-  const context = request.nextUrl.searchParams.get("state") || "signup";
+  const rawState = request.nextUrl.searchParams.get("state") || "signup";
+
+  // `gbp-signup:<placeId>` carries the Google place_id through OAuth.
+  let context = rawState;
+  let gbpPlaceId = "";
+  if (rawState.startsWith("gbp-signup:")) {
+    context = "gbp-signup";
+    gbpPlaceId = rawState.slice("gbp-signup:".length);
+  }
+
+  const failRedirect = (reason: string) => {
+    if (context === "login") return `/login?google_error=${reason}`;
+    if (context === "gbp-signup") {
+      const qs = new URLSearchParams({
+        google_error: reason,
+        ...(gbpPlaceId ? { placeId: gbpPlaceId } : {}),
+      });
+      return `/signup-from-google?${qs.toString()}`;
+    }
+    return `/get-started?step=3&google_error=${reason}`;
+  };
 
   if (!code) {
-    const errorRedirect = context === "login"
-      ? "/login?google_error=no_code"
-      : "/get-started?step=3&google_error=no_code";
-    return NextResponse.redirect(new URL(errorRedirect, request.url));
+    return NextResponse.redirect(new URL(failRedirect("no_code"), request.url));
   }
 
   try {
@@ -43,10 +60,9 @@ export async function GET(request: NextRequest) {
     const tokenData = await tokenRes.json();
 
     if (!tokenData.access_token) {
-      const errorRedirect = context === "login"
-        ? "/login?google_error=token_failed"
-        : "/get-started?step=3&google_error=token_failed";
-      return NextResponse.redirect(new URL(errorRedirect, request.url));
+      return NextResponse.redirect(
+        new URL(failRedirect("token_failed"), request.url),
+      );
     }
 
     // Fetch user info
@@ -57,10 +73,9 @@ export async function GET(request: NextRequest) {
     const userData = await userRes.json();
 
     if (!userData.email) {
-      const errorRedirect = context === "login"
-        ? "/login?google_error=no_email"
-        : "/get-started?step=3&google_error=no_email";
-      return NextResponse.redirect(new URL(errorRedirect, request.url));
+      return NextResponse.redirect(
+        new URL(failRedirect("no_email"), request.url),
+      );
     }
 
     // For login context: find partner by email and log them in
@@ -86,14 +101,51 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/admin-v2", request.url));
     }
 
+    // Google-business quick-signup flow: if a partner already exists for
+    // this Google email, log them in; otherwise create one from the picked
+    // place and redirect to the new /[username]/home.
+    if (context === "gbp-signup") {
+      if (!gbpPlaceId) {
+        return NextResponse.redirect(
+          new URL(failRedirect("missing_place"), request.url),
+        );
+      }
+      const existing = await fetchFromHasura(PARTNER_BY_EMAIL_QUERY, {
+        email: userData.email,
+      }) as any;
+      const existingPartner = existing?.partners?.[0];
+      if (existingPartner) {
+        await setAuthCookie({
+          id: existingPartner.id,
+          role: "partner",
+          feature_flags: existingPartner.feature_flags || "",
+          status: existingPartner.status || "active",
+          hasSubscription: !!existingPartner.subscription_details,
+        });
+        return NextResponse.redirect(new URL("/admin-v2", request.url));
+      }
+
+      // New partner: bounce back to /signup-from-google with the verified
+      // Google email so the client component can pick up the uploaded menu
+      // files from sessionStorage and call quickSignupFromGoogle with them.
+      // (sessionStorage is not accessible here on the server.)
+      const finalize = new URL("/signup-from-google", request.url);
+      finalize.searchParams.set("placeId", gbpPlaceId);
+      finalize.searchParams.set(
+        "google_email",
+        userData.email,
+      );
+      finalize.searchParams.set("from_google", "1");
+      return NextResponse.redirect(finalize);
+    }
+
     // For signup context: redirect back to get-started with email
     return NextResponse.redirect(
       new URL(`/get-started?step=3&google_email=${encodeURIComponent(userData.email)}`, request.url)
     );
   } catch (error) {
-    const errorRedirect = context === "login"
-      ? "/login?google_error=server_error"
-      : "/get-started?step=3&google_error=server_error";
-    return NextResponse.redirect(new URL(errorRedirect, request.url));
+    return NextResponse.redirect(
+      new URL(failRedirect("server_error"), request.url),
+    );
   }
 }

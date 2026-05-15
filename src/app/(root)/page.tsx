@@ -135,7 +135,7 @@ export default function Home() {
       <JsonLd data={organizationSchema} />
       <JsonLd data={websiteSchema} />
 
-      {/* HERO — headline, CTA, menu upload */}
+      {/* HERO — headline + Google business search + menu upload + CTA */}
       <Hero />
 
       {/* STATS — animated revenue/order counters */}

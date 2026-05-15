@@ -23,7 +23,7 @@ const nextConfig: NextConfig = {
       static: 180,
     },
     serverActions: {
-      bodySizeLimit: '2mb'
+      bodySizeLimit: '40mb'
     },
     scrollRestoration: false
   },

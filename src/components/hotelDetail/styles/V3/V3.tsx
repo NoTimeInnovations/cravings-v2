@@ -14,9 +14,16 @@ import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import DiscountBanner from "../../DiscountBanner";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 import useOrderStore from "@/store/orderStore";
+import { useAuthStore } from "@/store/authStore";
 import V3SearchItems from "./V3SearchItems";
 import V3Orders from "./V3Orders";
 import V3AddressSheet from "./V3AddressSheet";
+import type { SavedAddress } from "../../placeOrder/AddressManagementModal";
+import AddressPickerV2 from "../../placeOrder/AddressPickerV2";
+import { fetchFromHasura } from "@/lib/hasuraClient";
+import { updateUserAddressesMutation } from "@/api/auth";
+import { toast } from "sonner";
+import { useLocationStore } from "@/store/geolocationStore";
 
 const V3 = ({
   styles,
@@ -45,9 +52,18 @@ const V3 = ({
   const categoryElementsRef = useRef<(HTMLDivElement | null)[]>([]);
   const hasOffers = offers && offers.length > 0;
   const { orderType, items: cartItems, userAddress } = useOrderStore();
+  const { userData: authUser } = useAuthStore();
+  const savedAddresses = useMemo(
+    () => ((authUser as any)?.addresses || []) as SavedAddress[],
+    [(authUser as any)?.addresses],
+  );
   const [searchOpen, setSearchOpen] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
   const [addressSheetOpen, setAddressSheetOpen] = useState(false);
+  const [addressPickerOpen, setAddressPickerOpen] = useState(false);
+  const [pickerInitial, setPickerInitial] = useState<
+    { address?: string; coords: { lat: number; lng: number } } | null
+  >(null);
 
   useEffect(() => {
     setBannerError(false);
@@ -239,13 +255,16 @@ const V3 = ({
                 {isPickupMode ? (
                   <Store className="h-4 w-4 shrink-0 text-gray-900" />
                 ) : (
-                  <MapPin className="h-4 w-4 shrink-0 text-gray-900" />
+                  <MapPin className="h-4 w-4 shrink-0" style={{ color: "#ea580c" }} />
                 )}
                 <div className="min-w-0 leading-tight">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
                     {isPickupMode ? "Pickup from" : "Deliver to"}
                   </p>
-                  <p className="truncate text-sm font-bold text-gray-900">
+                  <p
+                    className="truncate text-sm font-bold"
+                    style={{ color: isPickupMode ? "#111827" : "#ea580c" }}
+                  >
                     {isPickupMode ? outletName : userAddress || "Add delivery address"}
                   </p>
                 </div>
@@ -508,6 +527,23 @@ const V3 = ({
         {addressSheetOpen && (
           <V3AddressSheet
             currentAddress={userAddress || ""}
+            savedAddresses={savedAddresses}
+            onDeleteSaved={async (id) => {
+              if (!authUser || (authUser as any).role !== "user") return;
+              const updated = savedAddresses.filter((a) => a.id !== id);
+              try {
+                await fetchFromHasura(updateUserAddressesMutation, {
+                  id: authUser.id,
+                  addresses: updated,
+                });
+                useAuthStore.setState({
+                  userData: { ...(authUser as any), addresses: updated } as any,
+                });
+                toast.success("Address deleted");
+              } catch {
+                toast.error("Failed to delete address");
+              }
+            }}
             onSelect={(addr, coords) => {
               if (addr) {
                 useOrderStore.getState().setUserAddress(addr);
@@ -515,10 +551,64 @@ const V3 = ({
               }
               setAddressSheetOpen(false);
             }}
+            onPickForMap={(addr, coords) => {
+              setAddressSheetOpen(false);
+              if (coords) {
+                setPickerInitial({ address: addr, coords });
+              } else {
+                setPickerInitial(null);
+              }
+              setAddressPickerOpen(true);
+            }}
             onClose={() => setAddressSheetOpen(false)}
-            accent={styles?.accent}
+            accent="#ea580c"
           />
         )}
+
+        {/* Address Picker (map + save) */}
+        <AddressPickerV2
+          open={addressPickerOpen}
+          onClose={() => {
+            setAddressPickerOpen(false);
+            setPickerInitial(null);
+          }}
+          onSaved={async (saved) => {
+            const fullAddress =
+              saved.address ||
+              [saved.flat_no, saved.house_no, saved.area, saved.city]
+                .filter(Boolean)
+                .join(", ");
+            useOrderStore.getState().setUserAddress(fullAddress);
+            if (saved.latitude != null && saved.longitude != null) {
+              const c = { lat: saved.latitude, lng: saved.longitude };
+              useOrderStore.getState().setUserCoordinates(c);
+              useLocationStore.getState().setCoords(c);
+            }
+            if (authUser && (authUser as any).role === "user") {
+              const existing = [...savedAddresses];
+              const idx = existing.findIndex((x) => x.id === saved.id);
+              if (idx >= 0) existing[idx] = saved;
+              else existing.push(saved);
+              try {
+                await fetchFromHasura(updateUserAddressesMutation, {
+                  id: authUser.id,
+                  addresses: existing,
+                });
+                useAuthStore.setState({
+                  userData: { ...(authUser as any), addresses: existing } as any,
+                });
+                toast.success("Address saved");
+              } catch {
+                toast.error("Failed to save address");
+              }
+            }
+            setAddressPickerOpen(false);
+            setPickerInitial(null);
+          }}
+          hotelData={hoteldata}
+          accent="#ea580c"
+          initialPick={pickerInitial}
+        />
 
         {/* Orders overlay */}
         {ordersOpen && (

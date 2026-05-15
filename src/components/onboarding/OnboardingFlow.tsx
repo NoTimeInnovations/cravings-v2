@@ -19,6 +19,7 @@ interface OnboardingFlowProps {
   storeBanner?: string;
   partnerId: string;
   tableNumber: number;
+  hotelData?: any;
   themeBg?: string;
   onboardingCompleted?: boolean;
   deliveryTimeAllowed?: { from: string; to: string } | null;
@@ -49,6 +50,7 @@ export default function OnboardingFlow({
   storeBanner,
   partnerId,
   tableNumber,
+  hotelData,
   themeBg,
   onboardingCompleted = false,
   deliveryTimeAllowed,
@@ -242,8 +244,9 @@ export default function OnboardingFlow({
             storeName={storeName}
             themeBg={themeBg}
             onContinue={handleAddressContinue}
-            accent={accent}
+            accent={accent || "#16A34A"}
             onBack={() => setStep("orderType")}
+            hotelData={hotelData}
           />
         )}
 

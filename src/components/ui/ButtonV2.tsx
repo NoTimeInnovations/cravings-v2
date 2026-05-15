@@ -11,6 +11,7 @@ interface ButtonV2Props {
   type?: "button" | "submit";
   disabled?: boolean;
   showArrow?: boolean;
+  target?: "_blank" | "_self";
 }
 
 export function ButtonV2({
@@ -22,17 +23,18 @@ export function ButtonV2({
   type = "button",
   disabled,
   showArrow = true,
+  target,
 }: ButtonV2Props) {
   const baseStyles = "inline-flex items-center gap-2 text-[13px] font-medium transition-all duration-300 ease-in-out";
 
   const variants = {
     primary: cn(
       baseStyles,
-      "rounded-full bg-orange-100/70 pl-4 pr-1.5 py-2 text-orange-600 hover:bg-orange-600 hover:text-white border border-orange-600/30 hover:border-orange-600 group",
+      "rounded-[10px] bg-orange-100/70 pl-4 pr-1.5 py-2 text-orange-600 hover:bg-orange-600 hover:text-white border border-orange-600/30 hover:border-orange-600 group",
     ),
     secondary: cn(
       baseStyles,
-      "rounded-full border border-stone-300 bg-transparent px-4 py-2.5 text-stone-800 hover:bg-stone-100 hover:text-stone-900 hover:border-stone-500",
+      "rounded-[10px] border border-stone-300 bg-transparent px-4 py-2.5 text-stone-800 hover:bg-stone-100 hover:text-stone-900 hover:border-stone-500",
     ),
   };
 
@@ -49,7 +51,12 @@ export function ButtonV2({
 
   if (href) {
     return (
-      <Link href={href} className={cn(variants[variant], className)}>
+      <Link
+        href={href}
+        target={target}
+        rel={target === "_blank" ? "noopener noreferrer" : undefined}
+        className={cn(variants[variant], className)}
+      >
         {content}
       </Link>
     );

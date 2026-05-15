@@ -1,11 +1,28 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Loader2, MapPin, Search, LocateFixed, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { Loader2, MapPin, Search, LocateFixed, ChevronLeft, ChevronRight, Home, Building2, Navigation, Trash2 } from "lucide-react";
 import { useLoadScript } from "@react-google-maps/api";
+import { useAuthStore } from "@/store/authStore";
+import type { SavedAddress } from "@/components/hotelDetail/placeOrder/AddressManagementModal";
+import { fetchFromHasura } from "@/lib/hasuraClient";
+import { updateUserAddressesMutation } from "@/api/auth";
+import { toast } from "sonner";
+import AddressPickerV2 from "@/components/hotelDetail/placeOrder/AddressPickerV2";
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 const GOOGLE_MAPS_LIBRARIES: ["places"] = ["places"];
+
+const formatSavedAddress = (a: SavedAddress): string =>
+  a.address ||
+  [a.flat_no, a.house_no, a.street, a.area, a.city].filter(Boolean).join(", ");
+
+const labelIcon = (label?: string) => {
+  const l = (label || "").toLowerCase();
+  if (l.includes("home") || l.includes("house")) return Home;
+  if (l.includes("office") || l.includes("work")) return Building2;
+  return Navigation;
+};
 
 interface DeliveryAddressScreenProps {
   storeBanner?: string;
@@ -15,14 +32,16 @@ interface DeliveryAddressScreenProps {
   loading?: boolean;
   accent?: string;
   onBack?: () => void;
+  hotelData?: any;
 }
 
 export default function DeliveryAddressScreen({
   storeName,
   onContinue,
   loading,
-  accent = "#1f2937",
+  accent = "#16A34A",
   onBack,
+  hotelData,
 }: DeliveryAddressScreenProps) {
   const [address, setAddress] = useState("");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -39,6 +58,46 @@ export default function DeliveryAddressScreen({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAPS_LIBRARIES,
   });
+
+  const { userData: authUser } = useAuthStore();
+  const savedAddresses = useMemo(
+    () => ((authUser as any)?.addresses || []) as SavedAddress[],
+    [(authUser as any)?.addresses],
+  );
+
+  const [addressPickerOpen, setAddressPickerOpen] = useState(false);
+  const [pickerInitial, setPickerInitial] = useState<
+    { address?: string; coords: { lat: number; lng: number } } | null
+  >(null);
+
+  const openPickerWith = useCallback(
+    (addr: string, c: { lat: number; lng: number } | null) => {
+      if (c) {
+        setPickerInitial({ address: addr, coords: c });
+      } else {
+        setPickerInitial(null);
+      }
+      setAddressPickerOpen(true);
+    },
+    [],
+  );
+
+  const handleDeleteSaved = useCallback(async (id: string) => {
+    if (!authUser || (authUser as any).role !== "user") return;
+    const updated = savedAddresses.filter((a) => a.id !== id);
+    try {
+      await fetchFromHasura(updateUserAddressesMutation, {
+        id: authUser.id,
+        addresses: updated,
+      });
+      useAuthStore.setState({
+        userData: { ...(authUser as any), addresses: updated } as any,
+      });
+      toast.success("Address deleted");
+    } catch {
+      toast.error("Failed to delete address");
+    }
+  }, [authUser, savedAddresses]);
 
   useEffect(() => {
     if (isLoaded && typeof google !== "undefined") {
@@ -71,22 +130,25 @@ export default function DeliveryAddressScreen({
   }, []);
 
   const selectSuggestion = useCallback((placeId: string, description: string) => {
-    setAddress(description);
     setSuggestions([]);
+    setAddress(description);
     if (placesRef.current) {
       placesRef.current.getDetails(
         { placeId, fields: ["geometry"], sessionToken: sessionTokenRef.current || undefined },
         (place) => {
-          if (place?.geometry?.location) {
-            setCoords({ lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
-          }
+          const c = place?.geometry?.location
+            ? { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() }
+            : null;
           if (typeof google !== "undefined") {
             sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
           }
+          openPickerWith(description, c);
         },
       );
+    } else {
+      openPickerWith(description, null);
     }
-  }, []);
+  }, [openPickerWith]);
 
   const useCurrentLocation = () => {
     if (!navigator.geolocation) { setError("Geolocation not supported"); return; }
@@ -94,15 +156,14 @@ export default function DeliveryAddressScreen({
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
-        setCoords({ lat: latitude, lng: longitude });
+        let addr = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
         try {
           const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`);
           const data = await res.json();
-          if (data.results?.[0]) setAddress(data.results[0].formatted_address);
-        } catch {
-          setAddress(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-        }
+          if (data.results?.[0]) addr = data.results[0].formatted_address;
+        } catch {}
         setLocating(false);
+        openPickerWith(addr, { lat: latitude, lng: longitude });
       },
       () => { setError("Location access denied"); setLocating(false); },
       { enableHighAccuracy: true, timeout: 10000 },
@@ -140,42 +201,37 @@ export default function DeliveryAddressScreen({
           Where should we deliver your order?
         </p>
 
-        {/* Use current location */}
-        <button
-          onClick={useCurrentLocation}
-          disabled={locating}
-          className="w-full mt-6 flex items-center gap-3 p-3.5 rounded-[14px] bg-gray-50 border-none cursor-pointer transition active:opacity-60"
-        >
-          <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: accent }}>
-            {locating ? (
-              <Loader2 className="w-4 h-4 animate-spin text-white" />
-            ) : (
-              <LocateFixed className="w-4 h-4 text-white" />
-            )}
-          </div>
-          <div className="flex-1 text-left">
-            <p className="text-sm font-semibold text-gray-900">Use current location</p>
-            <p className="text-[12px] text-gray-400 mt-0.5">GPS enabled · precise to the street</p>
-          </div>
-          <ChevronRight className="w-[18px] h-[18px] text-gray-400 shrink-0" />
-        </button>
-
-        {/* Search input */}
-        <div className="relative mt-5">
-          <div className="flex items-center h-[50px] rounded-xl border border-gray-200 bg-white px-3.5 gap-2.5 focus-within:border-gray-900 focus-within:ring-1 focus-within:ring-gray-900/10 transition">
+        {/* Search + Use my location (top row) */}
+        <div className="relative mt-6 flex items-center gap-2">
+          <div className="flex-1 min-w-0 flex items-center h-[48px] rounded-xl border border-gray-200 bg-white px-3.5 gap-2.5 focus-within:border-gray-900 focus-within:ring-1 focus-within:ring-gray-900/10 transition">
             <Search className="w-4 h-4 text-gray-400 shrink-0" />
             <input
               type="text"
               placeholder="Search street, building, landmark"
               value={address}
               onChange={(e) => handleSearch(e.target.value)}
-              className="flex-1 h-full text-[15px] text-gray-900 placeholder:text-gray-400 outline-none bg-transparent"
+              className="flex-1 h-full text-[15px] text-gray-900 placeholder:text-gray-400 outline-none bg-transparent min-w-0"
             />
           </div>
+          <button
+            onClick={useCurrentLocation}
+            disabled={locating}
+            className="h-[48px] px-3 rounded-xl flex items-center gap-1.5 shrink-0 transition active:opacity-60"
+            style={{ backgroundColor: accent }}
+          >
+            {locating ? (
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
+            ) : (
+              <LocateFixed className="w-4 h-4 text-white" />
+            )}
+            <span className="text-xs font-semibold text-white whitespace-nowrap">
+              Use my location
+            </span>
+          </button>
 
           {/* Suggestions */}
           {suggestions.length > 0 && (
-            <div className="absolute top-14 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
+            <div className="absolute top-[52px] left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-10 max-h-60 overflow-y-auto">
               {suggestions.map((s) => (
                 <button
                   key={s.place_id}
@@ -195,6 +251,80 @@ export default function DeliveryAddressScreen({
           )}
         </div>
 
+        {/* Saved addresses */}
+        {savedAddresses.length > 0 && (
+          <div className="mt-6">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">
+              Saved addresses
+            </p>
+            <div className="space-y-2">
+              {(() => {
+                const isMatch = (a: SavedAddress) => {
+                  const t = formatSavedAddress(a);
+                  return !!address && (t === address || a.address === address);
+                };
+                const reversed = [...savedAddresses].reverse();
+                return [
+                  ...reversed.filter(isMatch),
+                  ...reversed.filter((a) => !isMatch(a)),
+                ];
+              })().map((a) => {
+                const Icon = labelIcon(a.label);
+                const text = formatSavedAddress(a);
+                return (
+                  <div
+                    key={a.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      const c =
+                        a.latitude != null && a.longitude != null
+                          ? { lat: a.latitude, lng: a.longitude }
+                          : null;
+                      onContinue(text, c);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        const c =
+                          a.latitude != null && a.longitude != null
+                            ? { lat: a.latitude, lng: a.longitude }
+                            : null;
+                        onContinue(text, c);
+                      }
+                    }}
+                    className="w-full flex items-center gap-3 p-3.5 rounded-[14px] border border-gray-100 hover:bg-gray-50 transition active:opacity-60 text-left cursor-pointer"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center shrink-0">
+                      <Icon className="w-4 h-4 text-gray-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {a.customLabel || a.label || "Saved"}
+                      </p>
+                      <p className="text-[12px] text-gray-400 mt-0.5 truncate">{text}</p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Delete address"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm("Remove this address?")) {
+                          handleDeleteSaved(a.id);
+                        }
+                      }}
+                      className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 hover:bg-red-50 active:opacity-60 transition"
+                    >
+                      <Trash2 className="w-4 h-4 text-gray-400" />
+                    </button>
+                    <ChevronRight className="w-[18px] h-[18px] text-gray-400 shrink-0" />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
        </div>
       </div>
@@ -212,6 +342,49 @@ export default function DeliveryAddressScreen({
         </button>
        </div>
       </div>
+
+      {/* Map confirm + save (same flow as V3 bottom sheet) */}
+      <AddressPickerV2
+        open={addressPickerOpen}
+        onClose={() => {
+          setAddressPickerOpen(false);
+          setPickerInitial(null);
+        }}
+        onSaved={async (saved) => {
+          const fullAddress =
+            saved.address ||
+            [saved.flat_no, saved.house_no, saved.area, saved.city]
+              .filter(Boolean)
+              .join(", ");
+          const c =
+            saved.latitude != null && saved.longitude != null
+              ? { lat: saved.latitude, lng: saved.longitude }
+              : null;
+          if (authUser && (authUser as any).role === "user") {
+            const existing = [...savedAddresses];
+            const idx = existing.findIndex((x) => x.id === saved.id);
+            if (idx >= 0) existing[idx] = saved;
+            else existing.push(saved);
+            try {
+              await fetchFromHasura(updateUserAddressesMutation, {
+                id: authUser.id,
+                addresses: existing,
+              });
+              useAuthStore.setState({
+                userData: { ...(authUser as any), addresses: existing } as any,
+              });
+            } catch {
+              toast.error("Failed to save address");
+            }
+          }
+          setAddressPickerOpen(false);
+          setPickerInitial(null);
+          onContinue(fullAddress, c);
+        }}
+        hotelData={hotelData}
+        accent="#ea580c"
+        initialPick={pickerInitial}
+      />
     </div>
   );
 }
