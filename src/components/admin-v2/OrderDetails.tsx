@@ -408,6 +408,45 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                 Open Adloggs tracking page →
                             </a>
                         )}
+                        {order.delivery_provider === "adloggs" &&
+                            order.status !== "completed" &&
+                            order.status !== "cancelled" &&
+                            (() => {
+                                const otps = (order.delivery_provider_meta as any)?.otps;
+                                const pickup = otps?.pickup_otp;
+                                const drop = otps?.delivery_otp;
+                                if (!pickup && !drop) return null;
+                                return (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {pickup && (
+                                            <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                                                    Pickup OTP
+                                                </p>
+                                                <p className="mt-0.5 font-mono font-bold tracking-[0.2em] text-blue-900">
+                                                    {pickup}
+                                                </p>
+                                                <p className="mt-0.5 text-[10px] text-blue-700/80">
+                                                    Tell the rider when they arrive
+                                                </p>
+                                            </div>
+                                        )}
+                                        {drop && (
+                                            <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-700">
+                                                    Delivery OTP
+                                                </p>
+                                                <p className="mt-0.5 font-mono font-bold tracking-[0.2em] text-orange-900">
+                                                    {drop}
+                                                </p>
+                                                <p className="mt-0.5 text-[10px] text-orange-700/80">
+                                                    Customer reads this at drop-off
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
 
                         {agent ? (
                             <>
@@ -419,8 +458,15 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                         <p className="truncate font-medium">
                                             {agent.name || "Rider being assigned"}
                                         </p>
-                                        <p className="text-xs text-muted-foreground capitalize">
-                                            {agent.provider || "growjet"} delivery partner
+                                        <p className="text-xs text-muted-foreground">
+                                            {(() => {
+                                                const lsp = (order.delivery_provider_meta as any)?.rider_platform?.name;
+                                                const provider = agent.provider || order.delivery_provider;
+                                                if (lsp && provider) return `${lsp} · via ${provider}`;
+                                                if (lsp) return lsp;
+                                                if (provider) return `${provider} delivery partner`;
+                                                return "Delivery partner";
+                                            })()}
                                         </p>
                                     </div>
                                     {agent.phone && (

@@ -190,6 +190,11 @@ const OrderClient = () => {
                         assigned_at: order?.assigned_at,
                         delivery_boy: order?.delivery_boy,
                         delivery_agent: order?.delivery_agent ?? null,
+                        delivery_provider: order?.delivery_provider ?? null,
+                        delivery_provider_state: order?.delivery_provider_state ?? null,
+                        delivery_provider_meta: order?.delivery_provider_meta ?? null,
+                        delivery_provider_order_id: order?.delivery_provider_order_id ?? null,
+                        delivery_provider_last_event_at: order?.delivery_provider_last_event_at ?? null,
                         is_paid: order?.is_paid || false,
                         items: order?.order_items.map((i: any) => ({
                             id: i.item.id,

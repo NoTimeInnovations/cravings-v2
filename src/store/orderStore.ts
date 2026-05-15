@@ -177,7 +177,11 @@ export interface Order {
     trackUrl?: string;
     fee?: number;
     distance?: number;
-    otps?: { delivery_otp?: string | null };
+    otps?: {
+      delivery_otp?: string | null;
+      pickup_otp?: string | null;
+      return_otp?: string | null;
+    };
     rider_platform?: { name?: string; lsp_uniq_id?: string };
     [k: string]: any;
   } | null;
@@ -614,6 +618,9 @@ const useOrderStore = create(
               delivery_charge: order.delivery_charge, // Include delivery_charge
               is_paid: order.is_paid || false,
               cashfree_payment_id: order.cashfree_payment_id || null,
+              delivery_provider: order.delivery_provider ?? null,
+              delivery_provider_state: order.delivery_provider_state ?? null,
+              delivery_provider_meta: order.delivery_provider_meta ?? null,
               user: order.user,
               items: order.order_items.map((i: any) => ({
                 id: i.item.id,

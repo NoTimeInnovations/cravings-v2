@@ -512,6 +512,9 @@ subscription GetUserOrders($user_id: uuid!) {
       current_lng
       location_updated_at
     }
+    delivery_provider
+    delivery_provider_state
+    delivery_provider_meta
     user {
       full_name
       phone
