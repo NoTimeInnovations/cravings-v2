@@ -403,6 +403,11 @@ subscription GetPaginatedPartnerOrders(
     delivered_at
     growjet_order_number
     delivery_agent
+    delivery_provider
+    delivery_provider_order_id
+    delivery_provider_state
+    delivery_provider_meta
+    delivery_provider_last_event_at
     delivery_boy {
       id
       name
@@ -507,6 +512,9 @@ subscription GetUserOrders($user_id: uuid!) {
       current_lng
       location_updated_at
     }
+    delivery_provider
+    delivery_provider_state
+    delivery_provider_meta
     user {
       full_name
       phone

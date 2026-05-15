@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -32,6 +33,8 @@ import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { getFeatures } from "@/lib/getFeatures";
+import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import V3AddressSheet from "../styles/V3/V3AddressSheet";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
@@ -108,6 +111,7 @@ const PlaceOrderModalV2 = ({
     removeItem,
     userAddress: address,
     deliveryInfo,
+    coordinates: userCoordinates,
     orderNote,
     setOrderNote,
     orderType,
@@ -140,6 +144,9 @@ const PlaceOrderModalV2 = ({
   >(hasCashfreeReturn ? "verifying" : "idle");
   const [successClosing, setSuccessClosing] = useState(false);
   const [savedOrderTotal, setSavedOrderTotal] = useState<number | null>(null);
+  /** Captures the placed order's id so the success screen can deep-link to /order/[id]. */
+  const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
+  const router = useRouter();
   const [cashfreePaid, setCashfreePaid] = useState(hasCashfreeReturn);
   const [paymentFailReason, setPaymentFailReason] = useState("");
   const [showCashfreeEmbed, setShowCashfreeEmbed] = useState(false);
@@ -157,6 +164,8 @@ const PlaceOrderModalV2 = ({
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [pendingAddress, setPendingAddress] = useState<SavedAddress | null>(null);
+  /** Phone of the address chosen for delivery. Falls back to `user.phone`. */
+  const [selectedReceiverPhone, setSelectedReceiverPhone] = useState<string | null>(null);
   const [mapInitialPick, setMapInitialPick] = useState<
     { address?: string; coords: { lat: number; lng: number } } | null
   >(null);
@@ -213,18 +222,125 @@ const PlaceOrderModalV2 = ({
 
   const isBelowMinimum = orderType === "delivery" && minimumOrderAmount > 0 && subtotal < minimumOrderAmount;
 
-  const deliveryCharge = useMemo(() => {
-    if (
-      !isQrScan &&
-      orderType === "delivery" &&
-      deliveryInfo?.cost &&
-      !deliveryInfo?.isOutOfRange &&
-      !hotelData?.delivery_rules?.hide_delivery_charge
-    ) {
-      return deliveryInfo.cost;
+  /* ---------------- 3PL delivery-agent serviceability + quote ------------- */
+  const partnerFeatures = useMemo(
+    () => getFeatures((hotelData as any)?.feature_flags ?? null),
+    [(hotelData as any)?.feature_flags],
+  );
+  // Default-on: when delivery_agent is enabled and the partner has NOT
+  // explicitly set `use_delivery_agent_charge = false`, treat as on.
+  const useAgentForCharge =
+    partnerFeatures.delivery_agent.access &&
+    partnerFeatures.delivery_agent.enabled &&
+    hotelData?.delivery_rules?.use_delivery_agent_charge !== false;
+
+  const partnerCoords = useMemo(() => {
+    const geo: any = hotelData?.geo_location;
+    if (geo && typeof geo === "object" && Array.isArray(geo.coordinates) && geo.coordinates.length === 2) {
+      return { lat: geo.coordinates[1] as number, lng: geo.coordinates[0] as number };
     }
+    return null;
+  }, [hotelData?.geo_location]);
+
+  const [agentQuote, setAgentQuote] = useState<{
+    available: boolean;
+    etaToPickupMin?: number;
+    distanceKm?: number;
+    estimatedPrice?: number;
+    reason?: "UNSERVICEABLE" | "DISTANCE_TOO_LONG" | "OTHER";
+  } | null>(null);
+  const [agentQuoteLoading, setAgentQuoteLoading] = useState(false);
+
+  useEffect(() => {
+    if (!useAgentForCharge || orderType !== "delivery" || isQrScan) {
+      setAgentQuote(null);
+      return;
+    }
+    if (!partnerCoords || !userCoordinates) {
+      setAgentQuote(null);
+      return;
+    }
+    let cancelled = false;
+    setAgentQuoteLoading(true);
+    // Debounce so rapid address edits don't fire a wall of requests.
+    const t = setTimeout(async () => {
+      const res = await checkDeliveryAgentAvailability({
+        pickup: { lat: partnerCoords.lat, lng: partnerCoords.lng },
+        drop: { lat: userCoordinates.lat, lng: userCoordinates.lng },
+        // Book-time also hardcodes online (Adloggs merchant doesn't allow
+        // COD); keep availability aligned so the quote isn't falsely
+        // rejected before the user even picks a payment method.
+        paymentMethod: "online",
+      });
+      if (cancelled) return;
+      setAgentQuoteLoading(false);
+      if (res.ok) {
+        const d = res.data as any;
+        setAgentQuote({
+          available: !!d.available,
+          ...(d.etaToPickupMin !== undefined ? { etaToPickupMin: d.etaToPickupMin } : {}),
+          ...(d.distanceKm !== undefined ? { distanceKm: d.distanceKm } : {}),
+          ...(d.estimatedPrice !== undefined ? { estimatedPrice: d.estimatedPrice } : {}),
+          ...(d.reason ? { reason: d.reason } : {}),
+        });
+      } else {
+        // 422 from the hub = typed UNSERVICEABLE / DISTANCE_TOO_LONG.
+        const reason =
+          res.status === 422
+            ? ((res as any).code === "DISTANCE_TOO_LONG" ? "DISTANCE_TOO_LONG" : "UNSERVICEABLE")
+            : "OTHER";
+        setAgentQuote({ available: false, reason: reason as any });
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      setAgentQuoteLoading(false);
+      clearTimeout(t);
+    };
+  }, [
+    useAgentForCharge,
+    orderType,
+    isQrScan,
+    partnerCoords?.lat,
+    partnerCoords?.lng,
+    userCoordinates?.lat,
+    userCoordinates?.lng,
+  ]);
+
+  // `hide_delivery_charge` is a stale "Extra delivery charges apply" toggle.
+  // When the partner has auto-3PL on, the live agent quote IS the price, so
+  // ignore the old hide flag entirely.
+  const effectiveHideDeliveryCharge =
+    !!hotelData?.delivery_rules?.hide_delivery_charge && !useAgentForCharge;
+
+  const deliveryCharge = useMemo(() => {
+    if (isQrScan || orderType !== "delivery") return 0;
+    if (useAgentForCharge) {
+      if (agentQuote?.available && typeof agentQuote.estimatedPrice === "number") {
+        return agentQuote.estimatedPrice;
+      }
+      return 0;
+    }
+    if (hotelData?.delivery_rules?.hide_delivery_charge) return 0;
+    if (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange) return deliveryInfo.cost;
     return 0;
-  }, [isQrScan, orderType, deliveryInfo, hotelData?.delivery_rules?.hide_delivery_charge]);
+  }, [
+    isQrScan,
+    orderType,
+    deliveryInfo,
+    hotelData?.delivery_rules?.hide_delivery_charge,
+    useAgentForCharge,
+    agentQuote,
+  ]);
+
+  // Block placement until we have an `available: true` quote. The
+  // missing-coords case is already covered by other guards; this enforces
+  // "must have a successful serviceability check before placing".
+  const agentBlocksOrder =
+    useAgentForCharge &&
+    orderType === "delivery" &&
+    !!userCoordinates &&
+    (agentQuoteLoading || !agentQuote?.available);
 
   const parcelCharge = useMemo(() => {
     if (
@@ -530,6 +646,7 @@ const PlaceOrderModalV2 = ({
       useOrderStore.getState().setUserCoordinates(coords);
       useLocationStore.getState().setCoords(coords);
     }
+    setSelectedReceiverPhone(addr.receiverPhone?.trim() || null);
     setShowAddressSheet(false);
     if (orderType === "delivery") {
       calculateDeliveryDistanceAndCost(hotelData);
@@ -583,6 +700,8 @@ const PlaceOrderModalV2 = ({
       house_no: addressFormData.buildingFloor.trim() || undefined,
       street: addressFormData.street.trim() || undefined,
       customLabel: addressFormData.saveAs.trim() || undefined,
+      receiverName: addressFormData.receiverName.trim() || undefined,
+      receiverPhone: addressFormData.receiverPhone.trim() || undefined,
     };
 
     const existing = [...savedAddresses];
@@ -654,18 +773,26 @@ const PlaceOrderModalV2 = ({
           });
       }
     }
-    if (
-      !isQrScan &&
-      ot === "delivery" &&
-      deliveryInfo?.cost &&
-      !deliveryInfo?.isOutOfRange &&
-      !hotelData?.delivery_rules?.hide_delivery_charge
-    ) {
-      list.push({
-        name: "Delivery Charge",
-        amount: deliveryInfo.cost,
-        charge_type: "FLAT_FEE",
-      });
+    if (!isQrScan && ot === "delivery") {
+      let charge = 0;
+      if (useAgentForCharge) {
+        if (agentQuote?.available && typeof agentQuote.estimatedPrice === "number") {
+          charge = agentQuote.estimatedPrice;
+        }
+      } else if (
+        deliveryInfo?.cost &&
+        !deliveryInfo?.isOutOfRange &&
+        !hotelData?.delivery_rules?.hide_delivery_charge
+      ) {
+        charge = deliveryInfo.cost;
+      }
+      if (charge > 0) {
+        list.push({
+          name: "Delivery Charge",
+          amount: charge,
+          charge_type: "FLAT_FEE",
+        });
+      }
     }
     if (
       tableNumber === 0 &&
@@ -797,6 +924,7 @@ const PlaceOrderModalV2 = ({
       if (result) {
         if (result.id) {
           localStorage?.setItem("last-order-id", result.id);
+          setPlacedOrderId(result.id);
           markOrderAsPaid(result.id, verifyRes.cfPaymentId || undefined).catch(
             () => {},
           );
@@ -1021,7 +1149,24 @@ const PlaceOrderModalV2 = ({
           toast.error("Please select your location on the map.");
           return;
         }
-        if (deliveryInfo?.isOutOfRange) {
+        if (useAgentForCharge) {
+          if (agentQuoteLoading) {
+            toast.error("Hold on — getting a delivery quote.");
+            return;
+          }
+          if (!agentQuote) {
+            toast.error("Please select your location on the map.");
+            return;
+          }
+          if (!agentQuote.available) {
+            toast.error(
+              agentQuote.reason === "DISTANCE_TOO_LONG"
+                ? "Delivery distance is too long for this restaurant."
+                : "Delivery is not available to your location.",
+            );
+            return;
+          }
+        } else if (deliveryInfo?.isOutOfRange) {
           toast.error("Delivery is not available to your location.");
           return;
         }
@@ -1120,10 +1265,14 @@ const PlaceOrderModalV2 = ({
             }
           : null,
         (user as any)?.full_name || undefined,
+        selectedReceiverPhone || (user as any)?.phone || undefined,
       );
 
       if (result) {
-        if (result.id) localStorage?.setItem("last-order-id", result.id);
+        if (result.id) {
+          localStorage?.setItem("last-order-id", result.id);
+          setPlacedOrderId(result.id);
+        }
         if (appliedDiscount?.id) {
           fetchFromHasura(incrementDiscountUsageMutation, { id: appliedDiscount.id }).catch(() => {});
         }
@@ -1151,11 +1300,27 @@ const PlaceOrderModalV2 = ({
     setTimeout(() => {
       setOrderStatus("idle");
       setSavedOrderTotal(null);
+      setPlacedOrderId(null);
       setSuccessClosing(false);
       setOpenPlaceOrderModal(false);
       setOpenOrderDrawer(false);
       setOpenDrawerBottom(true);
     }, 300);
+  };
+
+  /** Same teardown as "Back to Menu" but routes to the order details page. */
+  const handleSuccessOpenOrder = () => {
+    const id = placedOrderId || localStorage?.getItem("last-order-id");
+    if (!id) {
+      handleSuccessClose();
+      return;
+    }
+    setOrderStatus("idle");
+    setSavedOrderTotal(null);
+    setPlacedOrderId(null);
+    setOpenPlaceOrderModal(false);
+    setOpenOrderDrawer(false);
+    router.push(`/order/${id}`);
   };
 
   if (!open_place_order_modal) return null;
@@ -1282,13 +1447,22 @@ const PlaceOrderModalV2 = ({
               <p className="mt-2 text-sm text-gray-400">Your order of {currency}{(savedOrderTotal ?? 0).toFixed(0)} has been placed.</p>
               <p className="mt-1 text-xs text-gray-400">You will be notified when it&apos;s ready.</p>
             </div>
-            <button
-              type="button"
-              onClick={handleSuccessClose}
-              className="mt-4 rounded-xl bg-emerald-600 px-8 py-3 text-sm font-bold text-white shadow-lg transition active:scale-[0.98]"
-            >
-              Back to Menu
-            </button>
+            <div className="mt-4 flex w-full max-w-xs flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={handleSuccessClose}
+                className="flex-1 rounded-xl border border-gray-300 bg-white px-6 py-3 text-sm font-bold text-gray-900 shadow-sm transition active:scale-[0.98]"
+              >
+                Back to Menu
+              </button>
+              <button
+                type="button"
+                onClick={handleSuccessOpenOrder}
+                className="flex-1 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-bold text-white shadow-lg transition active:scale-[0.98]"
+              >
+                Order Details
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -1427,7 +1601,7 @@ const PlaceOrderModalV2 = ({
             )}
 
             {/* Delivery out of range warning */}
-            {orderType === "delivery" && deliveryInfo?.isOutOfRange && (
+            {orderType === "delivery" && !useAgentForCharge && deliveryInfo?.isOutOfRange && (
               <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
                 <MapPin className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
                 <div>
@@ -1437,8 +1611,56 @@ const PlaceOrderModalV2 = ({
               </div>
             )}
 
+            {/* 3PL agent serviceability + live quote */}
+            {orderType === "delivery" && useAgentForCharge && userCoordinates && (
+              agentQuoteLoading ? (
+                <div className="bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 flex items-center gap-2.5">
+                  <Bike className="h-4 w-4 text-gray-500 animate-pulse flex-shrink-0" />
+                  <p className="text-sm text-gray-600">Checking delivery availability…</p>
+                </div>
+              ) : agentQuote && !agentQuote.available ? (
+                <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
+                  <MapPin className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-700">Delivery not available</p>
+                    <p className="text-xs text-red-500 mt-0.5">
+                      {agentQuote.reason === "DISTANCE_TOO_LONG"
+                        ? "This restaurant is too far for our delivery partner. Try another address or switch to takeaway."
+                        : "No delivery agents service this address. Try another address or switch to takeaway."}
+                    </p>
+                  </div>
+                </div>
+              ) : agentQuote && agentQuote.available ? (
+                <div
+                  className="rounded-2xl px-4 py-3 flex items-center gap-3"
+                  style={{ backgroundColor: `${accent}14`, border: `1px solid ${accent}40` }}
+                >
+                  <Bike className="h-4 w-4 flex-shrink-0" style={{ color: accent }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold" style={{ color: accent }}>
+                      Delivery available
+                    </p>
+                    <p className="text-[11px] text-gray-600 mt-0.5">
+                      {[
+                        agentQuote.distanceKm !== undefined ? `${agentQuote.distanceKm.toFixed(1)} km` : null,
+                        agentQuote.etaToPickupMin !== undefined ? `~${agentQuote.etaToPickupMin} min pickup ETA` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  </div>
+                  {agentQuote.estimatedPrice !== undefined && !effectiveHideDeliveryCharge && (
+                    <span className="text-sm font-bold" style={{ color: accent }}>
+                      {currency}
+                      {agentQuote.estimatedPrice.toFixed(0)}
+                    </span>
+                  )}
+                </div>
+              ) : null
+            )}
+
             {/* Delivery charge notice */}
-            {orderType === "delivery" && hotelData?.delivery_rules?.hide_delivery_charge && (
+            {orderType === "delivery" && effectiveHideDeliveryCharge && (
               <div
                 className="flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold"
                 style={{
@@ -1707,7 +1929,30 @@ const PlaceOrderModalV2 = ({
                     />
                   )}
                   {orderType === "delivery" &&
-                    !hotelData?.delivery_rules?.hide_delivery_charge &&
+                    !effectiveHideDeliveryCharge &&
+                    useAgentForCharge &&
+                    agentQuote?.available && (
+                      <div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Delivery Charges</span>
+                          {deliveryCharge > 0 ? (
+                            <span className="text-gray-900">{`${currency}${deliveryCharge.toFixed(0)}`}</span>
+                          ) : (
+                            <span className="font-semibold" style={{ color: accent }}>
+                              Free
+                            </span>
+                          )}
+                        </div>
+                        {agentQuote.distanceKm !== undefined && (
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            {agentQuote.distanceKm.toFixed(1)} kms
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  {orderType === "delivery" &&
+                    !effectiveHideDeliveryCharge &&
+                    !useAgentForCharge &&
                     !deliveryInfo?.isOutOfRange &&
                     deliveryInfo?.distance != null && (
                       <div>
@@ -1726,7 +1971,7 @@ const PlaceOrderModalV2 = ({
                         </div>
                       </div>
                     )}
-                  {orderType === "delivery" && hotelData?.delivery_rules?.hide_delivery_charge && (
+                  {orderType === "delivery" && effectiveHideDeliveryCharge && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Delivery Charge</span>
                       <span className="font-semibold" style={{ color: accent }}>Informed at delivery</span>
@@ -1811,7 +2056,7 @@ const PlaceOrderModalV2 = ({
           <button
             type="button"
             onClick={handlePay}
-            disabled={orderStatus !== "idle" || !items || items.length === 0 || (orderType === "delivery" && deliveryInfo?.isOutOfRange) || (!isQrScan && !orderType) || (!isQrScan && orderType === "delivery" && !isDeliveryOpen) || (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) || incompatibleItems.length > 0 || isBelowMinimum}
+            disabled={orderStatus !== "idle" || !items || items.length === 0 || (orderType === "delivery" && !useAgentForCharge && deliveryInfo?.isOutOfRange) || agentBlocksOrder || (!isQrScan && !orderType) || (!isQrScan && orderType === "delivery" && !isDeliveryOpen) || (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) || incompatibleItems.length > 0 || isBelowMinimum}
             className="flex-1 max-w-[60%] rounded-xl py-3.5 font-semibold text-white disabled:opacity-60"
             style={{ backgroundColor: accent }}
           >

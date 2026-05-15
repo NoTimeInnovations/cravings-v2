@@ -137,6 +137,7 @@ const AddressPickerV2 = ({
   const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const hotelMarkerRef = useRef<google.maps.Marker | null>(null);
+  const radiusCircleRef = useRef<google.maps.Circle | null>(null);
   const sessionTokenRef =
     useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const mapInitializedRef = useRef(false);
@@ -596,6 +597,22 @@ const AddressPickerV2 = ({
                   title: hotelData?.store_name || "Restaurant",
                   zIndex: 5,
                 });
+                const radiusKm = hotelData?.delivery_rules?.delivery_radius;
+                if (radiusKm && radiusKm > 0) {
+                  radiusCircleRef.current?.setMap(null);
+                  radiusCircleRef.current = new google.maps.Circle({
+                    map,
+                    center: hotelCoords,
+                    radius: radiusKm * 1000, // km → metres
+                    strokeColor: "#f97316",
+                    strokeOpacity: 0.6,
+                    strokeWeight: 2,
+                    fillColor: "#f97316",
+                    fillOpacity: 0.08,
+                    clickable: false,
+                    zIndex: 1,
+                  });
+                }
               }
             }}
             onIdle={handleMapIdle}

@@ -36,6 +36,9 @@ export type SavedAddress = {
   longitude?: number;
   isDefault?: boolean;
   customLocation?: string;
+  /** Receiver name and phone for the order — used by V2 checkout + 3PL booking. */
+  receiverName?: string;
+  receiverPhone?: string;
 };
 
 type RecentSearch = {
@@ -188,6 +191,7 @@ const AddressManagementModal = ({
   const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const hotelMarkerRef = useRef<google.maps.Marker | null>(null);
+  const radiusCircleRef = useRef<google.maps.Circle | null>(null);
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const mapInitializedRef = useRef(false);
   const mapDraggedRef = useRef(false);
@@ -227,11 +231,30 @@ const AddressManagementModal = ({
       zIndex: 5,
     });
 
+    const radiusKm = hotelData?.delivery_rules?.delivery_radius;
+    if (radiusKm && radiusKm > 0) {
+      radiusCircleRef.current?.setMap(null);
+      radiusCircleRef.current = new google.maps.Circle({
+        map: mapRef.current,
+        center: hotelCoords,
+        radius: radiusKm * 1000,
+        strokeColor: "#f97316",
+        strokeOpacity: 0.6,
+        strokeWeight: 2,
+        fillColor: "#f97316",
+        fillOpacity: 0.08,
+        clickable: false,
+        zIndex: 1,
+      });
+    }
+
     return () => {
       hotelMarkerRef.current?.setMap(null);
       hotelMarkerRef.current = null;
+      radiusCircleRef.current?.setMap(null);
+      radiusCircleRef.current = null;
     };
-  }, [isLoaded, hotelCoords, hotelData?.store_name]);
+  }, [isLoaded, hotelCoords, hotelData?.store_name, hotelData?.delivery_rules?.delivery_radius]);
 
   // Reset state when opened
   useEffect(() => {
@@ -783,6 +806,21 @@ const AddressManagementModal = ({
                   title: hotelData?.store_name || "Restaurant",
                   zIndex: 5,
                 });
+                const radiusKm = hotelData?.delivery_rules?.delivery_radius;
+                if (radiusKm && radiusKm > 0 && !radiusCircleRef.current) {
+                  radiusCircleRef.current = new google.maps.Circle({
+                    map,
+                    center: hotelCoords,
+                    radius: radiusKm * 1000,
+                    strokeColor: "#f97316",
+                    strokeOpacity: 0.6,
+                    strokeWeight: 2,
+                    fillColor: "#f97316",
+                    fillOpacity: 0.08,
+                    clickable: false,
+                    zIndex: 1,
+                  });
+                }
               }
             }}
             onIdle={handleMapIdle}

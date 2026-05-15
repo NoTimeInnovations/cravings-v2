@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,11 +48,128 @@ import { getFeatures } from "@/lib/getFeatures";
 
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { DeliveryBoyAssignment } from "./DeliveryBoyAssignment";
+import { checkAllProvidersAvailability } from "@/app/actions/deliveryAgent";
 
 interface OrderDetailsProps {
     order: Order | null;
     onBack: () => void;
     onEdit?: () => void;
+}
+
+/**
+ * Small sub-panel that probes every registered 3PL provider for this
+ * order's pickup→drop pair and shows the count of available partners.
+ * Mounts only when the order is in `pending` or `accepted` (the window
+ * where the partner can still decide how to dispatch). Cached on the hub
+ * (60 s per rounded coord pair), so re-mounts are cheap.
+ */
+function ProviderAvailabilityPanel({
+    pickup,
+    drop,
+    status,
+}: {
+    pickup: { lat: number; lng: number } | null;
+    drop: { lat: number; lng: number } | null;
+    status: string | undefined;
+}) {
+    const eligible = status === "pending" || status === "accepted";
+
+    const [data, setData] = useState<{
+        totalProviders: number;
+        availableCount: number;
+        providers: Array<{
+            provider: string;
+            displayName: string;
+            available: boolean;
+            etaToPickupMin?: number;
+            distanceKm?: number;
+            estimatedPrice?: number;
+            reason?: string;
+        }>;
+    } | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (!eligible || !pickup || !drop) {
+            setData(null);
+            return;
+        }
+        let cancelled = false;
+        setLoading(true);
+        (async () => {
+            const res = await checkAllProvidersAvailability({
+                pickup,
+                drop,
+                paymentMethod: "online",
+            });
+            if (cancelled) return;
+            setLoading(false);
+            if (res.ok) setData(res.data as any);
+            else setData(null);
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [eligible, pickup?.lat, pickup?.lng, drop?.lat, drop?.lng]);
+
+    if (!eligible) return null;
+    if (!pickup || !drop) return null;
+    if (loading && !data) {
+        return (
+            <div className="rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground">
+                Checking 3PL serviceability…
+            </div>
+        );
+    }
+    if (!data) return null;
+
+    const tone =
+        data.availableCount === 0
+            ? "border-red-200 bg-red-50"
+            : "border-emerald-200 bg-emerald-50";
+    return (
+        <div className={`rounded-md border p-3 ${tone}`}>
+            <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">
+                    {data.availableCount} of {data.totalProviders} delivery partner
+                    {data.totalProviders === 1 ? "" : "s"} can serve this address
+                </p>
+            </div>
+            {data.providers.length > 0 && (
+                <ul className="mt-2 space-y-1 text-xs">
+                    {data.providers.map((p) => (
+                        <li
+                            key={p.provider}
+                            className="flex items-center justify-between gap-2"
+                        >
+                            <span className="capitalize">
+                                {p.displayName || p.provider}
+                            </span>
+                            {p.available ? (
+                                <span className="font-medium text-emerald-700">
+                                    available
+                                    {p.estimatedPrice !== undefined
+                                        ? ` · ₹${p.estimatedPrice.toFixed(0)}`
+                                        : ""}
+                                    {p.distanceKm !== undefined
+                                        ? ` · ${p.distanceKm.toFixed(1)} km`
+                                        : ""}
+                                </span>
+                            ) : (
+                                <span className="text-muted-foreground">
+                                    {p.reason === "DISTANCE_TOO_LONG"
+                                        ? "too far"
+                                        : p.reason === "ERROR"
+                                            ? "error"
+                                            : "unserviceable"}
+                                </span>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
 }
 
 export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
@@ -333,13 +450,19 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     </div>
                 </div>
 
-                {/* Delivery Boy Assignment */}
-                {order.type === "delivery" && order.status !== "completed" && order.status !== "cancelled" && (
-                    <DeliveryBoyAssignment order={order} />
-                )}
+                {/* Delivery Boy Assignment — hidden when partner uses a 3PL delivery agent */}
+                {order.type === "delivery" &&
+                    order.status !== "completed" &&
+                    order.status !== "cancelled" &&
+                    !getFeatures((userData as Partner)?.feature_flags || null).delivery_agent.enabled && (
+                        <DeliveryBoyAssignment order={order} />
+                    )}
             </div>
 
-            {getFeatures((userData as Partner)?.feature_flags || null).growjet_delivery.access && (() => {
+            {(() => {
+                const f = getFeatures((userData as Partner)?.feature_flags || null);
+                return f.growjet_delivery.access || f.delivery_agent.access;
+            })() && (() => {
                 const partner = userData as Partner | null;
                 const agent = order.delivery_agent;
                 const agentLat = agent?.location?.latitude;
@@ -373,18 +496,89 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
 
                 return (
                     <div className="border rounded-lg bg-card p-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                            <h3 className="font-semibold">Growjet Delivery</h3>
-                            {order.growjet_order_number ? (
-                                <Badge className="bg-green-100 text-green-800 font-mono">
-                                    ✓ {order.growjet_order_number}
-                                </Badge>
-                            ) : (
-                                <Badge variant="outline" className="text-muted-foreground font-mono">
-                                    Nil
-                                </Badge>
-                            )}
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <h3 className="font-semibold">Delivery Agent</h3>
+                            <div className="flex items-center gap-2">
+                                {order.delivery_provider === "adloggs" && order.delivery_provider_order_id && (
+                                    <Badge className="bg-blue-100 text-blue-800 font-mono">
+                                        adloggs · {order.delivery_provider_state ?? "—"}
+                                    </Badge>
+                                )}
+                                {order.growjet_order_number ? (
+                                    <Badge className="bg-green-100 text-green-800 font-mono">
+                                        ✓ {order.growjet_order_number}
+                                    </Badge>
+                                ) : !order.delivery_provider_order_id ? (
+                                    <Badge variant="outline" className="text-muted-foreground font-mono">
+                                        Nil
+                                    </Badge>
+                                ) : null}
+                            </div>
                         </div>
+                        {getFeatures((userData as Partner)?.feature_flags || null).delivery_agent.access && (
+                            <ProviderAvailabilityPanel
+                                pickup={
+                                    hotelLat != null && hotelLng != null
+                                        ? { lat: hotelLat, lng: hotelLng }
+                                        : null
+                                }
+                                drop={
+                                    dropLat != null && dropLng != null
+                                        ? { lat: dropLat, lng: dropLng }
+                                        : null
+                                }
+                                status={order.status}
+                            />
+                        )}
+                        {order.delivery_provider === "adloggs" && order.delivery_provider_meta?.trackUrl && (
+                            <a
+                                href={order.delivery_provider_meta.trackUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 underline"
+                            >
+                                Open Adloggs tracking page →
+                            </a>
+                        )}
+                        {order.delivery_provider === "adloggs" &&
+                            order.status !== "completed" &&
+                            order.status !== "cancelled" &&
+                            (() => {
+                                const otps = (order.delivery_provider_meta as any)?.otps;
+                                const pickup = otps?.pickup_otp;
+                                const drop = otps?.delivery_otp;
+                                if (!pickup && !drop) return null;
+                                return (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {pickup && (
+                                            <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                                                    Pickup OTP
+                                                </p>
+                                                <p className="mt-0.5 font-mono font-bold tracking-[0.2em] text-blue-900">
+                                                    {pickup}
+                                                </p>
+                                                <p className="mt-0.5 text-[10px] text-blue-700/80">
+                                                    Tell the rider when they arrive
+                                                </p>
+                                            </div>
+                                        )}
+                                        {drop && (
+                                            <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-700">
+                                                    Delivery OTP
+                                                </p>
+                                                <p className="mt-0.5 font-mono font-bold tracking-[0.2em] text-orange-900">
+                                                    {drop}
+                                                </p>
+                                                <p className="mt-0.5 text-[10px] text-orange-700/80">
+                                                    Customer reads this at drop-off
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
 
                         {agent ? (
                             <>
@@ -396,8 +590,15 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                         <p className="truncate font-medium">
                                             {agent.name || "Rider being assigned"}
                                         </p>
-                                        <p className="text-xs text-muted-foreground capitalize">
-                                            {agent.provider || "growjet"} delivery partner
+                                        <p className="text-xs text-muted-foreground">
+                                            {(() => {
+                                                const lsp = (order.delivery_provider_meta as any)?.rider_platform?.name;
+                                                const provider = agent.provider || order.delivery_provider;
+                                                if (lsp && provider) return `${lsp} · via ${provider}`;
+                                                if (lsp) return lsp;
+                                                if (provider) return `${provider} delivery partner`;
+                                                return "Delivery partner";
+                                            })()}
                                         </p>
                                     </div>
                                     {agent.phone && (
@@ -423,6 +624,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                             hotelBanner={partner?.store_banner ?? null}
                                             hotelName={partner?.store_name ?? null}
                                             routeMode={routeMode}
+                                            radiusKm={partner?.delivery_rules?.delivery_radius ?? null}
                                             onMapClick={() => {
                                                 const destLat = routeMode === "to_hotel" && hotelLat != null
                                                     ? hotelLat
@@ -446,15 +648,11 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                             </div>
                                         )}
                                     </div>
-                                ) : (
-                                    <p className="text-xs text-muted-foreground">
-                                        Live location not yet available from Growjet.
-                                    </p>
-                                )}
+                                ) : null}
                             </>
                         ) : (
                             <p className="text-xs text-muted-foreground">
-                                Rider details will appear here once Growjet assigns one.
+                                Rider details will appear once the delivery partner assigns one.
                             </p>
                         )}
                     </div>

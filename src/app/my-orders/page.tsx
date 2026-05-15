@@ -156,6 +156,12 @@ const Page = () => {
               const { additionalGst: gstAmount } = calculateGstForItems(adjItems, gstPercentage);
               const grandTotal = discountedSubtotal + gstAmount;
               const statusDisplay = getStatusDisplay(order);
+              const deliveryOtp =
+                (order as any)?.delivery_provider === "adloggs" &&
+                order.status !== "completed" &&
+                order.status !== "cancelled"
+                  ? (order as any)?.delivery_provider_meta?.otps?.delivery_otp ?? null
+                  : null;
 
               return (
                 <Link
@@ -215,6 +221,17 @@ const Page = () => {
                       {grandTotal.toFixed(2)}
                     </span>
                   </div>
+
+                  {deliveryOtp && (
+                    <div className="mt-3 rounded-lg bg-orange-50 border border-orange-200 px-3 py-2 flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-orange-700">
+                        Delivery OTP
+                      </span>
+                      <span className="font-mono font-bold tracking-[0.25em] text-orange-900">
+                        {deliveryOtp}
+                      </span>
+                    </div>
+                  )}
 
                   {isReviewEligible(order) && (
                     <button
