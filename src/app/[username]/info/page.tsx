@@ -3,19 +3,7 @@ import { notFound } from "next/navigation";
 import { getPartnerInfoByUsernameQuery } from "@/api/partners";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import DownloadAppButton from "./DownloadAppButton";
-
-const BRAND_COLOR_MAP: Record<string, string> = {
-  "burnt-orange": "#e85d04",
-  "obsidian-gold": "#b8860b",
-  "royal-burgundy": "#8b1a4a",
-  "midnight-emerald": "#0d6b4e",
-  sapphire: "#1e4db7",
-  "charcoal-noir": "#2c2c2c",
-  "deep-violet": "#6b21a8",
-  "rose-blush": "#be185d",
-  "teal-luxe": "#0f766e",
-  "warm-copper": "#b45309",
-};
+import { brandColorToHex } from "@/lib/brandColor";
 
 const FALLBACK_BRAND = "#ff6a13";
 const FALLBACK_BG = "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=1200";
@@ -96,21 +84,15 @@ function resolveStorefrontSettings(partner: PartnerInfo): {
   const sf = safeParseJson<{ brandColor?: string; infoPage?: InfoPageSettings }>(
     partner.storefront_settings
   );
-  let brandColor = FALLBACK_BRAND;
-  const bc = sf?.brandColor;
-  if (bc) {
-    if (bc.startsWith("custom:")) {
-      const hex = bc.slice("custom:".length).trim();
-      if (/^#?[0-9a-fA-F]{3,8}$/.test(hex)) {
-        brandColor = hex.startsWith("#") ? hex : `#${hex}`;
-      }
-    } else if (BRAND_COLOR_MAP[bc]) {
-      brandColor = BRAND_COLOR_MAP[bc];
-    }
-  } else {
-    const theme = safeParseJson<{ colors?: { bg?: string } }>(partner.theme);
-    if (theme?.colors?.bg) brandColor = theme.colors.bg;
-  }
+  const theme = safeParseJson<{ brandColor?: string; colors?: { bg?: string } }>(
+    partner.theme,
+  );
+  // Theme is the new source of truth; storefront brandColor is legacy fallback.
+  const token = theme?.brandColor || sf?.brandColor;
+  let brandColor = token ? brandColorToHex(token) : FALLBACK_BRAND;
+  // Pre-brandColor partners only had theme.colors.bg as a hint — keep that for
+  // the rare legacy account that has neither token set.
+  if (!token && theme?.colors?.bg) brandColor = theme.colors.bg;
   return { brandColor, info: sf?.infoPage || {} };
 }
 
@@ -427,7 +409,7 @@ export default async function PartnerInfoPage({
               <img
                 src={logoImage}
                 alt={partner.store_name}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
                 style={{ borderRadius: 20 }}
               />
             ) : (

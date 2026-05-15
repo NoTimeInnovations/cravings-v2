@@ -70,6 +70,7 @@ export const partnerIdQuery = `
       accept_payments_via_cashfree
       accept_cod
       storefront_settings
+      website_config
       qr_codes(limit: 1) {
         id
       }
@@ -129,6 +130,7 @@ export const partnerLoginQuery = `
       accept_payments_via_cashfree
       accept_cod
       storefront_settings
+      website_config
       qr_codes(limit: 1) {
         id
       }

@@ -30,6 +30,7 @@ import {
   toStatusDisplayFormat,
 } from "@/lib/statusHistory";
 import { Notification } from "@/app/actions/notification";
+import { dispatchDeliveryAgent, cancelDeliveryAgent } from "@/app/actions/deliveryAgent";
 // import { sendOrderNotification } from "@/app/actions/notification";
 
 export interface OrderItem extends HotelDataMenus {
@@ -74,6 +75,13 @@ export interface DeliveryRules {
   parcel_charge_type?: "fixed" | "variable" | "itemwise"; // fixed = flat amount, variable = per item, itemwise = per-item custom charges
   parcel_charge_items?: Record<string, number>;
   hide_delivery_charge?: boolean;
+  /**
+   * When true (and `feature_flags.delivery_agent.enabled`), the delivery
+   * charge comes from delivery-agents-server's availability endpoint
+   * instead of any of the internal range/rate/fixed-rate config. All those
+   * internal fields are ignored on the checkout side.
+   */
+  use_delivery_agent_charge?: boolean;
   announcement?: string;
   banner_mode?: "single" | "carousel";
   carousel_banners?: string[];
@@ -96,11 +104,17 @@ export interface Order {
     gst_percentage?: number;
     currency?: string;
     store_name?: string;
+    store_banner?: string | null;
+    theme?: any;
     country?: string;
     whatsapp_number?: string;
     upi_id?: string;
     show_payment_qr?: boolean;
     feature_flags?: string | null;
+    geo_location?: {
+      type?: string;
+      coordinates?: [number, number];
+    } | string | null;
   };
   delivery_agent?: {
     provider?: string;
@@ -140,6 +154,38 @@ export interface Order {
   delivery_boy_id?: string;
   assigned_at?: string;
   delivered_at?: string;
+  growjet_order_number?: string | null;
+  /** Hub-managed provider id. 'adloggs' is the first/only plugin currently. */
+  delivery_provider?: string | null;
+  /** External id returned by the provider plugin (e.g. Adloggs `order_uuid`). */
+  delivery_provider_order_id?: string | null;
+  /** Normalized state owned by delivery-agents-server. */
+  delivery_provider_state?:
+    | "pending"
+    | "assigned"
+    | "arrived_pickup"
+    | "picked_up"
+    | "out_for_delivery"
+    | "arrived_drop"
+    | "delivered"
+    | "cancelled"
+    | "rto_initiated"
+    | "rto_delivered"
+    | "booking"
+    | null;
+  delivery_provider_meta?: {
+    trackUrl?: string;
+    fee?: number;
+    distance?: number;
+    otps?: {
+      delivery_otp?: string | null;
+      pickup_otp?: string | null;
+      return_otp?: string | null;
+    };
+    rider_platform?: { name?: string; lsp_uniq_id?: string };
+    [k: string]: any;
+  } | null;
+  delivery_provider_last_event_at?: string | null;
   delivery_boy?: {
     id: string;
     name: string;
@@ -167,6 +213,8 @@ export interface Order {
   | null;
   is_paid?: boolean;
   cashfree_payment_id?: string;
+  cancel_reason?: string | null;
+  cancelled_by?: "user" | "partner" | null;
   review?: {
     id: string;
     rating: number;
@@ -245,6 +293,7 @@ interface OrderState {
     tableName?: string,
     discounts?: { code: string; type: string; value: number; savings: number; pp_discount_id?: string; description?: string; terms_conditions?: string; max_discount_amount?: number; min_order_value?: number; discount_on_total?: boolean; discount_order_types?: string; valid_days?: string; applicable_on?: string; rank?: number; freebie_item_count?: number; freebie_item_ids?: string; freebie_item_names?: string; freebie_items?: { id: string; name: string; price: number; pp_id?: string; category?: any }[] } | null,
     customerName?: string,
+    customerPhone?: string,
   ) => Promise<Order | null>;
   getCurrentOrder: () => HotelOrderState;
   fetchOrderOfPartner: (partnerId: string) => Promise<Order[] | null>;
@@ -465,6 +514,28 @@ const useOrderStore = create(
             console.error("Notification failed (order still updated):", notifError);
           }
 
+          // Delivery-agents-server hooks. Gated by partner.feature_flags.delivery_agent.
+          // Fire-and-forget — must NEVER block the local Hasura mutation.
+          // Growjet partners (feature_flags.growjet_delivery) are untouched here:
+          // Growjet still fires from pp_menu_insert.markFoodReady, not from this path.
+          try {
+            const features = getFeatures((userData as any)?.feature_flags || null);
+            if (features.delivery_agent.access && features.delivery_agent.enabled) {
+              if (newStatus === "accepted") {
+                dispatchDeliveryAgent(orderId).then((r) => {
+                  if (!r.ok) console.warn(`[delivery-agent] dispatch failed: ${r.message}`);
+                }).catch((e) => console.warn("[delivery-agent] dispatch threw:", e));
+              } else if (newStatus === "cancelled") {
+                cancelDeliveryAgent(orderId, "Cancelled from admin dashboard").then((r) => {
+                  // 404 here means the order was never dispatched via this server — fine.
+                  if (!r.ok && r.status !== 404) console.warn(`[delivery-agent] cancel failed: ${r.message}`);
+                }).catch((e) => console.warn("[delivery-agent] cancel threw:", e));
+              }
+            }
+          } catch (e) {
+            console.warn("[delivery-agent] hook setup failed:", e);
+          }
+
           const updatedOrders = orders.map((order) =>
             order.id === orderId ? { ...order, status: newStatus } : order
           );
@@ -547,6 +618,9 @@ const useOrderStore = create(
               delivery_charge: order.delivery_charge, // Include delivery_charge
               is_paid: order.is_paid || false,
               cashfree_payment_id: order.cashfree_payment_id || null,
+              delivery_provider: order.delivery_provider ?? null,
+              delivery_provider_state: order.delivery_provider_state ?? null,
+              delivery_provider_meta: order.delivery_provider_meta ?? null,
               user: order.user,
               items: order.order_items.map((i: any) => ({
                 id: i.item.id,
@@ -1008,6 +1082,13 @@ const useOrderStore = create(
         tableName?: string,
         discounts?: { code: string; type: string; value: number; savings: number; pp_discount_id?: string; description?: string; terms_conditions?: string; max_discount_amount?: number; min_order_value?: number; discount_on_total?: boolean; discount_order_types?: string; valid_days?: string; applicable_on?: string; rank?: number; freebie_item_count?: number; freebie_item_ids?: string; freebie_item_names?: string; freebie_items?: { id: string; name: string; price: number; pp_id?: string; category?: any }[] } | null,
         customerName?: string,
+        /**
+         * Phone to write to `orders.phone`. Lets the checkout modal pass a
+         * per-order receiver phone (e.g. V2's address form `receiverPhone`)
+         * without forcing it to mutate `users.phone`. Falls back to the
+         * authenticated user's phone when not provided.
+         */
+        customerPhone?: string,
       ) => {
         try {
           const state = get();
@@ -1143,7 +1224,7 @@ const useOrderStore = create(
                 type === "delivery" && !isTakeaway
                   ? sanitizePrintText(state.userAddress)
                   : null,
-              phone: userData.phone || null,
+              phone: (customerPhone?.trim() || userData.phone || null),
               customer_name: customerName || (userData as any).full_name || null,
               notes: notes || null,
               payment_status: "pending",
@@ -1305,6 +1386,7 @@ const useOrderStore = create(
               notes: notes || null,
               display_id: getNextDisplayOrderNumber.toString(),
               discounts: discounts ? [discounts] : null,
+              source: "customer",
               orderItems: [
                 ...currentOrder.items.map((item) => ({
                   menu_id: item.id.split("|")[0],
@@ -1443,6 +1525,13 @@ const useOrderStore = create(
                   table_name
                 }
                 table_name
+                growjet_order_number
+                delivery_agent
+                delivery_provider
+                delivery_provider_order_id
+                delivery_provider_state
+                delivery_provider_meta
+                delivery_provider_last_event_at
                 captainid {
                   id
                   name
@@ -1527,6 +1616,13 @@ const useOrderStore = create(
               assigned_at: order.assigned_at,
               delivered_at: order.delivered_at,
               delivery_boy: order.delivery_boy,
+              growjet_order_number: order.growjet_order_number,
+              delivery_agent: order.delivery_agent,
+              delivery_provider: order.delivery_provider,
+              delivery_provider_order_id: order.delivery_provider_order_id,
+              delivery_provider_state: order.delivery_provider_state,
+              delivery_provider_meta: order.delivery_provider_meta,
+              delivery_provider_last_event_at: order.delivery_provider_last_event_at,
               items: order.order_items.map((i: any) => ({
                 id: i.menu?.id,
                 quantity: i.quantity,
@@ -1622,6 +1718,13 @@ function transformOrderFromHasura(order: any): Order {
     assigned_at: order.assigned_at,
     delivered_at: order.delivered_at,
     delivery_boy: order.delivery_boy,
+    growjet_order_number: order.growjet_order_number,
+    delivery_agent: order.delivery_agent,
+    delivery_provider: order.delivery_provider,
+    delivery_provider_order_id: order.delivery_provider_order_id,
+    delivery_provider_state: order.delivery_provider_state,
+    delivery_provider_meta: order.delivery_provider_meta,
+    delivery_provider_last_event_at: order.delivery_provider_last_event_at,
     extraCharges: order.extra_charges,
     is_paid: order.is_paid || false,
     cashfree_payment_id: order.cashfree_payment_id || null,

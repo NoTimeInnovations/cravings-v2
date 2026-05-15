@@ -2,19 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Phone, Mail, ArrowRight, Star, Menu as MenuIcon, X, ChevronDown } from "lucide-react";
-
-const BRAND_COLOR_MAP: Record<string, string> = {
-    "burnt-orange": "#e85d04",
-    "obsidian-gold": "#b8860b",
-    "royal-burgundy": "#8b1a4a",
-    "midnight-emerald": "#0d6b4e",
-    "sapphire": "#1e4db7",
-    "charcoal-noir": "#2c2c2c",
-    "deep-violet": "#6b21a8",
-    "rose-blush": "#be185d",
-    "teal-luxe": "#0f766e",
-    "warm-copper": "#b45309",
-};
+import { brandColorToHex } from "@/lib/brandColor";
 
 interface NavbarLink {
     id: string;
@@ -79,8 +67,7 @@ function Html({ html, className, style, as: Tag = "div" }: { html: string; class
 export default function StorefrontScreen({ storefront, storeName, storeBanner, onContinue }: StorefrontScreenProps) {
     const brandName = storefront?.brandName || storeName;
     const sections = storefront?.sections || [];
-    const bc = storefront?.brandColor || "burnt-orange";
-    const accent = bc.startsWith("custom:") ? bc.replace("custom:", "") : (BRAND_COLOR_MAP[bc] || "#e85d04");
+    const accent = brandColorToHex(storefront?.brandColor);
 
     return (
         <div className="min-h-dvh bg-white flex flex-col overflow-x-hidden scrollbar-hidden">

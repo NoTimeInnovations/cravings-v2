@@ -116,7 +116,7 @@ export default function LiveOrdersSection() {
     <div className="space-y-6">
       <SectionHeader
         title="Live orders"
-        subtitle="Delivery, takeaway and dine-in across active restaurants — refreshed every 10s"
+        subtitle="Delivery and takeaway across active restaurants — refreshed every 10s"
         right={
           <div className="flex items-center gap-3">
             <PartnerCombobox
@@ -137,7 +137,7 @@ export default function LiveOrdersSection() {
       />
 
       {/* Last hour summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <SummaryCard
           label="Delivery (last 1h)"
           icon={<Bike className="size-4" />}
@@ -152,14 +152,6 @@ export default function LiveOrdersSection() {
           accent="text-amber-700 bg-amber-50"
           count={data?.lastHour.takeaway.count ?? 0}
           gmv={data?.lastHour.takeaway.gmv ?? 0}
-          loading={loading}
-        />
-        <SummaryCard
-          label="Dine-in (last 1h)"
-          icon={<UtensilsCrossed className="size-4" />}
-          accent="text-emerald-700 bg-emerald-50"
-          count={data?.lastHour.dinein.count ?? 0}
-          gmv={data?.lastHour.dinein.gmv ?? 0}
           loading={loading}
         />
         <Card className="p-4 bg-white">

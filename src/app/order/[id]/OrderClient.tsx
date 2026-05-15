@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { formatDate, getDateOnly, formatOrderShortId } from "@/lib/formatDate";
 import { ExtraCharge } from "@/store/posStore";
@@ -11,8 +11,11 @@ import { Order, OrderItem } from "@/store/orderStore";
 import OfferLoadinPage from "@/components/OfferLoadinPage";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
 import { getFeatures } from "@/lib/getFeatures";
-import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2, Star, Bike, Store, MapPin, Receipt, Package, User, StickyNote, ShoppingBag } from "lucide-react";
+import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2, Star, Bike, Store, MapPin, Receipt, Package, User, StickyNote, ShoppingBag, XCircle, ChevronDown } from "lucide-react";
 import { OrderReviewModal } from "@/components/OrderReviewModal";
+import { CancelOrderDialog } from "@/components/CancelOrderDialog";
+import { useAuthStore } from "@/store/authStore";
+import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
@@ -34,6 +37,8 @@ const GET_ORDER_QUERY = `
       delivery_location
       status
       status_history
+      cancel_reason
+      cancelled_by
       is_paid
       display_id
       partner_id
@@ -48,14 +53,22 @@ const GET_ORDER_QUERY = `
         location_updated_at
       }
       delivery_agent
+      delivery_provider
+      delivery_provider_order_id
+      delivery_provider_state
+      delivery_provider_meta
+      delivery_provider_last_event_at
       partner {
         gst_percentage
         currency
         store_name
+        store_banner
+        theme
         country
         name
         username
         feature_flags
+        geo_location
       }
       gst_included
       extra_charges
@@ -102,8 +115,12 @@ const OrderClient = () => {
     const [agentLocationAgo, setAgentLocationAgo] = useState<number | null>(null);
     const [cashfreeLoading, setCashfreeLoading] = useState(false);
     const [cashfreeVerifying, setCashfreeVerifying] = useState(false);
+    const [showCashfreeEmbed, setShowCashfreeEmbed] = useState(false);
+    const cashfreeContainerRef = useRef<HTMLDivElement | null>(null);
     const [reviewOpen, setReviewOpen] = useState(false);
     const [justReviewed, setJustReviewed] = useState(false);
+    const [cancelOpen, setCancelOpen] = useState(false);
+    const { userData } = useAuthStore();
 
     // Ticking timer for "Location updated Xs ago"
     useEffect(() => {
@@ -120,20 +137,24 @@ const OrderClient = () => {
         return () => clearInterval(interval);
     }, [order?.delivery_boy?.location_updated_at]);
 
-    // Same ticker for the third-party delivery agent (e.g. Growjet)
+    // Same ticker for the third-party delivery agent (Growjet legacy shape uses
+    // `location.lastUpdated`; delivery-agents-server hub uses `lastUpdatedMs`).
     useEffect(() => {
-        const updatedAt = order?.delivery_agent?.location?.lastUpdated;
+        const a = order?.delivery_agent as any;
+        const updatedAt: string | number | undefined =
+            a?.location?.lastUpdated ?? a?.lastUpdatedMs;
         if (!updatedAt) {
             setAgentLocationAgo(null);
             return;
         }
         const update = () => {
-            setAgentLocationAgo(Math.round((Date.now() - new Date(updatedAt).getTime()) / 1000));
+            const t = typeof updatedAt === "number" ? updatedAt : new Date(updatedAt).getTime();
+            setAgentLocationAgo(Math.round((Date.now() - t) / 1000));
         };
         update();
         const interval = setInterval(update, 1000);
         return () => clearInterval(interval);
-    }, [order?.delivery_agent?.location?.lastUpdated]);
+    }, [(order?.delivery_agent as any)?.location?.lastUpdated, (order?.delivery_agent as any)?.lastUpdatedMs]);
 
     useEffect(() => {
         if (!orderId) return;
@@ -169,6 +190,11 @@ const OrderClient = () => {
                         assigned_at: order?.assigned_at,
                         delivery_boy: order?.delivery_boy,
                         delivery_agent: order?.delivery_agent ?? null,
+                        delivery_provider: order?.delivery_provider ?? null,
+                        delivery_provider_state: order?.delivery_provider_state ?? null,
+                        delivery_provider_meta: order?.delivery_provider_meta ?? null,
+                        delivery_provider_order_id: order?.delivery_provider_order_id ?? null,
+                        delivery_provider_last_event_at: order?.delivery_provider_last_event_at ?? null,
                         is_paid: order?.is_paid || false,
                         items: order?.order_items.map((i: any) => ({
                             id: i.item.id,
@@ -282,22 +308,36 @@ const OrderClient = () => {
     const isCompleted = order?.status === "completed" || order?.status === "cancelled";
     const isPaid = !!(order as any)?.is_paid;
 
-    // Third-party delivery agent (Growjet etc.) — show only when partner has
-    // the integration enabled, the poller has populated the agent record,
-    // and the order isn't already in a terminal state.
+    // Third-party delivery agent (Growjet or Adloggs) — show only when the
+    // partner has an LSP integration enabled, the agent record has been
+    // populated (either by the Growjet poller or by the delivery-agents-server
+    // webhook handler), and the order isn't already in a terminal state.
     const partnerFlags = getFeatures(order?.partner?.feature_flags ?? null);
-    const agent = order?.delivery_agent ?? null;
-    const agentProvider = agent?.provider;
+    const agent = order?.delivery_agent as any | null;
+    // The hub writes { name, phone, lat, lng, lastUpdatedMs }. Legacy Growjet
+    // writes { provider, location: { latitude, longitude, lastUpdated } }.
+    // Normalize both shapes here so the rest of the page works unchanged.
+    const agentLat: number | undefined = agent?.location?.latitude ?? agent?.lat;
+    const agentLng: number | undefined = agent?.location?.longitude ?? agent?.lng;
+    const agentLastUpdated: string | number | undefined =
+        agent?.location?.lastUpdated ?? agent?.lastUpdatedMs;
+    const agentProvider: string | undefined =
+        agent?.provider ?? (order as any)?.delivery_provider;
     const showGrowjetAgent =
         !!agent &&
-        agentProvider === "growjet" &&
-        partnerFlags.growjet_delivery.access &&
-        partnerFlags.growjet_delivery.enabled &&
+        ((agentProvider === "growjet" &&
+            partnerFlags.growjet_delivery.access &&
+            partnerFlags.growjet_delivery.enabled) ||
+            (agentProvider === "adloggs" &&
+                partnerFlags.delivery_agent.access &&
+                partnerFlags.delivery_agent.enabled)) &&
         !isCompleted;
-    const agentLat = agent?.location?.latitude;
-    const agentLng = agent?.location?.longitude;
     const agentProviderLabel =
-        agentProvider === "growjet" ? "Growjet" : (agentProvider ?? "Partner");
+        agentProvider === "growjet"
+            ? "Growjet"
+            : agentProvider === "adloggs"
+                ? "Adloggs"
+                : (agentProvider ?? "Partner");
     const formatAgo = (sec: number): string =>
         sec < 60
             ? `${sec}s`
@@ -328,6 +368,23 @@ const OrderClient = () => {
               )
             : null;
     const agentInitial = (agent?.name ?? "?").trim().charAt(0).toUpperCase() || "?";
+
+    // Hotel (partner) coordinates for the live tracking map. Used as the
+    // route endpoint while the rider hasn't picked up yet, and rendered as a
+    // small banner-circle marker whenever a rider is on the map.
+    const hotelGeo = order?.partner?.geo_location;
+    const hotelCoords =
+        hotelGeo && typeof hotelGeo === "object" && Array.isArray((hotelGeo as any).coordinates)
+            ? ((hotelGeo as any).coordinates as [number, number])
+            : null;
+    const hotelLng = hotelCoords?.[0] ?? null;
+    const hotelLat = hotelCoords?.[1] ?? null;
+    // Status flips after the rider has picked up. Pre-pickup, the map line
+    // routes rider → hotel; post-pickup, rider → destination.
+    const routeMode: "to_destination" | "to_hotel" =
+        order?.status === "dispatched" || order?.status === "in_transit"
+            ? "to_destination"
+            : "to_hotel";
 
     const buildWhatsappLink = () => {
         // Prefer whatsapp_number from whatsapp_numbers array
@@ -400,7 +457,9 @@ ${itemsText}
         setCashfreeLoading(true);
         try {
             const cfOrderId = `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-            const returnUrl = `${window.location.origin}/order/${orderId}?cf_order=${cfOrderId}`;
+            // return_url is required by the API but won't be used in embedded mode;
+            // kept as a fallback in case Cashfree redirects (e.g. some UPI app flows).
+            const returnUrl = `${window.location.origin}/order/${orderId}?cf_order=${cfOrderId}&back=true`;
 
             sessionStorage.setItem("cashfree_pending_payment", JSON.stringify({
                 cfOrderId,
@@ -422,14 +481,49 @@ ${itemsText}
 
             if (!cfRes.success) throw new Error(cfRes.error);
 
+            // Open the partner-branded modal so the embed container is mounted
+            setShowCashfreeEmbed(true);
+            // Wait one frame so the ref is attached before Cashfree mounts into it
+            await new Promise<void>((r) => requestAnimationFrame(() => r()));
+
+            if (!cashfreeContainerRef.current) {
+                throw new Error("Checkout container not ready");
+            }
+
             const cashfreeMode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "PRODUCTION" ? "production" : "sandbox";
             const cashfree = await loadCashfree({ mode: cashfreeMode as "sandbox" | "production" });
-            cashfree.checkout({
+
+            const result: any = await cashfree.checkout({
                 paymentSessionId: cfRes.paymentSessionId!,
-                redirectTarget: "_self",
-            });
+                redirectTarget: cashfreeContainerRef.current,
+                appearance: {
+                    width: `${window.innerWidth}px`,
+                    height: `${Math.max(window.innerHeight - 56, 500)}px`,
+                },
+            } as any);
+
+            // Embedded promise resolved — close modal, then verify
+            setShowCashfreeEmbed(false);
+            sessionStorage.removeItem("cashfree_pending_payment");
+
+            if (result?.error) {
+                console.error("Cashfree error:", result.error);
+                return;
+            }
+
+            setCashfreeVerifying(true);
+            try {
+                const verifyRes = await verifyCashfreePayment(order.partnerId, cfOrderId);
+                if (verifyRes.success && verifyRes.paid) {
+                    await markOrderAsPaid(orderId, verifyRes.cfPaymentId || undefined);
+                }
+            } finally {
+                setCashfreeVerifying(false);
+            }
         } catch (error) {
             console.error("Cashfree payment error:", error);
+            setShowCashfreeEmbed(false);
+        } finally {
             setCashfreeLoading(false);
         }
     };
@@ -485,6 +579,40 @@ ${itemsText}
                 <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-6 max-w-3xl">
                     <div className="space-y-3">
 
+                        {order?.status === "cancelled" && order?.cancel_reason && (
+                            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 flex items-start gap-3 shadow-sm">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                                    <XCircle className="h-5 w-5" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
+                                        Order cancelled
+                                        {order.cancelled_by ? ` · by ${order.cancelled_by}` : ""}
+                                    </p>
+                                    <p className="mt-1 text-sm sm:text-base text-red-900 break-words">
+                                        {order.cancel_reason}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Adloggs delivery OTP — surfaced only while the order is live and we have it. */}
+                        {(order as any)?.delivery_provider === "adloggs" &&
+                            (order as any)?.delivery_provider_meta?.otps?.delivery_otp &&
+                            !isCompleted && (
+                                <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 flex items-center gap-3 shadow-sm">
+                                    <Bike className="h-5 w-5 text-orange-700" />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-orange-700">
+                                            Show this OTP to the delivery rider
+                                        </p>
+                                        <p className="mt-1 text-2xl font-bold tracking-[0.3em] font-mono text-orange-900">
+                                            {(order as any).delivery_provider_meta.otps.delivery_otp}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
                         {/* Card: Order header */}
                         <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-5">
                             <div className="flex items-start justify-between gap-3">
@@ -514,6 +642,15 @@ ${itemsText}
                                     )}
                                 </div>
                             </div>
+                            {order?.status === "pending" && order?.userId && userData?.id === order.userId && (
+                                <button
+                                    type="button"
+                                    onClick={() => setCancelOpen(true)}
+                                    className="mt-4 w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-red-300 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 active:bg-red-100 transition-colors"
+                                >
+                                    Cancel order
+                                </button>
+                            )}
                             {order?.status === "completed" && !order.review && !justReviewed && (
                                 <button
                                     type="button"
@@ -651,10 +788,6 @@ ${itemsText}
                                             <h2 className="text-base font-bold text-gray-900">
                                                 On the way
                                             </h2>
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-white text-orange-700 ring-1 ring-orange-200 whitespace-nowrap">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-                                                via {agentProviderLabel}
-                                            </span>
                                         </div>
                                         <p className="text-sm text-gray-600 mt-0.5">
                                             {agentEta != null ? (
@@ -671,16 +804,68 @@ ${itemsText}
                                     </div>
                                 </div>
 
-                                {/* Map (or waiting state) */}
-                                {agentLat != null && agentLng != null && order?.delivery_location?.coordinates ? (
+                                {/* Tracking surface. Adloggs only sends rider coords at
+                                    state transitions (assigned / picked_up / etc.), not
+                                    continuously, so our inline map would look frozen.
+                                    Surface their hosted live-tracking page instead.
+                                    Growjet keeps the inline map since it polls
+                                    continuously. */}
+                                {agentProvider === "adloggs" ? (
+                                    (order as any)?.delivery_provider_meta?.trackUrl ? (
+                                        <a
+                                            href={(order as any).delivery_provider_meta.trackUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="block rounded-2xl bg-white p-4 shadow-sm hover:shadow-md transition-shadow"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex-shrink-0 w-11 h-11 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center">
+                                                    <MapPin className="h-5 w-5" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-semibold text-gray-900">
+                                                        Track rider live
+                                                    </p>
+                                                    <p className="text-xs text-gray-600 mt-0.5">
+                                                        Opens the delivery partner&apos;s tracking page
+                                                    </p>
+                                                </div>
+                                                <ChevronDown className="h-5 w-5 text-gray-400 -rotate-90 flex-shrink-0" />
+                                            </div>
+                                        </a>
+                                    ) : (
+                                        <div className="rounded-2xl bg-white p-5 shadow-sm flex items-center gap-3">
+                                            <Bike className="h-6 w-6 text-orange-400 animate-pulse flex-shrink-0" />
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-semibold text-gray-900">
+                                                    Waiting for tracking link
+                                                </p>
+                                                <p className="text-xs text-gray-600 mt-0.5">
+                                                    Tracking opens once the delivery partner assigns a rider.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )
+                                ) : agentLat != null && agentLng != null && order?.delivery_location?.coordinates ? (
                                     <div className="relative rounded-2xl overflow-hidden shadow-sm bg-white">
                                         <DeliveryMap
                                             deliveryLng={order.delivery_location.coordinates[0]}
                                             deliveryLat={order.delivery_location.coordinates[1]}
                                             driverLng={agentLng}
                                             driverLat={agentLat}
+                                            hotelLng={hotelLng}
+                                            hotelLat={hotelLat}
+                                            hotelBanner={order?.partner?.store_banner ?? null}
+                                            hotelName={order?.partner?.store_name ?? null}
+                                            routeMode={routeMode}
                                             onMapClick={() => {
-                                                const url = `https://www.google.com/maps/dir/${agentLat},${agentLng}/${order.delivery_location!.coordinates[1]},${order.delivery_location!.coordinates[0]}`;
+                                                const destLat = routeMode === "to_hotel" && hotelLat != null
+                                                    ? hotelLat
+                                                    : order.delivery_location!.coordinates[1];
+                                                const destLng = routeMode === "to_hotel" && hotelLng != null
+                                                    ? hotelLng
+                                                    : order.delivery_location!.coordinates[0];
+                                                const url = `https://www.google.com/maps/dir/${agentLat},${agentLng}/${destLat},${destLng}`;
                                                 window.open(url, "_blank");
                                             }}
                                         />
@@ -732,7 +917,7 @@ ${itemsText}
                                     )}
                                 </div>
 
-                                {agentLat != null && agentLng != null && (
+                                {agentProvider !== "adloggs" && agentLat != null && agentLng != null && (
                                     <p className="text-[11px] text-gray-500 mt-2 text-center">
                                         Tap the map to open directions in Google Maps
                                     </p>
@@ -837,17 +1022,33 @@ ${itemsText}
                                         </p>
                                         <p className="text-sm text-gray-900 mt-0.5">{order?.deliveryAddress || "Not provided"}</p>
                                     </div>
-                                    {order.delivery_location && (order.delivery_location?.coordinates?.length ?? 0) > 0 && !showGrowjetAgent && (!((order?.status === "dispatched" || order?.status === "in_transit") && order?.delivery_boy_id && order?.delivery_boy)) && (
+                                    {order.delivery_location && (order.delivery_location?.coordinates?.length ?? 0) > 0 && !showGrowjetAgent && (!((order?.status === "dispatched" || order?.status === "in_transit") && order?.delivery_boy_id && order?.delivery_boy)) && !isCompleted && (
                                         <div className="rounded-xl overflow-hidden">
                                             <DeliveryMap
                                                 deliveryLng={order.delivery_location.coordinates[0]}
                                                 deliveryLat={order.delivery_location.coordinates[1]}
                                                 driverLng={order.delivery_boy?.current_lng}
                                                 driverLat={order.delivery_boy?.current_lat}
+                                                hotelLng={order?.delivery_boy_id ? hotelLng : null}
+                                                hotelLat={order?.delivery_boy_id ? hotelLat : null}
+                                                hotelBanner={order?.partner?.store_banner ?? null}
+                                                hotelName={order?.partner?.store_name ?? null}
+                                                routeMode={routeMode}
                                                 onMapClick={() => {
-                                                    const url = order.delivery_boy?.current_lat != null && order.delivery_boy?.current_lng != null
-                                                        ? `https://www.google.com/maps/dir/${order.delivery_boy.current_lat},${order.delivery_boy.current_lng}/${order.delivery_location!.coordinates[1]},${order.delivery_location!.coordinates[0]}`
-                                                        : `https://www.google.com/maps?q=${order.delivery_location!.coordinates[1]},${order.delivery_location!.coordinates[0]}`;
+                                                    const driverLat = order.delivery_boy?.current_lat;
+                                                    const driverLng = order.delivery_boy?.current_lng;
+                                                    if (driverLat == null || driverLng == null) {
+                                                        const url = `https://www.google.com/maps?q=${order.delivery_location!.coordinates[1]},${order.delivery_location!.coordinates[0]}`;
+                                                        window.open(url, "_blank");
+                                                        return;
+                                                    }
+                                                    const destLat = routeMode === "to_hotel" && hotelLat != null
+                                                        ? hotelLat
+                                                        : order.delivery_location!.coordinates[1];
+                                                    const destLng = routeMode === "to_hotel" && hotelLng != null
+                                                        ? hotelLng
+                                                        : order.delivery_location!.coordinates[0];
+                                                    const url = `https://www.google.com/maps/dir/${driverLat},${driverLng}/${destLat},${destLng}`;
                                                     window.open(url, "_blank");
                                                 }}
                                             />
@@ -961,6 +1162,24 @@ ${itemsText}
                     onClose={() => setReviewOpen(false)}
                 />
             )}
+            {order && (
+                <CancelOrderDialog
+                    open={cancelOpen}
+                    onOpenChange={setCancelOpen}
+                    orderId={order.id}
+                    orderShortId={idTail}
+                />
+            )}
+
+            {/* Partner-branded embedded Cashfree checkout */}
+            <CashfreeEmbedModal
+                ref={cashfreeContainerRef}
+                open={showCashfreeEmbed}
+                onClose={() => setShowCashfreeEmbed(false)}
+                accent={order?.partner?.theme?.colors?.accent}
+                banner={order?.partner?.store_banner}
+                partnerName={order?.partner?.store_name || "Restaurant"}
+            />
         </div>
         </>
     );

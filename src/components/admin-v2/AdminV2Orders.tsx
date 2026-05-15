@@ -60,8 +60,10 @@ import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { AdminV2EditOrder } from "./AdminV2EditOrder";
 import { Edit } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { getFeatures } from "@/lib/getFeatures";
 
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
+import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 
 export function AdminV2Orders() {
   const { userData } = useAuthStore();
@@ -100,6 +102,8 @@ export function AdminV2Orders() {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [orderToPrint, setOrderToPrint] = useState<string | null>(null);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const cancellingOrder = orders.find((o) => o.id === cancellingOrderId) || null;
   const editingOrder = orders.find((o) => o.id === editingOrderId) || null;
 
   const handleDeleteOrder = async (order: Order) => {
@@ -145,6 +149,17 @@ export function AdminV2Orders() {
     const order = orders.find((o) => o.id === orderId);
 
     if (!order) return;
+
+    if (status === "cancelled") {
+      if (order.status !== "pending") {
+        toast.error(
+          `Only pending orders can be cancelled (current status: ${order.status})`,
+        );
+        return;
+      }
+      setCancellingOrderId(orderId);
+      return;
+    }
 
     if (order.status === "completed") {
       setPendingAction(() => async () => {
@@ -340,6 +355,13 @@ export function AdminV2Orders() {
 
   const filteredOrders = getFilteredAndSortedOrders();
 
+  // Show the Growjet booking column for any partner who has the
+  // growjet_delivery feature flag granted (access=true), regardless of whether
+  // they currently have it toggled on. Reading the flag from the logged-in
+  // partner keeps column visibility stable across pages.
+  const partnerFeatures = getFeatures((userData as Partner)?.feature_flags || null);
+  const showGrowjetColumn = partnerFeatures.growjet_delivery.access;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -419,6 +441,7 @@ export function AdminV2Orders() {
               <TableHead>Date</TableHead>
               <TableHead>Time</TableHead>
               <TableHead>Order type</TableHead>
+              {showGrowjetColumn && <TableHead>Delivery Agent</TableHead>}
               <TableHead>Order status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -467,6 +490,19 @@ export function AdminV2Orders() {
                         : order.type}
                   </Badge>
                 </TableCell>
+                {showGrowjetColumn && (
+                  <TableCell>
+                    {order.growjet_order_number ? (
+                      <Badge className="bg-green-100 text-green-800">
+                        ✓ {order.growjet_order_number}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-muted-foreground">
+                        Nil
+                      </Badge>
+                    )}
+                  </TableCell>
+                )}
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   <Select
                     value={order.status}
@@ -542,7 +578,7 @@ export function AdminV2Orders() {
             {filteredOrders.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={9}
+                  colSpan={showGrowjetColumn ? 10 : 9}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No orders found
@@ -633,6 +669,19 @@ export function AdminV2Orders() {
                     </div>
                   )}
                 </div>
+                {showGrowjetColumn && (
+                  <div className="flex items-center gap-2">
+                    {order.growjet_order_number ? (
+                      <Badge className="bg-green-100 text-green-800 text-xs">
+                        Growjet ✓ {order.growjet_order_number}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-muted-foreground text-xs">
+                        Growjet: Nil
+                      </Badge>
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
             <CardFooter
@@ -717,6 +766,17 @@ export function AdminV2Orders() {
         onSuccess={() => pendingAction?.()}
         actionDescription={actionDescription}
       />
+
+      {cancellingOrder && (
+        <CancelOrderDialog
+          open={!!cancellingOrderId}
+          onOpenChange={(o) => {
+            if (!o) setCancellingOrderId(null);
+          }}
+          orderId={cancellingOrder.id}
+          orderShortId={cancellingOrder.display_id || cancellingOrder.id.slice(0, 8)}
+        />
+      )}
     </div>
   );
 }

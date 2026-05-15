@@ -10,18 +10,18 @@ import { compact, rupees } from "../format";
 import { SectionHeader } from "./OverviewSection";
 import type { PublicStats, Range } from "../types";
 
-type ChannelMetric = "all" | "direct" | "pos";
+type ChannelMetric = "all" | "delivery" | "takeaway";
 
 const CHANNEL_COLORS: Record<ChannelMetric, string> = {
   all: "#a78bfa",
-  direct: "#34d399",
-  pos: "#a78bfa",
+  delivery: "#34d399",
+  takeaway: "#fbbf24",
 };
 
 const CHANNEL_LABELS: Record<ChannelMetric, string> = {
   all: "All non-cancelled orders",
-  direct: "Direct customer orders only",
-  pos: "POS / staff-entered only",
+  delivery: "Delivery orders only",
+  takeaway: "Takeaway orders only",
 };
 
 export default function RestaurantsSection({
@@ -35,10 +35,10 @@ export default function RestaurantsSection({
 
   const channelData = hasura.series.map((s) => {
     const v =
-      channelMetric === "direct"
-        ? s.direct
-        : channelMetric === "pos"
-          ? s.pos
+      channelMetric === "delivery"
+        ? s.delivery
+        : channelMetric === "takeaway"
+          ? s.takeaway
           : s.orders;
     return { d: s.d, v };
   });
@@ -73,8 +73,8 @@ export default function RestaurantsSection({
           >
             <TabsList>
               <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="direct">Direct</TabsTrigger>
-              <TabsTrigger value="pos">POS</TabsTrigger>
+              <TabsTrigger value="delivery">Delivery</TabsTrigger>
+              <TabsTrigger value="takeaway">Takeaway</TabsTrigger>
             </TabsList>
           </Tabs>
         }

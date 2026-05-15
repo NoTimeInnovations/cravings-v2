@@ -287,23 +287,13 @@ const Sidebar = ({
     }
 
     if (selectedCategory === "all") {
-      return applyVis(
-        hoteldata?.menus?.filter(
-          (item) =>
-            item.category.is_active === undefined ||
-            item.category.is_active === true
-        ) || []
-      );
+      return applyVis(hoteldata?.menus || []);
     }
 
     if (selectedCategory === "Offer") {
       const offeredItems = applyVis(
         hoteldata?.menus.filter(
-          (item) =>
-            item.id &&
-            hasActiveOffer(item.id) &&
-            (item.category.is_active === undefined ||
-              item.category.is_active === true)
+          (item) => item.id && hasActiveOffer(item.id)
         ) || []
       );
       return [...offeredItems].sort((a, b) => {
@@ -315,10 +305,7 @@ const Sidebar = ({
 
     const filteredItems = applyVis(
       hoteldata?.menus.filter(
-        (item) =>
-          item.category.name === selectedCategory &&
-          (item.category.is_active === undefined ||
-            item.category.is_active === true)
+        (item) => item.category.name === selectedCategory
       ) || []
     );
     return [...filteredItems].sort((a, b) => {
@@ -428,6 +415,8 @@ const Sidebar = ({
           <ShopClosedModalWarning
             hotelId={hoteldata?.id}
             isShopOpen={hoteldata?.is_shop_open}
+            partnerPhone={hoteldata?.phone ?? null}
+            partnerName={hoteldata?.store_name ?? null}
           />
 
           {/* Banner */}

@@ -17,10 +17,9 @@ const WEEKDAY_ORDER: Weekday[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat
 function normalize(config: unknown): VisibilityConfig {
   if (!config || typeof config !== "object") return DEFAULT_VISIBILITY;
   const c = config as any;
-  // hideItems defaults to true (the historical behavior is to hide items entirely
-  // when the category is not visible). Only `false` opts into the new
-  // "show items as unavailable" mode.
-  const hideItems = c.hideItems === false ? false : true;
+  // hideItems defaults to false: when not visible, keep items in the menu marked
+  // as unavailable. Set to true to drop them entirely.
+  const hideItems = c.hideItems === true;
   if (c.type === "scheduled" && Array.isArray(c.days) && typeof c.from === "string" && typeof c.to === "string") {
     return { type: "scheduled", days: c.days, from: c.from, to: c.to, hideItems };
   }
@@ -155,9 +154,9 @@ export type ItemDisplayState = "visible" | "hidden" | "unavailable";
 //   "unavailable" — keep in menu but force is_available=false (show "Unavailable" badge)
 //
 // Resolution order (highest priority first):
-//   1. category.is_active === false  →  "hidden"
+//   1. category.is_active === false  →  governed by category's hideItems
 //   2. item.is_available === false   →  governed by item's hideItems toggle
-//      (per-item override; falls back to hotel.hide_unavailable, then `true`)
+//      (per-item override; falls back to hotel.hide_unavailable, then `false`)
 //   3. category schedule not visible →  governed by category's hideItems
 //   4. item schedule not visible     →  governed by item's hideItems toggle
 //   5. otherwise                     →  "visible"
@@ -167,15 +166,18 @@ export function getItemDisplayState(
   now: Date = new Date(),
   hotelHideUnavailable?: boolean
 ): ItemDisplayState {
-  if (item.category && item.category.is_active === false) return "hidden";
+  if (item.category && item.category.is_active === false) {
+    const cat = normalize(item.category?.visibility_config);
+    return cat.hideItems ? "hidden" : "unavailable";
+  }
 
   const itemHideExplicit = (item.visibility_config as any)?.hideItems;
   const itemHide =
-    itemHideExplicit === false
-      ? false
-      : itemHideExplicit === true
+    itemHideExplicit === true
       ? true
-      : hotelHideUnavailable !== false; // default true preserves hide-when-unset
+      : itemHideExplicit === false
+      ? false
+      : hotelHideUnavailable === true; // default false: show as unavailable when unset
 
   // Main availability toggle has top priority over schedules
   if (item.is_available === false) {

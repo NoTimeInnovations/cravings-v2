@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import useOrderStore from "@/store/orderStore";
 import { format } from "date-fns";
 import { Loader2, ShoppingBag, ChevronLeft, ExternalLink, MessageCircle, CreditCard } from "lucide-react";
@@ -11,8 +11,9 @@ import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
 import Link from "next/link";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { createCashfreeOrderForPartner } from "@/app/actions/cashfree";
+import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
+import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 
 interface V3OrdersProps {
   hotelId: string;
@@ -27,6 +28,8 @@ export default function V3Orders({ hotelId, onClose }: V3OrdersProps) {
   const [upiOrder, setUpiOrder] = useState<(typeof userOrders)[0] | null>(null);
   const [partnerPaymentInfo, setPartnerPaymentInfo] = useState<any>(null);
   const [cashfreeLoadingOrderId, setCashfreeLoadingOrderId] = useState<string | null>(null);
+  const [showCashfreeEmbed, setShowCashfreeEmbed] = useState(false);
+  const cashfreeContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (userData?.id) {
@@ -37,7 +40,7 @@ export default function V3Orders({ hotelId, onClose }: V3OrdersProps) {
 
   useEffect(() => {
     if (!hotelId) return;
-    fetchFromHasura(`query($id:uuid!){partners_by_pk(id:$id){upi_id show_payment_qr phone country_code whatsapp_numbers accept_payments_via_cashfree cashfree_merchant_id}}`, { id: hotelId })
+    fetchFromHasura(`query($id:uuid!){partners_by_pk(id:$id){upi_id show_payment_qr phone country_code whatsapp_numbers accept_payments_via_cashfree cashfree_merchant_id store_name store_banner theme}}`, { id: hotelId })
       .then((data) => { if (data?.partners_by_pk) setPartnerPaymentInfo(data.partners_by_pk); })
       .catch(() => {});
   }, [hotelId]);
@@ -64,14 +67,42 @@ export default function V3Orders({ hotelId, onClose }: V3OrdersProps) {
     setCashfreeLoadingOrderId(order.id);
     try {
       const cfOrderId = `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-      const returnUrl = `${window.location.origin}/order/${order.id}?cf_order=${cfOrderId}`;
+      const returnUrl = `${window.location.origin}/order/${order.id}?cf_order=${cfOrderId}&back=true`;
       sessionStorage.setItem("cashfree_pending_payment", JSON.stringify({ cfOrderId, partnerId: hotelId }));
       const cfRes = await createCashfreeOrderForPartner(hotelId, cfOrderId, order.totalPrice || 0, { id: userData?.id || "guest", name: (userData as any)?.full_name || "Customer", phone: (userData as any)?.phone || "", email: (userData as any)?.email }, returnUrl);
       if (!cfRes.success) throw new Error(cfRes.error);
+
+      setShowCashfreeEmbed(true);
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      if (!cashfreeContainerRef.current) throw new Error("Checkout container not ready");
+
       const cashfreeMode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "PRODUCTION" ? "production" : "sandbox";
       const cashfree = await loadCashfree({ mode: cashfreeMode as any });
-      cashfree.checkout({ paymentSessionId: cfRes.paymentSessionId!, redirectTarget: "_self" });
-    } catch { setCashfreeLoadingOrderId(null); }
+      const result: any = await cashfree.checkout({
+        paymentSessionId: cfRes.paymentSessionId!,
+        redirectTarget: cashfreeContainerRef.current,
+        appearance: {
+          width: `${window.innerWidth}px`,
+          height: `${Math.max(window.innerHeight - 56, 500)}px`,
+        },
+      } as any);
+
+      setShowCashfreeEmbed(false);
+      sessionStorage.removeItem("cashfree_pending_payment");
+      if (result?.error) {
+        console.error("Cashfree error:", result.error);
+        return;
+      }
+      const verifyRes = await verifyCashfreePayment(hotelId, cfOrderId);
+      if (verifyRes.success && verifyRes.paid) {
+        await markOrderAsPaid(order.id, verifyRes.cfPaymentId || undefined);
+      }
+    } catch (err) {
+      console.error("Cashfree payment error:", err);
+      setShowCashfreeEmbed(false);
+    } finally {
+      setCashfreeLoadingOrderId(null);
+    }
   };
 
   const animateClose = () => {
@@ -232,6 +263,15 @@ export default function V3Orders({ hotelId, onClose }: V3OrdersProps) {
           )}
         </div>
       </div>
+
+      <CashfreeEmbedModal
+        ref={cashfreeContainerRef}
+        open={showCashfreeEmbed}
+        onClose={() => setShowCashfreeEmbed(false)}
+        accent={partnerPaymentInfo?.theme?.colors?.accent}
+        banner={partnerPaymentInfo?.store_banner}
+        partnerName={partnerPaymentInfo?.store_name || "Restaurant"}
+      />
     </>
   );
 }

@@ -106,16 +106,19 @@ const UsernamePage = async ({
     notFound();
   }
 
-  const { pageStatus, data } = await processHotelPage(partnerId, search, selectedCat);
+  const { pageStatus, data, partnerContact } = await processHotelPage(partnerId, search, selectedCat);
+
+  const partnerPhone = partnerContact?.phone ?? null;
+  const partnerName = partnerContact?.storeName ?? null;
 
   if (pageStatus.status === "scan_limit_reached") {
-    return <ScanLimitReachedCard />;
+    return <ScanLimitReachedCard partnerPhone={partnerPhone} partnerName={partnerName} />;
   }
   if (pageStatus.status === "subscription_expired") {
-    return <SubscriptionExpiredCard />;
+    return <SubscriptionExpiredCard partnerPhone={partnerPhone} partnerName={partnerName} />;
   }
   if (pageStatus.status === "inactive") {
-    return <SubscriptionInactiveCard />;
+    return <SubscriptionInactiveCard partnerPhone={partnerPhone} partnerName={partnerName} />;
   }
   if (pageStatus.status === "not_found" || !data) {
     notFound();

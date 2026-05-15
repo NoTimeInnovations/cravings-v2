@@ -43,7 +43,9 @@ import { useWhatsAppOtp } from "@/hooks/useWhatsAppOtp";
 import { OtpInput } from "@/components/ui/otp-input";
 import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
+import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
+import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 
 // Helper: detect if a hex color is dark
 function isDarkColor(hex: string): boolean {
@@ -379,10 +381,10 @@ const OrderStatusDialog = ({
           {status === "success" && (
             <motion.div
               key="success"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="text-center text-white p-8  rounded-2xl shadow-lg flex flex-col items-center max-w-md mx-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="text-center text-white flex flex-col items-center justify-center w-full h-full px-6"
             >
               <motion.div
                 initial={{ scale: 0 }}
@@ -442,10 +444,10 @@ const OrderStatusDialog = ({
           {status === "failed" && (
             <motion.div
               key="failed"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="text-center text-white p-8 rounded-2xl shadow-lg flex flex-col items-center max-w-md mx-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="text-center text-white flex flex-col items-center justify-center w-full h-full px-6"
             >
               <motion.div
                 initial={{ scale: 0 }}
@@ -578,7 +580,15 @@ interface BillCardProps {
   hotelData: HotelData;
   qrGroup: QrGroup | null;
   tableNumber: number;
-  discount?: { type: "percentage" | "flat" | "freebie"; value: number; max_discount_amount?: number; freebie_item_count?: number; freebie_item_ids?: string; freebie_item_names?: string } | null;
+  discount?: { code?: string; type: "percentage" | "flat" | "freebie"; value: number; max_discount_amount?: number; freebie_item_count?: number; freebie_item_ids?: string; freebie_item_names?: string } | null;
+  /** When set, the bill uses the 3PL agent quote instead of `deliveryInfo`. */
+  agentQuote?: {
+    available: boolean;
+    estimatedPrice?: number;
+    distanceKm?: number;
+    etaToPickupMin?: number;
+  } | null;
+  useAgentForCharge?: boolean;
 }
 
 const BillCard = ({
@@ -591,6 +601,8 @@ const BillCard = ({
   qrGroup,
   tableNumber,
   discount,
+  agentQuote,
+  useAgentForCharge,
 }: BillCardProps) => {
   const subtotal = items.reduce(
     (acc, item) => acc + item.price * item.quantity,
@@ -606,8 +618,12 @@ const BillCard = ({
     : 0;
 
   const hideDeliveryCharge = hotelData?.delivery_rules?.hide_delivery_charge ?? false;
-  const deliveryCharges =
-    isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && !hideDeliveryCharge
+  const useAgent = !!useAgentForCharge && !!agentQuote?.available;
+  const agentPrice = useAgent && typeof agentQuote?.estimatedPrice === "number" ? agentQuote.estimatedPrice : 0;
+  const agentDistance = useAgent && typeof agentQuote?.distanceKm === "number" ? agentQuote.distanceKm : null;
+  const deliveryCharges = useAgent
+    ? (isDelivery ? agentPrice : 0)
+    : isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && !hideDeliveryCharge
       ? deliveryInfo.cost
       : 0;
 
@@ -680,7 +696,7 @@ const BillCard = ({
           </div>
         )}
 
-        {isDelivery && hideDeliveryCharge && (
+        {isDelivery && hideDeliveryCharge && !useAgent && (
           <div className="flex justify-between text-sm">
             <span style={{ color: "var(--pom-text-muted)" }}>Delivery Fee</span>
             <span className="font-semibold" style={{ color: "var(--pom-accent, #ea580c)" }}>
@@ -689,7 +705,27 @@ const BillCard = ({
           </div>
         )}
 
-        {isDelivery && !hideDeliveryCharge && !deliveryInfo?.isOutOfRange && deliveryInfo?.distance != null && (
+        {isDelivery && useAgent && (
+          <div>
+            <div className="flex justify-between text-sm">
+              <span style={{ color: "var(--pom-text-muted)" }}>Delivery Charges</span>
+              {agentPrice > 0 ? (
+                <span className="text-inherit">{currency}{" "}{agentPrice.toFixed(2)}</span>
+              ) : (
+                <span className="font-semibold" style={{ color: "var(--pom-accent, #ea580c)" }}>
+                  Free
+                </span>
+              )}
+            </div>
+            {agentDistance != null && (
+              <div className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
+                {agentDistance.toFixed(1)} kms
+              </div>
+            )}
+          </div>
+        )}
+
+        {isDelivery && !useAgent && !hideDeliveryCharge && !deliveryInfo?.isOutOfRange && deliveryInfo?.distance != null && (
           <div>
             <div className="flex justify-between text-sm">
               <span style={{ color: "var(--pom-text-muted)" }}>Delivery Charges</span>
@@ -731,11 +767,14 @@ const BillCard = ({
         ) : null}
 
         {discountSavings > 0 && (
-          <div className="flex justify-between text-sm opacity-70">
+          <div className="flex justify-between text-sm opacity-80">
             <span className="font-medium">
               {discount?.type === "freebie" ? "Freebie Discount" : "Discount"}
+              {discount?.code ? ` (${discount.code})` : ""}
             </span>
-            <span>-{currency}{" "}{discountSavings.toFixed(2)}</span>
+            <span style={{ color: "var(--pom-accent, #ea580c)" }}>
+              -{currency}{" "}{discountSavings.toFixed(2)}
+            </span>
           </div>
         )}
 
@@ -1557,6 +1596,12 @@ const PlaceOrderModal = ({
   const hasIncompatibleItems = incompatibleItems.length > 0;
 
   const [showLoginDrawer, setShowLoginDrawer] = useState(false);
+  const [showCashfreeEmbed, setShowCashfreeEmbed] = useState(false);
+  const cashfreeContainerRef = useRef<HTMLDivElement | null>(null);
+  // Guards verifyAndPlaceCfOrder against running twice for the same cfOrderId
+  // (e.g. embed-flow + mount-time redirect-return both firing). The first call
+  // wins; the second short-circuits.
+  const verifyingCfOrderRef = useRef<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
@@ -1642,6 +1687,95 @@ const PlaceOrderModal = ({
   const hotelFeatures = getFeatures(hotelData?.feature_flags || "");
   const showDiscountSection =
     (isQrScan ? hotelFeatures?.ordering?.enabled : hotelFeatures?.delivery?.enabled);
+
+  /* ---------------- 3PL delivery-agent serviceability + quote -------------
+   * Default-on: when the partner has the `delivery_agent` feature enabled and
+   * has NOT explicitly set `use_delivery_agent_charge = false`, treat it as
+   * on. Lets new 3PL stores get auto-calc out of the box. */
+  const useAgentForCharge =
+    !!hotelFeatures?.delivery_agent?.access &&
+    !!hotelFeatures?.delivery_agent?.enabled &&
+    hotelData?.delivery_rules?.use_delivery_agent_charge !== false;
+
+  const partnerCoords = useMemo(() => {
+    const geo: any = hotelData?.geo_location;
+    if (geo && typeof geo === "object" && Array.isArray(geo.coordinates) && geo.coordinates.length === 2) {
+      return { lat: geo.coordinates[1] as number, lng: geo.coordinates[0] as number };
+    }
+    return null;
+  }, [hotelData?.geo_location]);
+
+  const [agentQuote, setAgentQuote] = useState<{
+    available: boolean;
+    etaToPickupMin?: number;
+    distanceKm?: number;
+    estimatedPrice?: number;
+    reason?: "UNSERVICEABLE" | "DISTANCE_TOO_LONG" | "OTHER";
+  } | null>(null);
+  const [agentQuoteLoading, setAgentQuoteLoading] = useState(false);
+
+  useEffect(() => {
+    if (!useAgentForCharge || !isDelivery || isQrScan || orderType !== "delivery") {
+      setAgentQuote(null);
+      return;
+    }
+    if (!partnerCoords || !selectedCoords) {
+      setAgentQuote(null);
+      return;
+    }
+    let cancelled = false;
+    setAgentQuoteLoading(true);
+    const t = setTimeout(async () => {
+      const res = await checkDeliveryAgentAvailability({
+        pickup: { lat: partnerCoords.lat, lng: partnerCoords.lng },
+        drop: { lat: selectedCoords.lat, lng: selectedCoords.lng },
+        paymentMethod: "online",
+      });
+      if (cancelled) return;
+      setAgentQuoteLoading(false);
+      if (res.ok) {
+        const d = res.data as any;
+        setAgentQuote({
+          available: !!d.available,
+          ...(d.etaToPickupMin !== undefined ? { etaToPickupMin: d.etaToPickupMin } : {}),
+          ...(d.distanceKm !== undefined ? { distanceKm: d.distanceKm } : {}),
+          ...(d.estimatedPrice !== undefined ? { estimatedPrice: d.estimatedPrice } : {}),
+          ...(d.reason ? { reason: d.reason } : {}),
+        });
+      } else {
+        const reason =
+          res.status === 422
+            ? ((res as any).code === "DISTANCE_TOO_LONG" ? "DISTANCE_TOO_LONG" : "UNSERVICEABLE")
+            : "OTHER";
+        setAgentQuote({ available: false, reason: reason as any });
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      setAgentQuoteLoading(false);
+      clearTimeout(t);
+    };
+  }, [
+    useAgentForCharge,
+    isDelivery,
+    isQrScan,
+    orderType,
+    partnerCoords?.lat,
+    partnerCoords?.lng,
+    selectedCoords?.lat,
+    selectedCoords?.lng,
+  ]);
+
+  // Block placement until we have an `available: true` quote. While the
+  // quote is loading or hasn't run yet (coords missing), the place-order
+  // button stays disabled — the existing `selectedCoords` guard handles the
+  // missing-coords case, this just enforces "must have a successful quote".
+  const agentBlocksOrder =
+    useAgentForCharge &&
+    isDelivery &&
+    orderType === "delivery" &&
+    !!selectedCoords &&
+    (agentQuoteLoading || !agentQuote?.available);
 
   // Fetch active coupon discounts for this partner
   useEffect(() => {
@@ -2148,13 +2282,16 @@ const PlaceOrderModal = ({
         qrGroup.charge_type || "FLAT_FEE"
       )
       : 0;
-    const deliveryCharge =
-      !isQrScan &&
-        orderType === "delivery" &&
-        deliveryInfo?.cost &&
-        !deliveryInfo?.isOutOfRange
-        ? deliveryInfo.cost
-        : 0;
+    const deliveryCharge = (() => {
+      if (isQrScan || orderType !== "delivery") return 0;
+      if (hotelData?.delivery_rules?.hide_delivery_charge) return 0;
+      if (useAgentForCharge) {
+        return agentQuote?.available && typeof agentQuote.estimatedPrice === "number"
+          ? agentQuote.estimatedPrice
+          : 0;
+      }
+      return deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0;
+    })();
     const parcelChargeType = hotelData?.delivery_rules?.parcel_charge_type || "fixed";
     const parcelItemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
     let parcelCharge = 0;
@@ -2214,7 +2351,7 @@ const PlaceOrderModal = ({
     const billingLines = [
       `*Subtotal:* ${hotelData.currency}${baseTotal.toFixed(2)}`,
       hotelData?.gst_percentage && gstAdditional > 0 ? `*${hotelData?.country === "United Arab Emirates" ? "VAT" : "GST"} (${hotelData.gst_percentage}%):* ${hotelData.currency}${gstAdditional.toFixed(2)}` : "",
-      !isQrScan && orderType === "delivery" && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? `*Delivery Charge:* ${hotelData.currency}${deliveryInfo.cost.toFixed(2)}` : "",
+      !isQrScan && orderType === "delivery" && deliveryCharge > 0 ? `*Delivery Charge:* ${hotelData.currency}${deliveryCharge.toFixed(2)}` : "",
       qrGroup?.extra_charge ? `*${qrGroup.name}:* ${hotelData.currency}${qrCharge.toFixed(2)}` : "",
       parcelCharge > 0 ? `*Parcel Charge:* ${hotelData.currency}${parcelCharge.toFixed(2)}` : "",
       discountSavingsAmount > 0 ? `*Discount:* -${hotelData.currency}${discountSavingsAmount.toFixed(2)}` : "",
@@ -2299,8 +2436,27 @@ const PlaceOrderModal = ({
           return;
         }
 
-        if (deliveryInfo?.isOutOfRange) {
+        if (!useAgentForCharge && deliveryInfo?.isOutOfRange) {
           toast.error("Delivery is not available to your location");
+          return;
+        }
+      }
+
+      if (useAgentForCharge) {
+        if (agentQuoteLoading) {
+          toast.error("Checking delivery partner availability — please wait a moment");
+          return;
+        }
+        if (!agentQuote) {
+          toast.error("Could not check delivery partner availability. Try again");
+          return;
+        }
+        if (!agentQuote.available) {
+          toast.error(
+            agentQuote.reason === "DISTANCE_TOO_LONG"
+              ? "Selected address is too far for our delivery partner"
+              : "Delivery partner can't serve this address right now",
+          );
           return;
         }
       }
@@ -2360,16 +2516,19 @@ const PlaceOrderModal = ({
 
       if (
         !isQrScan &&
-        deliveryInfo?.cost &&
-        !deliveryInfo?.isOutOfRange &&
         orderType === "delivery" &&
         !(hotelData?.delivery_rules?.hide_delivery_charge)
       ) {
-        extraCharges.push({
-          name: "Delivery Charge",
-          amount: deliveryInfo.cost,
-          charge_type: "FLAT_FEE",
-        });
+        const amt = useAgentForCharge
+          ? (agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice : 0)
+          : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
+        if (amt > 0) {
+          extraCharges.push({
+            name: "Delivery Charge",
+            amount: amt,
+            charge_type: "FLAT_FEE",
+          });
+        }
       }
 
       if (
@@ -2450,6 +2609,7 @@ const PlaceOrderModal = ({
             : undefined,
         } : null,
         needUserName ? customerName.trim() : undefined,
+        (user as any)?.phone || undefined,
       );
 
       if (result) {
@@ -2526,8 +2686,11 @@ const PlaceOrderModal = ({
         const amt = getExtraCharge(items || [], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE");
         if (amt > 0) extraCharges.push({ name: qrGroup.name, amount: amt, charge_type: qrGroup.charge_type || "FLAT_FEE" });
       }
-      if (!isQrScan && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && orderType === "delivery" && !(hotelData?.delivery_rules?.hide_delivery_charge)) {
-        extraCharges.push({ name: "Delivery Charge", amount: deliveryInfo.cost, charge_type: "FLAT_FEE" });
+      if (!isQrScan && orderType === "delivery" && !(hotelData?.delivery_rules?.hide_delivery_charge)) {
+        const amt = useAgentForCharge
+          ? (agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice : 0)
+          : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
+        if (amt > 0) extraCharges.push({ name: "Delivery Charge", amount: amt, charge_type: "FLAT_FEE" });
       }
       if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge && hotelData.delivery_rules.parcel_charge > 0) {
         const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
@@ -2570,8 +2733,9 @@ const PlaceOrderModal = ({
         discountId: appliedDiscount?.id || null,
       }));
 
-      // Build return URL — current page URL so Cashfree redirects back here
-      const returnUrl = `${window.location.origin}${window.location.pathname}?cf_order=${cfOrderId}`;
+      // Build return URL — current page URL so Cashfree redirects back here.
+      // back=true suppresses the storefront/onboarding flow on re-entry.
+      const returnUrl = `${window.location.origin}${window.location.pathname}?cf_order=${cfOrderId}&back=true`;
 
       const cfRes = await createCashfreeOrderForPartner(
         hotelData.id,
@@ -2592,23 +2756,197 @@ const PlaceOrderModal = ({
         return;
       }
 
-      // Launch Cashfree checkout
+      // Launch Cashfree embedded checkout. Hide the place-order modal and
+      // dismiss the loading overlay so the full-screen embed is the only
+      // thing visible while the user pays.
+      setOrderStatus("idle");
+      setOpenPlaceOrderModal(false);
+      setShowCashfreeEmbed(true);
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      if (!cashfreeContainerRef.current) throw new Error("Checkout container not ready");
+
       const cashfreeMode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "PRODUCTION" ? "production" : "sandbox";
       const cashfree = await loadCashfree({ mode: cashfreeMode as "sandbox" | "production" });
-
-      cashfree.checkout({
+      const result: any = await cashfree.checkout({
         paymentSessionId: cfRes.paymentSessionId!,
-        redirectTarget: "_self",
+        redirectTarget: cashfreeContainerRef.current,
+        appearance: {
+          width: `${window.innerWidth}px`,
+          height: `${Math.max(window.innerHeight - 56, 500)}px`,
+        },
+      } as any);
+
+      setShowCashfreeEmbed(false);
+      // Re-open the place-order modal so the verifying / loading overlay is
+      // visible while we settle the payment server-side.
+      setOpenPlaceOrderModal(true);
+      // Embed flow doesn't redirect — clear the sessionStorage entry so the
+      // mount-time useEffect doesn't double-process this same payment if the
+      // user later navigates here.
+      sessionStorage.removeItem("cashfree_pending_order");
+
+      if (result?.error) {
+        console.error("Cashfree error:", result.error);
+        toast.error(result.error.message || "Payment failed. Please try again.");
+        setOrderStatus("idle");
+        return;
+      }
+
+      // Verify payment + place order inline. Auth & cart are already in
+      // memory (no redirect happened), so skipAuthWait avoids the 500ms
+      // polling delay.
+      await verifyAndPlaceCfOrder({
+        cfOrderId,
+        partnerId: hotelData.id,
+        orderType: orderType || null,
+        orderNote: orderNote || null,
+        customerName: customerName || null,
+        skipAuthWait: true,
       });
-      // Page will redirect — flow continues in useEffect below
     } catch (error) {
       console.error("Cashfree payment error:", error);
       toast.error("Payment failed. Please try again.");
+      setShowCashfreeEmbed(false);
+      setOpenPlaceOrderModal(true);
       setOrderStatus("idle");
     }
   };
 
-  // Handle return from Cashfree checkout redirect — runs on mount
+  // Reusable verify-and-place flow. Called from both the redirect-return path
+  // (sessionStorage handoff) and the embedded-checkout success path (in-memory).
+  const verifyAndPlaceCfOrder = async (pending: {
+    cfOrderId: string;
+    partnerId: string;
+    orderType?: string | null;
+    orderNote?: string | null;
+    customerName?: string | null;
+    skipAuthWait?: boolean;
+  }) => {
+    // Skip if this exact cfOrderId is already being verified — prevents the
+    // mount-time redirect-return useEffect from racing the embed-flow inline
+    // call, which previously caused a brief "Payment Failed" flash.
+    if (verifyingCfOrderRef.current === pending.cfOrderId) return;
+    verifyingCfOrderRef.current = pending.cfOrderId;
+
+    setOpenPlaceOrderModal(true);
+    setOrderStatus("verifying");
+    setCashfreePaid(true);
+
+    const waitForAuth = () => new Promise<void>((resolve) => {
+      const check = () => {
+        const authUser = useAuthStore.getState().userData;
+        if (authUser?.id) { resolve(); return; }
+        setTimeout(check, 300);
+      };
+      setTimeout(check, 500);
+      setTimeout(resolve, 15000);
+    });
+
+    try {
+      const verifyRes = await verifyCashfreePayment(pending.partnerId, pending.cfOrderId);
+
+      if (!verifyRes.success || !verifyRes.paid) {
+        const reason = !verifyRes.success
+          ? verifyRes.error
+          : verifyRes.orderStatus === "ACTIVE"
+            ? "Payment was not completed. You may have cancelled or dropped off during checkout."
+            : `Payment status: ${verifyRes.orderStatus || "unknown"}. Please try again.`;
+        setPaymentFailReason(reason || "Payment could not be completed.");
+        setOrderStatus("failed");
+        setCashfreePaid(false);
+        return;
+      }
+
+      setOrderStatus("loading");
+      if (!pending.skipAuthWait) await waitForAuth();
+
+      const storeState = useOrderStore.getState();
+      const authUser = useAuthStore.getState().userData;
+
+      if (!authUser?.id) {
+        toast.error("Session expired. Please login and try again.");
+        setOrderStatus("idle");
+        return;
+      }
+
+      if (!storeState.items || storeState.items.length === 0) {
+        toast.error("Cart is empty. Your order could not be restored.");
+        setOrderStatus("idle");
+        return;
+      }
+
+      const cfItems = storeState.items;
+      const cfExtraCharges: { name: string; amount: number; charge_type: string }[] = [];
+
+      if (isQrScan && qrGroup && qrGroup.name) {
+        const amt = getExtraCharge(cfItems, qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE");
+        if (amt > 0) cfExtraCharges.push({ name: qrGroup.name, amount: amt, charge_type: qrGroup.charge_type || "FLAT_FEE" });
+      }
+      if (!isQrScan && tableNumber === 0 && qrGroup && qrGroup.name) {
+        const amt = getExtraCharge(cfItems, qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE");
+        if (amt > 0) cfExtraCharges.push({ name: qrGroup.name, amount: amt, charge_type: qrGroup.charge_type || "FLAT_FEE" });
+      }
+
+      const cfDeliveryInfo = storeState.deliveryInfo;
+      if (!isQrScan && cfDeliveryInfo?.cost && !cfDeliveryInfo?.isOutOfRange && pending.orderType === "delivery" && !(hotelData?.delivery_rules?.hide_delivery_charge)) {
+        cfExtraCharges.push({ name: "Delivery Charge", amount: cfDeliveryInfo.cost, charge_type: "FLAT_FEE" });
+      }
+      if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge && hotelData.delivery_rules.parcel_charge > 0) {
+        const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
+        const itemCount = cfItems.reduce((acc, item) => acc + item.quantity, 0);
+        let parcelAmount: number;
+        if (chargeType === "itemwise") {
+          const defC = hotelData.delivery_rules.parcel_charge || 0;
+          const custC = hotelData.delivery_rules.parcel_charge_items || {};
+          parcelAmount = cfItems.reduce((acc, item) => acc + (custC[item.id.split("|")[0]] ?? defC) * item.quantity, 0);
+        } else {
+          parcelAmount = chargeType === "variable" ? itemCount * hotelData.delivery_rules.parcel_charge : hotelData.delivery_rules.parcel_charge;
+        }
+        cfExtraCharges.push({ name: "Parcel Charge", amount: parcelAmount, charge_type: "FLAT_FEE" });
+      }
+
+      const { additionalGst: cfGst } = calculateGstForItems(
+        cfItems.map((item) => {
+          const baseId = item.id.split("|")[0];
+          const mi = hotelData?.menus?.find((m) => m.id === baseId);
+          return { price: item.price, quantity: item.quantity, tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive };
+        }),
+        hotelData?.gst_percentage as number,
+      );
+      const result = await storeState.placeOrder(
+        hotelData,
+        tableNumber,
+        qrId as string,
+        cfGst,
+        cfExtraCharges.length > 0 ? cfExtraCharges : null,
+        undefined,
+        pending.orderNote || "",
+        tableName,
+        null,
+        pending.customerName || undefined,
+        (useAuthStore.getState().userData as any)?.phone || undefined,
+      );
+
+      if (result) {
+        if (result.id) {
+          localStorage?.setItem("last-order-id", result.id);
+          markOrderAsPaid(result.id, verifyRes.cfPaymentId || undefined).catch(() => {});
+        }
+        setOrderStatus("success");
+      } else {
+        toast.error("Failed to place order.");
+        setOrderStatus("idle");
+      }
+    } catch (error) {
+      console.error("Payment verification error:", error);
+      setPaymentFailReason("Could not verify payment. Please contact support.");
+      setOrderStatus("failed");
+    }
+  };
+
+  // Handle return from Cashfree checkout redirect — runs on mount.
+  // Only triggers when the user actually came back via redirect (sessionStorage
+  // has the entry). Embedded checkout calls verifyAndPlaceCfOrder directly.
   useEffect(() => {
     const pendingStr = sessionStorage.getItem("cashfree_pending_order");
     if (!pendingStr) return;
@@ -2616,140 +2954,21 @@ const PlaceOrderModal = ({
     const pending = JSON.parse(pendingStr);
     if (!pending?.cfOrderId || !pending?.partnerId) return;
 
-    // Clear immediately so we don't re-trigger
     sessionStorage.removeItem("cashfree_pending_order");
 
-    // Restore saved state
     if (pending.orderType) setOrderType(pending.orderType);
     if (pending.address) setAddress(pending.address);
     if (pending.customerName) setCustomerName(pending.customerName);
     if (pending.orderNote) setOrderNote(pending.orderNote);
     if (pending.selectedLocation) setSelectedLocation(pending.selectedLocation);
 
-    // Auto-open the place order modal and show verifying state
-    setOpenPlaceOrderModal(true);
-    setOrderStatus("verifying");
-    setCashfreePaid(true);
-
-    // Wait for auth store to hydrate (it's not persisted, needs cookie-based reauth)
-    const waitForAuth = () => new Promise<void>((resolve) => {
-      const check = () => {
-        const authUser = useAuthStore.getState().userData;
-        if (authUser?.id) { resolve(); return; }
-        setTimeout(check, 300);
-      };
-      // Start checking after a brief delay for initial page load
-      setTimeout(check, 500);
-      // Timeout after 15s
-      setTimeout(resolve, 15000);
+    verifyAndPlaceCfOrder({
+      cfOrderId: pending.cfOrderId,
+      partnerId: pending.partnerId,
+      orderType: pending.orderType,
+      orderNote: pending.orderNote,
+      customerName: pending.customerName,
     });
-
-    const verifyAndPlace = async () => {
-      try {
-        const verifyRes = await verifyCashfreePayment(pending.partnerId, pending.cfOrderId);
-
-        if (!verifyRes.success || !verifyRes.paid) {
-          const reason = !verifyRes.success
-            ? verifyRes.error
-            : verifyRes.orderStatus === "ACTIVE"
-              ? "Payment was not completed. You may have cancelled or dropped off during checkout."
-              : `Payment status: ${verifyRes.orderStatus || "unknown"}. Please try again.`;
-          setPaymentFailReason(reason || "Payment could not be completed.");
-          setOrderStatus("failed");
-          setCashfreePaid(false);
-          return;
-        }
-
-        // Payment verified — wait for auth then place order
-        setOrderStatus("loading");
-        await waitForAuth();
-
-        const storeState = useOrderStore.getState();
-        const authUser = useAuthStore.getState().userData;
-
-        if (!authUser?.id) {
-          toast.error("Session expired. Please login and try again.");
-          setOrderStatus("idle");
-          return;
-        }
-
-        if (!storeState.items || storeState.items.length === 0) {
-          toast.error("Cart is empty. Your order could not be restored.");
-          setOrderStatus("idle");
-          return;
-        }
-
-        // Compute extra charges (same logic as handlePlaceOrder)
-        const cfItems = storeState.items;
-        const cfSubtotal = cfItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-        const cfExtraCharges: { name: string; amount: number; charge_type: string }[] = [];
-
-        if (isQrScan && qrGroup && qrGroup.name) {
-          const amt = getExtraCharge(cfItems, qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE");
-          if (amt > 0) cfExtraCharges.push({ name: qrGroup.name, amount: amt, charge_type: qrGroup.charge_type || "FLAT_FEE" });
-        }
-        if (!isQrScan && tableNumber === 0 && qrGroup && qrGroup.name) {
-          const amt = getExtraCharge(cfItems, qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE");
-          if (amt > 0) cfExtraCharges.push({ name: qrGroup.name, amount: amt, charge_type: qrGroup.charge_type || "FLAT_FEE" });
-        }
-
-        const cfDeliveryInfo = storeState.deliveryInfo;
-        if (!isQrScan && cfDeliveryInfo?.cost && !cfDeliveryInfo?.isOutOfRange && pending.orderType === "delivery" && !(hotelData?.delivery_rules?.hide_delivery_charge)) {
-          cfExtraCharges.push({ name: "Delivery Charge", amount: cfDeliveryInfo.cost, charge_type: "FLAT_FEE" });
-        }
-        if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge && hotelData.delivery_rules.parcel_charge > 0) {
-          const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
-          const itemCount = cfItems.reduce((acc, item) => acc + item.quantity, 0);
-          let parcelAmount: number;
-          if (chargeType === "itemwise") {
-            const defC = hotelData.delivery_rules.parcel_charge || 0;
-            const custC = hotelData.delivery_rules.parcel_charge_items || {};
-            parcelAmount = cfItems.reduce((acc, item) => acc + (custC[item.id.split("|")[0]] ?? defC) * item.quantity, 0);
-          } else {
-            parcelAmount = chargeType === "variable" ? itemCount * hotelData.delivery_rules.parcel_charge : hotelData.delivery_rules.parcel_charge;
-          }
-          cfExtraCharges.push({ name: "Parcel Charge", amount: parcelAmount, charge_type: "FLAT_FEE" });
-        }
-
-        const { additionalGst: cfGst } = calculateGstForItems(
-          cfItems.map((item) => {
-            const baseId = item.id.split("|")[0];
-            const mi = hotelData?.menus?.find((m) => m.id === baseId);
-            return { price: item.price, quantity: item.quantity, tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive };
-          }),
-          hotelData?.gst_percentage as number,
-        );
-        const result = await storeState.placeOrder(
-          hotelData,
-          tableNumber,
-          qrId as string,
-          cfGst,
-          cfExtraCharges.length > 0 ? cfExtraCharges : null,
-          undefined,
-          pending.orderNote || "",
-          tableName,
-          null,
-          pending.customerName || undefined,
-        );
-
-        if (result) {
-          if (result.id) {
-            localStorage?.setItem("last-order-id", result.id);
-            markOrderAsPaid(result.id, verifyRes.cfPaymentId || undefined).catch(() => {});
-          }
-          setOrderStatus("success");
-        } else {
-          toast.error("Failed to place order.");
-          setOrderStatus("idle");
-        }
-      } catch (error) {
-        console.error("Payment verification error:", error);
-        setPaymentFailReason("Could not verify payment. Please contact support.");
-        setOrderStatus("failed");
-      }
-    };
-
-    verifyAndPlace();
   }, []);
 
   const handleLoginSuccess = () => {
@@ -2794,7 +3013,8 @@ const PlaceOrderModal = ({
       (!address ||
         ((hotelData?.delivery_rules?.needDeliveryLocation ?? true) &&
           !selectedCoords))) ||
-    (isDelivery && deliveryInfo?.isOutOfRange) ||
+    (isDelivery && !useAgentForCharge && deliveryInfo?.isOutOfRange) ||
+    agentBlocksOrder ||
     (hasMultiWhatsapp && !selectedLocation);
 
   const { qrData } = useQrDataStore();
@@ -2803,7 +3023,13 @@ const PlaceOrderModal = ({
   const _barSubtotal = items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
   const _barQrCharge = qrGroup?.extra_charge ? getExtraCharge(items || [], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE") : 0;
   const _barHideDelivery = hotelData?.delivery_rules?.hide_delivery_charge ?? false;
-  const _barDeliveryCharge = !isQrScan && orderType === "delivery" && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && !_barHideDelivery ? deliveryInfo.cost : 0;
+  const _barDeliveryCharge = (() => {
+    if (isQrScan || orderType !== "delivery" || _barHideDelivery) return 0;
+    if (useAgentForCharge) {
+      return agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice : 0;
+    }
+    return deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0;
+  })();
   const _barTotalItemCount = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
   const _barParcelCharge = (() => {
     if (!(tableNumber === 0 && (hotelData?.delivery_rules?.parcel_charge || 0) > 0)) return 0;
@@ -3128,7 +3354,9 @@ const PlaceOrderModal = ({
                   qrGroup={qrGroup}
                   hotelData={hotelData}
                   tableNumber={tableNumber}
-                  discount={appliedDiscount ? { type: appliedDiscount.type, value: appliedDiscount.value, max_discount_amount: appliedDiscount.max_discount_amount, freebie_item_count: appliedDiscount.freebie_item_count, freebie_item_ids: appliedDiscount.freebie_item_ids, freebie_item_names: appliedDiscount.freebie_item_ids?.split(",").map((id) => hotelData?.menus?.find((m) => m.id === id.trim())?.name).filter(Boolean).join(", ") } : null}
+                  discount={appliedDiscount ? { code: appliedDiscount.code, type: appliedDiscount.type, value: appliedDiscount.value, max_discount_amount: appliedDiscount.max_discount_amount, freebie_item_count: appliedDiscount.freebie_item_count, freebie_item_ids: appliedDiscount.freebie_item_ids, freebie_item_names: appliedDiscount.freebie_item_ids?.split(",").map((id) => hotelData?.menus?.find((m) => m.id === id.trim())?.name).filter(Boolean).join(", ") } : null}
+                  agentQuote={agentQuote}
+                  useAgentForCharge={useAgentForCharge}
                 />
               </div>
 
@@ -3140,9 +3368,46 @@ const PlaceOrderModal = ({
               )}
 
               {/* Warnings */}
-              {isDelivery && !isQrScan && orderType === "delivery" && deliveryInfo?.isOutOfRange && (
+              {isDelivery && !isQrScan && orderType === "delivery" && !useAgentForCharge && deliveryInfo?.isOutOfRange && (
                 <div className="text-sm p-3 rounded-xl text-center" style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#fca5a5" }}>
                   Delivery is not available to your selected location
+                </div>
+              )}
+
+              {/* 3PL agent serviceability panel */}
+              {isDelivery && !isQrScan && orderType === "delivery" && useAgentForCharge && selectedCoords && (
+                <div className="text-sm p-3 rounded-xl" style={{ backgroundColor: "var(--pom-card-bg, white)", border: "1px solid var(--pom-card-border, #e7e5e4)", boxShadow: "var(--pom-card-shadow)" }}>
+                  {agentQuoteLoading ? (
+                    <div className="flex items-center gap-2 text-inherit opacity-80">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Checking 3PL serviceability…</span>
+                    </div>
+                  ) : agentQuote && !agentQuote.available ? (
+                    <div className="text-center" style={{ color: "#fca5a5" }}>
+                      {agentQuote.reason === "DISTANCE_TOO_LONG"
+                        ? "Selected address is too far for our delivery partner."
+                        : "Delivery partner can't serve this address right now."}
+                    </div>
+                  ) : agentQuote && agentQuote.available ? (
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-inherit">Delivery partner available</div>
+                        <div className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
+                          {[
+                            agentQuote.distanceKm !== undefined ? `${agentQuote.distanceKm.toFixed(1)} km` : null,
+                            agentQuote.etaToPickupMin !== undefined ? `~${agentQuote.etaToPickupMin} min pickup ETA` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                      </div>
+                      {agentQuote.estimatedPrice !== undefined && !hotelData?.delivery_rules?.hide_delivery_charge && (
+                        <div className="text-sm font-semibold text-inherit whitespace-nowrap">
+                          {hotelData?.currency || "₹"}{agentQuote.estimatedPrice.toFixed(0)}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               )}
 
@@ -3351,6 +3616,19 @@ const PlaceOrderModal = ({
           onClose={handleCloseUpiScreen}
         />
       )}
+      <CashfreeEmbedModal
+        ref={cashfreeContainerRef}
+        open={showCashfreeEmbed}
+        onClose={() => {
+          setShowCashfreeEmbed(false);
+          setOpenPlaceOrderModal(true);
+          setOrderStatus("idle");
+          sessionStorage.removeItem("cashfree_pending_order");
+        }}
+        accent={(hotelData as any)?.theme?.colors?.accent}
+        banner={(hotelData as any)?.store_banner}
+        partnerName={hotelData?.store_name || "Restaurant"}
+      />
     </>
   );
 };

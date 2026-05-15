@@ -3,6 +3,7 @@
 import { Offer } from "@/store/offerStore_hasura";
 import { HotelData, SocialLinks } from "@/app/hotels/[...id]/page";
 import { ThemeConfig } from "@/components/hotelDetail/ThemeChangeButton";
+import { brandColorToHex } from "@/lib/brandColor";
 import { Category, formatStorageName } from "@/store/categoryStore_hasura";
 import OrderDrawer from "@/components/hotelDetail/OrderDrawer";
 import useOrderStore from "@/store/orderStore";
@@ -21,6 +22,7 @@ import Compact from "@/components/hotelDetail/styles/Compact/Compact";
 import Sidebar from "@/components/hotelDetail/styles/Sidebar/Sidebar";
 import V3 from "@/components/hotelDetail/styles/V3/V3";
 import { saveUserLocation } from "@/lib/saveUserLocLocal";
+import { applyVisibilityState } from "@/lib/visibility";
 import { QrCode, useQrDataStore } from "@/store/qrDataStore";
 import DeliveryTimeCampain from "@/components/hotelDetail/DeliveryTimeCampain";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
@@ -153,20 +155,22 @@ const HotelMenuPage = ({
   const [forceStorefront, setForceStorefront] = useState(false);
 
   const brandAccent = useMemo(() => {
-    const BRAND_COLOR_MAP: Record<string, string> = {
-      "burnt-orange": "#e85d04", "obsidian-gold": "#b8860b", "royal-burgundy": "#8b1a4a",
-      "midnight-emerald": "#0d6b4e", "sapphire": "#1e4db7", "charcoal-noir": "#2c2c2c",
-      "deep-violet": "#6b21a8", "rose-blush": "#be185d", "teal-luxe": "#0f766e", "warm-copper": "#b45309",
-    };
     try {
       const raw = (hoteldata as any)?.storefront_settings;
-      if (!raw) return null;
-      const sf = typeof raw === "string" ? JSON.parse(raw) : raw;
-      const bc = sf?.brandColor;
-      if (!bc) return null;
-      return bc.startsWith("custom:") ? bc.replace("custom:", "") : (BRAND_COLOR_MAP[bc] || null);
-    } catch { return null; }
-  }, [(hoteldata as any)?.storefront_settings]);
+      let sf: any = null;
+      if (raw) {
+        sf = typeof raw === "string" ? JSON.parse(raw) : raw;
+      }
+      // Theme is the new source of truth; storefront brandColor is legacy fallback.
+      const themeToken = (theme as any)?.brandColor;
+      const sfToken = sf?.brandColor;
+      const token = themeToken || sfToken;
+      if (!token) return null;
+      return brandColorToHex(token);
+    } catch {
+      return null;
+    }
+  }, [(hoteldata as any)?.storefront_settings, (theme as any)?.brandColor]);
 
   const styles: Styles = useMemo(() => ({
     backgroundColor: theme?.colors?.bg || "#F5F5F5",
@@ -262,27 +266,30 @@ const HotelMenuPage = ({
     }
   }, [hoteldata?.id, setHotelId, genOrderId]);
 
-  // Filter menus by order type visibility
+  // Filter menus by order type visibility, then resolve visibility state so items
+  // from inactive categories with hideItems=false remain (marked unavailable),
+  // while truly hidden items are dropped.
   const filteredMenus = useMemo(() => {
     if (!hoteldata?.menus) return [];
-    return hoteldata.menus.filter((item: any) => {
-      if (orderType === "delivery" && item.show_on_delivery === false) return false;
-      if (orderType === "takeaway" && item.show_on_takeaway === false) return false;
-      if (lockedCategory && item.category?.name !== lockedCategory) return false;
-      if (hiddenCategoryNames && hiddenCategoryNames.has(item.category?.name)) return false;
-      return true;
-    });
-  }, [hoteldata?.menus, orderType, lockedCategory, hiddenCategoryNames]);
+    const tz = (hoteldata as any)?.timezone || hotelTimezone || "Asia/Kolkata";
+    const hideUnav = (hoteldata as any)?.hide_unavailable;
+    return hoteldata.menus
+      .filter((item: any) => {
+        if (orderType === "delivery" && item.show_on_delivery === false) return false;
+        if (orderType === "takeaway" && item.show_on_takeaway === false) return false;
+        if (lockedCategory && item.category?.name !== lockedCategory) return false;
+        if (hiddenCategoryNames && hiddenCategoryNames.has(item.category?.name)) return false;
+        return true;
+      })
+      .map((item: any) => applyVisibilityState(item, tz, undefined, hideUnav))
+      .filter(Boolean) as any[];
+  }, [hoteldata?.menus, orderType, lockedCategory, hiddenCategoryNames, hotelTimezone]);
 
   // ✅ Memoize offeredItems to avoid recalculating on every render
   const offeredItems = useMemo(() => {
     if (!filteredMenus || !offers) return [];
     const activeOfferMenuIds = new Set(offers.map((offer) => offer.menu?.id));
-    return filteredMenus.filter(
-      (item) =>
-        activeOfferMenuIds.has(item.id || "") &&
-        (item.category.is_active === undefined || item.category.is_active)
-    );
+    return filteredMenus.filter((item) => activeOfferMenuIds.has(item.id || ""));
   }, [filteredMenus, offers]);
 
   // ✅ Memoize categories to prevent recalculating unless the menu changes
@@ -291,10 +298,7 @@ const HotelMenuPage = ({
     const uniqueCategoriesMap = new Map<string, Category>();
 
     filteredMenus.forEach((item) => {
-      if (
-        !uniqueCategoriesMap.has(item.category.name) &&
-        (item.category.is_active === undefined || item.category.is_active)
-      ) {
+      if (!uniqueCategoriesMap.has(item.category.name)) {
         uniqueCategoriesMap.set(item.category.name, item.category);
       }
     });
@@ -330,19 +334,13 @@ const HotelMenuPage = ({
     let filteredItems = [];
 
     if (selectedCategory === "all") {
-      filteredItems =
-        filteredMenus.filter(
-          (item) =>
-            item.category.is_active === undefined || item.category.is_active
-        ) || [];
+      filteredItems = filteredMenus;
     } else if (selectedCategory === "Offer") {
       filteredItems = offeredItems;
     } else {
       filteredItems =
         filteredMenus.filter(
-          (item) =>
-            item.category.name === selectedCategory &&
-            (item.category.is_active === undefined || item.category.is_active)
+          (item) => item.category.name === selectedCategory
         ) || [];
     }
 
@@ -358,13 +356,7 @@ const HotelMenuPage = ({
 
   // ✅ Memoize top-selling items
   const topItems = useMemo(() => {
-    return (
-      filteredMenus.filter(
-        (item) =>
-          item.is_top === true &&
-          (item.category.is_active === undefined || item.category.is_active)
-      ) || []
-    );
+    return filteredMenus.filter((item) => item.is_top === true) || [];
   }, [filteredMenus]);
 
   // ✅ Memoize the function passed as a prop to prevent child re-renders
@@ -513,6 +505,7 @@ const HotelMenuPage = ({
           storeBanner={hoteldata?.store_banner}
           partnerId={hoteldata?.id || ""}
           tableNumber={tableNumber}
+          hotelData={hoteldata}
           themeBg={theme?.colors?.bg}
           onboardingCompleted={onboardingCompleted}
           deliveryTimeAllowed={hoteldata?.delivery_rules?.delivery_time_allowed}
@@ -522,6 +515,7 @@ const HotelMenuPage = ({
           notices={(hoteldata as any)?.notices || []}
           socialLinks={socialLinks}
           storefrontSettings={(hoteldata as any)?.storefront_settings}
+          themeBrandColor={(theme as any)?.brandColor || null}
           skipStorefront={forceStorefront ? false : skipStorefront}
           forceStart={forceStorefront}
           initialDeliveryOpen={initialDeliveryOpen}

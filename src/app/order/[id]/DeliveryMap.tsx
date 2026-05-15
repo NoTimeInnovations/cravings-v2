@@ -11,7 +11,51 @@ interface DeliveryMapProps {
   deliveryLat: number;
   driverLng?: number | null;
   driverLat?: number | null;
+  hotelLng?: number | null;
+  hotelLat?: number | null;
+  hotelBanner?: string | null;
+  hotelName?: string | null;
+  // Which endpoint the polyline connects the driver to.
+  // "to_hotel" before pickup (rider heading to restaurant);
+  // "to_destination" after pickup (rider heading to customer).
+  routeMode?: "to_destination" | "to_hotel";
+  /**
+   * Partner-configured delivery radius in km. When set together with a
+   * hotel point, the map draws a filled circle around the pickup so the
+   * viewer can see the configured service area at a glance.
+   */
+  radiusKm?: number | null;
   onMapClick?: () => void;
+}
+
+const RADIUS_SOURCE = "radius";
+const RADIUS_FILL_LAYER = "radius-fill";
+const RADIUS_LINE_LAYER = "radius-line";
+
+/**
+ * Generate a circle polygon (GeoJSON) around `center` with the given
+ * radius in kilometres. Uses an equirectangular projection — good enough
+ * up to a few-km radius at any latitude outside the poles.
+ */
+function circlePolygon(
+  centerLng: number,
+  centerLat: number,
+  radiusKm: number,
+  points = 64,
+): GeoJSON.Feature<GeoJSON.Polygon> {
+  const coords: [number, number][] = [];
+  const distanceX = radiusKm / (111.32 * Math.cos((centerLat * Math.PI) / 180));
+  const distanceY = radiusKm / 110.574;
+  for (let i = 0; i < points; i++) {
+    const theta = (i / points) * (2 * Math.PI);
+    coords.push([centerLng + distanceX * Math.cos(theta), centerLat + distanceY * Math.sin(theta)]);
+  }
+  coords.push(coords[0]!);
+  return {
+    type: "Feature",
+    properties: {},
+    geometry: { type: "Polygon", coordinates: [coords] },
+  };
 }
 
 const ROUTE_SOURCE = "route";
@@ -22,15 +66,27 @@ export default function DeliveryMap({
   deliveryLat,
   driverLng,
   driverLat,
+  hotelLng,
+  hotelLat,
+  hotelBanner,
+  hotelName,
+  routeMode = "to_destination",
+  radiusKm,
   onMapClick,
 }: DeliveryMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const deliveryMarker = useRef<mapboxgl.Marker | null>(null);
   const driverMarker = useRef<mapboxgl.Marker | null>(null);
+  const hotelMarker = useRef<mapboxgl.Marker | null>(null);
   const animationFrame = useRef<number | null>(null);
   const currentDriverPos = useRef<{ lng: number; lat: number } | null>(null);
   const routeAbort = useRef<AbortController | null>(null);
+  const routeModeRef = useRef(routeMode);
+
+  useEffect(() => {
+    routeModeRef.current = routeMode;
+  }, [routeMode]);
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
@@ -74,6 +130,36 @@ export default function DeliveryMap({
           "line-opacity": 0.85,
         },
       });
+      // Delivery-radius circle — empty polygon by default. The radius
+      // effect below populates this with a real ring when both
+      // `radiusKm` and a hotel point are present.
+      map.current.addSource(RADIUS_SOURCE, {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.current.addLayer(
+        {
+          id: RADIUS_FILL_LAYER,
+          type: "fill",
+          source: RADIUS_SOURCE,
+          paint: { "fill-color": "#f97316", "fill-opacity": 0.08 },
+        },
+        ROUTE_LAYER,
+      );
+      map.current.addLayer(
+        {
+          id: RADIUS_LINE_LAYER,
+          type: "line",
+          source: RADIUS_SOURCE,
+          paint: {
+            "line-color": "#f97316",
+            "line-width": 2,
+            "line-opacity": 0.6,
+            "line-dasharray": [3, 2],
+          },
+        },
+        ROUTE_LAYER,
+      );
     });
 
     map.current.on("click", () => onMapClick?.());
@@ -81,8 +167,48 @@ export default function DeliveryMap({
     return () => {
       map.current?.remove();
       map.current = null;
+      // Reset all marker refs so the next mount (e.g. React strict-mode
+      // double-invoke) re-creates them. Without this, the existing refs
+      // point to orphaned markers detached from the removed map, and the
+      // `if (!driverMarker.current)` guard below would skip re-creation.
+      deliveryMarker.current = null;
+      driverMarker.current = null;
+      hotelMarker.current = null;
+      currentDriverPos.current = null;
     };
   }, []);
+
+  // Hotel marker — rounded image circle (or initial fallback). Re-renders
+  // when coords or banner change.
+  useEffect(() => {
+    if (!map.current) return;
+    if (hotelLng == null || hotelLat == null) {
+      hotelMarker.current?.remove();
+      hotelMarker.current = null;
+      return;
+    }
+
+    const initial = (hotelName ?? "?").trim().charAt(0).toUpperCase() || "?";
+    const inner = hotelBanner
+      ? `<img src="${hotelBanner}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+      : `<span style="font-weight:700;color:#7c2d12;font-size:14px;">${initial}</span>`;
+    const el = document.createElement("div");
+    el.style.cssText = `
+      width:36px;height:36px;border-radius:50%;
+      background:#fff;border:3px solid #fff;
+      box-shadow:0 2px 8px rgba(0,0,0,0.3);
+      overflow:hidden;display:flex;align-items:center;justify-content:center;
+      outline:2px solid #f97316;
+    `;
+    el.innerHTML = inner;
+
+    hotelMarker.current?.remove();
+    hotelMarker.current = new mapboxgl.Marker({ element: el })
+      .setLngLat([hotelLng, hotelLat])
+      .addTo(map.current);
+
+    fitBounds();
+  }, [hotelLng, hotelLat, hotelBanner, hotelName]);
 
   // Smoothly animate driver marker to new position & update route
   useEffect(() => {
@@ -152,8 +278,46 @@ export default function DeliveryMap({
     };
   }, [driverLng, driverLat]);
 
+  // When the route mode flips (e.g. order moves from food_ready → dispatched),
+  // redraw the polyline against the new endpoint and reframe the camera on
+  // the new active leg without waiting for the next driver tick.
+  useEffect(() => {
+    if (driverLng == null || driverLat == null) return;
+    fetchRoute(driverLng, driverLat);
+    fitBounds();
+  }, [routeMode, hotelLng, hotelLat]);
+
+  // Delivery-radius ring around the partner. Re-renders on hotel coord or
+  // radius change. Hidden when either is missing.
+  useEffect(() => {
+    const apply = () => {
+      const m = map.current;
+      if (!m) return;
+      const source = m.getSource(RADIUS_SOURCE) as mapboxgl.GeoJSONSource | undefined;
+      if (!source) return;
+      if (radiusKm == null || radiusKm <= 0 || hotelLng == null || hotelLat == null) {
+        source.setData({ type: "FeatureCollection", features: [] });
+        return;
+      }
+      source.setData(circlePolygon(hotelLng, hotelLat, radiusKm));
+    };
+    const m = map.current;
+    if (!m) return;
+    if (m.isStyleLoaded()) apply();
+    else m.once("load", apply);
+  }, [hotelLng, hotelLat, radiusKm]);
+
   async function fetchRoute(fromLng: number, fromLat: number) {
     if (!map.current) return;
+
+    // Pick endpoint based on current route mode. Fall back to destination if
+    // hotel coords are missing.
+    let toLng = deliveryLng;
+    let toLat = deliveryLat;
+    if (routeModeRef.current === "to_hotel" && hotelLng != null && hotelLat != null) {
+      toLng = hotelLng;
+      toLat = hotelLat;
+    }
 
     // Abort previous request
     routeAbort.current?.abort();
@@ -162,7 +326,7 @@ export default function DeliveryMap({
 
     try {
       const res = await fetch(
-        `https://api.mapbox.com/directions/v5/mapbox/driving/${fromLng},${fromLat};${deliveryLng},${deliveryLat}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`,
+        `https://api.mapbox.com/directions/v5/mapbox/driving/${fromLng},${fromLat};${toLng},${toLat}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`,
         { signal: controller.signal }
       );
       const data = await res.json();
@@ -184,11 +348,29 @@ export default function DeliveryMap({
 
   function fitBounds() {
     if (!map.current) return;
-    if (driverLng == null || driverLat == null) return;
 
+    // Frame only the active leg so the rider stays visible. The inactive
+    // marker (hotel pre-pickup → destination is hidden from fit;
+    // post-pickup → hotel is hidden from fit) is still rendered, just may
+    // sit outside the camera if it's far away.
     const bounds = new mapboxgl.LngLatBounds();
-    bounds.extend([deliveryLng, deliveryLat]);
-    bounds.extend([driverLng, driverLat]);
+    const useHotelAsTarget =
+      routeModeRef.current === "to_hotel" && hotelLng != null && hotelLat != null;
+    const targetLng = useHotelAsTarget ? hotelLng! : deliveryLng;
+    const targetLat = useHotelAsTarget ? hotelLat! : deliveryLat;
+
+    if (driverLng != null && driverLat != null) {
+      bounds.extend([driverLng, driverLat]);
+      bounds.extend([targetLng, targetLat]);
+    } else if (hotelLng != null && hotelLat != null) {
+      // No rider yet — show destination + hotel so both reference points
+      // are visible.
+      bounds.extend([deliveryLng, deliveryLat]);
+      bounds.extend([hotelLng, hotelLat]);
+    } else {
+      // Just the destination — leave the initial centered/zoomed view.
+      return;
+    }
 
     map.current.fitBounds(bounds, {
       padding: 60,

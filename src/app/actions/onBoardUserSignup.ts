@@ -6,12 +6,36 @@ import { addCategory } from "@/api/category";
 import { addMenu } from "@/api/menu";
 import { setAuthCookie } from "@/app/auth/actions";
 import { INSERT_QR_CODE } from "@/api/qrcodes";
+import plansData from "@/data/plans.json";
 
 interface OnboardingData {
     partner: any;
     categories: Record<string, any>;
     menu: { items: Record<string, any> };
 }
+
+// New partner accounts get a 30-day trial: ordering+delivery enabled,
+// storefront+newonboarding access-only. Mirrors signUpWithEmailForPartner.
+// See memory/new-partner-trial-defaults.md
+const NEW_PARTNER_TRIAL_FEATURE_FLAGS =
+    "ordering-true,delivery-true,storefront-false,newonboarding-false";
+
+const buildNewPartnerTrialSubscription = (country?: string) => {
+    const isIndia = (country || "").trim().toLowerCase() === "india";
+    const planId = isIndia ? "in_trial_30d" : "intl_trial_30d";
+    const planArray = isIndia
+        ? (plansData as any).india
+        : (plansData as any).international;
+    const plan = planArray.find((p: any) => p.id === planId);
+    const now = new Date();
+    const expiry = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    return {
+        plan,
+        status: "active" as const,
+        startDate: now.toISOString(),
+        expiryDate: expiry.toISOString(),
+    };
+};
 
 export const onBoardUserSignup = async (data: OnboardingData) => {
     try {
@@ -21,9 +45,14 @@ export const onBoardUserSignup = async (data: OnboardingData) => {
         // We assume the partner object structure matches what Hasura expects for partners_insert_input
         // and includes the referral_code and other fields set in get-started/page.tsx
 
-        // Ensure geo_location is properly formatted if it's just [0,0]
+        // Every new signup gets the 30-day trial. Caller-supplied feature_flags
+        // / subscription_details (e.g. the /get-started wizard pre-fills a
+        // free_plan stub) are intentionally overwritten — this server action is
+        // the policy boundary for new-user defaults.
         const partnerPayload = {
             ...partner,
+            feature_flags: NEW_PARTNER_TRIAL_FEATURE_FLAGS,
+            subscription_details: buildNewPartnerTrialSubscription(partner?.country),
             // referral_code is already in partner object from get-started
         };
 
@@ -63,7 +92,7 @@ export const onBoardUserSignup = async (data: OnboardingData) => {
         await setAuthCookie({
             id: newPartnerId,
             role: "partner",
-            feature_flags: "",
+            feature_flags: partnerPayload.feature_flags || "",
             status: "active",
         });
         // 1.5 Create Default QR Code (Table 1)

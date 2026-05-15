@@ -16,6 +16,7 @@ import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
+import { brandColorToHex, DEFAULT_BRAND_COLOR_HEX } from "@/lib/brandColor";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { ExternalLink, Upload, Loader2, RotateCcw } from "lucide-react";
 import { uploadFileToS3 } from "@/app/actions/aws-s3";
@@ -94,32 +95,7 @@ function parseSocialLinks(input: any): Record<string, any> {
     return typeof input === "object" ? input : {};
 }
 
-const BRAND_COLOR_MAP: Record<string, string> = {
-    "burnt-orange": "#e85d04",
-    "obsidian-gold": "#b8860b",
-    "royal-burgundy": "#8b1a4a",
-    "midnight-emerald": "#0d6b4e",
-    sapphire: "#1e4db7",
-    "charcoal-noir": "#2c2c2c",
-    "deep-violet": "#6b21a8",
-    "rose-blush": "#be185d",
-    "teal-luxe": "#0f766e",
-    "warm-copper": "#b45309",
-};
-const FALLBACK_BRAND = "#ff6a13";
-
-function resolveBrandColor(storefront: any): string {
-    const bc = storefront?.brandColor;
-    if (!bc) return FALLBACK_BRAND;
-    if (bc.startsWith("custom:")) {
-        const hex = bc.slice("custom:".length).trim();
-        if (/^#?[0-9a-fA-F]{3,8}$/.test(hex)) {
-            return hex.startsWith("#") ? hex : `#${hex}`;
-        }
-        return FALLBACK_BRAND;
-    }
-    return BRAND_COLOR_MAP[bc] || FALLBACK_BRAND;
-}
+// Brand color resolution is centralized in @/lib/brandColor.
 
 function mergeInfo(stored: any): InfoPageData {
     if (!stored || typeof stored !== "object") return { ...DEFAULT_INFO };
@@ -162,18 +138,17 @@ export function InfoPageSettings() {
     const username = (userData as any)?.username;
     const storeBanner = (userData as any)?.store_banner;
 
-    // Resolve the storefront brand color (used as the default for buttonColor)
+    // Resolve the brand color (used as the default for buttonColor). Prefer
+    // theme.brandColor; fall back to legacy storefront.brandColor.
     const brandColor = (() => {
-        const sf = (userData as any)?.storefront_settings;
-        let parsed: any = null;
-        if (sf) {
-            try {
-                parsed = typeof sf === "string" ? JSON.parse(sf) : sf;
-            } catch {
-                parsed = null;
-            }
-        }
-        return resolveBrandColor(parsed);
+        const parseJson = (v: any) => {
+            if (!v) return null;
+            try { return typeof v === "string" ? JSON.parse(v) : v; } catch { return null; }
+        };
+        const themeParsed = parseJson((userData as any)?.theme);
+        const sfParsed = parseJson((userData as any)?.storefront_settings);
+        const token = themeParsed?.brandColor || sfParsed?.brandColor;
+        return token ? brandColorToHex(token) : DEFAULT_BRAND_COLOR_HEX;
     })();
     const effectiveButtonColor = info.buttonColor || brandColor;
 

@@ -1,7 +1,15 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Bike, XCircle } from "lucide-react";
+
+// Mapbox-based live tracker reused from the customer order page. Lazy-loaded
+// (ssr: false) because mapbox-gl needs window/document.
+const DeliveryMap = dynamic(
+    () => import("@/app/order/[id]/DeliveryMap"),
+    { ssr: false },
+);
 import {
     Table,
     TableBody,
@@ -33,16 +41,135 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
+import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { getFeatures } from "@/lib/getFeatures";
 
 
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { DeliveryBoyAssignment } from "./DeliveryBoyAssignment";
+import { checkAllProvidersAvailability } from "@/app/actions/deliveryAgent";
 
 interface OrderDetailsProps {
     order: Order | null;
     onBack: () => void;
     onEdit?: () => void;
+}
+
+/**
+ * Small sub-panel that probes every registered 3PL provider for this
+ * order's pickup→drop pair and shows the count of available partners.
+ * Mounts only when the order is in `pending` or `accepted` (the window
+ * where the partner can still decide how to dispatch). Cached on the hub
+ * (60 s per rounded coord pair), so re-mounts are cheap.
+ */
+function ProviderAvailabilityPanel({
+    pickup,
+    drop,
+    status,
+}: {
+    pickup: { lat: number; lng: number } | null;
+    drop: { lat: number; lng: number } | null;
+    status: string | undefined;
+}) {
+    const eligible = status === "pending" || status === "accepted";
+
+    const [data, setData] = useState<{
+        totalProviders: number;
+        availableCount: number;
+        providers: Array<{
+            provider: string;
+            displayName: string;
+            available: boolean;
+            etaToPickupMin?: number;
+            distanceKm?: number;
+            estimatedPrice?: number;
+            reason?: string;
+        }>;
+    } | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (!eligible || !pickup || !drop) {
+            setData(null);
+            return;
+        }
+        let cancelled = false;
+        setLoading(true);
+        (async () => {
+            const res = await checkAllProvidersAvailability({
+                pickup,
+                drop,
+                paymentMethod: "online",
+            });
+            if (cancelled) return;
+            setLoading(false);
+            if (res.ok) setData(res.data as any);
+            else setData(null);
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [eligible, pickup?.lat, pickup?.lng, drop?.lat, drop?.lng]);
+
+    if (!eligible) return null;
+    if (!pickup || !drop) return null;
+    if (loading && !data) {
+        return (
+            <div className="rounded-md border bg-muted/20 p-3 text-xs text-muted-foreground">
+                Checking 3PL serviceability…
+            </div>
+        );
+    }
+    if (!data) return null;
+
+    const tone =
+        data.availableCount === 0
+            ? "border-red-200 bg-red-50"
+            : "border-emerald-200 bg-emerald-50";
+    return (
+        <div className={`rounded-md border p-3 ${tone}`}>
+            <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">
+                    {data.availableCount} of {data.totalProviders} delivery partner
+                    {data.totalProviders === 1 ? "" : "s"} can serve this address
+                </p>
+            </div>
+            {data.providers.length > 0 && (
+                <ul className="mt-2 space-y-1 text-xs">
+                    {data.providers.map((p) => (
+                        <li
+                            key={p.provider}
+                            className="flex items-center justify-between gap-2"
+                        >
+                            <span className="capitalize">
+                                {p.displayName || p.provider}
+                            </span>
+                            {p.available ? (
+                                <span className="font-medium text-emerald-700">
+                                    available
+                                    {p.estimatedPrice !== undefined
+                                        ? ` · ₹${p.estimatedPrice.toFixed(0)}`
+                                        : ""}
+                                    {p.distanceKm !== undefined
+                                        ? ` · ${p.distanceKm.toFixed(1)} km`
+                                        : ""}
+                                </span>
+                            ) : (
+                                <span className="text-muted-foreground">
+                                    {p.reason === "DISTANCE_TOO_LONG"
+                                        ? "too far"
+                                        : p.reason === "ERROR"
+                                            ? "error"
+                                            : "unserviceable"}
+                                </span>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
 }
 
 export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
@@ -52,10 +179,21 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
     const [paymentModalOpen, setPaymentModalOpen] = React.useState(false);
     const [passwordModalOpen, setPasswordModalOpen] = React.useState(false);
     const [pendingAction, setPendingAction] = React.useState<(() => void) | null>(null);
+    const [cancelOpen, setCancelOpen] = React.useState(false);
 
     if (!order) return null;
 
     const handleUpdateOrderStatus = async (status: string) => {
+        if (status === "cancelled") {
+            if (order.status !== "pending") {
+                toast.error(
+                    `Only pending orders can be cancelled (current status: ${order.status})`,
+                );
+                return;
+            }
+            setCancelOpen(true);
+            return;
+        }
         if (order.status === "completed") {
             setPendingAction(() => async () => {
                 try {
@@ -224,6 +362,23 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 </div>
             </div>
 
+            {order.status === "cancelled" && order.cancel_reason && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                        <XCircle className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
+                            Cancellation reason
+                            {order.cancelled_by ? ` · by ${order.cancelled_by}` : ""}
+                        </p>
+                        <p className="mt-1 text-sm sm:text-base text-red-900 break-words">
+                            {order.cancel_reason}
+                        </p>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="p-4 border rounded-lg bg-card">
                     <h3 className="font-semibold mb-3">Customer Details</h3>
@@ -295,11 +450,214 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     </div>
                 </div>
 
-                {/* Delivery Boy Assignment */}
-                {order.type === "delivery" && order.deliveryAddress && (
-                    <DeliveryBoyAssignment order={order} />
-                )}
+                {/* Delivery Boy Assignment — hidden when partner uses a 3PL delivery agent */}
+                {order.type === "delivery" &&
+                    order.status !== "completed" &&
+                    order.status !== "cancelled" &&
+                    !getFeatures((userData as Partner)?.feature_flags || null).delivery_agent.enabled && (
+                        <DeliveryBoyAssignment order={order} />
+                    )}
             </div>
+
+            {(() => {
+                const f = getFeatures((userData as Partner)?.feature_flags || null);
+                return f.growjet_delivery.access || f.delivery_agent.access;
+            })() && (() => {
+                const partner = userData as Partner | null;
+                const agent = order.delivery_agent;
+                const agentLat = agent?.location?.latitude;
+                const agentLng = agent?.location?.longitude;
+                const dropLng = order.delivery_location?.coordinates?.[0];
+                const dropLat = order.delivery_location?.coordinates?.[1];
+                const hotelGeo = partner?.geo_location;
+                const hotelCoords =
+                    hotelGeo && typeof hotelGeo === "object" && Array.isArray((hotelGeo as any).coordinates)
+                        ? ((hotelGeo as any).coordinates as [number, number])
+                        : null;
+                const hotelLng = hotelCoords?.[0] ?? null;
+                const hotelLat = hotelCoords?.[1] ?? null;
+                const routeMode: "to_destination" | "to_hotel" =
+                    order.status === "dispatched" || order.status === "in_transit"
+                        ? "to_destination"
+                        : "to_hotel";
+                const lastUpdated = agent?.location?.lastUpdated;
+                const lastUpdatedAgo = lastUpdated
+                    ? Math.max(0, Math.floor((Date.now() - new Date(lastUpdated).getTime()) / 1000))
+                    : null;
+                const formatAgo = (sec: number) =>
+                    sec < 60
+                        ? `${sec}s ago`
+                        : sec < 3600
+                            ? `${Math.floor(sec / 60)}m ago`
+                            : `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m ago`;
+                const canShowMap =
+                    agentLat != null && agentLng != null && dropLat != null && dropLng != null
+                    && order.status !== "completed" && order.status !== "cancelled";
+
+                return (
+                    <div className="border rounded-lg bg-card p-4 space-y-3">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <h3 className="font-semibold">Delivery Agent</h3>
+                            <div className="flex items-center gap-2">
+                                {order.delivery_provider === "adloggs" && order.delivery_provider_order_id && (
+                                    <Badge className="bg-blue-100 text-blue-800 font-mono">
+                                        adloggs · {order.delivery_provider_state ?? "—"}
+                                    </Badge>
+                                )}
+                                {order.growjet_order_number ? (
+                                    <Badge className="bg-green-100 text-green-800 font-mono">
+                                        ✓ {order.growjet_order_number}
+                                    </Badge>
+                                ) : !order.delivery_provider_order_id ? (
+                                    <Badge variant="outline" className="text-muted-foreground font-mono">
+                                        Nil
+                                    </Badge>
+                                ) : null}
+                            </div>
+                        </div>
+                        {getFeatures((userData as Partner)?.feature_flags || null).delivery_agent.access && (
+                            <ProviderAvailabilityPanel
+                                pickup={
+                                    hotelLat != null && hotelLng != null
+                                        ? { lat: hotelLat, lng: hotelLng }
+                                        : null
+                                }
+                                drop={
+                                    dropLat != null && dropLng != null
+                                        ? { lat: dropLat, lng: dropLng }
+                                        : null
+                                }
+                                status={order.status}
+                            />
+                        )}
+                        {order.delivery_provider === "adloggs" && order.delivery_provider_meta?.trackUrl && (
+                            <a
+                                href={order.delivery_provider_meta.trackUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 underline"
+                            >
+                                Open Adloggs tracking page →
+                            </a>
+                        )}
+                        {order.delivery_provider === "adloggs" &&
+                            order.status !== "completed" &&
+                            order.status !== "cancelled" &&
+                            (() => {
+                                const otps = (order.delivery_provider_meta as any)?.otps;
+                                const pickup = otps?.pickup_otp;
+                                const drop = otps?.delivery_otp;
+                                if (!pickup && !drop) return null;
+                                return (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {pickup && (
+                                            <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                                                    Pickup OTP
+                                                </p>
+                                                <p className="mt-0.5 font-mono font-bold tracking-[0.2em] text-blue-900">
+                                                    {pickup}
+                                                </p>
+                                                <p className="mt-0.5 text-[10px] text-blue-700/80">
+                                                    Tell the rider when they arrive
+                                                </p>
+                                            </div>
+                                        )}
+                                        {drop && (
+                                            <div className="rounded-md border border-orange-200 bg-orange-50 px-3 py-2">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wide text-orange-700">
+                                                    Delivery OTP
+                                                </p>
+                                                <p className="mt-0.5 font-mono font-bold tracking-[0.2em] text-orange-900">
+                                                    {drop}
+                                                </p>
+                                                <p className="mt-0.5 text-[10px] text-orange-700/80">
+                                                    Customer reads this at drop-off
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+
+                        {agent ? (
+                            <>
+                                <div className="flex items-center gap-3 rounded-md border bg-muted/30 p-3">
+                                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-700">
+                                        <Bike className="h-5 w-5" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate font-medium">
+                                            {agent.name || "Rider being assigned"}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {(() => {
+                                                const lsp = (order.delivery_provider_meta as any)?.rider_platform?.name;
+                                                const provider = agent.provider || order.delivery_provider;
+                                                if (lsp && provider) return `${lsp} · via ${provider}`;
+                                                if (lsp) return lsp;
+                                                if (provider) return `${provider} delivery partner`;
+                                                return "Delivery partner";
+                                            })()}
+                                        </p>
+                                    </div>
+                                    {agent.phone && (
+                                        <a
+                                            href={`tel:${agent.phone}`}
+                                            className="inline-flex items-center gap-1.5 rounded-full bg-orange-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-600"
+                                        >
+                                            <Phone className="h-3.5 w-3.5" />
+                                            {agent.phone}
+                                        </a>
+                                    )}
+                                </div>
+
+                                {canShowMap ? (
+                                    <div className="relative h-64 overflow-hidden rounded-md border">
+                                        <DeliveryMap
+                                            deliveryLng={dropLng!}
+                                            deliveryLat={dropLat!}
+                                            driverLng={agentLng}
+                                            driverLat={agentLat}
+                                            hotelLng={hotelLng}
+                                            hotelLat={hotelLat}
+                                            hotelBanner={partner?.store_banner ?? null}
+                                            hotelName={partner?.store_name ?? null}
+                                            routeMode={routeMode}
+                                            radiusKm={partner?.delivery_rules?.delivery_radius ?? null}
+                                            onMapClick={() => {
+                                                const destLat = routeMode === "to_hotel" && hotelLat != null
+                                                    ? hotelLat
+                                                    : dropLat;
+                                                const destLng = routeMode === "to_hotel" && hotelLng != null
+                                                    ? hotelLng
+                                                    : dropLng;
+                                                const url = `https://www.google.com/maps/dir/${agentLat},${agentLng}/${destLat},${destLng}`;
+                                                window.open(url, "_blank");
+                                            }}
+                                        />
+                                        {lastUpdatedAgo != null && (
+                                            <div className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-[11px] shadow">
+                                                <span className="relative flex h-2 w-2">
+                                                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                                                    <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                                                </span>
+                                                <span className="font-medium text-gray-800">
+                                                    Live · {formatAgo(lastUpdatedAgo)}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : null}
+                            </>
+                        ) : (
+                            <p className="text-xs text-muted-foreground">
+                                Rider details will appear once the delivery partner assigns one.
+                            </p>
+                        )}
+                    </div>
+                );
+            })()}
 
             {(order.payment_method || order.is_paid) && (
                 <div className="border rounded-lg bg-card p-4">
@@ -448,6 +806,13 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 onClose={() => setPasswordModalOpen(false)}
                 onSuccess={() => pendingAction?.()}
                 actionDescription="edit this completed order"
+            />
+
+            <CancelOrderDialog
+                open={cancelOpen}
+                onOpenChange={setCancelOpen}
+                orderId={order.id}
+                orderShortId={order.display_id || order.id.slice(0, 8)}
             />
         </div >
     );

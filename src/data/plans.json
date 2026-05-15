@@ -34,6 +34,26 @@
             }
         },
         {
+            "id": "intl_trial_30d",
+            "name": "Free Trial (30 days)",
+            "price": "Free",
+            "description": "Try ordering and delivery features risk-free for a month",
+            "features": [
+                "All features included (Digital Menu + Ordering + Delivery)",
+                "30 days validity"
+            ],
+            "buttonText": "Start Free Trial",
+            "popular": false,
+            "period": "",
+            "period_days": 30,
+            "disabled": true,
+            "features_enabled": {
+                "ordering": true,
+                "delivery": true
+            },
+            "scan_limit": -1
+        },
+        {
             "id": "int_digital_monthly",
             "rz_plan_id": "plan_SIjWQgXZj9I2Vx",
             "name": "Digital Menu Monthly",
@@ -114,6 +134,26 @@
                 "offers": true,
                 "priority_support": false
             }
+        },
+        {
+            "id": "in_trial_30d",
+            "name": "Free Trial (30 days)",
+            "price": "Free",
+            "description": "Try ordering and delivery features risk-free for a month",
+            "features": [
+                "All features included (Digital Menu + Ordering + Delivery)",
+                "30 days validity"
+            ],
+            "buttonText": "Start Free Trial",
+            "popular": false,
+            "period": "",
+            "period_days": 30,
+            "disabled": true,
+            "features_enabled": {
+                "ordering": true,
+                "delivery": true
+            },
+            "scan_limit": -1
         },
         {
             "id": "in_trial",

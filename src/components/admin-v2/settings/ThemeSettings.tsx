@@ -18,11 +18,18 @@ import {
   DEFAULT_THEME,
 } from "@/components/hotelDetail/ThemeChangeButton";
 import { MENUSTYLES } from "@/components/hotelDetail/MenuStyleModal";
-import { Paintbrush, LayoutGrid, Check, Grid3X3, Crown, ShoppingCart } from "lucide-react";
+import { Paintbrush, LayoutGrid, Check, Grid3X3, Crown, ShoppingCart, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";
 import { MobilePreview } from "./MobilePreview";
 import { isFreePlan } from "@/lib/getPlanLimits";
 import { UpgradePlanDialog } from "../UpgradePlanDialog";
+import {
+    BRAND_COLORS,
+    DEFAULT_BRAND_COLOR_ID,
+    brandColorToHex,
+} from "@/lib/brandColor";
+import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 
 const HexColorPicker = dynamic(
   () =>
@@ -80,6 +87,9 @@ export function ThemeSettings() {
   const [checkoutStyle, setCheckoutStyle] = useState<"default" | "v2">(
     currentTheme.checkoutStyle || "default",
   );
+  const [brandColor, setBrandColor] = useState<string>(
+    currentTheme.brandColor || DEFAULT_BRAND_COLOR_ID,
+  );
   const [activeColorPicker, setActiveColorPicker] = useState<
     "text" | "bg" | "accent" | null
   >(null);
@@ -94,6 +104,7 @@ export function ThemeSettings() {
       );
       setShowGrid(parsed.showGrid ?? false);
       setCheckoutStyle(parsed.checkoutStyle || "default");
+      setBrandColor(parsed.brandColor || DEFAULT_BRAND_COLOR_ID);
     }
   }, [userTheme]);
 
@@ -107,6 +118,7 @@ export function ThemeSettings() {
         showGrid,
         checkoutStyle,
         infoAlignment: currentTheme.infoAlignment,
+        brandColor,
       };
       toast.loading("Saving theme...");
       const themeStr = JSON.stringify(newTheme);
@@ -169,6 +181,103 @@ export function ThemeSettings() {
                 </button>
               ))}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Brand Color - applies across storefront, onboarding splash, and other touchpoints */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              Brand Color
+            </CardTitle>
+            <CardDescription>
+              Used for buttons and accents on your storefront, onboarding splash, and other brand surfaces. Applies even when the storefront page is unpublished.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {BRAND_COLORS.map((c) => {
+                const sel = brandColor === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setBrandColor(c.id)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl border-2 p-3 text-left transition",
+                      sel
+                        ? "border-foreground bg-foreground/5 shadow-sm"
+                        : "border-border bg-secondary/30 hover:border-foreground/30"
+                    )}
+                  >
+                    <div
+                      className="h-8 w-8 shrink-0 rounded-full ring-2 ring-black/10 ring-offset-2"
+                      style={{ backgroundColor: c.hex }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold truncate">{c.name}</p>
+                      {sel && (
+                        <p className="text-[10px] font-semibold text-emerald-600">Active</p>
+                      )}
+                    </div>
+                    {sel && <Check className="h-4 w-4 shrink-0" />}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setBrandColor((prev) => prev.startsWith("custom") ? prev : "custom:#e85d04")}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl border-2 p-3 text-left transition",
+                  brandColor.startsWith("custom")
+                    ? "border-foreground bg-foreground/5 shadow-sm"
+                    : "border-border bg-secondary/30 hover:border-foreground/30"
+                )}
+              >
+                <div
+                  className="h-8 w-8 shrink-0 rounded-full ring-2 ring-black/10 ring-offset-2"
+                  style={{
+                    background:
+                      "conic-gradient(#e85d04, #b8860b, #0d6b4e, #1e4db7, #6b21a8, #be185d, #e85d04)",
+                  }}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold">Custom</p>
+                  {brandColor.startsWith("custom") && (
+                    <p className="text-[10px] font-semibold text-emerald-600">Active</p>
+                  )}
+                </div>
+                {brandColor.startsWith("custom") && <Check className="h-4 w-4 shrink-0" />}
+              </button>
+            </div>
+
+            {brandColor.startsWith("custom") && (
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={brandColor.replace("custom:", "") || "#e85d04"}
+                  onChange={(e) => setBrandColor(`custom:${e.target.value}`)}
+                  className="h-10 w-10 cursor-pointer rounded-lg border-0 p-0"
+                />
+                <Input
+                  value={brandColor.replace("custom:", "") || "#e85d04"}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (/^#[0-9a-fA-F]{0,6}$/.test(v)) {
+                      setBrandColor(`custom:${v}`);
+                    }
+                  }}
+                  placeholder="#e85d04"
+                  className="w-28 font-mono text-sm uppercase"
+                  maxLength={7}
+                />
+                <div
+                  className="h-10 flex-1 rounded-lg"
+                  style={{ backgroundColor: brandColorToHex(brandColor) }}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
 

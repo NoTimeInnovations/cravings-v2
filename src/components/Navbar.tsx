@@ -266,6 +266,19 @@ const KNOWN_STATIC_ROUTES = new Set([
   "whatsappQr",
 ]);
 
+// Partner-scoped subroutes (i.e. /<username>/<slug>) where the global
+// Menuthere navbar should be hidden in favor of the partner's own chrome.
+const PARTNER_SUBROUTES = new Set([
+  "home",
+  "info",
+  "about-us",
+  "contact-us",
+  "privacy-policy",
+  "terms-and-conditions",
+  "refund-and-cancellation-policy",
+  "shipping-and-delivery-policy",
+]);
+
 import { Partner, useAuthStore } from "@/store/authStore";
 import { ButtonV2 } from "@/components/ui/ButtonV2";
 
@@ -291,6 +304,14 @@ export function Navbar() {
   const solutionsDropdownRef = useRef<HTMLDivElement>(null);
   const resourcesDropdownRef = useRef<HTMLDivElement>(null);
   const [pillStyle, setPillStyle] = useState({ left: 0, width: 0, opacity: 0 });
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const toggleMobileSection = (section: string) => {
     setExpandedMobileSection(
@@ -433,7 +454,10 @@ export function Navbar() {
       // and the /{username}/info storefront page.
       const segments = currentPath.split("/").filter(Boolean);
       if (segments.length === 1) return !KNOWN_STATIC_ROUTES.has(segments[0]);
-      if (segments.length === 2 && segments[1] === "info") {
+      if (
+        segments.length === 2 &&
+        PARTNER_SUBROUTES.has(segments[1])
+      ) {
         return !KNOWN_STATIC_ROUTES.has(segments[0]);
       }
       return false;
@@ -468,8 +492,12 @@ export function Navbar() {
           >
             Login
           </ButtonV2>
-          <ButtonV2 href="/get-started" variant="primary">
-            Start for free
+          <ButtonV2
+            href="https://cal.id/menuthere"
+            variant="primary"
+            target="_blank"
+          >
+            Book a Demo
           </ButtonV2>
         </div>
       );
@@ -823,11 +851,45 @@ export function Navbar() {
   };
 
   return (
-    <header className="fixed w-full z-[60] top-0 left-0 right-0 geist-font border-b border-stone-200">
-      {/* Main Navbar */}
-      <nav className="w-full bg-[#fcfbf7]">
-        <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">
-          <div className="flex justify-between h-16 items-center">
+    <header
+      className="fixed top-0 left-0 right-0 z-[60] geist-font will-change-[padding] ease-[cubic-bezier(0.22,1,0.36,1)]"
+      style={{
+        paddingTop: scrolled ? "12px" : "0px",
+        paddingLeft: scrolled
+          ? "max(16px, calc((100vw - 64rem) / 2))"
+          : "0px",
+        paddingRight: scrolled
+          ? "max(16px, calc((100vw - 64rem) / 2))"
+          : "0px",
+        transitionProperty: "padding",
+        transitionDuration: "750ms",
+        transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
+      }}
+    >
+      <nav
+        className={cn(
+          "w-full ease-[cubic-bezier(0.22,1,0.36,1)]",
+          scrolled
+            ? "rounded-full bg-[#fdf5ee]/95 backdrop-blur-md border border-stone-200/60 shadow-[0_10px_30px_-12px_rgba(11,11,12,0.18)]"
+            : "rounded-none bg-transparent border border-transparent shadow-none",
+        )}
+        style={{
+          transitionProperty:
+            "background-color, border-color, border-radius, box-shadow",
+          transitionDuration: "750ms",
+          transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
+        }}
+      >
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
+          <div
+            className="flex justify-between items-center"
+            style={{
+              height: scrolled ? "56px" : "64px",
+              transitionProperty: "height",
+              transitionDuration: "750ms",
+              transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
+            }}
+          >
             {/* Left: Branding + Nav Links */}
             <div className="flex items-center gap-10">
               {renderBranding()}
@@ -1114,11 +1176,12 @@ export function Navbar() {
               {!userData && (
                 <div className="flex flex-col gap-3">
                   <ButtonV2
-                    href="/get-started"
+                    href="https://cal.id/menuthere"
                     variant="primary"
+                    target="_blank"
                     className="w-full justify-center"
                   >
-                    Start for free
+                    Book a Demo
                   </ButtonV2>
                   <ButtonV2
                     href="/login"

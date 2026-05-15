@@ -137,7 +137,15 @@ query GetPartnerStorefrontByUsername($username: String!) {
     phone
     location
     location_details
-    storefront_config
+    geo_location
+    storefront_settings
+    website_config
+    social_links
+    currency
+    country
+    country_code
+    theme
+    subscription_details
   }
 }
 `;
@@ -218,19 +226,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     subscription_details
     storefront_settings
     timezone
-    menus(where: {
-    deletion_status: {_eq: 0},
-    _and: [
-      {
-        category: {
-          _or: [
-            {is_active: {_eq: true}},
-            {name: {_eq: "custom"}}
-          ]
-        }
-      }
-    ]
-  }) {
+    menus(where: { deletion_status: {_eq: 0} }) {
       category {
         name
         id

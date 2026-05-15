@@ -28,6 +28,11 @@ export interface HotelPageData {
   selectedCategory: string;
 }
 
+export interface PartnerContact {
+  phone?: string | null;
+  storeName?: string | null;
+}
+
 export async function fetchHotelDataById(hotelId: string) {
   const getHotelData = unstable_cache(
     async (id: string) => {
@@ -75,12 +80,21 @@ export async function processHotelPage(
   hotelId: string,
   search: string | undefined,
   cat: string | undefined
-): Promise<{ pageStatus: HotelPageStatus; data?: HotelPageData }> {
+): Promise<{
+  pageStatus: HotelPageStatus;
+  data?: HotelPageData;
+  partnerContact?: PartnerContact;
+}> {
   let hoteldata = await fetchHotelDataById(hotelId);
 
   if (!hoteldata) {
     return { pageStatus: { status: "not_found" } };
   }
+
+  const partnerContact: PartnerContact = {
+    phone: (hoteldata as any)?.phone,
+    storeName: (hoteldata as any)?.store_name,
+  };
 
   // Filter expired offers
   if (hoteldata?.offers) {
@@ -362,7 +376,7 @@ export async function processHotelPage(
       const isUnlimited = limit === -1;
 
       if (!isUnlimited && currentTotalScans >= limit) {
-        return { pageStatus: { status: "scan_limit_reached" } };
+        return { pageStatus: { status: "scan_limit_reached" }, partnerContact };
       }
     }
   }
@@ -372,11 +386,11 @@ export async function processHotelPage(
   const isExpired = expiryDateStr && new Date(expiryDateStr) < new Date();
 
   if (isExpired) {
-    return { pageStatus: { status: "subscription_expired" } };
+    return { pageStatus: { status: "subscription_expired" }, partnerContact };
   }
 
   if (hoteldata?.status === "inactive") {
-    return { pageStatus: { status: "inactive" } };
+    return { pageStatus: { status: "inactive" }, partnerContact };
   }
 
   // Filter and sort menus

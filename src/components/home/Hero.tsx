@@ -1,29 +1,707 @@
-import { ButtonV2 } from "@/components/ui/ButtonV2";
+"use client";
+
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useLoadScript } from "@react-google-maps/api";
+import { toast } from "sonner";
+import { Search, MapPin, X, Sparkles, ArrowRight } from "lucide-react";
+
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+const LIBRARIES: ["places"] = ["places"];
+
+interface SelectedPlace {
+  placeId: string;
+  name: string;
+  address: string;
+}
 
 export default function Hero() {
+  const router = useRouter();
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: LIBRARIES,
+  });
+
+  const [search, setSearch] = useState("");
+  const [predictions, setPredictions] = useState<
+    google.maps.places.AutocompletePrediction[]
+  >([]);
+  const [selected, setSelected] = useState<SelectedPlace | null>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [typedPlaceholder, setTypedPlaceholder] = useState("Burger Town");
+
+  const autocompleteServiceRef =
+    useRef<google.maps.places.AutocompleteService | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchBoxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isLoaded && !autocompleteServiceRef.current) {
+      autocompleteServiceRef.current =
+        new google.maps.places.AutocompleteService();
+    }
+  }, [isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded || !autocompleteServiceRef.current) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const q = search.trim();
+    if (!q || selected) {
+      setPredictions([]);
+      return;
+    }
+    debounceRef.current = setTimeout(() => {
+      autocompleteServiceRef.current!.getPlacePredictions(
+        { input: q, types: ["establishment"] },
+        (results, status) => {
+          if (
+            status === google.maps.places.PlacesServiceStatus.OK &&
+            results
+          ) {
+            setPredictions(results);
+            setShowDropdown(true);
+          } else {
+            setPredictions([]);
+          }
+        },
+      );
+    }, 250);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [search, isLoaded, selected]);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (!searchBoxRef.current?.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  useEffect(() => {
+    if (search || selected) return;
+    const examples = [
+      "Burger Town",
+      "Pizza Palace",
+      "Spice Garden",
+      "Brew & Bite",
+      "Sushi Express",
+    ];
+    let exampleIdx = 0;
+    let charIdx = examples[0].length;
+    let deleting = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      const word = examples[exampleIdx];
+      if (!deleting) {
+        charIdx += 1;
+        setTypedPlaceholder(word.slice(0, charIdx));
+        if (charIdx === word.length) {
+          timer = setTimeout(() => {
+            deleting = true;
+            tick();
+          }, 1800);
+          return;
+        }
+      } else {
+        charIdx -= 1;
+        setTypedPlaceholder(word.slice(0, charIdx));
+        if (charIdx === 0) {
+          deleting = false;
+          exampleIdx = (exampleIdx + 1) % examples.length;
+        }
+      }
+      timer = setTimeout(tick, deleting ? 35 : 80);
+    };
+    timer = setTimeout(tick, 1800);
+    return () => clearTimeout(timer);
+  }, [search, selected]);
+
+  const handlePickPrediction = useCallback(
+    (p: google.maps.places.AutocompletePrediction) => {
+      setSelected({
+        placeId: p.place_id,
+        name: p.structured_formatting?.main_text || p.description,
+        address: p.structured_formatting?.secondary_text || "",
+      });
+      setSearch(p.structured_formatting?.main_text || p.description);
+      setPredictions([]);
+      setShowDropdown(false);
+    },
+    [],
+  );
+
+  const handleClearSelection = () => {
+    setSelected(null);
+    setSearch("");
+    setPredictions([]);
+  };
+
+  const handleGenerate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selected) {
+      toast.error("Pick your business from the dropdown");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      sessionStorage.setItem("gbp_signup_place", JSON.stringify(selected));
+    } catch {
+      /* storage may be disabled — auth page falls back to URL params */
+    }
+    const params = new URLSearchParams({
+      placeId: selected.placeId,
+      name: selected.name,
+    });
+    router.push(`/signup-from-google?${params.toString()}`);
+  };
+
   return (
-    <section className="flex items-center justify-center px-5 pb-20 pt-32 md:pt-40 bg-[#fcfbf7]">
-      <div className="w-full max-w-2xl mx-auto text-center flex flex-col items-center">
-        {/* Heading */}
-        <h1 className="geist-font text-3xl sm:text-4xl md:text-[3.25rem] md:leading-[1.15] font-semibold text-gray-900 tracking-tight">
-          Your restaurant&apos;s own delivery app
-        </h1>
+    <section
+      className="relative min-h-[calc(100vh-4rem)] pt-20 md:pt-24"
+      style={{
+        background:
+          "radial-gradient(120% 80% at 80% 0%, #FFF1DF 0%, #FAF5EC 40%, #F6EFE0 100%)",
+      }}
+    >
+      <div className="relative mx-auto max-w-7xl px-6 md:px-10 lg:px-20">
+        <div className="flex flex-col md:flex-row gap-12 md:gap-16 pt-10 md:pt-12 pb-32">
+          {/* LEFT — copy + CTA */}
+          <div className="flex-1 flex flex-col max-w-xl">
+            {/* Eyebrow chip */}
+            <a
+              href="https://www.producthunt.com/products/menuthere"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="self-start inline-flex items-center gap-2.5 pl-1.5 pr-3.5 py-1.5 rounded-full bg-white/70 border border-[rgba(11,11,12,0.08)] text-[13px] text-[#2A2A2D] backdrop-blur-md hover:bg-white/85 transition-colors"
+            >
+              <span className="px-2 py-0.5 bg-[#FF6B2C] text-white rounded-full text-[11px] font-semibold tracking-wider uppercase">
+                New
+              </span>
+              <span>Live on Product Hunt — #22 today</span>
+              <svg width="14" height="14" viewBox="0 0 14 14" className="ml-0.5">
+                <path
+                  d="M3 7h8m0 0L7.5 3.5M11 7l-3.5 3.5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </svg>
+            </a>
 
-        {/* Subtitle */}
-        <p className="geist-font text-lg text-[#544b47] max-w-md mt-5 leading-relaxed text-pretty">
-          Stop paying 30% to aggregators. Your own ordering app with Petpooja POS, delivery app &amp; branded restaurant app.
-        </p>
+            {/* Headline */}
+            <h1
+              className="mt-6 text-[#0B0B0C] font-medium tracking-tight"
+              style={{
+                fontSize: "clamp(40px, 6vw, 64px)",
+                lineHeight: 1.02,
+                letterSpacing: "-0.035em",
+              }}
+            >
+              Own your orders.
+              <br />
+              <span
+                className="text-[#A6A6AB]"
+                style={{
+                  fontStyle: "italic",
+                  fontFamily: "'Instrument Serif', Georgia, serif",
+                  fontWeight: 400,
+                  fontSize: "clamp(46px, 6.8vw, 72px)",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Own your customers.
+              </span>
+            </h1>
 
-        {/* CTA Buttons */}
-        <div className="flex items-center gap-3 mt-8">
-          <ButtonV2 href="https://cal.id/menuthere" variant="primary">
-            Book a Demo
-          </ButtonV2>
-          <ButtonV2 href="/help-center" variant="secondary">
-            Contact Support
-          </ButtonV2>
+            {/* Subhead */}
+            <p className="mt-5 text-[14px] sm:text-[15px] text-[#57575B] leading-relaxed max-w-md tracking-[-0.005em]">
+              Skip the 30% aggregator cut. Menuthere spins up your branded
+              ordering &amp; delivery platform in minutes.
+            </p>
+
+            {/* Search CTA */}
+            <form onSubmit={handleGenerate} className="mt-8 w-full max-w-[520px]">
+              <div className="inline-flex items-center gap-2 text-[12px] font-medium tracking-wider uppercase text-[#76767B] mb-2.5">
+                <span
+                  className="inline-block w-1.5 h-1.5 rounded-full bg-[#FF6B2C]"
+                  style={{ boxShadow: "0 0 0 4px rgba(255,107,44,0.18)" }}
+                />
+                Find your business on Google
+              </div>
+
+              <div ref={searchBoxRef} className="relative">
+                {selected ? (
+                  <div
+                    className="flex items-center gap-2 p-1.5 bg-white rounded-[14px] border border-[rgba(11,11,12,0.1)]"
+                    style={{
+                      boxShadow:
+                        "0 1px 0 rgba(11,11,12,0.02), 0 14px 30px -20px rgba(11,11,12,0.18)",
+                    }}
+                  >
+                    <div className="flex items-center flex-1 min-w-0 gap-2.5 px-3 py-2">
+                      <MapPin className="h-4 w-4 text-[#76767B] shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-medium text-[#0B0B0C] truncate leading-tight">
+                          {selected.name}
+                        </p>
+                        {selected.address && (
+                          <p className="text-[11px] text-[#76767B] truncate">
+                            {selected.address}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleClearSelection}
+                        className="text-[#A6A6AB] hover:text-[#0B0B0C] shrink-0"
+                        aria-label="Clear selection"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="inline-flex items-center gap-1.5 bg-[#0B0B0C] text-white rounded-[10px] px-4 py-2.5 text-[14px] font-medium hover:bg-[#1A1A1C] transition-colors disabled:opacity-60 shrink-0"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" fill="currentColor" />
+                      {submitting ? "Working..." : "Generate"}
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className="flex items-center gap-1.5 p-1.5 bg-white rounded-[14px] border border-[rgba(11,11,12,0.1)]"
+                    style={{
+                      boxShadow:
+                        "0 1px 0 rgba(11,11,12,0.02), 0 14px 30px -20px rgba(11,11,12,0.18)",
+                    }}
+                  >
+                    <div className="flex items-center flex-1 min-w-0 gap-2.5 px-3 py-2">
+                      <Search className="h-4 w-4 text-[#76767B] shrink-0" />
+                      <input
+                        type="text"
+                        placeholder={
+                          isLoaded
+                            ? typedPlaceholder
+                              ? `Search "${typedPlaceholder}"`
+                              : `Search "Burger Town"`
+                            : "Loading Google search..."
+                        }
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        onFocus={() =>
+                          predictions.length > 0 && setShowDropdown(true)
+                        }
+                        disabled={!isLoaded}
+                        className="flex-1 min-w-0 bg-transparent border-none outline-none text-[15px] text-[#0B0B0C] placeholder:text-[#A6A6AB] tracking-[-0.005em]"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="inline-flex items-center gap-1.5 bg-[#0B0B0C] text-white rounded-[10px] px-4 py-2.5 text-[14px] font-medium hover:bg-[#1A1A1C] transition-colors disabled:opacity-60 shrink-0"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" fill="currentColor" />
+                      Generate
+                    </button>
+                  </div>
+                )}
+
+                {!selected && showDropdown && predictions.length > 0 && (
+                  <ul
+                    className="absolute z-[70] left-0 right-0 top-full mt-2 max-h-72 overflow-auto rounded-[14px] border border-[rgba(11,11,12,0.1)] bg-white text-left"
+                    style={{
+                      boxShadow:
+                        "0 1px 0 rgba(11,11,12,0.04), 0 24px 60px -28px rgba(11,11,12,0.32)",
+                    }}
+                  >
+                    {predictions.map((p) => (
+                      <li key={p.place_id}>
+                        <button
+                          type="button"
+                          onClick={() => handlePickPrediction(p)}
+                          className="w-full flex items-start gap-2.5 px-4 py-2.5 text-left hover:bg-[#FAF5EC] transition-colors"
+                        >
+                          <MapPin className="h-4 w-4 text-[#A6A6AB] shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[14px] font-medium text-[#0B0B0C] truncate">
+                              {p.structured_formatting?.main_text ||
+                                p.description}
+                            </p>
+                            {p.structured_formatting?.secondary_text && (
+                              <p className="text-[12px] text-[#76767B] truncate">
+                                {p.structured_formatting.secondary_text}
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="mt-3 flex items-center gap-1.5 text-[13px] text-[#57575B]">
+                Not listed on Google?{" "}
+                <button
+                  type="button"
+                  onClick={() => router.push("/get-started?step=1")}
+                  className="text-[#1A1A1C] font-medium border-b border-[rgba(11,11,12,0.25)] pb-px hover:border-[rgba(11,11,12,0.5)] transition-colors inline-flex items-center gap-1"
+                >
+                  Set up manually
+                  <ArrowRight className="h-3 w-3" />
+                </button>
+              </div>
+            </form>
+
+          </div>
+
+          {/* RIGHT — phone mockup with floating cards */}
+          <div className="flex-1 relative hidden md:block min-h-[600px]">
+            {/* Phone — tilted */}
+            <div
+              className="absolute top-0 right-12"
+              style={{ transform: "rotate(-4deg)", transformOrigin: "center" }}
+            >
+              <PhoneMockup />
+            </div>
+
+            {/* Floating — Live order (top-left overlap) */}
+            <div className="absolute top-20 -left-2 lg:left-0 animate-[floatA_6s_ease-in-out_infinite] z-20">
+              <FloatingCard className="w-[260px]">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <div className="w-7 h-7 rounded-full bg-[#E7F7EE] grid place-items-center">
+                    <div
+                      className="w-2 h-2 rounded-full bg-[#19A463]"
+                      style={{ boxShadow: "0 0 0 4px rgba(25,164,99,0.15)" }}
+                    />
+                  </div>
+                  <div className="text-[12px] text-[#76767B] font-medium">
+                    Live · just now
+                  </div>
+                </div>
+                <div className="text-[14px] font-semibold tracking-tight text-[#0B0B0C]">
+                  New order — $29.00
+                </div>
+                <div className="text-[12px] text-[#76767B] mt-0.5">
+                  #4127 · Royal Biriyani ×2
+                </div>
+                <div className="mt-2.5 flex items-center justify-between pt-2.5 border-t border-[rgba(11,11,12,0.06)]">
+                  <span className="text-[11px] text-[#76767B]">You keep</span>
+                  <span className="text-[13px] font-semibold text-[#19A463]">
+                    $28.13 (97%)
+                  </span>
+                </div>
+              </FloatingCard>
+            </div>
+
+            {/* Floating — Savings (bottom-left overlap) */}
+            <div className="absolute bottom-10 -left-2 lg:left-4 animate-[floatB_7s_ease-in-out_infinite] z-20">
+              <FloatingCard className="flex items-center gap-3 px-4 py-3">
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-[#76767B] uppercase tracking-wider font-medium">
+                    Saved this month
+                  </span>
+                  <span className="text-[22px] font-semibold tracking-tight text-[#0B0B0C]">
+                    $4,820
+                  </span>
+                </div>
+                <svg width="56" height="32" viewBox="0 0 56 32">
+                  <path
+                    d="M2 26 L10 22 L18 24 L26 16 L34 18 L42 10 L54 4 L54 32 L2 32 Z"
+                    fill="#FF6B2C"
+                    opacity="0.12"
+                  />
+                  <path
+                    d="M2 26 L10 22 L18 24 L26 16 L34 18 L42 10 L54 4"
+                    stroke="#FF6B2C"
+                    strokeWidth="2"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </FloatingCard>
+            </div>
+
+            {/* Floating — Domain pill (right edge mid) */}
+            <div className="absolute top-[340px] -right-2 animate-[floatC_8s_ease-in-out_infinite] z-20">
+              <FloatingCard className="flex items-center gap-2 px-3 py-2">
+                <div className="w-[18px] h-[18px] rounded bg-[#0B0B0C] grid place-items-center">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="#fff">
+                    <path d="M2 6h6v1.5H2zM2 2h6v1.5H2zM2 4h4v1.5H2z" />
+                  </svg>
+                </div>
+                <span className="font-mono text-[12px] text-[#2A2A2D]">
+                  spicegarden.menu
+                </span>
+                <span className="w-1.5 h-1.5 bg-[#19A463] rounded-full" />
+              </FloatingCard>
+            </div>
+          </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        @keyframes floatA {
+          0%,
+          100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-8px);
+          }
+        }
+        @keyframes floatB {
+          0%,
+          100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-10px);
+          }
+        }
+        @keyframes floatC {
+          0%,
+          100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-6px);
+          }
+        }
+      `}</style>
     </section>
+  );
+}
+
+function FloatingCard({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`bg-white rounded-2xl p-3.5 border border-[rgba(11,11,12,0.06)] ${className}`}
+      style={{
+        boxShadow:
+          "0 1px 0 rgba(11,11,12,0.04), 0 24px 60px -28px rgba(11,11,12,0.32)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function PhoneMockup() {
+  return (
+    <div
+      className="relative w-[286px] h-[600px] rounded-[48px] p-[3px]"
+      style={{
+        background:
+          "linear-gradient(135deg, #2A2A2D 0%, #0B0B0C 40%, #1A1A1C 100%)",
+        boxShadow:
+          "0 30px 80px -30px rgba(11,11,12,0.45), 0 12px 24px -12px rgba(11,11,12,0.25), inset 0 0 0 1px rgba(255,255,255,0.04)",
+      }}
+    >
+      {/* Side buttons — left */}
+      <div className="absolute -left-[3px] top-[96px] w-[3px] h-[28px] rounded-l bg-[#1A1A1C] shadow-[inset_-1px_0_0_rgba(0,0,0,0.6)]" />
+      <div className="absolute -left-[3px] top-[140px] w-[3px] h-[52px] rounded-l bg-[#1A1A1C] shadow-[inset_-1px_0_0_rgba(0,0,0,0.6)]" />
+      <div className="absolute -left-[3px] top-[206px] w-[3px] h-[52px] rounded-l bg-[#1A1A1C] shadow-[inset_-1px_0_0_rgba(0,0,0,0.6)]" />
+
+      {/* Side button — right (power) */}
+      <div className="absolute -right-[3px] top-[160px] w-[3px] h-[78px] rounded-r bg-[#1A1A1C] shadow-[inset_1px_0_0_rgba(0,0,0,0.6)]" />
+
+      {/* Inner bezel */}
+      <div
+        className="w-full h-full rounded-[44px] bg-[#0B0B0C] p-[5px]"
+        style={{
+          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.03)",
+        }}
+      >
+        {/* Screen */}
+        <div className="w-full h-full rounded-[39px] bg-white overflow-hidden relative">
+          {/* Dynamic Island */}
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[112px] h-[30px] bg-[#0B0B0C] rounded-full z-30 flex items-center justify-end pr-2.5 gap-1.5">
+            {/* Camera lens */}
+            <span className="w-2 h-2 rounded-full bg-[#1A1A1C] ring-1 ring-[#26262A] shadow-[inset_0_0_0_1px_rgba(140,170,200,0.18)]" />
+          </div>
+
+          {/* Status bar */}
+          <div className="flex items-center justify-between px-7 pt-3.5 text-[12px] font-semibold text-[#0B0B0C]">
+            <span>9:41</span>
+            <span className="flex items-center gap-1">
+              <svg width="14" height="10" viewBox="0 0 14 10" fill="#0B0B0C">
+                <rect x="0" y="6" width="2.5" height="4" rx="0.5" />
+                <rect x="3.5" y="4" width="2.5" height="6" rx="0.5" />
+                <rect x="7" y="2" width="2.5" height="8" rx="0.5" />
+                <rect x="10.5" y="0" width="2.5" height="10" rx="0.5" />
+              </svg>
+              <svg width="22" height="11" viewBox="0 0 22 11" fill="none">
+                <rect
+                  x="0.5"
+                  y="0.5"
+                  width="18"
+                  height="10"
+                  rx="2.5"
+                  stroke="#0B0B0C"
+                />
+                <rect x="2" y="2" width="15" height="7" rx="1.5" fill="#0B0B0C" />
+                <rect
+                  x="19.5"
+                  y="3.5"
+                  width="1.5"
+                  height="4"
+                  rx="0.5"
+                  fill="#0B0B0C"
+                />
+              </svg>
+            </span>
+          </div>
+
+          {/* Restaurant header */}
+          <div className="px-5 pt-11">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="text-[18px] font-semibold tracking-tight text-[#0B0B0C] leading-tight">
+                  Spice Garden
+                </div>
+                <div className="text-[12px] text-[#76767B] mt-0.5">
+                  Delivers in 25–35 min · 0.8 mi
+                </div>
+              </div>
+              <button className="w-8 h-8 rounded-full bg-[#F3EFE5] border border-[rgba(11,11,12,0.06)] grid place-items-center shrink-0">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <circle
+                    cx="7"
+                    cy="7"
+                    r="5.5"
+                    stroke="#0B0B0C"
+                    strokeWidth="1.3"
+                  />
+                  <path
+                    d="M7 4v3l2 1.5"
+                    stroke="#0B0B0C"
+                    strokeWidth="1.3"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Category pills */}
+          <div className="mt-4 px-5 flex items-center gap-2 overflow-hidden">
+            {[
+              { label: "Biryani", active: true },
+              { label: "Dosa" },
+              { label: "Drinks" },
+              { label: "Combos" },
+            ].map((c) => (
+              <span
+                key={c.label}
+                className={`px-3 py-1.5 rounded-full text-[12px] font-medium whitespace-nowrap ${
+                  c.active
+                    ? "bg-[#0B0B0C] text-white"
+                    : "bg-[#F3EFE5] text-[#2A2A2D] border border-[rgba(11,11,12,0.06)]"
+                }`}
+              >
+                {c.label}
+              </span>
+            ))}
+          </div>
+
+          {/* Featured product card */}
+          <div className="mt-3 mx-5 rounded-2xl bg-[#FAF5EC] border border-[rgba(11,11,12,0.05)] overflow-hidden">
+            {/* Food photo */}
+            <div className="relative h-[150px] bg-gradient-to-br from-[#F8E3C8] via-[#EFCAA0] to-[#D9A56F]">
+              <img
+                src="/biriyani.png"
+                alt="Royal Biriyani"
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[140px] object-contain drop-shadow-[0_8px_12px_rgba(80,40,10,0.18)]"
+              />
+              <span className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#1F7A4A] text-white text-[10px] font-semibold tracking-wide">
+                <span className="w-1.5 h-1.5 bg-white rounded-full" />
+                Bestseller
+              </span>
+            </div>
+
+            <div className="px-3.5 pt-3 pb-3.5">
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-[14px] font-semibold tracking-tight text-[#0B0B0C]">
+                  Royal Biriyani
+                </span>
+                <span className="text-[14px] font-semibold text-[#0B0B0C]">
+                  $14.50
+                </span>
+              </div>
+              <div className="text-[11px] text-[#76767B] mt-0.5 leading-snug">
+                Aromatic basmati, tender chicken, saffron
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 bg-white rounded-full border border-[rgba(11,11,12,0.08)] px-2 py-1">
+                  <button className="w-5 h-5 grid place-items-center text-[#0B0B0C] text-[13px]">
+                    −
+                  </button>
+                  <span className="text-[12px] font-semibold w-3 text-center">
+                    2
+                  </span>
+                  <button className="w-5 h-5 grid place-items-center text-[#0B0B0C] text-[13px]">
+                    +
+                  </button>
+                </div>
+                <button className="flex-1 bg-[#ED5717] text-white text-[12px] font-semibold py-2 rounded-full">
+                  Add — $29.00
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Secondary item row */}
+          <div className="mt-2.5 mx-5 rounded-2xl bg-[#FAF5EC] border border-[rgba(11,11,12,0.05)] p-2.5 flex items-center gap-3">
+            <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-[#F8E3C8] via-[#EFCAA0] to-[#D9A56F] shrink-0 overflow-hidden">
+              <img
+                src="/dosa.png"
+                alt="Crispy Masala Dosa"
+                className="absolute inset-0 w-full h-full object-contain p-0.5"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[13px] font-semibold text-[#0B0B0C]">
+                  Crispy Masala Dosa
+                </span>
+                <span className="text-[13px] font-semibold text-[#0B0B0C]">
+                  $6.50
+                </span>
+              </div>
+              <div className="text-[11px] text-[#76767B] mt-0.5">
+                Rice crepe · potato masala
+              </div>
+            </div>
+          </div>
+
+          {/* Cart bar */}
+          <div className="absolute bottom-3 left-3 right-3 bg-[#0B0B0C] text-white rounded-full pl-1.5 pr-4 py-1.5 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <span className="w-8 h-8 rounded-full bg-[#ED5717] text-white grid place-items-center text-[12px] font-semibold">
+                3
+              </span>
+              <span className="text-[13px] font-medium">View cart</span>
+            </div>
+            <span className="text-[13px] font-semibold">$35.50</span>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -20,8 +20,9 @@ import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPayment
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { subscribeToHasura } from "@/lib/hasuraSubscription";
 import { userPartnerOrdersSubscription, userPartnerOrdersPageQuery } from "@/api/orders";
-import { createCashfreeOrderForPartner } from "@/app/actions/cashfree";
+import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
+import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 
 interface CompactOrdersProps {
   hotelId: string;
@@ -84,8 +85,13 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
     country_code?: string;
     accept_payments_via_cashfree?: boolean;
     cashfree_merchant_id?: string;
+    store_name?: string;
+    store_banner?: string | null;
+    theme?: any;
   } | null>(null);
   const [cashfreeLoadingOrderId, setCashfreeLoadingOrderId] = useState<string | null>(null);
+  const [showCashfreeEmbed, setShowCashfreeEmbed] = useState(false);
+  const cashfreeContainerRef = useRef<HTMLDivElement | null>(null);
   const [reviewOrder, setReviewOrder] = useState<UserOrder | null>(null);
   const [justReviewedIds, setJustReviewedIds] = useState<Set<string>>(new Set());
 
@@ -204,6 +210,9 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
                     whatsapp_numbers
                     accept_payments_via_cashfree
                     cashfree_merchant_id
+                    store_name
+                    store_banner
+                    theme
                 }
             }
         `,
@@ -250,7 +259,7 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
     setCashfreeLoadingOrderId(order.id);
     try {
       const cfOrderId = `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-      const returnUrl = `${window.location.origin}/order/${order.id}?cf_order=${cfOrderId}`;
+      const returnUrl = `${window.location.origin}/order/${order.id}?cf_order=${cfOrderId}&back=true`;
 
       sessionStorage.setItem("cashfree_pending_payment", JSON.stringify({
         cfOrderId,
@@ -272,14 +281,35 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
 
       if (!cfRes.success) throw new Error(cfRes.error);
 
+      setShowCashfreeEmbed(true);
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      if (!cashfreeContainerRef.current) throw new Error("Checkout container not ready");
+
       const cashfreeMode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "PRODUCTION" ? "production" : "sandbox";
       const cashfree = await loadCashfree({ mode: cashfreeMode as "sandbox" | "production" });
-      cashfree.checkout({
+      const result: any = await cashfree.checkout({
         paymentSessionId: cfRes.paymentSessionId!,
-        redirectTarget: "_self",
-      });
+        redirectTarget: cashfreeContainerRef.current,
+        appearance: {
+          width: `${window.innerWidth}px`,
+          height: `${Math.max(window.innerHeight - 56, 500)}px`,
+        },
+      } as any);
+
+      setShowCashfreeEmbed(false);
+      sessionStorage.removeItem("cashfree_pending_payment");
+      if (result?.error) {
+        console.error("Cashfree error:", result.error);
+        return;
+      }
+      const verifyRes = await verifyCashfreePayment(hotelId, cfOrderId);
+      if (verifyRes.success && verifyRes.paid) {
+        await markOrderAsPaid(order.id, verifyRes.cfPaymentId || undefined);
+      }
     } catch (error) {
       console.error("Cashfree payment error:", error);
+      setShowCashfreeEmbed(false);
+    } finally {
       setCashfreeLoadingOrderId(null);
     }
   };
@@ -588,6 +618,14 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
           onClose={() => setReviewOrder(null)}
         />
       )}
+      <CashfreeEmbedModal
+        ref={cashfreeContainerRef}
+        open={showCashfreeEmbed}
+        onClose={() => setShowCashfreeEmbed(false)}
+        accent={partnerPaymentInfo?.theme?.colors?.accent}
+        banner={partnerPaymentInfo?.store_banner}
+        partnerName={partnerPaymentInfo?.store_name || "Restaurant"}
+      />
     </>
   );
 };

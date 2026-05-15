@@ -56,6 +56,18 @@ const AdminV2Notices = dynamic(() => import("@/components/admin-v2/AdminV2Notice
 const AdminV2Reviews = dynamic(() => import("@/components/admin-v2/AdminV2Reviews").then(mod => mod.AdminV2Reviews), {
     loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
 });
+const AdminV2Website = dynamic(() => import("@/components/admin-v2/AdminV2Website").then(mod => mod.AdminV2Website), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
+const AdminV2Notify = dynamic(() => import("@/components/admin-v2/AdminV2Notify").then(mod => mod.AdminV2Notify), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
+const AdminV2PetpoojaIntegration = dynamic(() => import("@/components/admin-v2/AdminV2PetpoojaIntegration").then(mod => mod.AdminV2PetpoojaIntegration), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
+const AdminV2DeliveryIntegration = dynamic(() => import("@/components/admin-v2/AdminV2DeliveryIntegration").then(mod => mod.AdminV2DeliveryIntegration), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
 import { useAdminStore } from "@/store/adminStore";
 import { UpgradePlanDialog } from "@/components/admin-v2/UpgradePlanDialog";
 
@@ -136,7 +148,7 @@ export default function AdminPage() {
 
                     {/* Main Content */}
                     <main className={`flex-1 overflow-y-auto ${activeView === "POS" ? "p-0 md:p-2" : "p-3 sm:p-4 md:p-6"}`}>
-                        {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "Delivery Boys" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && activeView !== "POS" && activeView !== "Purchase & Inventory" && activeView !== "Dashboard" && activeView !== "Billing" && activeView !== "Customers" && activeView !== "Notices" && activeView !== "Reviews" && (
+                        {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "Delivery Boys" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && activeView !== "POS" && activeView !== "Purchase & Inventory" && activeView !== "Dashboard" && activeView !== "Billing" && activeView !== "Customers" && activeView !== "Notices" && activeView !== "Reviews" && activeView !== "Website" && activeView !== "Notify" && activeView !== "Petpooja Integration" && activeView !== "Delivery Service Integration" && (
                             <h1 className="text-3xl font-bold mb-6">{activeView}</h1>
                         )}
 
@@ -218,6 +230,26 @@ export default function AdminPage() {
                         {renderedViews.includes("Reviews") && (
                             <div className={activeView === "Reviews" ? "block" : "hidden"}>
                                 <AdminV2Reviews />
+                            </div>
+                        )}
+                        {renderedViews.includes("Website") && (
+                            <div className={activeView === "Website" ? "block" : "hidden"}>
+                                <AdminV2Website />
+                            </div>
+                        )}
+                        {renderedViews.includes("Notify") && (
+                            <div className={activeView === "Notify" ? "block" : "hidden"}>
+                                <AdminV2Notify />
+                            </div>
+                        )}
+                        {renderedViews.includes("Petpooja Integration") && (
+                            <div className={activeView === "Petpooja Integration" ? "block" : "hidden"}>
+                                <AdminV2PetpoojaIntegration />
+                            </div>
+                        )}
+                        {renderedViews.includes("Delivery Service Integration") && (
+                            <div className={activeView === "Delivery Service Integration" ? "block" : "hidden"}>
+                                <AdminV2DeliveryIntegration />
                             </div>
                         )}
                     </main>

@@ -50,7 +50,13 @@ const BottomNav = () => {
   // Check if current path is a username route
   const isUsernameRoute = (() => {
     const segments = pathname.split("/").filter(Boolean);
-    if (segments.length !== 1 && !(segments.length === 2 && segments[1] === "info")) {
+    if (
+      segments.length !== 1 &&
+      !(
+        segments.length === 2 &&
+        (segments[1] === "info" || segments[1] === "home")
+      )
+    ) {
       return false;
     }
     const knownRoutes = new Set([

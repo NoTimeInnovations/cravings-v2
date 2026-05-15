@@ -85,23 +85,14 @@ const Default = ({
       (arr.map((item) => applyVisibilityState(item as any, tz, undefined, hideUnav)).filter(Boolean) as T[]);
 
     if (selectedCategory === "all") {
-      return applyVis(
-        hoteldata?.menus?.filter(
-          (item) =>
-            item.category.is_active === undefined ||
-            item.category.is_active === true
-        ) || []
-      );
+      return applyVis(hoteldata?.menus || []);
     }
 
     // Handle the special "Offer" category
     if (selectedCategory === "Offer") {
       const offeredItems = applyVis(
         hoteldata?.menus.filter(
-          (item) =>
-            item.id && hasActiveOffer(item.id) &&
-            (item.category.is_active === undefined ||
-              item.category.is_active === true)
+          (item) => item.id && hasActiveOffer(item.id)
         ) || []
       );
 
@@ -116,10 +107,7 @@ const Default = ({
 
     const filteredItems = applyVis(
       hoteldata?.menus.filter(
-        (item) =>
-          item.category.name === selectedCategory &&
-          (item.category.is_active === undefined ||
-            item.category.is_active === true)
+        (item) => item.category.name === selectedCategory
       ) || []
     );
     const sortedItems = [...filteredItems].sort((a, b) => {
@@ -170,6 +158,8 @@ const Default = ({
           <ShopClosedModalWarning
             hotelId={hoteldata?.id}
             isShopOpen={hoteldata?.is_shop_open}
+            partnerPhone={hoteldata?.phone ?? null}
+            partnerName={hoteldata?.store_name ?? null}
           />
 
           {/* top part  */}

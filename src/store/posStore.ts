@@ -859,6 +859,7 @@ export const usePOSStore = create<POSState>((set, get) => ({
         phone: get().userPhone || null,
         display_id: getNextDisplayOrderNumber.toString(),
         table_name: get().tableName || null,
+        source: "pos",
       });
 
       if (orderResponse.errors || !orderResponse?.insert_orders_one?.id) {

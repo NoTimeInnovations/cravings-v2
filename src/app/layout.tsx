@@ -1,5 +1,5 @@
 // app/layout.tsx
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Dancing_Script, Poppins, Roboto, Geist } from "next/font/google";
 import Script from "next/script";
 import dynamic from "next/dynamic";
@@ -8,6 +8,7 @@ import "./globals.css";
 import "@smastrom/react-rating/style.css";
 import { Toaster } from "@/components/ui/sonner";
 import BottomNav from "@/components/BottomNav";
+import DisableZoom from "@/components/DisableZoom";
 import { Navbar } from "@/components/Navbar";
 import { PostHogProvider } from "@/providers/posthog-provider";
 import { DomainProvider } from "@/providers/DomainProvider";
@@ -32,6 +33,14 @@ const isStaging =
   siteUrl.includes("staging") ||
   siteUrl.includes("test.cravings") ||
   siteUrl.includes("vercel.app");
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  minimumScale: 1,
+  userScalable: false,
+};
 
 export const metadata: Metadata = {
   title:
@@ -176,6 +185,7 @@ document.head.appendChild(o)}initApollo();`,
         <PostHogProvider>
           <DomainProvider config={MENUTHERE_CONFIG}>
             <AuthInitializer />
+            <DisableZoom />
 <Toaster richColors closeButton position="top-center" />
             {!isCustomDomain && <Navbar />}
             <main id="main-content">

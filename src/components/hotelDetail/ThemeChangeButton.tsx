@@ -29,6 +29,8 @@ export interface ThemeConfig {
   infoAlignment?: string;
   fontFamily?: string;
   showGrid?: boolean;
+  /** Token form: "burnt-orange" | "custom:#abc123". Resolve via lib/brandColor. */
+  brandColor?: string;
 }
 
 export const DEFAULT_THEME: ThemeConfig = {

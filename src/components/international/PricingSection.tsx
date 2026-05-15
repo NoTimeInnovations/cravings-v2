@@ -98,7 +98,6 @@ const PricingSection = ({
         "Delivery website with Petpooja POS integration",
         "Customer ordering app (Play Store & App Store)",
         "Delivery driver app with live tracking",
-        "WhatsApp automation",
         "Digital menu",
         "Table ordering system",
         "Up to 5,000 orders/month",
@@ -583,7 +582,7 @@ const PricingSection = ({
                     Limited Offer
                   </span>
 
-                  <h3 className="text-xl font-bold text-stone-900">Free</h3>
+                  <h3 className="text-xl font-bold text-stone-900">Free Trial</h3>
                   <p className="text-sm text-stone-500 mt-1 mb-5">All features, zero cost</p>
 
                   <div className="flex items-baseline gap-0.5 mb-2">
@@ -597,8 +596,6 @@ const PricingSection = ({
                       "Delivery website with Petpooja POS integration",
                       "Customer ordering app (Play Store & App Store)",
                       "Delivery driver app with live tracking",
-                      "Meta ads management for marketing",
-                      "WhatsApp automation",
                       "Digital menu",
                       "Table ordering system",
                     ].map((feature, i) => (
@@ -611,18 +608,15 @@ const PricingSection = ({
                     ))}
                   </div>
 
-                  <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 mb-5">
-                    <p className="text-xs text-amber-700 font-medium">300 orders per month limit</p>
+                  <div className="rounded-lg bg-green-50 border border-green-200 px-3 py-2 mb-5">
+                    <p className="text-xs text-green-700 font-medium">1 month free trial</p>
                   </div>
 
                   <button
-                    onClick={() => {
-                      const text = "Hey can I get delivery app for my restaurant";
-                      window.open(`https://wa.me/918590115462?text=${encodeURIComponent(text)}`, "_blank");
-                    }}
+                    onClick={() => router.push("/get-started")}
                     className="w-full h-11 rounded-xl text-sm font-medium transition-colors bg-green-600 text-white hover:bg-green-700"
                   >
-                    Contact Us
+                    Start Free Trial
                   </button>
                 </div>
 
@@ -646,8 +640,6 @@ const PricingSection = ({
                       "Delivery website with Petpooja POS integration",
                       "Customer ordering app (Play Store & App Store)",
                       "Delivery driver app with live tracking",
-                      "Meta ads management for marketing",
-                      "WhatsApp automation",
                       "Digital menu",
                       "Table ordering system",
                     ].map((feature, i) => (

@@ -8,14 +8,13 @@ import {
 import { toast } from "sonner";
 import { processImage } from "@/lib/processImage";
 import { uploadFileToS3 } from "@/app/actions/aws-s3";
-import { GoogleGenerativeAI, Schema } from "@google/generative-ai";
+import type { Schema } from "@google/generative-ai";
+import { aiGenerate, fileToBase64 } from "@/lib/ai/generateContent";
 import { Partner } from "./authStore";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { getSafeStorage } from "@/lib/safeStorage";
 import { useCategoryStore } from "./categoryStore_hasura";
 
-const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
-const genAI = new GoogleGenerativeAI(API_KEY);
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
 
@@ -320,38 +319,32 @@ export const useSuperAdminPartnerStore = create<SuperAdminPartnerState>()(
               : "Extracting menu items..."
           );
 
-          const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
-            generationConfig: {
-              responseMimeType: "application/json",
-              responseSchema: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    name: { type: "string" },
-                    price: { type: "number" },
-                    description: { type: "string" },
-                    category: { type: "string" },
-                    variants: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          name: { type: "string" },
-                          price: { type: "number" },
-                        },
-                        required: ["name", "price"],
-                      },
+          const responseSchema: Schema = {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                price: { type: "number" },
+                description: { type: "string" },
+                category: { type: "string" },
+                variants: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      name: { type: "string" },
+                      price: { type: "number" },
                     },
+                    required: ["name", "price"],
                   },
-                  required: ["name", "price", "description", "category"],
                 },
-              } as Schema,
+              },
+              required: ["name", "price", "description", "category"],
             },
-          });
+          } as Schema;
 
-          const prompt = `Extract each distinct dish as a separate item from the provided images. 
+          const prompt = `Extract each distinct dish as a separate item from the provided images.
           A 'variant' applies *only* to different sizes (e.g., Quarter, Half, Full, Small, Large, Regular) or quantities of the *same specific menu item*. 
           If a menu item does not have these explicit size/quantity options, it should *not* have a 'variants' field. 
           For example, 'Fresh Lime' and 'Mint Lime' are separate items, not variants of a general 'Lime Juice'.
@@ -385,20 +378,21 @@ export const useSuperAdminPartnerStore = create<SuperAdminPartnerState>()(
           -take the largest text above the items as the category name if the variants is aaslo items`;
 
           
-          const imageParts = await Promise.all(
-            files.map(async (file) => {
-              const base64 = await new Promise<string>((resolve) => {
-                const reader = new FileReader();
-                reader.onload = () =>
-                  resolve((reader.result as string).split(",")[1]);
-                reader.readAsDataURL(file);
-              });
-              return { inlineData: { data: base64, mimeType: file.type } };
-            })
+          const aiFiles = await Promise.all(
+            files.map(async (file) => ({
+              data: await fileToBase64(file),
+              mimeType: file.type,
+            }))
           );
 
-          const result = await model.generateContent([prompt, ...imageParts]);
-          const parsedMenu: MenuItem[] = JSON.parse(result.response.text());
+          const text = await aiGenerate({
+            model: "gemini-1.5-flash",
+            prompt,
+            responseMimeType: "application/json",
+            responseSchema,
+            files: aiFiles,
+          });
+          const parsedMenu: MenuItem[] = JSON.parse(text);
 
           set({
             extractedMenuItems: parsedMenu,
