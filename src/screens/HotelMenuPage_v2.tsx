@@ -505,6 +505,7 @@ const HotelMenuPage = ({
           storeBanner={hoteldata?.store_banner}
           partnerId={hoteldata?.id || ""}
           tableNumber={tableNumber}
+          hotelData={hoteldata}
           themeBg={theme?.colors?.bg}
           onboardingCompleted={onboardingCompleted}
           deliveryTimeAllowed={hoteldata?.delivery_rules?.delivery_time_allowed}

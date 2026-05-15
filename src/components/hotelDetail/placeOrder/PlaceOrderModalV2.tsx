@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -41,6 +41,13 @@ import {
   incrementDiscountUsageMutation,
   getUserDiscountUsageQuery,
 } from "@/api/discounts";
+import {
+  createCashfreeOrderForPartner,
+  verifyCashfreePayment,
+  markOrderAsPaid,
+} from "@/app/actions/cashfree";
+import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
+import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 
 type AppliedDiscount = {
   id: string;
@@ -112,14 +119,32 @@ const PlaceOrderModalV2 = ({
   const accent = themeStyles?.accent || "#16A34A";
   const currency = hotelData?.currency || "₹";
 
+  const hasCashfree =
+    (hotelData as any)?.accept_payments_via_cashfree === true &&
+    !!(hotelData as any)?.cashfree_merchant_id;
+  const hasCod = (hotelData as any)?.accept_cod !== false;
+
+  const hasCashfreeReturn =
+    typeof window !== "undefined" &&
+    !!sessionStorage.getItem("cashfree_pending_order");
+
   const [view, setView] = useState<"main" | "discounts">("main");
   const [showOrderNoteInput, setShowOrderNoteInput] = useState(!!orderNote);
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">("cash");
+  const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">(
+    hasCashfree && !hasCod ? "online" : "cash",
+  );
   const [showBreakdown, setShowBreakdown] = useState(true);
-  const [orderStatus, setOrderStatus] = useState<"idle" | "loading" | "placing" | "success">("idle");
+  const [orderStatus, setOrderStatus] = useState<
+    "idle" | "loading" | "placing" | "verifying" | "success" | "failed"
+  >(hasCashfreeReturn ? "verifying" : "idle");
   const [successClosing, setSuccessClosing] = useState(false);
   const [savedOrderTotal, setSavedOrderTotal] = useState<number | null>(null);
+  const [cashfreePaid, setCashfreePaid] = useState(hasCashfreeReturn);
+  const [paymentFailReason, setPaymentFailReason] = useState("");
+  const [showCashfreeEmbed, setShowCashfreeEmbed] = useState(false);
+  const cashfreeContainerRef = useRef<HTMLDivElement | null>(null);
+  const verifyingCfOrderRef = useRef<string | null>(null);
 
   const [availableDiscounts, setAvailableDiscounts] = useState<AvailableDiscount[]>([]);
   const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(null);
@@ -132,6 +157,9 @@ const PlaceOrderModalV2 = ({
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [pendingAddress, setPendingAddress] = useState<SavedAddress | null>(null);
+  const [mapInitialPick, setMapInitialPick] = useState<
+    { address?: string; coords: { lat: number; lng: number } } | null
+  >(null);
   const [addressFormData, setAddressFormData] = useState({
     useAccountDetails: false,
     receiverName: "",
@@ -603,6 +631,355 @@ const PlaceOrderModalV2 = ({
     }, 250);
   };
 
+  const buildExtraCharges = (
+    cartItems: typeof items,
+    ot: typeof orderType,
+  ): { name: string; amount: number; charge_type: string }[] => {
+    const list: { name: string; amount: number; charge_type: string }[] = [];
+    if (qrGroup?.name) {
+      const apply =
+        isQrScan ||
+        (tableNumber === 0 && (ot === "delivery" || ot === "takeaway"));
+      if (apply) {
+        const amt = getExtraCharge(
+          cartItems || [],
+          qrGroup.extra_charge,
+          qrGroup.charge_type || "FLAT_FEE",
+        );
+        if (amt > 0)
+          list.push({
+            name: qrGroup.name,
+            amount: amt,
+            charge_type: qrGroup.charge_type || "FLAT_FEE",
+          });
+      }
+    }
+    if (
+      !isQrScan &&
+      ot === "delivery" &&
+      deliveryInfo?.cost &&
+      !deliveryInfo?.isOutOfRange &&
+      !hotelData?.delivery_rules?.hide_delivery_charge
+    ) {
+      list.push({
+        name: "Delivery Charge",
+        amount: deliveryInfo.cost,
+        charge_type: "FLAT_FEE",
+      });
+    }
+    if (
+      tableNumber === 0 &&
+      hotelData?.delivery_rules?.parcel_charge &&
+      hotelData.delivery_rules.parcel_charge > 0
+    ) {
+      const chargeType = hotelData.delivery_rules.parcel_charge_type || "fixed";
+      let parcelAmount: number;
+      if (chargeType === "itemwise") {
+        const defC = hotelData.delivery_rules.parcel_charge || 0;
+        const custC = hotelData.delivery_rules.parcel_charge_items || {};
+        parcelAmount = (cartItems || []).reduce(
+          (acc, item) =>
+            acc + (custC[item.id.split("|")[0]] ?? defC) * item.quantity,
+          0,
+        );
+      } else {
+        const itemCount = (cartItems || []).reduce(
+          (a, i) => a + i.quantity,
+          0,
+        );
+        parcelAmount =
+          chargeType === "variable"
+            ? itemCount * hotelData.delivery_rules.parcel_charge
+            : hotelData.delivery_rules.parcel_charge;
+      }
+      if (parcelAmount > 0)
+        list.push({
+          name: "Parcel Charge",
+          amount: parcelAmount,
+          charge_type: "FLAT_FEE",
+        });
+    }
+    return list;
+  };
+
+  const verifyAndPlaceCfOrder = async (pending: {
+    cfOrderId: string;
+    partnerId: string;
+    orderType?: string | null;
+    orderNote?: string | null;
+    skipAuthWait?: boolean;
+  }) => {
+    if (verifyingCfOrderRef.current === pending.cfOrderId) return;
+    verifyingCfOrderRef.current = pending.cfOrderId;
+
+    setOpenPlaceOrderModal(true);
+    setOrderStatus("verifying");
+    setCashfreePaid(true);
+
+    const waitForAuth = () =>
+      new Promise<void>((resolve) => {
+        const check = () => {
+          const authUser = useAuthStore.getState().userData;
+          if (authUser?.id) {
+            resolve();
+            return;
+          }
+          setTimeout(check, 300);
+        };
+        setTimeout(check, 500);
+        setTimeout(resolve, 15000);
+      });
+
+    try {
+      const verifyRes = await verifyCashfreePayment(
+        pending.partnerId,
+        pending.cfOrderId,
+      );
+
+      if (!verifyRes.success || !verifyRes.paid) {
+        const reason = !verifyRes.success
+          ? verifyRes.error
+          : verifyRes.orderStatus === "ACTIVE"
+            ? "Payment was not completed. You may have cancelled or dropped off during checkout."
+            : `Payment status: ${verifyRes.orderStatus || "unknown"}. Please try again.`;
+        setPaymentFailReason(reason || "Payment could not be completed.");
+        setOrderStatus("failed");
+        setCashfreePaid(false);
+        return;
+      }
+
+      setOrderStatus("loading");
+      if (!pending.skipAuthWait) await waitForAuth();
+
+      const storeState = useOrderStore.getState();
+      const authUser = useAuthStore.getState().userData;
+      if (!authUser?.id) {
+        toast.error("Session expired. Please login and try again.");
+        setOrderStatus("idle");
+        return;
+      }
+      if (!storeState.items || storeState.items.length === 0) {
+        toast.error("Cart is empty. Your order could not be restored.");
+        setOrderStatus("idle");
+        return;
+      }
+
+      const cfItems = storeState.items;
+      const cfOrderType = (pending.orderType as typeof orderType) || orderType;
+      const cfExtraCharges = buildExtraCharges(cfItems, cfOrderType);
+
+      const { additionalGst: cfGst } = calculateGstForItems(
+        cfItems.map((item) => {
+          const baseId = item.id.split("|")[0];
+          const mi = allMenus.find((m: any) => m.id === baseId);
+          return {
+            price: item.price,
+            quantity: item.quantity,
+            tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive,
+          };
+        }),
+        Number(hotelData?.gst_percentage) || 0,
+      );
+
+      const result = await storeState.placeOrder(
+        hotelData,
+        tableNumber,
+        qrId as string,
+        cfGst,
+        cfExtraCharges.length > 0 ? cfExtraCharges : null,
+        undefined,
+        pending.orderNote || "",
+        tableName,
+        null,
+        (authUser as any)?.full_name || undefined,
+      );
+
+      if (result) {
+        if (result.id) {
+          localStorage?.setItem("last-order-id", result.id);
+          markOrderAsPaid(result.id, verifyRes.cfPaymentId || undefined).catch(
+            () => {},
+          );
+        }
+        setSavedOrderTotal(grandTotal);
+        useOrderStore.getState().notifyOrderPlaced();
+        try {
+          sessionStorage.removeItem(`order_type_${hotelData.id}`);
+        } catch {}
+        setOrderStatus("success");
+      } else {
+        toast.error("Failed to place order.");
+        setOrderStatus("idle");
+      }
+    } catch (error) {
+      console.error("Payment verification error:", error);
+      setPaymentFailReason("Could not verify payment. Please contact support.");
+      setOrderStatus("failed");
+    }
+  };
+
+  const handleCashfreePayAndPlaceOrder = async () => {
+    if (!items || items.length === 0) {
+      toast.error("Your cart is empty.");
+      return;
+    }
+    if (!user) {
+      toast.error("Please login first.");
+      return;
+    }
+    if (!isQrScan && !orderType) {
+      toast.error("Please select an order type.");
+      return;
+    }
+    if (!isQrScan && orderType === "delivery" && !isDeliveryOpen) {
+      toast.error("Delivery is not available right now.");
+      return;
+    }
+    if (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) {
+      toast.error("Takeaway is not available right now.");
+      return;
+    }
+    if (incompatibleItems.length > 0) {
+      toast.error(`Some items are not available for ${orderType}. Please remove them.`);
+      return;
+    }
+    if (isBelowMinimum) {
+      toast.error(`Minimum order of ${currency}${minimumOrderAmount} required for delivery.`);
+      return;
+    }
+    if (orderType === "delivery") {
+      if (!address?.trim()) {
+        toast.error("Please set a delivery address.");
+        return;
+      }
+      const needLocation = hotelData?.delivery_rules?.needDeliveryLocation ?? true;
+      if (needLocation) {
+        const coords = useOrderStore.getState().coordinates;
+        if (hotelData?.geo_location && !coords) {
+          toast.error("Please select your location on the map.");
+          return;
+        }
+        if (deliveryInfo?.isOutOfRange) {
+          toast.error("Delivery is not available to your location.");
+          return;
+        }
+      }
+    }
+
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    setOrderStatus("loading");
+
+    try {
+      const cfOrderId = `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+
+      sessionStorage.setItem(
+        "cashfree_pending_order",
+        JSON.stringify({
+          cfOrderId,
+          partnerId: hotelData.id,
+          amount: grandTotal,
+          orderType: orderType || null,
+          address: address || null,
+          orderNote: orderNote || null,
+          discountId: appliedDiscount?.id || null,
+        }),
+      );
+
+      const returnUrl = `${window.location.origin}${window.location.pathname}?cf_order=${cfOrderId}&back=true`;
+
+      const cfRes = await createCashfreeOrderForPartner(
+        hotelData.id,
+        cfOrderId,
+        Math.round(grandTotal * 100) / 100,
+        {
+          id: user.id,
+          name: (user as any)?.full_name || "Customer",
+          phone: ((user as any)?.phone || "9999999999").replace(/\D/g, "").slice(-10),
+          email: (user as any)?.email,
+        },
+        returnUrl,
+      );
+
+      if (!cfRes.success) {
+        toast.error(cfRes.error || "Failed to create payment");
+        setOrderStatus("idle");
+        sessionStorage.removeItem("cashfree_pending_order");
+        return;
+      }
+
+      setOrderStatus("idle");
+      setShowCashfreeEmbed(true);
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      if (!cashfreeContainerRef.current) {
+        throw new Error("Checkout container not ready");
+      }
+
+      const cashfreeMode =
+        process.env.NEXT_PUBLIC_CASHFREE_ENV === "PRODUCTION"
+          ? "production"
+          : "sandbox";
+      const cashfree = await loadCashfree({
+        mode: cashfreeMode as "sandbox" | "production",
+      });
+      const result: any = await cashfree.checkout({
+        paymentSessionId: cfRes.paymentSessionId!,
+        redirectTarget: cashfreeContainerRef.current,
+        appearance: {
+          width: `${window.innerWidth}px`,
+          height: `${Math.max(window.innerHeight - 56, 500)}px`,
+        },
+      } as any);
+
+      setShowCashfreeEmbed(false);
+      sessionStorage.removeItem("cashfree_pending_order");
+
+      if (result?.error) {
+        console.error("Cashfree error:", result.error);
+        toast.error(result.error.message || "Payment failed. Please try again.");
+        setOrderStatus("idle");
+        return;
+      }
+
+      await verifyAndPlaceCfOrder({
+        cfOrderId,
+        partnerId: hotelData.id,
+        orderType: orderType || null,
+        orderNote: orderNote || null,
+        skipAuthWait: true,
+      });
+    } catch (error) {
+      console.error("Cashfree payment error:", error);
+      toast.error("Payment failed. Please try again.");
+      setShowCashfreeEmbed(false);
+      setOrderStatus("idle");
+    }
+  };
+
+  useEffect(() => {
+    const pendingStr =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem("cashfree_pending_order")
+        : null;
+    if (!pendingStr) return;
+    try {
+      const pending = JSON.parse(pendingStr);
+      if (!pending?.cfOrderId || !pending?.partnerId) return;
+      sessionStorage.removeItem("cashfree_pending_order");
+      if (pending.orderType) setOrderType(pending.orderType);
+      if (pending.address) useOrderStore.getState().setUserAddress(pending.address);
+      if (pending.orderNote) setOrderNote(pending.orderNote);
+      verifyAndPlaceCfOrder({
+        cfOrderId: pending.cfOrderId,
+        partnerId: pending.partnerId,
+        orderType: pending.orderType,
+        orderNote: pending.orderNote,
+      });
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handlePay = async () => {
     if (!items || items.length === 0) {
       toast.error("Your cart is empty.");
@@ -649,6 +1026,11 @@ const PlaceOrderModalV2 = ({
           return;
         }
       }
+    }
+
+    if (paymentMethod === "online" && hasCashfree) {
+      handleCashfreePayAndPlaceOrder();
+      return;
     }
 
     setSavedOrderTotal(grandTotal);
@@ -778,7 +1160,13 @@ const PlaceOrderModalV2 = ({
 
   if (!open_place_order_modal) return null;
 
-  if (orderStatus === "placing" || orderStatus === "success") {
+  if (
+    orderStatus === "placing" ||
+    orderStatus === "verifying" ||
+    orderStatus === "loading" ||
+    orderStatus === "success" ||
+    orderStatus === "failed"
+  ) {
     return (
       <div
         className="fixed inset-0 z-[500] flex items-center justify-center bg-white transition-opacity duration-300"
@@ -820,8 +1208,56 @@ const PlaceOrderModalV2 = ({
           }
         `}</style>
 
-        {orderStatus === "placing" && (
-          <PlacingScreen accent={accent} />
+        {(orderStatus === "placing" || orderStatus === "loading") && (
+          <PlacingScreen accent={accent} label="Placing your order" />
+        )}
+
+        {orderStatus === "verifying" && (
+          <PlacingScreen accent={accent} label="Verifying payment" />
+        )}
+
+        {orderStatus === "failed" && (
+          <div className="flex flex-col items-center gap-6 px-8 text-center max-w-sm">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-red-100">
+              <X className="h-12 w-12 text-red-600" strokeWidth={3} />
+            </div>
+            <div>
+              <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">
+                Payment Failed
+              </h2>
+              <p className="mt-2 text-sm text-gray-500 whitespace-pre-line">
+                {paymentFailReason || "We couldn't process your payment."}
+              </p>
+            </div>
+            <div className="flex gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => {
+                  setOrderStatus("idle");
+                  setCashfreePaid(false);
+                  setPaymentFailReason("");
+                  verifyingCfOrderRef.current = null;
+                }}
+                className="flex-1 rounded-xl border border-gray-200 px-6 py-3 text-sm font-bold text-gray-700"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOrderStatus("idle");
+                  setCashfreePaid(false);
+                  setPaymentFailReason("");
+                  verifyingCfOrderRef.current = null;
+                  handleCashfreePayAndPlaceOrder();
+                }}
+                className="flex-1 rounded-xl px-6 py-3 text-sm font-bold text-white"
+                style={{ backgroundColor: accent }}
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
         )}
 
         {orderStatus === "success" && (
@@ -906,25 +1342,34 @@ const PlaceOrderModalV2 = ({
             >
               <ArrowLeft className="h-5 w-5 text-gray-900" />
             </button>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold truncate text-gray-900">{restaurantName || "Checkout"}</div>
-              {orderType === "delivery" ? (
-                <button
-                  type="button"
-                  onClick={() => setShowAddressSheet(true)}
-                  className="text-[11px] text-gray-400 truncate flex items-center gap-1 w-full text-left"
-                >
-                  <MapPin className="h-3 w-3 flex-shrink-0" />
-                  <span className="truncate">{address || "Add delivery address"}</span>
-                  <ChevronDown className="h-3 w-3 flex-shrink-0" />
-                </button>
-              ) : restaurantSubtitle ? (
-                <div className="text-[11px] text-gray-400 truncate flex items-center gap-1">
-                  <MapPin className="h-3 w-3 flex-shrink-0" />
-                  <span className="truncate">{restaurantSubtitle}</span>
+            {orderType === "delivery" ? (
+              <button
+                type="button"
+                onClick={() => setShowAddressSheet(true)}
+                className="flex min-w-0 flex-1 items-center gap-2 text-left"
+              >
+                <MapPin className="h-4 w-4 shrink-0" style={{ color: "#ea580c" }} />
+                <div className="min-w-0 leading-tight">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    Deliver to
+                  </p>
+                  <p className="truncate text-sm font-bold" style={{ color: "#ea580c" }}>
+                    {address || "Add delivery address"}
+                  </p>
                 </div>
-              ) : null}
-            </div>
+                <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+              </button>
+            ) : (
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold truncate text-gray-900">{restaurantName || "Checkout"}</div>
+                {restaurantSubtitle ? (
+                  <div className="text-[11px] text-gray-400 truncate flex items-center gap-1">
+                    <MapPin className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate">{restaurantSubtitle}</span>
+                  </div>
+                ) : null}
+              </div>
+            )}
            </div>
           </div>
 
@@ -1343,16 +1788,21 @@ const PlaceOrderModalV2 = ({
          <div className="px-4 py-3 flex items-center justify-between gap-3">
           <button
             type="button"
-            onClick={() => setShowPaymentMethods((v) => !v)}
+            onClick={() => {
+              if (hasCashfree && hasCod) setShowPaymentMethods((v) => !v);
+            }}
             className="flex flex-col items-start"
+            style={{ cursor: hasCashfree && hasCod ? "pointer" : "default" }}
           >
             <span className="text-[11px] text-gray-500 flex items-center gap-1 uppercase tracking-wide">
               Pay using{" "}
-              {showPaymentMethods ? (
-                <ChevronDown className="h-3 w-3" />
-              ) : (
-                <ChevronUp className="h-3 w-3" />
-              )}
+              {hasCashfree && hasCod ? (
+                showPaymentMethods ? (
+                  <ChevronDown className="h-3 w-3" />
+                ) : (
+                  <ChevronUp className="h-3 w-3" />
+                )
+              ) : null}
             </span>
             <span className="text-sm font-semibold text-gray-900">
               {paymentMethod === "online" ? "Pay Online" : orderType === "delivery" ? "Cash on Delivery" : "Pay at Store"}
@@ -1386,9 +1836,13 @@ const PlaceOrderModalV2 = ({
               <div className="text-sm font-semibold mb-2 text-gray-900">Choose Payment Method</div>
               {(
                 [
-                  { id: "cash", label: orderType === "delivery" ? "Cash on Delivery" : "Pay at Store" },
-                  { id: "online", label: "Pay Online" },
-                ] as const
+                  ...(hasCod
+                    ? [{ id: "cash" as const, label: orderType === "delivery" ? "Cash on Delivery" : "Pay at Store" }]
+                    : []),
+                  ...(hasCashfree
+                    ? [{ id: "online" as const, label: "Pay Online" }]
+                    : []),
+                ]
               ).map((opt) => (
                 <button
                   key={opt.id}
@@ -1422,6 +1876,9 @@ const PlaceOrderModalV2 = ({
     {showAddressSheet && (
       <V3AddressSheet
         currentAddress={address || ""}
+        savedAddresses={savedAddresses}
+        onDeleteSaved={handleDeleteAddress}
+        accent="#ea580c"
         onSelect={(addr, coords) => {
           if (addr) {
             useOrderStore.getState().setUserAddress(addr);
@@ -1435,18 +1892,33 @@ const PlaceOrderModalV2 = ({
           }
           setShowAddressSheet(false);
         }}
+        onPickForMap={(addr, coords) => {
+          setShowAddressSheet(false);
+          if (coords) {
+            setMapInitialPick({ address: addr, coords });
+          } else {
+            setMapInitialPick(null);
+          }
+          setShowAddressModal(true);
+        }}
         onClose={() => setShowAddressSheet(false)}
-        accent={accent}
       />
     )}
 
     {/* Address Picker V2 (map + search) */}
     <AddressPickerV2
       open={showAddressModal}
-      onClose={() => setShowAddressModal(false)}
-      onSaved={handleAddressModalSaved}
+      onClose={() => {
+        setShowAddressModal(false);
+        setMapInitialPick(null);
+      }}
+      onSaved={(a) => {
+        setMapInitialPick(null);
+        handleAddressModalSaved(a);
+      }}
       hotelData={hotelData}
-      accent={accent}
+      accent="#ea580c"
+      initialPick={mapInitialPick}
     />
 
     {/* Address details form (after saving from map) */}
@@ -1524,25 +1996,29 @@ const PlaceOrderModalV2 = ({
           <div>
             <h4 className="text-base font-bold text-gray-900 mb-3">Location Details</h4>
             <div className="flex gap-2 mb-4">
-              {(["House", "Office", "Other"] as const).map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() =>
-                    setAddressFormData((prev) => ({ ...prev, locationType: type }))
-                  }
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
-                    addressFormData.locationType === type
-                      ? "bg-gray-900 text-white border-gray-900"
-                      : "bg-white text-gray-600 border-gray-200"
-                  }`}
-                >
-                  {type === "House" && <Home className="h-3.5 w-3.5" />}
-                  {type === "Office" && <Building2 className="h-3.5 w-3.5" />}
-                  {type === "Other" && <Navigation className="h-3.5 w-3.5" />}
-                  {type}
-                </button>
-              ))}
+              {(["House", "Office", "Other"] as const).map((type) => {
+                const selected = addressFormData.locationType === type;
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() =>
+                      setAddressFormData((prev) => ({ ...prev, locationType: type }))
+                    }
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-colors"
+                    style={
+                      selected
+                        ? { backgroundColor: "#ea580c", borderColor: "#ea580c", color: "white" }
+                        : { backgroundColor: "white", borderColor: "#e5e7eb", color: "#4b5563" }
+                    }
+                  >
+                    {type === "House" && <Home className="h-3.5 w-3.5" />}
+                    {type === "Office" && <Building2 className="h-3.5 w-3.5" />}
+                    {type === "Other" && <Navigation className="h-3.5 w-3.5" />}
+                    {type}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="space-y-3">
@@ -1617,6 +2093,19 @@ const PlaceOrderModalV2 = ({
         </div>
       </div>
     )}
+
+    <CashfreeEmbedModal
+      ref={cashfreeContainerRef}
+      open={showCashfreeEmbed}
+      onClose={() => {
+        setShowCashfreeEmbed(false);
+        setOrderStatus("idle");
+        sessionStorage.removeItem("cashfree_pending_order");
+      }}
+      accent={accent}
+      banner={(hotelData as any)?.store_banner}
+      partnerName={hotelData?.store_name || "Restaurant"}
+    />
     </>
   );
 };
@@ -1780,7 +2269,7 @@ const DiscountsView = ({
   );
 };
 
-function PlacingScreen({ accent }: { accent: string }) {
+function PlacingScreen({ accent, label = "Placing your order" }: { accent: string; label?: string }) {
   return (
     <div
       className="flex flex-col items-center gap-7 px-8 text-center"
@@ -1809,7 +2298,7 @@ function PlacingScreen({ accent }: { accent: string }) {
       </div>
 
       <div>
-        <h2 className="text-lg font-bold text-gray-900 tracking-tight">Placing your order</h2>
+        <h2 className="text-lg font-bold text-gray-900 tracking-tight">{label}</h2>
         <div className="flex items-center justify-center gap-1.5 mt-3">
           {[0, 1, 2].map((i) => (
             <div
