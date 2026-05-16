@@ -554,9 +554,15 @@ function DashboardMockup() {
         <aside className="hidden sm:flex flex-col w-[148px] lg:w-[160px] bg-[#FAFAF8] border-r border-[rgba(11,11,12,0.06)] py-4">
           {/* Logo */}
           <div className="flex items-center gap-2 px-4 pb-4 border-b border-[rgba(11,11,12,0.05)]">
-            <div className="grid place-items-center h-7 w-7 rounded-md bg-[#E85D04] text-white">
-              <Utensils className="h-3.5 w-3.5" />
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/menuthere-logo-new.png"
+              alt="Menuthere"
+              width={28}
+              height={28}
+              className="h-7 w-7 object-contain rounded-md"
+              draggable={false}
+            />
             <span className="text-[13px] font-bold text-[#0A0A0B] tracking-tight">
               Menuthere
             </span>
