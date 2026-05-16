@@ -563,7 +563,7 @@ button[data-state="open"] h1 .left-marker {
 /* ---------- Hero title intro ---------- */
 @keyframes heroTitleWordIn {
   0% {
-    transform: translate3d(0, 18px, 0);
+    transform: translate3d(0, 22px, 0);
     opacity: 0;
     filter: blur(6px);
   }
@@ -577,15 +577,58 @@ button[data-state="open"] h1 .left-marker {
   }
 }
 .hero-title-word {
-  animation: heroTitleWordIn 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: heroTitleWordIn 800ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.hero-title-word-1 { animation-delay: 80ms;  }
-.hero-title-word-2 { animation-delay: 180ms; }
-.hero-title-word-3 { animation-delay: 280ms; }
-.hero-title-word-4 { animation-delay: 460ms; }
+.hero-title-word-1 { animation-delay: 80ms; }
+.hero-title-word-2 { animation-delay: 260ms; }
+
+/* ---------- Hero overall fade-in (left column + right column) ---------- */
+@keyframes heroFadeIn {
+  0% { opacity: 0; transform: translate3d(0, 16px, 0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+.hero-fade-in {
+  animation: heroFadeIn 800ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.hero-fade-in-delayed {
+  animation: heroFadeIn 900ms cubic-bezier(0.22, 1, 0.36, 1) 200ms both;
+}
+
+/* ---------- Storefront cart card — gentle bob ---------- */
+@keyframes heroCartFloat {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50%      { transform: translate3d(0, -8px, 0); }
+}
+.hero-cart-float {
+  animation:
+    heroFadeIn 900ms cubic-bezier(0.22, 1, 0.36, 1) 400ms both,
+    heroCartFloat 5s ease-in-out infinite 1300ms;
+  will-change: transform;
+}
+
+/* ---------- Search modal entrance ---------- */
+@keyframes heroModalOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes heroModalCardIn {
+  0%   { opacity: 0; transform: translate3d(0, 14px, 0) scale(0.98); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+.hero-modal-overlay {
+  animation: heroModalOverlayIn 200ms ease-out both;
+}
+.hero-modal-card {
+  animation: heroModalCardIn 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-title-word {
+  .hero-title-word,
+  .hero-fade-in,
+  .hero-fade-in-delayed,
+  .hero-cart-float,
+  .hero-modal-overlay,
+  .hero-modal-card {
     animation: none;
   }
 }

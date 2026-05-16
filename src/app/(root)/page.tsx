@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import Hero from "@/components/home/Hero";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { getTrustBarPartners } from "@/lib/getTrustBarPartners";
 
 const SocialProof = dynamic(
   () => import("@/components/home/SocialProof")
@@ -47,7 +48,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Home() {
+export default async function Home() {
+  const trustBarPartners = await getTrustBarPartners(6);
   const softwareAppSchema = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
@@ -136,7 +138,7 @@ export default function Home() {
       <JsonLd data={websiteSchema} />
 
       {/* HERO — headline + Google business search + menu upload + CTA */}
-      <Hero />
+      <Hero partners={trustBarPartners} />
 
       {/* STATS — animated revenue/order counters */}
       <Suspense>
