@@ -36,6 +36,7 @@ export default function Hero() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchBoxRef = useRef<HTMLDivElement>(null);
 
+
   useEffect(() => {
     if (isLoaded && !autocompleteServiceRef.current) {
       autocompleteServiceRef.current =
@@ -162,28 +163,71 @@ export default function Hero() {
 
   return (
     <section
-      className="relative min-h-[calc(100vh-4rem)] pt-20 md:pt-24"
+      className="relative min-h-[100dvh] flex items-center justify-center pt-20 md:pt-24 pb-16 overflow-hidden"
       style={{
         background:
-          "radial-gradient(120% 80% at 80% 0%, #FFF1DF 0%, #FAF5EC 40%, #F6EFE0 100%)",
+          "radial-gradient(140% 90% at 50% 0%, #FFEFD9 0%, #FAF3E3 35%, #F4EBD8 70%, #EFE4CC 100%)",
       }}
     >
-      <div className="relative mx-auto max-w-7xl px-6 md:px-10 lg:px-20">
-        <div className="flex flex-col md:flex-row gap-12 md:gap-16 pt-10 md:pt-12 pb-32">
-          {/* LEFT — copy + CTA */}
-          <div className="flex-1 flex flex-col max-w-xl">
-            {/* Eyebrow chip */}
+      {/* Atmospheric layers — bottom-anchored warm halo + cursor-following beam. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -inset-x-[15%] -bottom-[25%] h-[110%] z-0 hero-glow-halo"
+        style={{
+          background:
+            "radial-gradient(45% 50% at 50% 75%, rgba(255,107,44,0.36) 0%, rgba(255,107,44,0.18) 30%, rgba(255,107,44,0.05) 55%, transparent 80%)",
+          transformOrigin: "50% 100%",
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 -bottom-[20%] w-[70%] h-[100%] z-0 blur-3xl hero-glow-beam"
+        style={{
+          background:
+            "radial-gradient(45% 55% at 50% 85%, rgba(255,107,44,0.45) 0%, rgba(255,140,80,0.22) 35%, transparent 75%)",
+          transformOrigin: "50% 100%",
+        }}
+      />
+
+      {/* Decorative grain — extremely subtle noise for premium texture. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-[1] opacity-[0.035] mix-blend-multiply"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")",
+          backgroundSize: "160px 160px",
+        }}
+      />
+
+      <div className="relative w-full mx-auto max-w-7xl px-6 md:px-10 lg:px-20 z-10">
+        <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center text-center w-full">
+
+            {/* Pill — refined glass capsule with hairline gradient ring. */}
             <a
               href="https://www.producthunt.com/products/menuthere"
               target="_blank"
               rel="noopener noreferrer"
-              className="self-start inline-flex items-center gap-2.5 pl-1.5 pr-3.5 py-1.5 rounded-full bg-white/70 border border-[rgba(11,11,12,0.08)] text-[13px] text-[#2A2A2D] backdrop-blur-md hover:bg-white/85 transition-colors"
+              className="group relative inline-flex items-center gap-2 pl-2 pr-3.5 py-1 rounded-full bg-white/55 border border-[rgba(11,11,12,0.06)] text-[11.5px] font-medium tracking-[0.005em] text-[#1A1A1C] backdrop-blur-2xl hover:bg-white/75 hover:border-[rgba(11,11,12,0.1)] transition-all duration-300 hero-pill"
+              style={{
+                boxShadow:
+                  "0 1px 0 rgba(255,255,255,0.7) inset, 0 1px 1px rgba(11,11,12,0.03), 0 12px 32px -16px rgba(11,11,12,0.15)",
+              }}
             >
-              <span className="px-2 py-0.5 bg-[#FF6B2C] text-white rounded-full text-[11px] font-semibold tracking-wider uppercase">
-                New
+              <span className="relative flex h-1.5 w-1.5 ml-0.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-[#FF6B2C] opacity-70 animate-ping" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#FF6B2C]" />
               </span>
-              <span>Live on Product Hunt — #22 today</span>
-              <svg width="14" height="14" viewBox="0 0 14 14" className="ml-0.5">
+              <span>Live on Product Hunt</span>
+              <span className="h-2.5 w-px bg-[rgba(11,11,12,0.14)]" aria-hidden />
+              <span className="text-[#7A7A7E] tabular-nums">#22 today</span>
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 14 14"
+                className="ml-0.5 text-[#7A7A7E] group-hover:text-[#0B0B0C] group-hover:translate-x-0.5 transition-all duration-300"
+              >
                 <path
                   d="M3 7h8m0 0L7.5 3.5M11 7l-3.5 3.5"
                   stroke="currentColor"
@@ -197,23 +241,32 @@ export default function Hero() {
 
             {/* Headline */}
             <h1
-              className="mt-6 text-[#0B0B0C] font-medium tracking-tight"
+              className="mt-7 text-[#0A0A0B] tracking-tight md:whitespace-nowrap"
               style={{
-                fontSize: "clamp(40px, 6vw, 64px)",
-                lineHeight: 1.02,
-                letterSpacing: "-0.035em",
+                fontFamily:
+                  "var(--font-bricolage), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
+                fontSize: "clamp(34px, 6.4vw, 76px)",
+                lineHeight: 0.98,
+                letterSpacing: "-0.045em",
+                fontWeight: 600,
               }}
             >
-              Own your orders.
+              <span className="hero-title-word hero-title-word-1 inline-block">Own</span>{" "}
+              <span className="hero-title-word hero-title-word-2 inline-block">your</span>{" "}
+              <span className="hero-title-word hero-title-word-3 inline-block">orders.</span>
               <br />
               <span
-                className="text-[#A6A6AB]"
+                className="hero-title-word hero-title-word-4 inline-block"
                 style={{
-                  fontStyle: "italic",
-                  fontFamily: "'Instrument Serif', Georgia, serif",
+                  marginTop: "0.08em",
                   fontWeight: 400,
-                  fontSize: "clamp(46px, 6.8vw, 72px)",
-                  letterSpacing: "-0.02em",
+                  fontStyle: "italic",
+                  letterSpacing: "-0.04em",
+                  background:
+                    "linear-gradient(180deg, #E89968 0%, #C26B2E 60%, #9A4A1A 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
                 }}
               >
                 Own your customers.
@@ -221,38 +274,46 @@ export default function Hero() {
             </h1>
 
             {/* Subhead */}
-            <p className="mt-5 text-[14px] sm:text-[15px] text-[#57575B] leading-relaxed max-w-md tracking-[-0.005em]">
+            <p
+              className="mt-6 text-[15px] sm:text-[16px] text-[#3F3F44] leading-[1.55] max-w-[480px] mx-auto"
+              style={{ letterSpacing: "-0.005em" }}
+            >
               Skip the 30% aggregator cut. Menuthere spins up your branded
               ordering &amp; delivery platform in minutes.
             </p>
 
             {/* Search CTA */}
-            <form onSubmit={handleGenerate} className="mt-8 w-full max-w-[520px]">
-              <div className="inline-flex items-center gap-2 text-[12px] font-medium tracking-wider uppercase text-[#76767B] mb-2.5">
-                <span
-                  className="inline-block w-1.5 h-1.5 rounded-full bg-[#FF6B2C]"
-                  style={{ boxShadow: "0 0 0 4px rgba(255,107,44,0.18)" }}
-                />
-                Find your business on Google
-              </div>
-
+            <form
+              onSubmit={handleGenerate}
+              className="mt-10 w-full max-w-[540px] mx-auto"
+            >
               <div ref={searchBoxRef} className="relative">
+                {/* Glow ring behind input — picks up the page accent. */}
+                <div
+                  aria-hidden
+                  className="absolute -inset-0.5 rounded-[18px] opacity-60 blur-md pointer-events-none transition-opacity duration-500 group-focus-within:opacity-100"
+                  style={{
+                    background:
+                      "linear-gradient(120deg, rgba(255,107,44,0.18) 0%, rgba(255,200,140,0.10) 40%, rgba(11,11,12,0.05) 100%)",
+                  }}
+                />
+
                 {selected ? (
                   <div
-                    className="flex items-center gap-2 p-1.5 bg-white rounded-[14px] border border-[rgba(11,11,12,0.1)]"
+                    className="relative flex items-center gap-2 p-2 bg-white rounded-[16px] border border-[rgba(11,11,12,0.08)]"
                     style={{
                       boxShadow:
-                        "0 1px 0 rgba(11,11,12,0.02), 0 14px 30px -20px rgba(11,11,12,0.18)",
+                        "0 1px 0 rgba(255,255,255,0.9) inset, 0 1px 2px rgba(11,11,12,0.04), 0 22px 50px -28px rgba(11,11,12,0.32), 0 8px 18px -12px rgba(255,107,44,0.18)",
                     }}
                   >
-                    <div className="flex items-center flex-1 min-w-0 gap-2.5 px-3 py-2">
-                      <MapPin className="h-4 w-4 text-[#76767B] shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-medium text-[#0B0B0C] truncate leading-tight">
+                    <div className="flex items-center flex-1 min-w-0 gap-2.5 px-3 py-2.5">
+                      <MapPin className="h-4 w-4 text-[#FF6B2C] shrink-0" />
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="text-[14px] font-semibold text-[#0B0B0C] truncate leading-tight tracking-[-0.005em]">
                           {selected.name}
                         </p>
                         {selected.address && (
-                          <p className="text-[11px] text-[#76767B] truncate">
+                          <p className="text-[11.5px] text-[#7A7A7E] truncate mt-0.5">
                             {selected.address}
                           </p>
                         )}
@@ -260,7 +321,7 @@ export default function Hero() {
                       <button
                         type="button"
                         onClick={handleClearSelection}
-                        className="text-[#A6A6AB] hover:text-[#0B0B0C] shrink-0"
+                        className="text-[#A6A6AB] hover:text-[#0B0B0C] shrink-0 p-1 -m-1 rounded-md hover:bg-[rgba(11,11,12,0.04)] transition-colors"
                         aria-label="Clear selection"
                       >
                         <X className="h-4 w-4" />
@@ -269,22 +330,28 @@ export default function Hero() {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="inline-flex items-center gap-1.5 bg-[#0B0B0C] text-white rounded-[10px] px-4 py-2.5 text-[14px] font-medium hover:bg-[#1A1A1C] transition-colors disabled:opacity-60 shrink-0"
+                      className="group/btn relative inline-flex items-center gap-1.5 text-white rounded-[12px] px-4 py-3 text-[14px] font-semibold tracking-[-0.005em] disabled:opacity-60 shrink-0 overflow-hidden transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                      style={{
+                        background:
+                          "linear-gradient(180deg, #1A1A1C 0%, #0B0B0C 100%)",
+                        boxShadow:
+                          "0 1px 0 rgba(255,255,255,0.08) inset, 0 1px 2px rgba(11,11,12,0.18), 0 8px 20px -8px rgba(11,11,12,0.4)",
+                      }}
                     >
                       <Sparkles className="h-3.5 w-3.5" fill="currentColor" />
-                      {submitting ? "Working..." : "Generate"}
+                      {submitting ? "Working…" : "Generate"}
                     </button>
                   </div>
                 ) : (
                   <div
-                    className="flex items-center gap-1.5 p-1.5 bg-white rounded-[14px] border border-[rgba(11,11,12,0.1)]"
+                    className="relative flex items-center gap-1.5 p-2 bg-white rounded-[16px] border border-[rgba(11,11,12,0.08)] transition-all duration-300 focus-within:border-[rgba(11,11,12,0.18)] focus-within:scale-[1.005]"
                     style={{
                       boxShadow:
-                        "0 1px 0 rgba(11,11,12,0.02), 0 14px 30px -20px rgba(11,11,12,0.18)",
+                        "0 1px 0 rgba(255,255,255,0.9) inset, 0 1px 2px rgba(11,11,12,0.04), 0 22px 50px -28px rgba(11,11,12,0.32), 0 8px 18px -12px rgba(255,107,44,0.18)",
                     }}
                   >
-                    <div className="flex items-center flex-1 min-w-0 gap-2.5 px-3 py-2">
-                      <Search className="h-4 w-4 text-[#76767B] shrink-0" />
+                    <div className="flex items-center flex-1 min-w-0 gap-2.5 px-3 py-2.5">
+                      <Search className="h-4 w-4 text-[#A6A6AB] shrink-0" />
                       <input
                         type="text"
                         placeholder={
@@ -292,7 +359,7 @@ export default function Hero() {
                             ? typedPlaceholder
                               ? `Search "${typedPlaceholder}"`
                               : `Search "Burger Town"`
-                            : "Loading Google search..."
+                            : "Loading Google search…"
                         }
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
@@ -300,13 +367,19 @@ export default function Hero() {
                           predictions.length > 0 && setShowDropdown(true)
                         }
                         disabled={!isLoaded}
-                        className="flex-1 min-w-0 bg-transparent border-none outline-none text-[15px] text-[#0B0B0C] placeholder:text-[#A6A6AB] tracking-[-0.005em]"
+                        className="flex-1 min-w-0 bg-transparent border-none outline-none text-[15px] text-[#0B0B0C] placeholder:text-[#B2B2B7] tracking-[-0.005em]"
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="inline-flex items-center gap-1.5 bg-[#0B0B0C] text-white rounded-[10px] px-4 py-2.5 text-[14px] font-medium hover:bg-[#1A1A1C] transition-colors disabled:opacity-60 shrink-0"
+                      className="group/btn relative inline-flex items-center gap-1.5 text-white rounded-[12px] px-4 py-3 text-[14px] font-semibold tracking-[-0.005em] disabled:opacity-60 shrink-0 overflow-hidden transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                      style={{
+                        background:
+                          "linear-gradient(180deg, #1A1A1C 0%, #0B0B0C 100%)",
+                        boxShadow:
+                          "0 1px 0 rgba(255,255,255,0.08) inset, 0 1px 2px rgba(11,11,12,0.18), 0 8px 20px -8px rgba(11,11,12,0.4)",
+                      }}
                     >
                       <Sparkles className="h-3.5 w-3.5" fill="currentColor" />
                       Generate
@@ -316,10 +389,10 @@ export default function Hero() {
 
                 {!selected && showDropdown && predictions.length > 0 && (
                   <ul
-                    className="absolute z-[70] left-0 right-0 top-full mt-2 max-h-72 overflow-auto rounded-[14px] border border-[rgba(11,11,12,0.1)] bg-white text-left"
+                    className="absolute z-[70] left-0 right-0 top-full mt-2 max-h-72 overflow-auto rounded-[16px] border border-[rgba(11,11,12,0.08)] bg-white/95 backdrop-blur-xl text-left"
                     style={{
                       boxShadow:
-                        "0 1px 0 rgba(11,11,12,0.04), 0 24px 60px -28px rgba(11,11,12,0.32)",
+                        "0 1px 0 rgba(255,255,255,0.9) inset, 0 24px 60px -24px rgba(11,11,12,0.28)",
                     }}
                   >
                     {predictions.map((p) => (
@@ -327,7 +400,7 @@ export default function Hero() {
                         <button
                           type="button"
                           onClick={() => handlePickPrediction(p)}
-                          className="w-full flex items-start gap-2.5 px-4 py-2.5 text-left hover:bg-[#FAF5EC] transition-colors"
+                          className="w-full flex items-start gap-2.5 px-4 py-2.5 text-left hover:bg-[rgba(255,107,44,0.06)] transition-colors"
                         >
                           <MapPin className="h-4 w-4 text-[#A6A6AB] shrink-0 mt-0.5" />
                           <div className="flex-1 min-w-0">
@@ -336,7 +409,7 @@ export default function Hero() {
                                 p.description}
                             </p>
                             {p.structured_formatting?.secondary_text && (
-                              <p className="text-[12px] text-[#76767B] truncate">
+                              <p className="text-[12px] text-[#7A7A7E] truncate">
                                 {p.structured_formatting.secondary_text}
                               </p>
                             )}
@@ -348,360 +421,26 @@ export default function Hero() {
                 )}
               </div>
 
-              <div className="mt-3 flex items-center gap-1.5 text-[13px] text-[#57575B]">
-                Not listed on Google?{" "}
+              <div className="mt-4 flex items-center justify-center gap-1.5 text-[12.5px] text-[#8B6F4E]">
+                <span>Not listed on Google?</span>
                 <button
                   type="button"
                   onClick={() => router.push("/get-started?step=1")}
-                  className="text-[#1A1A1C] font-medium border-b border-[rgba(11,11,12,0.25)] pb-px hover:border-[rgba(11,11,12,0.5)] transition-colors inline-flex items-center gap-1"
+                  className="group/m inline-flex items-center gap-1 text-[#3D2B1A] font-medium hover:text-[#C26B2E] transition-colors"
                 >
-                  Set up manually
-                  <ArrowRight className="h-3 w-3" />
+                  <span className="relative">
+                    Set up manually
+                    <span className="absolute left-0 right-0 -bottom-0.5 h-px bg-current opacity-30 group-hover/m:opacity-100 transition-opacity" />
+                  </span>
+                  <ArrowRight className="h-3 w-3 group-hover/m:translate-x-0.5 transition-transform" />
                 </button>
               </div>
             </form>
-
-          </div>
-
-          {/* RIGHT — phone mockup with floating cards */}
-          <div className="flex-1 relative hidden md:block min-h-[600px]">
-            {/* Phone — tilted */}
-            <div
-              className="absolute top-0 right-12"
-              style={{ transform: "rotate(-4deg)", transformOrigin: "center" }}
-            >
-              <PhoneMockup />
-            </div>
-
-            {/* Floating — Live order (top-left overlap) */}
-            <div className="absolute top-20 -left-2 lg:left-0 animate-[floatA_6s_ease-in-out_infinite] z-20">
-              <FloatingCard className="w-[260px]">
-                <div className="flex items-center gap-2.5 mb-2">
-                  <div className="w-7 h-7 rounded-full bg-[#E7F7EE] grid place-items-center">
-                    <div
-                      className="w-2 h-2 rounded-full bg-[#19A463]"
-                      style={{ boxShadow: "0 0 0 4px rgba(25,164,99,0.15)" }}
-                    />
-                  </div>
-                  <div className="text-[12px] text-[#76767B] font-medium">
-                    Live · just now
-                  </div>
-                </div>
-                <div className="text-[14px] font-semibold tracking-tight text-[#0B0B0C]">
-                  New order — $29.00
-                </div>
-                <div className="text-[12px] text-[#76767B] mt-0.5">
-                  #4127 · Royal Biriyani ×2
-                </div>
-                <div className="mt-2.5 flex items-center justify-between pt-2.5 border-t border-[rgba(11,11,12,0.06)]">
-                  <span className="text-[11px] text-[#76767B]">You keep</span>
-                  <span className="text-[13px] font-semibold text-[#19A463]">
-                    $28.13 (97%)
-                  </span>
-                </div>
-              </FloatingCard>
-            </div>
-
-            {/* Floating — Savings (bottom-left overlap) */}
-            <div className="absolute bottom-10 -left-2 lg:left-4 animate-[floatB_7s_ease-in-out_infinite] z-20">
-              <FloatingCard className="flex items-center gap-3 px-4 py-3">
-                <div className="flex flex-col">
-                  <span className="text-[11px] text-[#76767B] uppercase tracking-wider font-medium">
-                    Saved this month
-                  </span>
-                  <span className="text-[22px] font-semibold tracking-tight text-[#0B0B0C]">
-                    $4,820
-                  </span>
-                </div>
-                <svg width="56" height="32" viewBox="0 0 56 32">
-                  <path
-                    d="M2 26 L10 22 L18 24 L26 16 L34 18 L42 10 L54 4 L54 32 L2 32 Z"
-                    fill="#FF6B2C"
-                    opacity="0.12"
-                  />
-                  <path
-                    d="M2 26 L10 22 L18 24 L26 16 L34 18 L42 10 L54 4"
-                    stroke="#FF6B2C"
-                    strokeWidth="2"
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </FloatingCard>
-            </div>
-
-            {/* Floating — Domain pill (right edge mid) */}
-            <div className="absolute top-[340px] -right-2 animate-[floatC_8s_ease-in-out_infinite] z-20">
-              <FloatingCard className="flex items-center gap-2 px-3 py-2">
-                <div className="w-[18px] h-[18px] rounded bg-[#0B0B0C] grid place-items-center">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="#fff">
-                    <path d="M2 6h6v1.5H2zM2 2h6v1.5H2zM2 4h4v1.5H2z" />
-                  </svg>
-                </div>
-                <span className="font-mono text-[12px] text-[#2A2A2D]">
-                  spicegarden.menu
-                </span>
-                <span className="w-1.5 h-1.5 bg-[#19A463] rounded-full" />
-              </FloatingCard>
-            </div>
           </div>
         </div>
       </div>
-
-      <style jsx global>{`
-        @keyframes floatA {
-          0%,
-          100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-8px);
-          }
-        }
-        @keyframes floatB {
-          0%,
-          100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-10px);
-          }
-        }
-        @keyframes floatC {
-          0%,
-          100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-6px);
-          }
-        }
-      `}</style>
     </section>
   );
 }
 
-function FloatingCard({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`bg-white rounded-2xl p-3.5 border border-[rgba(11,11,12,0.06)] ${className}`}
-      style={{
-        boxShadow:
-          "0 1px 0 rgba(11,11,12,0.04), 0 24px 60px -28px rgba(11,11,12,0.32)",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
 
-function PhoneMockup() {
-  return (
-    <div
-      className="relative w-[286px] h-[600px] rounded-[48px] p-[3px]"
-      style={{
-        background:
-          "linear-gradient(135deg, #2A2A2D 0%, #0B0B0C 40%, #1A1A1C 100%)",
-        boxShadow:
-          "0 30px 80px -30px rgba(11,11,12,0.45), 0 12px 24px -12px rgba(11,11,12,0.25), inset 0 0 0 1px rgba(255,255,255,0.04)",
-      }}
-    >
-      {/* Side buttons — left */}
-      <div className="absolute -left-[3px] top-[96px] w-[3px] h-[28px] rounded-l bg-[#1A1A1C] shadow-[inset_-1px_0_0_rgba(0,0,0,0.6)]" />
-      <div className="absolute -left-[3px] top-[140px] w-[3px] h-[52px] rounded-l bg-[#1A1A1C] shadow-[inset_-1px_0_0_rgba(0,0,0,0.6)]" />
-      <div className="absolute -left-[3px] top-[206px] w-[3px] h-[52px] rounded-l bg-[#1A1A1C] shadow-[inset_-1px_0_0_rgba(0,0,0,0.6)]" />
-
-      {/* Side button — right (power) */}
-      <div className="absolute -right-[3px] top-[160px] w-[3px] h-[78px] rounded-r bg-[#1A1A1C] shadow-[inset_1px_0_0_rgba(0,0,0,0.6)]" />
-
-      {/* Inner bezel */}
-      <div
-        className="w-full h-full rounded-[44px] bg-[#0B0B0C] p-[5px]"
-        style={{
-          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.03)",
-        }}
-      >
-        {/* Screen */}
-        <div className="w-full h-full rounded-[39px] bg-white overflow-hidden relative">
-          {/* Dynamic Island */}
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[112px] h-[30px] bg-[#0B0B0C] rounded-full z-30 flex items-center justify-end pr-2.5 gap-1.5">
-            {/* Camera lens */}
-            <span className="w-2 h-2 rounded-full bg-[#1A1A1C] ring-1 ring-[#26262A] shadow-[inset_0_0_0_1px_rgba(140,170,200,0.18)]" />
-          </div>
-
-          {/* Status bar */}
-          <div className="flex items-center justify-between px-7 pt-3.5 text-[12px] font-semibold text-[#0B0B0C]">
-            <span>9:41</span>
-            <span className="flex items-center gap-1">
-              <svg width="14" height="10" viewBox="0 0 14 10" fill="#0B0B0C">
-                <rect x="0" y="6" width="2.5" height="4" rx="0.5" />
-                <rect x="3.5" y="4" width="2.5" height="6" rx="0.5" />
-                <rect x="7" y="2" width="2.5" height="8" rx="0.5" />
-                <rect x="10.5" y="0" width="2.5" height="10" rx="0.5" />
-              </svg>
-              <svg width="22" height="11" viewBox="0 0 22 11" fill="none">
-                <rect
-                  x="0.5"
-                  y="0.5"
-                  width="18"
-                  height="10"
-                  rx="2.5"
-                  stroke="#0B0B0C"
-                />
-                <rect x="2" y="2" width="15" height="7" rx="1.5" fill="#0B0B0C" />
-                <rect
-                  x="19.5"
-                  y="3.5"
-                  width="1.5"
-                  height="4"
-                  rx="0.5"
-                  fill="#0B0B0C"
-                />
-              </svg>
-            </span>
-          </div>
-
-          {/* Restaurant header */}
-          <div className="px-5 pt-11">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <div className="text-[18px] font-semibold tracking-tight text-[#0B0B0C] leading-tight">
-                  Spice Garden
-                </div>
-                <div className="text-[12px] text-[#76767B] mt-0.5">
-                  Delivers in 25–35 min · 0.8 mi
-                </div>
-              </div>
-              <button className="w-8 h-8 rounded-full bg-[#F3EFE5] border border-[rgba(11,11,12,0.06)] grid place-items-center shrink-0">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <circle
-                    cx="7"
-                    cy="7"
-                    r="5.5"
-                    stroke="#0B0B0C"
-                    strokeWidth="1.3"
-                  />
-                  <path
-                    d="M7 4v3l2 1.5"
-                    stroke="#0B0B0C"
-                    strokeWidth="1.3"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          {/* Category pills */}
-          <div className="mt-4 px-5 flex items-center gap-2 overflow-hidden">
-            {[
-              { label: "Biryani", active: true },
-              { label: "Dosa" },
-              { label: "Drinks" },
-              { label: "Combos" },
-            ].map((c) => (
-              <span
-                key={c.label}
-                className={`px-3 py-1.5 rounded-full text-[12px] font-medium whitespace-nowrap ${
-                  c.active
-                    ? "bg-[#0B0B0C] text-white"
-                    : "bg-[#F3EFE5] text-[#2A2A2D] border border-[rgba(11,11,12,0.06)]"
-                }`}
-              >
-                {c.label}
-              </span>
-            ))}
-          </div>
-
-          {/* Featured product card */}
-          <div className="mt-3 mx-5 rounded-2xl bg-[#FAF5EC] border border-[rgba(11,11,12,0.05)] overflow-hidden">
-            {/* Food photo */}
-            <div className="relative h-[150px] bg-gradient-to-br from-[#F8E3C8] via-[#EFCAA0] to-[#D9A56F]">
-              <img
-                src="/biriyani.png"
-                alt="Royal Biriyani"
-                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[140px] object-contain drop-shadow-[0_8px_12px_rgba(80,40,10,0.18)]"
-              />
-              <span className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#1F7A4A] text-white text-[10px] font-semibold tracking-wide">
-                <span className="w-1.5 h-1.5 bg-white rounded-full" />
-                Bestseller
-              </span>
-            </div>
-
-            <div className="px-3.5 pt-3 pb-3.5">
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-[14px] font-semibold tracking-tight text-[#0B0B0C]">
-                  Royal Biriyani
-                </span>
-                <span className="text-[14px] font-semibold text-[#0B0B0C]">
-                  $14.50
-                </span>
-              </div>
-              <div className="text-[11px] text-[#76767B] mt-0.5 leading-snug">
-                Aromatic basmati, tender chicken, saffron
-              </div>
-              <div className="mt-3 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2.5 bg-white rounded-full border border-[rgba(11,11,12,0.08)] px-2 py-1">
-                  <button className="w-5 h-5 grid place-items-center text-[#0B0B0C] text-[13px]">
-                    −
-                  </button>
-                  <span className="text-[12px] font-semibold w-3 text-center">
-                    2
-                  </span>
-                  <button className="w-5 h-5 grid place-items-center text-[#0B0B0C] text-[13px]">
-                    +
-                  </button>
-                </div>
-                <button className="flex-1 bg-[#ED5717] text-white text-[12px] font-semibold py-2 rounded-full">
-                  Add — $29.00
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Secondary item row */}
-          <div className="mt-2.5 mx-5 rounded-2xl bg-[#FAF5EC] border border-[rgba(11,11,12,0.05)] p-2.5 flex items-center gap-3">
-            <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-[#F8E3C8] via-[#EFCAA0] to-[#D9A56F] shrink-0 overflow-hidden">
-              <img
-                src="/dosa.png"
-                alt="Crispy Masala Dosa"
-                className="absolute inset-0 w-full h-full object-contain p-0.5"
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[13px] font-semibold text-[#0B0B0C]">
-                  Crispy Masala Dosa
-                </span>
-                <span className="text-[13px] font-semibold text-[#0B0B0C]">
-                  $6.50
-                </span>
-              </div>
-              <div className="text-[11px] text-[#76767B] mt-0.5">
-                Rice crepe · potato masala
-              </div>
-            </div>
-          </div>
-
-          {/* Cart bar */}
-          <div className="absolute bottom-3 left-3 right-3 bg-[#0B0B0C] text-white rounded-full pl-1.5 pr-4 py-1.5 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="w-8 h-8 rounded-full bg-[#ED5717] text-white grid place-items-center text-[12px] font-semibold">
-                3
-              </span>
-              <span className="text-[13px] font-medium">View cart</span>
-            </div>
-            <span className="text-[13px] font-semibold">$35.50</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}

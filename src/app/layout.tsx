@@ -1,6 +1,6 @@
 // app/layout.tsx
 import type { Metadata, Viewport } from "next";
-import { Inter, Dancing_Script, Poppins, Roboto, Geist } from "next/font/google";
+import { Inter, Dancing_Script, Poppins, Roboto, Geist, Bricolage_Grotesque } from "next/font/google";
 import Script from "next/script";
 import dynamic from "next/dynamic";
 import { headers } from "next/headers";
@@ -108,6 +108,12 @@ const geist = Geist({
   variable: "--font-geist",
   display: "swap",
 });
+const bricolageGrotesque = Bricolage_Grotesque({
+  weight: ["400", "500", "600", "700"],
+  subsets: ["latin"],
+  variable: "--font-bricolage",
+  display: "swap",
+});
 
 export default async function RootLayout({
   children,
@@ -180,7 +186,7 @@ document.head.appendChild(o)}initApollo();`,
         />
       </head>
       <body
-        className={`antialiased font-sans ${inter.variable} ${dancingScript.variable} ${poppins.variable} ${roboto.variable} ${geist.variable}`}
+        className={`antialiased font-sans ${inter.variable} ${dancingScript.variable} ${poppins.variable} ${roboto.variable} ${geist.variable} ${bricolageGrotesque.variable}`}
       >
         <PostHogProvider>
           <DomainProvider config={MENUTHERE_CONFIG}>
