@@ -58,25 +58,45 @@ export const calculateGstForItems = (
 
 export const calculateDeliveryDistanceAndCost = async (
   hotelData: HotelData,
+  explicitCoords?: { lat: number; lng: number } | null,
 ) => {
   const { setDeliveryInfo } = useOrderStore.getState();
 
   try {
-    let userCoordsStr: string | null = null;
-    try {
-      userCoordsStr = localStorage?.getItem("user-location-store");
-    } catch {
-      return;
-    }
-    if (!userCoordsStr) return;
+    let userLat: number | undefined;
+    let userLng: number | undefined;
 
-    const userLocationData = JSON.parse(userCoordsStr);
+    // Prefer the explicit delivery-address coords (passed from PlaceOrderModal's
+    // address picker) over the customer's current GPS location stored in
+    // `user-location-store`. The two can diverge: the customer's phone may be
+    // at home while they're sending food to a different address — the radius
+    // check must run against the *delivery* point, not the customer's phone.
     if (
-      !userLocationData.state?.coords ||
-      typeof userLocationData.state.coords.lng !== "number" ||
-      typeof userLocationData.state.coords.lat !== "number"
+      explicitCoords &&
+      typeof explicitCoords.lat === "number" &&
+      typeof explicitCoords.lng === "number"
     ) {
-      return;
+      userLat = explicitCoords.lat;
+      userLng = explicitCoords.lng;
+    } else {
+      let userCoordsStr: string | null = null;
+      try {
+        userCoordsStr = localStorage?.getItem("user-location-store");
+      } catch {
+        return;
+      }
+      if (!userCoordsStr) return;
+
+      const userLocationData = JSON.parse(userCoordsStr);
+      if (
+        !userLocationData.state?.coords ||
+        typeof userLocationData.state.coords.lng !== "number" ||
+        typeof userLocationData.state.coords.lat !== "number"
+      ) {
+        return;
+      }
+      userLng = userLocationData.state.coords.lng;
+      userLat = userLocationData.state.coords.lat;
     }
 
     const restaurantCoords = hotelData?.geo_location?.coordinates;
@@ -91,8 +111,7 @@ export const calculateDeliveryDistanceAndCost = async (
       return;
     }
 
-    const userLng = userLocationData.state.coords.lng;
-    const userLat = userLocationData.state.coords.lat;
+    if (typeof userLat !== "number" || typeof userLng !== "number") return;
 
     // Validate coordinate ranges (lng: -180 to 180, lat: -90 to 90)
     if (

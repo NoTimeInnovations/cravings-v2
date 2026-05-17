@@ -669,9 +669,11 @@ const BillCard = ({
       discountSavings = freebieTotalPrice;
     } else if (discount.type === "percentage") {
       discountSavings = (subtotal * discount.value) / 100;
-      if (discount.max_discount_amount) discountSavings = Math.min(discountSavings, discount.max_discount_amount);
     } else {
       discountSavings = discount.value;
+    }
+    if (discount.max_discount_amount) {
+      discountSavings = Math.min(discountSavings, discount.max_discount_amount);
     }
     discountSavings = Math.min(discountSavings, subtotal);
   }
@@ -1680,7 +1682,7 @@ const PlaceOrderModal = ({
     if (disc.type === "freebie") return getFreebieItemsTotal(disc);
     const sub = items?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
     let savings = disc.type === "percentage" ? (sub * disc.value) / 100 : disc.value;
-    if (disc.type === "percentage" && disc.max_discount_amount) savings = Math.min(savings, disc.max_discount_amount);
+    if (disc.max_discount_amount) savings = Math.min(savings, disc.max_discount_amount);
     return Math.min(savings, sub);
   };
 
@@ -2095,7 +2097,7 @@ const PlaceOrderModal = ({
       !isQrScan &&
       orderType === "delivery"
     ) {
-      calculateDeliveryDistanceAndCost(hotelData as HotelData);
+      calculateDeliveryDistanceAndCost(hotelData as HotelData, selectedCoords);
     }
   }, [selectedCoords, isDelivery, hasDelivery, isQrScan, orderType, hotelData]);
 

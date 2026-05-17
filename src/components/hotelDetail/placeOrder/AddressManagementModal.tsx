@@ -68,6 +68,22 @@ const MAX_RECENT = 5;
 const GREEN_PIN_SVG = `data:image/svg+xml,${encodeURIComponent('<svg width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 26 16 26s16-14 16-26C32 7.2 24.8 0 16 0z" fill="#16a34a"/><circle cx="16" cy="14.5" r="6" fill="white"/></svg>')}`;
 
 
+function haversineKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
 function getRecentSearches(): RecentSearch[] {
   try {
     const raw = localStorage?.getItem(RECENT_SEARCHES_KEY);
@@ -176,6 +192,7 @@ const AddressManagementModal = ({
   const [locating, setLocating] = useState(false);
   const [manualAddress, setManualAddress] = useState("");
   const [mapMoving, setMapMoving] = useState(false);
+  const [pinDistanceKm, setPinDistanceKm] = useState<number | null>(null);
 
   const [hotelMarkerVisible, setHotelMarkerVisible] = useState(true);
   const [hotelDirection, setHotelDirection] = useState<{ angle: number } | null>(null);
@@ -205,6 +222,10 @@ const AddressManagementModal = ({
   const hotelCoords = hotelData?.geo_location && typeof hotelData.geo_location === "object" && "coordinates" in hotelData.geo_location
     ? { lat: hotelData.geo_location.coordinates[1], lng: hotelData.geo_location.coordinates[0] }
     : null;
+
+  const radiusKm = hotelData?.delivery_rules?.delivery_radius;
+  const isPinOutOfRange =
+    !!radiusKm && pinDistanceKm != null && pinDistanceKm > radiusKm;
 
   // Initialize services when loaded
   useEffect(() => {
@@ -470,6 +491,9 @@ const AddressManagementModal = ({
     const lat = center.lat();
     const lng = center.lng();
     mapCenterRef.current = { lat, lng };
+    if (hotelCoords) {
+      setPinDistanceKm(haversineKm(hotelCoords, { lat, lng }));
+    }
 
     // Mark initialized after first idle (skip geocode timer during init)
     if (!mapInitializedRef.current) {
@@ -510,12 +534,19 @@ const AddressManagementModal = ({
     mapDraggedRef.current = true;
     setMapMoving(true);
     setGeocodedInfo(null);
+    setPinDistanceKm(null);
     if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
   }, []);
 
   const handleConfirm = async () => {
     if (!geocodedInfo) {
       toast.error("Please wait for location to load");
+      return;
+    }
+    if (isPinOutOfRange) {
+      toast.error(
+        `This location is ${pinDistanceKm?.toFixed(1)} km away — outside the ${radiusKm} km delivery range`,
+      );
       return;
     }
 
@@ -963,6 +994,20 @@ const AddressManagementModal = ({
             </div>
           ) : null}
 
+          {isPinOutOfRange && !mapMoving && (
+            <div className="flex items-start gap-2.5 mt-4 p-3 rounded-xl border border-red-200 bg-red-50">
+              <MapPin className="h-5 w-5 shrink-0 mt-0.5 text-red-600" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-semibold text-red-700">
+                  Outside delivery range
+                </p>
+                <p className="text-xs mt-0.5 text-red-600">
+                  This location is {pinDistanceKm?.toFixed(1)} km away. {hotelData?.store_name || "This store"} delivers within {radiusKm} km.
+                </p>
+              </div>
+            </div>
+          )}
+
           <textarea
             placeholder="Enter complete address - optional (flat/house no, street, landmark)"
             value={manualAddress}
@@ -974,7 +1019,7 @@ const AddressManagementModal = ({
 
           <button
             onClick={handleConfirm}
-            disabled={saving || geocoding || mapMoving || !geocodedInfo}
+            disabled={saving || geocoding || mapMoving || !geocodedInfo || isPinOutOfRange}
             className="w-full mt-5 h-14 text-white rounded-2xl font-bold text-[16px] disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-transform"
             style={{ backgroundColor: accent }}
           >

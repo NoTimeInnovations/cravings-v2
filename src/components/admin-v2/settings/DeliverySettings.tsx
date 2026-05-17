@@ -567,33 +567,34 @@ export function DeliverySettings() {
                         </div>
                     </div>
 
+                    {deliveryRules.needDeliveryLocation && (
+                        <div className="space-y-2">
+                            <Label>Delivery Radius (km)</Label>
+                            <Input
+                                type="number"
+                                min="1"
+                                value={deliveryRules.delivery_radius}
+                                onChange={(e) => setDeliveryRules(prev => ({ ...prev, delivery_radius: Number(e.target.value) }))}
+                            />
+                        </div>
+                    )}
+
                     {deliveryRules.needDeliveryLocation && !agentChargeEnabled && (
                         <>
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label>Delivery Radius (km)</Label>
-                                    <Input
-                                        type="number"
-                                        min="1"
-                                        value={deliveryRules.delivery_radius}
-                                        onChange={(e) => setDeliveryRules(prev => ({ ...prev, delivery_radius: Number(e.target.value) }))}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Pricing Type</Label>
-                                    <Select
-                                        value={deliveryRules.is_fixed_rate ? "fixed" : "variable"}
-                                        onValueChange={(val) => setDeliveryRules(prev => ({ ...prev, is_fixed_rate: val === "fixed" }))}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="fixed">Fixed Rate</SelectItem>
-                                            <SelectItem value="variable">Variable (Distance Based)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                            <div className="space-y-2">
+                                <Label>Pricing Type</Label>
+                                <Select
+                                    value={deliveryRules.is_fixed_rate ? "fixed" : "variable"}
+                                    onValueChange={(val) => setDeliveryRules(prev => ({ ...prev, is_fixed_rate: val === "fixed" }))}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="fixed">Fixed Rate</SelectItem>
+                                        <SelectItem value="variable">Variable (Distance Based)</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             {deliveryRules.is_fixed_rate ? (

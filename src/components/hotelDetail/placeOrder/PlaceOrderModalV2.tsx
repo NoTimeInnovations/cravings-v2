@@ -412,7 +412,7 @@ const PlaceOrderModalV2 = ({
       appliedDiscount.type === "percentage"
         ? (subtotal * appliedDiscount.value) / 100
         : appliedDiscount.value;
-    if (appliedDiscount.type === "percentage" && appliedDiscount.max_discount_amount) {
+    if (appliedDiscount.max_discount_amount) {
       savings = Math.min(savings, appliedDiscount.max_discount_amount);
     }
     return Math.min(savings, subtotal);
@@ -649,7 +649,10 @@ const PlaceOrderModalV2 = ({
     setSelectedReceiverPhone(addr.receiverPhone?.trim() || null);
     setShowAddressSheet(false);
     if (orderType === "delivery") {
-      calculateDeliveryDistanceAndCost(hotelData);
+      const coords = addr.latitude && addr.longitude
+        ? { lat: addr.latitude, lng: addr.longitude }
+        : null;
+      calculateDeliveryDistanceAndCost(hotelData, coords);
     }
   }, [hotelData, orderType]);
 
@@ -1565,7 +1568,7 @@ const PlaceOrderModalV2 = ({
                         onClick={() => {
                           if (!open) return;
                           setOrderType(type);
-                          if (type === "delivery") calculateDeliveryDistanceAndCost(hotelData);
+                          if (type === "delivery") calculateDeliveryDistanceAndCost(hotelData, userCoordinates);
                         }}
                         disabled={!open}
                         className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all border-2 ${
@@ -2132,7 +2135,7 @@ const PlaceOrderModalV2 = ({
               useLocationStore.getState().setCoords(coords);
             }
             if (orderType === "delivery") {
-              calculateDeliveryDistanceAndCost(hotelData);
+              calculateDeliveryDistanceAndCost(hotelData, coords ?? null);
             }
           }
           setShowAddressSheet(false);

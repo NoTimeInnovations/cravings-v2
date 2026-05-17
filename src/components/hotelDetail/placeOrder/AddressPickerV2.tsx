@@ -57,6 +57,22 @@ function saveRecentSearch(item: RecentSearch) {
   } catch {}
 }
 
+function haversineKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
 const SHOP_PIN_SVG = `data:image/svg+xml,${encodeURIComponent(
   '<svg width="40" height="50" viewBox="0 0 40 50" xmlns="http://www.w3.org/2000/svg">' +
     // pin teardrop
@@ -125,6 +141,7 @@ const AddressPickerV2 = ({
   const [locationGranted, setLocationGranted] = useState(false);
   const [manualAddress, setManualAddress] = useState("");
   const [mapMoving, setMapMoving] = useState(false);
+  const [pinDistanceKm, setPinDistanceKm] = useState<number | null>(null);
 
   const mapRef = useRef<google.maps.Map | null>(null);
   const mapCenterRef = useRef(mapCenter);
@@ -156,6 +173,10 @@ const AddressPickerV2 = ({
     }
     return null;
   }, [hotelData?.geo_location]);
+
+  const radiusKm = hotelData?.delivery_rules?.delivery_radius;
+  const isPinOutOfRange =
+    !!radiusKm && pinDistanceKm != null && pinDistanceKm > radiusKm;
 
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -385,6 +406,9 @@ const AddressPickerV2 = ({
     const lat = center.lat();
     const lng = center.lng();
     mapCenterRef.current = { lat, lng };
+    if (hotelCoords) {
+      setPinDistanceKm(haversineKm(hotelCoords, { lat, lng }));
+    }
 
     if (!mapInitializedRef.current) {
       mapInitializedRef.current = true;
@@ -401,18 +425,25 @@ const AddressPickerV2 = ({
         reverseGeocode(lat, lng);
       }, 800);
     }
-  }, [reverseGeocode]);
+  }, [reverseGeocode, hotelCoords]);
 
   const handleMapDragStart = useCallback(() => {
     mapDraggedRef.current = true;
     setMapMoving(true);
     setGeocodedInfo(null);
+    setPinDistanceKm(null);
     if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
   }, []);
 
   const handleConfirm = async () => {
     if (!geocodedInfo) {
       toast.error("Please wait for location to load");
+      return;
+    }
+    if (isPinOutOfRange) {
+      toast.error(
+        `This location is ${pinDistanceKm?.toFixed(1)} km away — outside the ${radiusKm} km delivery range`,
+      );
       return;
     }
     setSaving(true);
@@ -746,6 +777,20 @@ const AddressPickerV2 = ({
             </div>
           ) : null}
 
+          {isPinOutOfRange && !mapMoving && (
+            <div className="flex items-start gap-2.5 mt-4 p-3 rounded-xl border border-red-200 bg-red-50">
+              <MapPin className="h-5 w-5 shrink-0 mt-0.5 text-red-600" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-semibold text-red-700">
+                  Outside delivery range
+                </p>
+                <p className="text-xs mt-0.5 text-red-600">
+                  This location is {pinDistanceKm?.toFixed(1)} km away. {hotelData?.store_name || "This store"} delivers within {radiusKm} km.
+                </p>
+              </div>
+            </div>
+          )}
+
           <textarea
             placeholder="Enter complete address (flat/house no, street, landmark)"
             value={manualAddress}
@@ -756,7 +801,7 @@ const AddressPickerV2 = ({
 
           <button
             onClick={handleConfirm}
-            disabled={saving || geocoding || mapMoving || !geocodedInfo}
+            disabled={saving || geocoding || mapMoving || !geocodedInfo || isPinOutOfRange}
             className="w-full mt-5 h-14 text-white rounded-2xl font-bold text-base disabled:opacity-50 active:scale-[0.98] transition-transform"
             style={{ backgroundColor: accent }}
           >
