@@ -51,7 +51,7 @@ const sidebarItems: SidebarItem[] = [
   { title: "Customers", icon: Users, id: "customers" },
   { title: "Website", icon: Globe, id: "website" },
   { title: "Settings", icon: Settings, id: "settings" },
-  { title: "Billing", icon: Receipt, id: "billing" },
+  // { title: "Billing", icon: Receipt, id: "billing" }, // Hidden for App Store review — re-enable after IAP approval
 ];
 
 const integrationsItem: SidebarItem = {
