@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getAccounts, removeAccount } from "@/lib/addAccount";
 import { Partner, useAuthStore } from "@/store/authStore";
@@ -14,6 +14,7 @@ import {
     X,
     Check,
     Loader2,
+    Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -30,10 +31,23 @@ interface Account {
 export function AdminAccountSwitcher() {
     const [isOpen, setIsOpen] = useState(false);
     const [accounts, setAccounts] = useState<Account[]>([]);
+    const [query, setQuery] = useState("");
     const [isSwitching, setIsSwitching] = useState(false);
     const [switchingAccountId, setSwitchingAccountId] = useState<string | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
+
+    const filteredAccounts = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!q) return accounts;
+        return accounts.filter((a) =>
+            (a.store_name || "").toLowerCase().includes(q) ||
+            (a.name || "").toLowerCase().includes(q) ||
+            (a.email || "").toLowerCase().includes(q)
+        );
+    }, [accounts, query]);
+
+    const showSearch = accounts.length > 5;
 
     const {
         userData,
@@ -59,6 +73,8 @@ export function AdminAccountSwitcher() {
 
         if (isOpen) {
             loadAccounts();
+        } else {
+            setQuery("");
         }
     }, [isOpen]);
 
@@ -198,41 +214,74 @@ export function AdminAccountSwitcher() {
                             <p className="px-4 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                                 Switch Account
                             </p>
-                            {accounts.map((account) => (
-                                <div
-                                    key={account.id}
-                                    className={cn(
-                                        "flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors",
-                                        isSwitching && "opacity-50 pointer-events-none"
-                                    )}
-                                    onClick={() => handleSwitchAccount(account)}
-                                >
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarFallback className="bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 text-xs">
-                                            {account.store_name?.slice(0, 2).toUpperCase() || account.name?.slice(0, 2).toUpperCase() || "??"}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium truncate">
-                                            {account.store_name || account.name}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground truncate">
-                                            {account.email}
-                                        </p>
+                            {showSearch && (
+                                <div className="px-3 pb-2">
+                                    <div className="flex items-center gap-2 rounded-md border border-border bg-background px-2 h-8 focus-within:ring-2 focus-within:ring-orange-200 dark:focus-within:ring-orange-900/40">
+                                        <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <input
+                                            type="text"
+                                            value={query}
+                                            onChange={(e) => setQuery(e.target.value)}
+                                            placeholder="Search accounts..."
+                                            className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                                            autoFocus
+                                        />
+                                        {query && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setQuery("")}
+                                                className="text-muted-foreground hover:text-foreground"
+                                                aria-label="Clear search"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        )}
                                     </div>
-                                    {switchingAccountId === account.id ? (
-                                        <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
-                                    ) : (
-                                        <button
-                                            onClick={(e) => handleRemoveAccount(account.id, e)}
-                                            className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-500 transition-colors"
-                                            title="Remove account"
-                                        >
-                                            <X className="h-3.5 w-3.5" />
-                                        </button>
-                                    )}
                                 </div>
-                            ))}
+                            )}
+                            <div className="max-h-72 overflow-y-auto">
+                                {filteredAccounts.length === 0 ? (
+                                    <p className="px-4 py-3 text-xs text-center text-muted-foreground">
+                                        No accounts match &quot;{query}&quot;
+                                    </p>
+                                ) : (
+                                    filteredAccounts.map((account) => (
+                                        <div
+                                            key={account.id}
+                                            className={cn(
+                                                "flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors",
+                                                isSwitching && "opacity-50 pointer-events-none"
+                                            )}
+                                            onClick={() => handleSwitchAccount(account)}
+                                        >
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarFallback className="bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 text-xs">
+                                                    {account.store_name?.slice(0, 2).toUpperCase() || account.name?.slice(0, 2).toUpperCase() || "??"}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium truncate">
+                                                    {account.store_name || account.name}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground truncate">
+                                                    {account.email}
+                                                </p>
+                                            </div>
+                                            {switchingAccountId === account.id ? (
+                                                <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+                                            ) : (
+                                                <button
+                                                    onClick={(e) => handleRemoveAccount(account.id, e)}
+                                                    className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-500 transition-colors"
+                                                    title="Remove account"
+                                                >
+                                                    <X className="h-3.5 w-3.5" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
                         </div>
                     )}
 
