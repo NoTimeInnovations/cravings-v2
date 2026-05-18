@@ -8,9 +8,6 @@ import { getTrustBarPartners } from "@/lib/getTrustBarPartners";
 const SocialProof = dynamic(
   () => import("@/components/home/SocialProof")
 );
-const RestaurantMarquee = dynamic(
-  () => import("@/components/international/RestaurantMarquee")
-);
 const MonitorSection = dynamic(
   () => import("@/components/home/MonitorSection")
 );
@@ -143,11 +140,6 @@ export default async function Home() {
       {/* STATS — animated revenue/order counters */}
       <Suspense>
         <SocialProof />
-      </Suspense>
-
-      {/* SOCIAL PROOF — restaurant logo marquee */}
-      <Suspense>
-        <RestaurantMarquee />
       </Suspense>
 
       {/* DIVIDER */}
