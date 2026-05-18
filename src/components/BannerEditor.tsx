@@ -6,10 +6,10 @@ import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
 import {
     Scissors,
+    Crop as CropIcon,
     Eraser,
     Palette,
     Undo2,
-    ArrowLeft,
     X,
 } from "lucide-react";
 
@@ -33,7 +33,7 @@ interface ImageTransform {
 }
 
 export default function BannerEditor({ isOpen, onClose, imageUrl, onComplete }: BannerEditorProps) {
-    const [step, setStep] = useState<"crop" | "edit">("crop");
+    const [step, setStep] = useState<"crop" | "edit">("edit");
     const [history, setHistory] = useState<string[]>([]);
 
     // The URL rendered in the <img> — updated after every edit operation
@@ -67,21 +67,24 @@ export default function BannerEditor({ isOpen, onClose, imageUrl, onComplete }: 
     const [bannerBg, setBannerBg] = useState<string | null>(null);
 
     // ---- Reset on open ----
+    // Open straight into the edit step with the original image so the user
+    // can move/erase/recolor first. Cropping is now opt-in (Crop button in
+    // the edit toolbar) and freeform — no fixed aspect.
     useEffect(() => {
         if (isOpen) {
-            setStep("crop");
-            setDisplayUrl("");
+            setStep("edit");
+            setDisplayUrl(imageUrl);
+            setHistory(imageUrl ? [imageUrl] : []);
             setActiveTool("none");
             setCrop(undefined);
             setCompletedCrop(undefined);
-            setHistory([]);
             setTransform({ x: 0, y: 0, width: 0, height: 0, selected: false });
             setDragging(null);
             eraserCanvas.current = null;
             skipRebuild.current = false;
             setBannerBg(null);
         }
-    }, [isOpen]);
+    }, [isOpen, imageUrl]);
 
     // ---- Measure container ----
     useEffect(() => {
@@ -128,12 +131,13 @@ export default function BannerEditor({ isOpen, onClose, imageUrl, onComplete }: 
     }, [displayUrl, step, containerSize.w, containerSize.h]);
 
     // ---- Crop ----
+    // Default selection covers the whole image (free aspect). User drags
+    // handles to choose any rectangle.
     const onCropImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
         const { width, height } = e.currentTarget;
-        let cropW = width * 0.9;
-        let cropH = cropW / BANNER_ASPECT;
-        if (cropH > height * 0.9) { cropH = height * 0.9; cropW = cropH * BANNER_ASPECT; }
-        setCrop({ unit: "px", x: (width - cropW) / 2, y: (height - cropH) / 2, width: cropW, height: cropH });
+        const c: Crop = { unit: "px", x: 0, y: 0, width, height };
+        setCrop(c);
+        setCompletedCrop({ ...c, unit: "px" } as PixelCrop);
     }, []);
 
     const handleCropDone = useCallback(async () => {
@@ -319,13 +323,13 @@ export default function BannerEditor({ isOpen, onClose, imageUrl, onComplete }: 
                 <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                     {step === "crop" ? (
                         <div className="flex-1 flex flex-col min-h-0 p-2 sm:p-4">
-                            <p className="text-xs sm:text-sm text-gray-500 mb-1 sm:mb-2">Aspect ratio locked to 1131 : 583</p>
+                            <p className="text-xs sm:text-sm text-gray-500 mb-1 sm:mb-2">Drag the handles to select any area — free aspect.</p>
                             <div className="flex-1 flex items-center justify-center bg-gray-100 dark:bg-neutral-800 rounded-lg min-h-0 overflow-hidden">
                                 <ReactCrop crop={crop} onChange={c => setCrop(c)} onComplete={c => setCompletedCrop(c)}
-                                    aspect={BANNER_ASPECT} minWidth={50} minHeight={50}
+                                    minWidth={20} minHeight={20}
                                     className="max-h-full w-fit mx-auto flex justify-center"
                                     style={{ maxHeight: "100%", display: "flex" }}>
-                                    <img ref={cropImgRef} alt="Crop preview" src={imageUrl} onLoad={onCropImageLoad}
+                                    <img ref={cropImgRef} alt="Crop preview" src={displayUrl || imageUrl} onLoad={onCropImageLoad}
                                         className="max-h-full w-auto object-contain"
                                         style={{ touchAction: "none", maxWidth: "100%", maxHeight: "100%" }} />
                                 </ReactCrop>
@@ -335,6 +339,13 @@ export default function BannerEditor({ isOpen, onClose, imageUrl, onComplete }: 
                         <div className="flex-1 flex flex-col min-h-0 p-2 sm:p-4 gap-1.5 sm:gap-2">
                             {/* Toolbar */}
                             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 overflow-x-auto scrollbar-hide">
+                                <Button variant="outline" size="sm"
+                                    className="shrink-0 h-8 px-2 sm:px-3 text-xs"
+                                    onClick={() => { setActiveTool("none"); setStep("crop"); }}
+                                    disabled={!displayUrl}>
+                                    <CropIcon className="h-3.5 w-3.5 sm:mr-1.5" />
+                                    <span className="hidden sm:inline">Crop</span>
+                                </Button>
                                 <Button variant={activeTool === "eraser" ? "default" : "outline"} size="sm"
                                     className="shrink-0 h-8 px-2 sm:px-3 text-xs"
                                     onClick={() => setActiveTool(activeTool === "eraser" ? "none" : "eraser")}>
@@ -428,19 +439,18 @@ export default function BannerEditor({ isOpen, onClose, imageUrl, onComplete }: 
                 <div className="flex items-center justify-between px-3 sm:px-5 py-2 sm:py-3 border-t shrink-0 gap-2">
                     {step === "crop" ? (
                         <>
-                            <div />
+                            <Button variant="ghost" size="sm" className="px-2 sm:px-3 text-xs" onClick={() => setStep("edit")}>
+                                Back
+                            </Button>
                             <div className="flex gap-2">
-                                <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
                                 <Button size="sm" onClick={handleCropDone} disabled={!completedCrop}>
-                                    <Scissors className="mr-1.5 h-4 w-4" /> Crop
+                                    <Scissors className="mr-1.5 h-4 w-4" /> Apply Crop
                                 </Button>
                             </div>
                         </>
                     ) : (
                         <>
-                            <Button variant="ghost" size="sm" className="px-2 sm:px-3 text-xs" onClick={() => setStep("crop")}>
-                                <ArrowLeft className="mr-1 h-4 w-4" /> <span className="hidden sm:inline">Back to </span>Crop
-                            </Button>
+                            <div />
                             <div className="flex gap-1.5 sm:gap-2">
                                 <Button variant="outline" size="sm" className="text-xs px-2 sm:px-3" onClick={onClose}>Cancel</Button>
                                 <Button variant="outline" size="sm" className="text-xs px-2 sm:px-3" onClick={handleSkipEdit}>
