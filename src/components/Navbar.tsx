@@ -827,7 +827,8 @@ export function Navbar() {
           </div>
         )}
 
-        {isUserOrGuest && (
+        {/* TEMPORARILY HIDDEN for iOS App Store review (Guideline 3.1.1 - IAP). Re-enable after approval. */}
+        {/* {isUserOrGuest && (
           <Link
             href="/pricing"
             onMouseEnter={handleNavHover}
@@ -835,7 +836,7 @@ export function Navbar() {
           >
             Pricing
           </Link>
-        )}
+        )} */}
 
         {isUserOrGuest && (
           <Link
@@ -1148,8 +1149,8 @@ export function Navbar() {
                   </div>
                 </div>
 
-                {/* Pricing Mobile Link */}
-                <div className="border-b border-stone-200 pb-2">
+                {/* Pricing Mobile Link — TEMPORARILY HIDDEN for iOS App Store review (Guideline 3.1.1 - IAP). Re-enable after approval. */}
+                {/* <div className="border-b border-stone-200 pb-2">
                   <Link
                     href="/pricing"
                     onClick={() => setIsMobileMenuOpen(false)}
@@ -1157,7 +1158,7 @@ export function Navbar() {
                   >
                     Pricing
                   </Link>
-                </div>
+                </div> */}
 
                 {/* Blog Mobile Link */}
                 <div className="border-b border-stone-200 pb-2">

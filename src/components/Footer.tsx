@@ -108,14 +108,15 @@ export default function Footer({
                   Download App
                 </Link>
               </li>
-              <li>
+              {/* TEMPORARILY HIDDEN for iOS App Store review (Guideline 3.1.1 - IAP). Re-enable after approval. */}
+              {/* <li>
                 <Link
                   href="/pricing"
                   className="text-sm text-white/80 hover:text-white transition-colors"
                 >
                   Pricing
                 </Link>
-              </li>
+              </li> */}
               <li>
                 <Link
                   href="/get-started"

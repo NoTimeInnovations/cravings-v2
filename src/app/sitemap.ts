@@ -64,8 +64,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: BASE_URL, lastModified: staticDate },
     // Get Started — conversion page
     { url: `${BASE_URL}/get-started`, lastModified: staticDate },
-    // Pricing
-    { url: `${BASE_URL}/pricing`, lastModified: staticDate },
+    // Pricing — TEMPORARILY REMOVED for iOS App Store review (Guideline 3.1.1 - IAP). Re-enable after approval.
+    // { url: `${BASE_URL}/pricing`, lastModified: staticDate },
     // Solutions - Featured
     { url: `${BASE_URL}/solutions/google-business`, lastModified: staticDate },
     // Solutions - Roles

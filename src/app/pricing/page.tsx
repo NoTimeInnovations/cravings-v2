@@ -1,3 +1,13 @@
+// TEMPORARILY DISABLED for iOS App Store review (Guideline 3.1.1 - IAP).
+// Re-enable by restoring the original implementation below after approval.
+import { notFound } from "next/navigation";
+
+export default function PricingPage() {
+  notFound();
+}
+
+/* ORIGINAL IMPLEMENTATION — restore after App Store approval:
+
 import React from "react";
 import type { Metadata } from "next";
 import PricingSection from "@/components/international/PricingSection";
@@ -32,23 +42,14 @@ export default async function PricingPage() {
 
   return (
     <div className="min-h-screen w-full bg-[#fcfbf7] geist-font">
-      {/* Pricing — hero + features */}
       <PricingSection hideHeader={false} country={country} appName="Menuthere" />
-
-      {/* Social Proof */}
       <RestaurantMarquee />
-
-      {/* Divider */}
       <div className="w-full h-px bg-stone-200" />
-
-      {/* CTA */}
       <StartFreeTrailSection />
-
-      {/* Footer */}
       <Footer appName="Menuthere" />
-
-      {/* Chat */}
       <WhatsAppButton />
     </div>
   );
 }
+
+*/
