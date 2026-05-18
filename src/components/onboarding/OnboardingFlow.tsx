@@ -244,7 +244,7 @@ export default function OnboardingFlow({
             storeName={storeName}
             themeBg={themeBg}
             onContinue={handleAddressContinue}
-            accent={accent || "#16A34A"}
+            accent={accent}
             onBack={() => setStep("orderType")}
             hotelData={hotelData}
           />

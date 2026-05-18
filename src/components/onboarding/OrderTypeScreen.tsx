@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Bike, Store, Clock, ChevronLeft } from "lucide-react";
 import { isWithinTimeWindow, formatTime12h } from "@/lib/isWithinTimeWindow";
+import { DEFAULT_BRAND_COLOR_HEX } from "@/lib/brandColor";
 
 interface OrderTypeScreenProps {
   storeBanner?: string;
@@ -38,7 +39,7 @@ export default function OrderTypeScreen({
   initialDeliveryOpen,
   initialTakeawayOpen,
   hotelTimezone,
-  accent = "#1f2937",
+  accent = DEFAULT_BRAND_COLOR_HEX,
 }: OrderTypeScreenProps) {
   // Server pre-computes open state in the hotel's timezone and passes it via
   // initial props — first render matches SSR (no hydration mismatch). The

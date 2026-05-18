@@ -9,6 +9,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { updateUserAddressesMutation } from "@/api/auth";
 import { toast } from "sonner";
 import AddressPickerV2 from "@/components/hotelDetail/placeOrder/AddressPickerV2";
+import { DEFAULT_BRAND_COLOR_HEX } from "@/lib/brandColor";
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 const GOOGLE_MAPS_LIBRARIES: ["places"] = ["places"];
@@ -39,7 +40,7 @@ export default function DeliveryAddressScreen({
   storeName,
   onContinue,
   loading,
-  accent = "#16A34A",
+  accent = DEFAULT_BRAND_COLOR_HEX,
   onBack,
   hotelData,
 }: DeliveryAddressScreenProps) {
@@ -382,7 +383,7 @@ export default function DeliveryAddressScreen({
           onContinue(fullAddress, c);
         }}
         hotelData={hotelData}
-        accent="#ea580c"
+        accent={accent}
         initialPick={pickerInitial}
       />
     </div>

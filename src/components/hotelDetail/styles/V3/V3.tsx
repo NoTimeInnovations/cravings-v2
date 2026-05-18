@@ -255,7 +255,7 @@ const V3 = ({
                 {isPickupMode ? (
                   <Store className="h-4 w-4 shrink-0 text-gray-900" />
                 ) : (
-                  <MapPin className="h-4 w-4 shrink-0" style={{ color: "#ea580c" }} />
+                  <MapPin className="h-4 w-4 shrink-0" style={{ color: styles.accent }} />
                 )}
                 <div className="min-w-0 leading-tight">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
@@ -263,7 +263,7 @@ const V3 = ({
                   </p>
                   <p
                     className="truncate text-sm font-bold"
-                    style={{ color: isPickupMode ? "#111827" : "#ea580c" }}
+                    style={{ color: isPickupMode ? "#111827" : styles.accent }}
                   >
                     {isPickupMode ? outletName : userAddress || "Add delivery address"}
                   </p>
@@ -514,7 +514,7 @@ const V3 = ({
           </div>
         ) : (
           <OrderDrawer
-            styles={{ backgroundColor: "#ffffff", color: "#000000", accent: "#059669", border: { borderColor: "#0000001D", borderWidth: "1px", borderStyle: "solid" } }}
+            styles={styles}
             hotelData={hoteldata}
             tableNumber={tableNumber}
             qrId={qrId || undefined}
@@ -561,7 +561,7 @@ const V3 = ({
               setAddressPickerOpen(true);
             }}
             onClose={() => setAddressSheetOpen(false)}
-            accent="#ea580c"
+            accent={styles.accent}
           />
         )}
 

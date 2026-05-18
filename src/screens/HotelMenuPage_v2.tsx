@@ -175,7 +175,9 @@ const HotelMenuPage = ({
   const styles: Styles = useMemo(() => ({
     backgroundColor: theme?.colors?.bg || "#F5F5F5",
     color: theme?.colors?.text || "#000",
-    accent: theme?.colors?.accent || "#EA580C",
+    // Brand color (theme.brandColor / storefront.brandColor) is the source of
+    // truth. Legacy theme.colors.accent is only used if no brand color is set.
+    accent: brandAccent || theme?.colors?.accent || "#EA580C",
     showGrid: theme?.showGrid === true,
     border: {
       borderColor: theme?.colors?.text ? `${theme.colors.text}1D` : "#0000001D",

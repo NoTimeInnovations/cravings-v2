@@ -1525,26 +1525,28 @@ const PlaceOrderModalV2 = ({
                 onClick={() => setShowAddressSheet(true)}
                 className="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
-                <MapPin className="h-4 w-4 shrink-0" style={{ color: "#ea580c" }} />
+                <MapPin className="h-4 w-4 shrink-0" style={{ color: accent }} />
                 <div className="min-w-0 leading-tight">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
                     Deliver to
                   </p>
-                  <p className="truncate text-sm font-bold" style={{ color: "#ea580c" }}>
+                  <p className="truncate text-sm font-bold" style={{ color: accent }}>
                     {address || "Add delivery address"}
                   </p>
                 </div>
                 <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
               </button>
             ) : (
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold truncate text-gray-900">{restaurantName || "Checkout"}</div>
-                {restaurantSubtitle ? (
-                  <div className="text-[11px] text-gray-400 truncate flex items-center gap-1">
-                    <MapPin className="h-3 w-3 flex-shrink-0" />
-                    <span className="truncate">{restaurantSubtitle}</span>
-                  </div>
-                ) : null}
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <MapPin className="h-4 w-4 shrink-0" style={{ color: accent }} />
+                <div className="min-w-0 leading-tight">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    Pickup from
+                  </p>
+                  <p className="truncate text-sm font-bold" style={{ color: accent }}>
+                    {restaurantName || "Checkout"}
+                  </p>
+                </div>
               </div>
             )}
            </div>
@@ -2126,7 +2128,7 @@ const PlaceOrderModalV2 = ({
         currentAddress={address || ""}
         savedAddresses={savedAddresses}
         onDeleteSaved={handleDeleteAddress}
-        accent="#ea580c"
+        accent={accent}
         onSelect={(addr, coords) => {
           if (addr) {
             useOrderStore.getState().setUserAddress(addr);
@@ -2165,7 +2167,7 @@ const PlaceOrderModalV2 = ({
         handleAddressModalSaved(a);
       }}
       hotelData={hotelData}
-      accent="#ea580c"
+      accent={accent}
       initialPick={mapInitialPick}
     />
 
@@ -2256,7 +2258,7 @@ const PlaceOrderModalV2 = ({
                     className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-colors"
                     style={
                       selected
-                        ? { backgroundColor: "#ea580c", borderColor: "#ea580c", color: "white" }
+                        ? { backgroundColor: accent, borderColor: accent, color: "white" }
                         : { backgroundColor: "white", borderColor: "#e5e7eb", color: "#4b5563" }
                     }
                   >
