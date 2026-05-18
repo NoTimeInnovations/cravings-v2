@@ -21,7 +21,7 @@ import {
   ArrowDownAZ,
   Loader2,
 } from "lucide-react";
-import { compact } from "../format";
+import { compact, rupees } from "../format";
 import { SectionHeader } from "./OverviewSection";
 import type { SelectedPartner } from "../types";
 
@@ -168,6 +168,7 @@ export default function SelectedPartnersSection() {
         monthTotal: s?.monthTotal ?? 0,
         monthDelivery: s?.monthDelivery ?? 0,
         monthTakeaway: s?.monthTakeaway ?? 0,
+        monthGmv: s?.monthGmv ?? 0,
       };
     });
 
@@ -251,6 +252,7 @@ function PartnerCard({
     monthTotal: number;
     monthDelivery: number;
     monthTakeaway: number;
+    monthGmv: number;
   };
   loading: boolean;
   onRemove: () => void;
@@ -312,6 +314,14 @@ function PartnerCard({
           </div>
           <div className="text-xs text-muted-foreground">
             total orders · {monthLabel}
+          </div>
+        </div>
+        <div className="mt-1 flex items-baseline gap-2">
+          <div className="text-base font-semibold tabular-nums text-emerald-700">
+            {loading ? <Skeleton className="h-5 w-16 inline-block" /> : rupees(data.monthGmv)}
+          </div>
+          <div className="text-[11px] text-muted-foreground">
+            GMV · {monthLabel}
           </div>
         </div>
         <div className="mt-2 grid grid-cols-2 gap-2">

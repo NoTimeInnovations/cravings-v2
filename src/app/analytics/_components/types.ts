@@ -44,6 +44,7 @@ export type SelectedPartner = {
   monthTotal: number;
   monthDelivery: number;
   monthTakeaway: number;
+  monthGmv: number;
 };
 
 export type SelectedPartnerStats = {

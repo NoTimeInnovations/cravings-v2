@@ -67,7 +67,7 @@ const PARTNERS_QUERY = `
           { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
           { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
         ]
-      }) { aggregate { count } }
+      }) { aggregate { count, sum { total_price } } }
 
       month_delivery: orders_aggregate(where: {
         _and: [
@@ -154,6 +154,7 @@ export async function GET(req: NextRequest) {
       monthTotal: p.month_total?.aggregate?.count ?? 0,
       monthDelivery: p.month_delivery?.aggregate?.count ?? 0,
       monthTakeaway: p.month_takeaway?.aggregate?.count ?? 0,
+      monthGmv: Number(p.month_total?.aggregate?.sum?.total_price ?? 0),
     }));
 
     return NextResponse.json({
