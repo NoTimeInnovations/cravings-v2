@@ -78,16 +78,24 @@ function writeStored(list: StoredPartner[]) {
 
 export default function SelectedPartnersSection() {
   const [selected, setSelected] = useState<StoredPartner[]>([]);
+  const [hydrated, setHydrated] = useState(false);
   const [stats, setStats] = useState<Record<string, SelectedPartner>>({});
   const [loading, setLoading] = useState(false);
   const [sort, setSort] = useState<SortKey>("orders_desc");
   const [tick, setTick] = useState(0);
 
-  // Hydrate from localStorage once
+  // Hydrate from localStorage once on mount.
   useEffect(() => {
-    const stored = readStored();
-    setSelected(stored);
+    setSelected(readStored());
+    setHydrated(true);
   }, []);
+
+  // Persist on every change — but only after hydration, so the initial [] from
+  // first render can't overwrite the stored value before readStored() runs.
+  useEffect(() => {
+    if (!hydrated) return;
+    writeStored(selected);
+  }, [hydrated, selected]);
 
   const ids = useMemo(() => selected.map((p) => p.id).join(","), [selected]);
 
@@ -136,18 +144,12 @@ export default function SelectedPartnersSection() {
     setSelected((prev) => {
       if (prev.some((x) => x.id === p.id)) return prev;
       if (prev.length >= MAX_PARTNERS) return prev;
-      const next = [...prev, p];
-      writeStored(next);
-      return next;
+      return [...prev, p];
     });
   };
 
   const removePartner = (id: string) => {
-    setSelected((prev) => {
-      const next = prev.filter((p) => p.id !== id);
-      writeStored(next);
-      return next;
-    });
+    setSelected((prev) => prev.filter((p) => p.id !== id));
     setStats((prev) => {
       const next = { ...prev };
       delete next[id];

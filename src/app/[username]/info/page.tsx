@@ -42,11 +42,13 @@ interface PartnerInfo {
 interface InfoPageSettings {
   bgImage?: string;
   buttonColor?: string;
+  logoBgColor?: string;
   cuisine?: string;
   city?: string;
   ctaSubtitle?: string;
   showOpenStatus?: boolean;
   openStatusText?: string;
+  logoScale?: number;
   tags?: Partial<Record<TagKey, boolean>>;
   socials?: Partial<Record<SocialKey, boolean>>;
 }
@@ -282,6 +284,11 @@ export default async function PartnerInfoPage({
 
   const heroImage = info.bgImage || partner.store_banner || FALLBACK_BG;
   const logoImage = partner.store_banner || info.bgImage || null;
+  const logoScale = (() => {
+    const n = info.logoScale;
+    if (typeof n !== "number" || !Number.isFinite(n)) return 1;
+    return Math.min(2.5, Math.max(0.5, n / 100));
+  })();
   const initial = partner.store_name?.charAt(0)?.toUpperCase() || "M";
 
   const cuisine = info.cuisine?.trim() || partner.store_tagline?.trim() || "";
@@ -397,7 +404,7 @@ export default async function PartnerInfoPage({
               width: 92,
               height: 92,
               borderRadius: 24,
-              background: brandColor,
+              background: info.logoBgColor || brandColor,
               padding: 4,
               boxSizing: "border-box",
               boxShadow:
@@ -410,12 +417,12 @@ export default async function PartnerInfoPage({
                 src={logoImage}
                 alt={partner.store_name}
                 className="h-full w-full object-contain"
-                style={{ borderRadius: 20 }}
+                style={{ borderRadius: 20, transform: `scale(${logoScale})` }}
               />
             ) : (
               <div
                 className="flex h-full w-full items-center justify-center text-3xl font-bold text-white"
-                style={{ borderRadius: 20, background: brandColor }}
+                style={{ borderRadius: 20, background: info.logoBgColor || brandColor }}
               >
                 {initial}
               </div>

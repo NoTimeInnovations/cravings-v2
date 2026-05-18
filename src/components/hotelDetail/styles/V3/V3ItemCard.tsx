@@ -103,10 +103,10 @@ const BottomSheetAddButton = ({
   return (
     <button
       onClick={onClose}
-      className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-3 text-sm font-extrabold uppercase tracking-wider text-white shadow-lg transition active:scale-[0.98]"
+      className="w-full flex items-center justify-between rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-extrabold uppercase tracking-wider text-white shadow-lg transition active:scale-[0.98]"
     >
-      <Plus className="h-4 w-4" />
-      Add to cart — {hoteldata?.currency || "₹"}{formatPrice(total, hoteldata?.id)}
+      <span>Add to cart</span>
+      <span>{hoteldata?.currency || "₹"}{formatPrice(total, hoteldata?.id)}</span>
     </button>
   );
 };
@@ -513,21 +513,21 @@ const V3ItemCard = ({
                 {itemQuantity === 0 ? (
                   <button
                     onClick={() => handleAddItem()}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-3 text-sm font-extrabold uppercase tracking-wider text-white shadow-lg transition active:scale-[0.98]"
+                    className="flex w-full items-center justify-between rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-extrabold uppercase tracking-wider text-white shadow-lg transition active:scale-[0.98]"
                   >
-                    <Plus className="h-4 w-4" />
-                    Add to cart — {hoteldata?.currency || "₹"}{formatPrice(hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice, hoteldata?.id || "")}
+                    <span>Add to cart</span>
+                    <span>{hoteldata?.currency || "₹"}{formatPrice(hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice, hoteldata?.id || "")}</span>
                   </button>
                 ) : (
                   <div className="flex items-center gap-3">
-                    <div className="flex flex-1 items-center justify-between rounded-xl border-2 border-emerald-600/30 bg-emerald-50 px-1.5 py-1.5">
+                    <div className="flex flex-1 items-center justify-between rounded-xl border-2 border-emerald-600/30 bg-emerald-50 px-1.5 py-1">
                       <button
                         onClick={() => { if (itemQuantity === 1) removeItem(item.id as string); else decreaseQuantity(item.id as string); }}
                         className="flex h-9 w-9 items-center justify-center rounded-lg text-emerald-700"
                       >
                         <Minus className="h-4 w-4" />
                       </button>
-                      <span className="text-lg font-extrabold text-emerald-700">{itemQuantity}</span>
+                      <span className="text-sm font-extrabold text-emerald-700">{itemQuantity}</span>
                       <button
                         onClick={() => handleAddItem()}
                         className="flex h-9 w-9 items-center justify-center rounded-lg text-emerald-700"

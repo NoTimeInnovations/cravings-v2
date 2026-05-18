@@ -61,11 +61,9 @@ const PARTNERS_QUERY = `
 
       month_total: orders_aggregate(where: {
         created_at: { _gte: $monthStart },
-        type: { _in: $directTypes },
         _and: [
           { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
-          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
-          { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
+          { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
         ]
       }) { aggregate { count, sum { total_price } } }
 

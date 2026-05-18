@@ -69,6 +69,21 @@ const V3 = ({
     setBannerError(false);
   }, [hoteldata?.store_banner]);
 
+  const bannerLogo = useMemo(() => {
+    const raw = (hoteldata as any)?.storefront_settings;
+    let parsed: any = null;
+    try {
+      parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    } catch {
+      parsed = null;
+    }
+    const bl = parsed?.bannerLogo;
+    const rawScale = typeof bl?.scale === "number" ? bl.scale : 100;
+    const scale = Math.min(2.5, Math.max(0.5, rawScale / 100));
+    const bgColor = typeof bl?.bgColor === "string" && bl.bgColor ? bl.bgColor : null;
+    return { scale, bgColor };
+  }, [(hoteldata as any)?.storefront_settings]);
+
   // Scroll spy
   useEffect(() => {
     const handleScroll = () => {
@@ -306,7 +321,10 @@ const V3 = ({
         <section className="px-4 pt-3">
           <div className="flex items-center gap-3">
             {/* Logo */}
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+            <div
+              className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl shadow-sm ring-1 ring-black/5"
+              style={{ background: bannerLogo.bgColor || "#ffffff" }}
+            >
               {showBanner ? (
                 isVideoUrl(storeBanner) ? (
                   <video
@@ -315,13 +333,15 @@ const V3 = ({
                     preload="metadata"
                     muted
                     playsInline
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain"
+                    style={{ transform: `scale(${bannerLogo.scale})` }}
                   />
                 ) : (
                   <img
                     src={storeBanner}
                     alt={hoteldata?.store_name}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain"
+                    style={{ transform: `scale(${bannerLogo.scale})` }}
                     onError={() => setBannerError(true)}
                   />
                 )

@@ -31,6 +31,16 @@ import { isVideoUrl } from "@/lib/mediaUtils";
 
 const VideoEditor = dynamic(() => import("@/components/VideoEditor"), { ssr: false });
 
+const BANNER_LOGO_SCALE_MIN = 50;
+const BANNER_LOGO_SCALE_MAX = 250;
+const BANNER_LOGO_SCALE_DEFAULT = 100;
+
+function clampBannerLogoScale(n: unknown): number {
+    const v = typeof n === "number" ? n : Number(n);
+    if (!Number.isFinite(v)) return BANNER_LOGO_SCALE_DEFAULT;
+    return Math.min(BANNER_LOGO_SCALE_MAX, Math.max(BANNER_LOGO_SCALE_MIN, Math.round(v)));
+}
+
 
 
 export function GeneralSettings() {
@@ -88,6 +98,23 @@ export function GeneralSettings() {
     const [isCarouselUploading, setIsCarouselUploading] = useState(false);
     const [carouselCropperOpen, setCarouselCropperOpen] = useState(false);
     const [carouselSelectedImageUrl, setCarouselSelectedImageUrl] = useState("");
+
+    // V3-only hero logo controls (size + bg color); persisted in storefront_settings.bannerLogo
+    const [bannerLogoScale, setBannerLogoScale] = useState<number>(BANNER_LOGO_SCALE_DEFAULT);
+    const [bannerLogoBgColor, setBannerLogoBgColor] = useState<string>("");
+
+    // Theme menuStyle — controls whether V3 hero-logo cards are visible.
+    const themeMenuStyle = (() => {
+        const raw = (userData as any)?.theme;
+        try {
+            const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+            const v = parsed?.menuStyle;
+            return typeof v === "string" ? v.toLowerCase() : "default";
+        } catch {
+            return "default";
+        }
+    })();
+    const isV3Theme = themeMenuStyle === "v3";
 
     // Google Business State
     const [googleConnected, setGoogleConnected] = useState(false);
@@ -166,6 +193,18 @@ export function GeneralSettings() {
             setAnnouncement(rules?.announcement || "");
             setBannerMode(rules?.banner_mode || "single");
             setCarouselBanners(rules?.carousel_banners || []);
+
+            // V3 hero-logo customization (size & bg color)
+            const sfRaw = (userData as any).storefront_settings;
+            let sfParsed: any = null;
+            try {
+                sfParsed = typeof sfRaw === "string" ? JSON.parse(sfRaw) : sfRaw;
+            } catch {
+                sfParsed = null;
+            }
+            const bl = sfParsed?.bannerLogo;
+            setBannerLogoScale(clampBannerLogoScale(bl?.scale));
+            setBannerLogoBgColor(typeof bl?.bgColor === "string" ? bl.bgColor : "");
 
             // Check Google Connection
             checkGoogleConnection(userData.id);
@@ -420,6 +459,25 @@ export function GeneralSettings() {
         try {
             // Preserve keys we don't manage here (e.g. playstore/appstore — owned by Info Page settings)
             const existingSocialLinks = getSocialLinks(userData as HotelData);
+
+            // Read-modify-write storefront_settings so we don't clobber other keys
+            // owned by InfoPageSettings (infoPage, brandColor, etc.).
+            const sfRaw = (userData as any).storefront_settings;
+            let sfParsed: any = {};
+            try {
+                sfParsed = typeof sfRaw === "string" ? JSON.parse(sfRaw) : sfRaw || {};
+            } catch {
+                sfParsed = {};
+            }
+            const nextStorefront = {
+                ...sfParsed,
+                bannerLogo: {
+                    scale: clampBannerLogoScale(bannerLogoScale),
+                    bgColor: bannerLogoBgColor || "",
+                },
+            };
+            const storefrontPayload = JSON.stringify(nextStorefront);
+
             const updates: any = {
                 store_name: storeName,
                 store_tagline: storeTagline || null,
@@ -444,11 +502,14 @@ export function GeneralSettings() {
                 operating_address: operatingAddress || null,
                 official_email_id: officialEmailId || null,
                 official_phone_number: officialPhoneNumber || null,
+                storefront_settings: storefrontPayload,
             };
 
             await updatePartner(userData.id, updates);
 
-            revalidateTag(userData.id);
+            // Await the cache invalidation so the V3 menu page picks up the new
+            // storefront_settings on the next request instead of serving stale data.
+            await revalidateTag(userData.id);
             setState(updates);
             toast.success("General settings updated successfully");
         } catch (error) {
@@ -457,7 +518,7 @@ export function GeneralSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, storeName, description, phone, footNote, isShopOpen, whatsappNumber, instaLink, facebookLink, zomatoLink, uberEatsLink, talabatLink, doordashLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
+    }, [userData, storeName, storeTagline, description, phone, footNote, isShopOpen, timezone, whatsappNumber, instaLink, facebookLink, zomatoLink, uberEatsLink, talabatLink, doordashLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, bannerLogoScale, bannerLogoBgColor, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -498,6 +559,18 @@ export function GeneralSettings() {
         const initialOfficialEmailId = data.official_email_id || "";
         const initialOfficialPhoneNumber = data.official_phone_number || "";
 
+        // Initial banner-logo values from storefront_settings (V3-only fields)
+        const sfRaw = (userData as any).storefront_settings;
+        let sfParsed: any = null;
+        try {
+            sfParsed = typeof sfRaw === "string" ? JSON.parse(sfRaw) : sfRaw;
+        } catch {
+            sfParsed = null;
+        }
+        const initialBannerLogoScale = clampBannerLogoScale(sfParsed?.bannerLogo?.scale);
+        const initialBannerLogoBgColor =
+            typeof sfParsed?.bannerLogo?.bgColor === "string" ? sfParsed.bannerLogo.bgColor : "";
+
         const hasChanges =
             storeName !== initialStoreName ||
             description !== initialDescription ||
@@ -515,7 +588,9 @@ export function GeneralSettings() {
             aboutUs !== initialAboutUs ||
             operatingAddress !== initialOperatingAddress ||
             officialEmailId !== initialOfficialEmailId ||
-            officialPhoneNumber !== initialOfficialPhoneNumber;
+            officialPhoneNumber !== initialOfficialPhoneNumber ||
+            bannerLogoScale !== initialBannerLogoScale ||
+            bannerLogoBgColor !== initialBannerLogoBgColor;
 
         setHasChanges(hasChanges);
 
@@ -537,6 +612,8 @@ export function GeneralSettings() {
         operatingAddress,
         officialEmailId,
         officialPhoneNumber,
+        bannerLogoScale,
+        bannerLogoBgColor,
         userData,
         setHasChanges
     ]);
@@ -915,6 +992,137 @@ export function GeneralSettings() {
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* V3 hero-logo appearance — outside the Store Banner premium wrapper so
+                    it's visible (and editable) on every plan when V3 theme is active. */}
+                {isV3Theme && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Hero logo appearance (V3 theme)</CardTitle>
+                            <CardDescription>
+                                Tile color and zoom level for the banner logo on the V3 menu.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            {/* Background color */}
+                            <div className="space-y-2">
+                                <Label className="text-sm font-semibold">Background color</Label>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Color of the tile behind the banner logo. Leave blank to keep the
+                                    default white.
+                                </p>
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="color"
+                                        value={bannerLogoBgColor || "#ffffff"}
+                                        onChange={(e) => setBannerLogoBgColor(e.target.value)}
+                                        className="h-10 w-10 cursor-pointer rounded-lg border-0 p-0"
+                                        aria-label="Pick logo background color"
+                                    />
+                                    <Input
+                                        value={bannerLogoBgColor || ""}
+                                        onChange={(e) => {
+                                            const v = e.target.value.trim();
+                                            if (v === "" || /^#[0-9a-fA-F]{0,6}$/.test(v)) {
+                                                setBannerLogoBgColor(v);
+                                            }
+                                        }}
+                                        placeholder="#ffffff"
+                                        className="w-32 font-mono text-sm uppercase"
+                                        maxLength={7}
+                                    />
+                                    <div
+                                        className="h-10 flex-1 rounded-lg ring-1 ring-black/5"
+                                        style={{ backgroundColor: bannerLogoBgColor || "#ffffff" }}
+                                    />
+                                    {bannerLogoBgColor && (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-red-500 hover:text-red-600"
+                                            onClick={() => setBannerLogoBgColor("")}
+                                        >
+                                            Reset
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Size */}
+                            <div className="space-y-2">
+                                <Label className="text-sm font-semibold">Size</Label>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Zoom the logo inside its tile. 100% keeps the default fit; raise it
+                                    if your logo has built-in whitespace and looks small. Range{" "}
+                                    {BANNER_LOGO_SCALE_MIN}%–{BANNER_LOGO_SCALE_MAX}%.
+                                </p>
+                                <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-2">
+                                        <Input
+                                            type="number"
+                                            inputMode="numeric"
+                                            min={BANNER_LOGO_SCALE_MIN}
+                                            max={BANNER_LOGO_SCALE_MAX}
+                                            step={5}
+                                            value={bannerLogoScale}
+                                            onChange={(e) => {
+                                                const v = Number(e.target.value);
+                                                setBannerLogoScale(
+                                                    Number.isFinite(v) ? v : BANNER_LOGO_SCALE_DEFAULT
+                                                );
+                                            }}
+                                            onBlur={() =>
+                                                setBannerLogoScale(clampBannerLogoScale(bannerLogoScale))
+                                            }
+                                            className="w-24 text-right font-mono text-sm"
+                                        />
+                                        <span className="text-sm text-muted-foreground">%</span>
+                                        {bannerLogoScale !== BANNER_LOGO_SCALE_DEFAULT && (
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-red-500 hover:text-red-600"
+                                                onClick={() =>
+                                                    setBannerLogoScale(BANNER_LOGO_SCALE_DEFAULT)
+                                                }
+                                            >
+                                                Reset
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <div
+                                        className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl ring-1 ring-black/5"
+                                        style={{ background: bannerLogoBgColor || "#ffffff" }}
+                                    >
+                                        {bannerImage ? (
+                                            isVideoUrl(bannerImage) ? (
+                                                <video
+                                                    src={bannerImage}
+                                                    muted
+                                                    playsInline
+                                                    className="h-full w-full object-contain"
+                                                    style={{ transform: `scale(${bannerLogoScale / 100})` }}
+                                                />
+                                            ) : (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                    src={bannerImage}
+                                                    alt=""
+                                                    className="h-full w-full object-contain"
+                                                    style={{ transform: `scale(${bannerLogoScale / 100})` }}
+                                                />
+                                            )
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">No logo</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 <UpgradePlanDialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog} featureName="Store Banner" />
 

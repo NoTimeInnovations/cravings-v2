@@ -44,11 +44,13 @@ const SOCIAL_LABELS: Record<SocialKey, string> = {
 interface InfoPageData {
     bgImage: string;
     buttonColor: string; // empty string = inherit storefront brand color
+    logoBgColor: string; // empty string = inherit storefront brand color
     cuisine: string;
     city: string;
     ctaSubtitle: string;
     showOpenStatus: boolean;
     openStatusText: string;
+    logoScale: number; // % of base size; 100 = default object-contain fit
     tags: Record<TagKey, boolean>;
     socials: Record<SocialKey, boolean>;
 }
@@ -58,14 +60,19 @@ interface AppStoreLinks {
     appstore: string;
 }
 
+const LOGO_SCALE_MIN = 50;
+const LOGO_SCALE_MAX = 250;
+
 const DEFAULT_INFO: InfoPageData = {
     bgImage: "",
     buttonColor: "",
+    logoBgColor: "",
     cuisine: "",
     city: "",
     ctaSubtitle: "Order, pay, and earn rewards · iOS & Android",
     showOpenStatus: true,
     openStatusText: "Open now",
+    logoScale: 100,
     tags: {
         "direct-order": true,
         "dine-in": true,
@@ -97,11 +104,19 @@ function parseSocialLinks(input: any): Record<string, any> {
 
 // Brand color resolution is centralized in @/lib/brandColor.
 
+function clampScale(n: number): number {
+    if (!Number.isFinite(n)) return DEFAULT_INFO.logoScale;
+    return Math.min(LOGO_SCALE_MAX, Math.max(LOGO_SCALE_MIN, Math.round(n)));
+}
+
 function mergeInfo(stored: any): InfoPageData {
     if (!stored || typeof stored !== "object") return { ...DEFAULT_INFO };
+    const rawScale =
+        typeof stored.logoScale === "number" ? stored.logoScale : DEFAULT_INFO.logoScale;
     return {
         ...DEFAULT_INFO,
         ...stored,
+        logoScale: clampScale(rawScale),
         tags: { ...DEFAULT_INFO.tags, ...(stored.tags || {}) },
         socials: { ...DEFAULT_INFO.socials, ...(stored.socials || {}) },
     };
@@ -151,6 +166,7 @@ export function InfoPageSettings() {
         return token ? brandColorToHex(token) : DEFAULT_BRAND_COLOR_HEX;
     })();
     const effectiveButtonColor = info.buttonColor || brandColor;
+    const effectiveLogoBgColor = info.logoBgColor || brandColor;
 
     // Load existing settings
     useEffect(() => {
@@ -372,6 +388,128 @@ export function InfoPageSettings() {
                             ? "Custom background in use. Logo still uses your store banner."
                             : "Using store banner as both background and logo."}
                     </p>
+                </CardContent>
+            </Card>
+
+            {/* Logo background color */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base">Logo background color</CardTitle>
+                    <CardDescription>
+                        Color of the tile behind the logo on the info page. Defaults to your brand
+                        color.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="color"
+                            value={effectiveLogoBgColor}
+                            onChange={(e) => update({ logoBgColor: e.target.value })}
+                            className="h-10 w-10 cursor-pointer rounded-lg border-0 p-0"
+                            aria-label="Pick logo background color"
+                        />
+                        <Input
+                            value={info.logoBgColor || ""}
+                            onChange={(e) => {
+                                const v = e.target.value.trim();
+                                if (v === "" || /^#[0-9a-fA-F]{0,6}$/.test(v)) {
+                                    update({ logoBgColor: v });
+                                }
+                            }}
+                            placeholder={brandColor}
+                            className="w-32 font-mono text-sm uppercase"
+                            maxLength={7}
+                        />
+                        <div
+                            className="h-10 flex-1 rounded-lg ring-1 ring-black/5"
+                            style={{ backgroundColor: effectiveLogoBgColor }}
+                        />
+                        {info.logoBgColor && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-500 hover:text-red-600"
+                                onClick={() => update({ logoBgColor: "" })}
+                            >
+                                Reset
+                            </Button>
+                        )}
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                        {info.logoBgColor
+                            ? "Custom logo background in use."
+                            : `Inheriting brand color (${brandColor}).`}
+                    </p>
+                </CardContent>
+            </Card>
+
+            {/* Logo size */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base">Logo size</CardTitle>
+                    <CardDescription>
+                        Zoom the logo inside its tile. 100% keeps the default fit; raise it if your
+                        logo has built-in whitespace and looks small. Range {LOGO_SCALE_MIN}%–
+                        {LOGO_SCALE_MAX}%.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <Input
+                                type="number"
+                                inputMode="numeric"
+                                min={LOGO_SCALE_MIN}
+                                max={LOGO_SCALE_MAX}
+                                step={5}
+                                value={info.logoScale}
+                                onChange={(e) => {
+                                    const v = Number(e.target.value);
+                                    update({
+                                        logoScale: Number.isFinite(v)
+                                            ? v
+                                            : DEFAULT_INFO.logoScale,
+                                    });
+                                }}
+                                onBlur={() =>
+                                    update({ logoScale: clampScale(info.logoScale) })
+                                }
+                                className="w-24 text-right font-mono text-sm"
+                            />
+                            <span className="text-sm text-muted-foreground">%</span>
+                            {info.logoScale !== DEFAULT_INFO.logoScale && (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-500 hover:text-red-600"
+                                    onClick={() =>
+                                        update({ logoScale: DEFAULT_INFO.logoScale })
+                                    }
+                                >
+                                    Reset
+                                </Button>
+                            )}
+                        </div>
+                        <div
+                            className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl ring-1 ring-black/5"
+                            style={{ background: effectiveLogoBgColor }}
+                        >
+                            {heroPreview ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                    src={heroPreview}
+                                    alt=""
+                                    className="h-full w-full object-contain"
+                                    style={{ transform: `scale(${info.logoScale / 100})` }}
+                                />
+                            ) : (
+                                <span className="text-xs text-white/80">No logo</span>
+                            )}
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 
