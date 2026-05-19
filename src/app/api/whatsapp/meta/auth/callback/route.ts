@@ -64,17 +64,16 @@ export async function GET(request: NextRequest) {
     const host = request.headers.get("host");
     const protocol = host?.includes("localhost") ? "http" : "https";
 
-    if (redirectUrl) {
-      const decodedRedirect = decodeURIComponent(redirectUrl);
-      return NextResponse.redirect(
-        `${protocol}://${host}${decodedRedirect}?whatsapp_connected=true`,
-      );
-    }
-
-    // Default redirect to admin settings
-    return NextResponse.redirect(
-      `${protocol}://${host}/admin-v2/settings?whatsapp_connected=true`,
-    );
+    const base = `${protocol}://${host}`;
+    const decodedRedirect = redirectUrl
+      ? decodeURIComponent(redirectUrl)
+      : "/admin-v2/settings";
+    // Use URL so we set ?whatsapp_connected=true correctly even when the
+    // redirect path already has its own query string (e.g. /admin-v2?view=Settings) —
+    // string concat would produce a second "?" and corrupt the existing params.
+    const target = new URL(decodedRedirect, base);
+    target.searchParams.set("whatsapp_connected", "true");
+    return NextResponse.redirect(target.toString());
   } catch (error: any) {
     console.error("WhatsApp OAuth Error:", error);
 
