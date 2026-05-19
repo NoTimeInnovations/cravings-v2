@@ -76,6 +76,11 @@ export function AdminV2Analytics() {
     });
   }, []);
   const [activeTab, setActiveTab] = useState<"today" | "month" | "custom">("today");
+  const [orderStatusFilter, setOrderStatusFilter] = useState<"completed" | "non_cancelled">("completed");
+  const statusFilterGql =
+    orderStatusFilter === "completed"
+      ? `status: {_eq: "completed"}`
+      : `_or: [{status: {_is_null: true}}, {status: {_neq: "cancelled"}}]`;
   const [reportData, setReportData] = useState<any>(null);
   const [scanData, setScanData] = useState<any>(null);
   const [qrCodesMap, setQrCodesMap] = useState<Map<string, any>>(new Map());
@@ -94,51 +99,51 @@ export function AdminV2Analytics() {
 
   const TODAY_ORDERS_QUERY = (startISO: string, endISO: string) => `
     query TodayOrders {
-      orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}) {
+      orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           sum { total_price }
           count
         }
       }
-      delivery_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
+      delivery_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate { count }
       }
-      cash_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
+      cash_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
-      upi_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
+      upi_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
-      card_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
+      card_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
-      null_payment_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
+      null_payment_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
       daily_sales: orders_aggregate(
-        where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}
+        where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, partner_id: {_eq: "${userData?.id}"}}
         order_by: {created_at: asc}
       ) {
         nodes { total_price, created_at }
       }
-      top_items: order_items(where: {order: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}) {
+      top_items: order_items(where: {order: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, partner_id: {_eq: "${userData?.id}"}}}) {
         menu { name, price, category { name } }
         quantity
       }
       category_stats: order_items(
-        where: {order: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}
+        where: {order: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, partner_id: {_eq: "${userData?.id}"}}}
       ) {
         menu {
           category { name }
@@ -151,51 +156,51 @@ export function AdminV2Analytics() {
 
   const MONTHLY_ORDERS_QUERY = (startISO: string, endISO: string) => `
     query MonthlyOrders {
-      orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}) {
+      orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           sum { total_price }
           count
         }
       }
-      delivery_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
+      delivery_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate { count }
       }
-      cash_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
+      cash_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
-      upi_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
+      upi_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
-      card_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
+      card_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
-      null_payment_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
+      null_payment_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
       daily_sales: orders_aggregate(
-        where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}
+        where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, partner_id: {_eq: "${userData?.id}"}}
         order_by: {created_at: asc}
       ) {
         nodes { total_price, created_at }
       }
-      top_items: order_items(where: {order: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}) {
+      top_items: order_items(where: {order: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, partner_id: {_eq: "${userData?.id}"}}}) {
         menu { name, price, category { name } }
         quantity
       }
       category_stats: order_items(
-        where: {order: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}
+        where: {order: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, partner_id: {_eq: "${userData?.id}"}}}
       ) {
         menu {
           category { name }
@@ -208,51 +213,51 @@ export function AdminV2Analytics() {
 
   const CUSTOM_DATE_ORDERS_QUERY = `
     query CustomDateOrders($startDate: timestamptz!, $endDate: timestamptz!) {
-      orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}) {
+      orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, ${statusFilterGql}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           sum { total_price }
           count
         }
       }
-      delivery_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
+      delivery_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, ${statusFilterGql}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate { count }
       }
-      cash_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
+      cash_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, ${statusFilterGql}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
-      upi_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
+      upi_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, ${statusFilterGql}, payment_method: {_eq: "upi"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
-      card_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
+      card_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, ${statusFilterGql}, payment_method: {_eq: "card"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
-      null_payment_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
+      null_payment_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, ${statusFilterGql}, payment_method: {_is_null: true}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
           sum { total_price }
         }
       }
       daily_sales: orders_aggregate(
-        where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}
+        where: {created_at: {_gte: $startDate, _lte: $endDate}, ${statusFilterGql}, partner_id: {_eq: "${userData?.id}"}}
         order_by: {created_at: asc}
       ) {
         nodes { total_price, created_at }
       }
-      top_items: order_items(where: {order: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}) {
+      top_items: order_items(where: {order: {created_at: {_gte: $startDate, _lte: $endDate}, ${statusFilterGql}, partner_id: {_eq: "${userData?.id}"}}}) {
         menu { name, price, category { name } }
         quantity
       }
       category_stats: order_items(
-        where: {order: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, partner_id: {_eq: "${userData?.id}"}}}
+        where: {order: {created_at: {_gte: $startDate, _lte: $endDate}, ${statusFilterGql}, partner_id: {_eq: "${userData?.id}"}}}
       ) {
         menu {
           category { name }
@@ -361,7 +366,7 @@ export function AdminV2Analytics() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, dateRange.startDate, dateRange.endDate, userData?.id, isOrderingEnabled, qrId]);
+  }, [activeTab, dateRange.startDate, dateRange.endDate, userData?.id, isOrderingEnabled, qrId, statusFilterGql]);
 
   useEffect(() => {
     if (userData) {
@@ -444,7 +449,7 @@ export function AdminV2Analytics() {
 
   const allOrdersIn = `
     query AllOrders($startDate: timestamptz!, $endDate: timestamptz!, $userId: uuid!) {
-      orders(where: {created_at: {_gte: $startDate, _lte: $endDate}, status: {_eq: "completed"}, partner_id: {_eq: $userId}}, order_by: {created_at: desc}) {
+      orders(where: {created_at: {_gte: $startDate, _lte: $endDate}, ${statusFilterGql}, partner_id: {_eq: $userId}}, order_by: {created_at: desc}) {
         id
         created_at
         total_price
@@ -521,6 +526,16 @@ export function AdminV2Analytics() {
             onUpdate={handleDateRangeUpdate}
           />
         )}
+        <Tabs
+          value={orderStatusFilter}
+          onValueChange={(v: any) => setOrderStatusFilter(v)}
+          className="w-full sm:w-auto"
+        >
+          <TabsList>
+            <TabsTrigger value="completed">Completed only</TabsTrigger>
+            <TabsTrigger value="non_cancelled">All except cancelled</TabsTrigger>
+          </TabsList>
+        </Tabs>
         <div className="w-full sm:w-auto flex gap-2">
           <Button
             variant="outline"
@@ -595,7 +610,7 @@ export function AdminV2Analytics() {
               <CardContent>
                 <div className="text-2xl font-bold">{totalOrders}</div>
                 <p className="text-xs text-muted-foreground">
-                  Completed orders
+                  {orderStatusFilter === "completed" ? "Completed orders" : "All except cancelled"}
                 </p>
               </CardContent>
             </Card>
