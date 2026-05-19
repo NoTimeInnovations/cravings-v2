@@ -30,12 +30,20 @@ export async function getConnectedWabaInfo(accessToken: string): Promise<{
   wabaId: string;
   phoneNumberId: string;
 }> {
+  // /debug_token requires an app access token (or a developer's user token)
+  // for the access_token param — NOT the same token being debugged.
+  const appAccessToken = `${process.env.META_APP_ID}|${process.env.META_APP_SECRET}`;
   const res = await fetch(
-    `${GRAPH_API_BASE}/debug_token?input_token=${accessToken}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } },
+    `${GRAPH_API_BASE}/debug_token?` +
+      new URLSearchParams({
+        input_token: accessToken,
+        access_token: appAccessToken,
+      }),
   );
 
   if (!res.ok) {
+    const err = await res.text();
+    console.error("Meta debug_token failed:", res.status, err);
     throw new Error("Failed to debug token");
   }
 
@@ -51,6 +59,7 @@ export async function getConnectedWabaInfo(accessToken: string): Promise<{
   )?.target_ids?.[0];
 
   if (!wabaId || !phoneNumberId) {
+    console.error("debug_token response missing scopes:", JSON.stringify(data));
     throw new Error("Could not extract WABA ID or Phone Number ID from token");
   }
 
