@@ -394,24 +394,52 @@ export function GeneralSettings() {
             );
         };
 
-        // Load FB SDK if not already loaded
-        if ((window as any).FB) {
+        const appId = process.env.NEXT_PUBLIC_META_APP_ID;
+        if (!appId) {
+            toast.error("Meta App ID is not configured");
+            return;
+        }
+
+        const w = window as any;
+
+        // If init already finished in this page, launch immediately.
+        if (w.__fbSdkReady) {
             launchSignup();
-        } else {
+            return;
+        }
+
+        // Queue this click to run as soon as init finishes.
+        w.__fbSdkReadyQueue = w.__fbSdkReadyQueue || [];
+        w.__fbSdkReadyQueue.push(launchSignup);
+
+        // If init is already in flight (another click set up fbAsyncInit
+        // and/or injected the script), just wait — it will drain the queue.
+        if (w.__fbSdkInitStarted) return;
+        w.__fbSdkInitStarted = true;
+
+        // Meta requires fbAsyncInit to be set BEFORE sdk.js loads — calling
+        // FB.init from script.onload races the SDK's internal setup for
+        // Embedded Signup and produces "FB.login() called before FB.init()".
+        w.fbAsyncInit = () => {
+            w.FB.init({
+                appId,
+                cookie: true,
+                xfbml: false,
+                version: "v21.0",
+            });
+            w.__fbSdkReady = true;
+            const queue: Array<() => void> = w.__fbSdkReadyQueue || [];
+            w.__fbSdkReadyQueue = [];
+            queue.forEach((fn) => fn());
+        };
+
+        if (!document.getElementById("facebook-jssdk")) {
             const script = document.createElement("script");
+            script.id = "facebook-jssdk";
             script.src = "https://connect.facebook.net/en_US/sdk.js";
             script.async = true;
             script.defer = true;
             script.crossOrigin = "anonymous";
-            script.onload = () => {
-                (window as any).FB.init({
-                    appId: process.env.NEXT_PUBLIC_META_APP_ID,
-                    cookie: true,
-                    xfbml: false,
-                    version: "v21.0",
-                });
-                launchSignup();
-            };
             document.body.appendChild(script);
         }
     };
@@ -1399,8 +1427,8 @@ export function GeneralSettings() {
                     </CardContent>
                 </Card>
 
-                {/* WhatsApp Business Integration — hidden until fully ready */}
-                {false && <Card className="relative">
+                {/* WhatsApp Business Integration */}
+                <Card className="relative">
                     <CardHeader>
                         <div className="flex items-center gap-2">
                             <CardTitle>WhatsApp Business</CardTitle>
@@ -1540,7 +1568,7 @@ export function GeneralSettings() {
                             </>
                         )}
                     </CardContent>
-                </Card>}
+                </Card>
 
             </div >
 
