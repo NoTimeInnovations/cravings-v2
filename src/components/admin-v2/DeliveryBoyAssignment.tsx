@@ -18,8 +18,9 @@ import { Partner, useAuthStore } from "@/store/authStore";
 import { Order } from "@/store/orderStore";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
 import { toast } from "sonner";
-import { Bike, Copy, Loader2, Phone, Truck } from "lucide-react";
+import { Bike, Copy, Loader2, MapPin, Phone, Truck } from "lucide-react";
 import { Notification } from "@/app/actions/notification";
+import { useLiveAgentLocation } from "@/hooks/useLiveAgentLocation";
 
 interface DeliveryBoyOption {
   id: string;
@@ -278,6 +279,7 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
             {order.delivery_boy.phone}
           </a>
         </div>
+        <LiveRiderLocation order={order} />
         <div className="mt-3 pt-3 border-t border-purple-200 dark:border-purple-800">
           {deliveryActions}
         </div>
@@ -372,6 +374,80 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
         </div>
       )}
       <div className="mt-3 pt-3 border-t">{deliveryActions}</div>
+    </div>
+  );
+}
+
+/**
+ * Tiny live-position indicator for the assigned rider. Polls the heartbeat
+ * hub every 3 s; falls back to the delivery_boys row from the order itself
+ * when Redis is empty. Hides itself entirely on terminal orders.
+ */
+function LiveRiderLocation({ order }: { order: Order }) {
+  const isActive =
+    !!order.delivery_boy_id &&
+    order.status !== "completed" &&
+    order.status !== "cancelled";
+  const seed =
+    order.delivery_boy?.current_lat != null &&
+    order.delivery_boy?.current_lng != null
+      ? {
+          lat: order.delivery_boy.current_lat,
+          lng: order.delivery_boy.current_lng,
+          updatedAtMs: order.delivery_boy.location_updated_at
+            ? new Date(order.delivery_boy.location_updated_at).getTime()
+            : undefined,
+        }
+      : null;
+  const live = useLiveAgentLocation({
+    orderId: order.id,
+    paused: !isActive,
+    seed,
+  });
+
+  if (!isActive || !live) return null;
+
+  const ageLabel =
+    live.ageSec < 60
+      ? `${live.ageSec}s ago`
+      : live.ageSec < 3600
+        ? `${Math.floor(live.ageSec / 60)}m ago`
+        : `${Math.floor(live.ageSec / 3600)}h ${Math.floor((live.ageSec % 3600) / 60)}m ago`;
+  const mapsHref = `https://www.google.com/maps?q=${live.lat},${live.lng}`;
+
+  return (
+    <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-white/60 dark:bg-purple-900/30 px-2.5 py-1.5 text-xs">
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span className="relative flex h-2 w-2 shrink-0">
+          <span
+            className={
+              live.source === "live"
+                ? "animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"
+                : ""
+            }
+          />
+          <span
+            className={`relative inline-flex rounded-full h-2 w-2 ${
+              live.source === "live" ? "bg-green-500" : "bg-amber-400"
+            }`}
+          />
+        </span>
+        <span className="font-medium truncate">
+          {live.source === "live" ? "Live" : "Last seen"} · {ageLabel}
+        </span>
+        <span className="text-muted-foreground truncate font-mono">
+          {live.lat.toFixed(5)}, {live.lng.toFixed(5)}
+        </span>
+      </div>
+      <a
+        href={mapsHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-1 text-blue-600 hover:underline shrink-0"
+      >
+        <MapPin className="h-3 w-3" />
+        Map
+      </a>
     </div>
   );
 }

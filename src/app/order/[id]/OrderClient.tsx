@@ -6,6 +6,7 @@ import { formatDate, getDateOnly, formatOrderShortId } from "@/lib/formatDate";
 import { ExtraCharge } from "@/store/posStore";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { subscribeToHasura } from "@/lib/hasuraSubscription";
+import { useLiveAgentLocation } from "@/hooks/useLiveAgentLocation";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Order, OrderItem } from "@/store/orderStore";
 import OfferLoadinPage from "@/components/OfferLoadinPage";
@@ -122,20 +123,49 @@ const OrderClient = () => {
     const [cancelOpen, setCancelOpen] = useState(false);
     const { userData } = useAuthStore();
 
-    // Ticking timer for "Location updated Xs ago"
+    // Live rider position from the delivery-agents-server heartbeat hub.
+    // Polls /api/agents/order/{orderId} every 3s while the order is active.
+    // Falls back to delivery_boys.current_lat/lng from the Hasura subscription
+    // so the map dot is never blank during first paint or a Redis flap.
+    const liveAgent = useLiveAgentLocation({
+        orderId: orderId,
+        paused:
+            !order?.delivery_boy_id ||
+            order?.status === "completed" ||
+            order?.status === "cancelled",
+        seed:
+            order?.delivery_boy?.current_lat != null &&
+                order?.delivery_boy?.current_lng != null
+                ? {
+                    lat: order.delivery_boy.current_lat,
+                    lng: order.delivery_boy.current_lng,
+                    updatedAtMs: order.delivery_boy.location_updated_at
+                        ? new Date(order.delivery_boy.location_updated_at).getTime()
+                        : undefined,
+                }
+                : null,
+    });
+
+    // Ticking timer for "Location updated Xs ago". Prefers the heartbeat
+    // hub's tsMs (refreshed every 3 s) over the Hasura column (refreshed at
+    // most every 90 s by the downsample worker).
     useEffect(() => {
-        const updatedAt = order?.delivery_boy?.location_updated_at;
-        if (!updatedAt) {
+        const liveMs = liveAgent?.tsMs ?? null;
+        const dbMs = order?.delivery_boy?.location_updated_at
+            ? new Date(order.delivery_boy.location_updated_at).getTime()
+            : null;
+        const sourceMs = liveMs ?? dbMs;
+        if (!sourceMs) {
             setLocationAgo(null);
             return;
         }
         const update = () => {
-            setLocationAgo(Math.round((Date.now() - new Date(updatedAt).getTime()) / 1000));
+            setLocationAgo(Math.max(0, Math.round((Date.now() - sourceMs) / 1000)));
         };
         update();
         const interval = setInterval(update, 1000);
         return () => clearInterval(interval);
-    }, [order?.delivery_boy?.location_updated_at]);
+    }, [liveAgent?.tsMs, order?.delivery_boy?.location_updated_at]);
 
     // Same ticker for the third-party delivery agent (Growjet legacy shape uses
     // `location.lastUpdated`; delivery-agents-server hub uses `lastUpdatedMs`).
@@ -688,8 +718,11 @@ ${itemsText}
 
                         {/* Live Delivery Tracking — partner's own rider */}
                         {order?.status === "dispatched" && order?.delivery_boy_id && order?.delivery_boy && (() => {
-                            const boyLat = order.delivery_boy.current_lat;
-                            const boyLng = order.delivery_boy.current_lng;
+                            // Prefer the heartbeat hub's fresh sample; fall back
+                            // to the delivery_boys row (90 s downsample target)
+                            // when Redis is empty / Flutter app is briefly off.
+                            const boyLat = liveAgent?.lat ?? order.delivery_boy.current_lat;
+                            const boyLng = liveAgent?.lng ?? order.delivery_boy.current_lng;
                             const dropCoords = order.delivery_location?.coordinates;
                             const hasLocation = boyLat != null && boyLng != null && dropCoords != null;
                             const boyEta = hasLocation
