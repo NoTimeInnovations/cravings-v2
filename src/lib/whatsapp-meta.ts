@@ -50,17 +50,33 @@ export async function getConnectedWabaInfo(accessToken: string): Promise<{
   const data = await res.json();
   const scopes = data.data?.granular_scopes || [];
 
-  const wabaId = scopes.find(
-    (s: any) => s.scope === "whatsapp_business_management",
-  )?.target_ids?.[0];
+  // Both granular_scopes entries point at the WABA — phone_number_id is not
+  // included; we have to fetch it from /{waba_id}/phone_numbers separately.
+  const wabaId =
+    scopes.find((s: any) => s.scope === "whatsapp_business_management")
+      ?.target_ids?.[0] ||
+    scopes.find((s: any) => s.scope === "whatsapp_business_messaging")
+      ?.target_ids?.[0];
 
-  const phoneNumberId = scopes.find(
-    (s: any) => s.scope === "whatsapp_business_messaging",
-  )?.target_ids?.[0];
+  if (!wabaId) {
+    console.error("debug_token response missing WABA scope:", JSON.stringify(data));
+    throw new Error("Could not extract WABA ID from token");
+  }
 
-  if (!wabaId || !phoneNumberId) {
-    console.error("debug_token response missing scopes:", JSON.stringify(data));
-    throw new Error("Could not extract WABA ID or Phone Number ID from token");
+  const phoneRes = await fetch(
+    `${GRAPH_API_BASE}/${wabaId}/phone_numbers`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!phoneRes.ok) {
+    const err = await phoneRes.text();
+    console.error("Failed to fetch WABA phone_numbers:", phoneRes.status, err);
+    throw new Error("Failed to fetch phone numbers for this WABA");
+  }
+  const phoneData = await phoneRes.json();
+  const phoneNumberId = phoneData?.data?.[0]?.id;
+  if (!phoneNumberId) {
+    console.error("WABA has no phone numbers:", JSON.stringify(phoneData));
+    throw new Error("This WhatsApp Business Account has no registered phone numbers");
   }
 
   return { wabaId, phoneNumberId };
