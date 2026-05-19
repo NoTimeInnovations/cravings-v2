@@ -151,6 +151,36 @@ export function GeneralSettings() {
         }
     }, []);
 
+    // Preload Facebook SDK so FB.login runs synchronously inside the user click
+    // — otherwise the popup gets blocked and Meta falls back to a full redirect.
+    useEffect(() => {
+        const appId = process.env.NEXT_PUBLIC_META_APP_ID;
+        if (!appId) return;
+        const w = window as any;
+        if (w.__fbSdkReady || w.__fbSdkInitStarted) return;
+        w.__fbSdkInitStarted = true;
+
+        w.fbAsyncInit = () => {
+            w.FB.init({
+                appId,
+                cookie: true,
+                xfbml: false,
+                version: "v21.0",
+            });
+            w.__fbSdkReady = true;
+        };
+
+        if (!document.getElementById("facebook-jssdk")) {
+            const script = document.createElement("script");
+            script.id = "facebook-jssdk";
+            script.src = "https://connect.facebook.net/en_US/sdk.js";
+            script.async = true;
+            script.defer = true;
+            script.crossOrigin = "anonymous";
+            document.body.appendChild(script);
+        }
+    }, []);
+
     // Handle Google Business connection redirect params
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -363,85 +393,42 @@ export function GeneralSettings() {
 
     const handleConnectWhatsApp = () => {
         if (!userData) return;
+        const w = window as any;
+        // SDK is preloaded on mount; if it isn't ready yet the user clicked
+        // before init finished — bail out cleanly rather than queue, because
+        // queuing breaks the user-gesture chain and the popup gets blocked.
+        if (!w.__fbSdkReady) {
+            toast.error("WhatsApp connector is still loading, please try again in a moment.");
+            return;
+        }
+
         const state = JSON.stringify({
             partnerId: userData.id,
             redirect: `${window.location.pathname}?view=Settings`,
         });
-        // Load Facebook SDK and trigger Embedded Signup
-        const launchSignup = () => {
-            (window as any).FB.login(
-                (response: any) => {
-                    if (response.authResponse) {
-                        const { code } = response.authResponse;
-                        // Send code to our callback
-                        const host = window.location.origin;
-                        window.location.href =
-                            `${host}/api/whatsapp/meta/auth/callback?code=${code}&state=${encodeURIComponent(state)}`;
-                    } else {
-                        toast.error("WhatsApp connection was cancelled");
-                    }
-                },
-                {
-                    config_id: process.env.NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID,
-                    response_type: "code",
-                    override_default_response_type: true,
-                    extras: {
-                        setup: {},
-                        featureType: "",
-                        sessionInfoVersion: "3",
-                    },
+
+        w.FB.login(
+            (response: any) => {
+                if (response.authResponse) {
+                    const { code } = response.authResponse;
+                    const host = window.location.origin;
+                    window.location.href =
+                        `${host}/api/whatsapp/meta/auth/callback?code=${code}&state=${encodeURIComponent(state)}`;
+                } else {
+                    toast.error("WhatsApp connection was cancelled");
                 }
-            );
-        };
-
-        const appId = process.env.NEXT_PUBLIC_META_APP_ID;
-        if (!appId) {
-            toast.error("Meta App ID is not configured");
-            return;
-        }
-
-        const w = window as any;
-
-        // If init already finished in this page, launch immediately.
-        if (w.__fbSdkReady) {
-            launchSignup();
-            return;
-        }
-
-        // Queue this click to run as soon as init finishes.
-        w.__fbSdkReadyQueue = w.__fbSdkReadyQueue || [];
-        w.__fbSdkReadyQueue.push(launchSignup);
-
-        // If init is already in flight (another click set up fbAsyncInit
-        // and/or injected the script), just wait — it will drain the queue.
-        if (w.__fbSdkInitStarted) return;
-        w.__fbSdkInitStarted = true;
-
-        // Meta requires fbAsyncInit to be set BEFORE sdk.js loads — calling
-        // FB.init from script.onload races the SDK's internal setup for
-        // Embedded Signup and produces "FB.login() called before FB.init()".
-        w.fbAsyncInit = () => {
-            w.FB.init({
-                appId,
-                cookie: true,
-                xfbml: false,
-                version: "v21.0",
-            });
-            w.__fbSdkReady = true;
-            const queue: Array<() => void> = w.__fbSdkReadyQueue || [];
-            w.__fbSdkReadyQueue = [];
-            queue.forEach((fn) => fn());
-        };
-
-        if (!document.getElementById("facebook-jssdk")) {
-            const script = document.createElement("script");
-            script.id = "facebook-jssdk";
-            script.src = "https://connect.facebook.net/en_US/sdk.js";
-            script.async = true;
-            script.defer = true;
-            script.crossOrigin = "anonymous";
-            document.body.appendChild(script);
-        }
+            },
+            {
+                config_id: process.env.NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID,
+                response_type: "code",
+                override_default_response_type: true,
+                extras: {
+                    setup: {},
+                    featureType: "",
+                    sessionInfoVersion: "3",
+                },
+            }
+        );
     };
 
     const handleDisconnectWhatsApp = async () => {
