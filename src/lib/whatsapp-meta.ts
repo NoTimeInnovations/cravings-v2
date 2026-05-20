@@ -387,6 +387,42 @@ export async function createMetaTemplate(
   return data;
 }
 
+// Meta lets you edit APPROVED/REJECTED templates by POSTing to the template's
+// own id (not the WABA endpoint). `name` and `language` are immutable. You
+// can change category, components, or both. After editing, the template goes
+// back into review.
+export async function editMetaTemplate(
+  metaTemplateId: string,
+  accessToken: string,
+  patch: {
+    category?: "UTILITY" | "MARKETING" | "AUTHENTICATION";
+    components?: MetaTemplateComponent[];
+  },
+): Promise<{ success: boolean; status?: string; category?: string }> {
+  const body: Record<string, unknown> = {};
+  if (patch.category) body.category = patch.category;
+  if (patch.components) body.components = patch.components;
+
+  const res = await fetch(`${GRAPH_API_BASE}/${metaTemplateId}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    console.error("Meta editMetaTemplate failed:", res.status, data);
+    const message =
+      data?.error?.error_user_msg ||
+      data?.error?.message ||
+      `Meta returned ${res.status}`;
+    throw new Error(message);
+  }
+  return data;
+}
+
 export async function deleteMetaTemplate(
   wabaId: string,
   accessToken: string,

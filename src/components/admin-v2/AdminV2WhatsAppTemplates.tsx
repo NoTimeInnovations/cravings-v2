@@ -30,6 +30,7 @@ import {
   Trash2,
   AlertCircle,
   Loader2,
+  Pencil,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 
@@ -119,6 +120,7 @@ export function AdminV2WhatsAppTemplates() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [creatorOpen, setCreatorOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<TemplateRow | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [connected, setConnected] = useState<boolean | null>(null);
 
@@ -269,19 +271,31 @@ export function AdminV2WhatsAppTemplates() {
                       </div>
                     )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDelete(t)}
-                    disabled={deletingId === t.id}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 self-end sm:self-auto"
-                  >
-                    {deletingId === t.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
+                  <div className="flex gap-1 self-end sm:self-auto">
+                    {(t.status === "APPROVED" || t.status === "REJECTED") && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingTemplate(t)}
+                        title="Edit template"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     )}
-                  </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(t)}
+                      disabled={deletingId === t.id}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      {deletingId === t.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -289,12 +303,25 @@ export function AdminV2WhatsAppTemplates() {
         </CardContent>
       </Card>
 
-      <TemplateCreatorDialog
+      <TemplateEditorDialog
         open={creatorOpen}
         onOpenChange={setCreatorOpen}
         partnerId={partnerId}
-        onCreated={() => {
+        mode="create"
+        onSaved={() => {
           setCreatorOpen(false);
+          load(false);
+        }}
+      />
+
+      <TemplateEditorDialog
+        open={!!editingTemplate}
+        onOpenChange={(o) => !o && setEditingTemplate(null)}
+        partnerId={partnerId}
+        mode="edit"
+        initial={editingTemplate}
+        onSaved={() => {
+          setEditingTemplate(null);
           load(false);
         }}
       />
@@ -302,23 +329,29 @@ export function AdminV2WhatsAppTemplates() {
   );
 }
 
-function TemplateCreatorDialog({
+function TemplateEditorDialog({
   open,
   onOpenChange,
   partnerId,
-  onCreated,
+  mode,
+  initial,
+  onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   partnerId: string | undefined;
-  onCreated: () => void;
+  mode: "create" | "edit";
+  initial?: TemplateRow | null;
+  onSaved: () => void;
 }) {
+  const isEdit = mode === "edit";
   const [name, setName] = useState("");
   const [language, setLanguage] = useState("en_US");
   const [category, setCategory] = useState<"UTILITY" | "MARKETING" | "AUTHENTICATION">("UTILITY");
   const [headerFormat, setHeaderFormat] = useState<HeaderFormat>("NONE");
   const [headerText, setHeaderText] = useState("");
   const [headerMediaUrl, setHeaderMediaUrl] = useState("");
+  const [headerSample, setHeaderSample] = useState("");
   const [body, setBody] = useState("");
   const [bodySamples, setBodySamples] = useState<string[]>([]);
   const [footer, setFooter] = useState("");
@@ -332,11 +365,65 @@ function TemplateCreatorDialog({
     setHeaderFormat("NONE");
     setHeaderText("");
     setHeaderMediaUrl("");
+    setHeaderSample("");
     setBody("");
     setBodySamples([]);
     setFooter("");
     setButtons([]);
   };
+
+  // Prefill the form from an existing template when entering edit mode (or
+  // when the same dialog is re-opened with a different row).
+  useEffect(() => {
+    if (!open) return;
+    if (isEdit && initial) {
+      setName(initial.name);
+      setLanguage(initial.language);
+      setCategory(initial.category as any);
+      let header: HeaderFormat = "NONE";
+      let headerTxt = "";
+      let headerMedia = "";
+      let headerEx = "";
+      let bodyTxt = "";
+      let bodyEx: string[] = [];
+      let footerTxt = "";
+      let btns: ButtonDraft[] = [];
+      for (const c of initial.components || []) {
+        if (c.type === "HEADER") {
+          header = (c.format || "TEXT") as HeaderFormat;
+          if (header === "TEXT") {
+            headerTxt = c.text || "";
+            headerEx = c.example?.header_text?.[0] || "";
+          } else {
+            headerMedia = c.example?.header_handle?.[0] || "";
+          }
+        } else if (c.type === "BODY") {
+          bodyTxt = c.text || "";
+          bodyEx = c.example?.body_text?.[0] || [];
+        } else if (c.type === "FOOTER") {
+          footerTxt = c.text || "";
+        } else if (c.type === "BUTTONS") {
+          btns = (c.buttons || []).slice(0, 3).map((b: any) => ({
+            type: b.type as ButtonKind,
+            text: b.text || "",
+            url: b.url,
+            phone_number: b.phone_number,
+          }));
+        }
+      }
+      setHeaderFormat(header);
+      setHeaderText(headerTxt);
+      setHeaderMediaUrl(headerMedia);
+      setHeaderSample(headerEx);
+      setBody(bodyTxt);
+      setBodySamples(bodyEx);
+      setFooter(footerTxt);
+      setButtons(btns);
+    } else if (!isEdit) {
+      reset();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isEdit, initial?.id]);
 
   // Keep bodySamples length in sync with the {{n}} variable count.
   const varCount = useMemo(() => variableCount(body), [body]);
@@ -349,9 +436,8 @@ function TemplateCreatorDialog({
     });
   }, [varCount]);
 
-  // Same for header text variable (Meta only allows a single {{1}} in headers)
+  // Header may include a single {{1}} variable per Meta's rules
   const headerHasVar = /\{\{\d+\}\}/.test(headerText);
-  const [headerSample, setHeaderSample] = useState("");
 
   const slug = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_");
   const nameInvalid = !slug || slug.length < 3 || slug.length > 512;
@@ -430,22 +516,41 @@ function TemplateCreatorDialog({
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/whatsapp/templates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          partnerId,
-          name: slug,
-          language,
-          category,
-          components: buildComponents(),
-        }),
-      });
+      let res: Response;
+      if (isEdit && initial) {
+        res = await fetch(
+          `/api/whatsapp/templates/${initial.id}?partnerId=${partnerId}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              category,
+              components: buildComponents(),
+            }),
+          },
+        );
+      } else {
+        res = await fetch("/api/whatsapp/templates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            partnerId,
+            name: slug,
+            language,
+            category,
+            components: buildComponents(),
+          }),
+        });
+      }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Meta rejected the template");
-      toast.success("Template submitted — Meta will review within 24h");
+      toast.success(
+        isEdit
+          ? "Template updated — Meta will re-review within 24h"
+          : "Template submitted — Meta will review within 24h",
+      );
       reset();
-      onCreated();
+      onSaved();
     } catch (e: any) {
       toast.error(e?.message || "Failed to submit template");
     } finally {
@@ -461,12 +566,23 @@ function TemplateCreatorDialog({
         onOpenChange(o);
       }}
     >
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="!max-w-5xl w-[95vw] max-h-[92vh] overflow-y-auto sm:!max-w-5xl">
         <DialogHeader>
-          <DialogTitle>New WhatsApp template</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Edit WhatsApp template" : "New WhatsApp template"}
+          </DialogTitle>
           <DialogDescription>
-            Templates are reviewed by Meta. Use <code>{"{{1}}"}</code> placeholders for variables
-            and provide example values.
+            {isEdit ? (
+              <>
+                Name and language can't be changed after creation. Editing puts the template
+                back into review at Meta.
+              </>
+            ) : (
+              <>
+                Templates are reviewed by Meta. Use <code>{"{{1}}"}</code> placeholders for variables
+                and provide example values.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -479,16 +595,19 @@ function TemplateCreatorDialog({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="order_status_update"
+                disabled={isEdit}
               />
               <p className="text-xs text-muted-foreground">
-                Slug: <code>{slug || "—"}</code>. Lowercase, 3–512 chars, letters/numbers/underscore only.
+                {isEdit
+                  ? "Name is locked. To rename, delete and recreate."
+                  : <>Slug: <code>{slug || "—"}</code>. Lowercase, 3–512 chars, letters/numbers/underscore only.</>}
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>Language</Label>
-                <Select value={language} onValueChange={setLanguage}>
+                <Select value={language} onValueChange={setLanguage} disabled={isEdit}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -731,10 +850,10 @@ function TemplateCreatorDialog({
             {submitting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Submitting…
+                {isEdit ? "Saving…" : "Submitting…"}
               </>
             ) : (
-              "Submit for review"
+              isEdit ? "Save & resubmit" : "Submit for review"
             )}
           </Button>
         </DialogFooter>
