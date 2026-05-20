@@ -402,20 +402,34 @@ export function GeneralSettings() {
             return;
         }
 
-        const state = JSON.stringify({
-            partnerId: userData.id,
-            redirect: `${window.location.pathname}?view=Settings`,
-        });
-
         w.FB.login(
-            (response: any) => {
-                if (response.authResponse) {
-                    const { code } = response.authResponse;
-                    const host = window.location.origin;
-                    window.location.href =
-                        `${host}/api/whatsapp/meta/auth/callback?code=${code}&state=${encodeURIComponent(state)}`;
-                } else {
+            async (response: any) => {
+                if (!response.authResponse) {
                     toast.error("WhatsApp connection was cancelled");
+                    return;
+                }
+                const { code } = response.authResponse;
+                // POST the code in the background instead of redirecting the
+                // whole tab — keeps the user on the Settings view. The server
+                // does the token exchange + Hasura write and returns JSON.
+                setIsWabaLoading(true);
+                try {
+                    const res = await fetch("/api/whatsapp/meta/auth/callback", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ code, partnerId: userData.id }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data.connected) {
+                        toast.error(data?.error || "WhatsApp connection failed");
+                        return;
+                    }
+                    toast.success("WhatsApp connected");
+                    await checkWhatsAppConnection(userData.id);
+                } catch (e: any) {
+                    toast.error(e?.message || "WhatsApp connection failed");
+                } finally {
+                    setIsWabaLoading(false);
                 }
             },
             {

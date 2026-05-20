@@ -1,7 +1,82 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { getPartnerByPhoneNumberId } from "@/lib/whatsapp-meta";
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
+
+// Insert an inbound row into the inbox so partners can see every message
+// their WABA receives. Fire-and-forget — never blocks the webhook ACK.
+const INSERT_INBOX = `
+  mutation InsertInboxMessage($obj: whatsapp_messages_insert_input!) {
+    insert_whatsapp_messages_one(object: $obj) {
+      id
+    }
+  }
+`;
+
+function extractIncomingBody(msg: any): { type: string; body: string | null; mediaUrl: string | null } {
+  const t = msg.type as string;
+  switch (t) {
+    case "text":
+      return { type: "text", body: msg.text?.body ?? null, mediaUrl: null };
+    case "button":
+      return { type: "button", body: msg.button?.text ?? null, mediaUrl: null };
+    case "interactive":
+      return {
+        type: "interactive",
+        body:
+          msg.interactive?.button_reply?.title ||
+          msg.interactive?.list_reply?.title ||
+          null,
+        mediaUrl: null,
+      };
+    case "image":
+    case "video":
+    case "audio":
+    case "document":
+    case "sticker":
+      return {
+        type: t,
+        body: msg[t]?.caption ?? null,
+        mediaUrl: msg[t]?.id ?? null,
+      };
+    case "location":
+      return {
+        type: "location",
+        body: msg.location
+          ? `${msg.location.latitude},${msg.location.longitude}`
+          : null,
+        mediaUrl: null,
+      };
+    default:
+      return { type: "unknown", body: null, mediaUrl: null };
+  }
+}
+
+async function persistIncoming(
+  partnerId: string,
+  msg: any,
+  contactName: string | null,
+): Promise<void> {
+  const { type, body, mediaUrl } = extractIncomingBody(msg);
+  try {
+    await fetchFromHasura(INSERT_INBOX, {
+      obj: {
+        partner_id: partnerId,
+        direction: "in",
+        contact_phone: msg.from,
+        contact_name: contactName,
+        type,
+        body,
+        media_url: mediaUrl,
+        wa_message_id: msg.id,
+        status: "received",
+      },
+    });
+  } catch (e) {
+    console.error("Failed to persist incoming message:", e);
+  }
+}
 
 // ─── Webhook Verification (Meta sends GET to verify) ─────────────
 export async function GET(req: NextRequest) {
@@ -33,11 +108,23 @@ export async function POST(req: NextRequest) {
         const value = change.value;
         const phoneNumberId = value.metadata?.phone_number_id;
         const messages = value.messages || [];
+        const contactName = value.contacts?.[0]?.profile?.name || null;
+
+        // Resolve the partner once for this batch. The Menuthere shared
+        // WABA won't be in whatsapp_business_integrations, so absence is
+        // normal — those messages just don't go to a partner inbox.
+        const partner = phoneNumberId
+          ? await getPartnerByPhoneNumberId(phoneNumberId)
+          : null;
 
         for (const msg of messages) {
           console.log(
-            `[WhatsApp Webhook] From: ${msg.from} | Type: ${msg.type}`
+            `[WhatsApp Webhook] From: ${msg.from} | Type: ${msg.type} | partner=${partner?.partner_id || "shared"}`
           );
+
+          if (partner?.partner_id) {
+            await persistIncoming(partner.partner_id, msg, contactName);
+          }
 
           // Handle "Track Order Status" quick reply button click
           if (msg.type === "button" && msg.button?.text === "Track Order Status") {

@@ -265,11 +265,12 @@ export function AdminV2WhatsAppTemplates() {
                         {t.status}
                       </span>
                     </div>
-                    {t.rejection_reason && (
-                      <div className="text-xs text-red-700 mt-1">
-                        Rejected: {t.rejection_reason}
-                      </div>
-                    )}
+                    {t.rejection_reason &&
+                      t.rejection_reason.trim().toUpperCase() !== "NONE" && (
+                        <div className="text-xs text-red-700 mt-1">
+                          Rejected: {t.rejection_reason}
+                        </div>
+                      )}
                   </div>
                   <div className="flex gap-1 self-end sm:self-auto">
                     {(t.status === "APPROVED" || t.status === "REJECTED") && (

@@ -90,3 +90,47 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+// POST variant for the in-page connect flow. Same work as the GET handler
+// above but returns JSON instead of redirecting — lets the admin-v2 page
+// stay put while the FB.login popup result is exchanged in the background.
+export async function POST(request: NextRequest) {
+  let body: { code?: string; partnerId?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  const { code, partnerId } = body;
+  if (!code) return NextResponse.json({ error: "Missing code" }, { status: 400 });
+  if (!partnerId)
+    return NextResponse.json({ error: "Missing partnerId" }, { status: 400 });
+
+  try {
+    const { access_token } = await exchangeCodeForToken(code);
+    const { wabaId, phoneNumberId, metaUserId } =
+      await getConnectedWabaInfo(access_token);
+
+    await subscribeWabaWebhooks(wabaId, access_token);
+
+    await saveWhatsAppIntegration({
+      partner_id: partnerId,
+      waba_id: wabaId,
+      phone_number_id: phoneNumberId,
+      access_token,
+      meta_user_id: metaUserId,
+    });
+
+    return NextResponse.json({
+      connected: true,
+      waba_id: wabaId,
+      phone_number_id: phoneNumberId,
+    });
+  } catch (error: any) {
+    console.error("WhatsApp OAuth Error (POST):", error);
+    return NextResponse.json(
+      { connected: false, error: error?.message || "Connection failed" },
+      { status: 400 },
+    );
+  }
+}

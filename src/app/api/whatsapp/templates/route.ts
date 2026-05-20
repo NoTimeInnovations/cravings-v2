@@ -194,6 +194,16 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// Meta returns `rejected_reason: "NONE"` (a literal string, not null) for
+// templates that haven't been rejected — drop that so we don't surface a
+// fake "Rejected: NONE" in the UI.
+function normalizeRejectedReason(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed.toUpperCase() === "NONE") return null;
+  return trimmed;
+}
+
 // Reconcile local templates with whatever Meta currently has. Local rows
 // matched by (name + language) get their status/meta_template_id/rejection
 // updated. Templates that exist on Meta but not locally are inserted so the
@@ -217,12 +227,13 @@ async function reconcileWithMeta(
   for (const t of metaTemplates) {
     const key = `${t.name}::${t.language}`;
     const match = localByKey.get(key);
+    const reason = normalizeRejectedReason(t.rejected_reason);
     if (match) {
       await fetchFromHasura(UPDATE_LOCAL_STATUS, {
         id: match.id,
         status: t.status || "PENDING",
         meta_template_id: t.id || null,
-        rejection_reason: t.rejected_reason || null,
+        rejection_reason: reason,
       }).catch(() => {});
     } else {
       await fetchFromHasura(INSERT_LOCAL, {
@@ -234,7 +245,7 @@ async function reconcileWithMeta(
           components: t.components,
           status: t.status || "PENDING",
           meta_template_id: t.id || null,
-          rejection_reason: t.rejected_reason || null,
+          rejection_reason: reason,
         },
       }).catch(() => {});
     }
