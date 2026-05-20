@@ -402,35 +402,39 @@ export function GeneralSettings() {
             return;
         }
 
+        // FB.login rejects async callbacks ("Expression is of type
+        // asyncfunction, not function") — keep this synchronous and run the
+        // exchange in a helper.
+        const exchangeCode = async (code: string) => {
+            setIsWabaLoading(true);
+            try {
+                const res = await fetch("/api/whatsapp/meta/auth/callback", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ code, partnerId: userData.id }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.connected) {
+                    toast.error(data?.error || "WhatsApp connection failed");
+                    return;
+                }
+                toast.success("WhatsApp connected");
+                await checkWhatsAppConnection(userData.id);
+            } catch (e: any) {
+                toast.error(e?.message || "WhatsApp connection failed");
+            } finally {
+                setIsWabaLoading(false);
+            }
+        };
+
         w.FB.login(
-            async (response: any) => {
-                if (!response.authResponse) {
+            (response: any) => {
+                if (!response?.authResponse) {
                     toast.error("WhatsApp connection was cancelled");
                     return;
                 }
                 const { code } = response.authResponse;
-                // POST the code in the background instead of redirecting the
-                // whole tab — keeps the user on the Settings view. The server
-                // does the token exchange + Hasura write and returns JSON.
-                setIsWabaLoading(true);
-                try {
-                    const res = await fetch("/api/whatsapp/meta/auth/callback", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ code, partnerId: userData.id }),
-                    });
-                    const data = await res.json().catch(() => ({}));
-                    if (!res.ok || !data.connected) {
-                        toast.error(data?.error || "WhatsApp connection failed");
-                        return;
-                    }
-                    toast.success("WhatsApp connected");
-                    await checkWhatsAppConnection(userData.id);
-                } catch (e: any) {
-                    toast.error(e?.message || "WhatsApp connection failed");
-                } finally {
-                    setIsWabaLoading(false);
-                }
+                void exchangeCode(code);
             },
             {
                 config_id: process.env.NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID,
