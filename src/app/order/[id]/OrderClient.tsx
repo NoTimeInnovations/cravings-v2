@@ -69,6 +69,7 @@ const GET_ORDER_QUERY = `
         name
         username
         feature_flags
+        petpooja_restaurant_id
         geo_location
       }
       gst_included
@@ -1201,6 +1202,7 @@ ${itemsText}
                     onOpenChange={setCancelOpen}
                     orderId={order.id}
                     orderShortId={idTail}
+                    isPetpooja={!!order.partner?.petpooja_restaurant_id}
                 />
             )}
 

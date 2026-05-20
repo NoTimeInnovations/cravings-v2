@@ -111,6 +111,7 @@ export interface Order {
     upi_id?: string;
     show_payment_qr?: boolean;
     feature_flags?: string | null;
+    petpooja_restaurant_id?: string | null;
     geo_location?: {
       type?: string;
       coordinates?: [number, number];

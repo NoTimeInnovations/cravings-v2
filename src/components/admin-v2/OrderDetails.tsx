@@ -813,6 +813,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 onOpenChange={setCancelOpen}
                 orderId={order.id}
                 orderShortId={order.display_id || order.id.slice(0, 8)}
+                isPetpooja={!!(userData as Partner)?.petpooja_restaurant_id}
             />
         </div >
     );

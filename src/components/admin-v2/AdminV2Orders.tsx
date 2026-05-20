@@ -775,6 +775,7 @@ export function AdminV2Orders() {
           }}
           orderId={cancellingOrder.id}
           orderShortId={cancellingOrder.display_id || cancellingOrder.id.slice(0, 8)}
+          isPetpooja={!!(userData as Partner)?.petpooja_restaurant_id}
         />
       )}
     </div>

@@ -15,6 +15,7 @@ interface CancelOrderDialogProps {
   onOpenChange: (open: boolean) => void;
   orderId: string;
   orderShortId?: string;
+  isPetpooja?: boolean;
   onCancelled?: () => void;
 }
 
@@ -30,6 +31,7 @@ export function CancelOrderDialog({
   onOpenChange,
   orderId,
   orderShortId,
+  isPetpooja = false,
   onCancelled,
 }: CancelOrderDialogProps) {
   const [selected, setSelected] = useState<string | null>(null);
@@ -135,8 +137,9 @@ export function CancelOrderDialog({
                   Cancel order{orderShortId ? ` #${orderShortId}` : ""}?
                 </h2>
                 <p className="text-xs sm:text-sm text-red-700/80 mt-1">
-                  This cancels the order on Petpooja and marks it as cancelled.
-                  The customer will be notified.
+                  {isPetpooja
+                    ? "This cancels the order on Petpooja and marks it as cancelled. The customer will be notified."
+                    : "This marks the order as cancelled. The customer will be notified."}
                 </p>
               </div>
               <button
