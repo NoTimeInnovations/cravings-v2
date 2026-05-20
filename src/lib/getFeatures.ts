@@ -53,6 +53,16 @@ export type FeatureFlags = {
     access: boolean;
     enabled: boolean;
   };
+  /**
+   * Gates the "Manage WhatsApp Templates" admin-v2 surface. Partners with
+   * this flag can author and submit WhatsApp message templates to Meta
+   * directly from the dashboard. Required for our Tech Provider App Review
+   * since the second demo video shows template creation from inside our app.
+   */
+  whatsappOrdering: {
+    access: boolean;
+    enabled: boolean;
+  };
 };
 
 export const revertFeatureToString = (features: FeatureFlags): string => {
@@ -104,6 +114,10 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
 
   if (features.delivery_agent.access) {
     parts.push(`delivery_agent-${features.delivery_agent.enabled}`);
+  }
+
+  if (features.whatsappOrdering.access) {
+    parts.push(`whatsappOrdering-${features.whatsappOrdering.enabled}`);
   }
 
   return parts.join(",");
@@ -159,6 +173,10 @@ export const getFeatures = (perm: string | null) => {
       access: false,
       enabled: false,
     },
+    whatsappOrdering: {
+      access: false,
+      enabled: false,
+    },
   };
 
   if (!perm) {
@@ -207,6 +225,9 @@ export const getFeatures = (perm: string | null) => {
       } else if (key === "delivery_agent") {
         permissions.delivery_agent.access = true;
         permissions.delivery_agent.enabled = value === "true";
+      } else if (key === "whatsappOrdering") {
+        permissions.whatsappOrdering.access = true;
+        permissions.whatsappOrdering.enabled = value === "true";
       }
     }
   }

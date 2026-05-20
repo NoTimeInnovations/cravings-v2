@@ -304,6 +304,23 @@ export function FeatureSettings() {
                                     />
                                 </div>
                             )}
+
+                            {features.whatsappOrdering?.access && (
+                                <div className="flex items-center justify-between p-4 border rounded-lg">
+                                    <div className="space-y-0.5">
+                                        <div className="font-medium">WhatsApp Ordering</div>
+                                        <div className="text-sm text-muted-foreground">
+                                            {features.whatsappOrdering.enabled
+                                                ? "Enabled — Manage WhatsApp Templates appears in the sidebar"
+                                                : "Disabled — template management is hidden"}
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={features.whatsappOrdering.enabled}
+                                        onCheckedChange={(checked) => handleFeatureToggle("whatsappOrdering", checked)}
+                                    />
+                                </div>
+                            )}
                         </>
                     )}
                 </CardContent>

@@ -68,6 +68,9 @@ const AdminV2PetpoojaIntegration = dynamic(() => import("@/components/admin-v2/A
 const AdminV2DeliveryIntegration = dynamic(() => import("@/components/admin-v2/AdminV2DeliveryIntegration").then(mod => mod.AdminV2DeliveryIntegration), {
     loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
 });
+const AdminV2WhatsAppTemplates = dynamic(() => import("@/components/admin-v2/AdminV2WhatsAppTemplates").then(mod => mod.AdminV2WhatsAppTemplates), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
 import { useAdminStore } from "@/store/adminStore";
 import { UpgradePlanDialog } from "@/components/admin-v2/UpgradePlanDialog";
 
@@ -148,7 +151,7 @@ export default function AdminPage() {
 
                     {/* Main Content */}
                     <main className={`flex-1 overflow-y-auto ${activeView === "POS" ? "p-0 md:p-2" : "p-3 sm:p-4 md:p-6"}`}>
-                        {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "Delivery Boys" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && activeView !== "POS" && activeView !== "Purchase & Inventory" && activeView !== "Dashboard" && activeView !== "Billing" && activeView !== "Customers" && activeView !== "Notices" && activeView !== "Reviews" && activeView !== "Website" && activeView !== "Notify" && activeView !== "Petpooja Integration" && activeView !== "Delivery Service Integration" && (
+                        {activeView !== "Menu" && activeView !== "Settings" && activeView !== "Captains" && activeView !== "Delivery Boys" && activeView !== "QrCodes" && activeView !== "Offers" && activeView !== "Help & Support" && activeView !== "POS" && activeView !== "Purchase & Inventory" && activeView !== "Dashboard" && activeView !== "Billing" && activeView !== "Customers" && activeView !== "Notices" && activeView !== "Reviews" && activeView !== "Website" && activeView !== "Notify" && activeView !== "Petpooja Integration" && activeView !== "Delivery Service Integration" && activeView !== "WhatsApp Templates" && (
                             <h1 className="text-3xl font-bold mb-6">{activeView}</h1>
                         )}
 
@@ -250,6 +253,11 @@ export default function AdminPage() {
                         {renderedViews.includes("Delivery Service Integration") && (
                             <div className={activeView === "Delivery Service Integration" ? "block" : "hidden"}>
                                 <AdminV2DeliveryIntegration />
+                            </div>
+                        )}
+                        {renderedViews.includes("WhatsApp Templates") && (
+                            <div className={activeView === "WhatsApp Templates" ? "block" : "hidden"}>
+                                <AdminV2WhatsAppTemplates />
                             </div>
                         )}
                     </main>

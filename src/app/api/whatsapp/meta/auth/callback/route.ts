@@ -41,8 +41,12 @@ export async function GET(request: NextRequest) {
     // 1. Exchange code for access token
     const { access_token } = await exchangeCodeForToken(code);
 
-    // 2. Get WABA ID and Phone Number ID from the token
-    const { wabaId, phoneNumberId } = await getConnectedWabaInfo(access_token);
+    // 2. Get WABA ID, Phone Number ID, and Meta user_id from the token. The
+    //    Meta user_id is what Meta sends in the Data Deletion Callback's
+    //    signed_request — we have to persist it now so we can look the
+    //    partner up later by that id.
+    const { wabaId, phoneNumberId, metaUserId } =
+      await getConnectedWabaInfo(access_token);
 
     console.log("--- WhatsApp Business Connected ---");
     console.log("Partner ID:", partnerId);
@@ -58,6 +62,7 @@ export async function GET(request: NextRequest) {
       waba_id: wabaId,
       phone_number_id: phoneNumberId,
       access_token,
+      meta_user_id: metaUserId,
     });
 
     // 5. Redirect back to the app

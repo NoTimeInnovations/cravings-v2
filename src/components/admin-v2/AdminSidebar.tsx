@@ -20,6 +20,7 @@ import {
   Megaphone,
   Plug,
   Bike,
+  MessageSquare,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
@@ -50,6 +51,7 @@ const sidebarItems: SidebarItem[] = [
   { title: "POS", icon: CreditCard, id: "pos" },
   { title: "Customers", icon: Users, id: "customers" },
   { title: "Website", icon: Globe, id: "website" },
+  { title: "WhatsApp Templates", icon: MessageSquare, id: "whatsapp-templates" },
   { title: "Settings", icon: Settings, id: "settings" },
   // { title: "Billing", icon: Receipt, id: "billing" }, // Hidden for App Store review — re-enable after IAP approval
 ];
@@ -74,6 +76,7 @@ const FREE_PLAN_LOCKED_IDS = [
   "deliveryboys",
   "customers",
   "reviews",
+  "whatsapp-templates",
 ];
 
 interface AdminSidebarProps {
@@ -129,6 +132,9 @@ export function AdminSidebar({
       return features?.ordering?.enabled || features?.delivery?.enabled
         ? "visible"
         : "hidden";
+    }
+    if (item.id === "whatsapp-templates") {
+      return features?.whatsappOrdering?.enabled ? "visible" : "hidden";
     }
     return "visible";
   };
