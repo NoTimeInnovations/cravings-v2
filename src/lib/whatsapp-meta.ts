@@ -423,6 +423,18 @@ export async function editMetaTemplate(
   return data;
 }
 
+// Subcodes returned by Graph when a template doesn't exist on the account.
+// We treat these as "already deleted" rather than errors so the caller can
+// drop the local row cleanly.
+const META_TEMPLATE_NOT_FOUND_SUBCODES = new Set([2593002, 2593003]);
+
+export class MetaTemplateNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MetaTemplateNotFoundError";
+  }
+}
+
 export async function deleteMetaTemplate(
   wabaId: string,
   accessToken: string,
@@ -440,11 +452,21 @@ export async function deleteMetaTemplate(
       headers: { Authorization: `Bearer ${accessToken}` },
     },
   );
-  if (!res.ok) {
-    const err = await res.text();
-    console.error("Meta deleteMetaTemplate failed:", res.status, err);
-    throw new Error(`Meta returned ${res.status} deleting template`);
+  if (res.ok) return;
+
+  const data = await res.json().catch(() => ({} as any));
+  console.error("Meta deleteMetaTemplate failed:", res.status, data);
+
+  const subcode: number | undefined = data?.error?.error_subcode;
+  const userMsg: string | undefined =
+    data?.error?.error_user_msg || data?.error?.message;
+
+  if (res.status === 404 || (subcode && META_TEMPLATE_NOT_FOUND_SUBCODES.has(subcode))) {
+    throw new MetaTemplateNotFoundError(
+      userMsg || "Template not found at Meta",
+    );
   }
+  throw new Error(userMsg || `Meta returned ${res.status} deleting template`);
 }
 
 // ─── Send a WhatsApp message via Cloud API ───────────────────────

@@ -4,6 +4,7 @@ import {
   getPartnerWabaIntegration,
   deleteMetaTemplate,
   editMetaTemplate,
+  MetaTemplateNotFoundError,
   type MetaTemplateComponent,
 } from "@/lib/whatsapp-meta";
 
@@ -91,15 +92,19 @@ export async function DELETE(
             row.meta_template_id,
           );
         } catch (e: any) {
-          // Meta returns 404 if the template was already removed there.
-          // Anything else we surface so the partner can retry.
-          const msg = String(e?.message || "");
-          if (!msg.includes("404")) {
+          // If Meta says the template doesn't exist there (404 or "not
+          // found" subcode), it's already gone — fall through and delete
+          // the local row. Anything else (auth, rate limit, etc.) we
+          // surface so the partner can retry.
+          if (!(e instanceof MetaTemplateNotFoundError)) {
             return NextResponse.json(
-              { error: msg || "Meta refused to delete the template" },
+              { error: e?.message || "Meta refused to delete the template" },
               { status: 502 },
             );
           }
+          console.warn(
+            `Template ${row.name} already missing at Meta — deleting local row anyway.`,
+          );
         }
       }
     }
