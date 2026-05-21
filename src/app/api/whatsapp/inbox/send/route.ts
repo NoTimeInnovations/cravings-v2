@@ -36,6 +36,16 @@ function normalizePhone(phone: string): string {
   return String(phone || "").replace(/[^0-9]/g, "");
 }
 
+// Substitute {{1}}, {{2}}, ... in a template body with the provided values.
+// Used purely for rendering the inbox row preview; Meta receives the
+// structured `components` array, not this rendered string.
+function renderTemplatePreview(bodyText: string, params: string[]): string {
+  return bodyText.replace(/\{\{(\d+)\}\}/g, (_, idx) => {
+    const i = parseInt(idx, 10) - 1;
+    return params[i] ?? `{{${idx}}}`;
+  });
+}
+
 // POST /api/whatsapp/inbox/send
 // Body: { partnerId, to, text }
 // Sends a free-form text via the partner's connected WABA and persists
@@ -49,10 +59,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { partnerId, to, text } = body || {};
-  if (!partnerId || !to || !text) {
+  const { partnerId, to, text, template } = body || {};
+  if (!partnerId || !to) {
     return NextResponse.json(
-      { error: "Missing partnerId, to, or text" },
+      { error: "Missing partnerId or to" },
+      { status: 400 },
+    );
+  }
+  if (!text && !template) {
+    return NextResponse.json(
+      { error: "Provide text or template" },
+      { status: 400 },
+    );
+  }
+  if (template && (!template.name || !template.language)) {
+    return NextResponse.json(
+      { error: "Template requires name and language" },
       { status: 400 },
     );
   }
@@ -70,6 +92,16 @@ export async function POST(req: NextRequest) {
   }
 
   // Insert as queued so the UI gets an immediate optimistic row.
+  // For templates we render the body text with variables substituted so the
+  // thread shows readable content (e.g. "Hi John, your order #123 is ready").
+  const rowBody = template
+    ? renderTemplatePreview(
+        template.bodyText || `[template: ${template.name}]`,
+        template.parameters || [],
+      )
+    : text;
+  const rowType = template ? "template" : "text";
+
   let rowId: string;
   let row: any;
   try {
@@ -78,8 +110,8 @@ export async function POST(req: NextRequest) {
         partner_id: partnerId,
         direction: "out",
         contact_phone: normalizedTo,
-        type: "text",
-        body: text,
+        type: rowType,
+        body: rowBody,
         status: "queued",
       },
     });
@@ -95,6 +127,58 @@ export async function POST(req: NextRequest) {
   // we want the failure reason, so we call Graph directly here for the
   // first-class flow and keep the helper for fire-and-forget paths.
   const graphUrl = `https://graph.facebook.com/${process.env.WHATSAPP_API_VERSION || "v21.0"}/${integration.phone_number_id}/messages`;
+
+  let metaPayload: Record<string, unknown>;
+  if (template) {
+    const components: any[] = [];
+    if (template.headerParams?.length) {
+      components.push({
+        type: "header",
+        parameters: template.headerParams.map((p: string) => ({
+          type: "text",
+          text: p,
+        })),
+      });
+    }
+    if (template.parameters?.length) {
+      components.push({
+        type: "body",
+        parameters: template.parameters.map((p: string) => ({
+          type: "text",
+          text: p,
+        })),
+      });
+    }
+    if (template.buttonParams?.length) {
+      components.push({
+        type: "button",
+        sub_type: "url",
+        index: "0",
+        parameters: template.buttonParams.map((p: string) => ({
+          type: "text",
+          text: p,
+        })),
+      });
+    }
+    metaPayload = {
+      messaging_product: "whatsapp",
+      to: normalizedTo,
+      type: "template",
+      template: {
+        name: template.name,
+        language: { code: template.language },
+        ...(components.length > 0 ? { components } : {}),
+      },
+    };
+  } else {
+    metaPayload = {
+      messaging_product: "whatsapp",
+      to: normalizedTo,
+      type: "text",
+      text: { body: text },
+    };
+  }
+
   try {
     const res = await fetch(graphUrl, {
       method: "POST",
@@ -102,12 +186,7 @@ export async function POST(req: NextRequest) {
         Authorization: `Bearer ${integration.access_token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: normalizedTo,
-        type: "text",
-        text: { body: text },
-      }),
+      body: JSON.stringify(metaPayload),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {

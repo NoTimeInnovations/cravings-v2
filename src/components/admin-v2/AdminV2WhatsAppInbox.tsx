@@ -23,7 +23,16 @@ import {
   Loader2,
   Search,
   ArrowLeft,
+  MoreVertical,
+  Trash2,
+  FileText,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/store/authStore";
 import { subscribeToHasura } from "@/lib/hasuraSubscription";
 import { cn } from "@/lib/utils";
@@ -146,6 +155,9 @@ export function AdminV2WhatsAppInbox() {
   const [search, setSearch] = useState("");
   const [newConvOpen, setNewConvOpen] = useState(false);
   const [connected, setConnected] = useState<boolean | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
 
   const threadEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -259,6 +271,64 @@ export function AdminV2WhatsAppInbox() {
     }
     setSelected(normalized);
     setNewConvOpen(false);
+  };
+
+  const handleDeleteChat = async () => {
+    if (!partnerId || !selected) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/whatsapp/inbox/delete-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partnerId, contactPhone: selected }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.error || "Failed to delete chat");
+        return;
+      }
+      toast.success(
+        `Cleared ${data?.deleted ?? 0} messages on our side. WhatsApp history is unaffected.`,
+      );
+      setDeleteOpen(false);
+      setSelected(null);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to delete chat");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleSendTemplate = async (payload: {
+    name: string;
+    language: string;
+    bodyText: string;
+    parameters: string[];
+    headerParams: string[];
+    buttonParams: string[];
+  }): Promise<boolean> => {
+    if (!partnerId || !selected) return false;
+    try {
+      const res = await fetch("/api/whatsapp/inbox/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          partnerId,
+          to: selected,
+          template: payload,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.error || "Failed to send template");
+        return false;
+      }
+      setTemplateOpen(false);
+      return true;
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to send template");
+      return false;
+    }
   };
 
   const selectedConv = useMemo(
@@ -392,7 +462,7 @@ export function AdminV2WhatsAppInbox() {
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="font-medium text-sm truncate">
                     {selectedConv?.contact_name || `+${selected}`}
                   </div>
@@ -400,6 +470,22 @@ export function AdminV2WhatsAppInbox() {
                     <div className="text-[10px] text-muted-foreground">+{selected}</div>
                   )}
                 </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="shrink-0">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => setDeleteOpen(true)}
+                      className="text-red-600 focus:text-red-700 focus:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete chat (our side only)
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               <div className="flex-1 overflow-y-auto bg-[#efeae2] dark:bg-[#0b141a] p-4 space-y-1">
@@ -442,6 +528,17 @@ export function AdminV2WhatsAppInbox() {
               </div>
 
               <div className="border-t p-2 flex gap-2 items-end bg-background">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTemplateOpen(true)}
+                  className="shrink-0"
+                  title="Send an approved template (works outside the 24h window)"
+                >
+                  <FileText className="h-4 w-4 mr-1" />
+                  Template
+                </Button>
                 <Textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
@@ -479,7 +576,369 @@ export function AdminV2WhatsAppInbox() {
         onOpenChange={setNewConvOpen}
         onStart={handleStartNew}
       />
+
+      <DeleteChatDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        contactName={selectedConv?.contact_name || null}
+        contactPhone={selected}
+        onConfirm={handleDeleteChat}
+        deleting={deleting}
+      />
+
+      <TemplatePickerDialog
+        open={templateOpen}
+        onOpenChange={setTemplateOpen}
+        partnerId={partnerId}
+        onSend={handleSendTemplate}
+      />
     </div>
+  );
+}
+
+function DeleteChatDialog({
+  open,
+  onOpenChange,
+  contactName,
+  contactPhone,
+  onConfirm,
+  deleting,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  contactName: string | null;
+  contactPhone: string | null;
+  onConfirm: () => void;
+  deleting: boolean;
+}) {
+  const label = contactName || (contactPhone ? `+${contactPhone}` : "this contact");
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete chat?</DialogTitle>
+        </DialogHeader>
+        <div className="text-sm space-y-2 py-1">
+          <p>
+            This permanently clears the chat with <b>{label}</b> from our
+            inbox.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            The conversation will <b>not</b> be deleted from WhatsApp — the
+            recipient still has the full history, and any new messages they send
+            will reappear here.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={deleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={onConfirm}
+            disabled={deleting}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
+            {deleting ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Trash2 className="h-4 w-4 mr-2" />
+            )}
+            Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface TemplateRow {
+  id: string;
+  name: string;
+  language: string;
+  category: string;
+  components: any;
+  status: string;
+}
+
+interface TemplateParts {
+  bodyText: string;
+  bodyVarCount: number;
+  headerVarCount: number;
+  buttonVarCount: number;
+}
+
+function extractTemplateParts(components: any): TemplateParts {
+  const list: any[] = Array.isArray(components) ? components : [];
+  const body = list.find((c) => c?.type === "BODY" || c?.type === "body");
+  const header = list.find((c) => c?.type === "HEADER" || c?.type === "header");
+  const buttons = list.find((c) => c?.type === "BUTTONS" || c?.type === "buttons");
+  const bodyText: string = body?.text || "";
+  const countVars = (s: string) => {
+    const matches = s.match(/\{\{\d+\}\}/g) || [];
+    return new Set(matches).size;
+  };
+  const headerText: string = header?.format === "TEXT" || header?.format === "text"
+    ? header?.text || ""
+    : "";
+  // URL buttons can have one {{1}} placeholder for the dynamic suffix.
+  let buttonVarCount = 0;
+  if (Array.isArray(buttons?.buttons)) {
+    for (const b of buttons.buttons) {
+      if ((b?.type === "URL" || b?.type === "url") && typeof b?.url === "string") {
+        buttonVarCount += countVars(b.url);
+      }
+    }
+  }
+  return {
+    bodyText,
+    bodyVarCount: countVars(bodyText),
+    headerVarCount: countVars(headerText),
+    buttonVarCount,
+  };
+}
+
+function TemplatePickerDialog({
+  open,
+  onOpenChange,
+  partnerId,
+  onSend,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  partnerId: string | undefined;
+  onSend: (payload: {
+    name: string;
+    language: string;
+    bodyText: string;
+    parameters: string[];
+    headerParams: string[];
+    buttonParams: string[];
+  }) => Promise<boolean>;
+}) {
+  const [templates, setTemplates] = useState<TemplateRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [bodyParams, setBodyParams] = useState<string[]>([]);
+  const [headerParams, setHeaderParams] = useState<string[]>([]);
+  const [buttonParams, setButtonParams] = useState<string[]>([]);
+  const [sending, setSending] = useState(false);
+
+  // Reset state every time the dialog closes — keeps inputs clean across sends.
+  useEffect(() => {
+    if (!open) {
+      setSelectedId(null);
+      setBodyParams([]);
+      setHeaderParams([]);
+      setButtonParams([]);
+      return;
+    }
+    if (!partnerId) return;
+    setLoading(true);
+    fetch(`/api/whatsapp/templates?partnerId=${partnerId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const all: TemplateRow[] = Array.isArray(d?.templates) ? d.templates : [];
+        // Only APPROVED templates can actually be sent via Meta.
+        const approved = all.filter(
+          (t) => (t.status || "").toUpperCase() === "APPROVED",
+        );
+        setTemplates(approved);
+      })
+      .catch(() => setTemplates([]))
+      .finally(() => setLoading(false));
+  }, [open, partnerId]);
+
+  const selectedTemplate = useMemo(
+    () => templates.find((t) => t.id === selectedId) || null,
+    [templates, selectedId],
+  );
+
+  const parts = useMemo(
+    () =>
+      selectedTemplate
+        ? extractTemplateParts(selectedTemplate.components)
+        : null,
+    [selectedTemplate],
+  );
+
+  useEffect(() => {
+    if (!parts) return;
+    setBodyParams(Array(parts.bodyVarCount).fill(""));
+    setHeaderParams(Array(parts.headerVarCount).fill(""));
+    setButtonParams(Array(parts.buttonVarCount).fill(""));
+  }, [parts]);
+
+  const canSend = useMemo(() => {
+    if (!selectedTemplate || !parts) return false;
+    const allFilled = (arr: string[]) => arr.every((v) => v.trim().length > 0);
+    return allFilled(bodyParams) && allFilled(headerParams) && allFilled(buttonParams);
+  }, [selectedTemplate, parts, bodyParams, headerParams, buttonParams]);
+
+  const handleSubmit = async () => {
+    if (!selectedTemplate || !parts) return;
+    setSending(true);
+    try {
+      await onSend({
+        name: selectedTemplate.name,
+        language: selectedTemplate.language,
+        bodyText: parts.bodyText,
+        parameters: bodyParams,
+        headerParams,
+        buttonParams,
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Send a template</DialogTitle>
+        </DialogHeader>
+
+        {loading ? (
+          <div className="py-10 flex justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : templates.length === 0 ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            No approved templates yet. Create one in Settings → WhatsApp
+            Business and wait for Meta to approve it.
+          </div>
+        ) : !selectedTemplate ? (
+          <ul className="max-h-[50vh] overflow-y-auto divide-y border rounded-md">
+            {templates.map((t) => {
+              const tp = extractTemplateParts(t.components);
+              return (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(t.id)}
+                    className="w-full text-left px-3 py-2.5 hover:bg-muted/60"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-sm">{t.name}</span>
+                      <span className="text-[10px] uppercase text-muted-foreground">
+                        {t.category} · {t.language}
+                      </span>
+                    </div>
+                    {tp.bodyText && (
+                      <div className="text-xs text-muted-foreground mt-1 line-clamp-2 whitespace-pre-wrap">
+                        {tp.bodyText}
+                      </div>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-1">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium">{selectedTemplate.name}</div>
+                <div className="text-[10px] uppercase text-muted-foreground">
+                  {selectedTemplate.category} · {selectedTemplate.language}
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedId(null)}
+              >
+                Change
+              </Button>
+            </div>
+
+            {parts?.bodyText && (
+              <div className="rounded-md bg-muted/50 p-2 text-xs whitespace-pre-wrap">
+                {parts.bodyText}
+              </div>
+            )}
+
+            {parts && parts.headerVarCount > 0 && (
+              <div className="space-y-1">
+                <div className="text-xs font-medium">Header variables</div>
+                {Array.from({ length: parts.headerVarCount }).map((_, i) => (
+                  <Input
+                    key={`h-${i}`}
+                    value={headerParams[i] ?? ""}
+                    onChange={(e) => {
+                      const next = [...headerParams];
+                      next[i] = e.target.value;
+                      setHeaderParams(next);
+                    }}
+                    placeholder={`{{${i + 1}}}`}
+                  />
+                ))}
+              </div>
+            )}
+
+            {parts && parts.bodyVarCount > 0 && (
+              <div className="space-y-1">
+                <div className="text-xs font-medium">Body variables</div>
+                {Array.from({ length: parts.bodyVarCount }).map((_, i) => (
+                  <Input
+                    key={`b-${i}`}
+                    value={bodyParams[i] ?? ""}
+                    onChange={(e) => {
+                      const next = [...bodyParams];
+                      next[i] = e.target.value;
+                      setBodyParams(next);
+                    }}
+                    placeholder={`{{${i + 1}}}`}
+                  />
+                ))}
+              </div>
+            )}
+
+            {parts && parts.buttonVarCount > 0 && (
+              <div className="space-y-1">
+                <div className="text-xs font-medium">Button URL variables</div>
+                {Array.from({ length: parts.buttonVarCount }).map((_, i) => (
+                  <Input
+                    key={`btn-${i}`}
+                    value={buttonParams[i] ?? ""}
+                    onChange={(e) => {
+                      const next = [...buttonParams];
+                      next[i] = e.target.value;
+                      setButtonParams(next);
+                    }}
+                    placeholder={`{{${i + 1}}}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          {selectedTemplate && (
+            <Button
+              onClick={handleSubmit}
+              disabled={!canSend || sending}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {sending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Send className="h-4 w-4 mr-2" />
+              )}
+              Send
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
