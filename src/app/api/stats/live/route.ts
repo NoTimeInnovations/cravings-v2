@@ -143,14 +143,24 @@ async function hasura(query: string, variables: Record<string, unknown>) {
   return json.data ?? {};
 }
 
+const WINDOW_MS: Record<"24h" | "7d" | "30d", number> = {
+  "24h": 24 * 60 * 60 * 1000,
+  "7d": 7 * 24 * 60 * 60 * 1000,
+  "30d": 30 * 24 * 60 * 60 * 1000,
+};
+
 export async function GET(req: NextRequest) {
   try {
     const partnerIdParam = req.nextUrl.searchParams.get("partnerId");
     const partnerId =
       partnerIdParam && UUID_RE.test(partnerIdParam) ? partnerIdParam : null;
 
+    const windowParam = req.nextUrl.searchParams.get("window") ?? "24h";
+    const windowId: "24h" | "7d" | "30d" =
+      windowParam === "7d" || windowParam === "30d" ? windowParam : "24h";
+
     const now = new Date();
-    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+    const sinceIso = new Date(now.getTime() - WINDOW_MS[windowId]).toISOString();
     const sevenDaysAgo = new Date(
       now.getTime() - 7 * 24 * 60 * 60 * 1000
     ).toISOString();
@@ -163,7 +173,7 @@ export async function GET(req: NextRequest) {
 
     const [data, partnersData] = await Promise.all([
       hasura(LIVE_QUERY, {
-        since: oneHourAgo,
+        since: sinceIso,
         today: todayStart.toISOString(),
         partnerFilter,
         excludedUsers: EXCLUDED_USER_IDS,
@@ -209,7 +219,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       recentOrders,
       activeRestaurantsToday: (data.today_active_partners ?? []).length,
-      lastHour: {
+      window: {
+        id: windowId,
+        since: sinceIso,
         total: {
           count: data.last_hour?.aggregate?.count ?? 0,
           gmv: Math.round(data.last_hour?.aggregate?.sum?.total_price ?? 0),

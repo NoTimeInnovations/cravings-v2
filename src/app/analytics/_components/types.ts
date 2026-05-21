@@ -53,10 +53,14 @@ export type SelectedPartnerStats = {
   syncedAt: string;
 };
 
+export type LiveWindowId = "24h" | "7d" | "30d";
+
 export type LiveStats = {
   recentOrders: LiveOrder[];
   activeRestaurantsToday: number;
-  lastHour: {
+  window: {
+    id: LiveWindowId;
+    since: string;
     total: { count: number; gmv: number };
     delivery: { count: number; gmv: number };
     takeaway: { count: number; gmv: number };

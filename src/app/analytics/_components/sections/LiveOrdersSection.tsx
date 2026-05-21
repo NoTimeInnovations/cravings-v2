@@ -25,11 +25,22 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { compact, rupees } from "../format";
 import { SectionHeader } from "./OverviewSection";
-import type { LiveStats, LiveOrder, LivePartnerOption } from "../types";
+import type {
+  LiveStats,
+  LiveOrder,
+  LivePartnerOption,
+  LiveWindowId,
+} from "../types";
 
 const ALL_PARTNERS = "__all__";
 
 const REFRESH_MS = 10_000;
+
+const WINDOW_OPTIONS: { id: LiveWindowId; label: string; short: string }[] = [
+  { id: "24h", label: "Last 24 hours", short: "24h" },
+  { id: "7d", label: "Last 7 days", short: "7d" },
+  { id: "30d", label: "Last 30 days", short: "1m" },
+];
 
 const TYPE_LABELS: Record<string, { label: string; icon: any; tone: string }> = {
   delivery: { label: "Delivery", icon: Bike, tone: "text-blue-700 bg-blue-50" },
@@ -75,15 +86,19 @@ export default function LiveOrdersSection() {
   const [tick, setTick] = useState(0);
   const [partnerId, setPartnerId] = useState<string>(ALL_PARTNERS);
   const [partnerOptions, setPartnerOptions] = useState<LivePartnerOption[]>([]);
+  const [windowId, setWindowId] = useState<LiveWindowId>("24h");
+
+  const activeWindow =
+    WINDOW_OPTIONS.find((w) => w.id === windowId) ?? WINDOW_OPTIONS[0];
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const url =
-          partnerId === ALL_PARTNERS
-            ? `/api/stats/live`
-            : `/api/stats/live?partnerId=${encodeURIComponent(partnerId)}`;
+        const params = new URLSearchParams();
+        if (partnerId !== ALL_PARTNERS) params.set("partnerId", partnerId);
+        params.set("window", windowId);
+        const url = `/api/stats/live?${params.toString()}`;
         const r = await fetch(url, { cache: "no-store" });
         const d = await r.json();
         if (!cancelled) {
@@ -105,7 +120,7 @@ export default function LiveOrdersSection() {
       cancelled = true;
       clearInterval(id);
     };
-  }, [tick, partnerId]);
+  }, [tick, partnerId, windowId]);
 
   const selectedPartner = useMemo(
     () => partnerOptions.find((p) => p.id === partnerId) ?? null,
@@ -116,9 +131,16 @@ export default function LiveOrdersSection() {
     <div className="space-y-6">
       <SectionHeader
         title="Live orders"
-        subtitle="Delivery and takeaway across active restaurants — refreshed every 10s"
+        subtitle={`Delivery and takeaway across active restaurants — refreshed every 10s · ${activeWindow.label.toLowerCase()}`}
         right={
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <WindowSwitcher
+              value={windowId}
+              onChange={(v) => {
+                setLoading(true);
+                setWindowId(v);
+              }}
+            />
             <PartnerCombobox
               value={partnerId}
               onChange={(v) => {
@@ -136,22 +158,22 @@ export default function LiveOrdersSection() {
         }
       />
 
-      {/* Last hour summary */}
+      {/* Windowed summary */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <SummaryCard
-          label="Delivery (last 1h)"
+          label={`Delivery (${activeWindow.short})`}
           icon={<Bike className="size-4" />}
           accent="text-blue-700 bg-blue-50"
-          count={data?.lastHour.delivery.count ?? 0}
-          gmv={data?.lastHour.delivery.gmv ?? 0}
+          count={data?.window.delivery.count ?? 0}
+          gmv={data?.window.delivery.gmv ?? 0}
           loading={loading}
         />
         <SummaryCard
-          label="Takeaway (last 1h)"
+          label={`Takeaway (${activeWindow.short})`}
           icon={<ShoppingBag className="size-4" />}
           accent="text-amber-700 bg-amber-50"
-          count={data?.lastHour.takeaway.count ?? 0}
-          gmv={data?.lastHour.takeaway.gmv ?? 0}
+          count={data?.window.takeaway.count ?? 0}
+          gmv={data?.window.takeaway.gmv ?? 0}
           loading={loading}
         />
         <Card className="p-4 bg-white">
@@ -188,7 +210,7 @@ export default function LiveOrdersSection() {
               )}
             </div>
             <div className="text-xs text-muted-foreground">
-              Last hour, newest first ({data?.recentOrders.length ?? 0} shown)
+              {activeWindow.label}, newest first ({data?.recentOrders.length ?? 0} shown)
             </div>
           </div>
           <Activity className="size-4 text-muted-foreground" />
@@ -202,7 +224,7 @@ export default function LiveOrdersSection() {
           </div>
         ) : !data || data.recentOrders.length === 0 ? (
           <div className="py-12 text-center text-sm text-muted-foreground">
-            No orders in the last hour. New orders will appear here as they come in.
+            No orders in the {activeWindow.label.toLowerCase()}. New orders will appear here as they come in.
           </div>
         ) : (
           <ol className="divide-y">
@@ -317,6 +339,43 @@ function OrderRow({ o }: { o: LiveOrder }) {
         )}
       </div>
     </li>
+  );
+}
+
+function WindowSwitcher({
+  value,
+  onChange,
+}: {
+  value: LiveWindowId;
+  onChange: (v: LiveWindowId) => void;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Time window"
+      className="inline-flex h-8 items-center rounded-md border border-input bg-white p-0.5 text-xs shadow-sm"
+    >
+      {WINDOW_OPTIONS.map((opt) => {
+        const active = opt.id === value;
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(opt.id)}
+            className={cn(
+              "h-7 rounded px-2.5 font-medium transition-colors",
+              active
+                ? "bg-neutral-900 text-white"
+                : "text-muted-foreground hover:bg-neutral-100"
+            )}
+          >
+            {opt.short}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
