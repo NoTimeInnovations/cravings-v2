@@ -1,4 +1,9 @@
 import { getPartnerByUsernameQuery } from "@/api/partners";
+import {
+  getBranchByParentPartnerIdQuery,
+  getPartnerBranchInfoQuery,
+  type BranchContext,
+} from "@/api/branches";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { processHotelPage, fetchHotelMetadata } from "@/lib/hotelDataFetcher";
 import HotelMenuPage from "@/screens/HotelMenuPage_v2";
@@ -12,6 +17,48 @@ import {
   SubscriptionExpiredCard,
   SubscriptionInactiveCard,
 } from "@/components/SubscriptionStatusCards";
+
+async function getBranchContextForParent(
+  parentPartnerId: string,
+): Promise<BranchContext | null> {
+  try {
+    const res = await fetchFromHasura(getBranchByParentPartnerIdQuery, {
+      parent_partner_id: parentPartnerId,
+    });
+    const branch = res?.branches?.[0];
+    if (!branch) return null;
+    return branch as BranchContext;
+  } catch (error) {
+    console.error("Error fetching branch context:", error);
+    return null;
+  }
+}
+
+export interface BrandLinkInfo {
+  brandName: string;
+  parentUsername: string;
+}
+
+async function getBrandLinkForOutlet(
+  outletPartnerId: string,
+): Promise<BrandLinkInfo | null> {
+  try {
+    const res = await fetchFromHasura(getPartnerBranchInfoQuery, {
+      partner_id: outletPartnerId,
+    });
+    const row = res?.partners_by_pk;
+    const branch = row?.branch;
+    if (!branch) return null;
+    // Only surface "Change outlet" on child outlets, not on the parent itself.
+    if (branch.parent_partner_id === outletPartnerId) return null;
+    const parentUsername = branch.parent_partner?.username;
+    if (!parentUsername) return null;
+    return { brandName: branch.name, parentUsername };
+  } catch (error) {
+    console.error("Error fetching brand link:", error);
+    return null;
+  }
+}
 
 async function getPartnerIdByUsername(username: string): Promise<string | null> {
   try {
@@ -89,15 +136,27 @@ const UsernamePage = async ({
   searchParams,
   params,
 }: {
-  searchParams: Promise<{ query: string; qrScan: boolean; cat: string; category: string; hide: string }>;
+  searchParams: Promise<{ query: string; qrScan: boolean; cat: string; category: string; hide: string; orderType?: string; fromBrand?: string }>;
   params: Promise<{ username: string }>;
 }) => {
   const { username } = await params;
   const sp = await searchParams;
-  const { query: search, cat, category, hide } = sp;
+  const { query: search, cat, category, hide, orderType: orderTypeParam, fromBrand } = sp;
   const selectedCat = category || cat;
   const hideOtherCategories = hide === "others" && !!selectedCat;
-  const hasSearchParams = Object.values(sp).some((v) => v != null && v !== "");
+  // ?orderType=&fromBrand=1 are routing params from a brand-parent redirect.
+  // They shouldn't trigger the "user came from search" branch that skips the
+  // splash/notices, since they're an internal handoff.
+  const userVisibleParamKeys = Object.keys(sp).filter(
+    (k) => k !== "orderType" && k !== "fromBrand",
+  );
+  const hasSearchParams = userVisibleParamKeys.some(
+    (k) => (sp as any)[k] != null && (sp as any)[k] !== "",
+  );
+  const preselectedOrderType =
+    orderTypeParam === "delivery" || orderTypeParam === "takeaway"
+      ? orderTypeParam
+      : null;
   const auth = await getAuthCookie();
 
   const partnerId = await getPartnerIdByUsername(username);
@@ -127,6 +186,12 @@ const UsernamePage = async ({
   const orderSession = await getOrderSessionCookie(partnerId);
   const onboardingCompleted = !!orderSession;
 
+  const branchContext = await getBranchContextForParent(partnerId);
+  // For child outlets, fetch the parent so we can offer "Change outlet".
+  const brandLink = branchContext
+    ? null
+    : await getBrandLinkForOutlet(partnerId);
+
   const deliveryRules = (data.hotelData as any)?.delivery_rules;
   const hotelTimezone = (data.hotelData as any)?.timezone || "Asia/Kolkata";
   const isDeliveryActive = deliveryRules?.isDeliveryActive ?? true;
@@ -152,6 +217,9 @@ const UsernamePage = async ({
       initialDeliveryOpen={initialDeliveryOpen}
       initialTakeawayOpen={initialTakeawayOpen}
       hotelTimezone={hotelTimezone}
+      branchContext={branchContext}
+      preselectedOrderType={preselectedOrderType}
+      brandLink={brandLink}
     />
   );
 };

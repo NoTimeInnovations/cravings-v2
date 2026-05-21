@@ -48,6 +48,11 @@ export interface SidebarHotelPageProps {
   qrId?: string | null;
   isOnFreePlan?: boolean;
   hideOtherCategories?: boolean;
+  brandHeader?: {
+    brandName: string;
+    outletLabel: string | null;
+    onChange: () => void;
+  } | null;
 }
 
 const SidebarBannerCarousel = ({ banners, accent }: { banners: string[]; accent: string }) => {
@@ -131,6 +136,7 @@ const Sidebar = ({
   qrId,
   isOnFreePlan,
   hideOtherCategories,
+  brandHeader,
 }: SidebarHotelPageProps) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"food" | "orders">("food");
@@ -408,6 +414,7 @@ const Sidebar = ({
                 accent={styles.accent || "#ea580c"}
                 bannerError={false}
                 setBannerError={() => {}}
+                brandHeader={brandHeader}
               />
             )
           )}

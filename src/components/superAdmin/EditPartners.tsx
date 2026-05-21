@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { countryCodes } from "@/utils/countryCodes";
 import { useLocationStore } from "@/store/locationStore";
+import BranchesPanel from "./BranchesPanel";
 
 interface PartnerWithDetails extends Partner {
   place_id?: string;
@@ -548,6 +549,13 @@ const EditPartners = () => {
                 <Button type="submit">Save Changes</Button>
               </div>
             </form>
+
+            <div className="mt-6">
+              <BranchesPanel
+                partnerId={selectedPartner.id}
+                partnerStoreName={selectedPartner.store_name || ""}
+              />
+            </div>
           </div>
         </div>
       ) : loading ? (

@@ -46,6 +46,11 @@ export interface DefaultHotelPageProps {
   isOnFreePlan?: boolean;
   hideOtherCategories?: boolean;
   onShowStorefront?: () => void;
+  brandHeader?: {
+    brandName: string;
+    outletLabel: string | null;
+    onChange: () => void;
+  } | null;
 }
 
 const Default = ({
@@ -67,6 +72,7 @@ const Default = ({
   qrId,
   isOnFreePlan,
   hideOtherCategories,
+  brandHeader,
 }: DefaultHotelPageProps) => {
 
   const [isThemeDialogOpen, setIsThemeDialogOpen] = React.useState(false);
@@ -151,6 +157,7 @@ const Default = ({
               accent={styles.accent || "#ea580c"}
               bannerError={false}
               setBannerError={() => {}}
+              brandHeader={brandHeader}
             />
           )}
 

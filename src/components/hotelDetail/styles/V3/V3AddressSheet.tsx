@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { MapPin, Search, LocateFixed, Loader2, X, Home, Building2, Navigation, Trash2 } from "lucide-react";
+import { MapPin, Search, LocateFixed, Loader2, X, Home, Building2, Navigation, Trash2, ChevronDown } from "lucide-react";
 import { useLoadScript } from "@react-google-maps/api";
 import type { SavedAddress } from "../../placeOrder/AddressManagementModal";
 
@@ -21,6 +21,11 @@ interface V3AddressSheetProps {
    * the consumer can open a map picker for fine-tuning and saving.
    */
   onPickForMap?: (address: string, coords: { lat: number; lng: number } | null) => void;
+  brandHeader?: {
+    brandName: string;
+    outletLabel: string | null;
+    onChange: () => void;
+  } | null;
 }
 
 const formatSavedAddress = (a: SavedAddress): string =>
@@ -34,7 +39,7 @@ const labelIcon = (label?: string) => {
   return Navigation;
 };
 
-export default function V3AddressSheet({ currentAddress, onSelect, onClose, accent = "#1f2937", savedAddresses, onDeleteSaved, onPickForMap }: V3AddressSheetProps) {
+export default function V3AddressSheet({ currentAddress, onSelect, onClose, accent = "#1f2937", savedAddresses, onDeleteSaved, onPickForMap, brandHeader }: V3AddressSheetProps) {
   const [address, setAddress] = useState("");
   const [locating, setLocating] = useState(false);
   const [suggestions, setSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
@@ -201,6 +206,35 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
             <p className="text-xs text-gray-400 mt-0.5 truncate">Current: {currentAddress}</p>
           )}
         </div>
+
+        {/* Brand / outlet row */}
+        {brandHeader && (
+          <div className="px-4 pb-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => { brandHeader.onChange(); animateClose(); }}
+              className="w-full flex items-center gap-3 rounded-xl bg-gray-50 px-3 py-2.5 text-left transition active:opacity-70"
+            >
+              <MapPin className="w-4 h-4 shrink-0 text-gray-500" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                  Outlet
+                </p>
+                <p className="text-sm font-semibold text-gray-900 truncate">
+                  {brandHeader.brandName}
+                  {brandHeader.outletLabel ? ` — ${brandHeader.outletLabel}` : ""}
+                </p>
+              </div>
+              <span
+                className="text-xs font-semibold inline-flex items-center gap-0.5 shrink-0"
+                style={{ color: accent }}
+              >
+                Change
+                <ChevronDown className="w-3 h-3" />
+              </span>
+            </button>
+          </div>
+        )}
 
         {/* Search + current-location (sticky at top of body) */}
         <div className="px-4 pb-3 shrink-0 bg-white flex items-center gap-2">

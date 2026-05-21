@@ -43,6 +43,7 @@ const V3 = ({
   qrId,
   isOnFreePlan,
   onShowStorefront,
+  brandHeader,
 }: DefaultHotelPageProps) => {
   const [activeCatIndex, setActiveCatIndex] = useState<number>(0);
   const [bannerError, setBannerError] = useState(false);
@@ -547,6 +548,7 @@ const V3 = ({
         {addressSheetOpen && (
           <V3AddressSheet
             currentAddress={userAddress || ""}
+            brandHeader={brandHeader}
             savedAddresses={savedAddresses}
             onDeleteSaved={async (id) => {
               if (!authUser || (authUser as any).role !== "user") return;

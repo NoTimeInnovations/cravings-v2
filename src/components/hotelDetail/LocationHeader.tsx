@@ -20,6 +20,11 @@ interface LocationHeaderProps {
   accent: string;
   bannerError: boolean;
   setBannerError: (v: boolean) => void;
+  brandHeader?: {
+    brandName: string;
+    outletLabel: string | null;
+    onChange: () => void;
+  } | null;
 }
 
 interface RecentLocation {
@@ -35,6 +40,7 @@ const LocationHeader = ({
   accent,
   bannerError,
   setBannerError,
+  brandHeader,
 }: LocationHeaderProps) => {
   const [showPicker, setShowPicker] = useState(false);
   const [showUnavailable, setShowUnavailable] = useState(false);
@@ -273,6 +279,33 @@ const LocationHeader = ({
                 <X size={20} className="text-gray-500" />
               </button>
             </div>
+
+            {/* Brand / Outlet row */}
+            {brandHeader && (
+              <button
+                type="button"
+                onClick={() => { setShowPicker(false); brandHeader.onChange(); }}
+                className="w-full flex items-center gap-3 px-5 py-3 bg-gray-50 border-b hover:bg-gray-100 transition-colors text-left"
+              >
+                <MapPin size={18} className="text-gray-500 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                    Outlet
+                  </p>
+                  <p className="text-sm font-semibold text-gray-900 truncate">
+                    {brandHeader.brandName}
+                    {brandHeader.outletLabel ? ` — ${brandHeader.outletLabel}` : ""}
+                  </p>
+                </div>
+                <span
+                  className="text-sm font-semibold inline-flex items-center gap-0.5 shrink-0"
+                  style={{ color: accent }}
+                >
+                  Change
+                  <ChevronDown size={14} />
+                </span>
+              </button>
+            )}
 
             {/* Search Input */}
             <div className="px-5 pt-4 pb-3">

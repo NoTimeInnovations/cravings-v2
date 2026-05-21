@@ -27,6 +27,8 @@ import { QrCode, useQrDataStore } from "@/store/qrDataStore";
 import DeliveryTimeCampain from "@/components/hotelDetail/DeliveryTimeCampain";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 import NoticesOverlay from "@/components/NoticesOverlay";
+import type { BranchContext } from "@/api/branches";
+import type { BrandLinkInfo } from "@/app/[username]/page";
 
 export type MenuItem = {
   description: string;
@@ -69,6 +71,9 @@ interface HotelMenuPageProps {
   initialDeliveryOpen?: boolean;
   initialTakeawayOpen?: boolean;
   hotelTimezone?: string;
+  branchContext?: BranchContext | null;
+  preselectedOrderType?: "delivery" | "takeaway" | null;
+  brandLink?: BrandLinkInfo | null;
 }
 
 const HotelMenuPage = ({
@@ -88,6 +93,9 @@ const HotelMenuPage = ({
   initialDeliveryOpen,
   initialTakeawayOpen,
   hotelTimezone,
+  branchContext,
+  preselectedOrderType,
+  brandLink,
 }: HotelMenuPageProps) => {
   // Read URL params on the client. URL is the source of truth so navigating
   // from /name?category=x&hide=others to /name correctly clears the filter,
@@ -148,7 +156,13 @@ const HotelMenuPage = ({
   // user picks an order type and re-mounts on every reload so the order type screen
   // shows again (value persists only in sessionStorage).
   const showOnboarding = needsOnboarding || hasStorefrontSplash;
-  const [onboardingDismissed, setOnboardingDismissed] = useState(!showOnboarding);
+  // If the URL signals a fast-dismiss case (?back=true from picker redirect),
+  // pre-mark onboarding dismissed so the menu renders on first paint without
+  // waiting for the client-side dismiss effect.
+  const isBackNavInitial = searchParams?.get("back") === "true";
+  const [onboardingDismissed, setOnboardingDismissed] = useState(
+    !showOnboarding || isBackNavInitial,
+  );
   const [onboardingKey, setOnboardingKey] = useState(0);
   // When the menu-page back button reopens onboarding, start at the storefront
   // splash even if the URL has search params (which normally sets skipStorefront).
@@ -381,6 +395,50 @@ const HotelMenuPage = ({
     allMenus: hoteldata?.menus || [],
   }), [hoteldata, filteredMenus]);
 
+  const reopenOutletPicker = useCallback(() => {
+    if (typeof window !== "undefined") {
+      // For brand parents, keep ?pickOutlet=1 so OnboardingFlow forces the
+      // picker step and bypasses the single-outlet auto-skip (which would
+      // otherwise instantly bounce the user back to the only active outlet).
+      const targetSearch = branchContext ? "?pickOutlet=1" : "";
+      if (window.location.search !== targetSearch) {
+        window.history.replaceState(null, "", pathname + targetSearch);
+      }
+    }
+    setForceStorefront(true);
+    setOnboardingDismissed(false);
+    setOnboardingKey((k) => k + 1);
+  }, [pathname, branchContext]);
+
+  const brandHeader = useMemo(() => {
+    // Child outlet: Change → brand parent with ?pickOutlet=1 so the picker
+    // always shows even if the brand has just one active outlet (otherwise
+    // the single-outlet auto-skip would bounce the user back instantly).
+    if (brandLink) {
+      const outletLabel =
+        (hoteldata as any)?.location_details ||
+        (hoteldata as any)?.location ||
+        (hoteldata as any)?.district ||
+        (hoteldata as any)?.store_name ||
+        null;
+      return {
+        brandName: brandLink.brandName,
+        outletLabel,
+        onChange: () =>
+          router.push(`/${brandLink.parentUsername}?pickOutlet=1`),
+      };
+    }
+    // Brand parent: Change → re-open the outlet picker overlay in place.
+    if (branchContext) {
+      return {
+        brandName: branchContext.name,
+        outletLabel: null,
+        onChange: reopenOutletPicker,
+      };
+    }
+    return null;
+  }, [brandLink, branchContext, hoteldata, router, reopenOutletPicker]);
+
   const defaultProps = {
     offers,
     hoteldata: filteredHotelData,
@@ -400,18 +458,8 @@ const HotelMenuPage = ({
     pathname: pathname,
     isOnFreePlan: isHotelOnFreePlan,
     hideOtherCategories: !!lockedCategory,
-    onShowStorefront: showOnboarding ? () => {
-      // Clear all search params so the storefront/onboarding flow renders fresh.
-      // Use window.history.replaceState for immediate effect (router.replace is
-      // async and useSearchParams in the remounted OnboardingFlow would still
-      // see the stale params for one render).
-      if (typeof window !== "undefined" && window.location.search) {
-        window.history.replaceState(null, "", pathname);
-      }
-      setForceStorefront(true);
-      setOnboardingDismissed(false);
-      setOnboardingKey((k) => k + 1);
-    } : undefined,
+    onShowStorefront: showOnboarding ? reopenOutletPicker : undefined,
+    brandHeader,
   };
 
   const renderPage = () => {
@@ -523,6 +571,8 @@ const HotelMenuPage = ({
           initialDeliveryOpen={initialDeliveryOpen}
           initialTakeawayOpen={initialTakeawayOpen}
           hotelTimezone={hotelTimezone}
+          branchContext={branchContext}
+          preselectedOrderType={preselectedOrderType}
           onDismiss={() => { setOnboardingDismissed(true); setForceStorefront(false); }}
         />
       )}

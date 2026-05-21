@@ -621,6 +621,7 @@ const Compact = ({
   qrGroup,
   qrId,
   isOnFreePlan,
+  brandHeader,
 }: DefaultHotelPageProps) => {
   const [activeCatIndex, setActiveCatIndex] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<"food" | "orders" | "offers">("food");
@@ -908,6 +909,7 @@ const Compact = ({
                 accent={localStyles?.accent || "#ea580c"}
                 bannerError={bannerError}
                 setBannerError={setBannerError}
+                brandHeader={brandHeader}
               />
             )}
 
