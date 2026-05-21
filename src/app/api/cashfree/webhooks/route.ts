@@ -3,9 +3,9 @@ import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 
 const updateOrderPaymentStatus = `
-  mutation UpdateOrderPaymentStatus($order_id: String!, $payment_status: String!, $payment_details: jsonb, $cashfree_payment_id: String) {
+  mutation UpdateOrderPaymentStatus($cashfree_order_id: String!, $payment_status: String!, $payment_details: jsonb, $cashfree_payment_id: String) {
     update_orders(
-      where: { id: { _eq: $order_id } },
+      where: { cashfree_order_id: { _eq: $cashfree_order_id } },
       _set: { payment_status: $payment_status, payment_details: $payment_details, cashfree_payment_id: $cashfree_payment_id }
     ) {
       affected_rows
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
         };
 
         await fetchFromHasura(updateOrderPaymentStatus, {
-          order_id: orderId,
+          cashfree_order_id: orderId,
           payment_status: "paid",
           payment_details: paymentDetails,
           cashfree_payment_id: event.data?.payment?.cf_payment_id?.toString() || null,
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
 
       case "PAYMENT_FAILED_WEBHOOK": {
         await fetchFromHasura(updateOrderPaymentStatus, {
-          order_id: orderId,
+          cashfree_order_id: orderId,
           payment_status: "failed",
           payment_details: {
             error_description: event.data?.error_description,
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
 
       case "PAYMENT_USER_DROPPED_WEBHOOK": {
         await fetchFromHasura(updateOrderPaymentStatus, {
-          order_id: orderId,
+          cashfree_order_id: orderId,
           payment_status: "dropped",
           payment_details: { merchant_id: merchantId },
           cashfree_payment_id: null,

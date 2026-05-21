@@ -20,7 +20,7 @@ import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPayment
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { subscribeToHasura } from "@/lib/hasuraSubscription";
 import { userPartnerOrdersSubscription, userPartnerOrdersPageQuery } from "@/api/orders";
-import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
+import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid, setOrderCashfreeId } from "@/app/actions/cashfree";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 
@@ -280,6 +280,7 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
       );
 
       if (!cfRes.success) throw new Error(cfRes.error);
+      setOrderCashfreeId(order.id, cfOrderId).catch(() => {});
 
       setShowCashfreeEmbed(true);
       await new Promise<void>((r) => requestAnimationFrame(() => r()));

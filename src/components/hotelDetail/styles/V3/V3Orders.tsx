@@ -11,7 +11,7 @@ import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
 import Link from "next/link";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
+import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid, setOrderCashfreeId } from "@/app/actions/cashfree";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 
@@ -71,6 +71,7 @@ export default function V3Orders({ hotelId, onClose }: V3OrdersProps) {
       sessionStorage.setItem("cashfree_pending_payment", JSON.stringify({ cfOrderId, partnerId: hotelId }));
       const cfRes = await createCashfreeOrderForPartner(hotelId, cfOrderId, order.totalPrice || 0, { id: userData?.id || "guest", name: (userData as any)?.full_name || "Customer", phone: (userData as any)?.phone || "", email: (userData as any)?.email }, returnUrl);
       if (!cfRes.success) throw new Error(cfRes.error);
+      setOrderCashfreeId(order.id, cfOrderId).catch(() => {});
 
       setShowCashfreeEmbed(true);
       await new Promise<void>((r) => requestAnimationFrame(() => r()));

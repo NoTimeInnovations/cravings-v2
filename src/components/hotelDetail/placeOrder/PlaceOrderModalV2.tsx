@@ -922,6 +922,8 @@ const PlaceOrderModalV2 = ({
         tableName,
         null,
         (authUser as any)?.full_name || undefined,
+        undefined,
+        pending.cfOrderId,
       );
 
       if (result) {

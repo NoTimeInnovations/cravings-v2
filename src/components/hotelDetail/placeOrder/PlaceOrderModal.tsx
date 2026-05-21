@@ -2927,6 +2927,7 @@ const PlaceOrderModal = ({
         null,
         pending.customerName || undefined,
         (useAuthStore.getState().userData as any)?.phone || undefined,
+        pending.cfOrderId,
       );
 
       if (result) {

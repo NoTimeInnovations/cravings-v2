@@ -18,7 +18,7 @@ import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 import { useAuthStore } from "@/store/authStore";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
-import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
+import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid, setOrderCashfreeId } from "@/app/actions/cashfree";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import dynamic from "next/dynamic";
 
@@ -511,6 +511,7 @@ ${itemsText}
             );
 
             if (!cfRes.success) throw new Error(cfRes.error);
+            setOrderCashfreeId(orderId, cfOrderId).catch(() => {});
 
             // Open the partner-branded modal so the embed container is mounted
             setShowCashfreeEmbed(true);

@@ -295,6 +295,7 @@ interface OrderState {
     discounts?: { code: string; type: string; value: number; savings: number; pp_discount_id?: string; description?: string; terms_conditions?: string; max_discount_amount?: number; min_order_value?: number; discount_on_total?: boolean; discount_order_types?: string; valid_days?: string; applicable_on?: string; rank?: number; freebie_item_count?: number; freebie_item_ids?: string; freebie_item_names?: string; freebie_items?: { id: string; name: string; price: number; pp_id?: string; category?: any }[] } | null,
     customerName?: string,
     customerPhone?: string,
+    cashfreeOrderId?: string | null,
   ) => Promise<Order | null>;
   getCurrentOrder: () => HotelOrderState;
   fetchOrderOfPartner: (partnerId: string) => Promise<Order[] | null>;
@@ -1099,6 +1100,7 @@ const useOrderStore = create(
          * authenticated user's phone when not provided.
          */
         customerPhone?: string,
+        cashfreeOrderId?: string | null,
       ) => {
         try {
           const state = get();
@@ -1397,6 +1399,7 @@ const useOrderStore = create(
               display_id: getNextDisplayOrderNumber.toString(),
               discounts: discounts ? [discounts] : null,
               source: "customer",
+              cashfree_order_id: cashfreeOrderId || null,
               orderItems: [
                 ...currentOrder.items.map((item) => ({
                   menu_id: item.id.split("|")[0],

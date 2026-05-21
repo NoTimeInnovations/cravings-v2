@@ -143,6 +143,15 @@ export async function verifyCashfreePayment(partnerId: string, orderId: string) 
   };
 }
 
+export async function setOrderCashfreeId(orderId: string, cashfreeOrderId: string) {
+  await fetchFromHasura(
+    `mutation SetOrderCashfreeId($id: uuid!, $cashfree_order_id: String!) {
+      update_orders_by_pk(pk_columns: {id: $id}, _set: {cashfree_order_id: $cashfree_order_id}) { id }
+    }`,
+    { id: orderId, cashfree_order_id: cashfreeOrderId },
+  );
+}
+
 export async function markOrderAsPaid(orderId: string, cashfreePaymentId?: string) {
   const setFields: Record<string, any> = {
     is_paid: true,

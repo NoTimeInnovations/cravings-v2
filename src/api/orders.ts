@@ -122,7 +122,8 @@ export const createOrderWithItemsMutation = `
     $table_name: String,
     $orderItems: [order_items_insert_input!]!,
     $discounts: jsonb,
-    $source: String
+    $source: String,
+    $cashfree_order_id: String
   ) {
     insert_orders_one(object: {
       id: $id
@@ -147,6 +148,7 @@ export const createOrderWithItemsMutation = `
       table_name: $table_name
       discounts: $discounts
       source: $source
+      cashfree_order_id: $cashfree_order_id
 
       order_items: {
         data: $orderItems
