@@ -13,6 +13,7 @@ import LiveOrdersSection from "./sections/LiveOrdersSection";
 import SelectedPartnersSection from "./sections/SelectedPartnersSection";
 import GrowthSection from "./sections/GrowthSection";
 import RestaurantsSection from "./sections/RestaurantsSection";
+import UsageSection from "./sections/UsageSection";
 import DiscoverySection from "./sections/DiscoverySection";
 import type { PublicStats, PosthogStats, Range } from "./types";
 
@@ -23,6 +24,7 @@ const VALID_TABS = new Set<Tab>([
   "selected",
   "growth",
   "restaurants",
+  "usage",
   "discovery",
 ]);
 
@@ -143,6 +145,7 @@ export default function Dashboard() {
             {tab === "restaurants" && (
               <RestaurantsSection hasura={hasura} range={range} />
             )}
+            {tab === "usage" && <UsageSection range={range} />}
             {tab === "discovery" && (
               <DiscoverySection hasura={hasura} posthog={posthog} range={range} />
             )}

@@ -140,6 +140,38 @@ export type PublicStats = {
   syncedAt: string;
 };
 
+export type UsageRow = {
+  partnerId: string | null;
+  username: string;
+  name: string;
+  district: string | null;
+  events: number;
+  pageviews: number;
+  visits: number;
+  users: number;
+  orders: number;
+  scans: number;
+};
+
+export type UsageStats = {
+  enabled: boolean;
+  reason?: string;
+  range: Range;
+  window: { start: string; end: string };
+  rows: UsageRow[];
+  totals: {
+    restaurants: number;
+    events: number;
+    pageviews: number;
+    visits: number;
+    users: number;
+    orders: number;
+    scans: number;
+  };
+  unmatched: { username: string; events: number }[];
+  syncedAt: string;
+};
+
 export type PosthogStats = {
   enabled: boolean;
   reason?: string;

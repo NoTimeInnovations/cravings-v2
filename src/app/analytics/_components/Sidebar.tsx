@@ -11,6 +11,7 @@ import {
   Search,
   Wifi,
   Star,
+  Gauge,
 } from "lucide-react";
 
 export type Tab =
@@ -19,6 +20,7 @@ export type Tab =
   | "selected"
   | "growth"
   | "restaurants"
+  | "usage"
   | "discovery";
 
 export const TABS: Array<{
@@ -56,6 +58,12 @@ export const TABS: Array<{
     label: "Restaurants",
     icon: Building2,
     description: "Rankings, channels and top performers",
+  },
+  {
+    id: "usage",
+    label: "Usage",
+    icon: Gauge,
+    description: "Per-restaurant requests, visits and users",
   },
   {
     id: "discovery",
