@@ -96,9 +96,20 @@ export default function DeliveryMap({
       style: "mapbox://styles/mapbox/streets-v12",
       center: [deliveryLng, deliveryLat],
       zoom: 15,
-      interactive: false,
+      // Interactive so the user can pinch-zoom / scroll-wheel-zoom / drag.
+      // We disable rotation + pitch since neither adds anything to a 2D
+      // delivery view (and rotating the map confuses customers).
+      interactive: true,
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchPitch: false,
       attributionControl: false,
     });
+    // Keep zoom + pan but no compass/scale clutter.
+    map.current.addControl(
+      new mapboxgl.NavigationControl({ showCompass: false }),
+      "top-right",
+    );
 
     // Delivery location marker (red)
     const deliveryEl = document.createElement("div");
@@ -112,7 +123,12 @@ export default function DeliveryMap({
       .setLngLat([deliveryLng, deliveryLat])
       .addTo(map.current);
 
-    // Add route source and layer once map loads
+    // Add route source and layer once map loads. We also kick a route
+    // fetch on load completion — without this, the very first
+    // `fetchRoute` call (which fires from the driver-coords effect the
+    // instant the component mounts) races the map's load event and
+    // hits a still-undefined ROUTE_SOURCE, so the polyline never paints
+    // until the rider moves and triggers another tick.
     map.current.on("load", () => {
       if (!map.current) return;
       map.current.addSource(ROUTE_SOURCE, {
@@ -160,6 +176,13 @@ export default function DeliveryMap({
         },
         ROUTE_LAYER,
       );
+      // First-paint route: if we already have a driver position from the
+      // initial render, draw the polyline now (this also catches a
+      // stationary rider — without it the route only appears after the
+      // first GPS tick).
+      if (driverLng != null && driverLat != null) {
+        fetchRoute(driverLng, driverLat);
+      }
     });
 
     map.current.on("click", () => onMapClick?.());
@@ -308,7 +331,18 @@ export default function DeliveryMap({
   }, [hotelLng, hotelLat, radiusKm]);
 
   async function fetchRoute(fromLng: number, fromLat: number) {
-    if (!map.current) return;
+    const m = map.current;
+    if (!m) return;
+    // The style + route source are added inside map.on("load", ...) which
+    // is async. If a driver-coords effect runs before load fires, our
+    // source.setData() below would silently drop the data. Defer until
+    // load completes — the once-listener pattern means we don't double up
+    // if multiple ticks land while loading (the latest one wins via the
+    // AbortController below).
+    if (!m.getSource(ROUTE_SOURCE)) {
+      m.once("load", () => fetchRoute(fromLng, fromLat));
+      return;
+    }
 
     // Pick endpoint based on current route mode. Fall back to destination if
     // hotel coords are missing.
