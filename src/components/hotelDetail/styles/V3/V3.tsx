@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
-import { MapPin, Phone, Star, ChevronRight, ShoppingBag, Search, Store, ChevronDown, LocateFixed, Loader2, X, ArrowLeft } from "lucide-react";
+import { MapPin, Phone, Star, ChevronRight, ShoppingBag, Search, Store, ChevronDown, LocateFixed, Loader2, X, ArrowLeft, User } from "lucide-react";
 import { FaWhatsapp, FaInstagram } from "react-icons/fa";
 import { DefaultHotelPageProps } from "../Default/Default";
 import { applyVisibilityState, getItemDisplayState } from "@/lib/visibility";
@@ -290,17 +290,26 @@ const V3 = ({
               <div className="flex-1" />
             )}
 
-            {/* Right: Search icon + Shopping bag icon */}
+            {/* Right: Search icon + Profile icon + Shopping bag icon */}
             <div className="ml-auto flex items-center gap-0.5">
               <button
                 onClick={() => setSearchOpen(true)}
                 className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"
+                aria-label="Search menu"
               >
                 <Search className="h-[18px] w-[18px] text-gray-900" />
               </button>
+              <Link
+                href="/user-profile"
+                className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"
+                aria-label="Profile"
+              >
+                <User className="h-[18px] w-[18px] text-gray-900" />
+              </Link>
               <button
                 onClick={() => setOrdersOpen(true)}
                 className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"
+                aria-label="Your orders"
               >
                 <ShoppingBag className="h-[18px] w-[18px] text-gray-900" />
               </button>
