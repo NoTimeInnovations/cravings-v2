@@ -375,21 +375,28 @@ export function DeliverySettings() {
 
     const handleSaveMerchantId = useCallback(async () => {
         if (!userData) return;
+        // One-time set. If the partner already has an id, the UI doesn't
+        // even render the input, but block here too in case of a stale
+        // client or replay.
+        if ((userData as Partner)?.adloggs_merchant_id) {
+            toast.error("Merchant id is already set — contact support to change it.");
+            return;
+        }
         const value = adloggsMerchantId.trim();
-        // Allow clearing the field — null routes back to the partner-account
-        // default merchant. Otherwise only digits are accepted (Adloggs ids).
-        if (value && !/^[0-9]+$/.test(value)) {
+        if (!value) {
+            toast.error("Enter a merchant id");
+            return;
+        }
+        if (!/^[0-9]+$/.test(value)) {
             toast.error("Adloggs merchant id must be digits only");
             return;
         }
         setSavingMerchantId(true);
         try {
-            await updatePartner(userData.id, {
-                adloggs_merchant_id: value || null,
-            });
-            setState({ adloggs_merchant_id: value || null } as Partial<Partner>);
+            await updatePartner(userData.id, { adloggs_merchant_id: value });
+            setState({ adloggs_merchant_id: value } as Partial<Partner>);
             revalidateTag(userData.id);
-            toast.success(value ? "Adloggs merchant id saved" : "Adloggs merchant id cleared");
+            toast.success("Adloggs merchant id saved");
             await loadWallet();
         } catch (e: any) {
             toast.error(e?.message || "Failed to save");
@@ -647,37 +654,40 @@ export function DeliverySettings() {
                                 )}
                             </div>
 
-                            <div className="space-y-2">
-                                <Label className="text-sm">Adloggs merchant id</Label>
-                                <div className="flex gap-2">
-                                    <Input
-                                        value={adloggsMerchantId}
-                                        onChange={(e) => setAdloggsMerchantId(e.target.value)}
-                                        placeholder="e.g. 236859"
-                                        inputMode="numeric"
-                                        className="font-mono"
-                                    />
-                                    <Button
-                                        type="button"
-                                        onClick={handleSaveMerchantId}
-                                        disabled={
-                                            savingMerchantId ||
-                                            adloggsMerchantId === (((userData as Partner)?.adloggs_merchant_id ?? "") as string)
-                                        }
-                                    >
-                                        {savingMerchantId ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Save className="h-4 w-4" />
-                                        )}
-                                    </Button>
+                            {/* Adloggs merchant id is intentionally one-time editable.
+                                Once set, the input disappears so partners can't change
+                                it mid-flight — any reassignment must go through us
+                                (history of orders is tied to the merchant ledger). */}
+                            {!((userData as Partner)?.adloggs_merchant_id) ? (
+                                <div className="space-y-2">
+                                    <Label className="text-sm">Adloggs merchant id</Label>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            value={adloggsMerchantId}
+                                            onChange={(e) => setAdloggsMerchantId(e.target.value)}
+                                            placeholder="e.g. 236859"
+                                            inputMode="numeric"
+                                            className="font-mono"
+                                        />
+                                        <Button
+                                            type="button"
+                                            onClick={handleSaveMerchantId}
+                                            disabled={savingMerchantId || !adloggsMerchantId.trim()}
+                                        >
+                                            {savingMerchantId ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : (
+                                                <Save className="h-4 w-4" />
+                                            )}
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Issued by Adloggs when your restaurant was onboarded as a separate
+                                        merchant. This can only be set once — contact support to change it
+                                        later.
+                                    </p>
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                    Issued by Adloggs when your restaurant was onboarded as a separate merchant.
-                                    Leaving it empty routes orders and wallet lookups to the partner-account
-                                    default merchant.
-                                </p>
-                            </div>
+                            ) : null}
                         </div>
                     )}
 
