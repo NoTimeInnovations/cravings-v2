@@ -786,6 +786,29 @@ ${itemsText}
                                         </div>
                                     )}
 
+                                    {/* Live rider position. Renders only when we have a fix —
+                                        the empty-state above already handles the "no location"
+                                        case so we don't draw a stale map. */}
+                                    {hasLocation && dropCoords && (
+                                        <div className="rounded-2xl overflow-hidden mb-3 shadow-sm">
+                                            <DeliveryMap
+                                                deliveryLng={dropCoords[0]}
+                                                deliveryLat={dropCoords[1]}
+                                                driverLng={boyLng!}
+                                                driverLat={boyLat!}
+                                                hotelLng={hotelLng}
+                                                hotelLat={hotelLat}
+                                                hotelBanner={order?.partner?.store_banner ?? null}
+                                                hotelName={order?.partner?.store_name ?? null}
+                                                routeMode="to_destination"
+                                                onMapClick={() => {
+                                                    const url = `https://www.google.com/maps/dir/${boyLat},${boyLng}/${dropCoords[1]},${dropCoords[0]}`;
+                                                    window.open(url, "_blank");
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+
                                     <div className="bg-white rounded-2xl shadow-sm p-3 flex items-center gap-3">
                                         <div className="flex-shrink-0 w-11 h-11 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-base">
                                             {boyInitial}
