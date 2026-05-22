@@ -271,6 +271,12 @@ const PlaceOrderModalV2 = ({
         // COD); keep availability aligned so the quote isn't falsely
         // rejected before the user even picks a payment method.
         paymentMethod: "online",
+        // Per-restaurant merchant id — routes pricing/serviceability to the
+        // partner's specific Adloggs merchant instead of the partner-account
+        // default. Falsy/empty is safe; Adloggs uses the default merchant.
+        ...(hotelData?.adloggs_merchant_id
+          ? { partnerMerchantId: hotelData.adloggs_merchant_id }
+          : {}),
       });
       if (cancelled) return;
       setAgentQuoteLoading(false);

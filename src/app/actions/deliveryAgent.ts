@@ -119,6 +119,41 @@ export async function checkAllProvidersAvailability(input: {
   });
 }
 
+/**
+ * Read the partner's Adloggs wallet balance. Pass `partnerMerchantId`
+ * (`partners.adloggs_merchant_id`) so Adloggs returns the per-restaurant
+ * balance — without it, the partner-account default wallet is returned.
+ *
+ * Response: `{ balance: number, enabled: boolean }` where balance=-1
+ * means the wallet feature is disabled on Adloggs's side.
+ */
+export async function getDeliveryAgentWallet(input: {
+  partnerMerchantId?: string;
+  provider?: string;
+}): Promise<Result> {
+  const cfg = getConfig();
+  if (!cfg) return { ok: false, message: "delivery-agents-server not configured" };
+  const qs = new URLSearchParams({ provider: input.provider ?? "adloggs" });
+  if (input.partnerMerchantId) qs.set("partnerMerchantId", input.partnerMerchantId);
+  let res: Response;
+  try {
+    res = await fetch(`${cfg.url}/v1/wallet?${qs}`, {
+      method: "GET",
+      headers: { "x-api-key": cfg.key },
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch (err) {
+    return { ok: false, message: `network: ${(err as Error).message}` };
+  }
+  let parsed: unknown = null;
+  try { parsed = await res.json(); } catch { /* keep null */ }
+  if (!res.ok) {
+    const msg = (parsed as { error?: { message?: string } })?.error?.message;
+    return { ok: false, status: res.status, message: msg || `HTTP ${res.status}` };
+  }
+  return { ok: true, data: (parsed as Record<string, unknown>) ?? {} };
+}
+
 export async function getDeliveryAgentLocation(
   orderId: string,
   provider = "adloggs",

@@ -136,6 +136,15 @@ export interface Partner extends BaseUser {
     expiryDate: string;
   };
   petpooja_restaurant_id?: string;
+  /**
+   * Per-restaurant merchant id assigned by Adloggs when the restaurant is
+   * onboarded as a separate merchant under our Adloggs partner account.
+   * Read by delivery-agents-server (via its Hasura query) and passed into
+   * every Adloggs API call so wallet balance, dispatch and availability all
+   * route to the right merchant. Null = falls back to the partner-account
+   * default merchant.
+   */
+  adloggs_merchant_id?: string | null;
   username?: string;
   has_seen_tour?: boolean;
   cashfree_merchant_id?: string;

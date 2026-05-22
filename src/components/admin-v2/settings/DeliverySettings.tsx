@@ -11,11 +11,12 @@ import { useAuthStore, Partner } from "@/store/authStore";
 import { toast } from "sonner";
 import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
-import { Loader2, Save, Plus, Trash2, Clock, Keyboard } from "lucide-react";
+import { Loader2, Save, Plus, Trash2, Clock, Keyboard, Wallet, RefreshCw, AlertCircle } from "lucide-react";
 import { DeliveryRules, DeliveryRange } from "@/store/orderStore";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { useMenuStore } from "@/store/menuStore_hasura";
 import { countryCodes } from "@/utils/countryCodes";
+import { getDeliveryAgentWallet } from "@/app/actions/deliveryAgent";
 
 function TimePicker({ value, onChange }: { value: string; onChange: (val: string) => void }) {
     const [open, setOpen] = useState(false);
@@ -286,6 +287,17 @@ export function DeliverySettings() {
     const [whatsappNumbers, setWhatsappNumbers] = useState<{ number: string; area: string }[]>([]);
     const [countryCode, setCountryCode] = useState("+91");
 
+    // Adloggs per-merchant state. The id stored on partners.adloggs_merchant_id
+    // is what delivery-agents-server forwards to every Adloggs API call so this
+    // partner's orders, wallet and availability all route to the right
+    // restaurant under our Adloggs partner account.
+    const [adloggsMerchantId, setAdloggsMerchantId] = useState("");
+    const [savingMerchantId, setSavingMerchantId] = useState(false);
+    const [walletBalance, setWalletBalance] = useState<number | null>(null);
+    const [walletEnabled, setWalletEnabled] = useState<boolean | null>(null);
+    const [walletLoading, setWalletLoading] = useState(false);
+    const [walletError, setWalletError] = useState<string | null>(null);
+
     const currencySymbol = (userData as Partner)?.currency || "₹";
 
     useEffect(() => {
@@ -324,8 +336,67 @@ export function DeliverySettings() {
 
             // Initialize country code
             setCountryCode(userData.country_code || "+91");
+
+            // Initialize Adloggs merchant id input from persisted partner row.
+            setAdloggsMerchantId(((userData as Partner)?.adloggs_merchant_id ?? "") as string);
         }
     }, [userData]);
+
+    // Fetch wallet whenever the 3PL feature is on. Re-runs when the merchant
+    // id changes so the partner sees the correct balance after editing it.
+    const loadWallet = useCallback(async () => {
+        if (!features?.delivery_agent?.access) return;
+        setWalletLoading(true);
+        setWalletError(null);
+        try {
+            const merchantId = ((userData as Partner)?.adloggs_merchant_id ?? "").trim();
+            const res = await getDeliveryAgentWallet({
+                partnerMerchantId: merchantId || undefined,
+            });
+            if (!res.ok) {
+                setWalletError(res.message || "Failed to load balance");
+                setWalletBalance(null);
+                setWalletEnabled(null);
+            } else {
+                const data = res.data as { balance?: number; enabled?: boolean };
+                setWalletBalance(typeof data.balance === "number" ? data.balance : null);
+                setWalletEnabled(!!data.enabled);
+            }
+        } catch (e: any) {
+            setWalletError(e?.message || "Failed to load balance");
+        } finally {
+            setWalletLoading(false);
+        }
+    }, [features?.delivery_agent?.access, userData]);
+
+    useEffect(() => {
+        loadWallet();
+    }, [loadWallet]);
+
+    const handleSaveMerchantId = useCallback(async () => {
+        if (!userData) return;
+        const value = adloggsMerchantId.trim();
+        // Allow clearing the field — null routes back to the partner-account
+        // default merchant. Otherwise only digits are accepted (Adloggs ids).
+        if (value && !/^[0-9]+$/.test(value)) {
+            toast.error("Adloggs merchant id must be digits only");
+            return;
+        }
+        setSavingMerchantId(true);
+        try {
+            await updatePartner(userData.id, {
+                adloggs_merchant_id: value || null,
+            });
+            setState({ adloggs_merchant_id: value || null } as Partial<Partner>);
+            revalidateTag(userData.id);
+            toast.success(value ? "Adloggs merchant id saved" : "Adloggs merchant id cleared");
+            await loadWallet();
+        } catch (e: any) {
+            toast.error(e?.message || "Failed to save");
+        } finally {
+            setSavingMerchantId(false);
+        }
+    }, [userData, adloggsMerchantId, setState, loadWallet]);
 
     const handleSaveDelivery = useCallback(async () => {
         if (!userData) return;
@@ -519,6 +590,94 @@ export function DeliverySettings() {
                                 checked={deliveryRules.use_delivery_agent_charge !== false}
                                 onCheckedChange={(checked) => setDeliveryRules(prev => ({ ...prev, use_delivery_agent_charge: checked }))}
                             />
+                        </div>
+                    )}
+
+                    {features?.delivery_agent?.access && (
+                        <div className="rounded-lg border border-blue-200 bg-white p-4 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Wallet className="h-4 w-4 text-blue-600" />
+                                    <Label className="text-base">Adloggs wallet</Label>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={loadWallet}
+                                    disabled={walletLoading}
+                                    title="Refresh balance"
+                                >
+                                    {walletLoading ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <RefreshCw className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            </div>
+
+                            <div className="rounded-md bg-muted/40 p-3">
+                                {walletLoading ? (
+                                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        Checking balance…
+                                    </div>
+                                ) : walletError ? (
+                                    <div className="text-sm text-red-700 flex items-center gap-2">
+                                        <AlertCircle className="h-4 w-4" /> {walletError}
+                                    </div>
+                                ) : walletEnabled === false ? (
+                                    <div className="text-sm text-amber-700">
+                                        Wallet not enabled on Adloggs for this merchant.
+                                        Contact Adloggs support to enable it.
+                                    </div>
+                                ) : walletBalance != null ? (
+                                    <div>
+                                        <div className="text-2xl font-semibold">
+                                            {currencySymbol}{walletBalance.toFixed(2)}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground mt-0.5">
+                                            {(userData as Partner)?.adloggs_merchant_id
+                                                ? `For merchant ${(userData as Partner)?.adloggs_merchant_id}`
+                                                : "Default partner-account wallet (set a merchant id below for per-restaurant balance)"}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-sm text-muted-foreground">No balance returned.</div>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-sm">Adloggs merchant id</Label>
+                                <div className="flex gap-2">
+                                    <Input
+                                        value={adloggsMerchantId}
+                                        onChange={(e) => setAdloggsMerchantId(e.target.value)}
+                                        placeholder="e.g. 236859"
+                                        inputMode="numeric"
+                                        className="font-mono"
+                                    />
+                                    <Button
+                                        type="button"
+                                        onClick={handleSaveMerchantId}
+                                        disabled={
+                                            savingMerchantId ||
+                                            adloggsMerchantId === (((userData as Partner)?.adloggs_merchant_id ?? "") as string)
+                                        }
+                                    >
+                                        {savingMerchantId ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Save className="h-4 w-4" />
+                                        )}
+                                    </Button>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Issued by Adloggs when your restaurant was onboarded as a separate merchant.
+                                    Leaving it empty routes orders and wallet lookups to the partner-account
+                                    default merchant.
+                                </p>
+                            </div>
                         </div>
                     )}
 

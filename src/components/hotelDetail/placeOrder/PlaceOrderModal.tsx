@@ -1732,6 +1732,12 @@ const PlaceOrderModal = ({
         pickup: { lat: partnerCoords.lat, lng: partnerCoords.lng },
         drop: { lat: selectedCoords.lat, lng: selectedCoords.lng },
         paymentMethod: "online",
+        // Per-restaurant merchant id — routes the Adloggs serviceability +
+        // pricing to the partner's specific merchant instead of the
+        // partner-account default.
+        ...(hotelData?.adloggs_merchant_id
+          ? { partnerMerchantId: hotelData.adloggs_merchant_id }
+          : {}),
       });
       if (cancelled) return;
       setAgentQuoteLoading(false);

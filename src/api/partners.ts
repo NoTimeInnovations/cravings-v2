@@ -206,6 +206,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     place_id
     theme
     petpooja_restaurant_id
+    adloggs_merchant_id
     gst_no
     gst_percentage
     geo_location
