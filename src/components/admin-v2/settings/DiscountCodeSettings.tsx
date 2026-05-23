@@ -48,6 +48,8 @@ type Discount = {
     rank: number | null;
     freebie_item_count: number | null;
     freebie_item_ids: string | null;
+    pp_discount_id: string | null;
+    pp_overwrite_enabled: boolean;
     created_at: string;
 };
 
@@ -103,6 +105,7 @@ export function DiscountCodeSettings() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState(emptyForm);
     const [togglingId, setTogglingId] = useState<string | null>(null);
+    const [togglingPpId, setTogglingPpId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [selectedDays, setSelectedDays] = useState<string[]>([]);
@@ -286,6 +289,33 @@ export function DiscountCodeSettings() {
             toast.error("Failed to update discount");
         } finally {
             setTogglingId(null);
+        }
+    };
+
+    // Toggles whether the next Petpooja menu push is allowed to overwrite this
+    // discount. When off, pp_menu_insert skips the discount on upsert so local
+    // edits aren't clobbered by the partner re-publishing from Petpooja.
+    const handlePpOverwriteToggle = async (id: string, enabled: boolean) => {
+        setTogglingPpId(id);
+        try {
+            await fetchFromHasura(updateDiscountMutation, {
+                id,
+                updates: { pp_overwrite_enabled: enabled },
+            });
+            setDiscounts((prev) =>
+                prev.map((c) =>
+                    c.id === id ? { ...c, pp_overwrite_enabled: enabled } : c,
+                ),
+            );
+            toast.success(
+                enabled
+                    ? "Petpooja sync will overwrite this discount."
+                    : "This discount is now protected from Petpooja sync.",
+            );
+        } catch {
+            toast.error("Failed to update Petpooja sync setting");
+        } finally {
+            setTogglingPpId(null);
         }
     };
 
@@ -750,6 +780,14 @@ export function DiscountCodeSettings() {
                                                 {notStarted && !isExpired && <Badge variant="outline" className="text-xs border-yellow-500 text-yellow-600">Scheduled</Badge>}
                                                 {isLimitReached && !isExpired && <Badge variant="destructive" className="text-xs">Limit reached</Badge>}
                                                 {!disc.has_coupon && <Badge variant="outline" className="text-xs">Auto-apply</Badge>}
+                                                {disc.pp_discount_id && (
+                                                    <Badge variant="outline" className="text-xs">Petpooja</Badge>
+                                                )}
+                                                {disc.pp_discount_id && !disc.pp_overwrite_enabled && (
+                                                    <Badge variant="outline" className="text-xs border-orange-500 text-orange-600">
+                                                        Locked from sync
+                                                    </Badge>
+                                                )}
                                             </div>
                                             {disc.description && (
                                                 <p className="text-xs text-muted-foreground truncate">{disc.description}</p>
@@ -794,6 +832,21 @@ export function DiscountCodeSettings() {
                                             >
                                                 <Pencil className="h-4 w-4" />
                                             </Button>
+                                            <div
+                                                className="flex flex-col items-end gap-1"
+                                                title="Allow Petpooja menu sync to overwrite this discount. Turn off to keep your local edits."
+                                            >
+                                                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                                    PP sync
+                                                </span>
+                                                <Switch
+                                                    checked={disc.pp_overwrite_enabled}
+                                                    disabled={togglingPpId === disc.id}
+                                                    onCheckedChange={(checked) =>
+                                                        handlePpOverwriteToggle(disc.id, checked)
+                                                    }
+                                                />
+                                            </div>
                                             <Switch
                                                 checked={disc.is_active}
                                                 disabled={togglingId === disc.id || !!isExpired || !!isLimitReached}

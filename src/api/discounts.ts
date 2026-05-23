@@ -23,6 +23,7 @@ const discountFields = `
   category_item_ids
   rank
   pp_discount_id
+  pp_overwrite_enabled
   freebie_item_count
   freebie_item_ids
   created_at
