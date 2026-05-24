@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
 import { Notification } from "@/app/actions/notification";
 import {
   getUserCountry,
@@ -262,16 +261,6 @@ export default function Login() {
             </form>
           </div>
         )}
-
-        {/* Owner login link */}
-        <div className="mt-5 text-center">
-          <Link
-            href="/pricing"
-            className="text-sm text-stone-500 hover:text-stone-900 transition-colors"
-          >
-            Are you an owner?
-          </Link>
-        </div>
 
       </div>
     </div>
