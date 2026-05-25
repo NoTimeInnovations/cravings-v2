@@ -30,6 +30,10 @@ export function PaymentLegalSettings() {
     const [cashfreeMerchantId, setCashfreeMerchantId] = useState("");
     const [acceptPaymentsViaCashfree, setAcceptPaymentsViaCashfree] = useState(false);
 
+    // Delivery rider's "Show QR" source: "none" hides the button, "upi" reuses
+    // partner UPI id, "cashfree" creates a per-order Cashfree UPI QR.
+    const [deliveryQrMethod, setDeliveryQrMethod] = useState<"none" | "upi" | "cashfree">("none");
+
     // GST State
     const [gstNo, setGstNo] = useState("");
     const [gstPercentage, setGstPercentage] = useState(0);
@@ -47,6 +51,8 @@ export function PaymentLegalSettings() {
             setAcceptCod((userData as any).accept_cod ?? true);
             setCashfreeMerchantId((userData as any).cashfree_merchant_id || "");
             setAcceptPaymentsViaCashfree((userData as any).accept_payments_via_cashfree || false);
+            const dqm = (userData as any).delivery_qr_method;
+            setDeliveryQrMethod(dqm === "upi" || dqm === "cashfree" ? dqm : "none");
         }
     }, [userData]);
 
@@ -64,6 +70,7 @@ export function PaymentLegalSettings() {
                 accept_cod: acceptCod,
                 cashfree_merchant_id: cashfreeMerchantId.trim() || null,
                 accept_payments_via_cashfree: acceptPaymentsViaCashfree,
+                delivery_qr_method: deliveryQrMethod,
             };
 
             await updatePartner(userData.id, updates);
@@ -77,7 +84,7 @@ export function PaymentLegalSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, upiId, showPaymentQr, postPaymentMessage, fssaiLicenceNo, gstNo, gstEnabled, gstPercentage, acceptCod, cashfreeMerchantId, acceptPaymentsViaCashfree, setState]);
+    }, [userData, upiId, showPaymentQr, postPaymentMessage, fssaiLicenceNo, gstNo, gstEnabled, gstPercentage, acceptCod, cashfreeMerchantId, acceptPaymentsViaCashfree, deliveryQrMethod, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -108,6 +115,7 @@ export function PaymentLegalSettings() {
         const initialAcceptCod = data.accept_cod ?? true;
         const initialCashfreeMerchantId = data.cashfree_merchant_id || "";
         const initialAcceptCashfree = data.accept_payments_via_cashfree || false;
+        const initialDeliveryQrMethod = data.delivery_qr_method || "none";
 
         const hasChanges =
             upiId !== initialUpi ||
@@ -119,7 +127,8 @@ export function PaymentLegalSettings() {
             gstEnabled !== initialGstEnabled ||
             acceptCod !== initialAcceptCod ||
             cashfreeMerchantId !== initialCashfreeMerchantId ||
-            acceptPaymentsViaCashfree !== initialAcceptCashfree;
+            acceptPaymentsViaCashfree !== initialAcceptCashfree ||
+            deliveryQrMethod !== initialDeliveryQrMethod;
 
         setHasChanges(hasChanges);
 
@@ -134,6 +143,7 @@ export function PaymentLegalSettings() {
         acceptCod,
         cashfreeMerchantId,
         acceptPaymentsViaCashfree,
+        deliveryQrMethod,
         userData,
         setHasChanges
     ]);
@@ -232,6 +242,70 @@ export function PaymentLegalSettings() {
                             />
                         </div>
                     )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Delivery Rider Cash Collection QR</CardTitle>
+                    <CardDescription>
+                        What the rider&apos;s &ldquo;Show QR&rdquo; button displays when collecting payment at the door.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    {([
+                        {
+                            value: "none" as const,
+                            label: "No QR",
+                            desc: "Hide the Show QR button in the rider app.",
+                            disabled: false,
+                            hint: null as string | null,
+                        },
+                        {
+                            value: "upi" as const,
+                            label: "UPI ID",
+                            desc: "Show your UPI ID as a QR. Customer scans and pays in their UPI app.",
+                            disabled: !upiId.trim(),
+                            hint: !upiId.trim() ? "Set your UPI ID above first." : null,
+                        },
+                        {
+                            value: "cashfree" as const,
+                            label: "Cashfree",
+                            desc: "Generate a per-order Cashfree UPI QR. Payment auto-marks the order as paid.",
+                            disabled: !acceptPaymentsViaCashfree || !cashfreeMerchantId.trim(),
+                            hint: !acceptPaymentsViaCashfree || !cashfreeMerchantId.trim()
+                                ? "Enable Cashfree Online Payment above and set the Merchant ID first."
+                                : null,
+                        },
+                    ]).map((opt) => {
+                        const active = deliveryQrMethod === opt.value;
+                        return (
+                            <button
+                                key={opt.value}
+                                type="button"
+                                disabled={opt.disabled}
+                                onClick={() => setDeliveryQrMethod(opt.value)}
+                                className={`w-full flex items-start gap-3 border rounded-lg p-4 text-left transition ${
+                                    active
+                                        ? "border-primary bg-primary/5"
+                                        : "border-input hover:bg-accent"
+                                } ${opt.disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                            >
+                                <div
+                                    className={`mt-1 h-4 w-4 rounded-full border-2 flex-shrink-0 ${
+                                        active ? "border-primary bg-primary" : "border-input"
+                                    }`}
+                                />
+                                <div className="flex-1">
+                                    <Label className="text-base">{opt.label}</Label>
+                                    <p className="text-sm text-muted-foreground">{opt.desc}</p>
+                                    {opt.hint && (
+                                        <p className="text-xs text-amber-600 mt-1">{opt.hint}</p>
+                                    )}
+                                </div>
+                            </button>
+                        );
+                    })}
                 </CardContent>
             </Card>
 

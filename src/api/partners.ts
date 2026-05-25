@@ -223,6 +223,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     cashfree_merchant_id
     accept_payments_via_cashfree
     accept_cod
+    delivery_qr_method
     price_adjustment
     subscription_details
     storefront_settings
@@ -411,6 +412,7 @@ export const updatePartnerMutation = `
       cashfree_merchant_id
       accept_payments_via_cashfree
       accept_cod
+      delivery_qr_method
       storefront_settings
       official_name
       about_us
