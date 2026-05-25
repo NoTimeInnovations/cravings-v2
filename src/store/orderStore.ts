@@ -1280,43 +1280,50 @@ const useOrderStore = create(
                 freebie_item_names: discounts.freebie_item_names || null,
               }] : [],
               items: [
-                ...currentOrder.items.map((item) => ({
-                  id: uuidv4(),
-                  order_id: orderId,
-                  menu_id: item.id.split("|")[0],
-                  quantity: item.quantity,
-                  variant: item.variantSelections?.[0] ? {
-                    id: item.variantSelections?.[0]?.id,
-                    name: item.variantSelections?.[0]?.name,
-                  } : null,
-                  item: {
-                    id: item.id,
-                    name: item.name,
-                    price: item.price,
-                    offers: item.offers,
-                    category: item.category,
-                    pp_id: item.pp_id,
-                  },
-                  created_at: createdAt,
-                })),
+                ...currentOrder.items.map((item) => {
+                  const menuId = item.id.split("|")[0];
+                  const ppIdFromMenu = hotelData?.menus?.find((m) => m.id === menuId)?.pp_id;
+                  return {
+                    id: uuidv4(),
+                    order_id: orderId,
+                    menu_id: menuId,
+                    quantity: item.quantity,
+                    variant: item.variantSelections?.[0] ? {
+                      id: item.variantSelections?.[0]?.id,
+                      name: item.variantSelections?.[0]?.name,
+                    } : null,
+                    item: {
+                      id: item.id,
+                      name: item.name,
+                      price: item.price,
+                      offers: item.offers,
+                      category: item.category,
+                      pp_id: item.pp_id || ppIdFromMenu || null,
+                    },
+                    created_at: createdAt,
+                  };
+                }),
                 ...(discounts?.type === "freebie" && discounts.freebie_items?.length
-                  ? discounts.freebie_items.map((fi) => ({
-                      id: uuidv4(),
-                      order_id: orderId,
-                      menu_id: fi.id,
-                      quantity: discounts.freebie_item_count || 1,
-                      variant: null,
-                      item: {
-                        id: fi.id,
-                        name: fi.name,
-                        price: fi.price,
-                        offers: [],
-                        category: fi.category || null,
-                        pp_id: fi.pp_id || null,
-                        is_freebie: true,
-                      },
-                      created_at: createdAt,
-                    }))
+                  ? discounts.freebie_items.map((fi) => {
+                      const ppIdFromMenu = hotelData?.menus?.find((m) => m.id === fi.id)?.pp_id;
+                      return {
+                        id: uuidv4(),
+                        order_id: orderId,
+                        menu_id: fi.id,
+                        quantity: discounts.freebie_item_count || 1,
+                        variant: null,
+                        item: {
+                          id: fi.id,
+                          name: fi.name,
+                          price: fi.price,
+                          offers: [],
+                          category: fi.category || null,
+                          pp_id: fi.pp_id || ppIdFromMenu || null,
+                          is_freebie: true,
+                        },
+                        created_at: createdAt,
+                      };
+                    })
                   : []),
               ],
             };
