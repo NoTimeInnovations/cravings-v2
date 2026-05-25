@@ -39,6 +39,8 @@ import V3AddressSheet from "../styles/V3/V3AddressSheet";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+
+const DELIVERY_AGENT_PRICE_MARKUP = 10;
 import {
   validateDiscountQuery,
   incrementDiscountUsageMutation,
@@ -323,7 +325,7 @@ const PlaceOrderModalV2 = ({
     if (isQrScan || orderType !== "delivery") return 0;
     if (useAgentForCharge) {
       if (agentQuote?.available && typeof agentQuote.estimatedPrice === "number") {
-        return agentQuote.estimatedPrice;
+        return agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP;
       }
       return 0;
     }
@@ -786,7 +788,7 @@ const PlaceOrderModalV2 = ({
       let charge = 0;
       if (useAgentForCharge) {
         if (agentQuote?.available && typeof agentQuote.estimatedPrice === "number") {
-          charge = agentQuote.estimatedPrice;
+          charge = agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP;
         }
       } else if (
         deliveryInfo?.cost &&
@@ -1642,32 +1644,6 @@ const PlaceOrderModalV2 = ({
                         : "No delivery agents service this address. Try another address or switch to takeaway."}
                     </p>
                   </div>
-                </div>
-              ) : agentQuote && agentQuote.available ? (
-                <div
-                  className="rounded-2xl px-4 py-3 flex items-center gap-3"
-                  style={{ backgroundColor: `${accent}14`, border: `1px solid ${accent}40` }}
-                >
-                  <Bike className="h-4 w-4 flex-shrink-0" style={{ color: accent }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold" style={{ color: accent }}>
-                      Delivery available
-                    </p>
-                    <p className="text-[11px] text-gray-600 mt-0.5">
-                      {[
-                        agentQuote.distanceKm !== undefined ? `${agentQuote.distanceKm.toFixed(1)} km` : null,
-                        agentQuote.etaToPickupMin !== undefined ? `~${agentQuote.etaToPickupMin} min pickup ETA` : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                  </div>
-                  {agentQuote.estimatedPrice !== undefined && !effectiveHideDeliveryCharge && (
-                    <span className="text-sm font-bold" style={{ color: accent }}>
-                      {currency}
-                      {agentQuote.estimatedPrice.toFixed(0)}
-                    </span>
-                  )}
                 </div>
               ) : null
             )}

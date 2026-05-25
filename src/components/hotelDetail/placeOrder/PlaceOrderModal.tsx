@@ -47,6 +47,8 @@ import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 
+const DELIVERY_AGENT_PRICE_MARKUP = 10;
+
 // Helper: detect if a hex color is dark
 function isDarkColor(hex: string): boolean {
   const c = hex.replace("#", "");
@@ -619,7 +621,7 @@ const BillCard = ({
 
   const hideDeliveryCharge = hotelData?.delivery_rules?.hide_delivery_charge ?? false;
   const useAgent = !!useAgentForCharge && !!agentQuote?.available;
-  const agentPrice = useAgent && typeof agentQuote?.estimatedPrice === "number" ? agentQuote.estimatedPrice : 0;
+  const agentPrice = useAgent && typeof agentQuote?.estimatedPrice === "number" ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP : 0;
   const agentDistance = useAgent && typeof agentQuote?.distanceKm === "number" ? agentQuote.distanceKm : null;
   const deliveryCharges = useAgent
     ? (isDelivery ? agentPrice : 0)
@@ -712,7 +714,7 @@ const BillCard = ({
             <div className="flex justify-between text-sm">
               <span style={{ color: "var(--pom-text-muted)" }}>Delivery Charges</span>
               {agentPrice > 0 ? (
-                <span className="text-inherit">{currency}{" "}{agentPrice.toFixed(2)}</span>
+                <span className="text-inherit">{currency}{" "}{agentPrice.toFixed(0)}</span>
               ) : (
                 <span className="font-semibold" style={{ color: "var(--pom-accent, #ea580c)" }}>
                   Free
@@ -727,12 +729,12 @@ const BillCard = ({
           </div>
         )}
 
-        {isDelivery && !useAgent && !hideDeliveryCharge && !deliveryInfo?.isOutOfRange && deliveryInfo?.distance != null && (
+        {isDelivery && !useAgentForCharge && !hideDeliveryCharge && !deliveryInfo?.isOutOfRange && deliveryInfo?.distance != null && (
           <div>
             <div className="flex justify-between text-sm">
               <span style={{ color: "var(--pom-text-muted)" }}>Delivery Charges</span>
               {(deliveryInfo?.cost ?? 0) > 0 ? (
-                <span className="text-inherit">{currency}{" "}{deliveryInfo.cost.toFixed(2)}</span>
+                <span className="text-inherit">{currency}{" "}{deliveryInfo.cost.toFixed(0)}</span>
               ) : (
                 <span className="font-semibold" style={{ color: "var(--pom-accent, #ea580c)" }}>
                   Free
@@ -2295,7 +2297,7 @@ const PlaceOrderModal = ({
       if (hotelData?.delivery_rules?.hide_delivery_charge) return 0;
       if (useAgentForCharge) {
         return agentQuote?.available && typeof agentQuote.estimatedPrice === "number"
-          ? agentQuote.estimatedPrice
+          ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP
           : 0;
       }
       return deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0;
@@ -2528,7 +2530,7 @@ const PlaceOrderModal = ({
         !(hotelData?.delivery_rules?.hide_delivery_charge)
       ) {
         const amt = useAgentForCharge
-          ? (agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice : 0)
+          ? (agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP : 0)
           : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
         if (amt > 0) {
           extraCharges.push({
@@ -2696,7 +2698,7 @@ const PlaceOrderModal = ({
       }
       if (!isQrScan && orderType === "delivery" && !(hotelData?.delivery_rules?.hide_delivery_charge)) {
         const amt = useAgentForCharge
-          ? (agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice : 0)
+          ? (agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP : 0)
           : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
         if (amt > 0) extraCharges.push({ name: "Delivery Charge", amount: amt, charge_type: "FLAT_FEE" });
       }
@@ -3035,7 +3037,7 @@ const PlaceOrderModal = ({
   const _barDeliveryCharge = (() => {
     if (isQrScan || orderType !== "delivery" || _barHideDelivery) return 0;
     if (useAgentForCharge) {
-      return agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice : 0;
+      return agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP : 0;
     }
     return deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0;
   })();
@@ -3383,40 +3385,22 @@ const PlaceOrderModal = ({
                 </div>
               )}
 
-              {/* 3PL agent serviceability panel */}
-              {isDelivery && !isQrScan && orderType === "delivery" && useAgentForCharge && selectedCoords && (
+              {/* 3PL agent serviceability panel — shown only for loading / unavailable states.
+                  When the quote is available, the bill row already displays the price. */}
+              {isDelivery && !isQrScan && orderType === "delivery" && useAgentForCharge && selectedCoords && (agentQuoteLoading || (agentQuote && !agentQuote.available)) && (
                 <div className="text-sm p-3 rounded-xl" style={{ backgroundColor: "var(--pom-card-bg, white)", border: "1px solid var(--pom-card-border, #e7e5e4)", boxShadow: "var(--pom-card-shadow)" }}>
                   {agentQuoteLoading ? (
                     <div className="flex items-center gap-2 text-inherit opacity-80">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span>Checking 3PL serviceability…</span>
                     </div>
-                  ) : agentQuote && !agentQuote.available ? (
+                  ) : (
                     <div className="text-center" style={{ color: "#fca5a5" }}>
-                      {agentQuote.reason === "DISTANCE_TOO_LONG"
+                      {agentQuote!.reason === "DISTANCE_TOO_LONG"
                         ? "Selected address is too far for our delivery partner."
                         : "Delivery partner can't serve this address right now."}
                     </div>
-                  ) : agentQuote && agentQuote.available ? (
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="font-semibold text-inherit">Delivery partner available</div>
-                        <div className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
-                          {[
-                            agentQuote.distanceKm !== undefined ? `${agentQuote.distanceKm.toFixed(1)} km` : null,
-                            agentQuote.etaToPickupMin !== undefined ? `~${agentQuote.etaToPickupMin} min pickup ETA` : null,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </div>
-                      </div>
-                      {agentQuote.estimatedPrice !== undefined && !hotelData?.delivery_rules?.hide_delivery_charge && (
-                        <div className="text-sm font-semibold text-inherit whitespace-nowrap">
-                          {hotelData?.currency || "₹"}{agentQuote.estimatedPrice.toFixed(0)}
-                        </div>
-                      )}
-                    </div>
-                  ) : null}
+                  )}
                 </div>
               )}
 
