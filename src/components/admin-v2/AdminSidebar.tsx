@@ -55,7 +55,7 @@ const sidebarItems: SidebarItem[] = [
   { title: "WhatsApp Inbox", icon: Inbox, id: "whatsapp-inbox" },
   { title: "WhatsApp Templates", icon: MessageSquare, id: "whatsapp-templates" },
   { title: "Settings", icon: Settings, id: "settings" },
-  // { title: "Billing", icon: Receipt, id: "billing" }, // Hidden for App Store review — re-enable after IAP approval
+  { title: "Billing", icon: Receipt, id: "billing" },
 ];
 
 const integrationsItem: SidebarItem = {
