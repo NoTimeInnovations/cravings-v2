@@ -507,21 +507,6 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     && order.status !== "completed" && order.status !== "cancelled";
 
                 return (
-                    <>
-                    {/* Porter bridge tracking panel — rendered when the order
-                        was routed through porter-bridge. Sibling to the
-                        Delivery Agent block, since both can be configured
-                        independently. */}
-                    {order.delivery_provider === "porter" && (
-                        <PorterTrackingPanel
-                            orderId={order.id}
-                            provider={order.delivery_provider}
-                            crn={order.delivery_provider_order_id}
-                            state={order.delivery_provider_state}
-                            meta={order.delivery_provider_meta as any}
-                            showCancel
-                        />
-                    )}
                     <div className="border rounded-lg bg-card p-4 space-y-3">
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                             <h3 className="font-semibold">Delivery Agent</h3>
@@ -686,9 +671,22 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                             </p>
                         )}
                     </div>
-                    </>
                 );
             })()}
+
+            {/* Porter bridge tracking — rendered independently of the
+                Delivery Agent / Growjet block so it shows up even for
+                partners who don't have those flags enabled. */}
+            {order.delivery_provider === "porter" && (
+                <PorterTrackingPanel
+                    orderId={order.id}
+                    provider={order.delivery_provider}
+                    crn={order.delivery_provider_order_id}
+                    state={order.delivery_provider_state}
+                    meta={order.delivery_provider_meta as any}
+                    showCancel
+                />
+            )}
 
             {(order.payment_method || order.is_paid) && (
                 <div className="border rounded-lg bg-card p-4">
