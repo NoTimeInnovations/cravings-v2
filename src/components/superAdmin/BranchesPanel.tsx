@@ -15,6 +15,7 @@ import {
   updateBranchMutation,
   type PartnerBranchInfo,
 } from "@/api/branches";
+import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
 
 interface BranchesPanelProps {
@@ -62,6 +63,10 @@ export default function BranchesPanel({
   const [editName, setEditName] = useState("");
   const [editTagline, setEditTagline] = useState("");
 
+  // Per-outlet "branch label" (partners.store_tagline) drafts, keyed by outlet id
+  const [outletLabelDrafts, setOutletLabelDrafts] = useState<Record<string, string>>({});
+  const [savingOutletId, setSavingOutletId] = useState<string | null>(null);
+
   // Add-outlet picker state
   const [showAdd, setShowAdd] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -79,9 +84,15 @@ export default function BranchesPanel({
       if (row?.branch) {
         setEditName(row.branch.name || "");
         setEditTagline(row.branch.tagline || "");
+        const drafts: Record<string, string> = {};
+        for (const o of row.branch.outlets || []) {
+          drafts[o.id] = o.store_tagline || "";
+        }
+        setOutletLabelDrafts(drafts);
       } else {
         setEditName("");
         setEditTagline("");
+        setOutletLabelDrafts({});
       }
     } catch (e) {
       console.error(e);
@@ -109,6 +120,32 @@ export default function BranchesPanel({
     if (!info?.branch) return [];
     return (info.branch.outlets || []).filter((o) => o.id !== partnerId);
   }, [info, partnerId]);
+
+  const allOutlets = useMemo(() => {
+    if (!info?.branch) return [];
+    const outlets = [...(info.branch.outlets || [])];
+    return outlets.sort((a, b) => {
+      if (a.id === partnerId) return -1;
+      if (b.id === partnerId) return 1;
+      return (a.store_name || "").localeCompare(b.store_name || "");
+    });
+  }, [info, partnerId]);
+
+  const handleSaveOutletLabel = async (outletId: string) => {
+    const value = (outletLabelDrafts[outletId] ?? "").trim();
+    setSavingOutletId(outletId);
+    try {
+      await updatePartner(outletId, { store_tagline: value || null });
+      revalidateTag(outletId);
+      toast.success("Branch label saved");
+      await refresh();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to save branch label");
+    } finally {
+      setSavingOutletId(null);
+    }
+  };
 
   const handleConvertToBrand = async () => {
     setBusy(true);
@@ -339,7 +376,7 @@ export default function BranchesPanel({
 
           <div className="border-t pt-4">
             <div className="flex items-center justify-between mb-3">
-              <p className="font-semibold">Outlets ({childOutlets.length})</p>
+              <p className="font-semibold">Outlets ({allOutlets.length})</p>
               <Button
                 type="button"
                 variant="outline"
@@ -401,40 +438,85 @@ export default function BranchesPanel({
               </div>
             )}
 
-            {childOutlets.length === 0 ? (
+            {allOutlets.length === 0 ? (
               <p className="text-sm text-gray-500">
                 No outlets linked yet. Use "Add outlet" to connect partners.
               </p>
             ) : (
               <ul className="divide-y divide-gray-200 border border-gray-200 rounded">
-                {childOutlets.map((o) => (
-                  <li
-                    key={o.id}
-                    className="flex items-center justify-between p-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {o.store_name}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {o.username ? `@${o.username}` : "(no username)"}
-                        {o.location ? ` • ${o.location}` : ""}
-                        {o.status && o.status !== "active"
-                          ? ` • ${o.status}`
-                          : ""}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveOutlet(o.id)}
-                      disabled={busy}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </li>
-                ))}
+                {allOutlets.map((o) => {
+                  const isParentRow = o.id === partnerId;
+                  const draft = outletLabelDrafts[o.id] ?? "";
+                  const original = o.store_tagline || "";
+                  const dirty = draft.trim() !== original.trim();
+                  const saving = savingOutletId === o.id;
+                  return (
+                    <li key={o.id} className="p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate flex items-center gap-2">
+                            {o.store_name}
+                            {isParentRow && (
+                              <span className="text-[10px] font-semibold uppercase tracking-wide bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+                                Parent
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {o.username ? `@${o.username}` : "(no username)"}
+                            {o.location ? ` • ${o.location}` : ""}
+                            {o.status && o.status !== "active"
+                              ? ` • ${o.status}`
+                              : ""}
+                          </p>
+                        </div>
+                        {!isParentRow && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveOutlet(o.id)}
+                            disabled={busy}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+                        <div className="flex-1 space-y-1">
+                          <Label
+                            htmlFor={`outlet_label_${o.id}`}
+                            className="text-xs text-gray-600"
+                          >
+                            Branch label (shown in outlet picker)
+                          </Label>
+                          <Input
+                            id={`outlet_label_${o.id}`}
+                            value={draft}
+                            placeholder="e.g. Hosabettu Branch"
+                            onChange={(e) =>
+                              setOutletLabelDrafts((prev) => ({
+                                ...prev,
+                                [o.id]: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handleSaveOutletLabel(o.id)}
+                          disabled={saving || !dirty}
+                        >
+                          {saving && (
+                            <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                          )}
+                          Save
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

@@ -11,6 +11,7 @@ query GetBranchByParentPartnerId($parent_partner_id: uuid!) {
       id
       username
       store_name
+      store_tagline
       store_banner
       location
       location_details
@@ -42,6 +43,7 @@ query GetPartnerBranchInfo($partner_id: uuid!) {
         id
         username
         store_name
+        store_tagline
         location
         location_details
         phone
@@ -102,6 +104,7 @@ export interface BranchOutlet {
   id: string;
   username: string;
   store_name: string;
+  store_tagline?: string | null;
   store_banner?: string | null;
   location?: string | null;
   location_details?: string | null;
@@ -136,6 +139,7 @@ export interface PartnerBranchInfo {
       id: string;
       username: string;
       store_name: string;
+      store_tagline?: string | null;
       location?: string | null;
       location_details?: string | null;
       phone?: string | null;

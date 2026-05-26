@@ -56,6 +56,21 @@ export default function OutletPickerScreen({
     if (storedCoords && !userCoords) setUserCoords(storedCoords);
   }, [storedCoords]);
 
+  // Auto-request location on mount so the nearest outlet is pre-selected.
+  useEffect(() => {
+    if (userCoords) return;
+    let cancelled = false;
+    (async () => {
+      const c = await getLocation();
+      if (cancelled) return;
+      if (c) setUserCoords(c);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const sortedOutlets = useMemo(() => {
     const outlets = [...brand.outlets];
     if (!userCoords) {
@@ -256,12 +271,12 @@ export default function OutletPickerScreen({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[15px] font-semibold text-gray-900 truncate">
-                        {o.store_name}
+                        {o.store_tagline?.trim() || o.store_name}
                       </p>
                       {(o.location || o.location_details) && (
-                        <p className="mt-1 text-xs text-gray-500 flex items-start gap-1">
-                          <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
-                          <span className="truncate">
+                        <p className="mt-1 text-sm text-gray-700 flex items-start gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0 text-gray-500" />
+                          <span className="line-clamp-2">
                             {[o.location_details, o.location]
                               .filter(Boolean)
                               .join(", ")}
@@ -269,7 +284,7 @@ export default function OutletPickerScreen({
                         </p>
                       )}
                       {o.phone && (
-                        <p className="mt-0.5 text-xs text-gray-500 flex items-center gap-1">
+                        <p className="mt-1 text-xs text-gray-500 flex items-center gap-1.5">
                           <Phone className="w-3 h-3 shrink-0" />
                           {o.phone}
                         </p>
