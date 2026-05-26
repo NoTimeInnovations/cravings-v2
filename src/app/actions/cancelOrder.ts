@@ -2,6 +2,32 @@
 
 import { getAuthCookie } from "@/app/auth/actions";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { cancelPorter } from "./porterBridge";
+
+/**
+ * Fire-and-forget cancel of any active porter-bridge dispatch tied to this
+ * order. Runs after the local cancel succeeds. Failure to cancel on Porter's
+ * side never fails the user's cancel action — the operator can clean up via
+ * the porter-bridge dashboard if needed. We just log + move on.
+ *
+ * Idempotent on the porter-bridge side: cancelPorter() returns
+ * { ok: true, alreadyCancelled: true } when called against an already-cancelled
+ * booking, and { ok: false, status: 404 } when the order was never dispatched
+ * via porter — both are silent success cases here.
+ */
+function maybeCancelPorter(orderId: string, reason: string): void {
+  cancelPorter(orderId, reason)
+    .then((r) => {
+      if (!r.ok && r.status !== 404) {
+        console.warn(
+          `[porter-bridge] cancel via cancelOrderAction failed: ${r.message}`,
+        );
+      }
+    })
+    .catch((e) =>
+      console.warn("[porter-bridge] cancel via cancelOrderAction threw:", e),
+    );
+}
 
 type CancelResult =
   | { success: true }
@@ -70,6 +96,7 @@ export async function cancelOrderAction(
       if (!result?.update_orders_by_pk) {
         return { success: false, message: "Failed to cancel order" };
       }
+      maybeCancelPorter(orderId, reason);
       return { success: true };
     } catch (err: any) {
       return { success: false, message: err?.message || "Failed to cancel order" };
@@ -101,6 +128,7 @@ export async function cancelOrderAction(
       return { success: false, message: body?.message || `Cancel failed (${res.status})` };
     }
 
+    maybeCancelPorter(orderId, reason);
     return { success: true };
   } catch (err: any) {
     return { success: false, message: err?.message || "Network error" };
