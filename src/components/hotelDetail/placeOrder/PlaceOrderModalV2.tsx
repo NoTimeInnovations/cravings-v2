@@ -869,7 +869,13 @@ const PlaceOrderModalV2 = ({
     }
     if (!isQrScan && ot === "delivery") {
       let charge = 0;
-      if (useAgentForCharge) {
+      // Porter takes precedence — its live quote IS the customer-billed
+      // delivery charge. Falls through to Adloggs, then to delivery_rules.
+      if (usePorterForCharge) {
+        if (porterQuote?.available && typeof porterQuote.fare === "number") {
+          charge = porterQuote.fare;
+        }
+      } else if (useAgentForCharge) {
         if (agentQuote?.available && typeof agentQuote.estimatedPrice === "number") {
           charge = agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP;
         }
@@ -2025,6 +2031,7 @@ const PlaceOrderModalV2 = ({
                   {orderType === "delivery" &&
                     !effectiveHideDeliveryCharge &&
                     !useAgentForCharge &&
+                    !usePorterForCharge &&
                     !deliveryInfo?.isOutOfRange &&
                     deliveryInfo?.distance != null && (
                       <div>
@@ -2043,6 +2050,33 @@ const PlaceOrderModalV2 = ({
                         </div>
                       </div>
                     )}
+                  {/* Porter Bridge: dedicated row with loading state so we
+                      never flash a stale delivery_rules-based amount before
+                      the live quote arrives. */}
+                  {orderType === "delivery" && usePorterForCharge && (
+                    <div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Delivery Charges</span>
+                        {porterQuoteLoading || !porterQuote ? (
+                          <span className="text-gray-400 inline-flex items-center gap-1.5">
+                            <span className="inline-block h-3 w-3 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
+                            Calculating…
+                          </span>
+                        ) : porterQuote.available && typeof porterQuote.fare === "number" ? (
+                          <span className="text-gray-900">{`${currency}${porterQuote.fare.toFixed(0)}`}</span>
+                        ) : (
+                          <span className="text-rose-600 text-xs">
+                            Not serviceable
+                          </span>
+                        )}
+                      </div>
+                      {porterQuote?.available && typeof porterQuote.etaMins === "number" && (
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          ETA {porterQuote.etaMins} min · via Porter
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {orderType === "delivery" && effectiveHideDeliveryCharge && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Delivery Charge</span>

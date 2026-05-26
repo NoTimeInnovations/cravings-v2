@@ -566,6 +566,14 @@ export function DeliverySettings() {
         !!features?.delivery_agent?.enabled &&
         deliveryRules.use_delivery_agent_charge !== false;
 
+    // Porter bridge owns the customer-billed delivery charge end-to-end —
+    // when this is on, the legacy distance-based pricing UI is irrelevant
+    // (Porter's live quote is the price). Hide that whole pricing block.
+    const porterChargeEnabled =
+        !!features?.porter_bridge?.access &&
+        !!features?.porter_bridge?.enabled;
+    const partnerPorterMobile = ((userData as Partner)?.porter_mobile ?? "").trim();
+
     return (
         <div className="space-y-6">
             <Card>
@@ -597,6 +605,46 @@ export function DeliverySettings() {
                                 checked={deliveryRules.use_delivery_agent_charge !== false}
                                 onCheckedChange={(checked) => setDeliveryRules(prev => ({ ...prev, use_delivery_agent_charge: checked }))}
                             />
+                        </div>
+                    )}
+
+                    {porterChargeEnabled && (
+                        <div className="rounded-lg border border-orange-200 bg-white p-4 space-y-3">
+                            <div className="flex items-center gap-2">
+                                <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-orange-50 text-orange-600">
+                                    {/* small inline svg keeps the bundle light vs another lucide import */}
+                                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>
+                                </span>
+                                <Label className="text-base">Porter account</Label>
+                            </div>
+                            <div className="rounded-md bg-muted/40 p-3 text-sm">
+                                {partnerPorterMobile ? (
+                                    <>
+                                        <div className="text-xs text-muted-foreground mb-1">
+                                            Dispatch routes through this Porter consumer account
+                                        </div>
+                                        <div className="font-mono">+91 {partnerPorterMobile}</div>
+                                    </>
+                                ) : (
+                                    <div className="text-rose-700">
+                                        No Porter mobile linked yet. Dispatch will fail until this is set.
+                                    </div>
+                                )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Manage the Porter account itself (OTP re-login, view bookings)
+                                at{" "}
+                                <a
+                                    href="https://deliverybridge.menuthere.com/accounts"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline underline-offset-2 font-medium"
+                                >
+                                    deliverybridge.menuthere.com
+                                </a>
+                                . The number above is set by the operator and isn&apos;t
+                                editable here — contact support to change it.
+                            </p>
                         </div>
                     )}
 
@@ -691,7 +739,7 @@ export function DeliverySettings() {
                         </div>
                     )}
 
-                    {!agentChargeEnabled && (
+                    {!agentChargeEnabled && !porterChargeEnabled && (
                         <div className="flex items-center justify-between">
                             <div className="space-y-0.5">
                                 <Label className="text-base">Don&apos;t show delivery charge</Label>
@@ -736,7 +784,7 @@ export function DeliverySettings() {
                         </div>
                     </div>
 
-                    {deliveryRules.needDeliveryLocation && (
+                    {deliveryRules.needDeliveryLocation && !porterChargeEnabled && (
                         <div className="space-y-2">
                             <Label>Delivery Radius (km)</Label>
                             <Input
@@ -748,7 +796,7 @@ export function DeliverySettings() {
                         </div>
                     )}
 
-                    {deliveryRules.needDeliveryLocation && !agentChargeEnabled && (
+                    {deliveryRules.needDeliveryLocation && !agentChargeEnabled && !porterChargeEnabled && (
                         <>
                             <div className="space-y-2">
                                 <Label>Pricing Type</Label>

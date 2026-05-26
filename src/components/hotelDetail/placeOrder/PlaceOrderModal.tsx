@@ -592,6 +592,16 @@ interface BillCardProps {
     etaToPickupMin?: number;
   } | null;
   useAgentForCharge?: boolean;
+  /** When set, the bill uses the porter-bridge quote — takes precedence
+   *  over `agentQuote`. Shows a loading row while the quote is in flight
+   *  so we never flash a stale delivery_rules-based amount. */
+  porterQuote?: {
+    available: boolean;
+    fare?: number;
+    etaMins?: number;
+  } | null;
+  porterQuoteLoading?: boolean;
+  usePorterForCharge?: boolean;
 }
 
 const BillCard = ({
@@ -606,6 +616,9 @@ const BillCard = ({
   discount,
   agentQuote,
   useAgentForCharge,
+  porterQuote,
+  porterQuoteLoading,
+  usePorterForCharge,
 }: BillCardProps) => {
   const subtotal = items.reduce(
     (acc, item) => acc + item.price * item.quantity,
@@ -624,11 +637,15 @@ const BillCard = ({
   const useAgent = !!useAgentForCharge && !!agentQuote?.available;
   const agentPrice = useAgent && typeof agentQuote?.estimatedPrice === "number" ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP : 0;
   const agentDistance = useAgent && typeof agentQuote?.distanceKm === "number" ? agentQuote.distanceKm : null;
-  const deliveryCharges = useAgent
-    ? (isDelivery ? agentPrice : 0)
-    : isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && !hideDeliveryCharge
-      ? deliveryInfo.cost
-      : 0;
+  const usePorter = !!usePorterForCharge;
+  const porterPrice = usePorter && porterQuote?.available && typeof porterQuote?.fare === "number" ? porterQuote.fare : 0;
+  const deliveryCharges = usePorter
+    ? (isDelivery ? porterPrice : 0)
+    : useAgent
+      ? (isDelivery ? agentPrice : 0)
+      : isDelivery && deliveryInfo?.cost && !deliveryInfo?.isOutOfRange && !hideDeliveryCharge
+        ? deliveryInfo.cost
+        : 0;
 
   const totalItemCount = items.reduce((acc, item) => acc + item.quantity, 0);
   const parcelChargeType = hotelData?.delivery_rules?.parcel_charge_type || "fixed";
@@ -730,7 +747,7 @@ const BillCard = ({
           </div>
         )}
 
-        {isDelivery && !useAgentForCharge && !hideDeliveryCharge && !deliveryInfo?.isOutOfRange && deliveryInfo?.distance != null && (
+        {isDelivery && !useAgentForCharge && !usePorter && !hideDeliveryCharge && !deliveryInfo?.isOutOfRange && deliveryInfo?.distance != null && (
           <div>
             <div className="flex justify-between text-sm">
               <span style={{ color: "var(--pom-text-muted)" }}>Delivery Charges</span>
@@ -745,6 +762,29 @@ const BillCard = ({
             <div className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
               {deliveryInfo.distance.toFixed(1)} kms
             </div>
+          </div>
+        )}
+
+        {isDelivery && usePorter && (
+          <div>
+            <div className="flex justify-between text-sm">
+              <span style={{ color: "var(--pom-text-muted)" }}>Delivery Charges</span>
+              {porterQuoteLoading || !porterQuote ? (
+                <span className="inline-flex items-center gap-1.5" style={{ color: "var(--pom-text-muted)" }}>
+                  <span className="inline-block h-3 w-3 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
+                  Calculating…
+                </span>
+              ) : porterQuote.available && typeof porterQuote.fare === "number" ? (
+                <span className="text-inherit">{currency}{" "}{porterQuote.fare.toFixed(0)}</span>
+              ) : (
+                <span className="text-rose-600 text-xs">Not serviceable</span>
+              )}
+            </div>
+            {porterQuote?.available && typeof porterQuote.etaMins === "number" && (
+              <div className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
+                ETA {porterQuote.etaMins} min · via Porter
+              </div>
+            )}
           </div>
         )}
 
@@ -2608,11 +2648,15 @@ const PlaceOrderModal = ({
       if (
         !isQrScan &&
         orderType === "delivery" &&
-        !(hotelData?.delivery_rules?.hide_delivery_charge)
+        (!(hotelData?.delivery_rules?.hide_delivery_charge) || usePorterForCharge || useAgentForCharge)
       ) {
-        const amt = useAgentForCharge
-          ? (agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP : 0)
-          : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
+        // Porter takes precedence — its live quote IS the customer-billed
+        // delivery charge. Falls through to Adloggs, then to delivery_rules.
+        const amt = usePorterForCharge
+          ? (porterQuote?.available && typeof porterQuote.fare === "number" ? porterQuote.fare : 0)
+          : useAgentForCharge
+            ? (agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP : 0)
+            : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
         if (amt > 0) {
           extraCharges.push({
             name: "Delivery Charge",
@@ -2777,10 +2821,12 @@ const PlaceOrderModal = ({
         const amt = getExtraCharge(items || [], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE");
         if (amt > 0) extraCharges.push({ name: qrGroup.name, amount: amt, charge_type: qrGroup.charge_type || "FLAT_FEE" });
       }
-      if (!isQrScan && orderType === "delivery" && !(hotelData?.delivery_rules?.hide_delivery_charge)) {
-        const amt = useAgentForCharge
-          ? (agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP : 0)
-          : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
+      if (!isQrScan && orderType === "delivery" && (!(hotelData?.delivery_rules?.hide_delivery_charge) || usePorterForCharge || useAgentForCharge)) {
+        const amt = usePorterForCharge
+          ? (porterQuote?.available && typeof porterQuote.fare === "number" ? porterQuote.fare : 0)
+          : useAgentForCharge
+            ? (agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP : 0)
+            : (deliveryInfo?.cost && !deliveryInfo?.isOutOfRange ? deliveryInfo.cost : 0);
         if (amt > 0) extraCharges.push({ name: "Delivery Charge", amount: amt, charge_type: "FLAT_FEE" });
       }
       if (tableNumber === 0 && hotelData?.delivery_rules?.parcel_charge && hotelData.delivery_rules.parcel_charge > 0) {
@@ -3117,7 +3163,11 @@ const PlaceOrderModal = ({
   const _barQrCharge = qrGroup?.extra_charge ? getExtraCharge(items || [], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE") : 0;
   const _barHideDelivery = hotelData?.delivery_rules?.hide_delivery_charge ?? false;
   const _barDeliveryCharge = (() => {
-    if (isQrScan || orderType !== "delivery" || _barHideDelivery) return 0;
+    if (isQrScan || orderType !== "delivery") return 0;
+    if (usePorterForCharge) {
+      return porterQuote?.available && typeof porterQuote.fare === "number" ? porterQuote.fare : 0;
+    }
+    if (_barHideDelivery) return 0;
     if (useAgentForCharge) {
       return agentQuote?.available && typeof agentQuote.estimatedPrice === "number" ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP : 0;
     }
@@ -3450,6 +3500,9 @@ const PlaceOrderModal = ({
                   discount={appliedDiscount ? { code: appliedDiscount.code, type: appliedDiscount.type, value: appliedDiscount.value, max_discount_amount: appliedDiscount.max_discount_amount, freebie_item_count: appliedDiscount.freebie_item_count, freebie_item_ids: appliedDiscount.freebie_item_ids, freebie_item_names: appliedDiscount.freebie_item_ids?.split(",").map((id) => hotelData?.menus?.find((m) => m.id === id.trim())?.name).filter(Boolean).join(", ") } : null}
                   agentQuote={agentQuote}
                   useAgentForCharge={useAgentForCharge}
+                  porterQuote={porterQuote}
+                  porterQuoteLoading={porterQuoteLoading}
+                  usePorterForCharge={usePorterForCharge}
                 />
               </div>
 
