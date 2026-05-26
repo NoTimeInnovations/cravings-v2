@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, MapPin, Send, Store, LocateFixed, Loader2 } from "lucide-react";
+import { ChevronLeft, MapPin, Store, LocateFixed, Loader2, X, AlertTriangle } from "lucide-react";
 import { useLoadScript } from "@react-google-maps/api";
 import { useLocationStore } from "@/store/geolocationStore";
 import useOrderStore from "@/store/orderStore";
@@ -170,6 +170,32 @@ export default function OutletPickerScreen({
     if (km < 1) return `${Math.round(km * 1000)} m away`;
     return `${km.toFixed(1)} km away`;
   };
+
+  const distanceKmFor = (o: BranchOutlet): number | null => {
+    if (!userCoords) return null;
+    const c = outletCoords(o);
+    if (!c) return null;
+    return haversineKm(userCoords, c);
+  };
+
+  const isOutletOutOfRange = (o: BranchOutlet): boolean => {
+    const radius = o.delivery_rules?.delivery_radius;
+    if (!radius) return false;
+    const km = distanceKmFor(o);
+    if (km == null) return false;
+    return km > radius;
+  };
+
+  const effectiveSelected: BranchOutlet | null =
+    sortedOutlets.find((o) => o.id === selectedId) || sortedOutlets[0] || null;
+  const selectedOutOfRange =
+    isDelivery && !!savedAddress && !!effectiveSelected
+      ? isOutletOutOfRange(effectiveSelected)
+      : false;
+  const selectedRadiusKm = effectiveSelected?.delivery_rules?.delivery_radius;
+  const selectedDistanceKm = effectiveSelected
+    ? distanceKmFor(effectiveSelected)
+    : null;
 
   const handleAddressInputChange = (value: string) => {
     setAreaInput(value);
@@ -345,15 +371,8 @@ export default function OutletPickerScreen({
 
       <div className="flex-1 pb-32">
         <div className="px-6 lg:max-w-md lg:mx-auto">
-          {/* Brand header */}
-          <div className="flex flex-col items-center text-center">
-            <h2 className="text-2xl font-semibold tracking-tight text-gray-900">
-              {brand.name}
-            </h2>
-          </div>
-
           {/* Section heading */}
-          <div className="mt-6 flex items-center gap-2">
+          <div className="flex items-center gap-2">
             {isDelivery ? (
               <MapPin className="w-5 h-5" style={{ color: accent }} />
             ) : (
@@ -371,25 +390,11 @@ export default function OutletPickerScreen({
 
           {/* Address / find-nearest card */}
           <div className="mt-5 rounded-2xl bg-gray-50 p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-gray-500">
-                {isDelivery ? "Your delivery address" : "Find nearest to me"}
-              </p>
-              <button
-                onClick={handleUseMyLocation}
-                disabled={locating}
-                className="text-[11px] font-semibold flex items-center gap-1 text-gray-600 hover:text-gray-900 disabled:opacity-50"
-              >
-                {locating ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <LocateFixed className="w-3.5 h-3.5" />
-                )}
-                Use my location
-              </button>
-            </div>
+            <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-gray-500">
+              {isDelivery ? "Your delivery address" : "Find nearest to me"}
+            </p>
             <div className="mt-2 relative">
-              <div className="flex items-center gap-2">
+              <div className="relative flex items-center h-10 rounded-xl border border-gray-200 bg-white focus-within:ring-2 focus-within:ring-gray-200">
                 <input
                   value={areaInput}
                   onChange={(e) => handleAddressInputChange(e.target.value)}
@@ -401,21 +406,23 @@ export default function OutletPickerScreen({
                       ? "Search street, area, landmark"
                       : "Type your area / address"
                   }
-                  className="flex-1 h-10 px-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+                  className="flex-1 h-full pl-3 pr-9 bg-transparent text-sm rounded-xl focus:outline-none"
                 />
-                <button
-                  onClick={handleFind}
-                  disabled={finding || !areaInput.trim()}
-                  className="h-10 px-4 rounded-xl text-white text-sm font-semibold flex items-center gap-1.5 disabled:opacity-50"
-                  style={{ backgroundColor: accent }}
-                >
-                  {finding ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                  {isDelivery ? "Save" : "Find"}
-                </button>
+                {areaInput && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAreaInput("");
+                      setSuggestions([]);
+                      setSavedAddress(null);
+                      setFindError(null);
+                    }}
+                    aria-label="Clear address"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
               {isDelivery && suggestions.length > 0 && (
                 <div className="absolute top-[44px] left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-64 overflow-y-auto">
@@ -443,6 +450,29 @@ export default function OutletPickerScreen({
                 </div>
               )}
             </div>
+
+            {/* OR divider + Use my location alternative */}
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex-1 h-px bg-gray-200" />
+              <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-gray-400">
+                or
+              </span>
+              <div className="flex-1 h-px bg-gray-200" />
+            </div>
+            <button
+              type="button"
+              onClick={handleUseMyLocation}
+              disabled={locating}
+              className="mt-3 w-full h-10 rounded-xl border border-gray-200 bg-white flex items-center justify-center gap-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50 transition"
+            >
+              {locating ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <LocateFixed className="w-4 h-4" style={{ color: accent }} />
+              )}
+              Use my current location
+            </button>
+
             {findError && (
               <p className="mt-2 text-xs text-red-500">{findError}</p>
             )}
@@ -542,6 +572,30 @@ export default function OutletPickerScreen({
               })
             )}
           </div>
+
+          {selectedOutOfRange && effectiveSelected && (
+            <div className="mt-4 flex items-start gap-2.5 p-3 rounded-xl border border-red-200 bg-red-50">
+              <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4 h-4 text-red-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-red-700">
+                  Delivery unavailable here
+                </p>
+                <p className="mt-0.5 text-xs text-red-600/90 leading-snug">
+                  {effectiveSelected.store_tagline?.trim() ||
+                    effectiveSelected.store_name}{" "}
+                  delivers within {selectedRadiusKm} km. Your address is{" "}
+                  {selectedDistanceKm != null
+                    ? selectedDistanceKm < 1
+                      ? `${Math.round(selectedDistanceKm * 1000)} m`
+                      : `${selectedDistanceKm.toFixed(1)} km`
+                    : ""}{" "}
+                  away. Try another address or pick a different outlet.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -555,7 +609,9 @@ export default function OutletPickerScreen({
           >
             {isDelivery && !savedAddress
               ? "Enter delivery address"
-              : "Continue to menu"}
+              : selectedOutOfRange
+                ? "Explore menu"
+                : "Order now"}
           </button>
         </div>
       </div>

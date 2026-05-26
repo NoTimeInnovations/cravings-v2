@@ -19,6 +19,7 @@ query GetBranchByParentPartnerId($parent_partner_id: uuid!) {
       geo_location
       status
       subscription_details
+      delivery_rules
     }
   }
 }
@@ -112,6 +113,10 @@ export interface BranchOutlet {
   geo_location?: { coordinates: [number, number] } | null;
   status?: string | null;
   subscription_details?: any;
+  delivery_rules?: {
+    delivery_radius?: number;
+    [key: string]: any;
+  } | null;
 }
 
 export interface BranchContext {

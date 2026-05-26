@@ -13,6 +13,7 @@ import {
   MessageCircle,
   CreditCard,
   Banknote,
+  AlertTriangle,
 } from "lucide-react";
 import { useLocationStore } from "@/store/geolocationStore";
 import { Textarea } from "@/components/ui/textarea";
@@ -3515,8 +3516,19 @@ const PlaceOrderModal = ({
 
               {/* Warnings */}
               {isDelivery && !isQrScan && orderType === "delivery" && !useAgentForCharge && deliveryInfo?.isOutOfRange && (
-                <div className="text-sm p-3 rounded-xl text-center" style={{ backgroundColor: "rgba(239,68,68,0.15)", color: "#fca5a5" }}>
-                  Delivery is not available to your selected location
+                <div className="flex items-start gap-2.5 p-3 rounded-xl border border-red-200 bg-red-50">
+                  <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-4 h-4 text-red-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-red-700">
+                      Delivery unavailable here
+                    </p>
+                    <p className="mt-0.5 text-xs text-red-600/90 leading-snug">
+                      This outlet doesn't deliver to your selected address. Try
+                      a different address or pick another outlet.
+                    </p>
+                  </div>
                 </div>
               )}
 
