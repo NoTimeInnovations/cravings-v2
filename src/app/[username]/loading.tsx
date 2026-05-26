@@ -30,6 +30,7 @@ export default async function Loading() {
       initial={initial}
       storeName={splash?.name}
       storeBanner={splash?.banner}
+      username={username}
     />
   );
 }

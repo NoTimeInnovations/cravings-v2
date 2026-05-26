@@ -186,7 +186,9 @@ const Default = ({
                   textAlign:
                     theme?.infoAlignment === "center" ? "center" : "left",
                 }}
-                className={"font-black text-3xl max-w-[250px]"}
+                className={`font-black text-3xl max-w-[250px]${
+                  (hoteldata as any)?.username === "nila" ? " font-tango-bt" : ""
+                }`}
                 dangerouslySetInnerHTML={{
                   __html: hoteldata?.store_name || "",
                 }}

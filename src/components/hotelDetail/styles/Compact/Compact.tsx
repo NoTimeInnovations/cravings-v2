@@ -944,7 +944,13 @@ const Compact = ({
             {/* ===== STORE NAME + SEARCH ===== */}
             <div className="px-4 pt-4 pb-1 flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <h1 className="text-[22px] font-bold">{hoteldata?.store_name}</h1>
+                <h1
+                  className={`text-[22px] font-bold${
+                    (hoteldata as any)?.username === "nila" ? " font-tango-bt" : ""
+                  }`}
+                >
+                  {hoteldata?.store_name}
+                </h1>
                 {((hoteldata?.district && hoteldata.district !== "") ||
                   (hoteldata?.country && hoteldata.country !== "") ||
                   (hoteldata?.location_details &&

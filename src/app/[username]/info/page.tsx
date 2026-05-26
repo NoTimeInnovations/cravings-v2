@@ -443,7 +443,10 @@ export default async function PartnerInfoPage({
           <div className="text-center">
             <div
               style={{
-                fontFamily: "Fraunces, Georgia, serif",
+                fontFamily:
+                  partner.username === "nila"
+                    ? '"Tango BT", Fraunces, Georgia, serif'
+                    : "Fraunces, Georgia, serif",
                 fontSize: 30,
                 fontWeight: 600,
                 color: "#1a1612",

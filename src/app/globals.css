@@ -122,6 +122,18 @@ body {
   font-style: normal;
 }
 
+@font-face {
+  font-family: "Tango BT";
+  src: url("/fonts/tango-bt-regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.font-tango-bt {
+  font-family: "Tango BT", "Playfair Display", Georgia, serif;
+}
+
 .badge-clip {
   clip-path: polygon(100% 1%, 100% 100%, 50% 88%, 0 100%, 0 0);
 }

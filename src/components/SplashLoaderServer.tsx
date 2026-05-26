@@ -2,10 +2,12 @@ interface SplashLoaderServerProps {
   initial: string;
   storeName?: string;
   storeBanner?: string;
+  username?: string;
 }
 
-export default function SplashLoaderServer({ initial, storeName, storeBanner }: SplashLoaderServerProps) {
+export default function SplashLoaderServer({ initial, storeName, storeBanner, username }: SplashLoaderServerProps) {
   const isVideo = storeBanner?.endsWith(".mp4");
+  const useNilaFont = username === "nila";
 
   return (
     <div
@@ -33,7 +35,13 @@ export default function SplashLoaderServer({ initial, storeName, storeBanner }: 
           )}
         </div>
         {storeName ? (
-          <p className="text-lg font-semibold text-gray-900 tracking-tight">{storeName}</p>
+          <p
+            className={`text-lg font-semibold text-gray-900 tracking-tight${
+              useNilaFont ? " font-tango-bt" : ""
+            }`}
+          >
+            {storeName}
+          </p>
         ) : (
           <div className="h-5 w-32 rounded-lg bg-gray-200" />
         )}

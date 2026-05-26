@@ -362,7 +362,16 @@ const V3 = ({
 
             {/* Name + tagline */}
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-lg font-extrabold tracking-tight text-gray-900" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+              <h1
+                className={`truncate text-lg font-extrabold tracking-tight text-gray-900${
+                  (hoteldata as any)?.username === "nila" ? " font-tango-bt" : ""
+                }`}
+                style={
+                  (hoteldata as any)?.username === "nila"
+                    ? undefined
+                    : { fontFamily: "'Playfair Display', Georgia, serif" }
+                }
+              >
                 {hoteldata?.store_name}
               </h1>
               {((hoteldata as any)?.store_tagline || locationText) && (
