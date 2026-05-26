@@ -63,6 +63,22 @@ export type FeatureFlags = {
     access: boolean;
     enabled: boolean;
   };
+  /**
+   * Routes order dispatch through porter-bridge (the temporary Porter
+   * customer-app wrapper at https://deliverybridge.menuthere.com). Fires on
+   * the `accepted` status transition alongside `delivery_agent`. Use this
+   * when a partner has onboarded a personal Porter consumer account and we
+   * want to dispatch a Porter 2-wheeler from their account.
+   *
+   * Account binding: the partner's `phone` column is matched against the
+   * porter-bridge `accounts.mobile` field at dispatch time. Each partner
+   * onboards by visiting deliverybridge.menuthere.com/accounts once and
+   * completing OTP login from their phone.
+   */
+  porter_bridge: {
+    access: boolean;
+    enabled: boolean;
+  };
 };
 
 export const revertFeatureToString = (features: FeatureFlags): string => {
@@ -118,6 +134,10 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
 
   if (features.whatsappOrdering.access) {
     parts.push(`whatsappOrdering-${features.whatsappOrdering.enabled}`);
+  }
+
+  if (features.porter_bridge.access) {
+    parts.push(`porter_bridge-${features.porter_bridge.enabled}`);
   }
 
   return parts.join(",");
@@ -177,6 +197,10 @@ export const getFeatures = (perm: string | null) => {
       access: false,
       enabled: false,
     },
+    porter_bridge: {
+      access: false,
+      enabled: false,
+    },
   };
 
   if (!perm) {
@@ -228,6 +252,9 @@ export const getFeatures = (perm: string | null) => {
       } else if (key === "whatsappOrdering") {
         permissions.whatsappOrdering.access = true;
         permissions.whatsappOrdering.enabled = value === "true";
+      } else if (key === "porter_bridge") {
+        permissions.porter_bridge.access = true;
+        permissions.porter_bridge.enabled = value === "true";
       }
     }
   }

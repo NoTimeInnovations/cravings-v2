@@ -23,6 +23,10 @@ import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import dynamic from "next/dynamic";
 
 const DeliveryMap = dynamic(() => import("./DeliveryMap"), { ssr: false });
+const PorterTrackingPanel = dynamic(
+  () => import("@/components/PorterTrackingPanel"),
+  { ssr: false },
+);
 
 const GET_ORDER_QUERY = `
   subscription GetOrder($id: uuid!) {
@@ -715,6 +719,22 @@ ${itemsText}
                                         {order.partner.store_name}
                                     </p>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* Porter delivery tracking — shown whenever the order
+                            was routed through porter-bridge, regardless of the
+                            local order status. Renders driver info, tracking
+                            link, refresh button. */}
+                        {order?.delivery_provider === "porter" && order?.id && (
+                            <div className="px-4 sm:px-0">
+                                <PorterTrackingPanel
+                                    orderId={order.id}
+                                    provider={order.delivery_provider}
+                                    crn={order.delivery_provider_order_id}
+                                    state={order.delivery_provider_state}
+                                    meta={order.delivery_provider_meta}
+                                />
                             </div>
                         )}
 
