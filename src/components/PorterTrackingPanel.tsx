@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Bike, ExternalLink, Phone, RefreshCw, X } from "lucide-react";
+import { toast } from "sonner";
 import {
   type PorterMeta,
   extractTrackingUrl,
@@ -85,8 +86,17 @@ export default function PorterTrackingPanel({
       return;
     setCancelling(true);
     try {
-      await cancelPorter(orderId, "Cancelled from admin");
+      const res = await cancelPorter(orderId, "Cancelled from admin");
+      if (res.ok) {
+        toast.success(`Porter booking ${crn} cancelled`);
+      } else {
+        toast.error(`Cancel failed: ${res.message}`);
+      }
       await refresh();
+    } catch (e) {
+      toast.error(
+        `Cancel failed: ${e instanceof Error ? e.message : "unknown error"}`,
+      );
     } finally {
       setCancelling(false);
     }

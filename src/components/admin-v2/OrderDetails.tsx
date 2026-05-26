@@ -465,8 +465,15 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
             </div>
 
             {(() => {
+                // Only render the Delivery Agent card when the partner actually
+                // has one of the 3PL features turned on. Just having access
+                // (i.e. plan-eligible) isn't enough — Adloggs UI was showing up
+                // on partners who'd never enabled it.
                 const f = getFeatures((userData as Partner)?.feature_flags || null);
-                return f.growjet_delivery.access || f.delivery_agent.access;
+                return (
+                    (f.growjet_delivery.access && f.growjet_delivery.enabled) ||
+                    (f.delivery_agent.access && f.delivery_agent.enabled)
+                );
             })() && (() => {
                 const partner = userData as Partner | null;
                 const agent = order.delivery_agent;
@@ -535,7 +542,10 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                 ) : null}
                             </div>
                         </div>
-                        {getFeatures((userData as Partner)?.feature_flags || null).delivery_agent.access && (
+                        {(() => {
+                            const f = getFeatures((userData as Partner)?.feature_flags || null).delivery_agent;
+                            return f.access && f.enabled;
+                        })() && (
                             <ProviderAvailabilityPanel
                                 pickup={
                                     hotelLat != null && hotelLng != null

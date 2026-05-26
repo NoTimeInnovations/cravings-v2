@@ -345,7 +345,7 @@ export function DeliverySettings() {
     // Fetch wallet whenever the 3PL feature is on. Re-runs when the merchant
     // id changes so the partner sees the correct balance after editing it.
     const loadWallet = useCallback(async () => {
-        if (!features?.delivery_agent?.access) return;
+        if (!features?.delivery_agent?.access || !features?.delivery_agent?.enabled) return;
         setWalletLoading(true);
         setWalletError(null);
         try {
@@ -367,7 +367,7 @@ export function DeliverySettings() {
         } finally {
             setWalletLoading(false);
         }
-    }, [features?.delivery_agent?.access, userData]);
+    }, [features?.delivery_agent?.access, features?.delivery_agent?.enabled, userData]);
 
     useEffect(() => {
         loadWallet();
@@ -600,7 +600,7 @@ export function DeliverySettings() {
                         </div>
                     )}
 
-                    {features?.delivery_agent?.access && (
+                    {features?.delivery_agent?.access && features?.delivery_agent?.enabled && (
                         <div className="rounded-lg border border-blue-200 bg-white p-4 space-y-4">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">

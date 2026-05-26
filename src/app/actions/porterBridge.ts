@@ -140,12 +140,23 @@ const ORDER_FOR_DISPATCH_QUERY = `
   }
 `;
 
+/**
+ * Use Hasura's `_append` on jsonb so meta MERGES with whatever's already
+ * stored — without this, every refresh / cancel call overwrites the
+ * accountId (and everything else) that was saved at dispatch time.
+ * That bug previously broke cancel-from-cravings: the cancel action
+ * read meta back, didn't find accountId, and bailed.
+ *
+ * Also pass `now` as a top-level variable so Hasura coerces it as a real
+ * timestamp instead of trying to parse the literal string "now()".
+ */
 const PERSIST_PROVIDER_MUTATION = `
   mutation PersistProviderState(
     $id: uuid!,
     $state: String!,
     $orderId: String,
-    $meta: jsonb
+    $meta: jsonb!,
+    $now: timestamptz!
   ) {
     update_orders_by_pk(
       pk_columns: { id: $id },
@@ -153,8 +164,10 @@ const PERSIST_PROVIDER_MUTATION = `
         delivery_provider: "porter",
         delivery_provider_state: $state,
         delivery_provider_order_id: $orderId,
-        delivery_provider_meta: $meta,
-        delivery_provider_last_event_at: "now()"
+        delivery_provider_last_event_at: $now
+      },
+      _append: {
+        delivery_provider_meta: $meta
       }
     ) { id }
   }
@@ -172,6 +185,7 @@ async function persistProvider(
       state,
       orderId: porterOrderId,
       meta,
+      now: new Date().toISOString(),
     });
   } catch (err) {
     console.warn("[porter-bridge] persistProvider failed:", err);
@@ -351,9 +365,18 @@ export async function dispatchPorterBridge(orderId: string): Promise<Result> {
   const dropTitle = order.user?.full_name?.trim() || "Customer";
   const dropSubtitle =
     order.delivery_address?.trim().slice(0, 200) || "Delivery";
-  const noteRoot = order.display_id ? `Order #${order.display_id}` : `Order ${orderId.slice(0, 8)}`;
-  const pickupNote = `${noteRoot} · ${pickupTitle}`.slice(0, 200);
-  const dropNote = `${noteRoot} · for ${dropTitle}`.slice(0, 200);
+
+  // Pickup note = first 8 chars of the order UUID. Short, unique enough
+  // for the rider to read aloud over the phone, and Porter strips funky
+  // characters anyway so we keep it plain.
+  const pickupNote = orderId.slice(0, 8);
+
+  // The pickup contact's phone is the *restaurant's* number, not the
+  // partner's porter-login mobile — riders call this to coordinate
+  // arrival. We fall back to porter-mobile only if the restaurant has
+  // no phone on file.
+  const restaurantPhone =
+    normaliseMobile(order.partner.phone) ?? partnerMobile;
 
   const book = await bridgeFetch(`/api/v1/porter/book`, {
     method: "POST",
@@ -367,10 +390,11 @@ export async function dispatchPorterBridge(orderId: string): Promise<Result> {
       drop: dropLatLng,
       pickupAddress: { title: pickupTitle, subtitle: pickupSubtitle },
       dropAddress: { title: dropTitle, subtitle: dropSubtitle },
-      pickupContact: { name: pickupTitle, phone: partnerMobile },
+      pickupContact: { name: pickupTitle, phone: restaurantPhone },
       receiverContact: { name: dropTitle, phone: customerMobile },
       pickupNote,
-      dropNote,
+      // dropNote intentionally omitted — Porter's rider screen already
+      // shows the drop address; nothing extra is useful right now.
       pickupInMins: 6,
     },
   });
@@ -476,6 +500,7 @@ export async function cancelPorter(
 
   let crn: string | null = null;
   let accountId: string | null = null;
+  let fallbackMobile: string | null = null;
   try {
     const data = await fetchFromHasura(
       `query GetCrn($id: uuid!) {
@@ -484,6 +509,10 @@ export async function cancelPorter(
           delivery_provider_order_id
           delivery_provider_meta
           delivery_provider_state
+          partner {
+            phone
+            porter_mobile
+          }
         }
       }`,
       { id: orderId },
@@ -497,11 +526,34 @@ export async function cancelPorter(
     }
     crn = o.delivery_provider_order_id;
     accountId = o.delivery_provider_meta?.accountId ?? null;
+    fallbackMobile =
+      normaliseMobile(o.partner?.porter_mobile) ??
+      normaliseMobile(o.partner?.phone);
   } catch (err) {
     return { ok: false, message: `hasura: ${(err as Error).message}` };
   }
-  if (!crn || !accountId) {
-    return { ok: false, status: 404, message: "porter booking missing CRN/account" };
+  if (!crn) {
+    return { ok: false, status: 404, message: "porter booking missing CRN" };
+  }
+
+  // Fallback: legacy rows persisted before the meta-merge fix may have lost
+  // accountId. Look it up by partner mobile so cancel still works.
+  if (!accountId && fallbackMobile) {
+    const lookup = await bridgeFetch(
+      `/api/v1/accounts/by-mobile/${fallbackMobile}`,
+      { method: "GET" },
+    );
+    if (lookup.ok) {
+      accountId = (lookup.data as { _id: string })._id;
+    }
+  }
+  if (!accountId) {
+    return {
+      ok: false,
+      status: 404,
+      message:
+        "porter booking has no accountId in meta and no partner mobile to resolve — cancel manually via deliverybridge.menuthere.com",
+    };
   }
 
   const res = await bridgeFetch(`/api/v1/porter/cancel`, {
@@ -515,6 +567,7 @@ export async function cancelPorter(
   });
   if (res.ok) {
     await persistProvider(orderId, "cancelled", crn, {
+      accountId,
       cancelledReason: reason,
       cancelledAt: new Date().toISOString(),
     });
