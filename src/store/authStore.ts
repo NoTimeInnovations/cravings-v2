@@ -116,6 +116,12 @@ export interface Partner extends BaseUser {
   theme?: string;
   currency: string;
   feature_flags?: string;
+  /**
+   * Mobile registered on porter-bridge for this partner's delivery dispatch.
+   * Read by src/app/actions/porterBridge.ts at dispatch time. Falls back to
+   * `phone` if null. Populated via admin-v2 settings UI.
+   */
+  porter_mobile?: string | null;
   footnote?: string;
   social_links?: string;
   gst_no?: string;

@@ -23,6 +23,8 @@ import {
   Loader2,
   Download,
   MessageCircle,
+  AlertTriangle,
+  Bike,
 } from "lucide-react";
 import QRCodeLib from "qrcode";
 import { fetchFromHasura } from "@/lib/hasuraClient";
@@ -256,9 +258,78 @@ export function AdminV2Dashboard() {
 
   const quickActions = allQuickActions.filter((a) => !a.hidden);
 
+  // Porter bridge: warn if the feature is enabled but the partner hasn't
+  // bound a Porter account yet. Without porter_mobile set (or a matching
+  // partner.phone), dispatch silently fails on every "accepted" order.
+  const porterBridgeFeature = getFeatures(partner?.feature_flags || null)
+    .porter_bridge;
+  const porterMobile = partner?.porter_mobile?.trim();
+  const fallbackPhoneIsValid =
+    !porterMobile &&
+    typeof partner?.phone === "string" &&
+    /^[6-9][0-9]{9}$/.test(partner.phone.replace(/\D+/g, "").slice(-10));
+  const showPorterMobileWarning =
+    porterBridgeFeature.access &&
+    porterBridgeFeature.enabled &&
+    !porterMobile &&
+    !fallbackPhoneIsValid;
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       <DashboardTour />
+
+      {showPorterMobileWarning && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/40">
+          <div className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200">
+            <Bike className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 text-sm font-semibold text-amber-900 dark:text-amber-100">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Porter Bridge enabled — but no Porter account is linked
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-amber-900/80 dark:text-amber-200/80">
+              Accepted orders will <strong>not</strong> dispatch a Porter rider
+              until a valid 10-digit Indian mobile is saved here.{" "}
+              <a
+                href="https://deliverybridge.menuthere.com/accounts"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium underline underline-offset-2"
+              >
+                Onboard your Porter consumer account
+              </a>{" "}
+              first (OTP login from that phone), then set the same number on
+              this partner profile.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-amber-300 bg-white text-amber-900 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-100"
+                onClick={() => setActiveView("Settings")}
+              >
+                Set Porter mobile
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-amber-800 hover:bg-amber-100 dark:text-amber-200"
+                onClick={() =>
+                  window.open(
+                    "https://deliverybridge.menuthere.com/accounts",
+                    "_blank",
+                  )
+                }
+              >
+                Open porter-bridge
+                <ExternalLink className="ml-1 h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Welcome Header + Monthly Scans */}
       <div
         className="rounded-xl border bg-muted/40 p-4 sm:p-6 md:p-8 flex items-center justify-between gap-4 cursor-pointer hover:shadow-md transition-shadow"

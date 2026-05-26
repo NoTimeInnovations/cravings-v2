@@ -68,6 +68,7 @@ export const partnerIdQuery = `
       has_seen_tour
       cashfree_merchant_id
       adloggs_merchant_id
+      porter_mobile
       accept_payments_via_cashfree
       accept_cod
       storefront_settings
@@ -129,6 +130,7 @@ export const partnerLoginQuery = `
       has_seen_tour
       cashfree_merchant_id
       adloggs_merchant_id
+      porter_mobile
       accept_payments_via_cashfree
       accept_cod
       storefront_settings
