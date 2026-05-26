@@ -31,6 +31,7 @@ import {
 } from "@/lib/statusHistory";
 import { Notification } from "@/app/actions/notification";
 import { dispatchDeliveryAgent, cancelDeliveryAgent } from "@/app/actions/deliveryAgent";
+import { dispatchPorterBridge, cancelPorter } from "@/app/actions/porterBridge";
 // import { sendOrderNotification } from "@/app/actions/notification";
 
 export interface OrderItem extends HotelDataMenus {
@@ -541,6 +542,25 @@ const useOrderStore = create(
                   // 404 here means the order was never dispatched via this server — fine.
                   if (!r.ok && r.status !== 404) console.warn(`[delivery-agent] cancel failed: ${r.message}`);
                 }).catch((e) => console.warn("[delivery-agent] cancel threw:", e));
+              }
+            }
+
+            // Porter-bridge — independent of delivery_agent. Same shape, same
+            // gates: real delivery, `accepted` → dispatch / `cancelled` → cancel.
+            // Failures persist into orders.delivery_provider_state="failed" so
+            // the admin UI can show why. Coexists with delivery_agent: both
+            // can be enabled simultaneously, in which case both dispatch and
+            // the partner has two riders incoming — by design unusual, the
+            // operator gates this themselves at the feature-flag level.
+            if (features.porter_bridge.access && features.porter_bridge.enabled && isRealDelivery) {
+              if (newStatus === "accepted") {
+                dispatchPorterBridge(orderId).then((r) => {
+                  if (!r.ok) console.warn(`[porter-bridge] dispatch failed: ${r.message}`);
+                }).catch((e) => console.warn("[porter-bridge] dispatch threw:", e));
+              } else if (newStatus === "cancelled") {
+                cancelPorter(orderId, "Cancelled from admin dashboard").then((r) => {
+                  if (!r.ok && r.status !== 404) console.warn(`[porter-bridge] cancel failed: ${r.message}`);
+                }).catch((e) => console.warn("[porter-bridge] cancel threw:", e));
               }
             }
           } catch (e) {

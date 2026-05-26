@@ -1,0 +1,510 @@
+"use server";
+
+/**
+ * Server-side wrappers around porter-bridge (https://deliverybridge.menuthere.com).
+ *
+ * Used by the order store when a partner has the `porter_bridge` feature
+ * flag turned on to dispatch a Porter 2-wheeler at order-accept time. The
+ * partner must have onboarded their own Porter consumer account via the
+ * porter-bridge dashboard once (OTP login from their phone). At dispatch
+ * time we resolve partner.phone → porter-bridge account_id via the
+ * /accounts/by-mobile lookup, then quote + book.
+ *
+ * Every call here is **fire-and-forget from the caller's perspective** —
+ * failures get logged and persisted into the order's
+ * `delivery_provider_state` + `delivery_provider_meta` columns but must
+ * never block the local Hasura mutation that triggered them.
+ *
+ * Coexists with delivery_agent / growjet_delivery — those run independently
+ * via different flags + different status transitions.
+ */
+
+import { fetchFromHasura } from "@/lib/hasuraClient";
+
+// ──────────────────────────────────────────────────────────────────────────
+// Config + transport
+// ──────────────────────────────────────────────────────────────────────────
+
+type Result =
+  | { ok: true; data: Record<string, unknown> }
+  | { ok: false; status?: number; message: string };
+
+function getConfig(): { url: string; key: string } | null {
+  const url = process.env.PORTER_BRIDGE_URL;
+  const key = process.env.PORTER_BRIDGE_API_KEY;
+  if (!url || !key) return null;
+  return { url: url.replace(/\/+$/, ""), key };
+}
+
+async function bridgeFetch(
+  path: string,
+  init: RequestInit & { json?: unknown } = {},
+): Promise<Result> {
+  const cfg = getConfig();
+  if (!cfg) {
+    return {
+      ok: false,
+      message: "PORTER_BRIDGE_URL or PORTER_BRIDGE_API_KEY not configured",
+    };
+  }
+  const headers: Record<string, string> = {
+    "X-API-Key": cfg.key,
+    ...(init.json !== undefined ? { "Content-Type": "application/json" } : {}),
+    ...(init.headers as Record<string, string> | undefined),
+  };
+  let res: Response;
+  try {
+    res = await fetch(`${cfg.url}${path}`, {
+      ...init,
+      headers,
+      body: init.json !== undefined ? JSON.stringify(init.json) : init.body,
+      // Hard cap so a slow porter-bridge response doesn't wedge the UI.
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch (err) {
+    return { ok: false, message: `network: ${(err as Error).message}` };
+  }
+  let parsed: unknown = null;
+  try {
+    parsed = await res.json();
+  } catch {
+    /* keep null */
+  }
+  if (!res.ok) {
+    const msg =
+      (parsed as { error?: string })?.error ??
+      `HTTP ${res.status} on ${path}`;
+    return { ok: false, status: res.status, message: msg };
+  }
+  return { ok: true, data: (parsed as Record<string, unknown>) ?? {} };
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Hasura queries
+// ──────────────────────────────────────────────────────────────────────────
+
+interface OrderForDispatch {
+  id: string;
+  total_price: number;
+  type: string;
+  status: string;
+  delivery_address: string | null;
+  phone: string | null;
+  partner_id: string;
+  notes: string | null;
+  display_id: number | null;
+  user: { phone: string | null; full_name: string | null } | null;
+  delivery_location: { coordinates: [number, number] } | null;
+  partner: {
+    id: string;
+    store_name: string;
+    location: string | null;
+    phone: string | null;
+    geo_location: { coordinates: [number, number] } | null;
+    feature_flags: string | null;
+  } | null;
+}
+
+const ORDER_FOR_DISPATCH_QUERY = `
+  query OrderForDispatch($id: uuid!) {
+    orders_by_pk(id: $id) {
+      id
+      total_price
+      type
+      status
+      delivery_address
+      delivery_location
+      phone
+      partner_id
+      notes
+      display_id
+      user {
+        phone
+        full_name
+      }
+      partner {
+        id
+        store_name
+        location
+        phone
+        geo_location
+        feature_flags
+      }
+    }
+  }
+`;
+
+const PERSIST_PROVIDER_MUTATION = `
+  mutation PersistProviderState(
+    $id: uuid!,
+    $state: String!,
+    $orderId: String,
+    $meta: jsonb
+  ) {
+    update_orders_by_pk(
+      pk_columns: { id: $id },
+      _set: {
+        delivery_provider: "porter",
+        delivery_provider_state: $state,
+        delivery_provider_order_id: $orderId,
+        delivery_provider_meta: $meta,
+        delivery_provider_last_event_at: "now()"
+      }
+    ) { id }
+  }
+`;
+
+async function persistProvider(
+  orderId: string,
+  state: string,
+  porterOrderId: string | null,
+  meta: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await fetchFromHasura(PERSIST_PROVIDER_MUTATION, {
+      id: orderId,
+      state,
+      orderId: porterOrderId,
+      meta,
+    });
+  } catch (err) {
+    console.warn("[porter-bridge] persistProvider failed:", err);
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Helpers — geo + coupling
+// ──────────────────────────────────────────────────────────────────────────
+
+/** Extract lat/lng from a PostGIS-style `{ coordinates: [lng, lat] }` blob.
+ *  Returns null if missing or malformed. */
+function extractLatLng(
+  geo: { coordinates: [number, number] } | null | undefined,
+): { lat: number; lng: number } | null {
+  if (!geo || !Array.isArray(geo.coordinates) || geo.coordinates.length !== 2) {
+    return null;
+  }
+  const [lng, lat] = geo.coordinates;
+  if (
+    typeof lat !== "number" ||
+    typeof lng !== "number" ||
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng)
+  ) {
+    return null;
+  }
+  return { lat, lng };
+}
+
+/** Strip a partner phone of country code / spaces / non-digits, then take
+ *  the trailing 10 digits. Indian numbers only. */
+function normaliseMobile(p: string | null | undefined): string | null {
+  if (!p) return null;
+  const digits = p.replace(/\D+/g, "");
+  if (digits.length < 10) return null;
+  const ten = digits.slice(-10);
+  return /^[6-9][0-9]{9}$/.test(ten) ? ten : null;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Public actions
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * Main entry point: quote + book Porter for an order that just hit
+ * `accepted`. Resolves partner phone → porter-bridge account → quote +
+ * book, then writes the booking metadata back to the order row.
+ *
+ * Returns immediately on misconfig / partner-not-onboarded; persists the
+ * failure to the order so the admin UI can show "Porter dispatch failed:
+ * <reason>".
+ */
+export async function dispatchPorterBridge(orderId: string): Promise<Result> {
+  if (!orderId) return { ok: false, message: "orderId required" };
+
+  // 1. Load order + partner from Hasura.
+  let order: OrderForDispatch;
+  try {
+    const data = await fetchFromHasura(ORDER_FOR_DISPATCH_QUERY, {
+      id: orderId,
+    });
+    order = data.orders_by_pk as OrderForDispatch;
+  } catch (err) {
+    return {
+      ok: false,
+      message: `hasura: ${(err as Error).message}`,
+    };
+  }
+  if (!order) {
+    return { ok: false, message: `order ${orderId} not found` };
+  }
+  if (!order.partner) {
+    return { ok: false, message: `partner missing on order ${orderId}` };
+  }
+
+  // 2. Resolve partner → porter-bridge account by mobile.
+  const partnerMobile = normaliseMobile(order.partner.phone);
+  if (!partnerMobile) {
+    await persistProvider(orderId, "failed", null, {
+      error: "partner.phone is missing or malformed",
+    });
+    return { ok: false, message: "partner.phone missing/invalid" };
+  }
+  const lookup = await bridgeFetch(
+    `/api/v1/accounts/by-mobile/${partnerMobile}`,
+    { method: "GET" },
+  );
+  if (!lookup.ok) {
+    await persistProvider(orderId, "failed", null, {
+      error: `account lookup failed: ${lookup.message}`,
+      partnerMobile,
+    });
+    return lookup;
+  }
+  const account = lookup.data as {
+    _id: string;
+    status: string;
+    hasAuthToken: boolean;
+  };
+  if (account.status !== "active" || !account.hasAuthToken) {
+    await persistProvider(orderId, "failed", null, {
+      error: `porter account not active (status=${account.status}, hasToken=${account.hasAuthToken}) — partner needs to OTP-login at deliverybridge.menuthere.com`,
+    });
+    return {
+      ok: false,
+      message: `porter account inactive for ${partnerMobile}`,
+    };
+  }
+
+  // 3. Build pickup + drop.
+  const pickupLatLng = extractLatLng(order.partner.geo_location);
+  const dropLatLng = extractLatLng(order.delivery_location);
+  if (!pickupLatLng) {
+    await persistProvider(orderId, "failed", null, {
+      error: "partner.geo_location missing — cannot quote without pickup coords",
+    });
+    return { ok: false, message: "partner geo_location missing" };
+  }
+  if (!dropLatLng) {
+    await persistProvider(orderId, "failed", null, {
+      error: "order.delivery_location missing — customer address has no coords",
+    });
+    return { ok: false, message: "order delivery_location missing" };
+  }
+  const customerMobile = normaliseMobile(order.user?.phone ?? order.phone);
+  if (!customerMobile) {
+    await persistProvider(orderId, "failed", null, {
+      error: "customer phone missing — Porter needs a number to dispatch to",
+    });
+    return { ok: false, message: "customer phone missing" };
+  }
+
+  // 4. Quote (2-wheeler).
+  const quote = await bridgeFetch(`/api/v1/porter/quote`, {
+    method: "POST",
+    json: {
+      accountId: account._id,
+      pickup: pickupLatLng,
+      drop: dropLatLng,
+      paymentMode: "cash",
+      serviceType: "TWO_WHEELER",
+      vehicleIds: [97],
+    },
+  });
+  if (!quote.ok) {
+    await persistProvider(orderId, "failed", null, {
+      error: `quote failed: ${quote.message}`,
+    });
+    return quote;
+  }
+  const quotes = (quote.data.quotes ?? []) as Array<{
+    vehicleId: number;
+    quotationUuid: string;
+    fare: number;
+    couponCode: string | null;
+  }>;
+  const wheeler =
+    quotes.find((q) => q.vehicleId === 97) ?? quotes[0];
+  if (!wheeler) {
+    await persistProvider(orderId, "failed", null, {
+      error: "no 2-wheeler quote returned",
+    });
+    return { ok: false, message: "no 2-wheeler available" };
+  }
+
+  // 5. Book.
+  const pickupTitle = order.partner.store_name || "Restaurant";
+  const pickupSubtitle = order.partner.location || "Pickup";
+  const dropTitle = order.user?.full_name?.trim() || "Customer";
+  const dropSubtitle =
+    order.delivery_address?.trim().slice(0, 200) || "Delivery";
+  const noteRoot = order.display_id ? `Order #${order.display_id}` : `Order ${orderId.slice(0, 8)}`;
+  const pickupNote = `${noteRoot} · ${pickupTitle}`.slice(0, 200);
+  const dropNote = `${noteRoot} · for ${dropTitle}`.slice(0, 200);
+
+  const book = await bridgeFetch(`/api/v1/porter/book`, {
+    method: "POST",
+    json: {
+      accountId: account._id,
+      quotationUuid: wheeler.quotationUuid,
+      vehicleId: wheeler.vehicleId,
+      paymentMode: "cash",
+      couponCode: wheeler.couponCode ?? undefined,
+      pickup: pickupLatLng,
+      drop: dropLatLng,
+      pickupAddress: { title: pickupTitle, subtitle: pickupSubtitle },
+      dropAddress: { title: dropTitle, subtitle: dropSubtitle },
+      pickupContact: { name: pickupTitle, phone: partnerMobile },
+      receiverContact: { name: dropTitle, phone: customerMobile },
+      pickupNote,
+      dropNote,
+      pickupInMins: 6,
+    },
+  });
+  if (!book.ok) {
+    await persistProvider(orderId, "failed", null, {
+      error: `book failed: ${book.message}`,
+      quotationUuid: wheeler.quotationUuid,
+    });
+    return book;
+  }
+
+  const booking = book.data as {
+    bookingId: string;
+    crn: string;
+    status: string;
+    fareAmount: number;
+    paymentMode: string;
+    shareText?: string;
+    consignmentNotePdfUrl?: string;
+  };
+  await persistProvider(orderId, booking.status, booking.crn, {
+    accountId: account._id,
+    porterBookingId: booking.bookingId,
+    fareAmount: booking.fareAmount,
+    paymentMode: booking.paymentMode,
+    shareText: booking.shareText ?? null,
+    consignmentNotePdfUrl: booking.consignmentNotePdfUrl ?? null,
+    quotedFare: wheeler.fare,
+    couponCode: wheeler.couponCode ?? null,
+    pickup: pickupLatLng,
+    drop: dropLatLng,
+  });
+
+  return { ok: true, data: booking };
+}
+
+/**
+ * Read the latest status of a Porter booking. Used by the public order
+ * page and admin OrderDetails to refresh driver info + status without
+ * polling Porter from the client.
+ *
+ * Lazily updates the order row when the upstream state has moved.
+ */
+export async function getPorterTracking(orderId: string): Promise<Result> {
+  if (!orderId) return { ok: false, message: "orderId required" };
+
+  let crn: string | null = null;
+  let porterAccountId: string | null = null;
+  try {
+    const data = await fetchFromHasura(
+      `query GetCrn($id: uuid!) {
+        orders_by_pk(id: $id) {
+          delivery_provider
+          delivery_provider_order_id
+          delivery_provider_meta
+        }
+      }`,
+      { id: orderId },
+    );
+    const o = data.orders_by_pk;
+    if (!o || o.delivery_provider !== "porter") {
+      return { ok: false, status: 404, message: "no porter booking on this order" };
+    }
+    crn = o.delivery_provider_order_id;
+    porterAccountId = o.delivery_provider_meta?.accountId ?? null;
+  } catch (err) {
+    return { ok: false, message: `hasura: ${(err as Error).message}` };
+  }
+  if (!crn) {
+    return { ok: false, status: 404, message: "porter order not yet booked" };
+  }
+
+  const qs = porterAccountId ? `?accountId=${porterAccountId}` : "";
+  const res = await bridgeFetch(`/api/v1/porter/order/${crn}${qs}`, {
+    method: "GET",
+  });
+  if (!res.ok) return res;
+
+  // Mirror the upstream state into our order row so the dashboard's
+  // existing Convex/Hasura subscription updates without a forced refresh.
+  const o = res.data as {
+    status: string;
+    driver?: { name?: string; phone?: string; vehicleNumber?: string };
+    fareAmount?: number;
+    shareText?: string;
+  };
+  await persistProvider(orderId, o.status, crn, {
+    ...(res.data as Record<string, unknown>),
+  });
+  return res;
+}
+
+/**
+ * Cancel an active Porter booking when the order is cancelled locally.
+ * Idempotent: returns ok=false with status=404 if there was no porter
+ * booking to begin with (caller can ignore that).
+ */
+export async function cancelPorter(
+  orderId: string,
+  reason: string,
+): Promise<Result> {
+  if (!orderId) return { ok: false, message: "orderId required" };
+
+  let crn: string | null = null;
+  let accountId: string | null = null;
+  try {
+    const data = await fetchFromHasura(
+      `query GetCrn($id: uuid!) {
+        orders_by_pk(id: $id) {
+          delivery_provider
+          delivery_provider_order_id
+          delivery_provider_meta
+          delivery_provider_state
+        }
+      }`,
+      { id: orderId },
+    );
+    const o = data.orders_by_pk;
+    if (!o || o.delivery_provider !== "porter") {
+      return { ok: false, status: 404, message: "no porter booking" };
+    }
+    if (o.delivery_provider_state === "cancelled") {
+      return { ok: true, data: { alreadyCancelled: true } };
+    }
+    crn = o.delivery_provider_order_id;
+    accountId = o.delivery_provider_meta?.accountId ?? null;
+  } catch (err) {
+    return { ok: false, message: `hasura: ${(err as Error).message}` };
+  }
+  if (!crn || !accountId) {
+    return { ok: false, status: 404, message: "porter booking missing CRN/account" };
+  }
+
+  const res = await bridgeFetch(`/api/v1/porter/cancel`, {
+    method: "POST",
+    json: {
+      accountId,
+      crn,
+      reasonId: 135,
+      comment: reason.slice(0, 500) || "Cancelled from menuthere",
+    },
+  });
+  if (res.ok) {
+    await persistProvider(orderId, "cancelled", crn, {
+      cancelledReason: reason,
+      cancelledAt: new Date().toISOString(),
+    });
+  }
+  return res;
+}
