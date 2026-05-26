@@ -35,6 +35,7 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getFeatures } from "@/lib/getFeatures";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
+import { quotePorterFare } from "@/app/actions/porterBridge";
 import V3AddressSheet from "../styles/V3/V3AddressSheet";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
@@ -315,14 +316,85 @@ const PlaceOrderModalV2 = ({
     userCoordinates?.lng,
   ]);
 
+  // ── Porter bridge live quote ──────────────────────────────────────────
+  // When the partner has porter_bridge on, the 2-wheeler fare from
+  // porter-bridge is the delivery charge. Mirrors the delivery_agent flow
+  // above. Porter takes precedence over delivery_agent if both are on.
+  const usePorterForCharge =
+    partnerFeatures.porter_bridge.access &&
+    partnerFeatures.porter_bridge.enabled;
+
+  const [porterQuote, setPorterQuote] = useState<{
+    available: boolean;
+    fare?: number;
+    etaMins?: number;
+    reason?: string;
+  } | null>(null);
+  const [porterQuoteLoading, setPorterQuoteLoading] = useState(false);
+
+  useEffect(() => {
+    if (!usePorterForCharge || orderType !== "delivery" || isQrScan) {
+      setPorterQuote(null);
+      return;
+    }
+    if (!partnerCoords || !userCoordinates) {
+      setPorterQuote(null);
+      return;
+    }
+    let cancelled = false;
+    setPorterQuoteLoading(true);
+    const t = setTimeout(async () => {
+      const res = await quotePorterFare({
+        partnerId: (hotelData as any)?.id,
+        drop: { lat: userCoordinates.lat, lng: userCoordinates.lng },
+        paymentMode: "cash",
+      });
+      if (cancelled) return;
+      setPorterQuoteLoading(false);
+      if (res.ok) {
+        const d = res.data as { fare?: number; etaMins?: number };
+        setPorterQuote({
+          available: typeof d.fare === "number",
+          ...(d.fare !== undefined ? { fare: d.fare } : {}),
+          ...(d.etaMins !== undefined ? { etaMins: d.etaMins } : {}),
+        });
+      } else {
+        setPorterQuote({ available: false, reason: res.message });
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      setPorterQuoteLoading(false);
+      clearTimeout(t);
+    };
+  }, [
+    usePorterForCharge,
+    orderType,
+    isQrScan,
+    (hotelData as any)?.id,
+    partnerCoords?.lat,
+    partnerCoords?.lng,
+    userCoordinates?.lat,
+    userCoordinates?.lng,
+  ]);
+
   // `hide_delivery_charge` is a stale "Extra delivery charges apply" toggle.
-  // When the partner has auto-3PL on, the live agent quote IS the price, so
-  // ignore the old hide flag entirely.
+  // When the partner has auto-3PL on (Adloggs OR Porter), the live quote IS
+  // the price, so ignore the old hide flag entirely.
   const effectiveHideDeliveryCharge =
-    !!hotelData?.delivery_rules?.hide_delivery_charge && !useAgentForCharge;
+    !!hotelData?.delivery_rules?.hide_delivery_charge &&
+    !useAgentForCharge &&
+    !usePorterForCharge;
 
   const deliveryCharge = useMemo(() => {
     if (isQrScan || orderType !== "delivery") return 0;
+    // Porter takes precedence over delivery_agent when both are enabled.
+    if (usePorterForCharge) {
+      if (porterQuote?.available && typeof porterQuote.fare === "number") {
+        return porterQuote.fare;
+      }
+      return 0;
+    }
     if (useAgentForCharge) {
       if (agentQuote?.available && typeof agentQuote.estimatedPrice === "number") {
         return agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP;
@@ -339,6 +411,8 @@ const PlaceOrderModalV2 = ({
     hotelData?.delivery_rules?.hide_delivery_charge,
     useAgentForCharge,
     agentQuote,
+    usePorterForCharge,
+    porterQuote,
   ]);
 
   // Block placement until we have an `available: true` quote. The
@@ -349,6 +423,15 @@ const PlaceOrderModalV2 = ({
     orderType === "delivery" &&
     !!userCoordinates &&
     (agentQuoteLoading || !agentQuote?.available);
+
+  // Same guard for porter-bridge: must have a successful 2-wheeler quote
+  // before we let the customer submit (otherwise dispatch will fail at
+  // accept time with no quoted delivery charge to back it).
+  const porterBlocksOrder =
+    usePorterForCharge &&
+    orderType === "delivery" &&
+    !!userCoordinates &&
+    (porterQuoteLoading || !porterQuote?.available);
 
   const parcelCharge = useMemo(() => {
     if (
@@ -2045,7 +2128,7 @@ const PlaceOrderModalV2 = ({
           <button
             type="button"
             onClick={handlePay}
-            disabled={orderStatus !== "idle" || !items || items.length === 0 || (orderType === "delivery" && !useAgentForCharge && deliveryInfo?.isOutOfRange) || agentBlocksOrder || (!isQrScan && !orderType) || (!isQrScan && orderType === "delivery" && !isDeliveryOpen) || (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) || incompatibleItems.length > 0 || isBelowMinimum}
+            disabled={orderStatus !== "idle" || !items || items.length === 0 || (orderType === "delivery" && !useAgentForCharge && !usePorterForCharge && deliveryInfo?.isOutOfRange) || agentBlocksOrder || porterBlocksOrder || (!isQrScan && !orderType) || (!isQrScan && orderType === "delivery" && !isDeliveryOpen) || (!isQrScan && orderType === "takeaway" && !isTakeawayOpen) || incompatibleItems.length > 0 || isBelowMinimum}
             className="flex-1 max-w-[60%] rounded-xl py-3.5 font-semibold text-white disabled:opacity-60"
             style={{ backgroundColor: accent }}
           >

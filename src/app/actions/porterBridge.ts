@@ -432,6 +432,130 @@ export async function dispatchPorterBridge(orderId: string): Promise<Result> {
 }
 
 /**
+ * Quick fare quote for the customer checkout modals. No booking — just the
+ * 2-wheeler fare from Porter so PlaceOrderModal can show it as the delivery
+ * charge and collect that amount from the customer. The quotation_uuid is
+ * NOT persisted: dispatch re-quotes at accept-time, so prices stay fresh
+ * even if the customer takes a while to confirm.
+ *
+ * Returns { fare, etaMins } on success, or { ok: false, message } if the
+ * partner isn't onboarded / isn't serviceable / Porter rejects the quote.
+ */
+export async function quotePorterFare(input: {
+  partnerId: string;
+  drop: { lat: number; lng: number };
+  paymentMode?: "cash" | "wallet";
+}): Promise<Result> {
+  if (!input.partnerId) return { ok: false, message: "partnerId required" };
+  if (
+    !input.drop ||
+    typeof input.drop.lat !== "number" ||
+    typeof input.drop.lng !== "number"
+  ) {
+    return { ok: false, message: "drop coords required" };
+  }
+
+  // Load just the bits we need from the partner.
+  let partner: {
+    geo_location: { coordinates: [number, number] } | null;
+    phone: string | null;
+    porter_mobile: string | null;
+    feature_flags: string | null;
+  };
+  try {
+    const data = await fetchFromHasura(
+      `query PartnerForPorterQuote($id: uuid!) {
+        partners_by_pk(id: $id) {
+          geo_location
+          phone
+          porter_mobile
+          feature_flags
+        }
+      }`,
+      { id: input.partnerId },
+    );
+    if (!data.partners_by_pk) return { ok: false, message: "partner not found" };
+    partner = data.partners_by_pk;
+  } catch (err) {
+    return { ok: false, message: `hasura: ${(err as Error).message}` };
+  }
+
+  // Quick gate: don't make a porter-bridge call if the flag isn't on. Lets
+  // the modal call this unconditionally without extra branches.
+  if (!partner.feature_flags?.includes("porter_bridge-true")) {
+    return { ok: false, status: 404, message: "porter_bridge not enabled" };
+  }
+
+  const pickup = extractLatLng(partner.geo_location);
+  if (!pickup) return { ok: false, message: "partner pickup coords missing" };
+
+  const partnerMobile =
+    normaliseMobile(partner.porter_mobile) ?? normaliseMobile(partner.phone);
+  if (!partnerMobile) {
+    return { ok: false, message: "partner has no porter mobile to resolve" };
+  }
+
+  const lookup = await bridgeFetch(
+    `/api/v1/accounts/by-mobile/${partnerMobile}`,
+    { method: "GET" },
+  );
+  if (!lookup.ok) return lookup;
+  const account = lookup.data as {
+    _id: string;
+    status: string;
+    hasAuthToken: boolean;
+  };
+  if (account.status !== "active" || !account.hasAuthToken) {
+    return {
+      ok: false,
+      status: 409,
+      message:
+        "porter account not active — partner needs to OTP-login at deliverybridge.menuthere.com",
+    };
+  }
+
+  const quote = await bridgeFetch(`/api/v1/porter/quote`, {
+    method: "POST",
+    json: {
+      accountId: account._id,
+      pickup,
+      drop: input.drop,
+      paymentMode: input.paymentMode ?? "cash",
+      serviceType: "TWO_WHEELER",
+      vehicleIds: [97],
+    },
+  });
+  if (!quote.ok) return quote;
+
+  const quotes = (quote.data.quotes ?? []) as Array<{
+    vehicleId: number;
+    quotationUuid: string;
+    fare: number;
+    couponCode: string | null;
+    etaMins: number;
+    totalDiscount: number;
+  }>;
+  const wheeler =
+    quotes.find((q) => q.vehicleId === 97) ?? quotes[0];
+  if (!wheeler) {
+    return { ok: false, message: "no 2-wheeler quote available" };
+  }
+
+  return {
+    ok: true,
+    data: {
+      fare: wheeler.fare,
+      etaMins: wheeler.etaMins,
+      couponCode: wheeler.couponCode ?? null,
+      totalDiscount: wheeler.totalDiscount,
+      vehicleId: wheeler.vehicleId,
+      // We DON'T return quotation_uuid — dispatch must re-quote at accept
+      // time to avoid using an expired one.
+    },
+  };
+}
+
+/**
  * Read the latest status of a Porter booking. Used by the public order
  * page and admin OrderDetails to refresh driver info + status without
  * polling Porter from the client.

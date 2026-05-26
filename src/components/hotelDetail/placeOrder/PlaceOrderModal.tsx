@@ -46,6 +46,7 @@ import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
+import { quotePorterFare } from "@/app/actions/porterBridge";
 
 const DELIVERY_AGENT_PRICE_MARKUP = 10;
 
@@ -1787,6 +1788,75 @@ const PlaceOrderModal = ({
     !!selectedCoords &&
     (agentQuoteLoading || !agentQuote?.available);
 
+  // ── Porter bridge live quote ──────────────────────────────────────────
+  // Mirrors the delivery_agent flow above for the porter_bridge feature.
+  // Porter takes precedence over delivery_agent when both flags are on.
+  const usePorterForCharge =
+    !!hotelFeatures?.porter_bridge?.access &&
+    !!hotelFeatures?.porter_bridge?.enabled;
+
+  const [porterQuote, setPorterQuote] = useState<{
+    available: boolean;
+    fare?: number;
+    etaMins?: number;
+    reason?: string;
+  } | null>(null);
+  const [porterQuoteLoading, setPorterQuoteLoading] = useState(false);
+
+  useEffect(() => {
+    if (!usePorterForCharge || !isDelivery || isQrScan || orderType !== "delivery") {
+      setPorterQuote(null);
+      return;
+    }
+    if (!partnerCoords || !selectedCoords) {
+      setPorterQuote(null);
+      return;
+    }
+    let cancelled = false;
+    setPorterQuoteLoading(true);
+    const t = setTimeout(async () => {
+      const res = await quotePorterFare({
+        partnerId: (hotelData as any)?.id,
+        drop: { lat: selectedCoords.lat, lng: selectedCoords.lng },
+        paymentMode: "cash",
+      });
+      if (cancelled) return;
+      setPorterQuoteLoading(false);
+      if (res.ok) {
+        const d = res.data as { fare?: number; etaMins?: number };
+        setPorterQuote({
+          available: typeof d.fare === "number",
+          ...(d.fare !== undefined ? { fare: d.fare } : {}),
+          ...(d.etaMins !== undefined ? { etaMins: d.etaMins } : {}),
+        });
+      } else {
+        setPorterQuote({ available: false, reason: res.message });
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      setPorterQuoteLoading(false);
+      clearTimeout(t);
+    };
+  }, [
+    usePorterForCharge,
+    isDelivery,
+    isQrScan,
+    orderType,
+    (hotelData as any)?.id,
+    partnerCoords?.lat,
+    partnerCoords?.lng,
+    selectedCoords?.lat,
+    selectedCoords?.lng,
+  ]);
+
+  const porterBlocksOrder =
+    usePorterForCharge &&
+    isDelivery &&
+    orderType === "delivery" &&
+    !!selectedCoords &&
+    (porterQuoteLoading || !porterQuote?.available);
+
   // Fetch active coupon discounts for this partner
   useEffect(() => {
     if (!showDiscountSection || !hotelData?.id) return;
@@ -2294,7 +2364,18 @@ const PlaceOrderModal = ({
       : 0;
     const deliveryCharge = (() => {
       if (isQrScan || orderType !== "delivery") return 0;
-      if (hotelData?.delivery_rules?.hide_delivery_charge) return 0;
+      if (
+        hotelData?.delivery_rules?.hide_delivery_charge &&
+        !useAgentForCharge &&
+        !usePorterForCharge
+      )
+        return 0;
+      // Porter takes precedence over delivery_agent if both are enabled.
+      if (usePorterForCharge) {
+        return porterQuote?.available && typeof porterQuote.fare === "number"
+          ? porterQuote.fare
+          : 0;
+      }
       if (useAgentForCharge) {
         return agentQuote?.available && typeof agentQuote.estimatedPrice === "number"
           ? agentQuote.estimatedPrice + DELIVERY_AGENT_PRICE_MARKUP
@@ -3024,8 +3105,9 @@ const PlaceOrderModal = ({
       (!address ||
         ((hotelData?.delivery_rules?.needDeliveryLocation ?? true) &&
           !selectedCoords))) ||
-    (isDelivery && !useAgentForCharge && deliveryInfo?.isOutOfRange) ||
+    (isDelivery && !useAgentForCharge && !usePorterForCharge && deliveryInfo?.isOutOfRange) ||
     agentBlocksOrder ||
+    porterBlocksOrder ||
     (hasMultiWhatsapp && !selectedLocation);
 
   const { qrData } = useQrDataStore();
