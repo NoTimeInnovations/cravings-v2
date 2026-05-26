@@ -100,6 +100,11 @@ interface OrderForDispatch {
     store_name: string;
     location: string | null;
     phone: string | null;
+    /** Explicit override for the Porter account to dispatch from. When null,
+     *  we fall back to `phone`. Add this column with:
+     *    ALTER TABLE partners ADD COLUMN IF NOT EXISTS porter_mobile text;
+     */
+    porter_mobile: string | null;
     geo_location: { coordinates: [number, number] } | null;
     feature_flags: string | null;
   } | null;
@@ -127,6 +132,7 @@ const ORDER_FOR_DISPATCH_QUERY = `
         store_name
         location
         phone
+        porter_mobile
         geo_location
         feature_flags
       }
@@ -243,12 +249,19 @@ export async function dispatchPorterBridge(orderId: string): Promise<Result> {
   }
 
   // 2. Resolve partner → porter-bridge account by mobile.
-  const partnerMobile = normaliseMobile(order.partner.phone);
+  //    Prefer the explicit porter_mobile column when set (lets a partner use
+  //    a Porter account on a different phone than their primary contact).
+  //    Falls back to partner.phone for partners onboarded before that
+  //    column was populated.
+  const partnerMobile =
+    normaliseMobile(order.partner.porter_mobile) ??
+    normaliseMobile(order.partner.phone);
   if (!partnerMobile) {
     await persistProvider(orderId, "failed", null, {
-      error: "partner.phone is missing or malformed",
+      error:
+        "neither partner.porter_mobile nor partner.phone is a valid 10-digit Indian number",
     });
-    return { ok: false, message: "partner.phone missing/invalid" };
+    return { ok: false, message: "partner mobile missing/invalid" };
   }
   const lookup = await bridgeFetch(
     `/api/v1/accounts/by-mobile/${partnerMobile}`,
