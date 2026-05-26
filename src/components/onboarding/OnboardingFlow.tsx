@@ -217,6 +217,21 @@ export default function OnboardingFlow({
     dismissWithAnimation();
   }, [setUserAddress, setUserCoordinates, partnerId, dismissWithAnimation]);
 
+  // Used by the outlet picker (brand-parent + delivery) to persist the typed
+  // address so the chosen outlet sees the same data the standalone
+  // DeliveryAddressScreen would have produced.
+  const handleOutletAddressSave = useCallback(async (addr: string, coords: { lat: number; lng: number } | null) => {
+    setUserAddress(addr);
+    if (coords) {
+      setUserCoordinates(coords);
+      useLocationStore.getState().setCoords(coords);
+    }
+    try {
+      localStorage.setItem("onboarding_address", JSON.stringify({ address: addr, coords }));
+    } catch {}
+    await setOnboardingDataCookie(partnerId, { address: addr, coords });
+  }, [setUserAddress, setUserCoordinates, partnerId]);
+
   const handleOrderTypeSelect = useCallback(async (type: "delivery" | "takeaway") => {
     setOrderType(type);
     try {
@@ -426,6 +441,16 @@ export default function OnboardingFlow({
                   : undefined
             }
             accent={accent}
+            orderType={
+              typeof window !== "undefined"
+                ? (sessionStorage.getItem(`order_type_${partnerId}`) as
+                    | "delivery"
+                    | "takeaway"
+                    | null)
+                : null
+            }
+            onAddressSave={handleOutletAddressSave}
+            hotelData={hotelData}
           />
         )}
       </div>
