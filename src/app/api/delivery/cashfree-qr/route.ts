@@ -81,24 +81,54 @@ async function cashfreeRequest(
   merchantId: string,
   partnerApiKey: string,
   body?: Record<string, unknown>,
-): Promise<{ ok: boolean; status: number; data: any }> {
-  const res = await fetch(`${CASHFREE_BASE_URL}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-version": "2025-01-01",
-      "x-partner-apikey": partnerApiKey,
-      "x-partner-merchantid": merchantId,
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  let data: any = {};
+): Promise<{ ok: boolean; status: number; data: any; error?: string }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
   try {
-    data = await res.json();
-  } catch {
-    /* swallow */
+    const res = await fetch(`${CASHFREE_BASE_URL}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-version": "2025-01-01",
+        "x-partner-apikey": partnerApiKey,
+        "x-partner-merchantid": merchantId,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+    let data: any = {};
+    try {
+      data = await res.json();
+    } catch {
+      /* swallow */
+    }
+    return { ok: res.ok, status: res.status, data };
+  } catch (e: any) {
+    return {
+      ok: false,
+      status: 0,
+      data: null,
+      error: e?.name === "AbortError" ? "timeout" : e?.message || "fetch_failed",
+    };
+  } finally {
+    clearTimeout(timer);
   }
-  return { ok: res.ok, status: res.status, data };
+}
+
+/**
+ * Cashfree's customer_phone validator wants a 10-digit Indian mobile (no +,
+ * no country code, no spaces). Anything else makes the link create call
+ * either reject loudly or — worse — stall on their side.
+ */
+function normalizeIndianPhone(raw: string | null | undefined): string {
+  const digits = (raw || "").replace(/\D/g, "");
+  // Strip a leading 91 if it sits in front of a 10-digit number.
+  if (digits.length === 12 && digits.startsWith("91")) return digits.slice(2);
+  if (digits.length === 11 && digits.startsWith("0")) return digits.slice(1);
+  if (digits.length === 10) return digits;
+  // Fallback: last 10 digits, or a clearly-fake but valid-shape number so
+  // Cashfree accepts the create call.
+  return digits.length >= 10 ? digits.slice(-10) : "9999999999";
 }
 
 export async function POST(req: NextRequest) {
@@ -215,8 +245,8 @@ export async function POST(req: NextRequest) {
     const expiry = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
     const customer = {
-      name: order.user?.full_name || "Customer",
-      phone: order.user?.phone || order.phone || "0000000000",
+      name: (order.user?.full_name || "Customer").slice(0, 50),
+      phone: normalizeIndianPhone(order.user?.phone || order.phone),
       email: order.user?.email || "customer@menuthere.com",
     };
 
@@ -246,18 +276,21 @@ export async function POST(req: NextRequest) {
         },
         link_meta: {
           notify_url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://menuthere.com"}/api/cashfree/webhooks`,
-          upi_intent: false,
         },
       },
     );
 
     if (!createRes.ok) {
+      const cfMsg =
+        createRes.error ||
+        createRes.data?.message ||
+        createRes.data?.error?.message ||
+        JSON.stringify(createRes.data);
       console.error(
-        "[cashfree-qr] link create failed:",
-        createRes.data?.message || JSON.stringify(createRes.data),
+        `[cashfree-qr] link create failed status=${createRes.status} merchant=${merchantId} env=${IS_PRODUCTION ? "PROD" : "SANDBOX"} payload_link_id=${linkId} reason=${cfMsg}`,
       );
       return NextResponse.json(
-        { error: "Could not create payment link" },
+        { error: "Could not create payment link", cashfree: cfMsg },
         { status: 502 },
       );
     }
