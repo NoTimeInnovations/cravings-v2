@@ -3,9 +3,25 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 
 // Rider-facing endpoint. The delivery app POSTs { orderId, deliveryBoyId } when
 // the partner has delivery_qr_method='cashfree' and the rider taps Show QR.
-// All trusted data (amount, partner config, customer details) is read from
-// Hasura server-side; the client supplies only the two identifiers we use to
-// authorize the call.
+//
+// Security posture:
+//   - Cashfree REST key + merchant id stay server-side. The app receives ONLY
+//     a hosted-checkout URL string.
+//   - Amount is read from orders.total_price — never client-supplied.
+//   - Partner merchant is read from order.partner.cashfree_merchant_id —
+//     never client-supplied; that's why money can only ever land in the
+//     correct partner's account.
+//   - Rider-to-order ownership is verified against orders.delivery_boy_id.
+//   - The Cashfree link_id is server-generated, persisted on the order row,
+//     and used as the join key for the inbound webhook. Tampering with the
+//     URL on the wire is moot since Cashfree only credits the configured
+//     merchant for the configured link, regardless of who scans.
+//   - The webhook handler does its own HMAC check + amount cross-check before
+//     flipping payment_status.
+//
+// This route uses Cashfree's Payment Links API (POST /pg/links) rather than
+// the gated /pg/orders/sessions endpoint — Payment Links is enabled by
+// default on every merchant account.
 
 const IS_PRODUCTION = process.env.CASHFREE_ENV === "PRODUCTION";
 const CASHFREE_BASE_URL = IS_PRODUCTION
@@ -26,7 +42,7 @@ const RIDER_QR_QUERY = `
       payment_status
       total_price
       delivery_boy_id
-      cashfree_order_id
+      cashfree_link_id
       user_id
       phone
       partner {
@@ -43,6 +59,47 @@ const RIDER_QR_QUERY = `
     }
   }
 `;
+
+const SET_CASHFREE_LINK_ID = `
+  mutation SetCashfreeLinkId($id: uuid!, $linkId: String!) {
+    update_orders_by_pk(pk_columns: {id: $id}, _set: {cashfree_link_id: $linkId}) {
+      id
+    }
+  }
+`;
+
+type CashfreeLink = {
+  link_id: string;
+  link_url: string;
+  link_status: string;
+  link_amount: number;
+};
+
+async function cashfreeRequest(
+  path: string,
+  method: "GET" | "POST",
+  merchantId: string,
+  partnerApiKey: string,
+  body?: Record<string, unknown>,
+): Promise<{ ok: boolean; status: number; data: any }> {
+  const res = await fetch(`${CASHFREE_BASE_URL}${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-version": "2025-01-01",
+      "x-partner-apikey": partnerApiKey,
+      "x-partner-merchantid": merchantId,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  let data: any = {};
+  try {
+    data = await res.json();
+  } catch {
+    /* swallow */
+  }
+  return { ok: res.ok, status: res.status, data };
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -72,8 +129,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Status guard: only collect on live orders. Cancelled / completed orders
-    // should not generate a fresh QR.
+    // Status guard: only collect on live orders.
     if (!["accepted", "dispatched"].includes(order.status)) {
       return NextResponse.json(
         { error: `Order not collectable (status=${order.status})` },
@@ -81,7 +137,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Idempotent re-tap: if already paid, just signal so the app dismisses.
+    // Idempotent re-tap once already paid: signal so the app dismisses cleanly.
     if (order.payment_status === "paid") {
       return NextResponse.json({ alreadyPaid: true });
     }
@@ -102,7 +158,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Amount is read from Hasura — never trust the client.
+    // Amount comes ONLY from Hasura.
     const amount = Number(order.total_price);
     if (!Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json(
@@ -120,109 +176,110 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Unique Cashfree order id per QR request (their order_id must be unique
-    // across creates). Suffix with a base36 timestamp so a rider can re-tap
-    // after a partial / expired session.
+    // Idempotency: if we already created a link for this order, reuse it
+    // unless Cashfree says it's expired/cancelled. This is what makes rapid
+    // re-taps safe — the rider sees the same URL until the previous one
+    // actually settles or expires.
+    if (order.cashfree_link_id) {
+      const existing = await cashfreeRequest(
+        `/pg/links/${encodeURIComponent(order.cashfree_link_id)}`,
+        "GET",
+        merchantId,
+        partnerApiKey,
+      );
+      if (existing.ok) {
+        const link = existing.data as CashfreeLink;
+        if (link.link_status === "PAID") {
+          // Webhook may still be in flight; surface paid state so the app
+          // dismisses without creating a duplicate.
+          return NextResponse.json({ alreadyPaid: true });
+        }
+        if (link.link_status === "ACTIVE" || link.link_status === "PARTIALLY_PAID") {
+          return NextResponse.json({
+            upiUri: link.link_url,
+            amount,
+            currency: "INR",
+          });
+        }
+        // EXPIRED / CANCELLED → fall through to create a fresh link.
+      }
+    }
+
+    // Cashfree requires link_id to be unique across the merchant — suffix
+    // with a base36 timestamp so we never collide with prior attempts.
     const ts = Date.now().toString(36);
-    const cfOrderId = `${order.short_id || order.id.slice(0, 12)}-r-${ts}`.slice(0, 45);
+    const linkId = `del-${order.short_id || order.id.slice(0, 12)}-${ts}`.slice(0, 50);
+
+    // 30-minute expiry: short enough to prevent stale links being scanned
+    // hours later, long enough for the rider/customer to complete the flow.
+    const expiry = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
     const customer = {
-      id: order.user_id || order.delivery_boy_id,
       name: order.user?.full_name || "Customer",
       phone: order.user?.phone || order.phone || "0000000000",
       email: order.user?.email || "customer@menuthere.com",
     };
 
-    // Step 1 — create the Cashfree order.
-    const orderRes = await fetch(`${CASHFREE_BASE_URL}/pg/orders`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-version": "2025-01-01",
-        "x-partner-apikey": partnerApiKey,
-        "x-partner-merchantid": merchantId,
-      },
-      body: JSON.stringify({
-        order_id: cfOrderId,
-        order_amount: amount,
-        order_currency: "INR",
+    const createRes = await cashfreeRequest(
+      "/pg/links",
+      "POST",
+      merchantId,
+      partnerApiKey,
+      {
+        link_id: linkId,
+        link_amount: amount,
+        link_currency: "INR",
+        link_purpose: `Order ${order.short_id || order.id.slice(0, 8)}`,
         customer_details: {
-          customer_id: customer.id,
-          customer_name: customer.name,
           customer_phone: customer.phone,
+          customer_name: customer.name,
           customer_email: customer.email,
         },
-        order_meta: {
-          payment_methods: "upi",
+        // No partial payments — customer pays the exact total or nothing.
+        link_partial_payments: false,
+        link_expiry_time: expiry,
+        link_auto_reminders: false,
+        // Notes live on the link; useful for the webhook to cross-check.
+        link_notes: {
+          internal_order_id: order.id,
+          short_id: order.short_id || "",
         },
-        order_note: `Rider QR ${order.short_id || order.id}`,
-      }),
-    });
-    const orderData = await orderRes.json();
-    if (!orderRes.ok || !orderData?.payment_session_id) {
-      console.error(
-        "[cashfree-qr] order create failed:",
-        orderData?.message || JSON.stringify(orderData),
-      );
-      return NextResponse.json(
-        { error: "Could not create payment order" },
-        { status: 502 },
-      );
-    }
-
-    // Step 2 — ask Cashfree for a UPI deep link tied to that session.
-    const sessionRes = await fetch(`${CASHFREE_BASE_URL}/pg/orders/sessions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-version": "2025-01-01",
-        "x-partner-apikey": partnerApiKey,
-        "x-partner-merchantid": merchantId,
+        link_meta: {
+          notify_url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://menuthere.com"}/api/cashfree/webhooks`,
+          upi_intent: false,
+        },
       },
-      body: JSON.stringify({
-        payment_session_id: orderData.payment_session_id,
-        payment_method: { upi: { channel: "link" } },
-      }),
-    });
-    const sessionData = await sessionRes.json();
-    if (!sessionRes.ok) {
+    );
+
+    if (!createRes.ok) {
       console.error(
-        "[cashfree-qr] session create failed:",
-        sessionData?.message || JSON.stringify(sessionData),
+        "[cashfree-qr] link create failed:",
+        createRes.data?.message || JSON.stringify(createRes.data),
       );
       return NextResponse.json(
-        { error: "Could not generate QR" },
+        { error: "Could not create payment link" },
         { status: 502 },
       );
     }
 
-    // Tolerant parse — Cashfree's response shape varies slightly across API
-    // versions.
-    const upiUri: string | undefined =
-      sessionData?.data?.payload?.url ||
-      sessionData?.data?.url ||
-      sessionData?.payload?.url ||
-      sessionData?.url;
-
-    if (!upiUri || !upiUri.startsWith("upi://")) {
-      console.error("[cashfree-qr] no UPI URI in session response");
+    const link = createRes.data as CashfreeLink;
+    if (!link.link_url || !/^https:\/\//.test(link.link_url)) {
+      console.error("[cashfree-qr] missing/invalid link_url");
       return NextResponse.json(
         { error: "QR generation failed" },
         { status: 502 },
       );
     }
 
-    // Persist the cashfree_order_id so the existing webhook can map the
-    // PAYMENT_SUCCESS event back to this order row.
-    await fetchFromHasura(
-      `mutation SetCashfreeOrderIdForRider($id: uuid!, $cfid: String!) {
-        update_orders_by_pk(pk_columns: {id: $id}, _set: {cashfree_order_id: $cfid}) { id }
-      }`,
-      { id: order.id, cfid: cfOrderId },
-    );
+    // Persist before responding so the webhook can map back even if the
+    // response never reaches the rider.
+    await fetchFromHasura(SET_CASHFREE_LINK_ID, {
+      id: order.id,
+      linkId,
+    });
 
     return NextResponse.json({
-      upiUri,
+      upiUri: link.link_url,
       amount,
       currency: "INR",
     });

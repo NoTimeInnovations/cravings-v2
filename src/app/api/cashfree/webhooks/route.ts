@@ -35,6 +35,42 @@ const lookupOrderByCashfreeId = `
   }
 `;
 
+const lookupOrderByLinkId = `
+  query LookupOrderByLinkId($link_id: String!) {
+    orders(where: { cashfree_link_id: { _eq: $link_id } }, limit: 1) {
+      id
+      short_id
+      partner_id
+      total_price
+      status
+      payment_status
+      created_at
+    }
+  }
+`;
+
+const updateOrderPaymentByLinkId = `
+  mutation UpdateOrderPaymentByLinkId($link_id: String!, $payment_status: String!, $payment_details: jsonb, $cashfree_payment_id: String) {
+    update_orders(
+      where: {
+        cashfree_link_id: { _eq: $link_id },
+        payment_status: { _neq: "paid" }
+      },
+      _set: { payment_status: $payment_status, payment_details: $payment_details, cashfree_payment_id: $cashfree_payment_id }
+    ) {
+      affected_rows
+      returning {
+        id
+        short_id
+        partner_id
+        total_price
+        status
+        payment_status
+      }
+    }
+  }
+`;
+
 function verifyWebhookSignature(
   timestamp: string,
   rawBody: string,
@@ -80,6 +116,13 @@ export async function POST(req: NextRequest) {
     const cfPaymentId = event.data?.payment?.cf_payment_id;
     const paymentStatus = event.data?.payment?.payment_status;
     const paymentMethod = event.data?.payment?.payment_method;
+
+    // PAYMENT_LINK_EVENT carries link details under data.link_id (older
+    // schema) or data.cf_link_id; the actual transaction lives under
+    // data.order. Branch early so we can route to the link-specific handler.
+    if (eventType === "PAYMENT_LINK_EVENT") {
+      return await handlePaymentLinkEvent(event);
+    }
 
     console.log(
       `[Cashfree Webhook] event=${eventType} cf_order_id=${cfOrderId} merchant=${merchantId} amount=${orderAmount} cf_payment_id=${cfPaymentId} payment_status=${paymentStatus}`,
@@ -190,4 +233,103 @@ export async function POST(req: NextRequest) {
     console.error("[Cashfree Webhook] Unhandled error:", error);
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
+}
+
+/**
+ * Payment Link events come from the rider Cashfree-QR flow.
+ *
+ * The HMAC signature has already been verified by the time we get here. We
+ * then layer two more checks before flipping payment_status:
+ *
+ *  1. The reported link_amount_paid must match the order's total_price
+ *     (within 1 paisa). If they diverge, refuse — this catches anything from
+ *     a misrouted webhook to a hand-crafted payload that somehow passed HMAC.
+ *  2. The mutation guards on `payment_status: { _neq: "paid" }`, so retries
+ *     and duplicate "PAID" events can't double-credit or overwrite a prior
+ *     authoritative state.
+ */
+async function handlePaymentLinkEvent(event: any) {
+  const linkId: string | undefined = event.data?.link_id;
+  const linkStatus: string | undefined = event.data?.link_status;
+  const linkAmount = Number(event.data?.link_amount ?? 0);
+  const linkAmountPaid = Number(event.data?.link_amount_paid ?? 0);
+  const txn = event.data?.order || {};
+  const transactionId = txn?.transaction_id?.toString();
+  const transactionStatus: string | undefined = txn?.transaction_status;
+  const paymentMethod = txn?.payment_method;
+
+  console.log(
+    `[Cashfree Webhook][LINK] link_id=${linkId} status=${linkStatus} amount=${linkAmount} paid=${linkAmountPaid} txn_id=${transactionId} txn_status=${transactionStatus}`,
+  );
+
+  if (!linkId) {
+    console.warn("[Cashfree Webhook][LINK] missing data.link_id — ignoring");
+    return NextResponse.json({ status: "ignored", reason: "missing_link_id" });
+  }
+
+  const lookup = await fetchFromHasura(lookupOrderByLinkId, { link_id: linkId });
+  const order = lookup?.orders?.[0];
+
+  if (!order) {
+    console.warn(
+      `[Cashfree Webhook][LINK] no order row for link_id=${linkId}. Acknowledging so Cashfree doesn't retry forever; if this is a real miss the order was likely never persisted or the link belongs to another tenant.`,
+    );
+    return NextResponse.json({ status: "ignored", reason: "order_not_found" });
+  }
+
+  console.log(
+    `[Cashfree Webhook][LINK] matched order id=${order.id} short_id=${order.short_id} expected_total=${order.total_price} current_payment_status=${order.payment_status}`,
+  );
+
+  // Only PAID events flip status. Anything else is logged but ignored.
+  if (linkStatus !== "PAID" || transactionStatus !== "SUCCESS") {
+    return NextResponse.json({ status: "ignored", reason: `link_status=${linkStatus}` });
+  }
+
+  // Defense-in-depth: even with a valid HMAC, refuse to mark paid if the
+  // amount Cashfree is reporting doesn't match what we expected. 1 paisa
+  // tolerance for float rounding.
+  const expected = Number(order.total_price);
+  if (
+    !Number.isFinite(linkAmountPaid) ||
+    Math.abs(linkAmountPaid - expected) > 0.01
+  ) {
+    console.error(
+      `[Cashfree Webhook][LINK] amount mismatch — refusing to mark paid. link_id=${linkId} expected=${expected} reported=${linkAmountPaid}`,
+    );
+    return NextResponse.json(
+      { status: "rejected", reason: "amount_mismatch" },
+      { status: 200 },
+    );
+  }
+
+  const result = await fetchFromHasura(updateOrderPaymentByLinkId, {
+    link_id: linkId,
+    payment_status: "paid",
+    payment_details: {
+      via: "payment_link",
+      link_id: linkId,
+      link_amount: linkAmount,
+      link_amount_paid: linkAmountPaid,
+      cf_transaction_id: transactionId,
+      payment_method: paymentMethod,
+      event_time: event.event_time || null,
+    },
+    cashfree_payment_id: transactionId || null,
+  });
+  const affected = result?.update_orders?.affected_rows ?? 0;
+  const updated = result?.update_orders?.returning?.[0];
+  if (affected === 0) {
+    // Mutation is guarded on payment_status _neq "paid", so 0 rows = already
+    // paid. This is the happy path for a duplicate webhook delivery.
+    console.log(
+      `[Cashfree Webhook][LINK] no rows updated — order ${order.id} likely already paid (idempotent ack).`,
+    );
+  } else {
+    console.log(
+      `[Cashfree Webhook][LINK] PAID -> order id=${updated?.id} short_id=${updated?.short_id} partner=${updated?.partner_id} total=${updated?.total_price}`,
+    );
+  }
+
+  return NextResponse.json({ status: "ok" });
 }
