@@ -50,6 +50,11 @@ const PorterTrackingPanel = dynamic(
   { ssr: false },
 );
 
+const DispatchProgressPanel = dynamic(
+  () => import("@/components/admin-v2/DispatchProgressPanel"),
+  { ssr: false },
+);
+
 
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { DeliveryBoyAssignment } from "./DeliveryBoyAssignment";
@@ -673,6 +678,13 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     </div>
                 );
             })()}
+
+            {/* Delivery-bridge multi-provider dispatch progress — which provider
+                is being checked now + each provider's outcome (cancelled/live).
+                Shows for any order dispatched through the bridge (has a dispatchId). */}
+            {(order.delivery_provider_meta as { dispatchId?: string } | null)?.dispatchId && (
+                <DispatchProgressPanel orderId={order.id} />
+            )}
 
             {/* Porter bridge tracking — rendered independently of the
                 Delivery Agent / Growjet block so it shows up even for

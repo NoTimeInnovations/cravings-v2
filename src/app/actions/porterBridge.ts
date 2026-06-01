@@ -839,6 +839,66 @@ export async function getDispatchTracking(orderId: string): Promise<Result> {
   return { ok: true, data: { dispatchStatus: d.status, provider, booking: b } };
 }
 
+/**
+ * Read-only dispatch progress for the admin order view: which provider is being
+ * checked right now and each provider's outcome (checking / tried→cancelled /
+ * pending / won-live). No persistence — safe to poll while the order is live.
+ */
+export async function getDispatchProgress(orderId: string): Promise<Result> {
+  if (!orderId) return { ok: false, message: "orderId required" };
+  let dispatchId: string | null = null;
+  try {
+    const data = await fetchFromHasura(
+      `query GetDispatchProg($id: uuid!) { orders_by_pk(id: $id) { delivery_provider_meta } }`,
+      { id: orderId },
+    );
+    dispatchId = data.orders_by_pk?.delivery_provider_meta?.dispatchId ?? null;
+  } catch (err) {
+    return { ok: false, message: `hasura: ${(err as Error).message}` };
+  }
+  if (!dispatchId) return { ok: false, status: 404, message: "no dispatch on this order" };
+
+  const res = await bridgeFetch(`/api/v1/dispatch/${dispatchId}`, { method: "GET" });
+  if (!res.ok) return res;
+  const d = res.data as {
+    status: string;
+    vehicleMode?: string | null;
+    plan: string[];
+    currentProvider: string | null;
+    result: { provider?: string; driverName?: string; fare?: number } | null;
+    booking: { provider?: string; status?: string; driver?: unknown; trackUrl?: string | null } | null;
+    log: Array<{ t: number; text: string; tone: string }>;
+  };
+  const running = d.status === "running";
+  const curIdx = d.currentProvider ? d.plan.indexOf(d.currentProvider) : -1;
+  const won = d.status === "assigned" ? (d.result?.provider ?? d.booking?.provider ?? null) : null;
+  // Per-provider state: won (live) | checking (now) | tried (cancelled/failed/escalated) | pending.
+  const providers = d.plan.map((provider, i) => {
+    let state: "won" | "checking" | "tried" | "pending";
+    if (won === provider) state = "won";
+    else if (running && i === curIdx) state = "checking";
+    else if (curIdx >= 0 && i < curIdx) state = "tried";
+    else if (!running && won && provider !== won) state = "tried";
+    else if (!running && !won) state = "tried"; // exhausted/stopped: everything was tried
+    else state = "pending";
+    return { provider, state };
+  });
+  return {
+    ok: true,
+    data: {
+      dispatchId,
+      status: d.status,
+      vehicleMode: d.vehicleMode ?? null,
+      currentProvider: running ? d.currentProvider : null,
+      wonProvider: won,
+      providers,
+      driverName: d.result?.driverName ?? null,
+      trackUrl: d.booking?.trackUrl ?? null,
+      log: Array.isArray(d.log) ? d.log.slice(-8) : [],
+    },
+  };
+}
+
 /** Cancel a dispatched order's delivery (stops the sequence and/or cancels the
  *  won provider's booking via the bridge). Falls back to the legacy Porter
  *  cancel for orders booked before the dispatch switch. */
