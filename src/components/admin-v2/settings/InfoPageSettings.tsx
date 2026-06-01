@@ -61,7 +61,7 @@ interface AppStoreLinks {
 }
 
 const LOGO_SCALE_MIN = 50;
-const LOGO_SCALE_MAX = 250;
+const LOGO_SCALE_MAX = 500;
 
 const DEFAULT_INFO: InfoPageData = {
     bgImage: "",
