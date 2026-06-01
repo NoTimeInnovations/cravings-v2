@@ -512,6 +512,26 @@ export function GeneralSettings() {
             };
             const storefrontPayload = JSON.stringify(nextStorefront);
 
+            // Preserve every other area/branch the partner configured (Delivery
+            // settings stores per-area numbers as whatsapp_numbers[{number,area}]).
+            // Only update the primary ("default", else first) entry — do NOT
+            // collapse the array to a single entry, which wiped branch numbers.
+            const existingWa: Array<{ number: string; area: string }> = Array.isArray(
+                (userData as any).whatsapp_numbers,
+            )
+                ? (userData as any).whatsapp_numbers
+                : [];
+            let nextWhatsappNumbers: Array<{ number: string; area: string }>;
+            if (existingWa.length === 0) {
+                nextWhatsappNumbers = [{ number: whatsappNumber, area: "default" }];
+            } else {
+                const di = existingWa.findIndex((w) => w?.area === "default");
+                const target = di >= 0 ? di : 0;
+                nextWhatsappNumbers = existingWa.map((w, i) =>
+                    i === target ? { ...w, number: whatsappNumber } : w,
+                );
+            }
+
             const updates: any = {
                 store_name: storeName,
                 store_tagline: storeTagline || null,
@@ -520,7 +540,7 @@ export function GeneralSettings() {
                 footnote: footNote,
                 is_shop_open: isShopOpen,
                 timezone,
-                whatsapp_numbers: [{ number: whatsappNumber, area: "default" }],
+                whatsapp_numbers: nextWhatsappNumbers,
                 social_links: {
                     instagram: instaLink,
                     facebook: facebookLink,
