@@ -613,6 +613,8 @@ interface PartnerDispatchCfg {
   pickup: { lat: number; lng: number };
   storeName: string;
   priority: string[] | undefined;
+  /** Booking method: "bike" (normal 2-wheeler ride) or "parcel" (courier class). */
+  vehicleMode: "bike" | "parcel";
   enabled: boolean;
 }
 
@@ -627,7 +629,7 @@ async function loadPartnerDispatchCfg(
     uber_mobile: string | null;
     rapido_mobile: string | null;
     feature_flags: string | null;
-    delivery_rules: { delivery_provider_priority?: unknown } | null;
+    delivery_rules: { delivery_provider_priority?: unknown; delivery_vehicle_mode?: unknown } | null;
   } | null;
   try {
     const data = await fetchFromHasura(
@@ -658,9 +660,11 @@ async function loadPartnerDispatchCfg(
   };
   const pri = p.delivery_rules?.delivery_provider_priority;
   const priority = Array.isArray(pri) && pri.length ? pri.map(String) : undefined;
+  const vehicleMode: "bike" | "parcel" =
+    p.delivery_rules?.delivery_vehicle_mode === "parcel" ? "parcel" : "bike";
   return {
     ok: true,
-    cfg: { mobile, mobiles, pickup, storeName: p.store_name ?? "Store", priority, enabled },
+    cfg: { mobile, mobiles, pickup, storeName: p.store_name ?? "Store", priority, vehicleMode, enabled },
   };
 }
 
@@ -687,7 +691,7 @@ export async function quoteDeliveryFare(input: {
     json: {
       mobile: c.cfg.mobile,
       mobiles: c.cfg.mobiles,
-      vehicleMode: "bike",
+      vehicleMode: c.cfg.vehicleMode,
       priority: c.cfg.priority,
       paymentMode: input.paymentMode ?? "cash",
       pickup: c.cfg.pickup,
@@ -754,7 +758,7 @@ export async function dispatchViaDeliveryBridge(orderId: string): Promise<Result
     json: {
       mobile: c.cfg.mobile,
       mobiles: c.cfg.mobiles,
-      vehicleMode: "bike",
+      vehicleMode: c.cfg.vehicleMode,
       priority: c.cfg.priority,
       paymentMode: "cash",
       pickup: {
@@ -781,7 +785,7 @@ export async function dispatchViaDeliveryBridge(orderId: string): Promise<Result
   const dispatchId = String((res.data as { dispatchId?: string }).dispatchId ?? "");
   await persistDispatch(orderId, "dispatch", "running", dispatchId, {
     dispatchId,
-    vehicleMode: "bike",
+    vehicleMode: c.cfg.vehicleMode,
     priority: c.cfg.priority ?? null,
   });
   return { ok: true, data: { dispatchId } };

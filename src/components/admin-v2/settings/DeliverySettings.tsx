@@ -333,6 +333,7 @@ export function DeliverySettings() {
                 hide_delivery_charge: userData.delivery_rules?.hide_delivery_charge ?? false,
                 delivery_provider_priority:
                     userData.delivery_rules?.delivery_provider_priority || ["porter", "uber", "rapido"],
+                delivery_vehicle_mode: userData.delivery_rules?.delivery_vehicle_mode || "bike",
             });
 
             // Initialize WhatsApp numbers
@@ -690,9 +691,32 @@ export function DeliverySettings() {
                             </div>
 
                             <div className="border-t border-orange-100 pt-3">
+                                <Label className="text-base">Booking method</Label>
+                                <p className="text-xs text-muted-foreground mb-2">
+                                    Book a normal <strong>bike</strong> (2-wheeler ride — usually cheaper &amp; faster for food) or a <strong>parcel</strong> (courier class). Applies to every provider in the dispatch.
+                                </p>
+                                <div className="inline-flex rounded-md border bg-white p-0.5">
+                                    {(["bike", "parcel"] as const).map((mode) => (
+                                        <button
+                                            key={mode}
+                                            type="button"
+                                            onClick={() => setDeliveryRules(prev => ({ ...prev, delivery_vehicle_mode: mode }))}
+                                            className={`rounded px-4 py-1.5 text-sm capitalize transition ${
+                                                (deliveryRules.delivery_vehicle_mode || "bike") === mode
+                                                    ? "bg-orange-500 text-white"
+                                                    : "text-muted-foreground hover:bg-muted"
+                                            }`}
+                                        >
+                                            {mode}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="border-t border-orange-100 pt-3">
                                 <Label className="text-base">Provider priority</Label>
                                 <p className="text-xs text-muted-foreground mb-2">
-                                    Dispatch tries these in order (normal bike), one at a time, escalating if no rider is found in time. The customer is charged the highest of the available quotes.
+                                    Dispatch tries these in order, one at a time, escalating if no rider is found in time. The customer is charged the highest of the available quotes.
                                 </p>
                                 <div className="space-y-1.5">
                                     {(deliveryRules.delivery_provider_priority || ["porter", "uber", "rapido"]).map((prov, i, arr) => (

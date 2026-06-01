@@ -86,6 +86,9 @@ export interface DeliveryRules {
   /** Provider priority for the delivery-bridge dispatch sequence (tried in
    *  this order). e.g. ["uber","porter","rapido"]. Defaults to porter-first. */
   delivery_provider_priority?: string[];
+  /** Booking method for the delivery-bridge dispatch: "bike" (normal 2-wheeler
+   *  ride) or "parcel" (courier/parcel class). Defaults to "bike". */
+  delivery_vehicle_mode?: "bike" | "parcel";
   announcement?: string;
   banner_mode?: "single" | "carousel";
   carousel_banners?: string[];
