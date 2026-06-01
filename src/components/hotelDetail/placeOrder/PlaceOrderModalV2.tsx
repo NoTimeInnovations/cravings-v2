@@ -150,6 +150,12 @@ const PlaceOrderModalV2 = ({
   const [paymentMethod, setPaymentMethod] = useState<"online" | "cash">(
     hasCashfree && !hasCod ? "online" : "cash",
   );
+  // If the order type changes (delivery↔takeaway) and the selected method is no
+  // longer offered for it, snap to an available one so the selection stays valid.
+  useEffect(() => {
+    if (paymentMethod === "online" && !hasCashfree) setPaymentMethod("cash");
+    else if (paymentMethod === "cash" && !hasCod) setPaymentMethod("online");
+  }, [hasCashfree, hasCod, paymentMethod]);
   const [showBreakdown, setShowBreakdown] = useState(true);
   const [orderStatus, setOrderStatus] = useState<
     "idle" | "loading" | "placing" | "verifying" | "success" | "failed"

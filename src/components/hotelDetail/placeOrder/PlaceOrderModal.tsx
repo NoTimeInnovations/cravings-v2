@@ -2124,6 +2124,12 @@ const PlaceOrderModal = ({
       setPaymentSheetClosing(false);
     }, 250);
   };
+  // If the order type changes (delivery↔takeaway) and the selected method is no
+  // longer offered for it, snap to an available one so the selection stays valid.
+  useEffect(() => {
+    if (selectedPaymentMethod === "cashfree" && !hasCashfree) setSelectedPaymentMethod("cod");
+    else if (selectedPaymentMethod === "cod" && !hasCod) setSelectedPaymentMethod("cashfree");
+  }, [hasCashfree, hasCod, selectedPaymentMethod]);
 
   const hasUpiQr =
     hotelData?.show_payment_qr === true &&
