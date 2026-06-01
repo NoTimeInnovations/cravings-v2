@@ -71,6 +71,7 @@ export const partnerIdQuery = `
       porter_mobile
       accept_payments_via_cashfree
       accept_cod
+      payment_modes
       storefront_settings
       website_config
       qr_codes(limit: 1) {
@@ -133,6 +134,7 @@ export const partnerLoginQuery = `
       porter_mobile
       accept_payments_via_cashfree
       accept_cod
+      payment_modes
       storefront_settings
       website_config
       qr_codes(limit: 1) {
