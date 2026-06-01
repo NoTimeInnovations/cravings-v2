@@ -2097,11 +2097,19 @@ const PlaceOrderModal = ({
     getFeatures(hotelData?.feature_flags || "")?.multiwhatsapp?.enabled &&
     hotelData?.whatsapp_numbers?.length > 0;
 
-  const hasCashfree =
+  const baseCashfree =
     (hotelData as any)?.accept_payments_via_cashfree === true &&
     !!(hotelData as any)?.cashfree_merchant_id;
-
-  const hasCod = (hotelData as any)?.accept_cod !== false; // default true if null/undefined
+  const baseCod = (hotelData as any)?.accept_cod !== false; // default true if null/undefined
+  // Per-order-method overrides (Payment settings → "Payment options by order
+  // type"). Online still needs Cashfree; unset falls back to the global flags;
+  // never leave a method with no way to pay.
+  const _pmCfg = (hotelData as any)?.payment_modes;
+  const _methodPm =
+    orderType === "delivery" || orderType === "takeaway" ? _pmCfg?.[orderType] : undefined;
+  let hasCashfree = baseCashfree && (_methodPm?.online ?? true);
+  let hasCod = _methodPm?.cash ?? baseCod;
+  if (!hasCashfree && !hasCod) hasCod = true;
 
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"cod" | "cashfree">(
     hasCashfree ? "cashfree" : "cod"

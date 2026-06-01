@@ -34,6 +34,14 @@ export function PaymentLegalSettings() {
     // partner UPI id, "cashfree" creates a per-order Cashfree UPI QR.
     const [deliveryQrMethod, setDeliveryQrMethod] = useState<"none" | "upi" | "cashfree">("none");
 
+    // Per-order-method payment matrix (delivery/takeaway × online/cash). Online
+    // requires Cashfree configured. Defaults derive from the global flags when
+    // the partner hasn't set it yet (so existing behaviour is preserved).
+    const [paymentModes, setPaymentModes] = useState<{
+        delivery: { online: boolean; cash: boolean };
+        takeaway: { online: boolean; cash: boolean };
+    }>({ delivery: { online: false, cash: true }, takeaway: { online: false, cash: true } });
+
     // GST State
     const [gstNo, setGstNo] = useState("");
     const [gstPercentage, setGstPercentage] = useState(0);
@@ -53,6 +61,22 @@ export function PaymentLegalSettings() {
             setAcceptPaymentsViaCashfree((userData as any).accept_payments_via_cashfree || false);
             const dqm = (userData as any).delivery_qr_method;
             setDeliveryQrMethod(dqm === "upi" || dqm === "cashfree" ? dqm : "none");
+
+            // Per-method matrix: use saved payment_modes; for any unset method/flag
+            // fall back to the global online (cashfree) / cash (cod) values.
+            const pm = (userData as any).payment_modes;
+            const baseOnline = (userData as any).accept_payments_via_cashfree || false;
+            const baseCash = (userData as any).accept_cod ?? true;
+            setPaymentModes({
+                delivery: {
+                    online: pm?.delivery?.online ?? baseOnline,
+                    cash: pm?.delivery?.cash ?? baseCash,
+                },
+                takeaway: {
+                    online: pm?.takeaway?.online ?? baseOnline,
+                    cash: pm?.takeaway?.cash ?? baseCash,
+                },
+            });
         }
     }, [userData]);
 
@@ -71,6 +95,7 @@ export function PaymentLegalSettings() {
                 cashfree_merchant_id: cashfreeMerchantId.trim() || null,
                 accept_payments_via_cashfree: acceptPaymentsViaCashfree,
                 delivery_qr_method: deliveryQrMethod,
+                payment_modes: paymentModes,
             };
 
             await updatePartner(userData.id, updates);
@@ -84,7 +109,7 @@ export function PaymentLegalSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, upiId, showPaymentQr, postPaymentMessage, fssaiLicenceNo, gstNo, gstEnabled, gstPercentage, acceptCod, cashfreeMerchantId, acceptPaymentsViaCashfree, deliveryQrMethod, setState]);
+    }, [userData, upiId, showPaymentQr, postPaymentMessage, fssaiLicenceNo, gstNo, gstEnabled, gstPercentage, acceptCod, cashfreeMerchantId, acceptPaymentsViaCashfree, deliveryQrMethod, paymentModes, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -116,6 +141,15 @@ export function PaymentLegalSettings() {
         const initialCashfreeMerchantId = data.cashfree_merchant_id || "";
         const initialAcceptCashfree = data.accept_payments_via_cashfree || false;
         const initialDeliveryQrMethod = data.delivery_qr_method || "none";
+        const initialPaymentModes = (() => {
+            const pm = data.payment_modes;
+            const bo = data.accept_payments_via_cashfree || false;
+            const bc = data.accept_cod ?? true;
+            return {
+                delivery: { online: pm?.delivery?.online ?? bo, cash: pm?.delivery?.cash ?? bc },
+                takeaway: { online: pm?.takeaway?.online ?? bo, cash: pm?.takeaway?.cash ?? bc },
+            };
+        })();
 
         const hasChanges =
             upiId !== initialUpi ||
@@ -128,7 +162,8 @@ export function PaymentLegalSettings() {
             acceptCod !== initialAcceptCod ||
             cashfreeMerchantId !== initialCashfreeMerchantId ||
             acceptPaymentsViaCashfree !== initialAcceptCashfree ||
-            deliveryQrMethod !== initialDeliveryQrMethod;
+            deliveryQrMethod !== initialDeliveryQrMethod ||
+            JSON.stringify(paymentModes) !== JSON.stringify(initialPaymentModes);
 
         setHasChanges(hasChanges);
 
@@ -144,6 +179,7 @@ export function PaymentLegalSettings() {
         cashfreeMerchantId,
         acceptPaymentsViaCashfree,
         deliveryQrMethod,
+        paymentModes,
         userData,
         setHasChanges
     ]);
@@ -242,6 +278,54 @@ export function PaymentLegalSettings() {
                             />
                         </div>
                     )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Payment options by order type</CardTitle>
+                    <CardDescription>
+                        Choose which payment options customers see for each order type. &ldquo;Online&rdquo; requires Cashfree to be configured above.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    {([
+                        { key: "delivery" as const, label: "Delivery", cashLabel: "Pay on delivery" },
+                        { key: "takeaway" as const, label: "Takeaway", cashLabel: "Pay at store" },
+                    ]).map(({ key, label, cashLabel }) => {
+                        const cfg = paymentModes[key];
+                        const onlineAvailable = acceptPaymentsViaCashfree && !!cashfreeMerchantId.trim();
+                        const bothOff = !(cfg.online && onlineAvailable) && !cfg.cash;
+                        const set = (field: "online" | "cash", val: boolean) =>
+                            setPaymentModes((prev) => ({ ...prev, [key]: { ...prev[key], [field]: val } }));
+                        return (
+                            <div key={key} className="border rounded-lg p-4 space-y-3">
+                                <div className="font-medium">{label}</div>
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <Label className="text-sm">Online (Cashfree)</Label>
+                                        {!onlineAvailable && (
+                                            <p className="text-xs text-muted-foreground">Enable Cashfree above to allow online.</p>
+                                        )}
+                                    </div>
+                                    <Switch
+                                        checked={cfg.online && onlineAvailable}
+                                        disabled={!onlineAvailable}
+                                        onCheckedChange={(v) => set("online", v)}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-sm">{cashLabel} (cash)</Label>
+                                    <Switch checked={cfg.cash} onCheckedChange={(v) => set("cash", v)} />
+                                </div>
+                                {bothOff && (
+                                    <p className="text-xs text-rose-600">
+                                        ⚠ No payment option enabled — customers won&apos;t be able to check out for {label.toLowerCase()}.
+                                    </p>
+                                )}
+                            </div>
+                        );
+                    })}
                 </CardContent>
             </Card>
 

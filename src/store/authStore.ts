@@ -165,6 +165,15 @@ export interface Partner extends BaseUser {
   cashfree_merchant_id?: string;
   accept_payments_via_cashfree?: boolean;
   accept_cod?: boolean;
+  /**
+   * Per-order-method payment options. Online still requires Cashfree to be
+   * configured. When a method (or the whole object) is unset, checkout falls
+   * back to the global accept_payments_via_cashfree (online) / accept_cod (cash).
+   */
+  payment_modes?: {
+    delivery?: { online?: boolean; cash?: boolean };
+    takeaway?: { online?: boolean; cash?: boolean };
+  } | null;
   storefront_settings?: string;
   website_config?: any;
 }
