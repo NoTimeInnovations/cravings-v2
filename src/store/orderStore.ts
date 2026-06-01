@@ -31,7 +31,7 @@ import {
 } from "@/lib/statusHistory";
 import { Notification } from "@/app/actions/notification";
 import { dispatchDeliveryAgent, cancelDeliveryAgent } from "@/app/actions/deliveryAgent";
-import { dispatchPorterBridge, cancelPorter } from "@/app/actions/porterBridge";
+import { dispatchViaDeliveryBridge, cancelDispatch } from "@/app/actions/porterBridge";
 // import { sendOrderNotification } from "@/app/actions/notification";
 
 export interface OrderItem extends HotelDataMenus {
@@ -83,6 +83,9 @@ export interface DeliveryRules {
    * internal fields are ignored on the checkout side.
    */
   use_delivery_agent_charge?: boolean;
+  /** Provider priority for the delivery-bridge dispatch sequence (tried in
+   *  this order). e.g. ["uber","porter","rapido"]. Defaults to porter-first. */
+  delivery_provider_priority?: string[];
   announcement?: string;
   banner_mode?: "single" | "carousel";
   carousel_banners?: string[];
@@ -554,13 +557,13 @@ const useOrderStore = create(
             // operator gates this themselves at the feature-flag level.
             if (features.porter_bridge.access && features.porter_bridge.enabled && isRealDelivery) {
               if (newStatus === "accepted") {
-                dispatchPorterBridge(orderId).then((r) => {
-                  if (!r.ok) console.warn(`[porter-bridge] dispatch failed: ${r.message}`);
-                }).catch((e) => console.warn("[porter-bridge] dispatch threw:", e));
+                dispatchViaDeliveryBridge(orderId).then((r) => {
+                  if (!r.ok) console.warn(`[delivery-bridge] dispatch failed: ${r.message}`);
+                }).catch((e) => console.warn("[delivery-bridge] dispatch threw:", e));
               } else if (newStatus === "cancelled") {
-                cancelPorter(orderId, "Cancelled from admin dashboard").then((r) => {
-                  if (!r.ok && r.status !== 404) console.warn(`[porter-bridge] cancel failed: ${r.message}`);
-                }).catch((e) => console.warn("[porter-bridge] cancel threw:", e));
+                cancelDispatch(orderId, "Cancelled from admin dashboard").then((r) => {
+                  if (!r.ok && r.status !== 404) console.warn(`[delivery-bridge] cancel failed: ${r.message}`);
+                }).catch((e) => console.warn("[delivery-bridge] cancel threw:", e));
               }
             }
           } catch (e) {

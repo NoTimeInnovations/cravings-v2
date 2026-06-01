@@ -47,7 +47,7 @@ import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
-import { quotePorterFare } from "@/app/actions/porterBridge";
+import { quoteDeliveryFare } from "@/app/actions/porterBridge";
 
 const DELIVERY_AGENT_PRICE_MARKUP = 10;
 
@@ -1856,7 +1856,7 @@ const PlaceOrderModal = ({
     let cancelled = false;
     setPorterQuoteLoading(true);
     const t = setTimeout(async () => {
-      const res = await quotePorterFare({
+      const res = await quoteDeliveryFare({
         partnerId: (hotelData as any)?.id,
         drop: { lat: selectedCoords.lat, lng: selectedCoords.lng },
         paymentMode: "cash",

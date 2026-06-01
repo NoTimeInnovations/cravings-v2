@@ -287,6 +287,12 @@ export function DeliverySettings() {
     const [whatsappNumbers, setWhatsappNumbers] = useState<{ number: string; area: string }[]>([]);
     const [countryCode, setCountryCode] = useState("+91");
 
+    // Delivery Bridge per-provider mobiles (partners.{porter,uber,rapido}_mobile).
+    // Editable below; the bridge resolves each provider's account from these.
+    const [porterMobile, setPorterMobile] = useState("");
+    const [uberMobile, setUberMobile] = useState("");
+    const [rapidoMobile, setRapidoMobile] = useState("");
+
     // Adloggs per-merchant state. The id stored on partners.adloggs_merchant_id
     // is what delivery-agents-server forwards to every Adloggs API call so this
     // partner's orders, wallet and availability all route to the right
@@ -325,6 +331,8 @@ export function DeliverySettings() {
                 parcel_charge_type: userData.delivery_rules?.parcel_charge_type || "fixed",
                 parcel_charge_items: userData.delivery_rules?.parcel_charge_items || {},
                 hide_delivery_charge: userData.delivery_rules?.hide_delivery_charge ?? false,
+                delivery_provider_priority:
+                    userData.delivery_rules?.delivery_provider_priority || ["porter", "uber", "rapido"],
             });
 
             // Initialize WhatsApp numbers
@@ -336,6 +344,9 @@ export function DeliverySettings() {
 
             // Initialize country code
             setCountryCode(userData.country_code || "+91");
+            setPorterMobile(userData.porter_mobile ?? "");
+            setUberMobile(userData.uber_mobile ?? "");
+            setRapidoMobile(userData.rapido_mobile ?? "");
 
             // Initialize Adloggs merchant id input from persisted partner row.
             setAdloggsMerchantId(((userData as Partner)?.adloggs_merchant_id ?? "") as string);
@@ -420,6 +431,18 @@ export function DeliverySettings() {
             }
         }
 
+        // Delivery Bridge mobiles — each must be blank or a 10-digit Indian number.
+        for (const [label, m] of [
+            ["Porter", porterMobile],
+            ["Uber", uberMobile],
+            ["Rapido", rapidoMobile],
+        ] as const) {
+            if (m.trim() && !/^[6-9][0-9]{9}$/.test(m.trim())) {
+                toast.error(`${label} mobile must be a 10-digit number (or left blank)`);
+                return;
+            }
+        }
+
         setIsSaving(true);
         try {
             const updates = {
@@ -427,7 +450,10 @@ export function DeliverySettings() {
                 delivery_rules: deliveryRules,
                 whatsapp_numbers: whatsappNumbers,
                 country_code: countryCode,
-                price_adjustment: priceAdjustment
+                price_adjustment: priceAdjustment,
+                porter_mobile: porterMobile.trim() || null,
+                uber_mobile: uberMobile.trim() || null,
+                rapido_mobile: rapidoMobile.trim() || null,
             };
 
             await updatePartner(userData.id, updates);
@@ -442,7 +468,7 @@ export function DeliverySettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, deliveryRate, deliveryRules, whatsappNumbers, countryCode, priceAdjustment, setState]);
+    }, [userData, deliveryRate, deliveryRules, whatsappNumbers, countryCode, priceAdjustment, porterMobile, uberMobile, rapidoMobile, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -492,13 +518,19 @@ export function DeliverySettings() {
         const initialCountryCode = data.country_code || "+91";
 
         const initialPriceAdjustment = data.price_adjustment ?? null;
+        const initialPorterMobile = data.porter_mobile ?? "";
+        const initialUberMobile = data.uber_mobile ?? "";
+        const initialRapidoMobile = data.rapido_mobile ?? "";
 
         const hasChanges =
             deliveryRate !== initialRate ||
             JSON.stringify(deliveryRules) !== JSON.stringify(initialRules) ||
             JSON.stringify(whatsappNumbers) !== JSON.stringify(initialWhatsapp) ||
             countryCode !== initialCountryCode ||
-            priceAdjustment !== initialPriceAdjustment;
+            priceAdjustment !== initialPriceAdjustment ||
+            porterMobile !== initialPorterMobile ||
+            uberMobile !== initialUberMobile ||
+            rapidoMobile !== initialRapidoMobile;
 
         setHasChanges(hasChanges);
 
@@ -509,6 +541,9 @@ export function DeliverySettings() {
         whatsappNumbers,
         countryCode,
         priceAdjustment,
+        porterMobile,
+        uberMobile,
+        rapidoMobile,
         setHasChanges
     ]);
 
@@ -572,7 +607,6 @@ export function DeliverySettings() {
     const porterChargeEnabled =
         !!features?.porter_bridge?.access &&
         !!features?.porter_bridge?.enabled;
-    const partnerPorterMobile = ((userData as Partner)?.porter_mobile ?? "").trim();
 
     return (
         <div className="space-y-6">
@@ -615,25 +649,13 @@ export function DeliverySettings() {
                                     {/* small inline svg keeps the bundle light vs another lucide import */}
                                     <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>
                                 </span>
-                                <Label className="text-base">Porter account</Label>
-                            </div>
-                            <div className="rounded-md bg-muted/40 p-3 text-sm">
-                                {partnerPorterMobile ? (
-                                    <>
-                                        <div className="text-xs text-muted-foreground mb-1">
-                                            Dispatch routes through this Porter consumer account
-                                        </div>
-                                        <div className="font-mono">+91 {partnerPorterMobile}</div>
-                                    </>
-                                ) : (
-                                    <div className="text-rose-700">
-                                        No Porter mobile linked yet. Dispatch will fail until this is set.
-                                    </div>
-                                )}
+                                <Label className="text-base">Delivery Bridge Settings</Label>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Manage the Porter account itself (OTP re-login, view bookings)
-                                at{" "}
+                                Dispatch routes through your provider accounts on the bridge. Enter the
+                                mobile each provider is logged in with — leave one blank to fall back to
+                                your Porter number (or store phone). Manage the accounts (OTP login, view
+                                bookings) at{" "}
                                 <a
                                     href="https://deliverybridge.menuthere.com/accounts"
                                     target="_blank"
@@ -642,9 +664,67 @@ export function DeliverySettings() {
                                 >
                                     deliverybridge.menuthere.com
                                 </a>
-                                . The number above is set by the operator and isn&apos;t
-                                editable here — contact support to change it.
+                                .
                             </p>
+                            <div className="grid gap-3 sm:grid-cols-3">
+                                {([
+                                    { label: "Porter", value: porterMobile, set: setPorterMobile },
+                                    { label: "Uber", value: uberMobile, set: setUberMobile },
+                                    { label: "Rapido", value: rapidoMobile, set: setRapidoMobile },
+                                ] as { label: string; value: string; set: (v: string) => void }[]).map(({ label, value, set }) => (
+                                    <div key={label} className="space-y-1">
+                                        <Label className="text-sm">{label} mobile</Label>
+                                        <div className="flex items-center rounded-md border bg-white pl-2 focus-within:ring-1 focus-within:ring-orange-300">
+                                            <span className="select-none text-sm text-muted-foreground">+91</span>
+                                            <Input
+                                                type="tel"
+                                                inputMode="numeric"
+                                                value={value}
+                                                placeholder="10-digit"
+                                                onChange={(e) => set(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                                                className="border-0 shadow-none focus-visible:ring-0"
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="border-t border-orange-100 pt-3">
+                                <Label className="text-base">Provider priority</Label>
+                                <p className="text-xs text-muted-foreground mb-2">
+                                    Dispatch tries these in order (normal bike), one at a time, escalating if no rider is found in time. The customer is charged the highest of the available quotes.
+                                </p>
+                                <div className="space-y-1.5">
+                                    {(deliveryRules.delivery_provider_priority || ["porter", "uber", "rapido"]).map((prov, i, arr) => (
+                                        <div key={prov} className="flex items-center gap-2 rounded-md border bg-white px-3 py-2 text-sm">
+                                            <span className="w-5 text-center font-semibold text-muted-foreground tabular-nums">{i + 1}</span>
+                                            <span className="flex-1 capitalize">{prov}</span>
+                                            <button
+                                                type="button"
+                                                disabled={i === 0}
+                                                aria-label={`Move ${prov} up`}
+                                                onClick={() => setDeliveryRules(prev => {
+                                                    const a = [...(prev.delivery_provider_priority || ["porter", "uber", "rapido"])];
+                                                    [a[i - 1], a[i]] = [a[i], a[i - 1]];
+                                                    return { ...prev, delivery_provider_priority: a };
+                                                })}
+                                                className="rounded px-2 py-0.5 hover:bg-muted disabled:opacity-30"
+                                            >↑</button>
+                                            <button
+                                                type="button"
+                                                disabled={i === arr.length - 1}
+                                                aria-label={`Move ${prov} down`}
+                                                onClick={() => setDeliveryRules(prev => {
+                                                    const a = [...(prev.delivery_provider_priority || ["porter", "uber", "rapido"])];
+                                                    [a[i + 1], a[i]] = [a[i], a[i + 1]];
+                                                    return { ...prev, delivery_provider_priority: a };
+                                                })}
+                                                className="rounded px-2 py-0.5 hover:bg-muted disabled:opacity-30"
+                                            >↓</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     )}
 

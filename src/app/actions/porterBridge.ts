@@ -555,6 +555,323 @@ export async function quotePorterFare(input: {
   };
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+// Multi-provider DISPATCH (delivery-bridge sequence)
+//
+// For partners on the `porter_bridge` flag we now run the bridge's sequential
+// dispatch (Porter → Uber → Rapido, in the partner's configured priority)
+// using NORMAL BIKE instead of a Porter-only parcel book. The bridge resolves
+// each provider's account from the partner's mobile and books one at a time,
+// cancelling-and-escalating on timeout. The customer is charged the MAX of the
+// providers' quotes so the fee covers whichever one actually gets the rider.
+// ──────────────────────────────────────────────────────────────────────────
+
+const PERSIST_DISPATCH_MUTATION = `
+  mutation PersistDispatchState(
+    $id: uuid!, $provider: String!, $state: String!, $orderId: String, $meta: jsonb!, $now: timestamptz!
+  ) {
+    update_orders_by_pk(
+      pk_columns: { id: $id },
+      _set: {
+        delivery_provider: $provider,
+        delivery_provider_state: $state,
+        delivery_provider_order_id: $orderId,
+        delivery_provider_last_event_at: $now
+      },
+      _append: { delivery_provider_meta: $meta }
+    ) { id }
+  }
+`;
+
+async function persistDispatch(
+  orderId: string,
+  provider: string,
+  state: string,
+  providerOrderId: string | null,
+  meta: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await fetchFromHasura(PERSIST_DISPATCH_MUTATION, {
+      id: orderId,
+      provider,
+      state,
+      orderId: providerOrderId,
+      meta,
+      now: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn("[delivery-bridge] persistDispatch failed:", err);
+  }
+}
+
+interface PartnerDispatchCfg {
+  /** Base/default mobile (porter_mobile ?? phone): pickup contact + per-provider fallback. */
+  mobile: string;
+  /** Per-provider mobiles — a partner may have logged into each service with a
+   *  different number. Each falls back to `mobile` when its own column is unset. */
+  mobiles: { porter: string; uber: string; rapido: string };
+  pickup: { lat: number; lng: number };
+  storeName: string;
+  priority: string[] | undefined;
+  enabled: boolean;
+}
+
+async function loadPartnerDispatchCfg(
+  partnerId: string,
+): Promise<{ ok: true; cfg: PartnerDispatchCfg } | { ok: false; status?: number; message: string }> {
+  let p: {
+    store_name: string | null;
+    geo_location: { coordinates: [number, number] } | null;
+    phone: string | null;
+    porter_mobile: string | null;
+    uber_mobile: string | null;
+    rapido_mobile: string | null;
+    feature_flags: string | null;
+    delivery_rules: { delivery_provider_priority?: unknown } | null;
+  } | null;
+  try {
+    const data = await fetchFromHasura(
+      `query PartnerForDispatch($id: uuid!) {
+        partners_by_pk(id: $id) {
+          store_name geo_location phone porter_mobile uber_mobile rapido_mobile feature_flags delivery_rules
+        }
+      }`,
+      { id: partnerId },
+    );
+    p = data.partners_by_pk;
+  } catch (err) {
+    return { ok: false, message: `hasura: ${(err as Error).message}` };
+  }
+  if (!p) return { ok: false, message: "partner not found" };
+  const enabled = Boolean(p.feature_flags?.includes("porter_bridge-true"));
+  const pickup = extractLatLng(p.geo_location);
+  // Base mobile = porter_mobile ?? phone. Each provider may override with its
+  // own number (the partner can have separate Porter/Uber/Rapido logins); an
+  // unset provider mobile falls back to this base.
+  const mobile = normaliseMobile(p.porter_mobile) ?? normaliseMobile(p.phone);
+  if (!pickup) return { ok: false, message: "partner pickup coords missing" };
+  if (!mobile) return { ok: false, message: "partner has no delivery mobile to resolve" };
+  const mobiles = {
+    porter: normaliseMobile(p.porter_mobile) ?? mobile,
+    uber: normaliseMobile(p.uber_mobile) ?? mobile,
+    rapido: normaliseMobile(p.rapido_mobile) ?? mobile,
+  };
+  const pri = p.delivery_rules?.delivery_provider_priority;
+  const priority = Array.isArray(pri) && pri.length ? pri.map(String) : undefined;
+  return {
+    ok: true,
+    cfg: { mobile, mobiles, pickup, storeName: p.store_name ?? "Store", priority, enabled },
+  };
+}
+
+/**
+ * Multi-provider quote (NORMAL BIKE) for the checkout. Returns the MAX fare
+ * across the partner's available providers — what we charge the customer.
+ * Drop-in replacement for quotePorterFare; same `{ fare, etaMins? }` shape.
+ */
+export async function quoteDeliveryFare(input: {
+  partnerId: string;
+  drop: { lat: number; lng: number };
+  paymentMode?: "cash" | "wallet";
+}): Promise<Result> {
+  if (!input.partnerId) return { ok: false, message: "partnerId required" };
+  if (!input.drop || typeof input.drop.lat !== "number" || typeof input.drop.lng !== "number") {
+    return { ok: false, message: "drop coords required" };
+  }
+  const c = await loadPartnerDispatchCfg(input.partnerId);
+  if (!c.ok) return c;
+  if (!c.cfg.enabled) return { ok: false, status: 404, message: "delivery bridge not enabled" };
+
+  const res = await bridgeFetch(`/api/v1/dispatch/quote`, {
+    method: "POST",
+    json: {
+      mobile: c.cfg.mobile,
+      mobiles: c.cfg.mobiles,
+      vehicleMode: "bike",
+      priority: c.cfg.priority,
+      paymentMode: input.paymentMode ?? "cash",
+      pickup: c.cfg.pickup,
+      drop: input.drop,
+    },
+  });
+  if (!res.ok) return res;
+  const data = res.data as {
+    maxFare: number | null;
+    available: boolean;
+    quotes: Array<{ provider: string; available: boolean; fare?: number; etaMins?: number | null }>;
+    best: { provider: string; fare: number } | null;
+  };
+  if (!data.available || data.maxFare == null) {
+    return { ok: false, status: 409, message: "no delivery provider available for this route" };
+  }
+  const bestQ = data.quotes.find((q) => q.provider === data.best?.provider);
+  return {
+    ok: true,
+    data: {
+      fare: data.maxFare,
+      etaMins: bestQ?.etaMins ?? null,
+      provider: data.best?.provider ?? null,
+      breakdown: data.quotes,
+    },
+  };
+}
+
+/**
+ * Fire the sequential dispatch for an order that just hit `accepted`. Returns
+ * a dispatchId immediately; the bridge books/escalates server-side and
+ * getDispatchTracking() reconciles the won provider/rider onto the order.
+ */
+export async function dispatchViaDeliveryBridge(orderId: string): Promise<Result> {
+  if (!orderId) return { ok: false, message: "orderId required" };
+  let order: OrderForDispatch;
+  try {
+    const data = await fetchFromHasura(ORDER_FOR_DISPATCH_QUERY, { id: orderId });
+    order = data.orders_by_pk as OrderForDispatch;
+  } catch (err) {
+    return { ok: false, message: `hasura: ${(err as Error).message}` };
+  }
+  if (!order) return { ok: false, message: `order ${orderId} not found` };
+  if (!order.partner) return { ok: false, message: `partner missing on order ${orderId}` };
+
+  const c = await loadPartnerDispatchCfg(order.partner_id);
+  if (!c.ok) {
+    await persistDispatch(orderId, "dispatch", "failed", null, { error: c.message });
+    return c;
+  }
+  if (!c.cfg.enabled) return { ok: false, status: 404, message: "delivery bridge not enabled" };
+
+  const drop = extractLatLng(order.delivery_location);
+  if (!drop) {
+    await persistDispatch(orderId, "dispatch", "failed", null, { error: "order drop coords missing" });
+    return { ok: false, message: "order drop coords missing" };
+  }
+  const customerName = order.user?.full_name || "Customer";
+  const customerPhone =
+    normaliseMobile(order.phone) ?? normaliseMobile(order.user?.phone) ?? c.cfg.mobile;
+
+  const res = await bridgeFetch(`/api/v1/dispatch`, {
+    method: "POST",
+    json: {
+      mobile: c.cfg.mobile,
+      mobiles: c.cfg.mobiles,
+      vehicleMode: "bike",
+      priority: c.cfg.priority,
+      paymentMode: "cash",
+      pickup: {
+        lat: c.cfg.pickup.lat,
+        lng: c.cfg.pickup.lng,
+        title: c.cfg.storeName,
+        contactName: c.cfg.storeName,
+        contactPhone: c.cfg.mobile,
+      },
+      drop: {
+        lat: drop.lat,
+        lng: drop.lng,
+        title: order.delivery_address ?? "Customer",
+        contactName: customerName,
+        contactPhone: customerPhone,
+        note: order.display_id ? `Order #${order.display_id}` : undefined,
+      },
+    },
+  });
+  if (!res.ok) {
+    await persistDispatch(orderId, "dispatch", "failed", null, { error: res.message });
+    return res;
+  }
+  const dispatchId = String((res.data as { dispatchId?: string }).dispatchId ?? "");
+  await persistDispatch(orderId, "dispatch", "running", dispatchId, {
+    dispatchId,
+    vehicleMode: "bike",
+    priority: c.cfg.priority ?? null,
+  });
+  return { ok: true, data: { dispatchId } };
+}
+
+/**
+ * Poll the dispatch + reconcile the order. Once a provider wins, flips
+ * delivery_provider to that provider (porter/uber/rapido) so the existing
+ * tracking UI lights up; stores trackUrl + driver into meta.
+ */
+export async function getDispatchTracking(orderId: string): Promise<Result> {
+  if (!orderId) return { ok: false, message: "orderId required" };
+  let dispatchId: string | null = null;
+  try {
+    const data = await fetchFromHasura(
+      `query GetDispatchId($id: uuid!) {
+        orders_by_pk(id: $id) { delivery_provider delivery_provider_meta }
+      }`,
+      { id: orderId },
+    );
+    dispatchId = data.orders_by_pk?.delivery_provider_meta?.dispatchId ?? null;
+  } catch (err) {
+    return { ok: false, message: `hasura: ${(err as Error).message}` };
+  }
+  if (!dispatchId) return { ok: false, status: 404, message: "no dispatch on this order" };
+
+  const res = await bridgeFetch(`/api/v1/dispatch/${dispatchId}`, { method: "GET" });
+  if (!res.ok) return res;
+  const d = res.data as {
+    status: string;
+    result: { provider?: string } | null;
+    booking: {
+      provider?: string;
+      ref?: string;
+      status?: string;
+      driver?: unknown;
+      trackUrl?: string | null;
+    } | null;
+  };
+  const b = d.booking;
+  // While running keep provider = "dispatch"; once a booking exists switch to
+  // the real provider so the existing tracking panel renders it.
+  const provider = b?.provider ?? d.result?.provider ?? "dispatch";
+  const state = b?.status ?? (d.status === "assigned" ? "assigned" : d.status);
+  await persistDispatch(orderId, provider, state, b?.ref ?? dispatchId, {
+    dispatchId,
+    dispatchStatus: d.status,
+    ...(b?.trackUrl ? { trackUrl: b.trackUrl, consignmentNotePdfUrl: b.trackUrl } : {}),
+    ...(b?.driver ? { driver: b.driver } : {}),
+  });
+  return { ok: true, data: { dispatchStatus: d.status, provider, booking: b } };
+}
+
+/** Cancel a dispatched order's delivery (stops the sequence and/or cancels the
+ *  won provider's booking via the bridge). Falls back to the legacy Porter
+ *  cancel for orders booked before the dispatch switch. */
+export async function cancelDispatch(orderId: string, _reason?: string): Promise<Result> {
+  if (!orderId) return { ok: false, message: "orderId required" };
+  let dispatchId: string | null = null;
+  let provider: string | null = null;
+  try {
+    const data = await fetchFromHasura(
+      `query GetDispatchForCancel($id: uuid!) {
+        orders_by_pk(id: $id) { delivery_provider delivery_provider_meta }
+      }`,
+      { id: orderId },
+    );
+    const o = data.orders_by_pk;
+    provider = o?.delivery_provider ?? null;
+    dispatchId = o?.delivery_provider_meta?.dispatchId ?? null;
+  } catch (err) {
+    return { ok: false, message: `hasura: ${(err as Error).message}` };
+  }
+  // Legacy Porter-only orders (booked before the dispatch switch) → old path.
+  if (!dispatchId) {
+    if (provider === "porter") return cancelPorter(orderId, _reason ?? "Cancelled");
+    return { ok: false, status: 404, message: "no dispatch on this order" };
+  }
+  const res = await bridgeFetch(`/api/v1/dispatch/${dispatchId}/cancel`, {
+    method: "POST",
+    json: {},
+  });
+  if (res.ok) {
+    await persistDispatch(orderId, provider ?? "dispatch", "cancelled", null, {
+      cancelledAt: new Date().toISOString(),
+    });
+  }
+  return res;
+}
+
 /**
  * Read the latest status of a Porter booking. Used by the public order
  * page and admin OrderDetails to refresh driver info + status without

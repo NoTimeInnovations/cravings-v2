@@ -122,6 +122,15 @@ export interface Partner extends BaseUser {
    * `phone` if null. Populated via admin-v2 settings UI.
    */
   porter_mobile?: string | null;
+  /**
+   * Per-provider delivery-bridge mobiles. A partner may have logged into
+   * Porter / Uber / Rapido with different numbers; the bridge resolves each
+   * provider's account under its own number. Each falls back to
+   * `porter_mobile ?? phone` when null. Editable in admin-v2 Delivery Bridge
+   * Settings.
+   */
+  uber_mobile?: string | null;
+  rapido_mobile?: string | null;
   footnote?: string;
   social_links?: string;
   gst_no?: string;

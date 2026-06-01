@@ -35,7 +35,7 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getFeatures } from "@/lib/getFeatures";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
-import { quotePorterFare } from "@/app/actions/porterBridge";
+import { quoteDeliveryFare } from "@/app/actions/porterBridge";
 import V3AddressSheet from "../styles/V3/V3AddressSheet";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } from "../OrderDrawer";
@@ -344,7 +344,7 @@ const PlaceOrderModalV2 = ({
     let cancelled = false;
     setPorterQuoteLoading(true);
     const t = setTimeout(async () => {
-      const res = await quotePorterFare({
+      const res = await quoteDeliveryFare({
         partnerId: (hotelData as any)?.id,
         drop: { lat: userCoordinates.lat, lng: userCoordinates.lng },
         paymentMode: "cash",
