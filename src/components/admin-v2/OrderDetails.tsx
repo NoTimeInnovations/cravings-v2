@@ -55,6 +55,11 @@ const DispatchProgressPanel = dynamic(
   { ssr: false },
 );
 
+const DeliveryRiderPanel = dynamic(
+  () => import("@/components/DeliveryRiderPanel"),
+  { ssr: false },
+);
+
 
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { DeliveryBoyAssignment } from "./DeliveryBoyAssignment";
@@ -686,10 +691,16 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 <DispatchProgressPanel orderId={order.id} />
             )}
 
-            {/* Porter bridge tracking — rendered independently of the
-                Delivery Agent / Growjet block so it shows up even for
-                partners who don't have those flags enabled. */}
-            {order.delivery_provider === "porter" && (
+            {/* Assigned rider (provider-agnostic): name, phone, vehicle, track —
+                shown once any provider's rider is assigned via the dispatch. */}
+            {(order.delivery_provider_meta as { dispatchId?: string } | null)?.dispatchId && order.id && (
+                <DeliveryRiderPanel orderId={order.id} />
+            )}
+
+            {/* Legacy Porter tracking (pre-dispatch orders without a dispatchId).
+                Dispatch orders use DeliveryRiderPanel above instead. */}
+            {order.delivery_provider === "porter" &&
+                !(order.delivery_provider_meta as { dispatchId?: string } | null)?.dispatchId && (
                 <PorterTrackingPanel
                     orderId={order.id}
                     provider={order.delivery_provider}

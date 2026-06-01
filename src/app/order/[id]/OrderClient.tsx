@@ -28,6 +28,11 @@ const PorterTrackingPanel = dynamic(
   { ssr: false },
 );
 
+const DeliveryRiderPanel = dynamic(
+  () => import("@/components/DeliveryRiderPanel"),
+  { ssr: false },
+);
+
 const GET_ORDER_QUERY = `
   subscription GetOrder($id: uuid!) {
     orders_by_pk(id: $id) {
@@ -726,7 +731,9 @@ ${itemsText}
                             was routed through porter-bridge, regardless of the
                             local order status. Renders driver info, tracking
                             link, refresh button. */}
-                        {order?.delivery_provider === "porter" && order?.id && (
+                        {order?.delivery_provider === "porter" &&
+                            !(order?.delivery_provider_meta as { dispatchId?: string } | null)?.dispatchId &&
+                            order?.id && (
                             <div className="px-4 sm:px-0">
                                 <PorterTrackingPanel
                                     orderId={order.id}
@@ -735,6 +742,15 @@ ${itemsText}
                                     state={order.delivery_provider_state}
                                     meta={order.delivery_provider_meta}
                                 />
+                            </div>
+                        )}
+
+                        {/* Multi-provider dispatch (porter/uber/rapido): show the
+                            assigned rider + live track link once a rider is found. */}
+                        {(order?.delivery_provider_meta as { dispatchId?: string } | null)?.dispatchId &&
+                            order?.id && (
+                            <div className="px-4 sm:px-0">
+                                <DeliveryRiderPanel orderId={order.id} />
                             </div>
                         )}
 

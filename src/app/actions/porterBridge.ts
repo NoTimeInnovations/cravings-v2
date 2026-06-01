@@ -866,7 +866,12 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
     plan: string[];
     currentProvider: string | null;
     result: { provider?: string; driverName?: string; fare?: number } | null;
-    booking: { provider?: string; status?: string; driver?: unknown; trackUrl?: string | null } | null;
+    booking: {
+      provider?: string;
+      status?: string;
+      driver?: { name?: string; phone?: string; vehicleNumber?: string; vehicleModel?: string; photoUrl?: string } | null;
+      trackUrl?: string | null;
+    } | null;
     log: Array<{ t: number; text: string; tone: string }>;
   };
   const running = d.status === "running";
@@ -892,7 +897,8 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
       currentProvider: running ? d.currentProvider : null,
       wonProvider: won,
       providers,
-      driverName: d.result?.driverName ?? null,
+      driver: d.booking?.driver ?? null,
+      driverName: d.result?.driverName ?? d.booking?.driver?.name ?? null,
       trackUrl: d.booking?.trackUrl ?? null,
       log: Array.isArray(d.log) ? d.log.slice(-8) : [],
     },
