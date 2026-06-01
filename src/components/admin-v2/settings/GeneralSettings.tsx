@@ -32,7 +32,7 @@ import { isVideoUrl } from "@/lib/mediaUtils";
 const VideoEditor = dynamic(() => import("@/components/VideoEditor"), { ssr: false });
 
 const BANNER_LOGO_SCALE_MIN = 50;
-const BANNER_LOGO_SCALE_MAX = 250;
+const BANNER_LOGO_SCALE_MAX = 500;
 const BANNER_LOGO_SCALE_DEFAULT = 100;
 
 function clampBannerLogoScale(n: unknown): number {
