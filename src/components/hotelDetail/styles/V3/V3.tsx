@@ -80,7 +80,9 @@ const V3 = ({
     }
     const bl = parsed?.bannerLogo;
     const rawScale = typeof bl?.scale === "number" ? bl.scale : 100;
-    const scale = Math.min(2.5, Math.max(0.5, rawScale / 100));
+    // Clamp matches the admin setting range (50%–500%). Keep in sync with
+    // BANNER_LOGO_SCALE_MIN/MAX in GeneralSettings.
+    const scale = Math.min(5, Math.max(0.5, rawScale / 100));
     const bgColor = typeof bl?.bgColor === "string" && bl.bgColor ? bl.bgColor : null;
     return { scale, bgColor };
   }, [(hoteldata as any)?.storefront_settings]);

@@ -287,7 +287,7 @@ export default async function PartnerInfoPage({
   const logoScale = (() => {
     const n = info.logoScale;
     if (typeof n !== "number" || !Number.isFinite(n)) return 1;
-    return Math.min(2.5, Math.max(0.5, n / 100));
+    return Math.min(5, Math.max(0.5, n / 100)); // 50%–500% (matches the settings range)
   })();
   const initial = partner.store_name?.charAt(0)?.toUpperCase() || "M";
 
