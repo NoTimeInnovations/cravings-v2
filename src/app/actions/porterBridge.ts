@@ -847,12 +847,14 @@ export async function getDispatchTracking(orderId: string): Promise<Result> {
 export async function getDispatchProgress(orderId: string): Promise<Result> {
   if (!orderId) return { ok: false, message: "orderId required" };
   let dispatchId: string | null = null;
+  let storedState: string | null = null;
   try {
     const data = await fetchFromHasura(
-      `query GetDispatchProg($id: uuid!) { orders_by_pk(id: $id) { delivery_provider_meta } }`,
+      `query GetDispatchProg($id: uuid!) { orders_by_pk(id: $id) { delivery_provider_state delivery_provider_meta } }`,
       { id: orderId },
     );
     dispatchId = data.orders_by_pk?.delivery_provider_meta?.dispatchId ?? null;
+    storedState = data.orders_by_pk?.delivery_provider_state ?? null;
   } catch (err) {
     return { ok: false, message: `hasura: ${(err as Error).message}` };
   }
@@ -888,11 +890,29 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
     else state = "pending";
     return { provider, state };
   });
+
+  // The won booking's LIVE status. A cancel done from the bridge dashboard
+  // marks the booking cancelled but leaves the dispatch row "assigned", so this
+  // is the only signal cravings gets. Reconcile a terminal change onto the
+  // order once (so the cancel shows everywhere, not just this panel).
+  const bookingStatus = d.booking?.status ?? null;
+  const terminal = bookingStatus != null && ["cancelled", "ended", "failed"].includes(bookingStatus);
+  if (terminal && bookingStatus !== storedState) {
+    await persistDispatch(
+      orderId,
+      d.booking?.provider ?? won ?? "dispatch",
+      bookingStatus,
+      null,
+      { dispatchId, dispatchStatus: d.status, terminalAt: new Date().toISOString() },
+    );
+  }
+
   return {
     ok: true,
     data: {
       dispatchId,
       status: d.status,
+      bookingStatus,
       vehicleMode: d.vehicleMode ?? null,
       currentProvider: running ? d.currentProvider : null,
       wonProvider: won,

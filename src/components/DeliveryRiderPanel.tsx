@@ -7,6 +7,9 @@ import { getDispatchProgress, cancelDispatch } from "@/app/actions/porterBridge"
 
 interface Rider {
   status: string;
+  /** The won booking's LIVE status — flips to cancelled/ended/failed when the
+   *  delivery is cancelled from the bridge dashboard. */
+  bookingStatus?: string | null;
   wonProvider: string | null;
   driver: {
     name?: string;
@@ -52,8 +55,11 @@ export default function DeliveryRiderPanel({
       if (res.ok) {
         const d = res.data as unknown as Rider;
         setR(d);
-        const assigned = d.status === "assigned" && !!d.driver?.name;
-        timer = setTimeout(tick, assigned ? 20000 : 6000);
+        const term = d.bookingStatus === "cancelled" || d.bookingStatus === "failed" || d.bookingStatus === "ended";
+        if (!term) {
+          const assigned = d.status === "assigned" && !!d.driver?.name;
+          timer = setTimeout(tick, assigned ? 20000 : 6000);
+        }
       }
     };
     tick();
@@ -63,10 +69,14 @@ export default function DeliveryRiderPanel({
     };
   }, [orderId]);
 
-  if (cancelled) {
+  // Terminal either locally (cancel button) or from the bridge dashboard
+  // (won booking flipped to cancelled/failed).
+  const terminated =
+    cancelled || r?.bookingStatus === "cancelled" || r?.bookingStatus === "failed";
+  if (terminated) {
     return (
       <div className="rounded-2xl bg-rose-50 p-4 text-sm font-medium text-rose-700 shadow-sm">
-        Delivery cancelled.
+        {r?.bookingStatus === "failed" ? "Delivery failed." : "Delivery cancelled."}
       </div>
     );
   }
