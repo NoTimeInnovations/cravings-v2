@@ -694,7 +694,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
             {/* Assigned rider (provider-agnostic): name, phone, vehicle, track —
                 shown once any provider's rider is assigned via the dispatch. */}
             {(order.delivery_provider_meta as { dispatchId?: string } | null)?.dispatchId && order.id && (
-                <DeliveryRiderPanel orderId={order.id} />
+                <DeliveryRiderPanel orderId={order.id} showCancel />
             )}
 
             {/* Legacy Porter tracking (pre-dispatch orders without a dispatchId).

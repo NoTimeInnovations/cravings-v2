@@ -61,6 +61,9 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
   }, [orderId]);
 
   if (!p) return null;
+  // Once a rider is assigned, the DeliveryRiderPanel takes over — hide the
+  // escalation progress card so they don't both show.
+  if (p.status === "assigned") return null;
 
   return (
     <div className="border rounded-lg bg-card p-4">
