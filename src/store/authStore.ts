@@ -116,6 +116,8 @@ export interface Partner extends BaseUser {
   theme?: string;
   currency: string;
   feature_flags?: string;
+  /** JSON string of PrebookingSettings (see orderStore.ts). Gated by the `prebooking` feature flag. */
+  prebooking_settings?: string | null;
   /**
    * Mobile registered on porter-bridge for this partner's delivery dispatch.
    * Read by src/app/actions/porterBridge.ts at dispatch time. Falls back to

@@ -25,6 +25,8 @@ import { getGstAmount, calculateGstForItems, calculateDeliveryDistanceAndCost } 
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getFeatures } from "@/lib/getFeatures";
+import { PrebookingPicker, PrebookingSelection } from "./PrebookingPicker";
+import { parsePrebookingSettings, resolvePrebookOrderType } from "@/lib/prebooking";
 import DescriptionWithTextBreak from "@/components/DescriptionWithTextBreak";
 import { useQrDataStore } from "@/store/qrDataStore";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1734,6 +1736,18 @@ const PlaceOrderModal = ({
   const showDiscountSection =
     (isQrScan ? hotelFeatures?.ordering?.enabled : hotelFeatures?.delivery?.enabled);
 
+  // ---------------- Prebooking (scheduled orders) ----------------
+  const [prebooking, setPrebooking] = useState<PrebookingSelection | null>(null);
+  const prebookingSettings = useMemo(
+    () => parsePrebookingSettings((hotelData as any)?.prebooking_settings),
+    [(hotelData as any)?.prebooking_settings]
+  );
+  const showPrebooking = !!(hotelFeatures?.prebooking?.enabled && prebookingSettings);
+  const prebookOrderTypeKey = resolvePrebookOrderType(
+    (tableNumber ?? 0) > 0 ? "table_order" : "delivery",
+    orderType === "takeaway"
+  );
+
   /* ---------------- 3PL delivery-agent serviceability + quote -------------
    * Default-on: when the partner has the `delivery_agent` feature enabled and
    * has NOT explicitly set `use_delivery_agent_charge = false`, treat it as
@@ -2760,6 +2774,8 @@ const PlaceOrderModal = ({
         } : null,
         needUserName ? customerName.trim() : undefined,
         (user as any)?.phone || undefined,
+        null,
+        showPrebooking ? prebooking : null,
       );
 
       if (result) {
@@ -2883,6 +2899,7 @@ const PlaceOrderModal = ({
         orderNote: orderNote || null,
         selectedLocation: selectedLocation || null,
         discountId: appliedDiscount?.id || null,
+        prebooking: showPrebooking ? prebooking : null,
       }));
 
       // Build return URL — current page URL so Cashfree redirects back here.
@@ -2953,6 +2970,7 @@ const PlaceOrderModal = ({
         orderType: orderType || null,
         orderNote: orderNote || null,
         customerName: customerName || null,
+        prebooking: showPrebooking ? prebooking : null,
         skipAuthWait: true,
       });
     } catch (error) {
@@ -2972,6 +2990,7 @@ const PlaceOrderModal = ({
     orderType?: string | null;
     orderNote?: string | null;
     customerName?: string | null;
+    prebooking?: PrebookingSelection | null;
     skipAuthWait?: boolean;
   }) => {
     // Skip if this exact cfOrderId is already being verified — prevents the
@@ -3078,6 +3097,7 @@ const PlaceOrderModal = ({
         pending.customerName || undefined,
         (useAuthStore.getState().userData as any)?.phone || undefined,
         pending.cfOrderId,
+        pending.prebooking || null,
       );
 
       if (result) {
@@ -3121,6 +3141,7 @@ const PlaceOrderModal = ({
       orderType: pending.orderType,
       orderNote: pending.orderNote,
       customerName: pending.customerName,
+      prebooking: pending.prebooking || null,
     });
   }, []);
 
@@ -3343,6 +3364,17 @@ const PlaceOrderModal = ({
                     />
                   </div>
                 </div>
+
+                {/* Prebooking (scheduled orders) */}
+                {showPrebooking && prebookingSettings && (
+                  <div className="mt-3">
+                    <PrebookingPicker
+                      settings={prebookingSettings}
+                      orderTypeKey={prebookOrderTypeKey}
+                      onChange={setPrebooking}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Table / QR Info */}

@@ -12,7 +12,8 @@ import { Order, OrderItem } from "@/store/orderStore";
 import OfferLoadinPage from "@/components/OfferLoadinPage";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
 import { getFeatures } from "@/lib/getFeatures";
-import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2, Star, Bike, Store, MapPin, Receipt, Package, User, StickyNote, ShoppingBag, XCircle, ChevronDown } from "lucide-react";
+import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2, Star, Bike, Store, MapPin, Receipt, Package, User, StickyNote, ShoppingBag, XCircle, ChevronDown, CalendarClock } from "lucide-react";
+import { formatPrebookDateLabel, formatSlotLabel } from "@/lib/prebooking";
 import { OrderReviewModal } from "@/components/OrderReviewModal";
 import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 import { useAuthStore } from "@/store/authStore";
@@ -43,6 +44,8 @@ const GET_ORDER_QUERY = `
       table_number
       qr_id
       type
+      scheduled_date
+      scheduled_time
       delivery_address
       delivery_location
       status
@@ -215,6 +218,8 @@ const OrderClient = () => {
                         status_history: order?.status_history,
                         display_id: order?.display_id,
                         type: order?.type,
+                        scheduled_date: order?.scheduled_date ?? null,
+                        scheduled_time: order?.scheduled_time ?? null,
                         phone: order?.phone,
                         notes: order?.notes,
                         deliveryAddress: order?.delivery_address,
@@ -653,6 +658,24 @@ ${itemsText}
                                     </div>
                                 </div>
                             )}
+
+                        {/* Prebooked (scheduled order) banner */}
+                        {order?.scheduled_date && (
+                            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 flex items-start gap-3 shadow-sm">
+                                <CalendarClock className="h-5 w-5 text-blue-700 shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                                        Prebooked order
+                                    </p>
+                                    <p className="mt-0.5 text-sm font-medium text-blue-900">
+                                        Scheduled for {formatPrebookDateLabel(order.scheduled_date)}
+                                        {order?.scheduled_time
+                                            ? ` at ${formatSlotLabel(order.scheduled_time.slice(0, 5))}`
+                                            : ""}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Card: Order header */}
                         <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-5">

@@ -163,6 +163,21 @@ export function FeatureSettings() {
                                 </div>
                             )}
 
+                            {features.prebooking?.access && (
+                                <div className="flex items-center justify-between p-4 border rounded-lg">
+                                    <div className="space-y-0.5">
+                                        <div className="font-medium">Pre-Booking</div>
+                                        <div className="text-sm text-muted-foreground">
+                                            {features.prebooking.enabled ? "Enabled" : "Disabled"}
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={features.prebooking.enabled}
+                                        onCheckedChange={(checked) => handleFeatureToggle("prebooking", checked)}
+                                    />
+                                </div>
+                            )}
+
                             {features.multiwhatsapp?.access && (
                                 <div className="flex items-center justify-between p-4 border rounded-lg">
                                     <div className="space-y-0.5">

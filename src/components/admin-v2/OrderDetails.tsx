@@ -44,6 +44,7 @@ import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getFeatures } from "@/lib/getFeatures";
+import { formatPrebookDateLabel, formatSlotLabel } from "@/lib/prebooking";
 
 const PorterTrackingPanel = dynamic(
   () => import("@/components/PorterTrackingPanel"),
@@ -413,6 +414,15 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                 </Badge>
                             </div>
                         </div>
+                        {order.scheduled_date && (
+                            <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Prebooked for:</span>
+                                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 font-medium">
+                                    {formatPrebookDateLabel(order.scheduled_date)}
+                                    {order.scheduled_time ? ` · ${formatSlotLabel(order.scheduled_time.slice(0, 5))}` : ""}
+                                </Badge>
+                            </div>
+                        )}
                         {(order.phone || order.user?.phone) && (
                             <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Phone:</span>

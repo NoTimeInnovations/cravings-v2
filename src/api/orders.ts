@@ -11,6 +11,8 @@ export const getOrdersOfPartnerQuery = `
       created_at
       table_number
       type
+      scheduled_date
+      scheduled_time
       qr_id
       delivery_address
       status
@@ -123,7 +125,9 @@ export const createOrderWithItemsMutation = `
     $orderItems: [order_items_insert_input!]!,
     $discounts: jsonb,
     $source: String,
-    $cashfree_order_id: String
+    $cashfree_order_id: String,
+    $scheduled_date: date,
+    $scheduled_time: time
   ) {
     insert_orders_one(object: {
       id: $id
@@ -149,6 +153,8 @@ export const createOrderWithItemsMutation = `
       discounts: $discounts
       source: $source
       cashfree_order_id: $cashfree_order_id
+      scheduled_date: $scheduled_date
+      scheduled_time: $scheduled_time
 
       order_items: {
         data: $orderItems
@@ -158,6 +164,8 @@ export const createOrderWithItemsMutation = `
       short_id
       total_price
       created_at
+      scheduled_date
+      scheduled_time
       order_items {
         id,
         item
@@ -233,6 +241,8 @@ export const getOrderByIdQuery = `
       created_at
       table_number
       type
+      scheduled_date
+      scheduled_time
       delivery_address
       status
       phone
@@ -283,6 +293,8 @@ subscription GetPartnerOrders($partner_id: uuid!, $today_start: timestamptz!, $t
     notes
     qr_id
     type
+    scheduled_date
+    scheduled_time
     delivery_address
     delivery_location
     status
@@ -374,6 +386,8 @@ subscription GetPaginatedPartnerOrders(
     notes
     qr_id
     type
+    scheduled_date
+    scheduled_time
     delivery_address
     delivery_location
     status
@@ -478,6 +492,8 @@ subscription GetUserOrders($user_id: uuid!) {
     table_number
     qr_id
     type
+    scheduled_date
+    scheduled_time
     delivery_address
     delivery_location
     table_name

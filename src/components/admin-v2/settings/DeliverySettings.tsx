@@ -18,7 +18,7 @@ import { useMenuStore } from "@/store/menuStore_hasura";
 import { countryCodes } from "@/utils/countryCodes";
 import { getDeliveryAgentWallet } from "@/app/actions/deliveryAgent";
 
-function TimePicker({ value, onChange }: { value: string; onChange: (val: string) => void }) {
+export function TimePicker({ value, onChange }: { value: string; onChange: (val: string) => void }) {
     const [open, setOpen] = useState(false);
     const [selecting, setSelecting] = useState<"hours" | "minutes">("hours");
     const [inputMode, setInputMode] = useState<"clock" | "keyboard">("clock");

@@ -79,6 +79,15 @@ export type FeatureFlags = {
     access: boolean;
     enabled: boolean;
   };
+  /**
+   * Allows customers to place scheduled (prebooked) orders for a future date
+   * and time. Partners configure allowed windows, lead time, and max days
+   * ahead in the admin-v2 Prebooking settings tab (`prebooking_settings`).
+   */
+  prebooking: {
+    access: boolean;
+    enabled: boolean;
+  };
 };
 
 export const revertFeatureToString = (features: FeatureFlags): string => {
@@ -138,6 +147,10 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
 
   if (features.porter_bridge.access) {
     parts.push(`porter_bridge-${features.porter_bridge.enabled}`);
+  }
+
+  if (features.prebooking.access) {
+    parts.push(`prebooking-${features.prebooking.enabled}`);
   }
 
   return parts.join(",");
@@ -201,6 +214,10 @@ export const getFeatures = (perm: string | null) => {
       access: false,
       enabled: false,
     },
+    prebooking: {
+      access: false,
+      enabled: false,
+    },
   };
 
   if (!perm) {
@@ -255,6 +272,9 @@ export const getFeatures = (perm: string | null) => {
       } else if (key === "porter_bridge") {
         permissions.porter_bridge.access = true;
         permissions.porter_bridge.enabled = value === "true";
+      } else if (key === "prebooking") {
+        permissions.prebooking.access = true;
+        permissions.prebooking.enabled = value === "true";
       }
     }
   }

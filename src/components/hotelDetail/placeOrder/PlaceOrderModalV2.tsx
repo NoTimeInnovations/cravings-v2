@@ -34,6 +34,8 @@ import { Styles } from "@/screens/HotelMenuPage_v2";
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getFeatures } from "@/lib/getFeatures";
+import { PrebookingPicker, PrebookingSelection } from "./PrebookingPicker";
+import { parsePrebookingSettings, resolvePrebookOrderType } from "@/lib/prebooking";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
 import V3AddressSheet from "../styles/V3/V3AddressSheet";
@@ -244,6 +246,18 @@ const PlaceOrderModalV2 = ({
   const partnerFeatures = useMemo(
     () => getFeatures((hotelData as any)?.feature_flags ?? null),
     [(hotelData as any)?.feature_flags],
+  );
+
+  // ---------------- Prebooking (scheduled orders) ----------------
+  const [prebooking, setPrebooking] = useState<PrebookingSelection | null>(null);
+  const prebookingSettings = useMemo(
+    () => parsePrebookingSettings((hotelData as any)?.prebooking_settings),
+    [(hotelData as any)?.prebooking_settings],
+  );
+  const showPrebooking = !!(partnerFeatures?.prebooking?.enabled && prebookingSettings);
+  const prebookOrderTypeKey = resolvePrebookOrderType(
+    (tableNumber ?? 0) > 0 ? "table_order" : "delivery",
+    orderType === "takeaway",
   );
   // Default-on: when delivery_agent is enabled and the partner has NOT
   // explicitly set `use_delivery_agent_charge = false`, treat as on.
@@ -949,6 +963,7 @@ const PlaceOrderModalV2 = ({
     partnerId: string;
     orderType?: string | null;
     orderNote?: string | null;
+    prebooking?: PrebookingSelection | null;
     skipAuthWait?: boolean;
   }) => {
     if (verifyingCfOrderRef.current === pending.cfOrderId) return;
@@ -1036,6 +1051,7 @@ const PlaceOrderModalV2 = ({
         (authUser as any)?.full_name || undefined,
         undefined,
         pending.cfOrderId,
+        pending.prebooking || null,
       );
 
       if (result) {
@@ -1129,6 +1145,7 @@ const PlaceOrderModalV2 = ({
           address: address || null,
           orderNote: orderNote || null,
           discountId: appliedDiscount?.id || null,
+          prebooking: showPrebooking ? prebooking : null,
         }),
       );
 
@@ -1192,6 +1209,7 @@ const PlaceOrderModalV2 = ({
         partnerId: hotelData.id,
         orderType: orderType || null,
         orderNote: orderNote || null,
+        prebooking: showPrebooking ? prebooking : null,
         skipAuthWait: true,
       });
     } catch (error) {
@@ -1220,6 +1238,7 @@ const PlaceOrderModalV2 = ({
         partnerId: pending.partnerId,
         orderType: pending.orderType,
         orderNote: pending.orderNote,
+        prebooking: pending.prebooking || null,
       });
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1383,6 +1402,8 @@ const PlaceOrderModalV2 = ({
           : null,
         (user as any)?.full_name || undefined,
         selectedReceiverPhone || (user as any)?.phone || undefined,
+        null,
+        showPrebooking ? prebooking : null,
       );
 
       if (result) {
@@ -1798,6 +1819,17 @@ const PlaceOrderModalV2 = ({
               </div>
             )}
 
+            {/* Prebooking (scheduled orders) */}
+            {showPrebooking && prebookingSettings && (
+              <PrebookingPicker
+                settings={prebookingSettings}
+                orderTypeKey={prebookOrderTypeKey}
+                onChange={setPrebooking}
+                accentColor={accent}
+                className="bg-white rounded-2xl p-4 shadow-sm space-y-3"
+              />
+            )}
+
             {/* Items Card */}
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               {(items || []).map((item) => (
@@ -1907,6 +1939,8 @@ const PlaceOrderModalV2 = ({
                     Add More Items
                   </button>
                 </div>
+
+                
               </div>
             </div>
 

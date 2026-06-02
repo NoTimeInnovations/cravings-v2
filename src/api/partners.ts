@@ -228,6 +228,7 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
     price_adjustment
     subscription_details
     storefront_settings
+    prebooking_settings
     timezone
     menus(where: { deletion_status: {_eq: 0} }) {
       category {
@@ -416,6 +417,7 @@ export const updatePartnerMutation = `
       payment_modes
       delivery_qr_method
       storefront_settings
+      prebooking_settings
       official_name
       about_us
       operating_address

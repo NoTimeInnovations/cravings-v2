@@ -62,7 +62,8 @@ const FeatureFlagManagement = () => {
     captainordering: "Enables captain account creation and management for partners. Partners can create and manage captain accounts for taking orders.",
     whatsappnotifications: "Sends WhatsApp order notifications to customers when an order is placed and status updates.",
     newonboarding: "Enables the new onboarding flow with login, order type selection, and delivery address screens.",
-    growjet_delivery: "Routes delivery dispatch through Growjet (third-party). Requires partner geo_location and growjet_user_id."
+    growjet_delivery: "Routes delivery dispatch through Growjet (third-party). Requires partner geo_location and growjet_user_id.",
+    prebooking: "Allows customers to place orders for future dates and times, with configurable lead times and cutoff periods."
   };
 
   const getAllPartners = async () => {

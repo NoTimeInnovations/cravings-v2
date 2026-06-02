@@ -57,6 +57,7 @@ import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { AdminV2EditOrder } from "./AdminV2EditOrder";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getFeatures } from "@/lib/getFeatures";
+import { formatPrebookDateLabel, formatSlotLabel } from "@/lib/prebooking";
 
 export function AdminV2AllOrders() {
   const {
@@ -478,13 +479,21 @@ export function AdminV2AllOrders() {
                       {format(new Date(order.createdAt), "hh:mm a")}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className="uppercase">
-                        {order.type === "delivery" && !order.deliveryAddress
-                          ? "Takeaway"
-                          : order.type === "table_order"
-                            ? "Dine-in"
-                            : order.type}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-1">
+                        <Badge variant="secondary" className="uppercase">
+                          {order.type === "delivery" && !order.deliveryAddress
+                            ? "Takeaway"
+                            : order.type === "table_order"
+                              ? "Dine-in"
+                              : order.type}
+                        </Badge>
+                        {order.scheduled_date && (
+                          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 whitespace-nowrap">
+                            Prebooked · {formatPrebookDateLabel(order.scheduled_date)}
+                            {order.scheduled_time ? ` ${formatSlotLabel(order.scheduled_time.slice(0, 5))}` : ""}
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     {showGrowjetColumn && (
                       <TableCell>
@@ -658,7 +667,7 @@ export function AdminV2AllOrders() {
                         {format(new Date(order.createdAt), "hh:mm a")}
                       </span>
                     </div>
-                    <div className="flex items-center justify-end">
+                    <div className="flex flex-wrap items-center justify-end gap-1">
                       <Badge variant="outline" className="capitalize text-xs">
                         {order.type === "delivery" && !order.deliveryAddress
                           ? "Takeaway"
@@ -666,6 +675,12 @@ export function AdminV2AllOrders() {
                             ? "Dine-in"
                             : order.type}
                       </Badge>
+                      {order.scheduled_date && (
+                        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs whitespace-nowrap">
+                          Prebooked · {formatPrebookDateLabel(order.scheduled_date)}
+                          {order.scheduled_time ? ` ${formatSlotLabel(order.scheduled_time.slice(0, 5))}` : ""}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   {showGrowjetColumn && (

@@ -11,6 +11,7 @@ import { DiscountCodeSettings } from "./settings/DiscountCodeSettings";
 import { ThemeSettings } from "./settings/ThemeSettings";
 import { StorefrontSettings } from "./settings/StorefrontSettings";
 import { InfoPageSettings } from "./settings/InfoPageSettings";
+import { PrebookingSettings } from "./settings/PrebookingSettings";
 
 import { Button } from "@/components/ui/button";
 import { LogOut, ExternalLink } from "lucide-react";
@@ -104,6 +105,9 @@ export function AdminV2Settings() {
                         <TabsTrigger value="storefront">Storefront</TabsTrigger>
                     )}
                     <TabsTrigger value="info-page">Info Page</TabsTrigger>
+                    {features?.prebooking?.access && features?.prebooking?.enabled && (
+                        <TabsTrigger value="prebooking">Prebooking</TabsTrigger>
+                    )}
                     <TabsTrigger value="features">Features</TabsTrigger>
                 </TabsList>
 
@@ -142,6 +146,12 @@ export function AdminV2Settings() {
                 <TabsContent value="info-page" className="space-y-4">
                     <InfoPageSettings />
                 </TabsContent>
+
+                {features?.prebooking?.access && features?.prebooking?.enabled && (
+                    <TabsContent value="prebooking" className="space-y-4">
+                        <PrebookingSettings />
+                    </TabsContent>
+                )}
 
                 <TabsContent value="features" className="space-y-4">
                     <FeatureSettings />

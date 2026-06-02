@@ -94,6 +94,42 @@ export interface DeliveryRules {
   carousel_banners?: string[];
 }
 
+/** One allowed prebooking window for a given weekday (0 = Sunday … 6 = Saturday). */
+export interface PrebookingWindow {
+  day: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  from: string; // "HH:MM" (24h, restaurant-local)
+  to: string;   // "HH:MM"
+  enabled: boolean;
+}
+
+/**
+ * Partner-level prebooking config, persisted as a JSON string in
+ * `partners.prebooking_settings`. Gated by the `prebooking` feature flag.
+ * Times are restaurant-local; no timezone conversion is applied.
+ */
+export interface PrebookingSettings {
+  /** Minimum advance notice before the chosen slot, in minutes. */
+  min_lead_time_minutes: number;
+  /** How many days ahead an order may be scheduled (0 = today only). */
+  max_advance_days: number;
+  /** Allowed slot windows per weekday. */
+  windows: PrebookingWindow[];
+  /** Order types that may be prebooked. */
+  allowed_order_types: ("delivery" | "takeaway" | "dine_in")[];
+}
+
+export const DEFAULT_PREBOOKING_SETTINGS: PrebookingSettings = {
+  min_lead_time_minutes: 60,
+  max_advance_days: 7,
+  windows: Array.from({ length: 7 }, (_, day) => ({
+    day: day as PrebookingWindow["day"],
+    from: "10:00",
+    to: "22:00",
+    enabled: true,
+  })),
+  allowed_order_types: ["delivery", "takeaway", "dine_in"],
+};
+
 export interface Order {
   id: string;
   items: OrderItem[];
@@ -143,6 +179,10 @@ export interface Order {
     full_name?: string | null;
   };
   type?: "table_order" | "delivery" | "pos";
+  /** Prebooking: scheduled date "YYYY-MM-DD" (restaurant-local). Null = immediate order. */
+  scheduled_date?: string | null;
+  /** Prebooking: scheduled time "HH:MM:SS" (restaurant-local). Null = immediate order. */
+  scheduled_time?: string | null;
   deliveryAddress?: string | null;
   gstIncluded?: number;
   orderedby?: string;
@@ -303,6 +343,7 @@ interface OrderState {
     customerName?: string,
     customerPhone?: string,
     cashfreeOrderId?: string | null,
+    prebooking?: { date: string; time: string } | null,
   ) => Promise<Order | null>;
   getCurrentOrder: () => HotelOrderState;
   fetchOrderOfPartner: (partnerId: string) => Promise<Order[] | null>;
@@ -640,6 +681,8 @@ const useOrderStore = create(
               status: order.status,
               status_history: order.status_history,
               type: order.type,
+              scheduled_date: order.scheduled_date ?? null,
+              scheduled_time: order.scheduled_time ?? null,
               phone: order.phone,
               deliveryAddress: order.delivery_address,
               delivery_location: order.delivery_location,
@@ -1127,9 +1170,15 @@ const useOrderStore = create(
          */
         customerPhone?: string,
         cashfreeOrderId?: string | null,
+        prebooking?: { date: string; time: string } | null,
       ) => {
         try {
           const state = get();
+          // Prebooking (scheduled order): restaurant-local date/time, no tz conversion.
+          const scheduled_date = prebooking?.date || null;
+          const scheduled_time = prebooking?.time
+            ? (prebooking.time.length === 5 ? `${prebooking.time}:00` : prebooking.time)
+            : null;
 
           // Validation checks
           if (!state.hotelId) {
@@ -1258,6 +1307,8 @@ const useOrderStore = create(
                 full_name: customerName || (userData as any).full_name || null,
               },
               type,
+              scheduled_date,
+              scheduled_time,
               delivery_address:
                 type === "delivery" && !isTakeaway
                   ? sanitizePrintText(state.userAddress)
@@ -1433,6 +1484,8 @@ const useOrderStore = create(
               discounts: discounts ? [discounts] : null,
               source: "customer",
               cashfree_order_id: cashfreeOrderId || null,
+              scheduled_date,
+              scheduled_time,
               orderItems: [
                 ...currentOrder.items.map((item) => ({
                   menu_id: item.id.split("|")[0],
@@ -1641,6 +1694,8 @@ const useOrderStore = create(
               qrId: order.qr_id,
               status: order.status,
               type: order.type,
+              scheduled_date: order.scheduled_date ?? null,
+              scheduled_time: order.scheduled_time ?? null,
               payment_method: order.payment_method,
               phone: order.phone,
               deliveryAddress: order.delivery_address,
@@ -1750,6 +1805,8 @@ function transformOrderFromHasura(order: any): Order {
     user: order.user,
     display_id: order.display_id,
     type: order.type,
+    scheduled_date: order.scheduled_date ?? null,
+    scheduled_time: order.scheduled_time ?? null,
     deliveryAddress: order.delivery_address,
     gstIncluded: order.gst_included || 0,
     orderedby: order.orderedby,
