@@ -53,6 +53,7 @@ import { useAuthStore, Partner } from "@/store/authStore";
 import { toast } from "sonner";
 import { OrderStatusDisplay, toStatusDisplayFormat } from "@/lib/statusHistory";
 import { OrderDetails } from "./OrderDetails";
+import { PickupOtpBadge } from "./PickupOtpBadge";
 import { getDateOnly } from "@/lib/formatDate";
 import { useAdminStore } from "@/store/adminStore";
 import { AdminV2AllOrders } from "./AdminV2AllOrders";
@@ -455,9 +456,17 @@ export function AdminV2Orders() {
                 onClick={() => setSelectedOrderId(order.id)}
               >
                 <TableCell className="font-medium">
-                  {(Number(order.display_id) ?? 0) > 0
-                    ? `${order.display_id}-${getDateOnly(order.createdAt)}`
-                    : order.id.slice(0, 8)}
+                  <div className="flex flex-col gap-1">
+                    <span>
+                      {(Number(order.display_id) ?? 0) > 0
+                        ? `${order.display_id}-${getDateOnly(order.createdAt)}`
+                        : order.id.slice(0, 8)}
+                    </span>
+                    <PickupOtpBadge
+                      meta={order.delivery_provider_meta}
+                      status={order.status}
+                    />
+                  </div>
                 </TableCell>
                 <TableCell className="text-xs text-muted-foreground font-mono">
                   {order.id.slice(0, 8)}
@@ -699,6 +708,10 @@ export function AdminV2Orders() {
                     )}
                   </div>
                 )}
+                <PickupOtpBadge
+                  meta={order.delivery_provider_meta}
+                  status={order.status}
+                />
               </div>
             </CardContent>
             <CardFooter

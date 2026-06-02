@@ -230,6 +230,12 @@ export interface Order {
       pickup_otp?: string | null;
       return_otp?: string | null;
     };
+    /** Delivery-bridge dispatch id (set when an order goes through the
+     *  multi-provider Porter/Uber/Rapido dispatch). */
+    dispatchId?: string;
+    /** Handover OTPs from the delivery-bridge booking (Rapido). 4-digit. */
+    pickupPin?: string | null;
+    dropPin?: string | null;
     rider_platform?: { name?: string; lsp_uniq_id?: string };
     [k: string]: any;
   } | null;

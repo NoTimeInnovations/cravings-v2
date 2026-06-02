@@ -604,6 +604,32 @@ async function persistDispatch(
   }
 }
 
+/**
+ * Append-only meta merge — updates delivery_provider_meta WITHOUT touching
+ * provider / state / order_id. Used to stash data that should survive
+ * regardless of the dispatch lifecycle (e.g. the pickup/drop handover OTPs)
+ * without prematurely flipping the order's provider or state.
+ */
+const APPEND_DISPATCH_META_MUTATION = `
+  mutation AppendDispatchMeta($id: uuid!, $meta: jsonb!) {
+    update_orders_by_pk(
+      pk_columns: { id: $id },
+      _append: { delivery_provider_meta: $meta }
+    ) { id }
+  }
+`;
+
+async function appendDispatchMeta(
+  orderId: string,
+  meta: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await fetchFromHasura(APPEND_DISPATCH_META_MUTATION, { id: orderId, meta });
+  } catch (err) {
+    console.warn("[delivery-bridge] appendDispatchMeta failed:", err);
+  }
+}
+
 interface PartnerDispatchCfg {
   /** Base/default mobile (porter_mobile ?? phone): pickup contact + per-provider fallback. */
   mobile: string;
@@ -823,6 +849,8 @@ export async function getDispatchTracking(orderId: string): Promise<Result> {
       status?: string;
       driver?: unknown;
       trackUrl?: string | null;
+      pickupPin?: string | null;
+      dropPin?: string | null;
     } | null;
   };
   const b = d.booking;
@@ -835,6 +863,8 @@ export async function getDispatchTracking(orderId: string): Promise<Result> {
     dispatchStatus: d.status,
     ...(b?.trackUrl ? { trackUrl: b.trackUrl, consignmentNotePdfUrl: b.trackUrl } : {}),
     ...(b?.driver ? { driver: b.driver } : {}),
+    ...(b?.pickupPin ? { pickupPin: b.pickupPin } : {}),
+    ...(b?.dropPin ? { dropPin: b.dropPin } : {}),
   });
   return { ok: true, data: { dispatchStatus: d.status, provider, booking: b } };
 }
@@ -848,6 +878,7 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
   if (!orderId) return { ok: false, message: "orderId required" };
   let dispatchId: string | null = null;
   let storedState: string | null = null;
+  let storedPickupPin: string | null = null;
   try {
     const data = await fetchFromHasura(
       `query GetDispatchProg($id: uuid!) { orders_by_pk(id: $id) { delivery_provider_state delivery_provider_meta } }`,
@@ -855,6 +886,7 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
     );
     dispatchId = data.orders_by_pk?.delivery_provider_meta?.dispatchId ?? null;
     storedState = data.orders_by_pk?.delivery_provider_state ?? null;
+    storedPickupPin = data.orders_by_pk?.delivery_provider_meta?.pickupPin ?? null;
   } catch (err) {
     return { ok: false, message: `hasura: ${(err as Error).message}` };
   }
@@ -873,6 +905,8 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
       status?: string;
       driver?: { name?: string; phone?: string; vehicleNumber?: string; vehicleModel?: string; photoUrl?: string } | null;
       trackUrl?: string | null;
+      pickupPin?: string | null;
+      dropPin?: string | null;
     } | null;
     log: Array<{ t: number; text: string; tone: string }>;
   };
@@ -907,6 +941,16 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
     );
   }
 
+  // Handover OTPs (Rapido sets a 4-digit pickup/drop PIN at book time). Stash
+  // them onto the order — append-only so we don't disturb the provider/state
+  // lifecycle — the first time they appear, so the order list views +
+  // OrderDetails can show the pickup OTP without a live bridge call.
+  const pickupPin = d.booking?.pickupPin ?? null;
+  const dropPin = d.booking?.dropPin ?? null;
+  if (pickupPin && pickupPin !== storedPickupPin) {
+    await appendDispatchMeta(orderId, { pickupPin, ...(dropPin ? { dropPin } : {}) });
+  }
+
   return {
     ok: true,
     data: {
@@ -920,6 +964,8 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
       driver: d.booking?.driver ?? null,
       driverName: d.result?.driverName ?? d.booking?.driver?.name ?? null,
       trackUrl: d.booking?.trackUrl ?? null,
+      pickupPin,
+      dropPin,
       log: Array.isArray(d.log) ? d.log.slice(-8) : [],
     },
   };

@@ -52,6 +52,7 @@ import {
 import { format } from "date-fns";
 import { getDateOnly } from "@/lib/formatDate";
 import { OrderDetails } from "./OrderDetails";
+import { PickupOtpBadge } from "./PickupOtpBadge";
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { AdminV2EditOrder } from "./AdminV2EditOrder";
@@ -451,9 +452,17 @@ export function AdminV2AllOrders() {
                     onClick={() => setSelectedOrder(order)}
                   >
                     <TableCell className="font-medium">
-                      {(Number(order.display_id) ?? 0) > 0
-                        ? `${order.display_id}-${getDateOnly(order.createdAt)}`
-                        : order.id.slice(0, 8)}
+                      <div className="flex flex-col gap-1">
+                        <span>
+                          {(Number(order.display_id) ?? 0) > 0
+                            ? `${order.display_id}-${getDateOnly(order.createdAt)}`
+                            : order.id.slice(0, 8)}
+                        </span>
+                        <PickupOtpBadge
+                          meta={order.delivery_provider_meta}
+                          status={order.status}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground font-mono">
                       {order.id.slice(0, 8)}
@@ -696,6 +705,10 @@ export function AdminV2AllOrders() {
                       )}
                     </div>
                   )}
+                  <PickupOtpBadge
+                    meta={order.delivery_provider_meta}
+                    status={order.status}
+                  />
                 </CardContent>
                 <CardFooter
                   className="bg-muted/10 p-2 flex justify-between border-t"
