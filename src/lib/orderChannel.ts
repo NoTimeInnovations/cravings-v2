@@ -1,19 +1,20 @@
 /**
  * Distinguish whether the customer is using the website or one of our published
- * TWA Android apps (com.<username>.twa) — WITHOUT any change to the published
- * apps. The TWA loads the same menuthere.com site in Chrome, so server-side
- * User-Agent can't tell them apart. Two client-side signals can:
+ * native apps (menuthere-user-app-creator) — WITHOUT any change to the published
+ * apps. The apps load the same menuthere.com site inside a WebView/WKWebView, so
+ * the server can't tell them apart, and the Android app even STRIPS the "wv"
+ * token from its User-Agent (so Cashfree shows the UPI-intent UI). So UA, the
+ * android-app:// referrer, and display-mode are all unreliable.
  *
- *  1. `document.referrer === "android-app://<package>"` — Chrome sets this when
- *     a page is opened inside a TWA. It's only present on the FIRST load of the
- *     launch, so we capture it immediately on mount and cache it.
- *  2. display-mode standalone/fullscreen/minimal-ui — a TWA always runs in its
- *     manifest display mode (ours is fullscreen); a normal browser tab is
- *     "browser". This is live on every page, so it's the fallback at order time.
+ * The reliable signal: the apps inject a native JS bridge named "<Partner>App"
+ * (e.g. addJavascriptInterface(..., "OreodemoApp") on Android exposing
+ * getNotificationToken(); userContentController.add(..., "OreodemoApp") on iOS →
+ * window.webkit.messageHandlers). Neither exists in a normal browser.
  *
- * Cached in sessionStorage (NOT localStorage: a TWA shares Chrome's localStorage
- * on the device, which would leak the "app" flag into later browser sessions;
- * sessionStorage is scoped to the session/tab).
+ * Detection priority: native bridge → android-app:// referrer (TWA) →
+ * standalone display-mode → web. Cached in sessionStorage (NOT localStorage: an
+ * in-app WebView can share the browser's localStorage on the device, which would
+ * leak the "app" flag into later browser sessions).
  */
 
 const KEY = "mt_order_channel";
@@ -33,14 +34,54 @@ function detectStandalone(): boolean {
 }
 
 /**
+ * Detect our native app shell via the injected "<Partner>App" JS bridge. This is
+ * the most reliable signal (survives UA stripping) and works for already-published
+ * apps with no changes.
+ */
+function detectNativeAppBridge(): boolean {
+  if (typeof window === "undefined") return false;
+  const w = window as any;
+  // Android: addJavascriptInterface registers window.<Name>App with a
+  // getNotificationToken() method. Browsers never have such an object.
+  try {
+    for (const k of Object.getOwnPropertyNames(w)) {
+      if (!k.endsWith("App")) continue;
+      try {
+        const v = w[k];
+        if (v && typeof v === "object" && typeof v.getNotificationToken === "function") {
+          return true;
+        }
+      } catch {
+        /* property access threw — ignore */
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  // iOS WKWebView: native message handlers are only present inside an app
+  // webview, never in mobile Safari.
+  try {
+    if (w.webkit?.messageHandlers) return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+/**
  * Run as early as possible on first load (root layout) to capture the
  * android-app:// referrer before it's lost to client-side navigation.
  */
 export function captureOrderChannel(): void {
   if (typeof window === "undefined") return;
   try {
+    // Most reliable: native app JS bridge.
+    if (detectNativeAppBridge()) {
+      sessionStorage.setItem(KEY, JSON.stringify({ channel: "app", pkg: null }));
+      return;
+    }
     const ref = document.referrer || "";
-    // Definitive: launched from an installed Android app (our TWA).
+    // Launched from an installed Android app (TWA).
     if (ref.startsWith("android-app://")) {
       const pkg = ref.replace("android-app://", "").replace(/\/$/, "");
       sessionStorage.setItem(KEY, JSON.stringify({ channel: "app", pkg }));
@@ -58,18 +99,20 @@ export function captureOrderChannel(): void {
 /** Read the detected channel (with a live fallback if capture didn't run). */
 export function getOrderChannel(): OrderChannel {
   if (typeof window === "undefined") return "web";
+  // Live signals first — these are reliable in-app and don't depend on the cache.
+  if (detectNativeAppBridge()) return "app";
+  try {
+    if ((document.referrer || "").startsWith("android-app://")) return "app";
+  } catch {
+    /* ignore */
+  }
+  // Cached (captures the android-app:// referrer from first load before SPA nav).
   try {
     const raw = sessionStorage.getItem(KEY);
     if (raw) {
       const v = JSON.parse(raw);
-      if (v?.channel === "app" || v?.channel === "web") return v.channel;
+      if (v?.channel === "app") return "app";
     }
-  } catch {
-    /* ignore */
-  }
-  // Not cached — compute live.
-  try {
-    if ((document.referrer || "").startsWith("android-app://")) return "app";
   } catch {
     /* ignore */
   }
