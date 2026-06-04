@@ -24,6 +24,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { updateUserAddressesMutation } from "@/api/auth";
 import { toast } from "sonner";
 import { useLocationStore } from "@/store/geolocationStore";
+import PullToRefresh from "@/components/PullToRefresh";
 
 const V3 = ({
   styles,
@@ -245,6 +246,7 @@ const V3 = ({
         if ((e.target as HTMLElement).tagName === "IMG") e.preventDefault();
       }}
     >
+      <PullToRefresh />
       <main className="max-w-2xl mx-auto relative pb-24">
         <ShopClosedModalWarning
           hotelId={hoteldata?.id}

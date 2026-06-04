@@ -367,7 +367,6 @@ export function AdminV2Orders() {
 
   return (
     <div className="space-y-4">
-      <DraftOrdersSection />
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex flex-col w-full md:w-auto gap-3">
           <div className="relative">
@@ -428,9 +427,12 @@ export function AdminV2Orders() {
           </div>
         </div>
 
-        <Button variant="outline" onClick={() => setViewMode("all")}>
-          Show All Orders
-        </Button>
+        <div className="flex items-center gap-2">
+          <DraftOrdersSection />
+          <Button variant="outline" onClick={() => setViewMode("all")}>
+            Show All Orders
+          </Button>
+        </div>
       </div>
 
       {/* Desktop Table View */}

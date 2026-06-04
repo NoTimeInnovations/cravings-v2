@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import useOrderStore from "@/store/orderStore";
 import { format } from "date-fns";
 import { Loader2, ShoppingBag, ChevronLeft, ExternalLink, MessageCircle, CreditCard } from "lucide-react";
 import { useAuthStore, Partner } from "@/store/authStore";
@@ -11,6 +10,8 @@ import { getGstAmount } from "@/components/hotelDetail/OrderDrawer";
 import Link from "next/link";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { subscribeToHasura } from "@/lib/hasuraSubscription";
+import { userPartnerOrdersSubscription, userPartnerOrdersPageQuery } from "@/api/orders";
 import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid, setOrderCashfreeId } from "@/app/actions/cashfree";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
@@ -20,23 +21,73 @@ interface V3OrdersProps {
   onClose: () => void;
 }
 
+// Map a Hasura order row (userPartnerOrders queries) to the shape this view renders.
+const mapRowToOrder = (row: any): any => ({
+  id: row.id,
+  totalPrice: row.total_price,
+  createdAt: row.created_at,
+  status: row.status,
+  display_id: row.display_id,
+  partnerId: row.partner_id,
+  partner: row.partner,
+  gstIncluded: row.gst_included,
+  extraCharges: row.extra_charges || [],
+  discounts: row.discounts || [],
+  is_paid: row.is_paid || false,
+  items: (row.order_items || []).map((i: any) => ({
+    id: i.item?.id,
+    quantity: i.quantity,
+    name: i.item?.name || "Unknown",
+    price: i.item?.offers?.[0]?.offer_price || i.item?.price || 0,
+    category: i.item?.category,
+    is_freebie: i.item?.is_freebie || false,
+  })),
+});
+
 export default function V3Orders({ hotelId, onClose }: V3OrdersProps) {
-  const { userOrders, subscribeUserOrders } = useOrderStore();
   const { userData } = useAuthStore();
+  const [partnerOrders, setPartnerOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [closing, setClosing] = useState(false);
-  const [upiOrder, setUpiOrder] = useState<(typeof userOrders)[0] | null>(null);
+  const [upiOrder, setUpiOrder] = useState<any | null>(null);
   const [partnerPaymentInfo, setPartnerPaymentInfo] = useState<any>(null);
   const [cashfreeLoadingOrderId, setCashfreeLoadingOrderId] = useState<string | null>(null);
   const [showCashfreeEmbed, setShowCashfreeEmbed] = useState(false);
   const cashfreeContainerRef = useRef<HTMLDivElement | null>(null);
 
+  // Orders for THIS restaurant only (scoped by partner_id). Fast HTTP first
+  // paint, then a live subscription. Previously this loaded ALL the user's
+  // orders across every restaurant and filtered client-side — wrong data + slow.
+  // The partner-scoped query has no status filter, so the customer's own
+  // pending_payment (payment-processing) order shows here too.
   useEffect(() => {
-    if (userData?.id) {
-      const unsubscribe = subscribeUserOrders(() => setLoading(false));
-      return () => { unsubscribe(); };
-    }
-  }, [userData, subscribeUserOrders]);
+    const userId = userData?.id;
+    if (!userId || !hotelId) return;
+    let alive = true;
+    let subscriptionFired = false;
+
+    fetchFromHasura(userPartnerOrdersPageQuery, { user_id: userId, partner_id: hotelId, limit: 20, offset: 0 })
+      .then((data: any) => {
+        if (!alive || subscriptionFired) return;
+        setPartnerOrders((data?.orders ?? []).map(mapRowToOrder));
+        setLoading(false);
+      })
+      .catch(() => {});
+
+    const unsubscribe = subscribeToHasura({
+      query: userPartnerOrdersSubscription,
+      variables: { user_id: userId, partner_id: hotelId, limit: 20 },
+      onNext: (data: any) => {
+        if (!alive) return;
+        subscriptionFired = true;
+        setPartnerOrders((data?.data?.orders ?? []).map(mapRowToOrder));
+        setLoading(false);
+      },
+      onError: () => { if (alive) setLoading(false); },
+    });
+
+    return () => { alive = false; unsubscribe(); };
+  }, [userData?.id, hotelId]);
 
   useEffect(() => {
     if (!hotelId) return;
@@ -44,10 +95,6 @@ export default function V3Orders({ hotelId, onClose }: V3OrdersProps) {
       .then((data) => { if (data?.partners_by_pk) setPartnerPaymentInfo(data.partners_by_pk); })
       .catch(() => {});
   }, [hotelId]);
-
-  const partnerOrders = userOrders
-    .filter((order) => order.partnerId === hotelId)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const getWhatsAppNumber = () => {
     const nums = partnerPaymentInfo?.whatsapp_numbers;
@@ -172,7 +219,10 @@ export default function V3Orders({ hotelId, onClose }: V3OrdersProps) {
                 const grandTotal = order.totalPrice || 0;
                 const discounts = order.discounts || [];
                 const discountSavings = (discounts[0] as any)?.savings || 0;
-                const statusDisplay = getStatusDisplay(order);
+                const isDraft = order.status === "pending_payment";
+                const statusDisplay = isDraft
+                  ? { text: "Payment processing", className: "bg-amber-100 text-amber-700" }
+                  : getStatusDisplay(order);
                 const isCompleted = order.status === "completed" || order.status === "cancelled";
                 const isPaid = !!(order as any).is_paid;
                 const hasUpiQr = partnerPaymentInfo?.show_payment_qr && !!partnerPaymentInfo?.upi_id;
@@ -204,7 +254,7 @@ export default function V3Orders({ hotelId, onClose }: V3OrdersProps) {
 
                       {/* Items */}
                       <div className="space-y-1">
-                        {order.items.map((item) => (
+                        {order.items.map((item: any) => (
                           <div key={item.id} className="flex justify-between items-center">
                             <span className="text-xs text-gray-600">
                               {item.quantity} × {item.name}
