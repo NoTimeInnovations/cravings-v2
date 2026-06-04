@@ -44,6 +44,29 @@ export async function createCashfreeOrderForPartner(
   }
   console.log("[cashfree] env=", IS_PRODUCTION ? "PROD" : "SANDBOX", "merchant=", merchantId);
 
+  // Cashfree rejects orders with an invalid customer_phone (e.g. "0000000000",
+  // landline, or anything that doesn't reduce to a 6-9-leading 10-digit mobile).
+  // That's what made payments fail for *some* users only. Normalise + fall back.
+  const digits = (customer.phone || "").replace(/\D/g, "").slice(-10);
+  const safePhone = /^[6-9][0-9]{9}$/.test(digits) ? digits : "9999999999";
+  const safeName = (customer.name || "").trim() || "Customer";
+  if (safePhone !== digits) {
+    console.warn("[cashfree] invalid customer_phone, using fallback. raw=", customer.phone);
+  }
+
+  console.log(
+    "[cashfree] create-order req",
+    JSON.stringify({
+      orderId,
+      amount,
+      phone: "***" + safePhone.slice(-4),
+      phoneFallback: safePhone !== digits,
+      name: safeName,
+      email: customer.email ? "set" : "fallback",
+      customerId: customer.id,
+    }),
+  );
+
   const res = await fetch(`${CASHFREE_BASE_URL}/pg/orders`, {
     method: "POST",
     headers: {
@@ -58,8 +81,8 @@ export async function createCashfreeOrderForPartner(
       order_currency: "INR",
       customer_details: {
         customer_id: customer.id,
-        customer_name: customer.name,
-        customer_phone: customer.phone,
+        customer_name: safeName,
+        customer_phone: safePhone,
         customer_email: customer.email || "customer@menuthere.com",
       },
       order_meta: {
@@ -76,9 +99,22 @@ export async function createCashfreeOrderForPartner(
   const data = await res.json();
 
   if (!res.ok) {
-    console.error("Cashfree order creation failed:", data);
+    console.error(
+      "[cashfree] create-order FAILED",
+      "http=", res.status,
+      "code=", data?.code,
+      "type=", data?.type,
+      "msg=", data?.message,
+      "raw=", JSON.stringify(data),
+    );
     return { success: false, error: data.message || "Failed to create payment order" };
   }
+
+  console.log(
+    "[cashfree] create-order ok",
+    "session=", data.payment_session_id ? "yes" : "MISSING",
+    "cf_order_id=", data.cf_order_id,
+  );
 
   return {
     success: true,
@@ -97,20 +133,53 @@ export async function verifyCashfreePayment(partnerId: string, orderId: string) 
     return { success: false, error: "Cashfree not configured" };
   }
 
-  const res = await fetch(`${CASHFREE_BASE_URL}/pg/orders/${orderId}`, {
-    method: "GET",
-    headers: {
-      "x-api-version": "2025-01-01",
-      "x-partner-apikey": partnerApiKey,
-      "x-partner-merchantid": merchantId,
-    },
-  });
+  const headers = {
+    "x-api-version": "2025-01-01",
+    "x-partner-apikey": partnerApiKey,
+    "x-partner-merchantid": merchantId,
+  };
 
-  const data = await res.json();
-
-  if (!res.ok) {
-    return { success: false, error: data.message || "Failed to verify payment" };
+  // Poll for the order status. After a successful payment Cashfree flips the
+  // order ACTIVE -> PAID asynchronously; a single immediate check can race and
+  // wrongly report "not completed" for users who actually paid. Retry while the
+  // status is still ACTIVE (non-terminal) for a few seconds before concluding.
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  let res: Response | null = null;
+  let data: any = null;
+  let lastError: string | undefined;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    res = await fetch(`${CASHFREE_BASE_URL}/pg/orders/${orderId}`, { method: "GET", headers });
+    data = await res.json();
+    console.log(
+      "[cashfree] verify",
+      "order=", orderId,
+      "attempt=", attempt,
+      res.ok ? `status=${data?.order_status}` : `http=${res.status} msg=${data?.message}`,
+    );
+    if (!res.ok) {
+      lastError = data?.message || "Failed to verify payment";
+      // 404 can mean Cashfree hasn't registered the order yet — retry; other errors are terminal.
+      if (res.status === 404 && attempt < 5) {
+        await sleep(1500);
+        continue;
+      }
+      return { success: false, error: lastError };
+    }
+    // Terminal statuses (PAID / EXPIRED / TERMINATED / ...) — stop polling.
+    if (data?.order_status && data.order_status !== "ACTIVE") break;
+    if (attempt < 5) await sleep(1500);
   }
+
+  if (!res || !data) {
+    return { success: false, error: lastError || "Failed to verify payment" };
+  }
+
+  console.log(
+    "[cashfree] verify result",
+    "order=", orderId,
+    "orderStatus=", data.order_status,
+    "paid=", data.order_status === "PAID",
+  );
 
   // Fetch payment details to get cf_payment_id
   let cfPaymentId: string | null = null;
