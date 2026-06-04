@@ -9,6 +9,7 @@ import "@smastrom/react-rating/style.css";
 import { Toaster } from "@/components/ui/sonner";
 import BottomNav from "@/components/BottomNav";
 import DisableZoom from "@/components/DisableZoom";
+import OrderChannelInit from "@/components/OrderChannelInit";
 import { Navbar } from "@/components/Navbar";
 import { PostHogProvider } from "@/providers/posthog-provider";
 import { DomainProvider } from "@/providers/DomainProvider";
@@ -192,6 +193,7 @@ document.head.appendChild(o)}initApollo();`,
           <DomainProvider config={MENUTHERE_CONFIG}>
             <AuthInitializer />
             <DisableZoom />
+            <OrderChannelInit />
 <Toaster richColors closeButton position="top-center" />
             {!isCustomDomain && <Navbar />}
             <main id="main-content">

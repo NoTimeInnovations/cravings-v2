@@ -12,6 +12,9 @@ import {
   createOrderWithItemsMutation,
   createPendingOrderWithItemsMutation,
   ordersCountSubscription,
+} from "@/api/orders";
+import { getOrderChannel } from "@/lib/orderChannel";
+import {
   paginatedOrdersSubscription,
   subscriptionQuery,
   userSubscriptionQuery,
@@ -227,6 +230,8 @@ export interface Order {
   scheduled_time?: string | null;
   /** Dine-in reservation: party size (number of guests). Null = not a table reservation. */
   booking_persons?: number | null;
+  /** Where the order was placed from: "app" (published TWA) or "web" (website). */
+  order_channel?: "app" | "web" | null;
   deliveryAddress?: string | null;
   gstIncluded?: number;
   orderedby?: string;
@@ -735,6 +740,7 @@ const useOrderStore = create(
               scheduled_date: order.scheduled_date ?? null,
               scheduled_time: order.scheduled_time ?? null,
               booking_persons: order.booking_persons ?? null,
+              order_channel: order.order_channel ?? null,
               phone: order.phone,
               deliveryAddress: order.delivery_address,
               delivery_location: order.delivery_location,
@@ -1522,6 +1528,9 @@ const useOrderStore = create(
             // return petpoojaOrder;
           }
 
+          // Where the order was placed from: website vs published TWA app.
+          const order_channel = getOrderChannel();
+
           // Create order in database. For deferred online-payment orders we
           // use the pending mutation (status pending_payment, payment_method
           // cashfree, unpaid, + stashed Petpooja payload) so the order survives
@@ -1541,6 +1550,7 @@ const useOrderStore = create(
               userId: userData.id,
               type,
               status: deferForPayment ? "pending_payment" : "pending",
+              order_channel,
               ...(deferForPayment
                 ? {
                     payment_method: "cashfree",
@@ -1703,6 +1713,7 @@ const useOrderStore = create(
                 delivery_location
                 status
                 payment_method
+                order_channel
                 status_history
                 partner_id
                 gst_included
@@ -1790,6 +1801,7 @@ const useOrderStore = create(
               scheduled_date: order.scheduled_date ?? null,
               scheduled_time: order.scheduled_time ?? null,
               booking_persons: order.booking_persons ?? null,
+              order_channel: order.order_channel ?? null,
               payment_method: order.payment_method,
               phone: order.phone,
               deliveryAddress: order.delivery_address,
@@ -1902,6 +1914,7 @@ function transformOrderFromHasura(order: any): Order {
     scheduled_date: order.scheduled_date ?? null,
     scheduled_time: order.scheduled_time ?? null,
     booking_persons: order.booking_persons ?? null,
+    order_channel: order.order_channel ?? null,
     deliveryAddress: order.delivery_address,
     gstIncluded: order.gst_included || 0,
     orderedby: order.orderedby,

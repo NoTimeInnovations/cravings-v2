@@ -21,6 +21,7 @@ export const getOrdersOfPartnerQuery = `
       display_id
       table_name
       payment_method
+      order_channel
       notes
       gst_included
       extra_charges
@@ -130,6 +131,7 @@ export const createOrderWithItemsMutation = `
     $scheduled_date: date,
     $scheduled_time: time
     $booking_persons: Int
+    $order_channel: String
   ) {
     insert_orders_one(object: {
       id: $id
@@ -158,6 +160,7 @@ export const createOrderWithItemsMutation = `
       scheduled_date: $scheduled_date
       scheduled_time: $scheduled_time
       booking_persons: $booking_persons
+      order_channel: $order_channel
 
       order_items: {
         data: $orderItems
@@ -219,7 +222,8 @@ export const createPendingOrderWithItemsMutation = `
     $payment_method: String,
     $payment_status: String,
     $is_paid: Boolean,
-    $cf_pp_payload: jsonb
+    $cf_pp_payload: jsonb,
+    $order_channel: String
   ) {
     insert_orders_one(object: {
       id: $id
@@ -252,6 +256,7 @@ export const createPendingOrderWithItemsMutation = `
       payment_status: $payment_status
       is_paid: $is_paid
       cf_pp_payload: $cf_pp_payload
+      order_channel: $order_channel
       order_items: {
         data: $orderItems
       }
@@ -402,6 +407,7 @@ subscription GetPartnerOrders($partner_id: uuid!, $today_start: timestamptz!, $t
     orderedby
     display_id
     payment_method
+    order_channel
     is_paid
     cashfree_payment_id
     captain_id
@@ -492,6 +498,7 @@ subscription GetPaginatedPartnerOrders(
     extra_charges
     discounts
     payment_method
+    order_channel
     is_paid
     cashfree_payment_id
     phone
