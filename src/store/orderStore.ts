@@ -106,10 +106,11 @@ export interface DeliveryRules {
 export interface PrebookingWindow {
   day: 0 | 1 | 2 | 3 | 4 | 5 | 6;
   enabled: boolean;
-  slots: string[]; // explicit "HH:MM" (24h, restaurant-local)
-  // legacy single-window fields (back-compat; normalized to `slots` on read)
+  /** Open range for the day, "HH:MM" (24h, restaurant-local). */
   from?: string;
   to?: string;
+  /** Legacy explicit slots (back-compat; collapsed into from/to on read). */
+  slots?: string[];
 }
 
 /**
@@ -142,23 +143,27 @@ export interface PrebookingSettings {
   dine_in_windows: PrebookingWindow[];
 }
 
-const DEFAULT_DAY_SLOTS = ["10:00", "11:00", "12:00", "13:00", "14:00", "18:00", "19:00", "20:00", "21:00", "22:00"];
+const DEFAULT_FROM = "10:00";
+const DEFAULT_TO = "22:00";
 
 const defaultWindows = (): PrebookingWindow[] =>
   Array.from({ length: 7 }, (_, day) => ({
     day: day as PrebookingWindow["day"],
     enabled: true,
-    slots: [...DEFAULT_DAY_SLOTS],
+    from: DEFAULT_FROM,
+    to: DEFAULT_TO,
   }));
 
 export const DEFAULT_PREBOOKING_SETTINGS: PrebookingSettings = {
   prebooking_enabled: true,
   slot_booking_enabled: true,
-  min_lead_time_minutes: 60,
+  // Lead time / max-days are no longer surfaced in settings; keep sensible
+  // defaults so the customer picker still works (no artificial lead, week ahead).
+  min_lead_time_minutes: 0,
   max_advance_days: 7,
   windows: defaultWindows(),
   allowed_order_types: ["delivery", "takeaway", "dine_in"],
-  dine_in_min_lead_time_minutes: 60,
+  dine_in_min_lead_time_minutes: 0,
   dine_in_max_advance_days: 7,
   dine_in_windows: defaultWindows(),
 };

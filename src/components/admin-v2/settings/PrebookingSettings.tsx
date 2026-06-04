@@ -3,30 +3,23 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
-import { CalendarClock, X } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 import { PrebookingSettings as PrebookingConfig, DEFAULT_PREBOOKING_SETTINGS } from "@/store/orderStore";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { TimePicker } from "./DeliverySettings";
-import { windowSlotTimes, formatSlotLabel, mergePrebookingConfig } from "@/lib/prebooking";
+import { mergePrebookingConfig } from "@/lib/prebooking";
 
 const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-// "Schedule for later" applies to delivery/takeaway. Dine-in lives in the Slot Booking tab.
-const SCHEDULE_TYPES: { key: "delivery" | "takeaway"; label: string }[] = [
-    { key: "delivery", label: "Delivery" },
-    { key: "takeaway", label: "Takeaway" },
-];
-
 /**
  * Prebooking = scheduling a delivery/takeaway order for later. Edits the
- * delivery/takeaway slice of `prebooking_settings`; dine-in fields are loaded and
- * preserved untouched (the Slot Booking tab owns them).
+ * delivery/takeaway slice of `prebooking_settings` (per-day open ranges); dine-in
+ * fields are loaded and preserved untouched (the Slot Booking tab owns them).
  */
 export function PrebookingSettings() {
     const { userData, setState } = useAuthStore();
@@ -69,30 +62,6 @@ export function PrebookingSettings() {
     const updateWindow = (day: number, patch: Partial<PrebookingConfig["windows"][number]>) =>
         setCfg((p) => ({ ...p, windows: p.windows.map((w) => (w.day === day ? { ...w, ...patch } : w)) }));
 
-    const addSlot = (day: number, time: string) =>
-        setCfg((p) => ({
-            ...p,
-            windows: p.windows.map((w) =>
-                w.day === day ? { ...w, slots: windowSlotTimes({ ...w, slots: [...(w.slots ?? []), time] }) } : w
-            ),
-        }));
-
-    const removeSlot = (day: number, time: string) =>
-        setCfg((p) => ({
-            ...p,
-            windows: p.windows.map((w) =>
-                w.day === day ? { ...w, slots: (w.slots ?? []).filter((s) => s !== time) } : w
-            ),
-        }));
-
-    const toggleScheduleType = (key: "delivery" | "takeaway", on: boolean) =>
-        setCfg((p) => ({
-            ...p,
-            allowed_order_types: on
-                ? (Array.from(new Set([...p.allowed_order_types, key])) as PrebookingConfig["allowed_order_types"])
-                : p.allowed_order_types.filter((t) => t !== key),
-        }));
-
     return (
         <div className="space-y-4">
             <Card>
@@ -120,103 +89,34 @@ export function PrebookingSettings() {
                         />
                     </div>
 
-                    {cfg.prebooking_enabled && (<>
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    {cfg.prebooking_enabled && (
                         <div className="space-y-2">
-                            <Label htmlFor="lead-time">Minimum lead time (minutes)</Label>
-                            <Input
-                                id="lead-time"
-                                type="number"
-                                min={0}
-                                value={cfg.min_lead_time_minutes}
-                                onChange={(e) =>
-                                    setCfg((p) => ({ ...p, min_lead_time_minutes: Math.max(0, Number(e.target.value) || 0) }))
-                                }
-                            />
+                            <Label>Available time range per day</Label>
                             <p className="text-xs text-muted-foreground">
-                                How far in advance an order must be placed before its slot.
+                                Customers can schedule any time within the open range for each day.
                             </p>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="max-days">Max days ahead</Label>
-                            <Input
-                                id="max-days"
-                                type="number"
-                                min={0}
-                                value={cfg.max_advance_days}
-                                onChange={(e) =>
-                                    setCfg((p) => ({ ...p, max_advance_days: Math.max(0, Number(e.target.value) || 0) }))
-                                }
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                How many days into the future a customer can schedule (0 = today only).
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label>Allow &quot;schedule for later&quot; on</Label>
-                        <div className="flex flex-wrap gap-3">
-                            {SCHEDULE_TYPES.map((ot) => (
-                                <label key={ot.key} className="flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer">
-                                    <Switch
-                                        checked={cfg.allowed_order_types.includes(ot.key)}
-                                        onCheckedChange={(v) => toggleScheduleType(ot.key, v)}
-                                    />
-                                    <span className="text-sm font-medium">{ot.label}</span>
-                                </label>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label>Schedule-for-later slot times per day</Label>
-                        <p className="text-xs text-muted-foreground">
-                            Customers can only pick from the exact times you add for each day.
-                        </p>
-                        <div className="space-y-2">
-                            {cfg.windows.map((w) => {
-                                const slots = windowSlotTimes(w);
-                                return (
+                            <div className="space-y-2">
+                                {cfg.windows.map((w) => (
                                     <div key={w.day} className="border rounded-lg p-3 space-y-2">
                                         <div className="flex items-center gap-2">
                                             <Switch checked={w.enabled} onCheckedChange={(v) => updateWindow(w.day, { enabled: v })} />
                                             <span className="text-sm font-medium">{DAY_LABELS[w.day]}</span>
                                         </div>
                                         {w.enabled ? (
-                                            <>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {slots.length === 0 && (
-                                                        <span className="text-xs text-muted-foreground">No slots yet — add times below.</span>
-                                                    )}
-                                                    {slots.map((t) => (
-                                                        <span key={t} className="inline-flex items-center gap-1.5 border rounded-full pl-3 pr-2 py-1 text-sm bg-gray-50">
-                                                            {formatSlotLabel(t)}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => removeSlot(w.day, t)}
-                                                                className="text-muted-foreground hover:text-red-600"
-                                                                aria-label={`Remove ${t}`}
-                                                            >
-                                                                <X className="h-3.5 w-3.5" />
-                                                            </button>
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs text-muted-foreground">Add time:</span>
-                                                    <TimePicker value="12:00" onChange={(val) => addSlot(w.day, val)} />
-                                                </div>
-                                            </>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="text-xs text-muted-foreground">From</span>
+                                                <TimePicker value={w.from || "10:00"} onChange={(val) => updateWindow(w.day, { from: val })} />
+                                                <span className="text-xs text-muted-foreground">To</span>
+                                                <TimePicker value={w.to || "22:00"} onChange={(val) => updateWindow(w.day, { to: val })} />
+                                            </div>
                                         ) : (
                                             <span className="text-sm text-muted-foreground">Closed</span>
                                         )}
                                     </div>
-                                );
-                            })}
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                    </>)}
+                    )}
                 </CardContent>
             </Card>
         </div>

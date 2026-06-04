@@ -157,7 +157,11 @@ export function formatSlotLabel(hhmm: string): string {
     return `${h12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
-/** Normalize a saved window array onto the 7-day default, each day with explicit slots. */
+/**
+ * Normalize a saved window array onto the 7-day default, each day expressed as a
+ * `{from, to}` open range. Legacy configs that stored explicit `slots` are
+ * collapsed into the earliest→latest range so they keep working.
+ */
 function normalizeWindows(
     saved: PrebookingWindow[] | undefined,
     base: PrebookingWindow[]
@@ -166,7 +170,19 @@ function normalizeWindows(
     return base.map((def) => {
         const s = byDay.get(def.day);
         if (!s) return def;
-        return { day: def.day, enabled: s.enabled ?? true, slots: windowSlotTimes(s) };
+        let from = s.from;
+        let to = s.to;
+        if ((!from || !to) && Array.isArray(s.slots) && s.slots.length) {
+            const times = windowSlotTimes(s); // sorted HH:MM
+            from = from || times[0];
+            to = to || times[times.length - 1];
+        }
+        return {
+            day: def.day,
+            enabled: s.enabled ?? true,
+            from: from || def.from,
+            to: to || def.to,
+        };
     });
 }
 
