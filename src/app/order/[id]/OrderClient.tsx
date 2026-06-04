@@ -1243,20 +1243,9 @@ ${itemsText}
             )}
 
             {/* Sticky bottom action bar */}
-            {!loading && !isCompleted && (whatsappLink || (!isPaid && (hasCashfree || hasUpiQr))) && (
+            {!loading && !isCompleted && !isPaid && (hasCashfree || hasUpiQr) && (
                 <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-[0_-4px_12px_rgba(0,0,0,0.05)] z-40 px-3 sm:px-4 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
                     <div className="container mx-auto max-w-3xl flex gap-2">
-                        {whatsappLink && (
-                            <a
-                                href={whatsappLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white rounded-xl font-semibold text-sm shadow-sm transition-colors"
-                            >
-                                <MessageCircle className="w-4 h-4" />
-                                WhatsApp
-                            </a>
-                        )}
                         {!isPaid && (hasCashfree || hasUpiQr) && (
                             <button
                                 onClick={hasCashfree ? handleCashfreePayment : () => setShowUpiScreen(true)}

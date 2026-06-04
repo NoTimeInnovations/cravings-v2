@@ -277,19 +277,8 @@ export default function V3Orders({ hotelId, onClose }: V3OrdersProps) {
                     </Link>
 
                     {/* Actions */}
-                    {!isCompleted && (whatsappLink || (!isPaid && (hasCashfree || hasUpiQr))) && (
+                    {!isCompleted && !isPaid && (hasCashfree || hasUpiQr) && (
                       <div className="flex gap-2 px-4 pb-3">
-                        {whatsappLink && (
-                          <a
-                            href={whatsappLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 flex items-center justify-center gap-1.5 h-9 bg-emerald-600 text-white rounded-xl text-xs font-bold transition active:scale-[0.98]"
-                          >
-                            <MessageCircle className="w-3.5 h-3.5" />
-                            WhatsApp
-                          </a>
-                        )}
                         {!isPaid && (hasCashfree || hasUpiQr) && (
                           <button
                             onClick={() => { if (hasCashfree) handleCashfreePayment(order); else setUpiOrder(order); }}
