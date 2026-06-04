@@ -12,9 +12,16 @@ interface Props {
 
 const CashfreeEmbedModal = forwardRef<HTMLDivElement, Props>(
   ({ open, onClose, accent = "#ea580c", banner, partnerName = "Restaurant" }, ref) => {
-    if (!open) return null;
+    // Keep the container always mounted so the `ref` div exists before
+    // cashfree.checkout() runs — conditionally unmounting it (return null)
+    // makes ref.current null and throws "Checkout container not ready".
+    // Toggle visibility with `display` instead of mounting/unmounting.
     return (
-      <div className="fixed inset-0 z-[10000] bg-white flex flex-col w-screen h-[100dvh]">
+      <div
+        className="fixed inset-0 z-[10000] bg-white flex-col w-screen h-[100dvh]"
+        style={{ display: open ? "flex" : "none" }}
+        aria-hidden={!open}
+      >
         <div
           className="px-4 py-3 flex items-center gap-3 flex-shrink-0"
           style={{ backgroundColor: accent }}

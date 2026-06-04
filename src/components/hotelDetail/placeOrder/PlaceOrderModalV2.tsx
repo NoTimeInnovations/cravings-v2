@@ -1202,6 +1202,9 @@ const PlaceOrderModalV2 = ({
       if (!cashfreeContainerRef.current) {
         throw new Error("Checkout container not ready");
       }
+      // Container persists across retries (display toggle, not unmount) — clear
+      // any leftover iframe from a previous attempt before mounting a new one.
+      cashfreeContainerRef.current.innerHTML = "";
 
       const cashfreeMode =
         process.env.NEXT_PUBLIC_CASHFREE_ENV === "PRODUCTION"

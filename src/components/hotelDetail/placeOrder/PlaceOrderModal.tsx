@@ -2978,6 +2978,9 @@ const PlaceOrderModal = ({
       setShowCashfreeEmbed(true);
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
       if (!cashfreeContainerRef.current) throw new Error("Checkout container not ready");
+      // Container persists across retries (display toggle, not unmount) — clear
+      // any leftover iframe from a previous attempt before mounting a new one.
+      cashfreeContainerRef.current.innerHTML = "";
 
       const cashfreeMode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "PRODUCTION" ? "production" : "sandbox";
       const cashfree = await loadCashfree({ mode: cashfreeMode as "sandbox" | "production" });
