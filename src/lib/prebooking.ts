@@ -126,20 +126,23 @@ export function getPrebookingSlots(
     );
 }
 
-/** Selectable dates (today … max_advance_days) that have at least one valid slot. */
+/**
+ * Selectable dates that have at least one valid slot. By default spans
+ * today … max_advance_days, but `fromOffset` / `throughDay` let callers (e.g. the
+ * checkout picker) override the window — the picker uses tomorrow … +30 days.
+ */
 export function getPrebookingDates(
     settings: PrebookingSettings,
     now: Date = new Date(),
-    opts: { dineIn?: boolean } = {}
+    opts: { dineIn?: boolean; fromOffset?: number; throughDay?: number } = {}
 ): { value: string; label: string }[] {
     const out: { value: string; label: string }[] = [];
-    const maxDays = Math.max(
-        0,
-        opts.dineIn
-            ? (settings.dine_in_max_advance_days ?? settings.max_advance_days ?? 0)
-            : (settings.max_advance_days ?? 0)
-    );
-    for (let i = 0; i <= maxDays; i++) {
+    const defaultMax = opts.dineIn
+        ? (settings.dine_in_max_advance_days ?? settings.max_advance_days ?? 0)
+        : (settings.max_advance_days ?? 0);
+    const from = Math.max(0, opts.fromOffset ?? 0);
+    const through = Math.max(from, opts.throughDay ?? defaultMax);
+    for (let i = from; i <= through; i++) {
         const d = new Date(now);
         d.setDate(now.getDate() + i);
         const dateStr = ymd(d);

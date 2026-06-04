@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarClock } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { createPortal } from "react-dom";
+import { CalendarClock, ChevronDown, Check, X } from "lucide-react";
 import { PrebookingSettings } from "@/store/orderStore";
 import {
     PrebookOrderType,
@@ -22,12 +22,39 @@ export interface PrebookingSelection {
 /** Party-size choices for a dine-in table reservation. */
 const PARTY_SIZES = [1, 2, 3, 4, 6, 8, 10, 12];
 
+/** Bottom sheet (portaled to body so it sits above the full-screen checkout). */
+function BottomSheet({
+    title,
+    onClose,
+    children,
+}: {
+    title: string;
+    onClose: () => void;
+    children: React.ReactNode;
+}) {
+    if (typeof document === "undefined") return null;
+    return createPortal(
+        <div className="fixed inset-0 z-[100002] flex flex-col justify-end">
+            <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+            <div className="relative bg-white rounded-t-2xl max-h-[70vh] flex flex-col animate-in slide-in-from-bottom duration-200">
+                <div className="flex items-center justify-between px-4 py-3 border-b sticky top-0 bg-white rounded-t-2xl">
+                    <span className="font-semibold text-gray-900">{title}</span>
+                    <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-700">
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+                <div className="overflow-y-auto p-3 space-y-2">{children}</div>
+            </div>
+        </div>,
+        document.body,
+    );
+}
+
 /**
- * Checkout-side scheduling picker. Two modes:
- *  - default: "Order now / Schedule for later" toggle (optional scheduled order).
- *  - reservation: a dine-in table booking — always scheduled, plus a party-size
- *    picker; reports `{ date, time, persons }`.
- * Renders nothing unless the partner allows prebooking for the current order type.
+ * Checkout-side scheduling picker. Heading + two buttons (Date / Slot) styled
+ * like the order-type buttons; each opens a single-select bottom sheet. Dates
+ * span tomorrow … +30 days; slots come from the partner's allowed ranges.
+ * Renders nothing unless the partner allows scheduling for the current order type.
  */
 export function PrebookingPicker({
     settings,
@@ -41,95 +68,67 @@ export function PrebookingPicker({
     orderTypeKey: PrebookOrderType;
     onChange: (value: PrebookingSelection | null) => void;
     accentColor?: string;
-    /** Outer container classes — lets each modal match its own card style. */
     className?: string;
-    /** Dine-in table reservation: force scheduling + show party-size chips. */
     reservation?: boolean;
 }) {
-    // Dine-in reservations are gated upstream (Order Types tab); for delivery/takeaway
-    // the "schedule for later" option is gated by the prebooking allowed_order_types.
     const allowed = reservation ? true : isOrderTypeAllowed(settings, orderTypeKey);
-    const [mode, setMode] = useState<"now" | "later">("now");
     const [date, setDate] = useState<string>("");
     const [time, setTime] = useState<string>("");
     const [persons, setPersons] = useState<number>(2);
-    // A reservation is always scheduled — no "order now".
-    const effectiveMode: "now" | "later" = reservation ? "later" : mode;
+    const [sheet, setSheet] = useState<null | "date" | "slot">(null);
 
-    // Recompute available dates once per mount/settings change.
+    // Dates: tomorrow … +30 days that have at least one slot.
     const dates = useMemo(
-        () => (allowed ? getPrebookingDates(settings, new Date(), { dineIn: reservation }) : []),
-        [allowed, settings, reservation]
+        () =>
+            allowed
+                ? getPrebookingDates(settings, new Date(), { dineIn: reservation, fromOffset: 1, throughDay: 30 })
+                : [],
+        [allowed, settings, reservation],
     );
     const slots = useMemo(
         () => (date ? getPrebookingSlots(settings, date, new Date(), { dineIn: reservation }) : []),
-        [settings, date, reservation]
+        [settings, date, reservation],
     );
 
-    // Keep date valid against the computed list.
+    // If the chosen date drops out of the list, clear it (and its slot).
     useEffect(() => {
-        if (effectiveMode !== "later") return;
-        if (dates.length === 0) return;
-        if (!dates.some((d) => d.value === date)) {
-            setDate(dates[0].value);
+        if (date && !dates.some((d) => d.value === date)) {
+            setDate("");
+            setTime("");
         }
-    }, [effectiveMode, dates, date]);
+    }, [dates, date]);
 
-    // Keep time valid against the selected date's slots.
+    // If the chosen slot isn't valid for the date, clear it.
     useEffect(() => {
-        if (effectiveMode !== "later") return;
-        if (slots.length === 0) {
-            if (time) setTime("");
-            return;
-        }
-        if (!slots.includes(time)) setTime(slots[0]);
-    }, [effectiveMode, slots, time]);
+        if (time && !slots.includes(time)) setTime("");
+    }, [slots, time]);
 
-    // Report selection upward.
+    // Report selection upward (null until fully chosen).
     useEffect(() => {
-        if (!allowed || effectiveMode === "now" || !date || !time || (reservation && !persons)) {
+        if (!allowed || !date || !time || (reservation && !persons)) {
             onChange(null);
         } else {
-            // dineIn travels with the selection so order-type is derived from the
-            // captured reservation, not re-read from live orderType at submit time.
             onChange(reservation ? { date, time, persons, dineIn: true } : { date, time });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [allowed, effectiveMode, date, time, persons, reservation]);
+    }, [allowed, date, time, persons, reservation]);
 
     if (!allowed || dates.length === 0) return null;
+
+    const dateLabel = dates.find((d) => d.value === date)?.label;
+
+    // Shared button style — matches the order-type buttons (unselected look).
+    const triggerCls =
+        "flex items-center justify-between gap-2 py-3 px-3 rounded-xl text-sm font-semibold border-2 border-gray-100 bg-gray-50 text-gray-700 disabled:opacity-50";
 
     return (
         <div className={className}>
             <div className="flex items-center gap-2">
                 <CalendarClock className="h-4 w-4 text-muted-foreground" />
                 <span className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
-                    {reservation ? "Book a table" : "When do you want this order?"}
+                    {reservation ? "Book a table" : "Book a slot"}
                 </span>
             </div>
-
-            {!reservation && (
-                <div className="flex gap-2">
-                    {(["now", "later"] as const).map((m) => {
-                        const selected = mode === m;
-                        return (
-                            <button
-                                key={m}
-                                type="button"
-                                onClick={() => setMode(m)}
-                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all border-2 ${
-                                    selected
-                                        ? "text-white border-transparent shadow-sm"
-                                        : "border-gray-100 bg-gray-50 text-gray-700"
-                                }`}
-                                style={selected ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
-                            >
-                                {m === "now" ? "Order now" : "Schedule for later"}
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
 
             {reservation && (
                 <div className="space-y-1">
@@ -143,9 +142,7 @@ export function PrebookingPicker({
                                     type="button"
                                     onClick={() => setPersons(n)}
                                     className={`min-w-[44px] py-2 px-3 rounded-xl text-sm font-semibold transition-all border-2 ${
-                                        selected
-                                            ? "text-white border-transparent shadow-sm"
-                                            : "border-gray-100 bg-gray-50 text-gray-700"
+                                        selected ? "text-white border-transparent shadow-sm" : "border-gray-100 bg-gray-50 text-gray-700"
                                     }`}
                                     style={selected ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
                                 >
@@ -157,39 +154,81 @@ export function PrebookingPicker({
                 </div>
             )}
 
-            {effectiveMode === "later" && (
-                <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                        <label className="text-xs text-muted-foreground">Date</label>
-                        <Select value={date} onValueChange={setDate}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select date" />
-                            </SelectTrigger>
-                            <SelectContent className="z-[100001]">
-                                {dates.map((d) => (
-                                    <SelectItem key={d.value} value={d.value}>
-                                        {d.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs text-muted-foreground">Time</label>
-                        <Select value={time} onValueChange={setTime} disabled={slots.length === 0}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select time" />
-                            </SelectTrigger>
-                            <SelectContent className="z-[100001] max-h-64">
-                                {slots.map((s) => (
-                                    <SelectItem key={s} value={s}>
-                                        {formatSlotLabel(s)}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
+            <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => setSheet("date")} className={triggerCls}>
+                    <span className="truncate">{dateLabel || "Select date"}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setSheet("slot")}
+                    disabled={!date}
+                    className={triggerCls}
+                >
+                    <span className="truncate">{time ? formatSlotLabel(time) : "Select slot"}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+                </button>
+            </div>
+
+            {!reservation && (
+                <p className="text-xs text-muted-foreground">
+                    Optional — pick a date &amp; slot to schedule, or leave empty to order now.
+                </p>
+            )}
+
+            {sheet === "date" && (
+                <BottomSheet title="Select date" onClose={() => setSheet(null)}>
+                    {dates.map((d) => {
+                        const selected = d.value === date;
+                        return (
+                            <button
+                                key={d.value}
+                                type="button"
+                                onClick={() => {
+                                    setDate(d.value);
+                                    setTime("");
+                                    setSheet(null);
+                                }}
+                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm font-medium ${
+                                    selected ? "text-white border-transparent" : "border-gray-100 bg-gray-50 text-gray-800"
+                                }`}
+                                style={selected ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
+                            >
+                                {d.label}
+                                {selected && <Check className="h-4 w-4" />}
+                            </button>
+                        );
+                    })}
+                </BottomSheet>
+            )}
+
+            {sheet === "slot" && (
+                <BottomSheet title="Select slot" onClose={() => setSheet(null)}>
+                    {slots.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-6">No slots available for this day.</p>
+                    ) : (
+                        slots.map((s) => {
+                            const selected = s === time;
+                            return (
+                                <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => {
+                                        setTime(s);
+                                        setSheet(null);
+                                    }}
+                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm font-medium ${
+                                        selected ? "text-white border-transparent" : "border-gray-100 bg-gray-50 text-gray-800"
+                                    }`}
+                                    style={selected ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
+                                >
+                                    {formatSlotLabel(s)}
+                                    {selected && <Check className="h-4 w-4" />}
+                                </button>
+                            );
+                        })
+                    )}
+                </BottomSheet>
             )}
         </div>
     );
