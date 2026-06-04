@@ -108,12 +108,6 @@ export function AdminV2Analytics() {
       delivery_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate { count }
       }
-      app_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, order_channel: {_eq: "app"}, partner_id: {_eq: "${userData?.id}"}}) {
-        aggregate { count sum { total_price } }
-      }
-      web_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, order_channel: {_eq: "web"}, partner_id: {_eq: "${userData?.id}"}}) {
-        aggregate { count sum { total_price } }
-      }
       cash_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
@@ -171,12 +165,6 @@ export function AdminV2Analytics() {
       delivery_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate { count }
       }
-      app_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, order_channel: {_eq: "app"}, partner_id: {_eq: "${userData?.id}"}}) {
-        aggregate { count sum { total_price } }
-      }
-      web_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, order_channel: {_eq: "web"}, partner_id: {_eq: "${userData?.id}"}}) {
-        aggregate { count sum { total_price } }
-      }
       cash_orders: orders_aggregate(where: {created_at: {_gte: "${startISO}", _lte: "${endISO}"}, ${statusFilterGql}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
           count
@@ -233,12 +221,6 @@ export function AdminV2Analytics() {
       }
       delivery_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, ${statusFilterGql}, type: {_eq: "delivery"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate { count }
-      }
-      app_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, ${statusFilterGql}, order_channel: {_eq: "app"}, partner_id: {_eq: "${userData?.id}"}}) {
-        aggregate { count sum { total_price } }
-      }
-      web_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, ${statusFilterGql}, order_channel: {_eq: "web"}, partner_id: {_eq: "${userData?.id}"}}) {
-        aggregate { count sum { total_price } }
       }
       cash_orders: orders_aggregate(where: {created_at: {_gte: $startDate, _lte: $endDate}, ${statusFilterGql}, payment_method: {_eq: "cash"}, partner_id: {_eq: "${userData?.id}"}}) {
         aggregate {
@@ -653,54 +635,6 @@ export function AdminV2Analytics() {
                 <div className="text-2xl font-bold">₹{avgOrderValue.toFixed(0)}</div>
                 <p className="text-xs text-muted-foreground">
                   Per order average
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-4 grid-cols-1 mb-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Order Source</CardTitle>
-                <CardDescription>
-                  Orders placed from the website vs your app
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-                  {[
-                    {
-                      label: "App",
-                      count: reportData?.app_orders?.aggregate?.count || 0,
-                      amount: reportData?.app_orders?.aggregate?.sum?.total_price || 0,
-                      color: "bg-green-500",
-                    },
-                    {
-                      label: "Website",
-                      count: reportData?.web_orders?.aggregate?.count || 0,
-                      amount: reportData?.web_orders?.aggregate?.sum?.total_price || 0,
-                      color: "bg-gray-500",
-                    },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-2 h-10 rounded-full ${item.color}`} />
-                        <div>
-                          <p className="font-medium">{item.label}</p>
-                          <p className="text-sm text-muted-foreground">{item.count} orders</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold">₹{item.amount.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {totalOrders > 0 ? ((item.count / totalOrders) * 100).toFixed(1) : 0}% of orders
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground mt-3">
-                  Orders placed before this feature shipped aren&apos;t tagged and won&apos;t appear here.
                 </p>
               </CardContent>
             </Card>
