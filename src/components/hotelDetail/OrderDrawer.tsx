@@ -601,6 +601,15 @@ const OrderDrawer = ({
     }
   };
 
+  // Close the login modal without logging in. Restore the floating
+  // View Cart button if there are still items — handlePlaceOrder hides it
+  // when opening the modal, and the items effect won't re-run on cancel.
+  const handleCloseLoginModal = () => {
+    setShowLoginModal(false);
+    const totalQty = items?.reduce((acc, item) => acc + item.quantity, 0) || 0;
+    setOpenDrawerBottom(totalQty > 0);
+  };
+
   const handleDirectLogin = async () => {
     const countryCode = hotelData?.country_code?.replace(/[\+\s]/g, "") || "91";
     const phoneDigits = getPhoneDigitsForCountry(countryCode);
@@ -808,7 +817,7 @@ const OrderDrawer = ({
                     resetOtp();
                     setOtp("");
                   } else {
-                    setShowLoginModal(false);
+                    handleCloseLoginModal();
                   }
                 }}
                 className="p-2 -ml-2 rounded-full transition-all duration-200"
@@ -929,7 +938,7 @@ const OrderDrawer = ({
                     </button>
 
                     <button
-                      onClick={() => setShowLoginModal(false)}
+                      onClick={handleCloseLoginModal}
                       className="w-full px-6 py-3.5 rounded-full bg-transparent transition-all duration-200 font-medium text-base"
                       style={{
                         color: styles.color,

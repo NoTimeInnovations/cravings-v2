@@ -301,20 +301,28 @@ const V3 = ({
               >
                 <Search className="h-[18px] w-[18px] text-gray-900" />
               </button>
-              <Link
-                href="/user-profile"
-                className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"
-                aria-label="Profile"
-              >
-                <User className="h-[18px] w-[18px] text-gray-900" />
-              </Link>
-              <button
-                onClick={() => setOrdersOpen(true)}
-                className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"
-                aria-label="Your orders"
-              >
-                <ShoppingBag className="h-[18px] w-[18px] text-gray-900" />
-              </button>
+              {/* Profile + Orders only for logged-in customers.
+                  Use the live auth store (authUser) rather than the server
+                  `auth` snapshot, which can be stale after a client-side
+                  logout / from the router cache. */}
+              {(authUser as any)?.role === "user" && (
+                <>
+                  <Link
+                    href="/user-profile"
+                    className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"
+                    aria-label="Profile"
+                  >
+                    <User className="h-[18px] w-[18px] text-gray-900" />
+                  </Link>
+                  <button
+                    onClick={() => setOrdersOpen(true)}
+                    className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"
+                    aria-label="Your orders"
+                  >
+                    <ShoppingBag className="h-[18px] w-[18px] text-gray-900" />
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </header>

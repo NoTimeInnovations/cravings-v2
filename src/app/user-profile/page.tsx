@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore, User, Partner } from "@/store/authStore";
 import useOrderStore from "@/store/orderStore";
@@ -37,6 +37,11 @@ export default function UserProfilePage() {
   const router = useRouter();
 
   const [storePath, setStorePath] = useState<string | null>(null);
+  // Set while we intentionally sign the user out, so the "not logged in"
+  // guard below doesn't race us to /login before we redirect to the
+  // restaurant page the customer came from.
+  const isLoggingOut = useRef(false);
+
   useEffect(() => {
     try {
       const stored = localStorage.getItem("hotelTheme");
@@ -46,6 +51,20 @@ export default function UserProfilePage() {
       }
     } catch { }
   }, []);
+
+  // Resolve the restaurant page (e.g. /nila, /nila/*) the customer last
+  // visited. Returns null when there is no restaurant context, in which
+  // case logout should fall back to /login.
+  const getRestaurantPath = (): string | null => {
+    try {
+      const stored = localStorage.getItem("hotelTheme");
+      const path = stored ? JSON.parse(stored)?.storePath : storePath;
+      if (typeof path === "string" && path.startsWith("/") && path !== "/") {
+        return path;
+      }
+    } catch { }
+    return null;
+  };
 
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState("");
@@ -59,6 +78,9 @@ export default function UserProfilePage() {
   useEffect(() => {
     if (authLoading) return;
     if (!userData) {
+      // Don't bounce to /login during an intentional logout — handleLogout
+      // owns the redirect so customers stay on the restaurant page.
+      if (isLoggingOut.current) return;
       router.replace("/login");
       return;
     }
@@ -157,10 +179,14 @@ export default function UserProfilePage() {
     try {
       await fetchFromHasura(softDeleteUserMutation, { id: user.id });
       toast.success("Account deleted successfully");
+      isLoggingOut.current = true;
       await signOut();
-      router.replace("/");
+      // Account is gone — return to the restaurant page if the customer
+      // came from one (they can keep browsing as a guest), else /login.
+      router.replace(getRestaurantPath() || "/login");
     } catch {
       toast.error("Failed to delete account");
+      isLoggingOut.current = false;
     } finally {
       setDeleting(false);
       setShowDeleteConfirm(false);
@@ -168,8 +194,11 @@ export default function UserProfilePage() {
   };
 
   const handleLogout = async () => {
+    isLoggingOut.current = true;
     await signOut();
-    router.replace(storePath || "/");
+    // Stay on the restaurant page (/nila, /nila/*) the customer was browsing.
+    // Only fall back to /login when there is no restaurant context.
+    router.replace(getRestaurantPath() || "/login");
   };
 
   if (authLoading || !user) {

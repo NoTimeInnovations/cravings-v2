@@ -45,7 +45,7 @@ function V3BottomSheet({ onClose, children }: { onClose: () => void; children: R
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col justify-end">
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-end">
       <div
         ref={backdropRef}
         onClick={() => animateClose()}
@@ -54,7 +54,7 @@ function V3BottomSheet({ onClose, children }: { onClose: () => void; children: R
       />
       <div
         ref={sheetRef}
-        className="relative z-10 max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white transition-transform duration-300 ease-out"
+        className="relative z-10 mx-auto w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white transition-transform duration-300 ease-out"
         style={{ transform: "translateY(100%)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -519,15 +519,15 @@ const V3ItemCard = ({
                     <span>{hoteldata?.currency || "₹"}{formatPrice(hasValidMainOffer && !isUpcomingOffer ? offerData!.offer_price! : baseItemPrice, hoteldata?.id || "")}</span>
                   </button>
                 ) : (
-                  <div className="flex items-center gap-3">
-                    <div className="flex flex-1 items-center justify-between rounded-xl border-2 border-emerald-600/30 bg-emerald-50 px-1.5 py-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-1 rounded-xl border-2 border-emerald-600/30 bg-emerald-50 px-1.5 py-1">
                       <button
                         onClick={() => { if (itemQuantity === 1) removeItem(item.id as string); else decreaseQuantity(item.id as string); }}
                         className="flex h-9 w-9 items-center justify-center rounded-lg text-emerald-700"
                       >
                         <Minus className="h-4 w-4" />
                       </button>
-                      <span className="text-sm font-extrabold text-emerald-700">{itemQuantity}</span>
+                      <span className="min-w-[2ch] text-center text-sm font-extrabold text-emerald-700">{itemQuantity}</span>
                       <button
                         onClick={() => handleAddItem()}
                         className="flex h-9 w-9 items-center justify-center rounded-lg text-emerald-700"
