@@ -15,6 +15,7 @@ import {
 } from "@/api/orders";
 import { getOrderChannel } from "@/lib/orderChannel";
 import {
+  draftOrdersSubscription,
   paginatedOrdersSubscription,
   subscriptionQuery,
   userSubscriptionQuery,
@@ -415,6 +416,7 @@ interface OrderState {
     callback?: (orders: Order[]) => void
   ) => () => void;
   subscribeOrdersCount: (callback?: (count: number) => void) => () => void;
+  subscribeDraftOrders: (callback: (orders: Order[]) => void) => () => void;
   partnerOrders: Order[];
   userOrders: Order[];
   subscribeUserOrders: (callback?: (orders: Order[]) => void) => () => void;
@@ -849,6 +851,23 @@ const useOrderStore = create(
               if (callback) {
                 callback(orders);
               }
+            }
+          },
+        });
+      },
+
+      subscribeDraftOrders: (callback) => {
+        const { userData } = useAuthStore.getState();
+        if (!userData?.id) {
+          return () => { };
+        }
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        return subscribeToHasura({
+          query: draftOrdersSubscription,
+          variables: { partner_id: userData.id, since },
+          onNext: (data) => {
+            if (data?.data?.orders) {
+              callback(data.data.orders.map(transformOrderFromHasura));
             }
           },
         });

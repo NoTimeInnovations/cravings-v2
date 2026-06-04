@@ -66,6 +66,7 @@ import { formatPrebookDateLabel, formatSlotLabel } from "@/lib/prebooking";
 
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { CancelOrderDialog } from "@/components/CancelOrderDialog";
+import { DraftOrdersSection } from "./DraftOrdersSection";
 
 export function AdminV2Orders() {
   const { userData } = useAuthStore();
@@ -366,6 +367,7 @@ export function AdminV2Orders() {
 
   return (
     <div className="space-y-4">
+      <DraftOrdersSection />
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex flex-col w-full md:w-auto gap-3">
           <div className="relative">

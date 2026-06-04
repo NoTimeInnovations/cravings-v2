@@ -580,6 +580,59 @@ subscription GetOrdersCount($partner_id: uuid!) {
 }
 `;
 
+// Draft (unpaid online) orders — status "pending_payment". Shown ONLY in the
+// admin "Draft Orders" section, never in the normal order list / notifications.
+export const draftOrdersSubscription = `
+subscription GetDraftOrders($partner_id: uuid!, $since: timestamptz!) {
+  orders(
+    where: {
+      partner_id: { _eq: $partner_id },
+      status: { _eq: "pending_payment" },
+      created_at: { _gte: $since }
+    }
+    order_by: { created_at: desc }
+    limit: 50
+  ) {
+    id
+    total_price
+    created_at
+    table_number
+    notes
+    qr_id
+    type
+    scheduled_date
+    scheduled_time
+    booking_persons
+    delivery_address
+    status
+    partner_id
+    display_id
+    table_name
+    payment_method
+    order_channel
+    phone
+    user_id
+    orderedby
+    gst_included
+    extra_charges
+    discounts
+    order_items {
+      id
+      quantity
+      item
+      menu {
+        id
+        name
+        price
+        image_url
+        description
+        category { name }
+      }
+    }
+  }
+}
+`;
+
 export const userSubscriptionQuery = `
 subscription GetUserOrders($user_id: uuid!) {
   orders(
