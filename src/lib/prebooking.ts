@@ -162,6 +162,32 @@ export function getPrebookingDates(
     return out;
 }
 
+/**
+ * The open ranges for a given date's weekday (e.g. lunch + dinner), as the
+ * partner configured them. Handles new `ranges`, legacy single `from/to`, and
+ * legacy explicit `slots` (collapsed into one range). Returns [] when the day is
+ * disabled / unconfigured.
+ */
+export function getPrebookingRanges(
+    settings: PrebookingSettings,
+    dateStr: string,
+    opts: { dineIn?: boolean } = {}
+): { from: string; to: string }[] {
+    const date = new Date(`${dateStr}T00:00:00`);
+    if (isNaN(date.getTime())) return [];
+    const weekday = date.getDay();
+    const windows = opts.dineIn ? (settings.dine_in_windows ?? settings.windows) : settings.windows;
+    const win = (windows ?? []).find((w) => w.day === weekday);
+    if (!win || !win.enabled) return [];
+    if (win.ranges && win.ranges.length) {
+        return win.ranges.map((r) => ({ from: fmt(toMinutes(r.from)), to: fmt(toMinutes(r.to)) }));
+    }
+    if (win.from && win.to) return [{ from: fmt(toMinutes(win.from)), to: fmt(toMinutes(win.to)) }];
+    const times = windowSlotTimes(win); // legacy discrete slots → one collapsed range
+    if (times.length) return [{ from: times[0], to: times[times.length - 1] }];
+    return [];
+}
+
 /** "14:30" -> "2:30 PM" for display. */
 export function formatSlotLabel(hhmm: string): string {
     const [h24, m] = (hhmm || "00:00").split(":").map(Number);

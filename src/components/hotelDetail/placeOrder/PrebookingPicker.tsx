@@ -7,7 +7,7 @@ import { PrebookingSettings } from "@/store/orderStore";
 import {
     PrebookOrderType,
     getPrebookingDates,
-    getPrebookingSlots,
+    getPrebookingRanges,
     isOrderTypeAllowed,
     formatSlotLabel,
 } from "@/lib/prebooking";
@@ -84,8 +84,11 @@ export function PrebookingPicker({
                 : [],
         [allowed, settings, reservation],
     );
-    const slots = useMemo(
-        () => (date ? getPrebookingSlots(settings, date, new Date(), { dineIn: reservation }) : []),
+    // Slots are the partner's configured open ranges for the day (e.g. lunch +
+    // dinner) — shown as "from – to", not every half-hour. The selection stores
+    // the range's start as the scheduled time.
+    const ranges = useMemo(
+        () => (date ? getPrebookingRanges(settings, date, { dineIn: reservation }) : []),
         [settings, date, reservation],
     );
 
@@ -99,8 +102,8 @@ export function PrebookingPicker({
 
     // If the chosen slot isn't valid for the date, clear it.
     useEffect(() => {
-        if (time && !slots.includes(time)) setTime("");
-    }, [slots, time]);
+        if (time && !ranges.some((r) => r.from === time)) setTime("");
+    }, [ranges, time]);
 
     // Report selection upward (null until fully chosen).
     useEffect(() => {
@@ -115,6 +118,10 @@ export function PrebookingPicker({
     if (!allowed || dates.length === 0) return null;
 
     const dateLabel = dates.find((d) => d.value === date)?.label;
+    const selectedRange = ranges.find((r) => r.from === time);
+    const slotLabel = selectedRange
+        ? `${formatSlotLabel(selectedRange.from)} – ${formatSlotLabel(selectedRange.to)}`
+        : "";
 
     // Shared button style — matches the order-type buttons (unselected look).
     const triggerCls =
@@ -140,7 +147,7 @@ export function PrebookingPicker({
                     disabled={!date}
                     className={triggerCls}
                 >
-                    <span className="truncate">{time ? formatSlotLabel(time) : "Select slot"}</span>
+                    <span className="truncate">{slotLabel || "Select slot"}</span>
                     <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
                 </button>
             </div>
@@ -179,17 +186,17 @@ export function PrebookingPicker({
 
             {sheet === "slot" && (
                 <BottomSheet title="Select slot" onClose={() => setSheet(null)}>
-                    {slots.length === 0 ? (
+                    {ranges.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-6">No slots available for this day.</p>
                     ) : (
-                        slots.map((s) => {
-                            const selected = s === time;
+                        ranges.map((r) => {
+                            const selected = r.from === time;
                             return (
                                 <button
-                                    key={s}
+                                    key={`${r.from}-${r.to}`}
                                     type="button"
                                     onClick={() => {
-                                        setTime(s);
+                                        setTime(r.from);
                                         setSheet(null);
                                     }}
                                     className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-sm font-medium ${
@@ -197,7 +204,7 @@ export function PrebookingPicker({
                                     }`}
                                     style={selected ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
                                 >
-                                    {formatSlotLabel(s)}
+                                    {`${formatSlotLabel(r.from)} – ${formatSlotLabel(r.to)}`}
                                     {selected && <Check className="h-4 w-4" />}
                                 </button>
                             );
