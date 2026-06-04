@@ -29,11 +29,15 @@ export default function PullToRefresh({
       (window.scrollY || document.documentElement.scrollTop || 0) <= 0;
 
     const onStart = (e: TouchEvent) => {
-      if (refreshingRef.current || !atTop()) {
+      const y = e.touches[0].clientY;
+      // Only arm the gesture when the page is at the top AND the finger starts
+      // in the top 20% of the screen — a drag begun mid/lower screen never
+      // triggers a refresh.
+      if (refreshingRef.current || !atTop() || y > window.innerHeight * 0.2) {
         startY.current = null;
         return;
       }
-      startY.current = e.touches[0].clientY;
+      startY.current = y;
     };
 
     const onMove = (e: TouchEvent) => {
