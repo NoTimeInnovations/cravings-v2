@@ -128,7 +128,7 @@ export function PrebookingPicker({
 
     // Shared button style — matches the order-type buttons (unselected look).
     const triggerCls =
-        "flex items-center justify-between gap-2 py-3 px-3 rounded-xl text-sm font-semibold border-2 border-gray-100 bg-gray-50 text-gray-700 disabled:opacity-50";
+        "flex items-center justify-between gap-1 py-3 px-2.5 rounded-xl text-xs font-semibold border-2 border-gray-100 bg-gray-50 text-gray-700 disabled:opacity-50";
 
     return (
         <div className={className}>
@@ -141,7 +141,7 @@ export function PrebookingPicker({
 
             <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setSheet("date")} className={triggerCls}>
-                    <span className="truncate">{dateLabel || "Select date"}</span>
+                    <span className="leading-tight">{dateLabel || "Select date"}</span>
                     <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
                 </button>
                 <button
@@ -150,7 +150,7 @@ export function PrebookingPicker({
                     disabled={!date}
                     className={triggerCls}
                 >
-                    <span className="truncate">{slotLabel || "Select slot"}</span>
+                    <span className="leading-tight">{slotLabel || "Select slot"}</span>
                     <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
                 </button>
             </div>
