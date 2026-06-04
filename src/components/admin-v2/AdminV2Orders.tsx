@@ -59,21 +59,30 @@ import { useAdminStore } from "@/store/adminStore";
 import { AdminV2AllOrders } from "./AdminV2AllOrders";
 import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { AdminV2EditOrder } from "./AdminV2EditOrder";
-import { Edit } from "lucide-react";
+import { Edit, FileClock } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getFeatures } from "@/lib/getFeatures";
 import { formatPrebookDateLabel, formatSlotLabel } from "@/lib/prebooking";
 
 import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { CancelOrderDialog } from "@/components/CancelOrderDialog";
-import { DraftOrdersSection } from "./DraftOrdersSection";
 
 export function AdminV2Orders() {
   const { userData } = useAuthStore();
   const { selectedOrderId, setSelectedOrderId, setActiveView } =
     useAdminStore();
-  const { deleteOrder, updateOrderStatus, updateOrderPaymentMethod } =
+  const { deleteOrder, updateOrderStatus, updateOrderPaymentMethod, subscribeDraftOrders } =
     useOrderStore();
+
+  // Draft orders = online orders still processing payment (status
+  // "pending_payment"). Kept out of the live feed/notifications; shown only when
+  // the "Draft Orders" toggle is on, rendered in the SAME table/cards as orders.
+  const [drafts, setDrafts] = useState<Order[]>([]);
+  const [showDrafts, setShowDrafts] = useState(false);
+  useEffect(() => {
+    const unsubscribe = subscribeDraftOrders((d) => setDrafts(d));
+    return () => unsubscribe();
+  }, [subscribeDraftOrders]);
 
   const {
     orders,
@@ -95,7 +104,10 @@ export function AdminV2Orders() {
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [actionDescription, setActionDescription] = useState("");
 
-  const selectedOrder = orders.find((o) => o.id === selectedOrderId) || null;
+  // When the Draft Orders toggle is on, the whole view operates on drafts.
+  const activeOrders = showDrafts ? drafts : orders;
+
+  const selectedOrder = activeOrders.find((o) => o.id === selectedOrderId) || null;
 
   const [viewMode, setViewMode] = useState<"live" | "all">("live");
   const [searchQuery, setSearchQuery] = useState("");
@@ -106,8 +118,8 @@ export function AdminV2Orders() {
   const [orderToPrint, setOrderToPrint] = useState<string | null>(null);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
-  const cancellingOrder = orders.find((o) => o.id === cancellingOrderId) || null;
-  const editingOrder = orders.find((o) => o.id === editingOrderId) || null;
+  const cancellingOrder = activeOrders.find((o) => o.id === cancellingOrderId) || null;
+  const editingOrder = activeOrders.find((o) => o.id === editingOrderId) || null;
 
   const handleDeleteOrder = async (order: Order) => {
     if (order.status === "completed") {
@@ -303,7 +315,7 @@ export function AdminV2Orders() {
   }
 
   const getFilteredAndSortedOrders = () => {
-    let result = [...orders];
+    let result = [...activeOrders];
 
     // Filter by order type
     if (orderType !== "all") {
@@ -428,12 +440,33 @@ export function AdminV2Orders() {
         </div>
 
         <div className="flex items-center gap-2">
-          <DraftOrdersSection />
-          <Button variant="outline" onClick={() => setViewMode("all")}>
-            Show All Orders
+          <Button
+            variant={showDrafts ? "default" : "outline"}
+            onClick={() => setShowDrafts((v) => !v)}
+            className="gap-2"
+          >
+            <FileClock className="h-4 w-4" />
+            {showDrafts ? "Back to Orders" : "Draft Orders"}
+            {drafts.length > 0 && (
+              <Badge className="bg-amber-500 text-white hover:bg-amber-500 ml-1">
+                {drafts.length}
+              </Badge>
+            )}
           </Button>
+          {!showDrafts && (
+            <Button variant="outline" onClick={() => setViewMode("all")}>
+              Show All Orders
+            </Button>
+          )}
         </div>
       </div>
+
+      {showDrafts && (
+        <div className="rounded-md border border-amber-200 bg-amber-50/60 px-4 py-2 text-sm text-amber-800">
+          Showing <b>draft orders</b> — online orders whose payment is still processing. Not
+          confirmed yet, so they don&apos;t appear in the normal list or trigger alerts.
+        </div>
+      )}
 
       {/* Desktop Table View */}
       <div className="hidden md:block rounded-md border bg-card">
@@ -781,8 +814,8 @@ export function AdminV2Orders() {
         )}
       </div>
 
-      {/* Pagination Controls - Reusing logic from OrdersTab if needed, or simple buttons */}
-      <div className="flex items-center justify-end space-x-2 py-4">
+      {/* Pagination Controls - hidden in draft view (drafts are a single list) */}
+      <div className={`flex items-center justify-end space-x-2 py-4 ${showDrafts ? "hidden" : ""}`}>
         <Button
           variant="outline"
           size="sm"
