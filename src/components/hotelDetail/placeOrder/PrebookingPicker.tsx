@@ -19,9 +19,6 @@ export interface PrebookingSelection {
     dineIn?: boolean; // true when this selection is a dine-in table reservation
 }
 
-/** Party-size choices for a dine-in table reservation. */
-const PARTY_SIZES = [1, 2, 3, 4, 6, 8, 10, 12];
-
 /** Bottom sheet (portaled to body so it sits above the full-screen checkout). */
 function BottomSheet({
     title,
@@ -74,7 +71,9 @@ export function PrebookingPicker({
     const allowed = reservation ? true : isOrderTypeAllowed(settings, orderTypeKey);
     const [date, setDate] = useState<string>("");
     const [time, setTime] = useState<string>("");
-    const [persons, setPersons] = useState<number>(2);
+    // Guest count is no longer collected; keep a fixed default so dine-in orders
+    // still record a party size (used as the table-booking marker downstream).
+    const persons = 1;
     const [sheet, setSheet] = useState<null | "date" | "slot">(null);
 
     // Dates: tomorrow … +30 days that have at least one slot.
@@ -126,33 +125,9 @@ export function PrebookingPicker({
             <div className="flex items-center gap-2">
                 <CalendarClock className="h-4 w-4 text-muted-foreground" />
                 <span className="text-xs font-semibold text-gray-500 tracking-wide uppercase">
-                    {reservation ? "Book a table" : "Book a slot"}
+                    {reservation ? "Slot booking" : "Book a slot"}
                 </span>
             </div>
-
-            {reservation && (
-                <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">Number of guests</label>
-                    <div className="flex flex-wrap gap-2">
-                        {PARTY_SIZES.map((n) => {
-                            const selected = persons === n;
-                            return (
-                                <button
-                                    key={n}
-                                    type="button"
-                                    onClick={() => setPersons(n)}
-                                    className={`min-w-[44px] py-2 px-3 rounded-xl text-sm font-semibold transition-all border-2 ${
-                                        selected ? "text-white border-transparent shadow-sm" : "border-gray-100 bg-gray-50 text-gray-700"
-                                    }`}
-                                    style={selected ? { backgroundColor: accentColor, borderColor: accentColor } : undefined}
-                                >
-                                    {n}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
 
             <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setSheet("date")} className={triggerCls}>
