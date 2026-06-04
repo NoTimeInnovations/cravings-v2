@@ -13,6 +13,7 @@ export const getOrdersOfPartnerQuery = `
       type
       scheduled_date
       scheduled_time
+      scheduled_time_to
       booking_persons
       qr_id
       delivery_address
@@ -130,6 +131,7 @@ export const createOrderWithItemsMutation = `
     $cashfree_order_id: String,
     $scheduled_date: date,
     $scheduled_time: time
+    $scheduled_time_to: time
     $booking_persons: Int
     $order_channel: String
   ) {
@@ -159,6 +161,7 @@ export const createOrderWithItemsMutation = `
       cashfree_order_id: $cashfree_order_id
       scheduled_date: $scheduled_date
       scheduled_time: $scheduled_time
+      scheduled_time_to: $scheduled_time_to
       booking_persons: $booking_persons
       order_channel: $order_channel
 
@@ -172,6 +175,7 @@ export const createOrderWithItemsMutation = `
       created_at
       scheduled_date
       scheduled_time
+      scheduled_time_to
       booking_persons
       order_items {
         id,
@@ -218,6 +222,7 @@ export const createPendingOrderWithItemsMutation = `
     $cashfree_order_id: String,
     $scheduled_date: date,
     $scheduled_time: time,
+    $scheduled_time_to: time,
     $booking_persons: Int,
     $payment_method: String,
     $payment_status: String,
@@ -251,6 +256,7 @@ export const createPendingOrderWithItemsMutation = `
       cashfree_order_id: $cashfree_order_id
       scheduled_date: $scheduled_date
       scheduled_time: $scheduled_time
+      scheduled_time_to: $scheduled_time_to
       booking_persons: $booking_persons
       payment_method: $payment_method
       payment_status: $payment_status
@@ -338,6 +344,7 @@ export const getOrderByIdQuery = `
       type
       scheduled_date
       scheduled_time
+      scheduled_time_to
       booking_persons
       delivery_address
       status
@@ -391,6 +398,7 @@ subscription GetPartnerOrders($partner_id: uuid!, $today_start: timestamptz!, $t
     type
     scheduled_date
     scheduled_time
+    scheduled_time_to
     booking_persons
     delivery_address
     delivery_location
@@ -486,6 +494,7 @@ subscription GetPaginatedPartnerOrders(
     type
     scheduled_date
     scheduled_time
+    scheduled_time_to
     booking_persons
     delivery_address
     delivery_location
@@ -602,6 +611,7 @@ subscription GetDraftOrders($partner_id: uuid!, $since: timestamptz!) {
     type
     scheduled_date
     scheduled_time
+    scheduled_time_to
     booking_persons
     delivery_address
     status
@@ -647,6 +657,7 @@ subscription GetUserOrders($user_id: uuid!) {
     type
     scheduled_date
     scheduled_time
+    scheduled_time_to
     booking_persons
     delivery_address
     delivery_location

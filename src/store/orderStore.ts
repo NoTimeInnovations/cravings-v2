@@ -240,6 +240,8 @@ export interface Order {
   scheduled_date?: string | null;
   /** Prebooking: scheduled time "HH:MM:SS" (restaurant-local). Null = immediate order. */
   scheduled_time?: string | null;
+  /** Prebooking: end of the chosen slot "HH:MM:SS"; lets it display as a from–to range. */
+  scheduled_time_to?: string | null;
   /** Dine-in reservation: party size (number of guests). Null = not a table reservation. */
   booking_persons?: number | null;
   /** Where the order was placed from: "app" (published TWA) or "web" (website). */
@@ -410,7 +412,7 @@ interface OrderState {
     customerName?: string,
     customerPhone?: string,
     cashfreeOrderId?: string | null,
-    prebooking?: { date: string; time: string; persons?: number; dineIn?: boolean } | null,
+    prebooking?: { date: string; time: string; timeTo?: string; persons?: number; dineIn?: boolean } | null,
     deferForPayment?: boolean,
   ) => Promise<Order | null>;
   getCurrentOrder: () => HotelOrderState;
@@ -752,6 +754,7 @@ const useOrderStore = create(
               type: order.type,
               scheduled_date: order.scheduled_date ?? null,
               scheduled_time: order.scheduled_time ?? null,
+              scheduled_time_to: order.scheduled_time_to ?? null,
               booking_persons: order.booking_persons ?? null,
               order_channel: order.order_channel ?? null,
               phone: order.phone,
@@ -1258,7 +1261,7 @@ const useOrderStore = create(
          */
         customerPhone?: string,
         cashfreeOrderId?: string | null,
-        prebooking?: { date: string; time: string; persons?: number; dineIn?: boolean } | null,
+        prebooking?: { date: string; time: string; timeTo?: string; persons?: number; dineIn?: boolean } | null,
         /**
          * Deferred (online-payment) mode: persist the order as
          * `status="pending_payment"` BEFORE the customer pays, WITHOUT pushing
@@ -1274,6 +1277,10 @@ const useOrderStore = create(
           const scheduled_date = prebooking?.date || null;
           const scheduled_time = prebooking?.time
             ? (prebooking.time.length === 5 ? `${prebooking.time}:00` : prebooking.time)
+            : null;
+          // End of the chosen slot, stored so it displays as a from–to range.
+          const scheduled_time_to = prebooking?.timeTo
+            ? (prebooking.timeTo.length === 5 ? `${prebooking.timeTo}:00` : prebooking.timeTo)
             : null;
           // Dine-in table reservation: forces table_order (no QR) and carries party size.
           const isDineInReservation = !!prebooking?.dineIn;
@@ -1412,6 +1419,7 @@ const useOrderStore = create(
               type,
               scheduled_date,
               scheduled_time,
+              scheduled_time_to,
               booking_persons,
               delivery_address:
                 type === "delivery" && !isTakeaway
@@ -1610,6 +1618,7 @@ const useOrderStore = create(
               cashfree_order_id: cashfreeOrderId || null,
               scheduled_date,
               scheduled_time,
+              scheduled_time_to,
               booking_persons,
               orderItems: [
                 ...currentOrder.items.map((item) => ({
@@ -1830,6 +1839,7 @@ const useOrderStore = create(
               type: order.type,
               scheduled_date: order.scheduled_date ?? null,
               scheduled_time: order.scheduled_time ?? null,
+              scheduled_time_to: order.scheduled_time_to ?? null,
               booking_persons: order.booking_persons ?? null,
               order_channel: order.order_channel ?? null,
               payment_method: order.payment_method,
@@ -1943,6 +1953,7 @@ function transformOrderFromHasura(order: any): Order {
     type: order.type,
     scheduled_date: order.scheduled_date ?? null,
     scheduled_time: order.scheduled_time ?? null,
+    scheduled_time_to: order.scheduled_time_to ?? null,
     booking_persons: order.booking_persons ?? null,
     order_channel: order.order_channel ?? null,
     deliveryAddress: order.delivery_address,

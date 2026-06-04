@@ -14,7 +14,8 @@ import {
 
 export interface PrebookingSelection {
     date: string; // "YYYY-MM-DD"
-    time: string; // "HH:MM"
+    time: string; // "HH:MM" — slot start
+    timeTo?: string; // "HH:MM" — slot end (so it displays as a from–to range)
     persons?: number; // dine-in table reservation party size
     dineIn?: boolean; // true when this selection is a dine-in table reservation
 }
@@ -105,12 +106,14 @@ export function PrebookingPicker({
         if (time && !ranges.some((r) => r.from === time)) setTime("");
     }, [ranges, time]);
 
-    // Report selection upward (null until fully chosen).
+    // Report selection upward (null until fully chosen). timeTo = the chosen
+    // range's end, so the order can show a full from–to slot.
     useEffect(() => {
+        const timeTo = ranges.find((r) => r.from === time)?.to;
         if (!allowed || !date || !time || (reservation && !persons)) {
             onChange(null);
         } else {
-            onChange(reservation ? { date, time, persons, dineIn: true } : { date, time });
+            onChange(reservation ? { date, time, timeTo, persons, dineIn: true } : { date, time, timeTo });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [allowed, date, time, persons, reservation]);

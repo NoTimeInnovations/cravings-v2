@@ -431,7 +431,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                 <span className="text-muted-foreground">{order.booking_persons ? "Table booking:" : "Prebooked for:"}</span>
                                 <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 font-medium">
                                     {formatPrebookDateLabel(order.scheduled_date)}
-                                    {order.scheduled_time ? ` · ${formatPrebookSlotLabel(prebookCfg, order.scheduled_date, order.scheduled_time, { dineIn: !!order.booking_persons })}` : ""}
+                                    {order.scheduled_time ? ` · ${formatPrebookSlotLabel(prebookCfg, order.scheduled_date, order.scheduled_time, { dineIn: !!order.booking_persons, to: order.scheduled_time_to })}` : ""}
                                 </Badge>
                             </div>
                         )}

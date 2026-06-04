@@ -299,15 +299,18 @@ export function formatPrebookSlotLabel(
     settings: PrebookingSettings | null | undefined,
     dateStr: string,
     time: string | null | undefined,
-    opts: { dineIn?: boolean } = {}
+    opts: { dineIn?: boolean; to?: string | null } = {}
 ): string {
     if (!time) return "";
-    const hhmm = fmt(toMinutes(time.slice(0, 5)));
-    if (settings) {
-        const r = getPrebookingRanges(settings, dateStr, opts).find((x) => x.from === hhmm);
-        if (r) return `${formatSlotLabel(r.from)} – ${formatSlotLabel(r.to)}`;
+    const from = fmt(toMinutes(time.slice(0, 5)));
+    // Prefer the slot end stored on the order; fall back to resolving it from the
+    // partner's current settings; finally show just the start time.
+    let to = opts.to ? fmt(toMinutes(opts.to.slice(0, 5))) : null;
+    if (!to && settings) {
+        const r = getPrebookingRanges(settings, dateStr, opts).find((x) => x.from === from);
+        if (r) to = r.to;
     }
-    return formatSlotLabel(hhmm);
+    return to && to !== from ? `${formatSlotLabel(from)} – ${formatSlotLabel(to)}` : formatSlotLabel(from);
 }
 
 /** "2026-06-10" -> "Wed, 10 Jun" for display (or Today/Tomorrow). */

@@ -46,6 +46,7 @@ const GET_ORDER_QUERY = `
       type
       scheduled_date
       scheduled_time
+      scheduled_time_to
       booking_persons
       delivery_address
       delivery_location
@@ -221,6 +222,7 @@ const OrderClient = () => {
                         type: order?.type,
                         scheduled_date: order?.scheduled_date ?? null,
                         scheduled_time: order?.scheduled_time ?? null,
+                        scheduled_time_to: order?.scheduled_time_to ?? null,
                         booking_persons: order?.booking_persons ?? null,
                         phone: order?.phone,
                         notes: order?.notes,
@@ -678,7 +680,7 @@ ${itemsText}
                                                   parsePrebookingSettings((partnerPaymentInfo as any)?.prebooking_settings),
                                                   order.scheduled_date,
                                                   order.scheduled_time,
-                                                  { dineIn: !!order.booking_persons },
+                                                  { dineIn: !!order.booking_persons, to: order.scheduled_time_to },
                                               )}`
                                             : ""}
                                     </p>
