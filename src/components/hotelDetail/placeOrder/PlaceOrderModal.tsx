@@ -2965,7 +2965,7 @@ const PlaceOrderModal = ({
       );
 
       if (!cfRes.success) {
-        toast.error(cfRes.error || "Failed to create payment");
+        toast.error(`Payment failed: ${cfRes.error || "could not create payment order"}`, { duration: 30000 });
         setOrderStatus("idle");
         return;
       }
@@ -3001,7 +3001,11 @@ const PlaceOrderModal = ({
 
       if (result?.error) {
         console.error("Cashfree error:", result.error);
-        toast.error(result.error.message || "Payment failed. Please try again.");
+        const full =
+          typeof result.error === "string"
+            ? result.error
+            : `${result.error?.message || "checkout error"} ${JSON.stringify(result.error)}`;
+        toast.error(`Payment failed: ${full}`, { duration: 30000 });
         setOrderStatus("idle");
         return;
       }
@@ -3018,9 +3022,10 @@ const PlaceOrderModal = ({
         prebooking: prebookingArg,
         skipAuthWait: true,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Cashfree payment error:", error);
-      toast.error("Payment failed. Please try again.");
+      const full = error?.message || error?.toString?.() || JSON.stringify(error);
+      toast.error(`Payment failed: ${full}`, { duration: 30000 });
       setShowCashfreeEmbed(false);
       setOpenPlaceOrderModal(true);
       setOrderStatus("idle");
@@ -3063,11 +3068,12 @@ const PlaceOrderModal = ({
 
       if (!verifyRes.success || !verifyRes.paid) {
         const reason = !verifyRes.success
-          ? verifyRes.error
+          ? `Verify error: ${verifyRes.error}`
           : verifyRes.orderStatus === "ACTIVE"
-            ? "Payment was not completed. You may have cancelled or dropped off during checkout."
+            ? "Payment was not completed (status: ACTIVE). You may have cancelled or dropped off during checkout."
             : `Payment status: ${verifyRes.orderStatus || "unknown"}. Please try again.`;
         setPaymentFailReason(reason || "Payment could not be completed.");
+        toast.error(`Payment failed: ${reason || "could not be completed"}`, { duration: 30000 });
         setOrderStatus("failed");
         setCashfreePaid(false);
         return;
