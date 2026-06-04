@@ -636,7 +636,7 @@ subscription GetDraftOrders($partner_id: uuid!, $since: timestamptz!) {
 export const userSubscriptionQuery = `
 subscription GetUserOrders($user_id: uuid!) {
   orders(
-    where: { user_id: { _eq: $user_id } }
+    where: { user_id: { _eq: $user_id }, status: { _neq: "expired" } }
     order_by: { created_at: desc }
   ) {
     id
@@ -721,7 +721,7 @@ subscription GetUserOrders($user_id: uuid!) {
 export const userPartnerOrdersSubscription = `
 subscription UserPartnerOrders($user_id: uuid!, $partner_id: uuid!, $limit: Int!) {
   orders(
-    where: { user_id: { _eq: $user_id }, partner_id: { _eq: $partner_id } }
+    where: { user_id: { _eq: $user_id }, partner_id: { _eq: $partner_id }, status: { _neq: "expired" } }
     order_by: { created_at: desc }
     limit: $limit
   ) {
@@ -767,7 +767,7 @@ subscription UserPartnerOrders($user_id: uuid!, $partner_id: uuid!, $limit: Int!
 export const userPartnerOrdersPageQuery = `
 query UserPartnerOrdersPage($user_id: uuid!, $partner_id: uuid!, $limit: Int!, $offset: Int!) {
   orders(
-    where: { user_id: { _eq: $user_id }, partner_id: { _eq: $partner_id } }
+    where: { user_id: { _eq: $user_id }, partner_id: { _eq: $partner_id }, status: { _neq: "expired" } }
     order_by: { created_at: desc }
     limit: $limit
     offset: $offset

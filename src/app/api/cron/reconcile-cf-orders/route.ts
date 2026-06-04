@@ -17,8 +17,8 @@ export const maxDuration = 60;
 // This guarantees no paid order is ever lost even if both the webhook and the
 // client-return path fail.
 
-const PENDING_MIN = 3; // only touch orders at least this old (avoid racing checkout)
-const EXPIRE_AFTER_MIN = 45; // abandoned unpaid orders older than this are expired
+const PENDING_MIN = 2; // only evaluate orders at least this old (avoid racing checkout)
+const EXPIRE_AFTER_MIN = 3; // unpaid pending_payment orders older than this are soft-deleted (status "expired")
 
 export async function GET(req: NextRequest) {
   // Protect the endpoint. Vercel cron can be configured to send
