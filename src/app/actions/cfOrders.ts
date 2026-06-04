@@ -1,7 +1,57 @@
 "use server";
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { Notification } from "@/app/actions/notification";
+
+// Partner push-notification server (same one the client Notification helper
+// uses). We notify inline here instead of importing the client-only
+// `Notification` helper from notification.ts ("use client"), whose exports are
+// undefined when imported into a server module.
+const NOTIFICATION_BASE_URL = "https://notification-server-khaki.vercel.app";
+
+const GET_PARTNER_DEVICE_TOKENS = `
+  query GetPartnerDeviceTokens($partnerId: String!) {
+    device_tokens(where: { user_id: { _eq: $partnerId } }, order_by: { created_at: desc }, limit: 5) {
+      device_token
+    }
+  }
+`;
+
+async function notifyPartnerNewOrder(
+  partnerId: string,
+  orderId: string,
+  items: Array<{ name: string; quantity: number }>,
+) {
+  const { device_tokens } = await fetchFromHasura(GET_PARTNER_DEVICE_TOKENS, { partnerId });
+  const tokens = (device_tokens || []).map((t: { device_token: string }) => t.device_token);
+  if (tokens.length === 0) return;
+
+  const itemsDesc = items.map((i) => `${i.name} x ${i.quantity}`).join(", ");
+  const message = {
+    tokens,
+    notification: { title: "New Order Of", body: `You have a new order of ${itemsDesc}` },
+    android: {
+      priority: "high" as const,
+      notification: { icon: "ic_stat_logo", channelId: "cravings_channel_1", sound: "custom_sound" },
+    },
+    apns: {
+      headers: { "apns-priority": "10" },
+      payload: { aps: { sound: "custom_sound.caf", contentAvailable: true } },
+    },
+    data: {
+      url: "https://menuthere.com",
+      channel_id: "cravings_channel_1",
+      sound: "custom_sound.caf",
+      order_id: orderId,
+    },
+  };
+
+  const res = await fetch(`${NOTIFICATION_BASE_URL}/api/notifications/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, partner_id: partnerId }),
+  });
+  if (!res.ok) console.error("[finalizeCfOrder] notification server returned", res.status);
+}
 
 /**
  * Finalization of online (Cashfree) orders.
@@ -128,14 +178,14 @@ export async function finalizeCfOrder(
     // Non-Petpooja partner: notify the restaurant of the new (now paid) order.
     // Best-effort — a notification failure should NOT release the claim.
     try {
-      await Notification.partner.sendOrderNotification({
-        id: order.id,
-        partnerId: order.partner_id,
-        items: (order.order_items || []).map((oi: any) => ({
+      await notifyPartnerNewOrder(
+        order.partner_id,
+        order.id,
+        (order.order_items || []).map((oi: any) => ({
           name: oi?.item?.name || "Item",
           quantity: oi?.quantity || 1,
         })),
-      } as any);
+      );
     } catch (e) {
       console.error(`[finalizeCfOrder] partner notification failed (order still finalized) order=${orderId}:`, e);
     }
