@@ -192,11 +192,6 @@ export default function V3Orders({ hotelId, onClose }: V3OrdersProps) {
             <ChevronLeft className="w-[18px] h-[18px] text-gray-900" />
           </button>
           <h1 className="text-sm font-bold text-gray-900">Your Orders</h1>
-          <div className="ml-auto">
-            <Link href="/my-orders" className="text-xs font-semibold text-orange-500">
-              All Orders
-            </Link>
-          </div>
         </div>
 
         {/* Content */}
