@@ -47,6 +47,7 @@ import { OtpInput } from "@/components/ui/otp-input";
 import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid } from "@/app/actions/cashfree";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
+import { waitForCashfreeContainer } from "@/lib/cashfreeEmbed";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
@@ -2976,17 +2977,19 @@ const PlaceOrderModal = ({
       setOrderStatus("idle");
       setOpenPlaceOrderModal(false);
       setShowCashfreeEmbed(true);
-      await new Promise<void>((r) => requestAnimationFrame(() => r()));
-      if (!cashfreeContainerRef.current) throw new Error("Checkout container not ready");
+      // Wait for the embed container to actually be in the DOM. A single rAF can
+      // be too early on slow WebViews — poll for up to ~2s before giving up.
+      const containerEl = await waitForCashfreeContainer(cashfreeContainerRef);
+      if (!containerEl) throw new Error("Checkout container not ready");
       // Container persists across retries (display toggle, not unmount) — clear
       // any leftover iframe from a previous attempt before mounting a new one.
-      cashfreeContainerRef.current.innerHTML = "";
+      containerEl.innerHTML = "";
 
       const cashfreeMode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "PRODUCTION" ? "production" : "sandbox";
       const cashfree = await loadCashfree({ mode: cashfreeMode as "sandbox" | "production" });
       const result: any = await cashfree.checkout({
         paymentSessionId: cfRes.paymentSessionId!,
-        redirectTarget: cashfreeContainerRef.current,
+        redirectTarget: containerEl,
         appearance: {
           width: `${window.innerWidth}px`,
           height: `${Math.max(window.innerHeight - 56, 500)}px`,

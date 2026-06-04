@@ -57,6 +57,7 @@ import {
 } from "@/app/actions/cashfree";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
+import { waitForCashfreeContainer } from "@/lib/cashfreeEmbed";
 
 type AppliedDiscount = {
   id: string;
@@ -1198,13 +1199,15 @@ const PlaceOrderModalV2 = ({
 
       setOrderStatus("idle");
       setShowCashfreeEmbed(true);
-      await new Promise<void>((r) => requestAnimationFrame(() => r()));
-      if (!cashfreeContainerRef.current) {
+      // Wait for the embed container to actually be in the DOM. A single rAF can
+      // be too early on slow WebViews — poll for up to ~2s before giving up.
+      const containerEl = await waitForCashfreeContainer(cashfreeContainerRef);
+      if (!containerEl) {
         throw new Error("Checkout container not ready");
       }
       // Container persists across retries (display toggle, not unmount) — clear
       // any leftover iframe from a previous attempt before mounting a new one.
-      cashfreeContainerRef.current.innerHTML = "";
+      containerEl.innerHTML = "";
 
       const cashfreeMode =
         process.env.NEXT_PUBLIC_CASHFREE_ENV === "PRODUCTION"
@@ -1215,7 +1218,7 @@ const PlaceOrderModalV2 = ({
       });
       const result: any = await cashfree.checkout({
         paymentSessionId: cfRes.paymentSessionId!,
-        redirectTarget: cashfreeContainerRef.current,
+        redirectTarget: containerEl,
         appearance: {
           width: `${window.innerWidth}px`,
           height: `${Math.max(window.innerHeight - 56, 500)}px`,
