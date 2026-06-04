@@ -4,40 +4,61 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
-import { Utensils } from "lucide-react";
-import { PrebookingSettings as PrebookingConfig, DEFAULT_PREBOOKING_SETTINGS } from "@/store/orderStore";
+import { Utensils, Plus, X } from "lucide-react";
+import {
+    PrebookingSettings as PrebookingConfig,
+    PrebookingRange,
+    PrebookingWindow,
+    DEFAULT_PREBOOKING_SETTINGS,
+} from "@/store/orderStore";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { TimePicker } from "./DeliverySettings";
 import { mergePrebookingConfig } from "@/lib/prebooking";
 
-const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /**
- * Slot Booking = dine-in table reservations. Edits the dine-in slice of
- * `prebooking_settings` (per-day open ranges); the delivery/takeaway prebooking
- * fields are loaded and preserved untouched.
+ * Slot Booking = dine-in table reservations. Combined editor: pick the open
+ * weekdays, then add one or more time ranges that apply to all selected days.
+ * Delivery/takeaway prebooking fields are preserved untouched.
  */
 export function SlotBookingSettings() {
     const { userData, setState } = useAuthStore();
     const { setSaveAction, setHasChanges } = useAdminSettingsStore();
 
     const [cfg, setCfg] = useState<PrebookingConfig>(DEFAULT_PREBOOKING_SETTINGS);
+    const [enabled, setEnabled] = useState(true);
+    const [days, setDays] = useState<Set<number>>(new Set([0, 1, 2, 3, 4, 5, 6]));
+    const [ranges, setRanges] = useState<PrebookingRange[]>([{ from: "10:00", to: "22:00" }]);
     const [initialLoaded, setInitialLoaded] = useState(false);
 
     useEffect(() => {
         if (!userData) return;
-        setCfg(mergePrebookingConfig((userData as any)?.prebooking_settings));
+        const merged = mergePrebookingConfig((userData as any)?.prebooking_settings);
+        setCfg(merged);
+        setEnabled(merged.slot_booking_enabled);
+        setDays(new Set(merged.dine_in_windows.filter((w) => w.enabled).map((w) => w.day)));
+        const fe =
+            merged.dine_in_windows.find((w) => w.enabled && w.ranges?.length) ||
+            merged.dine_in_windows.find((w) => w.ranges?.length);
+        setRanges(fe?.ranges?.length ? fe.ranges.map((r) => ({ ...r })) : [{ from: "10:00", to: "22:00" }]);
         setInitialLoaded(true);
     }, [userData]);
 
     const handleSave = useCallback(async () => {
         if (!userData) return;
         try {
-            const payload = JSON.stringify(cfg);
+            const dine_in_windows: PrebookingWindow[] = Array.from({ length: 7 }, (_, day) => ({
+                day: day as PrebookingWindow["day"],
+                enabled: days.has(day),
+                ranges: ranges.map((r) => ({ ...r })),
+            }));
+            const payload = JSON.stringify({ ...cfg, slot_booking_enabled: enabled, dine_in_windows });
             await updatePartner((userData as any).id, { prebooking_settings: payload });
             revalidateTag((userData as any).id);
             setState({ prebooking_settings: payload } as any);
@@ -47,7 +68,7 @@ export function SlotBookingSettings() {
             console.error("Error saving slot booking settings:", e);
             toast.error("Failed to save slot booking settings");
         }
-    }, [cfg, userData, setState, setHasChanges]);
+    }, [cfg, enabled, days, ranges, userData, setState, setHasChanges]);
 
     useEffect(() => {
         if (!initialLoaded) return;
@@ -57,13 +78,18 @@ export function SlotBookingSettings() {
             setSaveAction(null);
             setHasChanges(false);
         };
-    }, [cfg, initialLoaded, handleSave, setSaveAction, setHasChanges]);
+    }, [enabled, days, ranges, initialLoaded, handleSave, setSaveAction, setHasChanges]);
 
-    const updateWindow = (day: number, patch: Partial<PrebookingConfig["dine_in_windows"][number]>) =>
-        setCfg((p) => ({
-            ...p,
-            dine_in_windows: p.dine_in_windows.map((w) => (w.day === day ? { ...w, ...patch } : w)),
-        }));
+    const toggleDay = (day: number) =>
+        setDays((prev) => {
+            const n = new Set(prev);
+            n.has(day) ? n.delete(day) : n.add(day);
+            return n;
+        });
+    const updateRange = (idx: number, patch: Partial<PrebookingRange>) =>
+        setRanges((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+    const addRange = () => setRanges((prev) => [...prev, { from: "10:00", to: "22:00" }]);
+    const removeRange = (idx: number) => setRanges((prev) => prev.filter((_, i) => i !== idx));
 
     return (
         <div className="space-y-4">
@@ -87,39 +113,64 @@ export function SlotBookingSettings() {
                                 Let customers book a dine-in table for later. (Also enable Dine-in in the Order Types tab.)
                             </div>
                         </div>
-                        <Switch
-                            checked={cfg.slot_booking_enabled}
-                            onCheckedChange={(v) => setCfg((p) => ({ ...p, slot_booking_enabled: v }))}
-                        />
+                        <Switch checked={enabled} onCheckedChange={setEnabled} />
                     </div>
 
-                    {cfg.slot_booking_enabled && (
-                        <div className="space-y-2">
-                            <Label>Available table time range per day</Label>
-                            <p className="text-xs text-muted-foreground">
-                                Customers can book a table at any time within the open range for each day.
-                            </p>
+                    {enabled && (
+                        <>
                             <div className="space-y-2">
-                                {cfg.dine_in_windows.map((w) => (
-                                    <div key={w.day} className="border rounded-lg p-3 space-y-2">
-                                        <div className="flex items-center gap-2">
-                                            <Switch checked={w.enabled} onCheckedChange={(v) => updateWindow(w.day, { enabled: v })} />
-                                            <span className="text-sm font-medium">{DAY_LABELS[w.day]}</span>
-                                        </div>
-                                        {w.enabled ? (
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="text-xs text-muted-foreground">From</span>
-                                                <TimePicker value={w.from || "10:00"} onChange={(val) => updateWindow(w.day, { from: val })} />
-                                                <span className="text-xs text-muted-foreground">To</span>
-                                                <TimePicker value={w.to || "22:00"} onChange={(val) => updateWindow(w.day, { to: val })} />
-                                            </div>
-                                        ) : (
-                                            <span className="text-sm text-muted-foreground">Closed</span>
-                                        )}
-                                    </div>
-                                ))}
+                                <Label>Open days</Label>
+                                <div className="flex flex-wrap gap-2">
+                                    {DAY_LABELS.map((label, day) => {
+                                        const on = days.has(day);
+                                        return (
+                                            <button
+                                                key={day}
+                                                type="button"
+                                                onClick={() => toggleDay(day)}
+                                                className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                                                    on
+                                                        ? "bg-orange-500 border-orange-500 text-white"
+                                                        : "bg-white border-gray-200 text-gray-600"
+                                                }`}
+                                            >
+                                                {label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
+
+                            <div className="space-y-2">
+                                <Label>Table time slots</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Add one or more ranges (e.g. lunch and dinner). They apply to every selected day.
+                                </p>
+                                <div className="space-y-2">
+                                    {ranges.map((r, idx) => (
+                                        <div key={idx} className="flex items-center gap-2 flex-wrap border rounded-lg p-3">
+                                            <span className="text-xs text-muted-foreground">From</span>
+                                            <TimePicker value={r.from} onChange={(val) => updateRange(idx, { from: val })} />
+                                            <span className="text-xs text-muted-foreground">To</span>
+                                            <TimePicker value={r.to} onChange={(val) => updateRange(idx, { to: val })} />
+                                            {ranges.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeRange(idx)}
+                                                    className="ml-auto text-muted-foreground hover:text-red-600"
+                                                    aria-label="Remove slot"
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <Button type="button" variant="outline" size="sm" onClick={addRange} className="gap-1.5">
+                                    <Plus className="h-4 w-4" /> Add slot
+                                </Button>
+                            </div>
+                        </>
                     )}
                 </CardContent>
             </Card>

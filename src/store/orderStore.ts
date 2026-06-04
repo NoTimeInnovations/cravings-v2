@@ -103,13 +103,20 @@ export interface DeliveryRules {
  * Bookable slot times for a given weekday (0 = Sunday … 6 = Saturday).
  * `slots` is an explicit list of "HH:MM" times the admin offers that day.
  */
+export interface PrebookingRange {
+  from: string; // "HH:MM" (24h, restaurant-local)
+  to: string;
+}
+
 export interface PrebookingWindow {
   day: 0 | 1 | 2 | 3 | 4 | 5 | 6;
   enabled: boolean;
-  /** Open range for the day, "HH:MM" (24h, restaurant-local). */
+  /** One or more open ranges for the day (e.g. lunch + dinner). */
+  ranges?: PrebookingRange[];
+  /** Legacy single-range fields (back-compat; collapsed into `ranges` on read). */
   from?: string;
   to?: string;
-  /** Legacy explicit slots (back-compat; collapsed into from/to on read). */
+  /** Legacy explicit slots (back-compat; collapsed into a range on read). */
   slots?: string[];
 }
 
@@ -150,8 +157,7 @@ const defaultWindows = (): PrebookingWindow[] =>
   Array.from({ length: 7 }, (_, day) => ({
     day: day as PrebookingWindow["day"],
     enabled: true,
-    from: DEFAULT_FROM,
-    to: DEFAULT_TO,
+    ranges: [{ from: DEFAULT_FROM, to: DEFAULT_TO }],
   }));
 
 export const DEFAULT_PREBOOKING_SETTINGS: PrebookingSettings = {
