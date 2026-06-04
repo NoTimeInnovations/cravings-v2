@@ -3,7 +3,7 @@
 export const getOrdersOfPartnerQuery = `
   query GetOrdersOfPartner($partner_id: uuid!) {
     orders(
-      where: { partner_id: { _eq: $partner_id } }
+      where: { partner_id: { _eq: $partner_id }, status: { _nin: ["pending_payment", "expired"] } }
       order_by: { created_at: desc }
     ) {
       id
@@ -178,6 +178,92 @@ export const createOrderWithItemsMutation = `
   }
 `;
 
+/**
+ * Insert an online (Cashfree) order that has NOT been paid yet, so it is
+ * persisted server-side BEFORE payment. The webhook / reconciler cron can then
+ * finalize it (mark paid, push to Petpooja, notify) even if the customer never
+ * returns to the app. Differs from createOrderWithItemsMutation by also setting
+ * payment_method/payment_status/is_paid and stashing the prebuilt Petpooja
+ * push payload in cf_pp_payload (petpooja partners only). status is expected to
+ * be "pending_payment" so partner-facing views can hide it until paid.
+ */
+export const createPendingOrderWithItemsMutation = `
+  mutation CreatePendingOrderWithItems(
+    $id: uuid,
+    $short_id: String,
+    $totalPrice: float8!,
+    $createdAt: timestamptz!,
+    $tableNumber: Int,
+    $qrId: uuid,
+    $partnerId: uuid!,
+    $userId: uuid,
+    $type: String!,
+    $delivery_address: String,
+    $phone: String,
+    $status: String,
+    $gst_included: numeric,
+    $extra_charges: jsonb,
+    $orderedby: String,
+    $delivery_location: geography,
+    $captain_id: uuid,
+    $notes: String,
+    $display_id: String,
+    $table_name: String,
+    $orderItems: [order_items_insert_input!]!,
+    $discounts: jsonb,
+    $source: String,
+    $cashfree_order_id: String,
+    $scheduled_date: date,
+    $scheduled_time: time,
+    $booking_persons: Int,
+    $payment_method: String,
+    $payment_status: String,
+    $is_paid: Boolean,
+    $cf_pp_payload: jsonb
+  ) {
+    insert_orders_one(object: {
+      id: $id
+      short_id: $short_id
+      total_price: $totalPrice
+      created_at: $createdAt
+      table_number: $tableNumber
+      qr_id: $qrId
+      partner_id: $partnerId
+      user_id: $userId
+      status: $status
+      type: $type
+      phone: $phone
+      delivery_address: $delivery_address
+      gst_included: $gst_included
+      extra_charges: $extra_charges
+      orderedby: $orderedby
+      delivery_location: $delivery_location
+      captain_id: $captain_id
+      notes: $notes
+      display_id: $display_id
+      table_name: $table_name
+      discounts: $discounts
+      source: $source
+      cashfree_order_id: $cashfree_order_id
+      scheduled_date: $scheduled_date
+      scheduled_time: $scheduled_time
+      booking_persons: $booking_persons
+      payment_method: $payment_method
+      payment_status: $payment_status
+      is_paid: $is_paid
+      cf_pp_payload: $cf_pp_payload
+      order_items: {
+        data: $orderItems
+      }
+    }) {
+      id
+      short_id
+      total_price
+      created_at
+    }
+  }
+`;
+
 export const updateOrderMutation = `
   mutation UpdateOrder(
     $id: uuid!,
@@ -283,9 +369,9 @@ export const getOrderByIdQuery = `
 export const subscriptionQuery = `
 subscription GetPartnerOrders($partner_id: uuid!, $today_start: timestamptz!, $today_end: timestamptz!) {
   orders(
-    where: { 
+    where: {
       partner_id: { _eq: $partner_id },
-
+      status: { _nin: ["pending_payment", "expired"] },
       created_at: { _gte: $today_start, _lte: $today_end }
     }
     order_by: { created_at: desc }
@@ -378,7 +464,7 @@ subscription GetPaginatedPartnerOrders(
   orders(
     where: {
       partner_id: { _eq: $partner_id },
-
+      status: { _nin: ["pending_payment", "expired"] },
       created_at: { _gte: $today_start }
     }
     order_by: { created_at: desc }
@@ -475,9 +561,9 @@ subscription GetPaginatedPartnerOrders(
 export const ordersCountSubscription = `
 subscription GetOrdersCount($partner_id: uuid!) {
   orders_aggregate(
-    where: { 
+    where: {
       partner_id: { _eq: $partner_id },
-
+      status: { _nin: ["pending_payment", "expired"] }
     }
   ) {
     aggregate {

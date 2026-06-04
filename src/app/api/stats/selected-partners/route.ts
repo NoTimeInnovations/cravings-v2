@@ -30,7 +30,7 @@ const PARTNERS_QUERY = `
         created_at: { _gte: $since },
         type: { _in: $directTypes },
         _and: [
-          { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+          { _or: [{ status: { _is_null: true } }, { status: { _nin: ["cancelled", "pending_payment", "expired"] } }] },
           { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
           { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
         ]
@@ -42,7 +42,7 @@ const PARTNERS_QUERY = `
           { type: { _eq: "delivery" } },
           { delivery_address: { _is_null: false } },
           { delivery_address: { _neq: "" } },
-          { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+          { _or: [{ status: { _is_null: true } }, { status: { _nin: ["cancelled", "pending_payment", "expired"] } }] },
           { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
           { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
         ]
@@ -53,7 +53,7 @@ const PARTNERS_QUERY = `
           { created_at: { _gte: $since } },
           { type: { _eq: "delivery" } },
           { _or: [{ delivery_address: { _is_null: true } }, { delivery_address: { _eq: "" } }] },
-          { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+          { _or: [{ status: { _is_null: true } }, { status: { _nin: ["cancelled", "pending_payment", "expired"] } }] },
           { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
           { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
         ]
@@ -62,7 +62,7 @@ const PARTNERS_QUERY = `
       month_total: orders_aggregate(where: {
         created_at: { _gte: $monthStart },
         _and: [
-          { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+          { _or: [{ status: { _is_null: true } }, { status: { _nin: ["cancelled", "pending_payment", "expired"] } }] },
           { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] }
         ]
       }) { aggregate { count, sum { total_price } } }
@@ -73,7 +73,7 @@ const PARTNERS_QUERY = `
           { type: { _eq: "delivery" } },
           { delivery_address: { _is_null: false } },
           { delivery_address: { _neq: "" } },
-          { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+          { _or: [{ status: { _is_null: true } }, { status: { _nin: ["cancelled", "pending_payment", "expired"] } }] },
           { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
           { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
         ]
@@ -84,7 +84,7 @@ const PARTNERS_QUERY = `
           { created_at: { _gte: $monthStart } },
           { type: { _eq: "delivery" } },
           { _or: [{ delivery_address: { _is_null: true } }, { delivery_address: { _eq: "" } }] },
-          { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+          { _or: [{ status: { _is_null: true } }, { status: { _nin: ["cancelled", "pending_payment", "expired"] } }] },
           { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
           { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
         ]

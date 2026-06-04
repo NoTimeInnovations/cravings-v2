@@ -53,11 +53,11 @@ import {
 import {
   createCashfreeOrderForPartner,
   verifyCashfreePayment,
-  markOrderAsPaid,
 } from "@/app/actions/cashfree";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { waitForCashfreeContainer } from "@/lib/cashfreeEmbed";
+import { finalizeCfOrder } from "@/app/actions/cfOrders";
 
 type AppliedDiscount = {
   id: string;
@@ -982,6 +982,7 @@ const PlaceOrderModalV2 = ({
   const verifyAndPlaceCfOrder = async (pending: {
     cfOrderId: string;
     partnerId: string;
+    orderId?: string | null;
     orderType?: string | null;
     orderNote?: string | null;
     prebooking?: (PrebookingSelection & { dineIn?: boolean }) | null;
@@ -993,20 +994,6 @@ const PlaceOrderModalV2 = ({
     setOpenPlaceOrderModal(true);
     setOrderStatus("verifying");
     setCashfreePaid(true);
-
-    const waitForAuth = () =>
-      new Promise<void>((resolve) => {
-        const check = () => {
-          const authUser = useAuthStore.getState().userData;
-          if (authUser?.id) {
-            resolve();
-            return;
-          }
-          setTimeout(check, 300);
-        };
-        setTimeout(check, 500);
-        setTimeout(resolve, 15000);
-      });
 
     try {
       const verifyRes = await verifyCashfreePayment(
@@ -1028,77 +1015,109 @@ const PlaceOrderModalV2 = ({
       }
 
       setOrderStatus("loading");
-      if (!pending.skipAuthWait) await waitForAuth();
 
-      const storeState = useOrderStore.getState();
-      const authUser = useAuthStore.getState().userData;
-      if (!authUser?.id) {
-        toast.error("Session expired. Please login and try again.");
-        setOrderStatus("idle");
-        return;
-      }
-      if (!storeState.items || storeState.items.length === 0) {
-        toast.error("Cart is empty. Your order could not be restored.");
-        setOrderStatus("idle");
-        return;
-      }
-
-      const cfItems = storeState.items;
-      const cfOrderType = (pending.orderType as typeof orderType) || orderType;
-      const cfExtraCharges = buildExtraCharges(cfItems, cfOrderType);
-
-      const { additionalGst: cfGst } = calculateGstForItems(
-        cfItems.map((item) => {
-          const baseId = item.id.split("|")[0];
-          const mi = allMenus.find((m: any) => m.id === baseId);
-          return {
-            price: item.price,
-            quantity: item.quantity,
-            tax_inclusive: mi?.tax_inclusive ?? (item as any).tax_inclusive,
-          };
-        }),
-        Number(hotelData?.gst_percentage) || 0,
-      );
-
-      const result = await storeState.placeOrder(
-        hotelData,
-        tableNumber,
-        qrId as string,
-        cfGst,
-        cfExtraCharges.length > 0 ? cfExtraCharges : null,
-        undefined,
-        pending.orderNote || "",
-        tableName,
-        null,
-        (authUser as any)?.full_name || undefined,
-        undefined,
-        pending.cfOrderId,
-        pending.prebooking || null,
-      );
-
-      if (result) {
-        if (result.id) {
-          localStorage?.setItem("last-order-id", result.id);
-          setPlacedOrderId(result.id);
-          markOrderAsPaid(result.id, verifyRes.cfPaymentId || undefined).catch(
-            () => {},
-          );
-        }
-        setSavedOrderTotal(grandTotal);
-        useOrderStore.getState().notifyOrderPlaced();
+      // The order was persisted as pending_payment BEFORE checkout, so it
+      // already exists regardless of whether the customer returned. Finalize it
+      // (mark paid, push to Petpooja, notify) — idempotent with the webhook and
+      // cron, so a failure here is non-fatal: payment succeeded and the order
+      // will still be completed server-side.
+      if (pending.orderId) {
         try {
-          sessionStorage.removeItem(`order_type_${hotelData.id}`);
-        } catch {}
-        setOrderStatus("success");
-      } else {
-        toast.error("Failed to place order.");
-        setOrderStatus("idle");
+          await finalizeCfOrder(pending.orderId, verifyRes.cfPaymentId || null);
+        } catch (e) {
+          console.error("finalizeCfOrder (client) failed; webhook/cron will retry:", e);
+        }
+        localStorage?.setItem("last-order-id", pending.orderId);
+        setPlacedOrderId(pending.orderId);
       }
+
+      setSavedOrderTotal(grandTotal);
+      // Payment done — clear the cart now (it was kept through the pending phase
+      // so the customer could retry if payment failed).
+      try {
+        useOrderStore.getState().clearOrder();
+      } catch {}
+      useOrderStore.getState().notifyOrderPlaced();
+      try {
+        sessionStorage.removeItem(`order_type_${hotelData.id}`);
+      } catch {}
+      setOrderStatus("success");
     } catch (error) {
       console.error("Payment verification error:", error);
       setPaymentFailReason("Could not verify payment. Please contact support.");
       setOrderStatus("failed");
     }
+  };
+
+  // Shared discount payload for placeOrder, used by both the cash path and the
+  // deferred (online-payment) path so the persisted order total/discount match.
+  const buildDiscountArg = () =>
+    appliedDiscount
+      ? {
+          code: appliedDiscount.code,
+          type: appliedDiscount.type,
+          value: appliedDiscount.value,
+          savings: discountSavings,
+          pp_discount_id: appliedDiscount.pp_discount_id,
+          description: appliedDiscount.description,
+          terms_conditions: appliedDiscount.terms_conditions,
+          max_discount_amount: appliedDiscount.max_discount_amount,
+          min_order_value: appliedDiscount.min_order_value,
+          discount_on_total: appliedDiscount.discount_on_total,
+          discount_order_types: appliedDiscount.discount_order_types,
+          valid_days: appliedDiscount.valid_days,
+          applicable_on: appliedDiscount.applicable_on,
+          rank: appliedDiscount.rank,
+          freebie_item_count: appliedDiscount.freebie_item_count,
+          freebie_item_ids: appliedDiscount.freebie_item_ids,
+          freebie_item_names: appliedDiscount.freebie_item_ids
+            ? appliedDiscount.freebie_item_ids
+                .split(",")
+                .map((id) => hotelData?.menus?.find((m) => m.id === id.trim())?.name)
+                .filter(Boolean)
+                .join(", ")
+            : undefined,
+          freebie_items:
+            appliedDiscount.type === "freebie" && appliedDiscount.freebie_item_ids
+              ? (appliedDiscount.freebie_item_ids
+                  .split(",")
+                  .map((id) => {
+                    const m = hotelData?.menus?.find((menu) => menu.id === id.trim());
+                    return m
+                      ? {
+                          id: m.id,
+                          name: m.name,
+                          price: m.price,
+                          pp_id: (m as any).pp_id,
+                          category: m.category,
+                        }
+                      : null;
+                  })
+                  .filter(Boolean) as {
+                  id: string;
+                  name: string;
+                  price: number;
+                  pp_id?: string;
+                  category?: any;
+                }[])
+              : undefined,
+        }
+      : null;
+
+  // Build the extra-charges list (qr group fee, delivery, parcel) the same way
+  // the cash path does, for use when persisting the order.
+  const buildCheckoutExtraCharges = () => {
+    const ec: { name: string; amount: number; charge_type: string }[] = [];
+    if (qrExtraCharge > 0 && qrGroup?.name) {
+      ec.push({ name: qrGroup.name, amount: qrExtraCharge, charge_type: qrGroup.charge_type || "FLAT_FEE" });
+    }
+    if (deliveryCharge > 0) {
+      ec.push({ name: "Delivery Charge", amount: deliveryCharge, charge_type: "FLAT_FEE" });
+    }
+    if (parcelCharge > 0) {
+      ec.push({ name: "Parcel Charge", amount: parcelCharge, charge_type: "FLAT_FEE" });
+    }
+    return ec;
   };
 
   const handleCashfreePayAndPlaceOrder = async () => {
@@ -1161,10 +1180,38 @@ const PlaceOrderModalV2 = ({
     try {
       const cfOrderId = `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
+      // Persist the order as pending_payment BEFORE charging the customer, so it
+      // can be finalized by the webhook/cron even if they never return. The cart
+      // is kept (not cleared) so the customer can retry if payment fails.
+      const cfExtraCharges = buildCheckoutExtraCharges();
+      const placed = await useOrderStore.getState().placeOrder(
+        hotelData,
+        tableNumber,
+        qrId as string,
+        additionalGst,
+        cfExtraCharges.length > 0 ? cfExtraCharges : null,
+        undefined,
+        orderNote || "",
+        tableName,
+        buildDiscountArg(),
+        (user as any)?.full_name || undefined,
+        selectedReceiverPhone || (user as any)?.phone || undefined,
+        cfOrderId,
+        prebookingArg,
+        true, // deferForPayment
+      );
+      if (!placed?.id) {
+        toast.error("Could not start your order. Please try again.");
+        setOrderStatus("idle");
+        return;
+      }
+      const orderId = placed.id;
+
       sessionStorage.setItem(
         "cashfree_pending_order",
         JSON.stringify({
           cfOrderId,
+          orderId,
           partnerId: hotelData.id,
           amount: grandTotal,
           orderType: orderType || null,
@@ -1241,6 +1288,7 @@ const PlaceOrderModalV2 = ({
 
       await verifyAndPlaceCfOrder({
         cfOrderId,
+        orderId,
         partnerId: hotelData.id,
         orderType: orderType || null,
         orderNote: orderNote || null,
@@ -1271,6 +1319,7 @@ const PlaceOrderModalV2 = ({
       if (pending.orderNote) setOrderNote(pending.orderNote);
       verifyAndPlaceCfOrder({
         cfOrderId: pending.cfOrderId,
+        orderId: pending.orderId || null,
         partnerId: pending.partnerId,
         orderType: pending.orderType,
         orderNote: pending.orderNote,
@@ -1389,57 +1438,7 @@ const PlaceOrderModalV2 = ({
         undefined,
         orderNote || "",
         tableName,
-        appliedDiscount
-          ? {
-              code: appliedDiscount.code,
-              type: appliedDiscount.type,
-              value: appliedDiscount.value,
-              savings: discountSavings,
-              pp_discount_id: appliedDiscount.pp_discount_id,
-              description: appliedDiscount.description,
-              terms_conditions: appliedDiscount.terms_conditions,
-              max_discount_amount: appliedDiscount.max_discount_amount,
-              min_order_value: appliedDiscount.min_order_value,
-              discount_on_total: appliedDiscount.discount_on_total,
-              discount_order_types: appliedDiscount.discount_order_types,
-              valid_days: appliedDiscount.valid_days,
-              applicable_on: appliedDiscount.applicable_on,
-              rank: appliedDiscount.rank,
-              freebie_item_count: appliedDiscount.freebie_item_count,
-              freebie_item_ids: appliedDiscount.freebie_item_ids,
-              freebie_item_names: appliedDiscount.freebie_item_ids
-                ? appliedDiscount.freebie_item_ids
-                    .split(",")
-                    .map((id) => hotelData?.menus?.find((m) => m.id === id.trim())?.name)
-                    .filter(Boolean)
-                    .join(", ")
-                : undefined,
-              freebie_items:
-                appliedDiscount.type === "freebie" && appliedDiscount.freebie_item_ids
-                  ? (appliedDiscount.freebie_item_ids
-                      .split(",")
-                      .map((id) => {
-                        const m = hotelData?.menus?.find((menu) => menu.id === id.trim());
-                        return m
-                          ? {
-                              id: m.id,
-                              name: m.name,
-                              price: m.price,
-                              pp_id: (m as any).pp_id,
-                              category: m.category,
-                            }
-                          : null;
-                      })
-                      .filter(Boolean) as {
-                      id: string;
-                      name: string;
-                      price: number;
-                      pp_id?: string;
-                      category?: any;
-                    }[])
-                  : undefined,
-            }
-          : null,
+        buildDiscountArg(),
         (user as any)?.full_name || undefined,
         selectedReceiverPhone || (user as any)?.phone || undefined,
         null,

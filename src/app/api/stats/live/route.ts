@@ -21,7 +21,7 @@ const LIVE_QUERY = `
         partner_id: $partnerFilter,
         type: { _in: $directTypes },
         _and: [
-          { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+          { _or: [{ status: { _is_null: true } }, { status: { _nin: ["cancelled", "pending_payment", "expired"] } }] },
           { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
         { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
         ]
@@ -49,7 +49,7 @@ const LIVE_QUERY = `
         partner_id: $partnerFilter,
         type: { _in: $directTypes },
         _and: [
-          { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+          { _or: [{ status: { _is_null: true } }, { status: { _nin: ["cancelled", "pending_payment", "expired"] } }] },
           { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
         { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
         ]
@@ -63,7 +63,7 @@ const LIVE_QUERY = `
       partner_id: $partnerFilter,
       type: { _in: $directTypes },
       _and: [
-        { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+        { _or: [{ status: { _is_null: true } }, { status: { _nin: ["cancelled", "pending_payment", "expired"] } }] },
         { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
         { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
       ]
@@ -78,7 +78,7 @@ const LIVE_QUERY = `
         { type: { _eq: "delivery" } },
         { delivery_address: { _is_null: false } },
         { delivery_address: { _neq: "" } },
-        { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+        { _or: [{ status: { _is_null: true } }, { status: { _nin: ["cancelled", "pending_payment", "expired"] } }] },
         { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
         { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
       ]
@@ -90,7 +90,7 @@ const LIVE_QUERY = `
         { partner_id: $partnerFilter },
         { type: { _eq: "delivery" } },
         { _or: [{ delivery_address: { _is_null: true } }, { delivery_address: { _eq: "" } }] },
-        { _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }] },
+        { _or: [{ status: { _is_null: true } }, { status: { _nin: ["cancelled", "pending_payment", "expired"] } }] },
         { _or: [{ user_id: { _is_null: true } }, { user_id: { _nin: $excludedUsers } }] },
         { _or: [{ source: { _is_null: true } }, { source: { _eq: "customer" } }] }
       ]

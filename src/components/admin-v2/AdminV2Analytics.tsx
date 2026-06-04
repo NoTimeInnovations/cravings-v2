@@ -80,7 +80,7 @@ export function AdminV2Analytics() {
   const statusFilterGql =
     orderStatusFilter === "completed"
       ? `status: {_eq: "completed"}`
-      : `_or: [{status: {_is_null: true}}, {status: {_neq: "cancelled"}}]`;
+      : `_or: [{status: {_is_null: true}}, {status: {_nin: ["cancelled", "pending_payment", "expired"]}}]`;
   const [reportData, setReportData] = useState<any>(null);
   const [scanData, setScanData] = useState<any>(null);
   const [qrCodesMap, setQrCodesMap] = useState<Map<string, any>>(new Map());

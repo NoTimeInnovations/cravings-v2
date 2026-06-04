@@ -27,7 +27,8 @@ export const getOrderStatusMetrics = `
       }
     }
     total: orders_aggregate(where: {
-      created_at: {_gte: $startDate, _lte: $endDate}
+      created_at: {_gte: $startDate, _lte: $endDate},
+      status: {_nin: ["pending_payment", "expired"]}
     }) {
       aggregate {
         count
@@ -115,7 +116,7 @@ export const getPartnerPerformance = `
           }
         }
       }
-      orders_aggregate(where: { created_at: { _gte: $startDate, _lte: $endDate } }) {
+      orders_aggregate(where: { created_at: { _gte: $startDate, _lte: $endDate }, status: { _nin: ["pending_payment", "expired"] } }) {
         aggregate {
           count
           sum {
@@ -140,9 +141,10 @@ export const getPartnerPerformance = `
 export const getOrdersByDay = `
   query GetOrdersByDay($startDate: timestamptz!, $endDate: timestamptz!, $partnerId: uuid!) {
     orders(
-      where: { 
+      where: {
         created_at: { _gte: $startDate, _lte: $endDate },
-        partner_id: { _eq: $partnerId }
+        partner_id: { _eq: $partnerId },
+        status: { _nin: ["pending_payment", "expired"] }
       }
       order_by: { created_at: desc }
     ) {

@@ -123,7 +123,14 @@ export async function createCashfreeOrderForPartner(
   };
 }
 
-export async function verifyCashfreePayment(partnerId: string, orderId: string) {
+export async function verifyCashfreePayment(
+  partnerId: string,
+  orderId: string,
+  opts?: { quick?: boolean },
+) {
+  // quick mode: single status check, no ACTIVE-retry polling. Used by the
+  // reconciler cron where we just need the current status across many orders.
+  const quick = opts?.quick === true;
   const partnerApiKey = process.env.CASHFREE_PARTNER_API_KEY;
   if (!partnerApiKey) throw new Error("CASHFREE_PARTNER_API_KEY not configured");
 
@@ -147,7 +154,8 @@ export async function verifyCashfreePayment(partnerId: string, orderId: string) 
   let res: Response | null = null;
   let data: any = null;
   let lastError: string | undefined;
-  for (let attempt = 0; attempt < 6; attempt++) {
+  const maxAttempts = quick ? 1 : 6;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     res = await fetch(`${CASHFREE_BASE_URL}/pg/orders/${orderId}`, { method: "GET", headers });
     data = await res.json();
     console.log(
@@ -159,7 +167,7 @@ export async function verifyCashfreePayment(partnerId: string, orderId: string) 
     if (!res.ok) {
       lastError = data?.message || "Failed to verify payment";
       // 404 can mean Cashfree hasn't registered the order yet — retry; other errors are terminal.
-      if (res.status === 404 && attempt < 5) {
+      if (res.status === 404 && attempt < maxAttempts - 1) {
         await sleep(1500);
         continue;
       }
@@ -167,7 +175,7 @@ export async function verifyCashfreePayment(partnerId: string, orderId: string) 
     }
     // Terminal statuses (PAID / EXPIRED / TERMINATED / ...) — stop polling.
     if (data?.order_status && data.order_status !== "ACTIVE") break;
-    if (attempt < 5) await sleep(1500);
+    if (attempt < maxAttempts - 1) await sleep(1500);
   }
 
   if (!res || !data) {

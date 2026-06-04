@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { finalizeCfOrder } from "@/app/actions/cfOrders";
 
 const updateOrderPaymentStatus = `
   mutation UpdateOrderPaymentStatus($cashfree_order_id: String!, $payment_status: String!, $payment_details: jsonb, $cashfree_payment_id: String) {
@@ -204,6 +205,27 @@ export async function POST(req: NextRequest) {
           },
           cfPaymentId?.toString() || null,
         );
+
+        // Finalize the order server-side: flip pending_payment -> visible, push
+        // to Petpooja, notify the partner. This is what makes the order actually
+        // happen even if the customer never returned to the app. Idempotent.
+        if (order?.id) {
+          const fin = await finalizeCfOrder(order.id, cfPaymentId?.toString() || null);
+          if (!fin.ok) {
+            // A real delivery failure (e.g. Petpooja push) — return non-200 so
+            // Cashfree retries the webhook; the claim was released for retry.
+            console.error(`[Cashfree Webhook] finalize failed for order=${order.id}: ${fin.error}`);
+            return NextResponse.json({ status: "retry", reason: fin.error }, { status: 500 });
+          }
+        } else {
+          // Order row not found yet — likely the pending insert is still
+          // committing (race with checkout). Ask Cashfree to retry; the cron
+          // reconciler is the ultimate backstop.
+          console.warn(
+            `[Cashfree Webhook] PAYMENT_SUCCESS but no order row for cf_order_id=${cfOrderId} — requesting retry`,
+          );
+          return NextResponse.json({ status: "retry", reason: "order_not_found" }, { status: 500 });
+        }
         break;
       }
 

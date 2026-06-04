@@ -10,6 +10,7 @@ import {
   createOrderItemsMutation,
   createOrderMutation,
   createOrderWithItemsMutation,
+  createPendingOrderWithItemsMutation,
   ordersCountSubscription,
   paginatedOrdersSubscription,
   subscriptionQuery,
@@ -393,6 +394,7 @@ interface OrderState {
     customerPhone?: string,
     cashfreeOrderId?: string | null,
     prebooking?: { date: string; time: string; persons?: number; dineIn?: boolean } | null,
+    deferForPayment?: boolean,
   ) => Promise<Order | null>;
   getCurrentOrder: () => HotelOrderState;
   fetchOrderOfPartner: (partnerId: string) => Promise<Order[] | null>;
@@ -1221,6 +1223,14 @@ const useOrderStore = create(
         customerPhone?: string,
         cashfreeOrderId?: string | null,
         prebooking?: { date: string; time: string; persons?: number; dineIn?: boolean } | null,
+        /**
+         * Deferred (online-payment) mode: persist the order as
+         * `status="pending_payment"` BEFORE the customer pays, WITHOUT pushing
+         * to Petpooja or notifying. The Petpooja push payload is stashed in
+         * cf_pp_payload so finalizeCfOrder (webhook/return/cron) can push it once
+         * payment confirms. Returns the order without clearing the cart.
+         */
+        deferForPayment?: boolean,
       ) => {
         try {
           const state = get();
@@ -1318,6 +1328,10 @@ const useOrderStore = create(
           const orderId = uuidv4();
 
           const isTakeaway = state.orderType === "takeaway";
+
+          // For deferred (online-payment) orders we stash the Petpooja push
+          // payload here and push it later in finalizeCfOrder (after payment).
+          let cfPpPayload: any = null;
 
           // PetPooja Order Push Logic
           if (hotelData.petpooja_restaurant_id) {
@@ -1459,53 +1473,61 @@ const useOrderStore = create(
               ],
             };
 
-            try {
-              const response = await fetch(`${process.env.NEXT_PUBLIC_PETPOOJA_BACKEND_URL}/api/webhook/push-order`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payload),
-              });
+            // Stash for deferred finalize; pushed to Petpooja after payment.
+            cfPpPayload = payload;
 
-              if (!response.ok) {
-                const errorData = await response.text();
-                throw new Error(
-                  `Failed to place order: ${response.statusText}. ${errorData}`
-                );
+            if (!deferForPayment) {
+              try {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_PETPOOJA_BACKEND_URL}/api/webhook/push-order`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                  const errorData = await response.text();
+                  throw new Error(
+                    `Failed to place order: ${response.statusText}. ${errorData}`
+                  );
+                }
+              } catch (error) {
+                console.error("Failed to push order to PetPooja webhook", error);
+                throw error;
               }
-            } catch (error) {
-              console.error("Failed to push order to PetPooja webhook", error);
-              throw error;
-            }
 
-            // Update state
-            set((state) => ({
-              ...state,
-              hotelOrders: {
-                ...state.hotelOrders,
-                [state.hotelId!]: {
-                  items: [],
-                  totalPrice: 0,
-                  order: petpoojaOrder,
-                  orderId: null,
-                  coordinates: null,
+              // Update state
+              set((state) => ({
+                ...state,
+                hotelOrders: {
+                  ...state.hotelOrders,
+                  [state.hotelId!]: {
+                    items: [],
+                    totalPrice: 0,
+                    order: petpoojaOrder,
+                    orderId: null,
+                    coordinates: null,
+                  },
                 },
-              },
-              order: petpoojaOrder,
-              items: [],
-              orderId: null,
-              totalPrice: 0,
-            }));
+                order: petpoojaOrder,
+                items: [],
+                orderId: null,
+                totalPrice: 0,
+              }));
+            }
 
             // await Notification.partner.sendOrderNotification(petpoojaOrder); // Skip this too as per instructions? "dont send whatsapp messaage" usually refers to user -> host WA. Notification.partner might be internal. I'll keep it commented out or skipped based on "dont send whatsapp message". Instructions said "dont send whatsapp messaage". 
 
             // return petpoojaOrder;
           }
 
-          // Create order in database
+          // Create order in database. For deferred online-payment orders we
+          // use the pending mutation (status pending_payment, payment_method
+          // cashfree, unpaid, + stashed Petpooja payload) so the order survives
+          // even if the customer never returns; finalizeCfOrder completes it.
           const orderResponse = await fetchFromHasura(
-            createOrderWithItemsMutation,
+            deferForPayment ? createPendingOrderWithItemsMutation : createOrderWithItemsMutation,
             {
               id: orderId,
               short_id: orderId?.slice(0, 8),
@@ -1518,7 +1540,15 @@ const useOrderStore = create(
               partnerId: hotelData.id,
               userId: userData.id,
               type,
-              status: "pending",
+              status: deferForPayment ? "pending_payment" : "pending",
+              ...(deferForPayment
+                ? {
+                    payment_method: "cashfree",
+                    payment_status: "pending",
+                    is_paid: false,
+                    cf_pp_payload: cfPpPayload,
+                  }
+                : {}),
               delivery_address:
                 type === "delivery" && !isTakeaway
                   ? sanitizePrintText(state.userAddress)
@@ -1598,6 +1628,14 @@ const useOrderStore = create(
             discounts: discounts ? [discounts] as any : [],
           };
 
+          // Deferred (online-payment) order: it's only pending_payment, so do
+          // NOT clear the cart or notify the partner yet. finalizeCfOrder does
+          // the Petpooja push / notification once payment confirms. Return the
+          // order so the modal can track its id.
+          if (deferForPayment) {
+            return newOrder;
+          }
+
           // Update state
           set((state) => ({
             ...state,
@@ -1652,7 +1690,7 @@ const useOrderStore = create(
           const ordersResponse = await fetchFromHasura(
             `query GetPartnerOrders($partnerId: uuid!) {
               orders(
-                where: { partner_id: { _eq: $partnerId } }
+                where: { partner_id: { _eq: $partnerId }, status: { _nin: ["pending_payment", "expired"] } }
                 order_by: { created_at: desc }
               ) {
                 id

@@ -128,7 +128,7 @@ const ORDERS_QUERY = `
       where: {
         created_at: { _gte: $start, _lte: $end },
         partner_id: { _nin: $excluded },
-        _or: [{ status: { _is_null: true } }, { status: { _neq: "cancelled" } }]
+        _or: [{ status: { _is_null: true } }, { status: { _nin: ["cancelled", "pending_payment", "expired"] } }]
       }
       limit: 50000
     ) {
