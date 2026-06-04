@@ -13,7 +13,7 @@ import OfferLoadinPage from "@/components/OfferLoadinPage";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
 import { getFeatures } from "@/lib/getFeatures";
 import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2, Star, Bike, Store, MapPin, Receipt, Package, User, StickyNote, ShoppingBag, XCircle, ChevronDown, CalendarClock } from "lucide-react";
-import { formatPrebookDateLabel, formatSlotLabel } from "@/lib/prebooking";
+import { formatPrebookDateLabel, formatPrebookSlotLabel, parsePrebookingSettings } from "@/lib/prebooking";
 import { OrderReviewModal } from "@/components/OrderReviewModal";
 import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 import { useAuthStore } from "@/store/authStore";
@@ -288,6 +288,7 @@ const OrderClient = () => {
                     whatsapp_numbers
                     accept_payments_via_cashfree
                     cashfree_merchant_id
+                    prebooking_settings
                 }
             }
         `, { id: order.partnerId }).then((data) => {
@@ -670,12 +671,15 @@ ${itemsText}
                                         {order?.booking_persons ? "Table reservation" : "Prebooked order"}
                                     </p>
                                     <p className="mt-0.5 text-sm font-medium text-blue-900">
-                                        {order?.booking_persons
-                                            ? `Table for ${order.booking_persons} · `
-                                            : "Scheduled for "}
+                                        {order?.booking_persons ? "Table · " : "Scheduled for "}
                                         {formatPrebookDateLabel(order.scheduled_date)}
                                         {order?.scheduled_time
-                                            ? ` at ${formatSlotLabel(order.scheduled_time.slice(0, 5))}`
+                                            ? ` at ${formatPrebookSlotLabel(
+                                                  parsePrebookingSettings((partnerPaymentInfo as any)?.prebooking_settings),
+                                                  order.scheduled_date,
+                                                  order.scheduled_time,
+                                                  { dineIn: !!order.booking_persons },
+                                              )}`
                                             : ""}
                                     </p>
                                 </div>

@@ -289,6 +289,27 @@ export function isOrderTypeOffered(
     return parseOrderTypesEnabled(rawOrderTypesEnabled)[type];
 }
 
+/**
+ * Display label for a booked slot. Orders persist only the slot's start time, so
+ * we resolve the full "from – to" range from the partner's settings (matching the
+ * range whose start equals the saved time). Falls back to the single time when no
+ * range matches (e.g. the partner changed their hours) or settings are missing.
+ */
+export function formatPrebookSlotLabel(
+    settings: PrebookingSettings | null | undefined,
+    dateStr: string,
+    time: string | null | undefined,
+    opts: { dineIn?: boolean } = {}
+): string {
+    if (!time) return "";
+    const hhmm = fmt(toMinutes(time.slice(0, 5)));
+    if (settings) {
+        const r = getPrebookingRanges(settings, dateStr, opts).find((x) => x.from === hhmm);
+        if (r) return `${formatSlotLabel(r.from)} – ${formatSlotLabel(r.to)}`;
+    }
+    return formatSlotLabel(hhmm);
+}
+
 /** "2026-06-10" -> "Wed, 10 Jun" for display (or Today/Tomorrow). */
 export function formatPrebookDateLabel(dateStr: string, now: Date = new Date()): string {
     if (!dateStr) return "";

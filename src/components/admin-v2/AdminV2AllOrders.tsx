@@ -58,7 +58,7 @@ import { PasswordProtectionModal } from "./PasswordProtectionModal";
 import { AdminV2EditOrder } from "./AdminV2EditOrder";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getFeatures } from "@/lib/getFeatures";
-import { formatPrebookDateLabel, formatSlotLabel } from "@/lib/prebooking";
+import { formatPrebookDateLabel, formatPrebookSlotLabel, parsePrebookingSettings } from "@/lib/prebooking";
 
 export function AdminV2AllOrders() {
   const {
@@ -69,6 +69,7 @@ export function AdminV2AllOrders() {
   } = useOrderStore();
   const { setEditOrderModalOpen, setOrder } = usePOSStore();
   const { userData } = useAuthStore();
+  const prebookCfg = parsePrebookingSettings((userData as any)?.prebooking_settings);
   const [loading, setLoading] = useState(true);
   const [orderType, setOrderType] = useState<string>("all");
   const [orders, setOrders] = useState<Order[]>([]);
@@ -499,8 +500,7 @@ export function AdminV2AllOrders() {
                         {order.scheduled_date && (
                           <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 whitespace-nowrap">
                             {order.booking_persons ? "Table" : "Prebooked"} · {formatPrebookDateLabel(order.scheduled_date)}
-                            {order.scheduled_time ? ` ${formatSlotLabel(order.scheduled_time.slice(0, 5))}` : ""}
-                            {order.booking_persons ? ` · ${order.booking_persons} pax` : ""}
+                            {order.scheduled_time ? ` · ${formatPrebookSlotLabel(prebookCfg, order.scheduled_date, order.scheduled_time, { dineIn: !!order.booking_persons })}` : ""}
                           </Badge>
                         )}
                       </div>
@@ -688,8 +688,7 @@ export function AdminV2AllOrders() {
                       {order.scheduled_date && (
                         <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs whitespace-nowrap">
                           {order.booking_persons ? "Table" : "Prebooked"} · {formatPrebookDateLabel(order.scheduled_date)}
-                          {order.scheduled_time ? ` ${formatSlotLabel(order.scheduled_time.slice(0, 5))}` : ""}
-                          {order.booking_persons ? ` · ${order.booking_persons} pax` : ""}
+                          {order.scheduled_time ? ` · ${formatPrebookSlotLabel(prebookCfg, order.scheduled_date, order.scheduled_time, { dineIn: !!order.booking_persons })}` : ""}
                         </Badge>
                       )}
                     </div>
