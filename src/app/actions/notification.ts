@@ -240,6 +240,53 @@ class Token {
     }
   }
 
+  /**
+   * Capture this device as an install of the partner's app — even when NOT
+   * logged in — so the Notify feature can reach every app user, not just
+   * logged-in followers. Writes to the separate `app_installs` table and never
+   * touches `device_tokens` (which drives order/delivery notifications), so
+   * those flows are unaffected. Best-effort: any failure is swallowed.
+   */
+  async saveAppInstall(partnerId?: string) {
+    try {
+      const token = window?.localStorage.getItem("fcmToken");
+      // Need both a push token and which partner's app this install belongs to.
+      if (!token || !partnerId) return;
+
+      const user = await getAuthCookie();
+      const object: any = {
+        device_token: token,
+        partner_id: partnerId,
+        platform: findPlatform(),
+        updated_at: new Date().toISOString(),
+      };
+      if (user?.id) object.user_id = user.id;
+
+      // On a later anonymous call, don't overwrite a previously-linked user_id
+      // with null — only update user_id when we actually have one.
+      const updateCols = user?.id
+        ? "[platform, updated_at, user_id]"
+        : "[platform, updated_at]";
+
+      await fetchFromHasura(
+        `
+          mutation UpsertAppInstall($object: app_installs_insert_input!) {
+            insert_app_installs_one(
+              object: $object,
+              on_conflict: {
+                constraint: app_installs_device_token_partner_id_key,
+                update_columns: ${updateCols}
+              }
+            ) { id }
+          }
+        `,
+        { object }
+      );
+    } catch (err) {
+      console.error("Failed to save app install:", err);
+    }
+  }
+
   async remove() {
     const tokenId = window?.localStorage.getItem("tokenId");
     if (!tokenId) {

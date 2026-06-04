@@ -45,6 +45,39 @@ const deviceTokensQuery = `
   }
 `;
 
+// All installs of this partner's app — including users who never logged in or
+// followed. Scoped by partner_id (correct for the shared-Android / per-iOS
+// OneSignal setup, since each token is stored with its partner).
+const appInstallTokensQuery = `
+  query GetPartnerAppInstalls($partnerId: uuid!) {
+    app_installs(where: { partner_id: { _eq: $partnerId } }) {
+      device_token
+    }
+  }
+`;
+
+type NotifyAudience = "app" | "followers";
+
+// Resolve the recipient device tokens for the chosen audience.
+async function resolveTokens(
+  audience: NotifyAudience,
+  partnerId: string,
+): Promise<string[]> {
+  if (audience === "app") {
+    const { app_installs } = await fetchFromHasura(appInstallTokensQuery, { partnerId });
+    return Array.from(
+      new Set((app_installs || []).map((a: any) => a.device_token).filter(Boolean)),
+    );
+  }
+  const { followers } = await fetchFromHasura(followersWithTokensQuery, { partnerId });
+  const userIds: string[] = (followers || []).map((f: any) => f.user_id);
+  if (userIds.length === 0) return [];
+  const { device_tokens } = await fetchFromHasura(deviceTokensQuery, { userIds, partnerId });
+  return Array.from(
+    new Set((device_tokens || []).map((d: any) => d.device_token).filter(Boolean)),
+  );
+}
+
 export function AdminV2Notify() {
   const { userData } = useAuthStore();
   const partnerId = (userData as any)?.id;
@@ -54,6 +87,7 @@ export function AdminV2Notify() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [audience, setAudience] = useState<NotifyAudience>("app");
   const [recipientCount, setRecipientCount] = useState<number | null>(null);
   const [loadingRecipients, setLoadingRecipients] = useState(false);
   const [sending, setSending] = useState(false);
@@ -62,26 +96,15 @@ export function AdminV2Notify() {
     if (!partnerId) return;
     setLoadingRecipients(true);
     try {
-      const { followers } = await fetchFromHasura(followersWithTokensQuery, {
-        partnerId,
-      });
-      const userIds: string[] = (followers || []).map((f: any) => f.user_id);
-      if (userIds.length === 0) {
-        setRecipientCount(0);
-        return;
-      }
-      const { device_tokens } = await fetchFromHasura(deviceTokensQuery, {
-        userIds,
-        partnerId,
-      });
-      setRecipientCount((device_tokens || []).length);
+      const tokens = await resolveTokens(audience, partnerId);
+      setRecipientCount(tokens.length);
     } catch (err) {
       console.error("Failed to load recipients:", err);
       setRecipientCount(null);
     } finally {
       setLoadingRecipients(false);
     }
-  }, [partnerId]);
+  }, [partnerId, audience]);
 
   useEffect(() => {
     refreshRecipients();
@@ -108,24 +131,14 @@ export function AdminV2Notify() {
 
     setSending(true);
     try {
-      const { followers } = await fetchFromHasura(followersWithTokensQuery, {
-        partnerId,
-      });
-      const userIds: string[] = (followers || []).map((f: any) => f.user_id);
-
-      if (userIds.length === 0) {
-        toast.error("No followers yet. Notifications go to people who follow your store.");
-        return;
-      }
-
-      const { device_tokens } = await fetchFromHasura(deviceTokensQuery, {
-        userIds,
-        partnerId,
-      });
-      const tokens: string[] = (device_tokens || []).map((d: any) => d.device_token);
+      const tokens = await resolveTokens(audience, partnerId);
 
       if (tokens.length === 0) {
-        toast.error("None of your followers have notifications enabled yet.");
+        toast.error(
+          audience === "app"
+            ? "No app installs yet. Notifications reach people who installed your app."
+            : "None of your followers have notifications enabled yet.",
+        );
         return;
       }
 
@@ -198,7 +211,7 @@ export function AdminV2Notify() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Notify</h1>
             <p className="text-muted-foreground">
-              Push a message to people who follow {storeName || "your store"}.
+              Push a message to {storeName || "your store"}&apos;s app users.
             </p>
           </div>
         </div>
@@ -228,6 +241,39 @@ export function AdminV2Notify() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
+            <div>
+              <Label className="mb-1.5 block">Send to</Label>
+              <div className="inline-flex rounded-lg border p-0.5 bg-muted/40">
+                <button
+                  type="button"
+                  onClick={() => setAudience("app")}
+                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    audience === "app"
+                      ? "bg-white shadow-sm font-medium"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  All app users
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAudience("followers")}
+                  className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    audience === "followers"
+                      ? "bg-white shadow-sm font-medium"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  Followers only
+                </button>
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {audience === "app"
+                  ? "Everyone who installed your app — including users who never logged in or followed."
+                  : "Only people who tapped Follow on your storefront and have notifications on."}
+              </p>
+            </div>
+
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <Label htmlFor="notify-title">Title</Label>
@@ -341,9 +387,9 @@ export function AdminV2Notify() {
               </div>
             </div>
             <p className="mt-4 text-xs text-muted-foreground leading-relaxed">
-              Sends to followers who have notifications enabled on at least one
-              device. Followers come from people who&apos;ve tapped Follow on your
-              storefront.
+              {audience === "app"
+                ? "Sends to every device that installed your app — no login or follow required."
+                : "Sends to followers who have notifications enabled on at least one device."}
             </p>
           </CardContent>
         </Card>

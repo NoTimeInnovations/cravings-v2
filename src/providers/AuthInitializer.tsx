@@ -59,7 +59,10 @@ const AuthInitializer = () => {
   useEffect(() => {
     (window as any).__saveNotificationToken = async (partnerIdOverride?: string) => {
       const partnerId = partnerIdOverride ?? (await resolvePartnerIdFromPath());
+      // device_tokens (logged-in only) — drives order/delivery notifications.
       await Notification.token.save(partnerId);
+      // app_installs (always, even anonymous) — lets Notify reach all app users.
+      await Notification.token.saveAppInstall(partnerId);
     };
     return () => {
       delete (window as any).__saveNotificationToken;
@@ -80,6 +83,7 @@ const AuthInitializer = () => {
         // Always save token — handles returning users and native app token injection
         const partnerId = await resolvePartnerIdFromPath();
         await Notification.token.save(partnerId);
+        await Notification.token.saveAppInstall(partnerId);
       } catch (error) {
         console.error("Failed to initialize auth:", error);
       }
@@ -97,6 +101,7 @@ const AuthInitializer = () => {
       try {
         const partnerId = await resolvePartnerIdFromPath();
         await Notification.token.save(partnerId);
+        await Notification.token.saveAppInstall(partnerId);
       } catch (error) {
         console.error("Failed to save token on auth change:", error);
       }
