@@ -118,6 +118,8 @@ export interface Partner extends BaseUser {
   feature_flags?: string;
   /** JSON string of PrebookingSettings (see orderStore.ts). Gated by the `prebooking` feature flag. */
   prebooking_settings?: string | null;
+  /** JSON string of OrderTypesEnabled { delivery, takeaway, dine_in }. NULL = all enabled. */
+  order_types_enabled?: string | null;
   /**
    * Mobile registered on porter-bridge for this partner's delivery dispatch.
    * Read by src/app/actions/porterBridge.ts at dispatch time. Falls back to
@@ -175,6 +177,7 @@ export interface Partner extends BaseUser {
   payment_modes?: {
     delivery?: { online?: boolean; cash?: boolean };
     takeaway?: { online?: boolean; cash?: boolean };
+    dine_in?: { online?: boolean; cash?: boolean };
   } | null;
   storefront_settings?: string;
   website_config?: any;

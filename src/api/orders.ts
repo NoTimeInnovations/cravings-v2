@@ -13,6 +13,7 @@ export const getOrdersOfPartnerQuery = `
       type
       scheduled_date
       scheduled_time
+      booking_persons
       qr_id
       delivery_address
       status
@@ -128,6 +129,7 @@ export const createOrderWithItemsMutation = `
     $cashfree_order_id: String,
     $scheduled_date: date,
     $scheduled_time: time
+    $booking_persons: Int
   ) {
     insert_orders_one(object: {
       id: $id
@@ -155,6 +157,7 @@ export const createOrderWithItemsMutation = `
       cashfree_order_id: $cashfree_order_id
       scheduled_date: $scheduled_date
       scheduled_time: $scheduled_time
+      booking_persons: $booking_persons
 
       order_items: {
         data: $orderItems
@@ -166,6 +169,7 @@ export const createOrderWithItemsMutation = `
       created_at
       scheduled_date
       scheduled_time
+      booking_persons
       order_items {
         id,
         item
@@ -243,6 +247,7 @@ export const getOrderByIdQuery = `
       type
       scheduled_date
       scheduled_time
+      booking_persons
       delivery_address
       status
       phone
@@ -295,6 +300,7 @@ subscription GetPartnerOrders($partner_id: uuid!, $today_start: timestamptz!, $t
     type
     scheduled_date
     scheduled_time
+    booking_persons
     delivery_address
     delivery_location
     status
@@ -388,6 +394,7 @@ subscription GetPaginatedPartnerOrders(
     type
     scheduled_date
     scheduled_time
+    booking_persons
     delivery_address
     delivery_location
     status
@@ -494,6 +501,7 @@ subscription GetUserOrders($user_id: uuid!) {
     type
     scheduled_date
     scheduled_time
+    booking_persons
     delivery_address
     delivery_location
     table_name

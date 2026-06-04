@@ -40,7 +40,12 @@ export function PaymentLegalSettings() {
     const [paymentModes, setPaymentModes] = useState<{
         delivery: { online: boolean; cash: boolean };
         takeaway: { online: boolean; cash: boolean };
-    }>({ delivery: { online: false, cash: true }, takeaway: { online: false, cash: true } });
+        dine_in: { online: boolean; cash: boolean };
+    }>({
+        delivery: { online: false, cash: true },
+        takeaway: { online: false, cash: true },
+        dine_in: { online: false, cash: true },
+    });
 
     // GST State
     const [gstNo, setGstNo] = useState("");
@@ -75,6 +80,10 @@ export function PaymentLegalSettings() {
                 takeaway: {
                     online: pm?.takeaway?.online ?? baseOnline,
                     cash: pm?.takeaway?.cash ?? baseCash,
+                },
+                dine_in: {
+                    online: pm?.dine_in?.online ?? baseOnline,
+                    cash: pm?.dine_in?.cash ?? baseCash,
                 },
             });
         }
@@ -148,6 +157,7 @@ export function PaymentLegalSettings() {
             return {
                 delivery: { online: pm?.delivery?.online ?? bo, cash: pm?.delivery?.cash ?? bc },
                 takeaway: { online: pm?.takeaway?.online ?? bo, cash: pm?.takeaway?.cash ?? bc },
+                dine_in: { online: pm?.dine_in?.online ?? bo, cash: pm?.dine_in?.cash ?? bc },
             };
         })();
 
@@ -292,6 +302,7 @@ export function PaymentLegalSettings() {
                     {([
                         { key: "delivery" as const, label: "Delivery", cashLabel: "Pay on delivery" },
                         { key: "takeaway" as const, label: "Takeaway", cashLabel: "Pay at store" },
+                        { key: "dine_in" as const, label: "Dine-in", cashLabel: "Pay at table" },
                     ]).map(({ key, label, cashLabel }) => {
                         const cfg = paymentModes[key];
                         const onlineAvailable = acceptPaymentsViaCashfree && !!cashfreeMerchantId.trim();

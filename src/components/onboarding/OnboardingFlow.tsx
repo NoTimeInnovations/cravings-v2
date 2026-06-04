@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import useOrderStore from "@/store/orderStore";
 import { useLocationStore } from "@/store/geolocationStore";
 import { getFeatures } from "@/lib/getFeatures";
+import { parseOrderTypesEnabled, parsePrebookingSettings } from "@/lib/prebooking";
 import { setOnboardingDataCookie, getOnboardingDataCookie } from "@/app/auth/actions";
 import StorefrontScreen from "./StorefrontScreen";
 import DeliveryAddressScreen from "./DeliveryAddressScreen";
@@ -104,7 +105,8 @@ export default function OnboardingFlow({
   // forceStart overrides this so the V3 menu back button can re-open the flow.
   const isBackNav = !forceStart && searchParams?.get("back") === "true";
   const features = getFeatures(featureFlags);
-  const hasDelivery = features.delivery.enabled;
+  const offered = parseOrderTypesEnabled(hotelData?.order_types_enabled);
+  const hasDelivery = features.delivery.enabled && offered.delivery;
   const hasStorefront = features.storefront.enabled;
   const hasNewOnboarding = features.newonboarding.enabled;
 
@@ -129,11 +131,14 @@ export default function OnboardingFlow({
   const showStorefrontSplashInitially = hasStorefrontSplash && !skipStorefront;
   const accent = brandColorToHex(themeBrandColor || rawStorefront?.brandColor);
 
-  const hasOrdering = features.ordering.enabled;
+  const hasOrdering = features.ordering.enabled && offered.takeaway;
+  // Dine-in table reservation: offered + prebooking feature on.
+  const slotBookingEnabled = parsePrebookingSettings(hotelData?.prebooking_settings)?.slot_booking_enabled !== false;
+  const hasDineIn = offered.dine_in && features.prebooking.enabled && slotBookingEnabled;
   const needsAddress =
     !isBrandParent && hasNewOnboarding && hasDelivery && tableNumber === 0;
   const needsOrderType =
-    hasNewOnboarding && (hasDelivery || hasOrdering) && tableNumber === 0;
+    hasNewOnboarding && (hasDelivery || hasOrdering || hasDineIn) && tableNumber === 0;
   const needsOutletPicker = isBrandParent && tableNumber === 0;
 
   const getInitialStep = (): OnboardingStep => {
@@ -232,7 +237,7 @@ export default function OnboardingFlow({
     await setOnboardingDataCookie(partnerId, { address: addr, coords });
   }, [setUserAddress, setUserCoordinates, partnerId]);
 
-  const handleOrderTypeSelect = useCallback(async (type: "delivery" | "takeaway") => {
+  const handleOrderTypeSelect = useCallback(async (type: "delivery" | "takeaway" | "dine_in") => {
     setOrderType(type);
     try {
       sessionStorage.setItem(`order_type_${partnerId}`, type);
@@ -415,6 +420,7 @@ export default function OnboardingFlow({
             themeBg={themeBg}
             hasDelivery={hasDelivery}
             hasOrdering={hasOrdering}
+            hasDineIn={hasDineIn}
             onSelect={handleOrderTypeSelect}
             onSkip={handleSkip}
             onBack={hasStorefrontSplash ? () => setStep("splash") : handleSkip}

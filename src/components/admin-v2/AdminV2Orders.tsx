@@ -502,8 +502,9 @@ export function AdminV2Orders() {
                     </Badge>
                     {order.scheduled_date && (
                       <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 whitespace-nowrap">
-                        Prebooked · {formatPrebookDateLabel(order.scheduled_date)}
+                        {order.booking_persons ? "Table" : "Prebooked"} · {formatPrebookDateLabel(order.scheduled_date)}
                         {order.scheduled_time ? ` ${formatSlotLabel(order.scheduled_time.slice(0, 5))}` : ""}
+                        {order.booking_persons ? ` · ${order.booking_persons} pax` : ""}
                       </Badge>
                     )}
                   </div>
@@ -677,8 +678,9 @@ export function AdminV2Orders() {
                     </Badge>
                     {order.scheduled_date && (
                       <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 text-xs whitespace-nowrap">
-                        Prebooked · {formatPrebookDateLabel(order.scheduled_date)}
+                        {order.booking_persons ? "Table" : "Prebooked"} · {formatPrebookDateLabel(order.scheduled_date)}
                         {order.scheduled_time ? ` ${formatSlotLabel(order.scheduled_time.slice(0, 5))}` : ""}
+                        {order.booking_persons ? ` · ${order.booking_persons} pax` : ""}
                       </Badge>
                     )}
                   </div>

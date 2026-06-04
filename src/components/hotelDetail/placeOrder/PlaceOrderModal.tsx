@@ -26,7 +26,7 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getFeatures } from "@/lib/getFeatures";
 import { PrebookingPicker, PrebookingSelection } from "./PrebookingPicker";
-import { parsePrebookingSettings, resolvePrebookOrderType } from "@/lib/prebooking";
+import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType } from "@/lib/prebooking";
 import DescriptionWithTextBreak from "@/components/DescriptionWithTextBreak";
 import { useQrDataStore } from "@/store/qrDataStore";
 import { motion, AnimatePresence } from "framer-motion";
@@ -843,18 +843,30 @@ const BillCard = ({
 // Modern Order Type Card
 // =================================================================
 
+const ORDER_TYPE_LABELS: Record<string, string> = {
+  delivery: "Delivery",
+  takeaway: "Takeaway",
+  dine_in: "Dine-in",
+};
+
 const OrderTypeCard = ({
   orderType,
   setOrderType,
   deliveryTimeAllowed,
   takeawayTimeAllowed,
   isDeliveryActive = true,
+  allowDineIn = false,
+  offeredDelivery = true,
+  offeredTakeaway = true,
 }: {
-  orderType: "takeaway" | "delivery" | null;
-  setOrderType: (type: "takeaway" | "delivery") => void;
+  orderType: "takeaway" | "delivery" | "dine_in" | null;
+  setOrderType: (type: "takeaway" | "delivery" | "dine_in") => void;
   deliveryTimeAllowed?: { from: string; to: string } | null;
   takeawayTimeAllowed?: { from: string; to: string } | null;
   isDeliveryActive?: boolean;
+  allowDineIn?: boolean;
+  offeredDelivery?: boolean;
+  offeredTakeaway?: boolean;
 }) => {
   const { isWithinTimeWindow, formatTime12h } = (() => {
     const check = (tw: { from: string; to: string } | null | undefined) => {
@@ -881,12 +893,19 @@ const OrderTypeCard = ({
       inactiveMsg: !isDeliveryActive ? "Delivery is currently unavailable" : undefined,
     },
     takeaway: { allowed: isWithinTimeWindow(takeawayTimeAllowed), window: takeawayTimeAllowed },
+    dine_in: { allowed: true },
   };
+
+  const types: ("delivery" | "takeaway" | "dine_in")[] = [
+    ...(offeredDelivery ? (["delivery"] as const) : []),
+    ...(offeredTakeaway ? (["takeaway"] as const) : []),
+    ...(allowDineIn ? (["dine_in"] as const) : []),
+  ];
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-2">
-        {(["delivery", "takeaway"] as const).map((type) => {
+        {types.map((type) => {
           const { allowed } = timeMap[type];
           return (
             <button
@@ -901,7 +920,7 @@ const OrderTypeCard = ({
                 : { backgroundColor: "color-mix(in srgb, var(--pom-accent, #ea580c) 12%, transparent)", color: "var(--pom-text-muted)" }
               }
             >
-              {type.charAt(0).toUpperCase() + type.slice(1)}
+              {ORDER_TYPE_LABELS[type]}
             </button>
           );
         })}
@@ -1742,11 +1761,25 @@ const PlaceOrderModal = ({
     () => parsePrebookingSettings((hotelData as any)?.prebooking_settings),
     [(hotelData as any)?.prebooking_settings]
   );
-  const showPrebooking = !!(hotelFeatures?.prebooking?.enabled && prebookingSettings);
-  const prebookOrderTypeKey = resolvePrebookOrderType(
-    (tableNumber ?? 0) > 0 ? "table_order" : "delivery",
-    orderType === "takeaway"
-  );
+  const prebookingFeatureOn = !!(hotelFeatures?.prebooking?.enabled && prebookingSettings);
+  const scheduleEnabled = prebookingFeatureOn && prebookingSettings?.prebooking_enabled !== false;
+  const slotBookingEnabled = prebookingFeatureOn && prebookingSettings?.slot_booking_enabled !== false;
+  const prebookOrderTypeKey: PrebookOrderType =
+    orderType === "dine_in"
+      ? "dine_in"
+      : resolvePrebookOrderType(
+          (tableNumber ?? 0) > 0 ? "table_order" : "delivery",
+          orderType === "takeaway"
+        );
+  const offered = parseOrderTypesEnabled((hotelData as any)?.order_types_enabled);
+  const isDineIn = orderType === "dine_in";
+  // Dine-in reservation: dine-in offered + slot booking on. Schedule-for-later
+  // (delivery/takeaway) uses the prebooking toggle.
+  const allowDineInReservation = slotBookingEnabled && !isQrScan && offered.dine_in;
+  const showPicker = !!prebookingSettings && (isDineIn ? allowDineInReservation : scheduleEnabled);
+  // Pass the picker's selection (already carries `dineIn` for reservations) so
+  // order type follows the captured reservation, not live orderType at submit.
+  const prebookingArg = showPicker && prebooking ? prebooking : null;
 
   /* ---------------- 3PL delivery-agent serviceability + quote -------------
    * Default-on: when the partner has the `delivery_agent` feature enabled and
@@ -2120,7 +2153,9 @@ const PlaceOrderModal = ({
   // never leave a method with no way to pay.
   const _pmCfg = (hotelData as any)?.payment_modes;
   const _methodPm =
-    orderType === "delivery" || orderType === "takeaway" ? _pmCfg?.[orderType] : undefined;
+    orderType === "delivery" || orderType === "takeaway" || orderType === "dine_in"
+      ? _pmCfg?.[orderType]
+      : undefined;
   let hasCashfree = baseCashfree && (_methodPm?.online ?? true);
   let hasCod = _methodPm?.cash ?? baseCod;
   if (!hasCashfree && !hasCod) hasCod = true;
@@ -2572,6 +2607,11 @@ const PlaceOrderModal = ({
       return;
     }
 
+    if (isDineIn && !prebookingArg) {
+      toast.error("Please choose a date, time and number of guests for your table.");
+      return;
+    }
+
     if (needUserName && !customerName.trim()) {
       toast.error("Please enter your name");
       return;
@@ -2775,7 +2815,7 @@ const PlaceOrderModal = ({
         needUserName ? customerName.trim() : undefined,
         (user as any)?.phone || undefined,
         null,
-        showPrebooking ? prebooking : null,
+        prebookingArg,
       );
 
       if (result) {
@@ -2816,6 +2856,11 @@ const PlaceOrderModal = ({
     // Run the same validations as handlePlaceOrder
     if (tableNumber === 0 && !orderType) {
       toast.error("Please select an order type");
+      return;
+    }
+
+    if (isDineIn && !prebookingArg) {
+      toast.error("Please choose a date, time and number of guests for your table.");
       return;
     }
     if (needUserName && !customerName.trim()) {
@@ -2899,7 +2944,7 @@ const PlaceOrderModal = ({
         orderNote: orderNote || null,
         selectedLocation: selectedLocation || null,
         discountId: appliedDiscount?.id || null,
-        prebooking: showPrebooking ? prebooking : null,
+        prebooking: prebookingArg,
       }));
 
       // Build return URL — current page URL so Cashfree redirects back here.
@@ -2970,7 +3015,7 @@ const PlaceOrderModal = ({
         orderType: orderType || null,
         orderNote: orderNote || null,
         customerName: customerName || null,
-        prebooking: showPrebooking ? prebooking : null,
+        prebooking: prebookingArg,
         skipAuthWait: true,
       });
     } catch (error) {
@@ -2990,7 +3035,7 @@ const PlaceOrderModal = ({
     orderType?: string | null;
     orderNote?: string | null;
     customerName?: string | null;
-    prebooking?: PrebookingSelection | null;
+    prebooking?: (PrebookingSelection & { dineIn?: boolean }) | null;
     skipAuthWait?: boolean;
   }) => {
     // Skip if this exact cfOrderId is already being verified — prevents the
@@ -3294,6 +3339,9 @@ const PlaceOrderModal = ({
                       deliveryTimeAllowed={hotelData?.delivery_rules?.delivery_time_allowed}
                       takeawayTimeAllowed={hotelData?.delivery_rules?.takeaway_time_allowed}
                       isDeliveryActive={hotelData?.delivery_rules?.isDeliveryActive ?? true}
+                      allowDineIn={allowDineInReservation}
+                      offeredDelivery={offered.delivery}
+                      offeredTakeaway={offered.takeaway}
                     />
                   </div>
                 )}
@@ -3366,12 +3414,13 @@ const PlaceOrderModal = ({
                 </div>
 
                 {/* Prebooking (scheduled orders) */}
-                {showPrebooking && prebookingSettings && (
+                {showPicker && prebookingSettings && (
                   <div className="mt-3">
                     <PrebookingPicker
                       settings={prebookingSettings}
                       orderTypeKey={prebookOrderTypeKey}
                       onChange={setPrebooking}
+                      reservation={isDineIn}
                     />
                   </div>
                 )}

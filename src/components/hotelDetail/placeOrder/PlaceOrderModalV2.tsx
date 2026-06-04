@@ -22,6 +22,7 @@ import {
   Bike,
   ShoppingBag,
   Clock,
+  Users,
 } from "lucide-react";
 import useOrderStore from "@/store/orderStore";
 import { useAuthStore } from "@/store/authStore";
@@ -35,7 +36,7 @@ import { QrGroup } from "@/app/admin/qr-management/page";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getFeatures } from "@/lib/getFeatures";
 import { PrebookingPicker, PrebookingSelection } from "./PrebookingPicker";
-import { parsePrebookingSettings, resolvePrebookOrderType } from "@/lib/prebooking";
+import { parsePrebookingSettings, resolvePrebookOrderType, parseOrderTypesEnabled, PrebookOrderType } from "@/lib/prebooking";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
 import V3AddressSheet from "../styles/V3/V3AddressSheet";
@@ -137,7 +138,9 @@ const PlaceOrderModalV2 = ({
   // to the global flags. Never leave a method with no way to pay.
   const _pmCfg = (hotelData as any)?.payment_modes;
   const _methodPm =
-    orderType === "delivery" || orderType === "takeaway" ? _pmCfg?.[orderType] : undefined;
+    orderType === "delivery" || orderType === "takeaway" || orderType === "dine_in"
+      ? _pmCfg?.[orderType]
+      : undefined;
   let hasCashfree = baseCashfree && (_methodPm?.online ?? true);
   let hasCod = _methodPm?.cash ?? baseCod;
   if (!hasCashfree && !hasCod) hasCod = true;
@@ -254,11 +257,28 @@ const PlaceOrderModalV2 = ({
     () => parsePrebookingSettings((hotelData as any)?.prebooking_settings),
     [(hotelData as any)?.prebooking_settings],
   );
-  const showPrebooking = !!(partnerFeatures?.prebooking?.enabled && prebookingSettings);
-  const prebookOrderTypeKey = resolvePrebookOrderType(
-    (tableNumber ?? 0) > 0 ? "table_order" : "delivery",
-    orderType === "takeaway",
-  );
+  const prebookingFeatureOn = !!(partnerFeatures?.prebooking?.enabled && prebookingSettings);
+  // Independent master toggles (Prebooking tab / Slot Booking tab).
+  const scheduleEnabled = prebookingFeatureOn && prebookingSettings?.prebooking_enabled !== false;
+  const slotBookingEnabled = prebookingFeatureOn && prebookingSettings?.slot_booking_enabled !== false;
+  const prebookOrderTypeKey: PrebookOrderType =
+    orderType === "dine_in"
+      ? "dine_in"
+      : resolvePrebookOrderType(
+          (tableNumber ?? 0) > 0 ? "table_order" : "delivery",
+          orderType === "takeaway",
+        );
+  // Store-wide order-type availability (Order Types settings tab).
+  const offered = parseOrderTypesEnabled((hotelData as any)?.order_types_enabled);
+  const isDineIn = orderType === "dine_in";
+  // Dine-in table reservation: dine-in offered + slot booking turned on.
+  const allowDineInReservation = slotBookingEnabled && !isQrScan && offered.dine_in;
+  // Picker visibility: dine-in uses slot booking; delivery/takeaway use prebooking.
+  const showPicker = !!prebookingSettings && (isDineIn ? allowDineInReservation : scheduleEnabled);
+  // What we hand to placeOrder: the picker's selection (which already carries
+  // `dineIn` for reservations) — so order type follows the captured reservation,
+  // not the live orderType at submit.
+  const prebookingArg = showPicker && prebooking ? prebooking : null;
   // Default-on: when delivery_agent is enabled and the partner has NOT
   // explicitly set `use_delivery_agent_charge = false`, treat as on.
   const useAgentForCharge =
@@ -963,7 +983,7 @@ const PlaceOrderModalV2 = ({
     partnerId: string;
     orderType?: string | null;
     orderNote?: string | null;
-    prebooking?: PrebookingSelection | null;
+    prebooking?: (PrebookingSelection & { dineIn?: boolean }) | null;
     skipAuthWait?: boolean;
   }) => {
     if (verifyingCfOrderRef.current === pending.cfOrderId) return;
@@ -1092,6 +1112,10 @@ const PlaceOrderModalV2 = ({
       toast.error("Please select an order type.");
       return;
     }
+    if (isDineIn && !prebookingArg) {
+      toast.error("Please choose a date, time and number of guests for your table.");
+      return;
+    }
     if (!isQrScan && orderType === "delivery" && !isDeliveryOpen) {
       toast.error("Delivery is not available right now.");
       return;
@@ -1145,7 +1169,7 @@ const PlaceOrderModalV2 = ({
           address: address || null,
           orderNote: orderNote || null,
           discountId: appliedDiscount?.id || null,
-          prebooking: showPrebooking ? prebooking : null,
+          prebooking: prebookingArg,
         }),
       );
 
@@ -1209,7 +1233,7 @@ const PlaceOrderModalV2 = ({
         partnerId: hotelData.id,
         orderType: orderType || null,
         orderNote: orderNote || null,
-        prebooking: showPrebooking ? prebooking : null,
+        prebooking: prebookingArg,
         skipAuthWait: true,
       });
     } catch (error) {
@@ -1255,6 +1279,10 @@ const PlaceOrderModalV2 = ({
     }
     if (!isQrScan && !orderType) {
       toast.error("Please select an order type.");
+      return;
+    }
+    if (isDineIn && !prebookingArg) {
+      toast.error("Please choose a date, time and number of guests for your table.");
       return;
     }
     if (!isQrScan && orderType === "delivery" && !isDeliveryOpen) {
@@ -1403,7 +1431,7 @@ const PlaceOrderModalV2 = ({
         (user as any)?.full_name || undefined,
         selectedReceiverPhone || (user as any)?.phone || undefined,
         null,
-        showPrebooking ? prebooking : null,
+        prebookingArg,
       );
 
       if (result) {
@@ -1694,8 +1722,15 @@ const PlaceOrderModalV2 = ({
                 <div className="text-xs font-semibold text-gray-500 tracking-wide mb-3">ORDER TYPE</div>
                 <div className="flex gap-2">
                   {([
-                    { type: "delivery" as const, label: "Delivery", icon: Bike, open: isDeliveryOpen },
-                    { type: "takeaway" as const, label: "Takeaway", icon: ShoppingBag, open: isTakeawayOpen },
+                    ...(offered.delivery
+                      ? [{ type: "delivery" as const, label: "Delivery", icon: Bike, open: isDeliveryOpen }]
+                      : []),
+                    ...(offered.takeaway
+                      ? [{ type: "takeaway" as const, label: "Takeaway", icon: ShoppingBag, open: isTakeawayOpen }]
+                      : []),
+                    ...(allowDineInReservation
+                      ? [{ type: "dine_in" as const, label: "Dine-in", icon: Users, open: true }]
+                      : []),
                   ]).map(({ type, label, icon: Icon, open }) => {
                     const selected = orderType === type;
                     return (
@@ -1819,14 +1854,15 @@ const PlaceOrderModalV2 = ({
               </div>
             )}
 
-            {/* Prebooking (scheduled orders) */}
-            {showPrebooking && prebookingSettings && (
+            {/* Prebooking (scheduled orders) / dine-in slot booking */}
+            {showPicker && prebookingSettings && (
               <PrebookingPicker
                 settings={prebookingSettings}
                 orderTypeKey={prebookOrderTypeKey}
                 onChange={setPrebooking}
                 accentColor={accent}
                 className="bg-white rounded-2xl p-4 shadow-sm space-y-3"
+                reservation={isDineIn}
               />
             )}
 

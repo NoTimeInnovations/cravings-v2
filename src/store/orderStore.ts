@@ -94,12 +94,17 @@ export interface DeliveryRules {
   carousel_banners?: string[];
 }
 
-/** One allowed prebooking window for a given weekday (0 = Sunday … 6 = Saturday). */
+/**
+ * Bookable slot times for a given weekday (0 = Sunday … 6 = Saturday).
+ * `slots` is an explicit list of "HH:MM" times the admin offers that day.
+ */
 export interface PrebookingWindow {
   day: 0 | 1 | 2 | 3 | 4 | 5 | 6;
-  from: string; // "HH:MM" (24h, restaurant-local)
-  to: string;   // "HH:MM"
   enabled: boolean;
+  slots: string[]; // explicit "HH:MM" (24h, restaurant-local)
+  // legacy single-window fields (back-compat; normalized to `slots` on read)
+  from?: string;
+  to?: string;
 }
 
 /**
@@ -108,26 +113,62 @@ export interface PrebookingWindow {
  * Times are restaurant-local; no timezone conversion is applied.
  */
 export interface PrebookingSettings {
+  /** Master toggle for scheduled delivery/takeaway prebooking. */
+  prebooking_enabled: boolean;
+  /** Master toggle for dine-in slot (table) booking. */
+  slot_booking_enabled: boolean;
+
+  // ── Prebooking: scheduled delivery/takeaway ──────────────────────────────
   /** Minimum advance notice before the chosen slot, in minutes. */
   min_lead_time_minutes: number;
   /** How many days ahead an order may be scheduled (0 = today only). */
   max_advance_days: number;
-  /** Allowed slot windows per weekday. */
+  /** Explicit "schedule for later" slot times per weekday (delivery/takeaway). */
   windows: PrebookingWindow[];
-  /** Order types that may be prebooked. */
+  /** Order types for which "schedule for later" is offered (delivery/takeaway). */
   allowed_order_types: ("delivery" | "takeaway" | "dine_in")[];
+
+  // ── Slot booking: dine-in table reservations (independent settings) ───────
+  /** Minimum advance notice for a dine-in reservation, in minutes. */
+  dine_in_min_lead_time_minutes: number;
+  /** How many days ahead a table can be booked. */
+  dine_in_max_advance_days: number;
+  /** Explicit dine-in table slot times per weekday. */
+  dine_in_windows: PrebookingWindow[];
 }
 
+const DEFAULT_DAY_SLOTS = ["10:00", "11:00", "12:00", "13:00", "14:00", "18:00", "19:00", "20:00", "21:00", "22:00"];
+
+const defaultWindows = (): PrebookingWindow[] =>
+  Array.from({ length: 7 }, (_, day) => ({
+    day: day as PrebookingWindow["day"],
+    enabled: true,
+    slots: [...DEFAULT_DAY_SLOTS],
+  }));
+
 export const DEFAULT_PREBOOKING_SETTINGS: PrebookingSettings = {
+  prebooking_enabled: true,
+  slot_booking_enabled: true,
   min_lead_time_minutes: 60,
   max_advance_days: 7,
-  windows: Array.from({ length: 7 }, (_, day) => ({
-    day: day as PrebookingWindow["day"],
-    from: "10:00",
-    to: "22:00",
-    enabled: true,
-  })),
+  windows: defaultWindows(),
   allowed_order_types: ["delivery", "takeaway", "dine_in"],
+  dine_in_min_lead_time_minutes: 60,
+  dine_in_max_advance_days: 7,
+  dine_in_windows: defaultWindows(),
+};
+
+/** Store-wide order-type availability. Persisted as JSON in `partners.order_types_enabled`. */
+export interface OrderTypesEnabled {
+  delivery: boolean;
+  takeaway: boolean;
+  dine_in: boolean;
+}
+
+export const DEFAULT_ORDER_TYPES_ENABLED: OrderTypesEnabled = {
+  delivery: true,
+  takeaway: true,
+  dine_in: true,
 };
 
 export interface Order {
@@ -183,6 +224,8 @@ export interface Order {
   scheduled_date?: string | null;
   /** Prebooking: scheduled time "HH:MM:SS" (restaurant-local). Null = immediate order. */
   scheduled_time?: string | null;
+  /** Dine-in reservation: party size (number of guests). Null = not a table reservation. */
+  booking_persons?: number | null;
   deliveryAddress?: string | null;
   gstIncluded?: number;
   orderedby?: string;
@@ -318,8 +361,8 @@ interface OrderState {
   setOpenPlaceOrderModal: (open: boolean) => void;
   lastOrderPlacedAt: number;
   notifyOrderPlaced: () => void;
-  orderType: "takeaway" | "delivery" | null;
-  setOrderType: (type: "takeaway" | "delivery") => void;
+  orderType: "takeaway" | "delivery" | "dine_in" | null;
+  setOrderType: (type: "takeaway" | "delivery" | "dine_in") => void;
   setOpenDrawerBottom: (open: boolean) => void;
   setOpenOrderDrawer: (open: boolean) => void;
   setDeliveryInfo: (info: DeliveryInfo | null) => void;
@@ -349,7 +392,7 @@ interface OrderState {
     customerName?: string,
     customerPhone?: string,
     cashfreeOrderId?: string | null,
-    prebooking?: { date: string; time: string } | null,
+    prebooking?: { date: string; time: string; persons?: number; dineIn?: boolean } | null,
   ) => Promise<Order | null>;
   getCurrentOrder: () => HotelOrderState;
   fetchOrderOfPartner: (partnerId: string) => Promise<Order[] | null>;
@@ -413,7 +456,7 @@ const useOrderStore = create(
       lastOrderPlacedAt: 0,
       notifyOrderPlaced: () => set({ lastOrderPlacedAt: Date.now() }),
 
-      setOrderType: (type: "takeaway" | "delivery") => {
+      setOrderType: (type: "takeaway" | "delivery" | "dine_in") => {
         set({ orderType: type });
       },
 
@@ -689,6 +732,7 @@ const useOrderStore = create(
               type: order.type,
               scheduled_date: order.scheduled_date ?? null,
               scheduled_time: order.scheduled_time ?? null,
+              booking_persons: order.booking_persons ?? null,
               phone: order.phone,
               deliveryAddress: order.delivery_address,
               delivery_location: order.delivery_location,
@@ -1176,7 +1220,7 @@ const useOrderStore = create(
          */
         customerPhone?: string,
         cashfreeOrderId?: string | null,
-        prebooking?: { date: string; time: string } | null,
+        prebooking?: { date: string; time: string; persons?: number; dineIn?: boolean } | null,
       ) => {
         try {
           const state = get();
@@ -1185,6 +1229,9 @@ const useOrderStore = create(
           const scheduled_time = prebooking?.time
             ? (prebooking.time.length === 5 ? `${prebooking.time}:00` : prebooking.time)
             : null;
+          // Dine-in table reservation: forces table_order (no QR) and carries party size.
+          const isDineInReservation = !!prebooking?.dineIn;
+          const booking_persons = prebooking?.persons ?? null;
 
           // Validation checks
           if (!state.hotelId) {
@@ -1217,7 +1264,7 @@ const useOrderStore = create(
           };
 
           const validQrId = qrId && isValidUUID(qrId) ? qrId : null;
-          const type = (tableNumber ?? 0) > 0 ? "table_order" : "delivery";
+          const type = (tableNumber ?? 0) > 0 || isDineInReservation ? "table_order" : "delivery";
           const createdAt = new Date().toISOString();
 
           // Prepare extra charges
@@ -1315,6 +1362,7 @@ const useOrderStore = create(
               type,
               scheduled_date,
               scheduled_time,
+              booking_persons,
               delivery_address:
                 type === "delivery" && !isTakeaway
                   ? sanitizePrintText(state.userAddress)
@@ -1492,6 +1540,7 @@ const useOrderStore = create(
               cashfree_order_id: cashfreeOrderId || null,
               scheduled_date,
               scheduled_time,
+              booking_persons,
               orderItems: [
                 ...currentOrder.items.map((item) => ({
                   menu_id: item.id.split("|")[0],
@@ -1702,6 +1751,7 @@ const useOrderStore = create(
               type: order.type,
               scheduled_date: order.scheduled_date ?? null,
               scheduled_time: order.scheduled_time ?? null,
+              booking_persons: order.booking_persons ?? null,
               payment_method: order.payment_method,
               phone: order.phone,
               deliveryAddress: order.delivery_address,
@@ -1813,6 +1863,7 @@ function transformOrderFromHasura(order: any): Order {
     type: order.type,
     scheduled_date: order.scheduled_date ?? null,
     scheduled_time: order.scheduled_time ?? null,
+    booking_persons: order.booking_persons ?? null,
     deliveryAddress: order.delivery_address,
     gstIncluded: order.gst_included || 0,
     orderedby: order.orderedby,

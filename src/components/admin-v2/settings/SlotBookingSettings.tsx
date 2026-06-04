@@ -9,7 +9,7 @@ import { useAuthStore } from "@/store/authStore";
 import { toast } from "sonner";
 import { updatePartner } from "@/api/partners";
 import { revalidateTag } from "@/app/actions/revalidate";
-import { CalendarClock, X } from "lucide-react";
+import { Utensils, X } from "lucide-react";
 import { PrebookingSettings as PrebookingConfig, DEFAULT_PREBOOKING_SETTINGS } from "@/store/orderStore";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { TimePicker } from "./DeliverySettings";
@@ -17,18 +17,12 @@ import { windowSlotTimes, formatSlotLabel, mergePrebookingConfig } from "@/lib/p
 
 const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-// "Schedule for later" applies to delivery/takeaway. Dine-in lives in the Slot Booking tab.
-const SCHEDULE_TYPES: { key: "delivery" | "takeaway"; label: string }[] = [
-    { key: "delivery", label: "Delivery" },
-    { key: "takeaway", label: "Takeaway" },
-];
-
 /**
- * Prebooking = scheduling a delivery/takeaway order for later. Edits the
- * delivery/takeaway slice of `prebooking_settings`; dine-in fields are loaded and
- * preserved untouched (the Slot Booking tab owns them).
+ * Slot Booking = dine-in table reservations. Edits the dine-in slice of
+ * `prebooking_settings` (own lead time, max days, slots); the delivery/takeaway
+ * prebooking fields are loaded and preserved untouched.
  */
-export function PrebookingSettings() {
+export function SlotBookingSettings() {
     const { userData, setState } = useAuthStore();
     const { setSaveAction, setHasChanges } = useAdminSettingsStore();
 
@@ -48,11 +42,11 @@ export function PrebookingSettings() {
             await updatePartner((userData as any).id, { prebooking_settings: payload });
             revalidateTag((userData as any).id);
             setState({ prebooking_settings: payload } as any);
-            toast.success("Prebooking settings saved");
+            toast.success("Slot booking settings saved");
             setHasChanges(false);
         } catch (e) {
-            console.error("Error saving prebooking settings:", e);
-            toast.error("Failed to save prebooking settings");
+            console.error("Error saving slot booking settings:", e);
+            toast.error("Failed to save slot booking settings");
         }
     }, [cfg, userData, setState, setHasChanges]);
 
@@ -66,13 +60,16 @@ export function PrebookingSettings() {
         };
     }, [cfg, initialLoaded, handleSave, setSaveAction, setHasChanges]);
 
-    const updateWindow = (day: number, patch: Partial<PrebookingConfig["windows"][number]>) =>
-        setCfg((p) => ({ ...p, windows: p.windows.map((w) => (w.day === day ? { ...w, ...patch } : w)) }));
+    const updateWindow = (day: number, patch: Partial<PrebookingConfig["dine_in_windows"][number]>) =>
+        setCfg((p) => ({
+            ...p,
+            dine_in_windows: p.dine_in_windows.map((w) => (w.day === day ? { ...w, ...patch } : w)),
+        }));
 
     const addSlot = (day: number, time: string) =>
         setCfg((p) => ({
             ...p,
-            windows: p.windows.map((w) =>
+            dine_in_windows: p.dine_in_windows.map((w) =>
                 w.day === day ? { ...w, slots: windowSlotTimes({ ...w, slots: [...(w.slots ?? []), time] }) } : w
             ),
         }));
@@ -80,17 +77,9 @@ export function PrebookingSettings() {
     const removeSlot = (day: number, time: string) =>
         setCfg((p) => ({
             ...p,
-            windows: p.windows.map((w) =>
+            dine_in_windows: p.dine_in_windows.map((w) =>
                 w.day === day ? { ...w, slots: (w.slots ?? []).filter((s) => s !== time) } : w
             ),
-        }));
-
-    const toggleScheduleType = (key: "delivery" | "takeaway", on: boolean) =>
-        setCfg((p) => ({
-            ...p,
-            allowed_order_types: on
-                ? (Array.from(new Set([...p.allowed_order_types, key])) as PrebookingConfig["allowed_order_types"])
-                : p.allowed_order_types.filter((t) => t !== key),
         }));
 
     return (
@@ -98,84 +87,70 @@ export function PrebookingSettings() {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <CalendarClock className="h-5 w-5" />
-                        Prebooking
+                        <Utensils className="h-5 w-5" />
+                        Slot Booking (Dine-in)
                     </CardTitle>
                     <CardDescription>
-                        Let customers schedule a delivery / takeaway order for a future date and time.
-                        All times are in your restaurant&apos;s local time.
+                        Let customers book a table for a future date and time. These slots are separate
+                        from delivery/takeaway prebooking. Enable Dine-in in the Order Types tab to show
+                        it to customers.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="space-y-0.5">
-                            <div className="font-medium">Enable prebooking</div>
+                            <div className="font-medium">Enable slot booking</div>
                             <div className="text-sm text-muted-foreground">
-                                Let customers schedule delivery / takeaway orders for later.
+                                Let customers book a dine-in table for later. (Also enable Dine-in in the Order Types tab.)
                             </div>
                         </div>
                         <Switch
-                            checked={cfg.prebooking_enabled}
-                            onCheckedChange={(v) => setCfg((p) => ({ ...p, prebooking_enabled: v }))}
+                            checked={cfg.slot_booking_enabled}
+                            onCheckedChange={(v) => setCfg((p) => ({ ...p, slot_booking_enabled: v }))}
                         />
                     </div>
 
-                    {cfg.prebooking_enabled && (<>
+                    {cfg.slot_booking_enabled && (<>
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
-                            <Label htmlFor="lead-time">Minimum lead time (minutes)</Label>
+                            <Label htmlFor="dine-lead-time">Minimum lead time (minutes)</Label>
                             <Input
-                                id="lead-time"
+                                id="dine-lead-time"
                                 type="number"
                                 min={0}
-                                value={cfg.min_lead_time_minutes}
+                                value={cfg.dine_in_min_lead_time_minutes}
                                 onChange={(e) =>
-                                    setCfg((p) => ({ ...p, min_lead_time_minutes: Math.max(0, Number(e.target.value) || 0) }))
+                                    setCfg((p) => ({ ...p, dine_in_min_lead_time_minutes: Math.max(0, Number(e.target.value) || 0) }))
                                 }
                             />
                             <p className="text-xs text-muted-foreground">
-                                How far in advance an order must be placed before its slot.
+                                How far in advance a table must be booked before its slot.
                             </p>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="max-days">Max days ahead</Label>
+                            <Label htmlFor="dine-max-days">Max days ahead</Label>
                             <Input
-                                id="max-days"
+                                id="dine-max-days"
                                 type="number"
                                 min={0}
-                                value={cfg.max_advance_days}
+                                value={cfg.dine_in_max_advance_days}
                                 onChange={(e) =>
-                                    setCfg((p) => ({ ...p, max_advance_days: Math.max(0, Number(e.target.value) || 0) }))
+                                    setCfg((p) => ({ ...p, dine_in_max_advance_days: Math.max(0, Number(e.target.value) || 0) }))
                                 }
                             />
                             <p className="text-xs text-muted-foreground">
-                                How many days into the future a customer can schedule (0 = today only).
+                                How many days into the future a table can be booked (0 = today only).
                             </p>
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Allow &quot;schedule for later&quot; on</Label>
-                        <div className="flex flex-wrap gap-3">
-                            {SCHEDULE_TYPES.map((ot) => (
-                                <label key={ot.key} className="flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer">
-                                    <Switch
-                                        checked={cfg.allowed_order_types.includes(ot.key)}
-                                        onCheckedChange={(v) => toggleScheduleType(ot.key, v)}
-                                    />
-                                    <span className="text-sm font-medium">{ot.label}</span>
-                                </label>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label>Schedule-for-later slot times per day</Label>
+                        <Label>Dine-in table slot times per day</Label>
                         <p className="text-xs text-muted-foreground">
-                            Customers can only pick from the exact times you add for each day.
+                            Customers can only book the exact seating times you add for each day.
                         </p>
                         <div className="space-y-2">
-                            {cfg.windows.map((w) => {
+                            {cfg.dine_in_windows.map((w) => {
                                 const slots = windowSlotTimes(w);
                                 return (
                                     <div key={w.day} className="border rounded-lg p-3 space-y-2">
@@ -205,7 +180,7 @@ export function PrebookingSettings() {
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-xs text-muted-foreground">Add time:</span>
-                                                    <TimePicker value="12:00" onChange={(val) => addSlot(w.day, val)} />
+                                                    <TimePicker value="19:00" onChange={(val) => addSlot(w.day, val)} />
                                                 </div>
                                             </>
                                         ) : (

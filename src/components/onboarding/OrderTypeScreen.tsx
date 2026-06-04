@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bike, Store, Clock, ChevronLeft } from "lucide-react";
+import { Bike, Store, Clock, ChevronLeft, Utensils } from "lucide-react";
 import { isWithinTimeWindow, formatTime12h } from "@/lib/isWithinTimeWindow";
 import { DEFAULT_BRAND_COLOR_HEX } from "@/lib/brandColor";
 
@@ -11,7 +11,9 @@ interface OrderTypeScreenProps {
   themeBg?: string;
   hasDelivery: boolean;
   hasOrdering: boolean;
-  onSelect: (type: "delivery" | "takeaway") => void;
+  /** Dine-in table reservation available (order-type enabled + prebooking feature on). */
+  hasDineIn?: boolean;
+  onSelect: (type: "delivery" | "takeaway" | "dine_in") => void;
   onSkip: () => void;
   onBack?: () => void;
   onChangeLocation?: () => void;
@@ -28,6 +30,7 @@ interface OrderTypeScreenProps {
 export default function OrderTypeScreen({
   hasDelivery,
   hasOrdering,
+  hasDineIn = false,
   onSelect,
   onSkip,
   onBack,
@@ -51,9 +54,13 @@ export default function OrderTypeScreen({
   const [isDeliveryOpen, setIsDeliveryOpen] = useState(
     initialDeliveryOpen ?? true,
   );
-  const [mode, setMode] = useState<"delivery" | "takeaway">(
-    hasDelivery && (initialDeliveryOpen ?? true) ? "delivery" : "takeaway",
-  );
+  const pickDefault = (): "delivery" | "takeaway" | "dine_in" => {
+    if (hasDelivery && (initialDeliveryOpen ?? true)) return "delivery";
+    if (hasOrdering && (initialTakeawayOpen ?? true)) return "takeaway";
+    if (hasDineIn) return "dine_in";
+    return "delivery";
+  };
+  const [mode, setMode] = useState<"delivery" | "takeaway" | "dine_in">(pickDefault());
 
   useEffect(() => {
     const takeawayOpen = isWithinTimeWindow(takeawayTimeAllowed, hotelTimezone);
@@ -62,11 +69,18 @@ export default function OrderTypeScreen({
     setIsTakeawayOpen(takeawayOpen);
     setIsDeliveryOpen(deliveryOpen);
     setMode((prev) => {
-      if (prev === "delivery" && !deliveryOpen && takeawayOpen) return "takeaway";
-      if (prev === "takeaway" && !takeawayOpen && deliveryOpen) return "delivery";
+      // Dine-in is always selectable (slot validity is handled at checkout).
+      const selectable =
+        prev === "delivery" ? hasDelivery && deliveryOpen
+        : prev === "takeaway" ? hasOrdering && takeawayOpen
+        : hasDineIn;
+      if (selectable) return prev;
+      if (hasDelivery && deliveryOpen) return "delivery";
+      if (hasOrdering && takeawayOpen) return "takeaway";
+      if (hasDineIn) return "dine_in";
       return prev;
     });
-  }, [takeawayTimeAllowed, deliveryTimeAllowed, isDeliveryActive, hotelTimezone]);
+  }, [takeawayTimeAllowed, deliveryTimeAllowed, isDeliveryActive, hotelTimezone, hasDelivery, hasOrdering, hasDineIn]);
 
   return (
     <div className="flex flex-col min-h-dvh bg-white pt-[60px] lg:pt-16 mx-auto w-full md:max-w-md relative" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -180,6 +194,36 @@ export default function OrderTypeScreen({
               </div>
             </button>
           )}
+
+          {/* Dine-in (table reservation) */}
+          {hasDineIn && (
+            <button
+              onClick={() => setMode("dine_in")}
+              className={`w-full p-[18px] rounded-[18px] cursor-pointer bg-white flex items-center gap-3.5 transition-all duration-150 ${
+                mode === "dine_in"
+                  ? "border-[1.5px] shadow-[0_0_0_3px_rgba(0,0,0,0.06)]"
+                  : "border-[1.5px] border-gray-200 shadow-sm"
+              }`}
+              style={mode === "dine_in" ? { borderColor: accent } : undefined}
+            >
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                mode === "dine_in" ? "" : "bg-gray-100"
+              }`} style={mode === "dine_in" ? { backgroundColor: accent } : undefined}>
+                <Utensils className="w-[22px] h-[22px]" style={{ color: mode === "dine_in" ? "#fff" : "#111827" }} />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-base font-semibold text-gray-900 tracking-tight">Dine-in</p>
+                <p className="text-[13px] text-gray-500 mt-0.5">Book a table for later</p>
+              </div>
+              <div className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center bg-white shrink-0 ${
+                mode === "dine_in" ? "" : "border-gray-300"
+              }`} style={mode === "dine_in" ? { borderColor: accent } : undefined}>
+                {mode === "dine_in" && (
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: accent }} />
+                )}
+              </div>
+            </button>
+          )}
         </div>
 
         {/* Change location */}
@@ -197,7 +241,7 @@ export default function OrderTypeScreen({
       {/* Sticky CTA */}
       <div className="absolute left-0 right-0 bottom-0 bg-white/95 backdrop-blur-lg border-t border-gray-100 z-30">
        <div className="px-4 pt-3.5 pb-8 lg:max-w-md lg:mx-auto">
-        {(!isDeliveryOpen || !hasDelivery) && (!isTakeawayOpen || !hasOrdering) ? (
+        {(!isDeliveryOpen || !hasDelivery) && (!isTakeawayOpen || !hasOrdering) && !hasDineIn ? (
           <button
             onClick={onSkip}
             className="w-full h-[52px] rounded-[14px] text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98]"
@@ -215,7 +259,7 @@ export default function OrderTypeScreen({
             className="w-full h-[52px] rounded-[14px] text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40"
             style={{ backgroundColor: accent }}
           >
-            Continue with {mode === "delivery" ? "Delivery" : "Takeaway"}
+            Continue with {mode === "delivery" ? "Delivery" : mode === "takeaway" ? "Takeaway" : "Dine-in"}
           </button>
         )}
        </div>

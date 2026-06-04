@@ -46,6 +46,7 @@ const GET_ORDER_QUERY = `
       type
       scheduled_date
       scheduled_time
+      booking_persons
       delivery_address
       delivery_location
       status
@@ -220,6 +221,7 @@ const OrderClient = () => {
                         type: order?.type,
                         scheduled_date: order?.scheduled_date ?? null,
                         scheduled_time: order?.scheduled_time ?? null,
+                        booking_persons: order?.booking_persons ?? null,
                         phone: order?.phone,
                         notes: order?.notes,
                         deliveryAddress: order?.delivery_address,
@@ -665,10 +667,13 @@ ${itemsText}
                                 <CalendarClock className="h-5 w-5 text-blue-700 shrink-0" />
                                 <div className="min-w-0 flex-1">
                                     <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                                        Prebooked order
+                                        {order?.booking_persons ? "Table reservation" : "Prebooked order"}
                                     </p>
                                     <p className="mt-0.5 text-sm font-medium text-blue-900">
-                                        Scheduled for {formatPrebookDateLabel(order.scheduled_date)}
+                                        {order?.booking_persons
+                                            ? `Table for ${order.booking_persons} · `
+                                            : "Scheduled for "}
+                                        {formatPrebookDateLabel(order.scheduled_date)}
                                         {order?.scheduled_time
                                             ? ` at ${formatSlotLabel(order.scheduled_time.slice(0, 5))}`
                                             : ""}

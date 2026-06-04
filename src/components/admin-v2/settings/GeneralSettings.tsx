@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -13,40 +12,14 @@ import { toast } from "sonner";
 import { updatePartner } from "@/api/partners";
 import CustomDomainSettings from "@/components/admin/CustomDomainSettings";
 import { revalidateTag } from "@/app/actions/revalidate";
-import { deleteFileFromS3, uploadFileToS3 } from "@/app/actions/aws-s3";
-import Img from "@/components/Img";
-import { Loader2, Upload, Save, Power, LogOut, Eye, EyeOff, KeyRound, MessageCircle, Unplug, CheckCircle2 } from "lucide-react";
-import BannerEditor from "@/components/BannerEditor";
-import dynamic from "next/dynamic";
+import { Loader2, Save, Power, LogOut, Eye, EyeOff, KeyRound } from "lucide-react";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { getSocialLinks } from "@/lib/getSocialLinks";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
-import { isFreePlan } from "@/lib/getPlanLimits";
-import { UpgradePrompt } from "@/components/admin-v2/UpgradePrompt";
-import { UpgradePlanDialog } from "@/components/admin-v2/UpgradePlanDialog";
-import { Lock, Crown } from "lucide-react";
 import { LocationSettings } from "./LocationSettings";
-import { isVideoUrl } from "@/lib/mediaUtils";
-
-const VideoEditor = dynamic(() => import("@/components/VideoEditor"), { ssr: false });
-
-const BANNER_LOGO_SCALE_MIN = 50;
-const BANNER_LOGO_SCALE_MAX = 500;
-const BANNER_LOGO_SCALE_DEFAULT = 100;
-
-function clampBannerLogoScale(n: unknown): number {
-    const v = typeof n === "number" ? n : Number(n);
-    if (!Number.isFinite(v)) return BANNER_LOGO_SCALE_DEFAULT;
-    return Math.min(BANNER_LOGO_SCALE_MAX, Math.max(BANNER_LOGO_SCALE_MIN, Math.round(v)));
-}
-
-
 
 export function GeneralSettings() {
     const { userData, setState } = useAuthStore();
-    const planId = (userData as any)?.subscription_details?.plan?.id;
-    const isOnFreePlan = isFreePlan(planId);
     const [isSaving, setIsSaving] = useState(false);
     const [storeName, setStoreName] = useState("");
     const [storeTagline, setStoreTagline] = useState("");
@@ -56,10 +29,6 @@ export function GeneralSettings() {
     const [footNote, setFootNote] = useState("");
     const [instaLink, setInstaLink] = useState("");
     const [facebookLink, setFacebookLink] = useState("");
-    const [zomatoLink, setZomatoLink] = useState("");
-    const [uberEatsLink, setUberEatsLink] = useState("");
-    const [talabatLink, setTalabatLink] = useState("");
-    const [doordashLink, setDoordashLink] = useState("");
     const [isShopOpen, setIsShopOpen] = useState(true);
     const [timezone, setTimezone] = useState("Asia/Kolkata");
 
@@ -70,135 +39,12 @@ export function GeneralSettings() {
     const [officialEmailId, setOfficialEmailId] = useState("");
     const [officialPhoneNumber, setOfficialPhoneNumber] = useState("");
 
-
     // Password State
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [isResettingPassword, setIsResettingPassword] = useState(false);
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [isPasswordSaving, setIsPasswordSaving] = useState(false);
-
-    const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
-
-    // Banner State
-    const [bannerImage, setBannerImage] = useState<string | null>(null);
-    const [isBannerUploading, setBannerUploading] = useState(false);
-    const [isCropperOpen, setIsCropperOpen] = useState(false);
-    const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
-    const [selectedImageUrl, setSelectedImageUrl] = useState<string>("");
-    const [isVideoEditorOpen, setIsVideoEditorOpen] = useState(false);
-    const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
-
-    // Announcement State
-    const [announcement, setAnnouncement] = useState("");
-
-    // Banner Mode State
-    const [bannerMode, setBannerMode] = useState<"single" | "carousel">("single");
-    const [carouselBanners, setCarouselBanners] = useState<string[]>([]);
-    const [isCarouselUploading, setIsCarouselUploading] = useState(false);
-    const [carouselCropperOpen, setCarouselCropperOpen] = useState(false);
-    const [carouselSelectedImageUrl, setCarouselSelectedImageUrl] = useState("");
-
-    // V3-only hero logo controls (size + bg color); persisted in storefront_settings.bannerLogo
-    const [bannerLogoScale, setBannerLogoScale] = useState<number>(BANNER_LOGO_SCALE_DEFAULT);
-    const [bannerLogoBgColor, setBannerLogoBgColor] = useState<string>("");
-
-    // Theme menuStyle — controls whether V3 hero-logo cards are visible.
-    const themeMenuStyle = (() => {
-        const raw = (userData as any)?.theme;
-        try {
-            const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-            const v = parsed?.menuStyle;
-            return typeof v === "string" ? v.toLowerCase() : "default";
-        } catch {
-            return "default";
-        }
-    })();
-    const isV3Theme = themeMenuStyle === "v3";
-
-    // Google Business State
-    const [googleConnected, setGoogleConnected] = useState(false);
-    const [googleHasTokens, setGoogleHasTokens] = useState(false);
-    const [googleError, setGoogleError] = useState<string | null>(null);
-    const [googleLocations, setGoogleLocations] = useState<any[]>([]);
-    const [selectedGoogleLocation, setSelectedGoogleLocation] = useState("");
-    const [linkedLocationId, setLinkedLocationId] = useState<string | null>(null);
-    const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-    const [isSyncingMenu, setIsSyncingMenu] = useState(false);
-
-    // WhatsApp Business Integration State
-    // "menuthere" = use our shared WhatsApp, "own" = connect their own WABA
-    const [whatsappMode, setWhatsappMode] = useState<"menuthere" | "own" | null>(null);
-    const [wabaConnected, setWabaConnected] = useState(false);
-    const [wabaPhoneNumber, setWabaPhoneNumber] = useState<string | null>(null);
-    const [isWabaLoading, setIsWabaLoading] = useState(false);
-
-    // Handle WhatsApp connection redirect params
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get("whatsapp_connected") === "true") {
-            toast.success("WhatsApp Business Account connected successfully!");
-            // Clean up URL
-            const url = new URL(window.location.href);
-            url.searchParams.delete("whatsapp_connected");
-            window.history.replaceState({}, "", url.toString());
-        }
-        if (params.get("whatsapp_error")) {
-            toast.error("WhatsApp connection failed: " + params.get("whatsapp_error"));
-            const url = new URL(window.location.href);
-            url.searchParams.delete("whatsapp_error");
-            window.history.replaceState({}, "", url.toString());
-        }
-    }, []);
-
-    // Preload Facebook SDK so FB.login runs synchronously inside the user click
-    // — otherwise the popup gets blocked and Meta falls back to a full redirect.
-    useEffect(() => {
-        const appId = process.env.NEXT_PUBLIC_META_APP_ID;
-        if (!appId) return;
-        const w = window as any;
-        if (w.__fbSdkReady || w.__fbSdkInitStarted) return;
-        w.__fbSdkInitStarted = true;
-
-        w.fbAsyncInit = () => {
-            w.FB.init({
-                appId,
-                cookie: true,
-                xfbml: false,
-                version: "v21.0",
-            });
-            w.__fbSdkReady = true;
-        };
-
-        if (!document.getElementById("facebook-jssdk")) {
-            const script = document.createElement("script");
-            script.id = "facebook-jssdk";
-            script.src = "https://connect.facebook.net/en_US/sdk.js";
-            script.async = true;
-            script.defer = true;
-            script.crossOrigin = "anonymous";
-            document.body.appendChild(script);
-        }
-    }, []);
-
-    // Handle Google Business connection redirect params
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get("google_connected") === "true" && userData?.id) {
-            toast.success("Google Business Account connected successfully!");
-            checkGoogleConnection(userData.id);
-            // Clean up URL
-            const url = new URL(window.location.href);
-            url.searchParams.delete("google_connected");
-            window.history.replaceState({}, "", url.toString());
-        }
-        if (params.get("google_error")) {
-            toast.error("Google connection failed: " + params.get("google_error"));
-            const url = new URL(window.location.href);
-            url.searchParams.delete("google_error");
-            window.history.replaceState({}, "", url.toString());
-        }
-    }, [userData?.id]);
 
     useEffect(() => {
         if (userData?.role === "partner") {
@@ -209,7 +55,6 @@ export function GeneralSettings() {
             setWhatsappNumber(userData.whatsapp_numbers?.[0]?.number || userData.phone || "");
             setFootNote(userData.footnote || "");
             setIsShopOpen(userData.is_shop_open);
-            setBannerImage((userData as any).store_banner || null);
             setTimezone((userData as any).timezone || "Asia/Kolkata");
 
             setOfficialName((userData as any).official_name || "");
@@ -218,304 +63,24 @@ export function GeneralSettings() {
             setOfficialEmailId((userData as any).official_email_id || "");
             setOfficialPhoneNumber((userData as any).official_phone_number || "");
 
-            // Announcement & Banner Mode
-            const rules = (userData as any).delivery_rules;
-            setAnnouncement(rules?.announcement || "");
-            setBannerMode(rules?.banner_mode || "single");
-            setCarouselBanners(rules?.carousel_banners || []);
-
-            // V3 hero-logo customization (size & bg color)
-            const sfRaw = (userData as any).storefront_settings;
-            let sfParsed: any = null;
-            try {
-                sfParsed = typeof sfRaw === "string" ? JSON.parse(sfRaw) : sfRaw;
-            } catch {
-                sfParsed = null;
-            }
-            const bl = sfParsed?.bannerLogo;
-            setBannerLogoScale(clampBannerLogoScale(bl?.scale));
-            setBannerLogoBgColor(typeof bl?.bgColor === "string" ? bl.bgColor : "");
-
-            // Check Google Connection
-            checkGoogleConnection(userData.id);
-
-            // Check WhatsApp Business Connection
-            checkWhatsAppConnection(userData.id);
-
             const socialLinks = getSocialLinks(userData as HotelData);
             setInstaLink(socialLinks.instagram || "");
             setFacebookLink(socialLinks.facebook || "");
-            setZomatoLink(socialLinks.zomato || "");
-            setUberEatsLink(socialLinks.uberEats || "");
-            setTalabatLink(socialLinks.talabat || "");
-            setDoordashLink(socialLinks.doordash || "");
         }
     }, [userData]);
-
-    const checkGoogleConnection = async (partnerId: string) => {
-        setIsGoogleLoading(true);
-        setGoogleError(null);
-        try {
-            // First try partner's own tokens
-            const partnerRes = await fetch(`/api/google-business/locations?partnerId=${partnerId}&mode=partner`);
-            const partnerData = await partnerRes.json();
-            console.log('[GoogleBusiness] Partner check:', partnerRes.status, partnerData);
-
-            if (partnerRes.ok && partnerData.success) {
-                setGoogleConnected(true);
-                setGoogleHasTokens(true);
-                setGoogleLocations(partnerData.locations || []);
-                if (partnerData.linkedLocationId) {
-                    setLinkedLocationId(partnerData.linkedLocationId);
-                }
-                return;
-            }
-
-            // Partner API failed. Distinguish "no tokens" from "tokens exist but API failed".
-            const noTokens = partnerRes.status === 404 && partnerData.error === 'Partner not connected to Google';
-            setGoogleHasTokens(!noTokens);
-            if (!noTokens) {
-                setGoogleError(partnerData.error || `Google API error (${partnerRes.status})`);
-            }
-
-            // Fallback: Check via Master Account (superadmin-linked partners)
-            const masterRes = await fetch(`/api/google-business/locations?partnerId=${partnerId}`);
-            const masterData = await masterRes.json();
-            console.log('[GoogleBusiness] Master check:', masterRes.status, masterData);
-
-            if (masterRes.ok && masterData.success && masterData.linkedLocationId) {
-                // Partner is linked via Master Account
-                setGoogleConnected(true);
-                setGoogleLocations(masterData.locations || []);
-                setLinkedLocationId(masterData.linkedLocationId);
-                setGoogleError(null);
-            } else {
-                setGoogleConnected(false);
-            }
-        } catch (e: any) {
-            console.error('[GoogleBusiness] checkGoogleConnection error:', e);
-            setGoogleConnected(false);
-            setGoogleError(e?.message || 'Connection check failed');
-        } finally {
-            setIsGoogleLoading(false);
-        }
-    };
-
-    const handleGoogleLogin = () => {
-        if (!userData) return;
-        // Redirect to auth with return url back to settings
-        const redirect = encodeURIComponent(`${window.location.pathname}?view=Settings`);
-        window.location.href = `/api/google-business/auth/login?partnerId=${userData.id}&redirect=${redirect}`;
-    };
-
-    const handleSendInvite = async () => {
-        if (!selectedGoogleLocation || !userData) return;
-        setIsGoogleLoading(true);
-        try {
-            const res = await fetch('/api/google-business/invite-manager', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ partnerId: userData.id, locationId: selectedGoogleLocation })
-            });
-            const data = await res.json();
-            if (data.success) {
-                toast.success("Request sent successfully! Our team will accept it shortly.");
-            } else {
-                toast.error("Failed to send request: " + data.error);
-            }
-        } catch (e) {
-            toast.error("Request failed");
-        } finally {
-            setIsGoogleLoading(false);
-        }
-    };
-
-    const handleSyncMenu = async () => {
-        if (!userData || !linkedLocationId) return;
-
-        // Rate limit check
-        const lastSync = localStorage.getItem(`google_sync_${userData.id}`);
-        const today = new Date().toDateString();
-        if (lastSync === today) {
-            toast.info("You can only sync to Google once per day.");
-            return;
-        }
-
-        if (!confirm("Sync menu to Google? This will overwrite your Google Menu.")) return;
-
-        setIsSyncingMenu(true);
-        const toastId = toast.loading("Syncing menu...");
-
-        try {
-            const res = await fetch('/api/google-business/menu/push', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ partnerId: userData.id, locationId: 'auto' })
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                localStorage.setItem(`google_sync_${userData.id}`, today);
-                toast.success("Menu synced successfully!");
-            } else {
-                toast.error("Sync failed: " + data.error);
-            }
-        } catch (e) {
-            toast.error("Sync failed");
-        } finally {
-            setIsSyncingMenu(false);
-            toast.dismiss(toastId);
-        }
-    };
-
-    // ─── WhatsApp Business Integration ─────────────────────────────
-    const checkWhatsAppConnection = async (partnerId: string) => {
-        setIsWabaLoading(true);
-        try {
-            const res = await fetch(`/api/whatsapp/meta/status?partnerId=${partnerId}`);
-            const data = await res.json();
-            if (res.ok && data.connected) {
-                setWabaConnected(true);
-                setWabaPhoneNumber(data.display_phone || null);
-                setWhatsappMode("own");
-            } else {
-                setWabaConnected(false);
-                // Default to menuthere if no preference saved
-                setWhatsappMode((userData as any)?.whatsapp_integration_mode || "menuthere");
-            }
-        } catch {
-            setWabaConnected(false);
-            setWhatsappMode("menuthere");
-        } finally {
-            setIsWabaLoading(false);
-        }
-    };
-
-    const handleConnectWhatsApp = () => {
-        if (!userData) return;
-        const w = window as any;
-        // SDK is preloaded on mount; if it isn't ready yet the user clicked
-        // before init finished — bail out cleanly rather than queue, because
-        // queuing breaks the user-gesture chain and the popup gets blocked.
-        if (!w.__fbSdkReady) {
-            toast.error("WhatsApp connector is still loading, please try again in a moment.");
-            return;
-        }
-
-        // FB.login rejects async callbacks ("Expression is of type
-        // asyncfunction, not function") — keep this synchronous and run the
-        // exchange in a helper.
-        const exchangeCode = async (code: string) => {
-            setIsWabaLoading(true);
-            try {
-                const res = await fetch("/api/whatsapp/meta/auth/callback", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ code, partnerId: userData.id }),
-                });
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok || !data.connected) {
-                    toast.error(data?.error || "WhatsApp connection failed");
-                    return;
-                }
-                toast.success("WhatsApp connected");
-                await checkWhatsAppConnection(userData.id);
-            } catch (e: any) {
-                toast.error(e?.message || "WhatsApp connection failed");
-            } finally {
-                setIsWabaLoading(false);
-            }
-        };
-
-        w.FB.login(
-            (response: any) => {
-                if (!response?.authResponse) {
-                    toast.error("WhatsApp connection was cancelled");
-                    return;
-                }
-                const { code } = response.authResponse;
-                void exchangeCode(code);
-            },
-            {
-                config_id: process.env.NEXT_PUBLIC_META_EMBEDDED_SIGNUP_CONFIG_ID,
-                response_type: "code",
-                override_default_response_type: true,
-                extras: {
-                    setup: {},
-                    featureType: "whatsapp_business_app_onboarding",
-                    sessionInfoVersion: "3",
-                    version: "v4",
-                },
-            }
-        );
-    };
-
-    const handleDisconnectWhatsApp = async () => {
-        if (!userData) return;
-        if (!confirm("Disconnect your WhatsApp Business Account? You can reconnect anytime.")) return;
-
-        setIsWabaLoading(true);
-        try {
-            const res = await fetch("/api/whatsapp/meta/disconnect", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ partnerId: userData.id }),
-            });
-            if (res.ok) {
-                setWabaConnected(false);
-                setWabaPhoneNumber(null);
-                setWhatsappMode("menuthere");
-                toast.success("WhatsApp disconnected");
-            } else {
-                toast.error("Failed to disconnect");
-            }
-        } catch {
-            toast.error("Failed to disconnect");
-        } finally {
-            setIsWabaLoading(false);
-        }
-    };
-
-    const handleWhatsAppModeChange = async (mode: "menuthere" | "own") => {
-        setWhatsappMode(mode);
-        if (!userData) return;
-        try {
-            await updatePartner(userData.id, { whatsapp_integration_mode: mode });
-            setState({ whatsapp_integration_mode: mode } as any);
-        } catch {
-            // silent — non-critical
-        }
-    };
 
     const handleSaveGeneral = useCallback(async () => {
         if (!userData) return;
         setIsSaving(true);
         try {
-            // Preserve keys we don't manage here (e.g. playstore/appstore — owned by Info Page settings)
+            // Read-modify-write social_links so we preserve keys owned by other
+            // sections (Integrations: zomato/uberEats/talabat/doordash; Info Page:
+            // playstore/appstore). Only instagram/facebook are edited here.
             const existingSocialLinks = getSocialLinks(userData as HotelData);
-
-            // Read-modify-write storefront_settings so we don't clobber other keys
-            // owned by InfoPageSettings (infoPage, brandColor, etc.).
-            const sfRaw = (userData as any).storefront_settings;
-            let sfParsed: any = {};
-            try {
-                sfParsed = typeof sfRaw === "string" ? JSON.parse(sfRaw) : sfRaw || {};
-            } catch {
-                sfParsed = {};
-            }
-            const nextStorefront = {
-                ...sfParsed,
-                bannerLogo: {
-                    scale: clampBannerLogoScale(bannerLogoScale),
-                    bgColor: bannerLogoBgColor || "",
-                },
-            };
-            const storefrontPayload = JSON.stringify(nextStorefront);
 
             // Preserve every other area/branch the partner configured (Delivery
             // settings stores per-area numbers as whatsapp_numbers[{number,area}]).
-            // Only update the primary ("default", else first) entry — do NOT
-            // collapse the array to a single entry, which wiped branch numbers.
+            // Only update the primary ("default", else first) entry.
             const existingWa: Array<{ number: string; area: string }> = Array.isArray(
                 (userData as any).whatsapp_numbers,
             )
@@ -542,27 +107,18 @@ export function GeneralSettings() {
                 timezone,
                 whatsapp_numbers: nextWhatsappNumbers,
                 social_links: {
+                    ...existingSocialLinks,
                     instagram: instaLink,
                     facebook: facebookLink,
-                    zomato: zomatoLink,
-                    uberEats: uberEatsLink,
-                    talabat: talabatLink,
-                    doordash: doordashLink,
-                    playstore: existingSocialLinks.playstore || "",
-                    appstore: existingSocialLinks.appstore || "",
                 },
                 official_name: officialName || null,
                 about_us: aboutUs || null,
                 operating_address: operatingAddress || null,
                 official_email_id: officialEmailId || null,
                 official_phone_number: officialPhoneNumber || null,
-                storefront_settings: storefrontPayload,
             };
 
             await updatePartner(userData.id, updates);
-
-            // Await the cache invalidation so the V3 menu page picks up the new
-            // storefront_settings on the next request instead of serving stale data.
             await revalidateTag(userData.id);
             setState(updates);
             toast.success("General settings updated successfully");
@@ -572,7 +128,7 @@ export function GeneralSettings() {
         } finally {
             setIsSaving(false);
         }
-    }, [userData, storeName, storeTagline, description, phone, footNote, isShopOpen, timezone, whatsappNumber, instaLink, facebookLink, zomatoLink, uberEatsLink, talabatLink, doordashLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, bannerLogoScale, bannerLogoBgColor, setState]);
+    }, [userData, storeName, storeTagline, description, phone, footNote, isShopOpen, timezone, whatsappNumber, instaLink, facebookLink, officialName, aboutUs, operatingAddress, officialEmailId, officialPhoneNumber, setState]);
 
     const { setSaveAction, setIsSaving: setGlobalIsSaving, setHasChanges } = useAdminSettingsStore();
 
@@ -584,7 +140,6 @@ export function GeneralSettings() {
         };
     }, [handleSaveGeneral, setSaveAction, setHasChanges]);
 
-    // Update global isSaving 
     useEffect(() => {
         setGlobalIsSaving(isSaving);
     }, [isSaving, setGlobalIsSaving]);
@@ -592,64 +147,27 @@ export function GeneralSettings() {
     // Check for changes
     useEffect(() => {
         if (!userData) return;
-
         const data = userData as any;
-        const initialStoreName = data.store_name || "";
-        const initialDescription = data.description || "";
-        const initialPhone = data.phone || "";
-        const initialWhatsapp = data.whatsapp_numbers?.[0]?.number || data.phone || "";
-        const initialFootnote = data.footnote || "";
-        const initialIsShopOpen = data.is_shop_open;
         const socialLinks = getSocialLinks(userData as HotelData);
-        const initialInsta = socialLinks.instagram || "";
-        const initialFacebook = socialLinks.facebook || "";
-        const initialZomato = socialLinks.zomato || "";
-        const initialUberEats = socialLinks.uberEats || "";
-        const initialTalabat = socialLinks.talabat || "";
-        const initialDoordash = socialLinks.doordash || "";
-        const initialOfficialName = data.official_name || "";
-        const initialAboutUs = data.about_us || "";
-        const initialOperatingAddress = data.operating_address || "";
-        const initialOfficialEmailId = data.official_email_id || "";
-        const initialOfficialPhoneNumber = data.official_phone_number || "";
-
-        // Initial banner-logo values from storefront_settings (V3-only fields)
-        const sfRaw = (userData as any).storefront_settings;
-        let sfParsed: any = null;
-        try {
-            sfParsed = typeof sfRaw === "string" ? JSON.parse(sfRaw) : sfRaw;
-        } catch {
-            sfParsed = null;
-        }
-        const initialBannerLogoScale = clampBannerLogoScale(sfParsed?.bannerLogo?.scale);
-        const initialBannerLogoBgColor =
-            typeof sfParsed?.bannerLogo?.bgColor === "string" ? sfParsed.bannerLogo.bgColor : "";
-
         const hasChanges =
-            storeName !== initialStoreName ||
-            description !== initialDescription ||
-            phone !== initialPhone ||
-            whatsappNumber !== initialWhatsapp ||
-            footNote !== initialFootnote ||
-            isShopOpen !== initialIsShopOpen ||
-            instaLink !== initialInsta ||
-            facebookLink !== initialFacebook ||
-            zomatoLink !== initialZomato ||
-            uberEatsLink !== initialUberEats ||
-            talabatLink !== initialTalabat ||
-            doordashLink !== initialDoordash ||
-            officialName !== initialOfficialName ||
-            aboutUs !== initialAboutUs ||
-            operatingAddress !== initialOperatingAddress ||
-            officialEmailId !== initialOfficialEmailId ||
-            officialPhoneNumber !== initialOfficialPhoneNumber ||
-            bannerLogoScale !== initialBannerLogoScale ||
-            bannerLogoBgColor !== initialBannerLogoBgColor;
-
+            storeName !== (data.store_name || "") ||
+            storeTagline !== (data.store_tagline || "") ||
+            description !== (data.description || "") ||
+            phone !== (data.phone || "") ||
+            whatsappNumber !== (data.whatsapp_numbers?.[0]?.number || data.phone || "") ||
+            footNote !== (data.footnote || "") ||
+            isShopOpen !== data.is_shop_open ||
+            instaLink !== (socialLinks.instagram || "") ||
+            facebookLink !== (socialLinks.facebook || "") ||
+            officialName !== (data.official_name || "") ||
+            aboutUs !== (data.about_us || "") ||
+            operatingAddress !== (data.operating_address || "") ||
+            officialEmailId !== (data.official_email_id || "") ||
+            officialPhoneNumber !== (data.official_phone_number || "");
         setHasChanges(hasChanges);
-
     }, [
         storeName,
+        storeTagline,
         description,
         phone,
         whatsappNumber,
@@ -657,235 +175,26 @@ export function GeneralSettings() {
         isShopOpen,
         instaLink,
         facebookLink,
-        zomatoLink,
-        uberEatsLink,
-        talabatLink,
-        doordashLink,
         officialName,
         aboutUs,
         operatingAddress,
         officialEmailId,
         officialPhoneNumber,
-        bannerLogoScale,
-        bannerLogoBgColor,
         userData,
-        setHasChanges
+        setHasChanges,
     ]);
-
-    const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files || !files[0]) return;
-        const file = files[0];
-
-        // Video upload: open VideoEditor for trimming/optimization
-        if (file.type.startsWith("video/")) {
-            setSelectedVideoFile(file);
-            setIsVideoEditorOpen(true);
-            e.target.value = "";
-            return;
-        }
-
-        const blobUrl = URL.createObjectURL(file);
-        setSelectedImageFile(file);
-        setSelectedImageUrl(blobUrl);
-        setIsCropperOpen(true);
-    };
-
-    const handleCropComplete = async (croppedImageUrl: string) => {
-        setBannerImage(croppedImageUrl);
-        setIsCropperOpen(false);
-        setSelectedImageFile(null);
-        setSelectedImageUrl("");
-
-        // Upload immediately
-        await handleBannerUpload(croppedImageUrl);
-    };
-
-    const handleBannerUpload = async (imageDataUrl: string) => {
-        if (!userData) return;
-        setBannerUploading(true);
-        try {
-            const response = await fetch(imageDataUrl);
-            const blob = await response.blob();
-
-            // Delete old banner if exists
-            if ((userData as any).store_banner?.includes("cravingsbucket")) {
-                await deleteFileFromS3((userData as any).store_banner);
-            }
-
-            const extension = blob.type.split("/")[1] || "png";
-            const imgUrl = await uploadFileToS3(
-                blob,
-                `hotel_banners/${userData.id}_v${Date.now()}.${extension}`
-            );
-
-            if (!imgUrl) throw new Error("Upload failed");
-
-            await updatePartner(userData.id, { store_banner: imgUrl });
-
-            revalidateTag(userData.id);
-
-            setState({ store_banner: imgUrl });
-            setBannerImage(imgUrl);
-            toast.success("Banner updated successfully");
-        } catch (error) {
-            console.error("Banner upload error:", error);
-            toast.error("Failed to upload banner");
-        } finally {
-            setBannerUploading(false);
-        }
-    };
-
-    const handleVideoComplete = async (processedVideoBlob: Blob, thumbnailBlob: Blob) => {
-        if (!userData) return;
-        setIsVideoEditorOpen(false);
-        setSelectedVideoFile(null);
-        setBannerUploading(true);
-
-        try {
-            // Delete old banner files if they exist
-            if ((userData as any).store_banner?.includes("cravingsbucket")) {
-                await deleteFileFromS3((userData as any).store_banner);
-                // Also try to delete old thumbnail
-                try {
-                    const oldBanner = (userData as any).store_banner;
-                    const lastDot = oldBanner.lastIndexOf(".");
-                    if (lastDot !== -1) {
-                        await deleteFileFromS3(oldBanner.substring(0, lastDot) + "_thumb.jpg");
-                    }
-                } catch { /* old thumbnail may not exist */ }
-            }
-
-            const timestamp = Date.now();
-            const videoKey = `hotel_banners/${userData.id}_v${timestamp}.mp4`;
-            const thumbKey = `hotel_banners/${userData.id}_v${timestamp}_thumb.jpg`;
-
-            // Upload video and thumbnail in parallel
-            const [videoUrl, _thumbUrl] = await Promise.all([
-                uploadFileToS3(processedVideoBlob, videoKey),
-                uploadFileToS3(thumbnailBlob, thumbKey),
-            ]);
-
-            if (!videoUrl) throw new Error("Video upload failed");
-
-            await updatePartner(userData.id, { store_banner: videoUrl });
-            revalidateTag(userData.id);
-
-            setState({ store_banner: videoUrl });
-            setBannerImage(videoUrl);
-            toast.success("Video banner updated successfully");
-        } catch (error) {
-            console.error("Video upload error:", error);
-            toast.error("Failed to upload video banner");
-        } finally {
-            setBannerUploading(false);
-        }
-    };
-
-    const saveAnnouncementAndBannerMode = async () => {
-        if (!userData) return;
-        try {
-            const currentRules = (userData as any).delivery_rules || {};
-            const updatedRules = {
-                ...currentRules,
-                announcement,
-                banner_mode: bannerMode,
-                carousel_banners: carouselBanners,
-            };
-            await updatePartner(userData.id, { delivery_rules: updatedRules });
-            revalidateTag(userData.id);
-            setState({ delivery_rules: updatedRules } as any);
-            toast.success("Settings updated successfully");
-        } catch (error) {
-            console.error("Error updating settings:", error);
-            toast.error("Failed to update settings");
-        }
-    };
-
-    const handleCarouselBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files || !files[0] || !userData) return;
-        if (carouselBanners.length >= 5) {
-            toast.error("Maximum 5 banners allowed");
-            return;
-        }
-        const file = files[0];
-        const blobUrl = URL.createObjectURL(file);
-        setCarouselSelectedImageUrl(blobUrl);
-        setCarouselCropperOpen(true);
-        e.target.value = "";
-    };
-
-    const handleCarouselCropComplete = async (croppedImageUrl: string) => {
-        setCarouselCropperOpen(false);
-        setCarouselSelectedImageUrl("");
-        if (!userData) return;
-        setIsCarouselUploading(true);
-        try {
-            const response = await fetch(croppedImageUrl);
-            const blob = await response.blob();
-            const extension = blob.type.split("/")[1] || "png";
-            const imgUrl = await uploadFileToS3(
-                blob,
-                `carousel_banners/${userData.id}_${Date.now()}.${extension}`
-            );
-            if (!imgUrl) throw new Error("Upload failed");
-
-            const updated = [...carouselBanners, imgUrl];
-            setCarouselBanners(updated);
-
-            // Save to DB immediately
-            const currentRules = (userData as any).delivery_rules || {};
-            const updatedRules = { ...currentRules, carousel_banners: updated, banner_mode: bannerMode };
-            await updatePartner(userData.id, { delivery_rules: updatedRules });
-            revalidateTag(userData.id);
-            setState({ delivery_rules: updatedRules } as any);
-            toast.success("Banner added");
-        } catch (error) {
-            toast.error("Failed to upload banner");
-        } finally {
-            setIsCarouselUploading(false);
-        }
-    };
-
-    const removeCarouselBanner = async (index: number) => {
-        if (!userData) return;
-        const bannerToRemove = carouselBanners[index];
-        const updated = carouselBanners.filter((_, i) => i !== index);
-        setCarouselBanners(updated);
-
-        try {
-            if (bannerToRemove.includes("cravingsbucket")) {
-                await deleteFileFromS3(bannerToRemove);
-            }
-            const currentRules = (userData as any).delivery_rules || {};
-            const updatedRules = { ...currentRules, carousel_banners: updated };
-            await updatePartner(userData.id, { delivery_rules: updatedRules });
-            revalidateTag(userData.id);
-            setState({ delivery_rules: updatedRules } as any);
-            toast.success("Banner removed");
-        } catch {
-            toast.error("Failed to remove banner");
-        }
-    };
 
     const handleShopToggle = async (checked: boolean) => {
         if (!userData) return;
-
         setIsShopOpen(checked);
         setIsSaving(true);
-
         try {
             await updatePartner(userData.id, { is_shop_open: checked });
-
             revalidateTag(userData.id);
-            // Update global state
             setState({ is_shop_open: checked });
-
-            toast.success(`Store is now ${checked ? 'Open' : 'Closed'}`);
+            toast.success(`Store is now ${checked ? "Open" : "Closed"}`);
         } catch (error) {
             console.error("Error updating shop status:", error);
-            // Revert state
             setIsShopOpen(!checked);
             toast.error("Failed to update store status");
         } finally {
@@ -899,7 +208,7 @@ export function GeneralSettings() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Store Status</CardTitle>
-                        <CardDescription>Manage your store's online availability.</CardDescription>
+                        <CardDescription>Manage your store&apos;s online availability.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex items-center justify-between">
                         <div className="space-y-1">
@@ -915,323 +224,16 @@ export function GeneralSettings() {
                     </CardContent>
                 </Card>
 
-                <div className="relative">
-                    {isOnFreePlan && (
-                        <div
-                            className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/60 backdrop-blur-[2px] cursor-pointer"
-                            onClick={() => setShowUpgradeDialog(true)}
-                        >
-                            <div className="flex items-center gap-2 rounded-full bg-orange-500/10 border border-orange-500/30 px-4 py-2">
-                                <Crown className="h-4 w-4 text-orange-500" />
-                                <span className="text-sm font-semibold text-orange-500">Premium Feature — Click to Upgrade</span>
-                            </div>
-                        </div>
-                    )}
-                    <Card className={isOnFreePlan ? "opacity-60 pointer-events-none" : ""}>
-                        <CardHeader>
-                            <CardTitle>Store Banner</CardTitle>
-                            <CardDescription>Choose single banner or carousel (up to 5 banners).</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-5">
-                            {/* Banner Mode Toggle */}
-                            <div className="flex items-center gap-3">
-                                <Button
-                                    variant={bannerMode === "single" ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={async () => {
-                                        setBannerMode("single");
-                                        if (!userData) return;
-                                        const currentRules = (userData as any).delivery_rules || {};
-                                        const updatedRules = { ...currentRules, banner_mode: "single" };
-                                        await updatePartner(userData.id, { delivery_rules: updatedRules });
-                                        revalidateTag(userData.id);
-                                        setState({ delivery_rules: updatedRules } as any);
-                                    }}
-                                >
-                                    Single Banner
-                                </Button>
-                                <Button
-                                    variant={bannerMode === "carousel" ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={async () => {
-                                        setBannerMode("carousel");
-                                        if (!userData) return;
-                                        const currentRules = (userData as any).delivery_rules || {};
-                                        const updatedRules = { ...currentRules, banner_mode: "carousel" };
-                                        await updatePartner(userData.id, { delivery_rules: updatedRules });
-                                        revalidateTag(userData.id);
-                                        setState({ delivery_rules: updatedRules } as any);
-                                    }}
-                                >
-                                    Carousel (Max 5)
-                                </Button>
-                            </div>
-
-                            {/* Single Banner Upload */}
-                            {bannerMode === "single" && (
-                                <>
-                                    <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border bg-muted">
-                                        {bannerImage ? (
-                                            isVideoUrl(bannerImage) ? (
-                                                <video src={bannerImage} autoPlay muted loop playsInline className="h-full w-full object-cover" />
-                                            ) : (
-                                                <Img src={bannerImage} alt="Store Banner" className="h-full w-full object-cover" />
-                                            )
-                                        ) : (
-                                            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                                                No banner image
-                                            </div>
-                                        )}
-                                        {isBannerUploading && (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-                                                <Loader2 className="h-6 w-6 animate-spin" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    <Button variant="outline" className="relative" disabled={isBannerUploading}>
-                                        <Upload className="mr-2 h-4 w-4" />
-                                        Upload Banner
-                                        <Input
-                                            type="file"
-                                            className="absolute inset-0 cursor-pointer opacity-0"
-                                            accept="image/*,video/mp4,video/webm"
-                                            onChange={handleBannerChange}
-                                            disabled={isBannerUploading}
-                                        />
-                                    </Button>
-                                </>
-                            )}
-
-                            {/* Carousel Banners Upload */}
-                            {bannerMode === "carousel" && (
-                                <div className="space-y-3">
-                                    <Label>Carousel Banners ({carouselBanners.length}/5)</Label>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                        {carouselBanners.map((url, idx) => (
-                                            <div key={idx} className="relative aspect-video rounded-lg overflow-hidden border bg-muted group">
-                                                <Img src={url} alt={`Banner ${idx + 1}`} className="w-full h-full object-cover" />
-                                                <button
-                                                    onClick={() => removeCarouselBanner(idx)}
-                                                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                                                >
-                                                    ✕
-                                                </button>
-                                                <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
-                                                    {idx + 1}
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {carouselBanners.length < 5 && (
-                                            <div className="aspect-video rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors relative">
-                                                {isCarouselUploading ? (
-                                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                                                ) : (
-                                                    <div className="text-center text-muted-foreground">
-                                                        <Upload className="h-6 w-6 mx-auto mb-1" />
-                                                        <span className="text-xs">Add Banner</span>
-                                                    </div>
-                                                )}
-                                                <Input
-                                                    type="file"
-                                                    className="absolute inset-0 cursor-pointer opacity-0"
-                                                    accept="image/*"
-                                                    onChange={handleCarouselBannerUpload}
-                                                    disabled={isCarouselUploading}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* V3 hero-logo appearance — outside the Store Banner premium wrapper so
-                    it's visible (and editable) on every plan when V3 theme is active. */}
-                {isV3Theme && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Hero logo appearance (V3 theme)</CardTitle>
-                            <CardDescription>
-                                Tile color and zoom level for the banner logo on the V3 menu.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            {/* Background color */}
-                            <div className="space-y-2">
-                                <Label className="text-sm font-semibold">Background color</Label>
-                                <p className="text-[11px] text-muted-foreground">
-                                    Color of the tile behind the banner logo. Leave blank to keep the
-                                    default white.
-                                </p>
-                                <div className="flex items-center gap-3">
-                                    <input
-                                        type="color"
-                                        value={bannerLogoBgColor || "#ffffff"}
-                                        onChange={(e) => setBannerLogoBgColor(e.target.value)}
-                                        className="h-10 w-10 cursor-pointer rounded-lg border-0 p-0"
-                                        aria-label="Pick logo background color"
-                                    />
-                                    <Input
-                                        value={bannerLogoBgColor || ""}
-                                        onChange={(e) => {
-                                            const v = e.target.value.trim();
-                                            if (v === "" || /^#[0-9a-fA-F]{0,6}$/.test(v)) {
-                                                setBannerLogoBgColor(v);
-                                            }
-                                        }}
-                                        placeholder="#ffffff"
-                                        className="w-32 font-mono text-sm uppercase"
-                                        maxLength={7}
-                                    />
-                                    <div
-                                        className="h-10 flex-1 rounded-lg ring-1 ring-black/5"
-                                        style={{ backgroundColor: bannerLogoBgColor || "#ffffff" }}
-                                    />
-                                    {bannerLogoBgColor && (
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-red-500 hover:text-red-600"
-                                            onClick={() => setBannerLogoBgColor("")}
-                                        >
-                                            Reset
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Size */}
-                            <div className="space-y-2">
-                                <Label className="text-sm font-semibold">Size</Label>
-                                <p className="text-[11px] text-muted-foreground">
-                                    Zoom the logo inside its tile. 100% keeps the default fit; raise it
-                                    if your logo has built-in whitespace and looks small. Range{" "}
-                                    {BANNER_LOGO_SCALE_MIN}%–{BANNER_LOGO_SCALE_MAX}%.
-                                </p>
-                                <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-2">
-                                        <Input
-                                            type="number"
-                                            inputMode="numeric"
-                                            min={BANNER_LOGO_SCALE_MIN}
-                                            max={BANNER_LOGO_SCALE_MAX}
-                                            step={5}
-                                            value={bannerLogoScale}
-                                            onChange={(e) => {
-                                                const v = Number(e.target.value);
-                                                setBannerLogoScale(
-                                                    Number.isFinite(v) ? v : BANNER_LOGO_SCALE_DEFAULT
-                                                );
-                                            }}
-                                            onBlur={() =>
-                                                setBannerLogoScale(clampBannerLogoScale(bannerLogoScale))
-                                            }
-                                            className="w-24 text-right font-mono text-sm"
-                                        />
-                                        <span className="text-sm text-muted-foreground">%</span>
-                                        {bannerLogoScale !== BANNER_LOGO_SCALE_DEFAULT && (
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-red-500 hover:text-red-600"
-                                                onClick={() =>
-                                                    setBannerLogoScale(BANNER_LOGO_SCALE_DEFAULT)
-                                                }
-                                            >
-                                                Reset
-                                            </Button>
-                                        )}
-                                    </div>
-                                    <div
-                                        className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl ring-1 ring-black/5"
-                                        style={{ background: bannerLogoBgColor || "#ffffff" }}
-                                    >
-                                        {bannerImage ? (
-                                            isVideoUrl(bannerImage) ? (
-                                                <video
-                                                    src={bannerImage}
-                                                    muted
-                                                    playsInline
-                                                    className="h-full w-full object-contain"
-                                                    style={{ transform: `scale(${bannerLogoScale / 100})` }}
-                                                />
-                                            ) : (
-                                                // eslint-disable-next-line @next/next/no-img-element
-                                                <img
-                                                    src={bannerImage}
-                                                    alt=""
-                                                    className="h-full w-full object-contain"
-                                                    style={{ transform: `scale(${bannerLogoScale / 100})` }}
-                                                />
-                                            )
-                                        ) : (
-                                            <span className="text-xs text-muted-foreground">No logo</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-
-                <UpgradePlanDialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog} featureName="Store Banner" />
-
-                {/* Carousel Banner Cropper */}
-                {carouselCropperOpen && carouselSelectedImageUrl && (
-                    <BannerEditor
-                        imageUrl={carouselSelectedImageUrl}
-                        isOpen={carouselCropperOpen}
-                        onClose={() => {
-                            setCarouselCropperOpen(false);
-                            setCarouselSelectedImageUrl("");
-                        }}
-                        onComplete={handleCarouselCropComplete}
-                    />
-                )}
-
-                {/* Announcement Settings */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Announcement Bar</CardTitle>
-                        <CardDescription>Display a message at the top of your store page. Leave empty to hide.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Announcement Text</Label>
-                            <Input
-                                value={announcement}
-                                onChange={(e) => setAnnouncement(e.target.value)}
-                                placeholder="e.g. Free delivery on orders above ₹500!"
-                                maxLength={100}
-                            />
-                            <p className="text-xs text-muted-foreground">{announcement.length}/100 characters</p>
-                        </div>
-                        <Button onClick={saveAnnouncementAndBannerMode} size="sm">
-                            <Save className="mr-2 h-4 w-4" />
-                            Save Announcement
-                        </Button>
-                    </CardContent>
-                </Card>
-
                 <Card>
                     <CardHeader>
                         <CardTitle>Store Details</CardTitle>
-                        <CardDescription>Update your store's basic information.</CardDescription>
+                        <CardDescription>Update your store&apos;s basic information.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="space-y-2">
                                 <Label>Store Name</Label>
-                                <Input
-                                    value={storeName}
-                                    onChange={(e) => setStoreName(e.target.value)}
-                                    placeholder="Store Name"
-                                />
+                                <Input value={storeName} onChange={(e) => setStoreName(e.target.value)} placeholder="Store Name" />
                             </div>
                             <div className="space-y-2">
                                 <Label>Store Tagline</Label>
@@ -1247,19 +249,11 @@ export function GeneralSettings() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Phone Number</Label>
-                                <Input
-                                    value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
-                                    placeholder="+91..."
-                                />
+                                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91..." />
                             </div>
                             <div className="space-y-2">
                                 <Label>WhatsApp Number</Label>
-                                <Input
-                                    value={whatsappNumber}
-                                    onChange={(e) => setWhatsappNumber(e.target.value)}
-                                    placeholder="+91..."
-                                />
+                                <Input value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} placeholder="+91..." />
                             </div>
                             <div className="space-y-2">
                                 <Label>Timezone</Label>
@@ -1299,19 +293,11 @@ export function GeneralSettings() {
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="space-y-2">
                                 <Label>Instagram</Label>
-                                <Input
-                                    value={instaLink}
-                                    onChange={(e) => setInstaLink(e.target.value)}
-                                    placeholder="https://instagram.com/..."
-                                />
+                                <Input value={instaLink} onChange={(e) => setInstaLink(e.target.value)} placeholder="https://instagram.com/..." />
                             </div>
                             <div className="space-y-2">
                                 <Label>Facebook</Label>
-                                <Input
-                                    value={facebookLink}
-                                    onChange={(e) => setFacebookLink(e.target.value)}
-                                    placeholder="https://facebook.com/..."
-                                />
+                                <Input value={facebookLink} onChange={(e) => setFacebookLink(e.target.value)} placeholder="https://facebook.com/..." />
                             </div>
                         </div>
                     </CardContent>
@@ -1319,500 +305,156 @@ export function GeneralSettings() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Delivery Platforms</CardTitle>
-                        <CardDescription>Add links to your delivery partner pages so customers can order from their preferred platform.</CardDescription>
+                        <CardTitle>Security</CardTitle>
+                        <CardDescription>Manage your account credentials.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Email Address</Label>
+                            <Input value={userData?.email || ""} readOnly disabled className="bg-muted" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Current Password</Label>
+                            <div className="relative">
+                                <Input
+                                    type={showCurrentPassword ? "text" : "password"}
+                                    value={(userData as any)?.password || ""}
+                                    readOnly
+                                    disabled
+                                    className="bg-muted pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                >
+                                    {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
+                        </div>
+                        {!isResettingPassword ? (
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsResettingPassword(true)}
+                                className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
+                            >
+                                <KeyRound className="mr-2 h-4 w-4" />
+                                Reset Password
+                            </Button>
+                        ) : (
+                            <div className="space-y-4 rounded-lg border p-4">
+                                <div className="space-y-2">
+                                    <Label>New Password</Label>
+                                    <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min. 6 characters" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Confirm Password</Label>
+                                    <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter new password" />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        onClick={async () => {
+                                            if (!newPassword || !confirmPassword) {
+                                                toast.error("Please fill in all fields");
+                                                return;
+                                            }
+                                            if (newPassword !== confirmPassword) {
+                                                toast.error("Passwords do not match");
+                                                return;
+                                            }
+                                            if (newPassword.length < 6) {
+                                                toast.error("Password must be at least 6 characters");
+                                                return;
+                                            }
+                                            setIsPasswordSaving(true);
+                                            try {
+                                                await updatePartner(userData?.id as string, { password: newPassword });
+                                                toast.success("Password updated successfully");
+                                                setNewPassword("");
+                                                setConfirmPassword("");
+                                                setIsResettingPassword(false);
+                                            } catch (error) {
+                                                console.error("Error updating password:", error);
+                                                toast.error("Failed to update password");
+                                            } finally {
+                                                setIsPasswordSaving(false);
+                                            }
+                                        }}
+                                        disabled={isPasswordSaving || !newPassword}
+                                        className="bg-orange-600 hover:bg-orange-700 text-white"
+                                    >
+                                        {isPasswordSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                        Save Password
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => {
+                                            setIsResettingPassword(false);
+                                            setNewPassword("");
+                                            setConfirmPassword("");
+                                        }}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardContent className="pt-6">
+                        <CustomDomainSettings partnerId={userData?.id as string} currentDomain={(userData as any)?.custom_domain} />
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Official Settings</CardTitle>
+                        <CardDescription>
+                            Legal entity details displayed on your storefront&apos;s About, Contact, Terms, Privacy, Refund, and Shipping pages — required for Cashfree KYC.
+                        </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="space-y-2">
-                                <Label>Zomato</Label>
-                                <Input
-                                    value={zomatoLink}
-                                    onChange={(e) => setZomatoLink(e.target.value)}
-                                    placeholder="https://zomato.com/..."
-                                />
+                                <Label>Official Name (Legal Entity)</Label>
+                                <Input value={officialName} onChange={(e) => setOfficialName(e.target.value)} placeholder="e.g. Notime Services Pvt Ltd" />
                             </div>
                             <div className="space-y-2">
-                                <Label>Uber Eats</Label>
-                                <Input
-                                    value={uberEatsLink}
-                                    onChange={(e) => setUberEatsLink(e.target.value)}
-                                    placeholder="https://ubereats.com/..."
-                                />
+                                <Label>Official Email ID</Label>
+                                <Input type="email" value={officialEmailId} onChange={(e) => setOfficialEmailId(e.target.value)} placeholder="contact@yourbusiness.com" />
                             </div>
                             <div className="space-y-2">
-                                <Label>Talabat</Label>
-                                <Input
-                                    value={talabatLink}
-                                    onChange={(e) => setTalabatLink(e.target.value)}
-                                    placeholder="https://talabat.com/..."
-                                />
+                                <Label>Official Phone Number</Label>
+                                <Input value={officialPhoneNumber} onChange={(e) => setOfficialPhoneNumber(e.target.value)} placeholder="+91..." />
                             </div>
                             <div className="space-y-2">
-                                <Label>DoorDash</Label>
-                                <Input
-                                    value={doordashLink}
-                                    onChange={(e) => setDoordashLink(e.target.value)}
-                                    placeholder="https://doordash.com/..."
-                                />
+                                <Label>Operating Address</Label>
+                                <Input value={operatingAddress} onChange={(e) => setOperatingAddress(e.target.value)} placeholder="Full operating address" />
                             </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>About Us</Label>
+                            <Textarea value={aboutUs} onChange={(e) => setAboutUs(e.target.value)} placeholder="Tell customers about your business..." rows={5} />
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="relative">
-                    <CardHeader>
-                        <div className="flex items-center gap-2">
-                            <CardTitle>Google Business Profile</CardTitle>
-                            {isOnFreePlan && <Lock className="h-4 w-4 text-orange-600" />}
-                        </div>
-                        <CardDescription>Connect your Google Business Profile to sync your menu and orders.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {isOnFreePlan ? (
-                            <UpgradePrompt
-                                variant="card"
-                                feature="Google Business Sync"
-                                description="Upgrade to sync your menu with Google Business Profile."
-                            />
-                        ) : !googleConnected ? (
-                            <div className="flex flex-col gap-4">
-                                {googleError && !/quota exceeded|ratelimitexceeded|resource_exhausted/i.test(googleError) && (
-                                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-1">
-                                        <p className="text-sm font-medium text-red-800">
-                                            {googleHasTokens ? "Google account linked, but we couldn't load your business profile" : "Google connection failed"}
-                                        </p>
-                                        <p className="text-xs text-red-700 break-words">{googleError}</p>
-                                        {/no google business accounts/i.test(googleError) && (
-                                            <p className="text-xs text-red-700 pt-1">
-                                                You don't have a Google Business Profile yet. Create or claim one at{" "}
-                                                <a href="https://business.google.com/create" target="_blank" rel="noopener noreferrer" className="underline font-medium">
-                                                    business.google.com
-                                                </a>
-                                                , then click "Re-link Business Profile" below.
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
-                                <p className="text-sm text-muted-foreground">Link your Google account to allow Menuthere to manage your menu automatically.</p>
-                                <Button disabled={isGoogleLoading} onClick={handleGoogleLogin} className="w-full sm:w-auto">
-                                    {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    {googleHasTokens ? "Re-link Business Profile" : "Link Business Profile"}
-                                </Button>
-                            </div>
-                        ) : linkedLocationId ? (
-                            <div className="space-y-4">
-                                <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
-                                    <div className="bg-green-100 p-2 rounded-full">
-                                        <Img src="https://www.gstatic.com/images/branding/product/1x/google_my_business_48dp.png" alt="GMB" className="w-6 h-6" />
-                                    </div>
-                                    <div>
-                                        <p className="font-semibold text-green-800">Connected & Linked</p>
-                                        <p className="text-sm text-green-700">Your restaurant is linked. Menu sync is active.</p>
-                                    </div>
-                                </div>
-                                <Button
-                                    onClick={handleSyncMenu}
-                                    disabled={isSyncingMenu}
-                                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
-                                >
-                                    {isSyncingMenu ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-                                    Sync Menu Now
-                                </Button>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label>Select Your Restaurant Location</Label>
-                                    <Select value={selectedGoogleLocation} onValueChange={setSelectedGoogleLocation}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select location..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {googleLocations.map((loc: any) => (
-                                                <SelectItem key={loc.name} value={loc.name}>
-                                                    {loc.title} ({loc.storeCode || 'No Code'})
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <Button
-                                    onClick={handleSendInvite}
-                                    disabled={!selectedGoogleLocation || isGoogleLoading}
-                                    className="w-full sm:w-auto"
-                                >
-                                    {isGoogleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    Give Management Access
-                                </Button>
-                                <p className="text-xs text-muted-foreground">
-                                    This will invite our MenuThere admin as manager of your Google Business location. Once we accept, your store joins the MenuThere organisation and we can sync your menu.
-                                </p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* WhatsApp Business Integration */}
-                <Card className="relative">
-                    <CardHeader>
-                        <div className="flex items-center gap-2">
-                            <CardTitle>WhatsApp Business</CardTitle>
-                            {isOnFreePlan && <Lock className="h-4 w-4 text-orange-600" />}
-                        </div>
-                        <CardDescription>
-                            Choose how to send WhatsApp messages to your customers — use Menuthere's shared WhatsApp or connect your own business number.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {isOnFreePlan ? (
-                            <UpgradePrompt
-                                variant="card"
-                                feature="WhatsApp Business Integration"
-                                description="Upgrade to connect your own WhatsApp Business account."
-                            />
-                        ) : isWabaLoading ? (
-                            <div className="flex items-center gap-2 py-4">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                <span className="text-sm text-muted-foreground">Checking connection...</span>
-                            </div>
-                        ) : (
-                            <>
-                                {/* Option Selection */}
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    {/* Option 1: Use Menuthere's WhatsApp */}
-                                    <button
-                                        type="button"
-                                        onClick={() => handleWhatsAppModeChange("menuthere")}
-                                        className={`relative flex flex-col gap-2 rounded-lg border-2 p-4 text-left transition-all ${
-                                            whatsappMode === "menuthere"
-                                                ? "border-green-500 bg-green-50"
-                                                : "border-muted hover:border-muted-foreground/30"
-                                        }`}
-                                    >
-                                        {whatsappMode === "menuthere" && (
-                                            <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 text-green-600" />
-                                        )}
-                                        <div className="flex items-center gap-2">
-                                            <MessageCircle className="h-5 w-5 text-green-600" />
-                                            <span className="font-semibold text-sm">Use Menuthere&apos;s WhatsApp</span>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">
-                                            Messages are sent from Menuthere&apos;s shared number. No setup needed — works instantly.
-                                        </p>
-                                    </button>
-
-                                    {/* Option 2: Connect Own WhatsApp */}
-                                    <button
-                                        type="button"
-                                        onClick={() => handleWhatsAppModeChange("own")}
-                                        className={`relative flex flex-col gap-2 rounded-lg border-2 p-4 text-left transition-all ${
-                                            whatsappMode === "own"
-                                                ? "border-blue-500 bg-blue-50"
-                                                : "border-muted hover:border-muted-foreground/30"
-                                        }`}
-                                    >
-                                        {whatsappMode === "own" && (
-                                            <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 text-blue-600" />
-                                        )}
-                                        <div className="flex items-center gap-2">
-                                            <Unplug className="h-5 w-5 text-blue-600" />
-                                            <span className="font-semibold text-sm">Connect Your Own WhatsApp</span>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">
-                                            Messages are sent from your own WhatsApp Business number. Customers see your brand.
-                                        </p>
-                                    </button>
-                                </div>
-
-                                {/* Show connect/status based on selected mode */}
-                                {whatsappMode === "own" && (
-                                    <div className="mt-2">
-                                        {wabaConnected ? (
-                                            <div className="space-y-3">
-                                                <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-4">
-                                                    <div className="rounded-full bg-green-100 p-2">
-                                                        <MessageCircle className="h-5 w-5 text-green-600" />
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <p className="font-semibold text-green-800">WhatsApp Connected</p>
-                                                        <p className="text-sm text-green-700">
-                                                            {wabaPhoneNumber
-                                                                ? `Sending from ${wabaPhoneNumber}`
-                                                                : "Your WhatsApp Business Account is active"}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={handleDisconnectWhatsApp}
-                                                    disabled={isWabaLoading}
-                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                >
-                                                    {isWabaLoading ? (
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    ) : (
-                                                        <Unplug className="mr-2 h-4 w-4" />
-                                                    )}
-                                                    Disconnect
-                                                </Button>
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-3">
-                                                <p className="text-sm text-muted-foreground">
-                                                    Connect your WhatsApp Business Account via Meta. You&apos;ll be guided through the setup process.
-                                                </p>
-                                                <Button
-                                                    onClick={handleConnectWhatsApp}
-                                                    disabled={isWabaLoading}
-                                                    className="bg-[#25D366] hover:bg-[#20BD5A] text-white"
-                                                >
-                                                    {isWabaLoading ? (
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    ) : (
-                                                        <MessageCircle className="mr-2 h-4 w-4" />
-                                                    )}
-                                                    Connect WhatsApp Business
-                                                </Button>
-                                                <p className="text-xs text-muted-foreground">
-                                                    You&apos;ll need a Meta Business Account and a WhatsApp Business phone number.
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {whatsappMode === "menuthere" && (
-                                    <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3">
-                                        <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
-                                        <p className="text-sm text-green-800">
-                                            Active — Order notifications will be sent via Menuthere&apos;s WhatsApp.
-                                        </p>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </CardContent>
-                </Card>
-
-            </div >
-
-            {isCropperOpen && selectedImageUrl && (
-                <BannerEditor
-                    isOpen={isCropperOpen}
-                    imageUrl={selectedImageUrl}
-                    onComplete={(url) => handleCropComplete(url)}
-                    onClose={() => setIsCropperOpen(false)}
-                />
-            )}
-
-            {isVideoEditorOpen && selectedVideoFile && (
-                <VideoEditor
-                    isOpen={isVideoEditorOpen}
-                    videoFile={selectedVideoFile}
-                    onComplete={handleVideoComplete}
-                    onClose={() => {
-                        setIsVideoEditorOpen(false);
-                        setSelectedVideoFile(null);
-                    }}
-                />
-            )}
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Security</CardTitle>
-                    <CardDescription>Manage your account credentials.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label>Email Address</Label>
-                        <Input
-                            value={userData?.email || ""}
-                            readOnly
-                            disabled
-                            className="bg-muted"
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label>Current Password</Label>
-                        <div className="relative">
-                            <Input
-                                type={showCurrentPassword ? "text" : "password"}
-                                value={(userData as any)?.password || ""}
-                                readOnly
-                                disabled
-                                className="bg-muted pr-10"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                            >
-                                {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </button>
-                        </div>
-                    </div>
-
-                    {!isResettingPassword ? (
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsResettingPassword(true)}
-                            className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
-                        >
-                            <KeyRound className="mr-2 h-4 w-4" />
-                            Reset Password
-                        </Button>
-                    ) : (
-                        <div className="space-y-4 rounded-lg border p-4">
-                            <div className="space-y-2">
-                                <Label>New Password</Label>
-                                <Input
-                                    type="password"
-                                    value={newPassword}
-                                    onChange={(e) => setNewPassword(e.target.value)}
-                                    placeholder="Min. 6 characters"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Confirm Password</Label>
-                                <Input
-                                    type="password"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    placeholder="Re-enter new password"
-                                />
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    onClick={async () => {
-                                        if (!newPassword || !confirmPassword) {
-                                            toast.error("Please fill in all fields");
-                                            return;
-                                        }
-                                        if (newPassword !== confirmPassword) {
-                                            toast.error("Passwords do not match");
-                                            return;
-                                        }
-                                        if (newPassword.length < 6) {
-                                            toast.error("Password must be at least 6 characters");
-                                            return;
-                                        }
-
-                                        setIsPasswordSaving(true);
-                                        try {
-                                            await updatePartner(userData?.id as string, { password: newPassword });
-                                            toast.success("Password updated successfully");
-                                            setNewPassword("");
-                                            setConfirmPassword("");
-                                            setIsResettingPassword(false);
-                                        } catch (error) {
-                                            console.error("Error updating password:", error);
-                                            toast.error("Failed to update password");
-                                        } finally {
-                                            setIsPasswordSaving(false);
-                                        }
-                                    }}
-                                    disabled={isPasswordSaving || !newPassword}
-                                    className="bg-orange-600 hover:bg-orange-700 text-white"
-                                >
-                                    {isPasswordSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                                    Save Password
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() => {
-                                        setIsResettingPassword(false);
-                                        setNewPassword("");
-                                        setConfirmPassword("");
-                                    }}
-                                >
-                                    Cancel
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardContent className="pt-6">
-                    <CustomDomainSettings
-                        partnerId={userData?.id as string}
-                        currentDomain={(userData as any)?.custom_domain}
-                    />
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Official Settings</CardTitle>
-                    <CardDescription>
-                        Legal entity details displayed on your storefront's About, Contact, Terms, Privacy, Refund, and Shipping pages — required for Cashfree KYC.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                            <Label>Official Name (Legal Entity)</Label>
-                            <Input
-                                value={officialName}
-                                onChange={(e) => setOfficialName(e.target.value)}
-                                placeholder="e.g. Notime Services Pvt Ltd"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Official Email ID</Label>
-                            <Input
-                                type="email"
-                                value={officialEmailId}
-                                onChange={(e) => setOfficialEmailId(e.target.value)}
-                                placeholder="contact@yourbusiness.com"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Official Phone Number</Label>
-                            <Input
-                                value={officialPhoneNumber}
-                                onChange={(e) => setOfficialPhoneNumber(e.target.value)}
-                                placeholder="+91..."
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Operating Address</Label>
-                            <Input
-                                value={operatingAddress}
-                                onChange={(e) => setOperatingAddress(e.target.value)}
-                                placeholder="Full operating address"
-                            />
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>About Us</Label>
-                        <Textarea
-                            value={aboutUs}
-                            onChange={(e) => setAboutUs(e.target.value)}
-                            placeholder="Tell customers about your business..."
-                            rows={5}
-                        />
-                    </div>
-                </CardContent>
-            </Card>
-
-            <div className="flex justify-start pt-6 border-t">
-                <Button
-                    variant="destructive"
-                    onClick={async () => {
-                        await useAuthStore.getState().signOut();
-                        window.location.href = "/";
-                    }}
-                    className="flex items-center gap-2"
-                >
-                    <LogOut className="h-4 w-4" />
-                    Log Out
-                </Button>
+                <div className="flex justify-start pt-6 border-t">
+                    <Button
+                        variant="destructive"
+                        onClick={async () => {
+                            await useAuthStore.getState().signOut();
+                            window.location.href = "/";
+                        }}
+                        className="flex items-center gap-2"
+                    >
+                        <LogOut className="h-4 w-4" />
+                        Log Out
+                    </Button>
+                </div>
             </div>
-        </div >
+        </div>
     );
 }
