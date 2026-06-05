@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Truck, Phone, MapPin, Loader2, X } from "lucide-react";
+import { Truck, Phone, MapPin, Loader2, X, Copy, Check, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { getDispatchProgress, cancelDispatch } from "@/app/actions/porterBridge";
 
@@ -37,14 +37,19 @@ const PROVIDER_LABEL: Record<string, string> = {
 export default function DeliveryRiderPanel({
   orderId,
   showCancel = false,
+  completed = false,
 }: {
   orderId: string;
   showCancel?: boolean;
+  /** When the order is marked completed, render a static "Delivered" card and
+   *  stop polling — the rider is no longer en route. */
+  completed?: boolean;
 }) {
   const [r, setR] = useState<Rider | null>(null);
   const [imgOk, setImgOk] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [cancelled, setCancelled] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -56,7 +61,9 @@ export default function DeliveryRiderPanel({
         const d = res.data as unknown as Rider;
         setR(d);
         const term = d.bookingStatus === "cancelled" || d.bookingStatus === "failed" || d.bookingStatus === "ended";
-        if (!term) {
+        // Once the order is completed we only need the rider's details once —
+        // no need to keep polling for live location.
+        if (!term && !completed) {
           const assigned = d.status === "assigned" && !!d.driver?.name;
           timer = setTimeout(tick, assigned ? 20000 : 6000);
         }
@@ -67,7 +74,75 @@ export default function DeliveryRiderPanel({
       active = false;
       if (timer) clearTimeout(timer);
     };
-  }, [orderId]);
+  }, [orderId, completed]);
+
+  const copyPhone = async (phone?: string) => {
+    if (!phone) return;
+    try {
+      await navigator.clipboard.writeText(phone);
+      setCopied(true);
+      toast.success("Phone number copied");
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Failed to copy number");
+    }
+  };
+
+  // Order completed → show a static "Delivered" card with just the rider's
+  // name, vehicle number and phone (the only details still relevant).
+  if (completed && r?.driver?.name) {
+    const d = r.driver;
+    const provider = r.wonProvider ? (PROVIDER_LABEL[r.wonProvider] ?? r.wonProvider) : "Delivery";
+    return (
+      <div className="rounded-2xl shadow-sm overflow-hidden bg-gradient-to-br from-emerald-50 to-green-50 p-4 sm:p-5">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="flex-shrink-0 w-11 h-11 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+            <CheckCircle2 className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-base font-bold text-gray-900">Delivered</h2>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-white text-emerald-700 ring-1 ring-emerald-200 whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                {provider}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600 mt-0.5">Order delivered by the partner</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm p-3 space-y-2">
+          <div>
+            <p className="font-semibold text-gray-900 truncate">{d.name}</p>
+            {d.vehicleNumber && (
+              <p className="text-xs text-gray-500 truncate">
+                {d.vehicleNumber}
+                {d.vehicleModel ? ` · ${d.vehicleModel}` : ""}
+              </p>
+            )}
+          </div>
+          {d.phone && (
+            <div className="flex items-center gap-2 border-t border-gray-100 pt-2">
+              <Phone className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span className="text-sm font-medium text-gray-800">{d.phone}</span>
+              <button
+                type="button"
+                onClick={() => copyPhone(d.phone)}
+                aria-label="Copy phone number"
+                className="inline-flex items-center justify-center h-7 w-7 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                {copied ? (
+                  <Check className="h-4 w-4 text-emerald-600" />
+                ) : (
+                  <Copy className="h-4 w-4 text-gray-500" />
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // Terminal either locally (cancel button) or from the bridge dashboard
   // (won booking flipped to cancelled/failed).
@@ -140,6 +215,23 @@ export default function DeliveryRiderPanel({
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 truncate">{name}</p>
           <p className="text-xs text-gray-500 truncate">{vehicle}</p>
+          {driver.phone && (
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-xs font-medium text-gray-700">{driver.phone}</span>
+              <button
+                type="button"
+                onClick={() => copyPhone(driver.phone)}
+                aria-label="Copy phone number"
+                className="inline-flex items-center justify-center h-6 w-6 rounded-full hover:bg-purple-100 transition-colors"
+              >
+                {copied ? (
+                  <Check className="h-3.5 w-3.5 text-emerald-600" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5 text-gray-500" />
+                )}
+              </button>
+            </div>
+          )}
         </div>
         {driver.phone && (
           <a

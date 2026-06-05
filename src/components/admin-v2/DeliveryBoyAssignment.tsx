@@ -18,7 +18,7 @@ import { Partner, useAuthStore } from "@/store/authStore";
 import { Order } from "@/store/orderStore";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
 import { toast } from "sonner";
-import { Bike, Copy, Loader2, MapPin, Phone, Truck } from "lucide-react";
+import { Copy, Loader2, MapPin, Phone, Truck } from "lucide-react";
 import { Notification } from "@/app/actions/notification";
 import { useLiveAgentLocation } from "@/hooks/useLiveAgentLocation";
 
@@ -71,49 +71,6 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
     }
   };
 
-  const copyDropAddressSilent = async () => {
-    const dropAddress = (order.deliveryAddress || "").trim();
-    if (!dropAddress) return false;
-    try {
-      await navigator.clipboard.writeText(dropAddress);
-      toast.success("Drop address copied");
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
-  const handleBookPorter = async () => {
-    await copyDropAddressSilent();
-    window.open(
-      "https://porter.in/two-wheelers/",
-      "_blank",
-      "noopener,noreferrer",
-    );
-  };
-
-  const handleBookRapido = async () => {
-    const partner = userData as Partner;
-    const pickupAddress = [partner?.location, partner?.location_details]
-      .map((v) => (v || "").trim())
-      .filter(Boolean)
-      .join(", ");
-    const dropAddress = (order.deliveryAddress || "").trim();
-    if (!pickupAddress) {
-      toast.error(
-        "No restaurant address set. Add one in Settings → General → Address & Coordinates",
-      );
-      return;
-    }
-    if (!dropAddress) {
-      toast.error("No drop address available for this order");
-      return;
-    }
-    await copyDropAddressSilent();
-    const url = `https://m.rapido.bike/home`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
-
   const handleCopyPickup = () => {
     const partner = userData as Partner;
     const pickupAddress = [partner?.location, partner?.location_details]
@@ -131,24 +88,6 @@ export function DeliveryBoyAssignment({ order }: DeliveryBoyAssignmentProps) {
 
   const deliveryActions = (
     <div className="grid grid-cols-2 gap-2">
-      <Button
-        type="button"
-        size="sm"
-        onClick={handleBookPorter}
-        className="w-full min-w-0 bg-[#0a57ff] text-white hover:bg-[#0a57ff]/90"
-      >
-        <Bike className="h-3.5 w-3.5 mr-1.5 shrink-0" />
-        <span className="truncate">Book Porter</span>
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        onClick={handleBookRapido}
-        className="w-full min-w-0 bg-[#fbcb1c] text-black hover:bg-[#fbcb1c]/90"
-      >
-        <Bike className="h-3.5 w-3.5 mr-1.5 shrink-0" />
-        <span className="truncate">Book Rapido</span>
-      </Button>
       <Button
         type="button"
         variant="outline"
