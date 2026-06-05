@@ -634,11 +634,16 @@ interface PartnerDispatchCfg {
   /** Base/default mobile (porter_mobile ?? phone): pickup contact + per-provider fallback. */
   mobile: string;
   /** Per-provider mobiles — a partner may have logged into each service with a
-   *  different number. Each falls back to `mobile` when its own column is unset. */
-  mobiles: { porter: string; uber: string; rapido: string };
+   *  different number. Each falls back to `mobile` when its own column is unset.
+   *  Only ENABLED providers (those in the partner's priority queue) are present;
+   *  disabled providers are omitted so the bridge never quotes/dispatches them. */
+  mobiles: Partial<Record<"porter" | "uber" | "rapido", string>>;
   pickup: { lat: number; lng: number };
   storeName: string;
-  priority: string[] | undefined;
+  /** The enabled providers in dispatch order — always an explicit list (the
+   *  partner's configured queue, or all three when unset). Never undefined, so
+   *  the bridge never falls back to trying every provider. */
+  priority: string[];
   /** Booking method: "bike" (normal 2-wheeler ride) or "parcel" (courier class). */
   vehicleMode: "bike" | "parcel";
   /** Per-provider payment mode override (e.g. Porter:wallet). Sent to the bridge
@@ -689,13 +694,35 @@ async function loadPartnerDispatchCfg(
   const mobile = normaliseMobile(p.porter_mobile) ?? normaliseMobile(p.phone);
   if (!pickup) return { ok: false, message: "partner pickup coords missing" };
   if (!mobile) return { ok: false, message: "partner has no delivery mobile to resolve" };
-  const mobiles = {
+  // "Enabled" providers = the partner's configured priority queue (the Delivery
+  // Bridge Settings ✕/＋ list). When unset/invalid, default to all three. We
+  // scope BOTH the priority order AND the per-provider mobiles to this set: the
+  // bridge resolves and quotes an account for every mobile it's handed, so
+  // sending a disabled provider's (fallback) number would still quote/dispatch
+  // it. Filtering here is what keeps the quote to only the enabled providers.
+  const ALL_PROVIDERS = ["porter", "uber", "rapido"] as const;
+  type Provider = (typeof ALL_PROVIDERS)[number];
+  const pri = p.delivery_rules?.delivery_provider_priority;
+  const requested =
+    Array.isArray(pri) && pri.length
+      ? pri
+          .map(String)
+          .filter((x): x is Provider =>
+            (ALL_PROVIDERS as readonly string[]).includes(x),
+          )
+      : [];
+  // De-dupe but keep configured order; fall back to all three when nothing valid
+  // was configured (an unconfigured partner = every provider enabled).
+  const priority: Provider[] = requested.length
+    ? Array.from(new Set(requested))
+    : [...ALL_PROVIDERS];
+  const perProviderMobile: Record<Provider, string> = {
     porter: normaliseMobile(p.porter_mobile) ?? mobile,
     uber: normaliseMobile(p.uber_mobile) ?? mobile,
     rapido: normaliseMobile(p.rapido_mobile) ?? mobile,
   };
-  const pri = p.delivery_rules?.delivery_provider_priority;
-  const priority = Array.isArray(pri) && pri.length ? pri.map(String) : undefined;
+  const mobiles: Partial<Record<Provider, string>> = {};
+  for (const prov of priority) mobiles[prov] = perProviderMobile[prov];
   const vehicleMode: "bike" | "parcel" =
     p.delivery_rules?.delivery_vehicle_mode === "parcel" ? "parcel" : "bike";
   // Per-provider payment modes — keep only valid "cash"/"wallet" values.
