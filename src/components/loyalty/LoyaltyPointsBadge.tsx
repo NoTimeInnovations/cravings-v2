@@ -72,7 +72,8 @@ export function LoyaltyHistorySheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="rounded-t-3xl p-0 max-h-[85vh] flex flex-col border-0"
+        className="rounded-t-3xl p-0 max-h-[85vh] flex flex-col border-0 z-[1000]"
+        overlayClassName="z-[1000]"
       >
         <SheetHeader className="px-5 pt-5 pb-2">
           <SheetTitle className="flex items-center gap-2 text-left">

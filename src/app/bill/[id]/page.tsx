@@ -66,6 +66,8 @@ query GetOrder($id: uuid!) {
     gst_included
     extra_charges
     discounts
+    loyalty_points_redeemed
+    loyalty_redeem_value
     phone
     user_id
     user {
@@ -652,6 +654,15 @@ const PrintOrderPage = () => {
               <span>
                 {currency}
                 {gstAmount.toFixed(2)}
+              </span>
+            </div>
+          )}
+          {(order.loyalty_points_redeemed ?? 0) > 0 && (
+            <div className="flex justify-between">
+              <span>Loyalty Points ({order.loyalty_points_redeemed} pts):</span>
+              <span>
+                -{currency}
+                {Number(order.loyalty_redeem_value || 0).toFixed(2)}
               </span>
             </div>
           )}
