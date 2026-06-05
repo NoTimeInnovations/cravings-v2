@@ -29,6 +29,16 @@ function maybeCancelPorter(orderId: string, reason: string): void {
     );
 }
 
+/**
+ * Return any loyalty points the cancelled order had redeemed. Fire-and-forget and
+ * idempotent (one refund per order) — a cancel never fails over a refund hiccup.
+ */
+function maybeRefundLoyalty(orderId: string, reason: string): void {
+  import("@/app/actions/loyalty")
+    .then(({ refundLoyaltyForOrder }) => refundLoyaltyForOrder(orderId, reason))
+    .catch((e) => console.warn("[loyalty] cancel refund threw:", e));
+}
+
 type CancelResult =
   | { success: true }
   | { success: false; message: string };
@@ -97,6 +107,7 @@ export async function cancelOrderAction(
         return { success: false, message: "Failed to cancel order" };
       }
       maybeCancelPorter(orderId, reason);
+      maybeRefundLoyalty(orderId, "Order cancelled");
       return { success: true };
     } catch (err: any) {
       return { success: false, message: err?.message || "Failed to cancel order" };
@@ -129,6 +140,7 @@ export async function cancelOrderAction(
     }
 
     maybeCancelPorter(orderId, reason);
+    maybeRefundLoyalty(orderId, "Order cancelled");
     return { success: true };
   } catch (err: any) {
     return { success: false, message: err?.message || "Network error" };

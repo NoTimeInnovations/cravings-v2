@@ -27,6 +27,9 @@ export const getOrdersOfPartnerQuery = `
       gst_included
       extra_charges
       discounts
+      loyalty_points_redeemed
+      loyalty_redeem_value
+      loyalty_points_earned
       phone
       captain_id
       order_items {

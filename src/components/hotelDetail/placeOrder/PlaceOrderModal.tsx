@@ -49,6 +49,10 @@ import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { waitForCashfreeContainer } from "@/lib/cashfreeEmbed";
 import { finalizeCfOrder } from "@/app/actions/cfOrders";
+import { LoyaltyRedeemCard } from "./LoyaltyRedeemCard";
+import { LoyaltyHistorySheet } from "@/components/loyalty/LoyaltyPointsBadge";
+import { getLoyaltyRedeemContext, redeemLoyaltyPoints, refundLoyaltyForOrder } from "@/app/actions/loyalty";
+import { computeMaxRedeemable } from "@/lib/loyalty/config";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import { checkDeliveryAgentAvailability } from "@/app/actions/deliveryAgent";
 import { quoteDeliveryFare } from "@/app/actions/porterBridge";
@@ -607,6 +611,8 @@ interface BillCardProps {
   } | null;
   porterQuoteLoading?: boolean;
   usePorterForCharge?: boolean;
+  /** ₹ value of loyalty points the customer is redeeming on this order. */
+  loyaltyRedeemValue?: number;
 }
 
 const BillCard = ({
@@ -624,6 +630,7 @@ const BillCard = ({
   porterQuote,
   porterQuoteLoading,
   usePorterForCharge,
+  loyaltyRedeemValue = 0,
 }: BillCardProps) => {
   const subtotal = items.reduce(
     (acc, item) => acc + item.price * item.quantity,
@@ -702,7 +709,8 @@ const BillCard = ({
     }
     discountSavings = Math.min(discountSavings, subtotal);
   }
-  const grandTotal = Math.max(0, subtotal + qrExtraCharges + deliveryCharges + parcelCharge + gstAmount - discountSavings);
+  const loyaltyApplied = Math.max(0, Math.min(loyaltyRedeemValue, subtotal + qrExtraCharges + deliveryCharges + parcelCharge + gstAmount - discountSavings));
+  const grandTotal = Math.max(0, subtotal + qrExtraCharges + deliveryCharges + parcelCharge + gstAmount - discountSavings - loyaltyApplied);
 
   return (
     <div>
@@ -824,6 +832,15 @@ const BillCard = ({
             </span>
             <span style={{ color: "var(--pom-accent, #ea580c)" }}>
               -{currency}{" "}{discountSavings.toFixed(2)}
+            </span>
+          </div>
+        )}
+
+        {loyaltyApplied > 0 && (
+          <div className="flex justify-between text-sm opacity-80">
+            <span className="font-medium">Loyalty Points</span>
+            <span style={{ color: "var(--pom-accent, #ea580c)" }}>
+              -{currency}{" "}{loyaltyApplied.toFixed(2)}
             </span>
           </div>
         )}
@@ -1689,6 +1706,34 @@ const PlaceOrderModal = ({
   const [finalOrderAmount, setFinalOrderAmount] = useState(0);
   const [generatedWhatsappLink, setGeneratedWhatsappLink] = useState<string>("");
   const [cashfreePaid, setCashfreePaid] = useState(hasCashfreeReturn);
+
+  // Loyalty points: context (balance + rules) fetched server-side, and how many
+  // points the customer chose to redeem on this order. The actual debit/correction
+  // is done server-side after the order is created (see handlePlaceOrder / cashfree).
+  const [loyaltyCtx, setLoyaltyCtx] = useState<{
+    enabled: boolean;
+    balance: number;
+    pointValue: number;
+    minRedeemPoints: number;
+    maxRedeemPercent: number;
+  } | null>(null);
+  const [redeemPoints, setRedeemPoints] = useState(0);
+  const [loyaltyHistoryOpen, setLoyaltyHistoryOpen] = useState(false);
+
+  // Load the customer's loyalty standing for this partner when the sheet opens.
+  useEffect(() => {
+    if (!open_place_order_modal || !(user as any)?.id || !hotelData?.id) return;
+    let cancelled = false;
+    getLoyaltyRedeemContext(hotelData.id)
+      .then((ctx) => { if (!cancelled) setLoyaltyCtx(ctx); })
+      .catch(() => { if (!cancelled) setLoyaltyCtx(null); });
+    return () => { cancelled = true; };
+  }, [open_place_order_modal, (user as any)?.id, hotelData?.id]);
+
+  // Clear any points selection whenever the sheet closes.
+  useEffect(() => {
+    if (!open_place_order_modal) setRedeemPoints(0);
+  }, [open_place_order_modal]);
 
   // Customer name state
   const needUserName = hotelData?.delivery_rules?.need_user_name ?? false;
@@ -2823,12 +2868,25 @@ const PlaceOrderModal = ({
       if (result) {
         if (result.id) {
           localStorage?.setItem("last-order-id", result.id);
+
+          // Redeem loyalty points server-side now that the order exists. The server
+          // re-validates the balance, writes the signed debit, and corrects the order
+          // total — so the bill the customer pays reflects the points used.
+          if (redeemPoints > 0 && loyaltyCtx?.enabled) {
+            try {
+              const r = await redeemLoyaltyPoints({ orderId: result.id, points: redeemPoints });
+              if (r.ok && r.value > 0) setFinalOrderAmount(r.orderTotal);
+            } catch (e) {
+              console.warn("[loyalty] redeem failed", e);
+            }
+          }
         }
 
         if (appliedDiscount?.id) {
           fetchFromHasura(incrementDiscountUsageMutation, { id: appliedDiscount.id }).catch(() => { });
         }
 
+        setRedeemPoints(0);
         setAppliedDiscount(null);
         setDiscountInput("");
         setDiscountError("");
@@ -2989,12 +3047,26 @@ const PlaceOrderModal = ({
       }
       const orderId = placed.id;
 
+      // Redeem loyalty points BEFORE locking the Cashfree amount. The server writes
+      // the signed debit and returns the corrected order total, which becomes the
+      // exact amount charged. If payment later fails/abandons, points are refunded
+      // (failure paths below + the pending-order expiry cron).
+      let payable = grandTotal;
+      if (redeemPoints > 0 && loyaltyCtx?.enabled) {
+        try {
+          const r = await redeemLoyaltyPoints({ orderId, points: redeemPoints });
+          if (r.ok && r.value > 0) payable = r.orderTotal;
+        } catch (e) {
+          console.warn("[loyalty] redeem failed", e);
+        }
+      }
+
       // Store order context in sessionStorage so we can resume after redirect
       sessionStorage.setItem("cashfree_pending_order", JSON.stringify({
         cfOrderId,
         orderId,
         partnerId: hotelData.id,
-        amount: grandTotal,
+        amount: payable,
         orderType: orderType || null,
         address: address || null,
         customerName: customerName || null,
@@ -3011,7 +3083,7 @@ const PlaceOrderModal = ({
       const cfRes = await createCashfreeOrderForPartner(
         hotelData.id,
         cfOrderId,
-        Math.round(grandTotal * 100) / 100,
+        Math.round(payable * 100) / 100,
         {
           id: user.id,
           name: (user as any)?.full_name || customerName || "Customer",
@@ -3022,6 +3094,7 @@ const PlaceOrderModal = ({
       );
 
       if (!cfRes.success) {
+        if (redeemPoints > 0) refundLoyaltyForOrder(orderId, "Payment could not be started").catch(() => {});
         toast.error(`Payment failed: ${cfRes.error || "could not create payment order"}`, { duration: 30000 });
         setOrderStatus("idle");
         return;
@@ -3063,6 +3136,7 @@ const PlaceOrderModal = ({
 
       if (result?.error) {
         console.error("Cashfree error:", result.error);
+        if (redeemPoints > 0) refundLoyaltyForOrder(orderId, "Payment failed").catch(() => {});
         const full =
           typeof result.error === "string"
             ? result.error
@@ -3276,6 +3350,23 @@ const PlaceOrderModal = ({
   );
   const _barDiscountSavings = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
   const _barGrandTotal = Math.max(0, _barSubtotal + _barQrCharge + _barDeliveryCharge + _barParcelCharge + _barGst - _barDiscountSavings);
+
+  // ---- Loyalty redemption (derived) ----
+  // `_barGrandTotal` is the pre-redemption total. Max points are bounded by the
+  // balance and the partner's bill cap; the value is subtracted to get what's payable.
+  const loyaltyPointValue = loyaltyCtx?.pointValue && loyaltyCtx.pointValue > 0 ? loyaltyCtx.pointValue : 1;
+  const loyaltyMaxPoints = loyaltyCtx?.enabled
+    ? computeMaxRedeemable(_barGrandTotal, loyaltyCtx.balance, {
+        earn_percent: 0,
+        min_order_amount: 0,
+        max_redeem_percent: loyaltyCtx.maxRedeemPercent,
+        min_redeem_points: loyaltyCtx.minRedeemPoints,
+        point_value: loyaltyPointValue,
+      })
+    : 0;
+  const effectiveRedeemPoints = Math.max(0, Math.min(redeemPoints, loyaltyMaxPoints));
+  const loyaltyRedeemValue = Math.round(effectiveRedeemPoints * loyaltyPointValue * 100) / 100;
+  const payableTotal = Math.max(0, Math.round((_barGrandTotal - loyaltyRedeemValue) * 100) / 100);
 
   return (
     <>
@@ -3600,8 +3691,33 @@ const PlaceOrderModal = ({
                   porterQuote={porterQuote}
                   porterQuoteLoading={porterQuoteLoading}
                   usePorterForCharge={usePorterForCharge}
+                  loyaltyRedeemValue={loyaltyRedeemValue}
                 />
               </div>
+
+              {/* Loyalty points redemption */}
+              {user && loyaltyCtx?.enabled && loyaltyCtx.balance > 0 && (
+                <LoyaltyRedeemCard
+                  currency={hotelData?.currency || "₹"}
+                  balance={loyaltyCtx.balance}
+                  pointValue={loyaltyPointValue}
+                  maxPoints={loyaltyMaxPoints}
+                  minRedeemPoints={loyaltyCtx.minRedeemPoints}
+                  points={effectiveRedeemPoints}
+                  value={loyaltyRedeemValue}
+                  onChange={(p) => setRedeemPoints(Math.max(0, Math.min(p, loyaltyMaxPoints)))}
+                  onViewHistory={() => setLoyaltyHistoryOpen(true)}
+                />
+              )}
+              {user && loyaltyCtx?.enabled && (
+                <LoyaltyHistorySheet
+                  partnerId={hotelData.id}
+                  currency={hotelData?.currency || "₹"}
+                  storeName={hotelData?.store_name}
+                  open={loyaltyHistoryOpen}
+                  onOpenChange={setLoyaltyHistoryOpen}
+                />
+              )}
 
               {/* Login prompt */}
               {!user && (
@@ -3792,7 +3908,7 @@ const PlaceOrderModal = ({
                     ) : (
                       <>
                         <span className="text-left shrink-0">
-                          <span className="block text-[14px] font-bold leading-tight">{hotelData?.currency || "₹"}{_barGrandTotal.toFixed(2)}</span>
+                          <span className="block text-[14px] font-bold leading-tight">{hotelData?.currency || "₹"}{payableTotal.toFixed(2)}</span>
                           <span className="block text-[10px] font-semibold opacity-80 leading-tight">TOTAL</span>
                         </span>
                         <span className="flex items-center gap-1 text-[14px] font-bold whitespace-nowrap">

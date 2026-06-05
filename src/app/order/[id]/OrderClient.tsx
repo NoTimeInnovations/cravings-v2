@@ -10,6 +10,8 @@ import { useLiveAgentLocation } from "@/hooks/useLiveAgentLocation";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Order, OrderItem } from "@/store/orderStore";
 import OfferLoadinPage from "@/components/OfferLoadinPage";
+import { getOrderLoyaltyInfo } from "@/app/actions/loyalty";
+import { LoyaltyPointsBadge } from "@/components/loyalty/LoyaltyPointsBadge";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
 import { getFeatures } from "@/lib/getFeatures";
 import { ArrowLeft, MessageCircle, CreditCard, Phone, Truck, Loader2, Star, Bike, Store, MapPin, Receipt, Package, User, StickyNote, ShoppingBag, XCircle, ChevronDown, CalendarClock } from "lucide-react";
@@ -118,6 +120,7 @@ const OrderClient = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showUpiScreen, setShowUpiScreen] = useState(false);
+    const [loyaltyInfo, setLoyaltyInfo] = useState<{ pointsRedeemed: number; redeemValue: number; pointsEarned: number | null } | null>(null);
     const [partnerPaymentInfo, setPartnerPaymentInfo] = useState<{
         upi_id?: string;
         show_payment_qr?: boolean;
@@ -325,6 +328,17 @@ const OrderClient = () => {
             })
             .catch(() => setCashfreeVerifying(false));
     }, [orderId]);
+
+    // Loyalty redemption/earn snapshot for this order (re-reads when status changes,
+    // e.g. once it's completed and points are awarded).
+    useEffect(() => {
+        if (!orderId) return;
+        let cancelled = false;
+        getOrderLoyaltyInfo(orderId)
+            .then((info) => { if (!cancelled) setLoyaltyInfo(info); })
+            .catch(() => { });
+        return () => { cancelled = true; };
+    }, [orderId, order?.status]);
 
     // Use total_price directly from DB
     const grandTotal = order?.totalPrice || 0;
@@ -1129,11 +1143,38 @@ ${itemsText}
                                     </div>
                                 )}
 
+                                {loyaltyInfo && loyaltyInfo.pointsRedeemed > 0 && (
+                                    <div className="flex justify-between text-orange-600 font-medium">
+                                        <span>Loyalty points ({loyaltyInfo.pointsRedeemed} pts)</span>
+                                        <span>
+                                            −{order?.partner?.currency || "₹"}{loyaltyInfo.redeemValue.toFixed(2)}
+                                        </span>
+                                    </div>
+                                )}
+
                                 <div className="border-t border-dashed mt-2 pt-2 flex justify-between text-base font-bold text-gray-900">
                                     <span>To pay</span>
                                     <span>{order?.partner?.currency || "₹"}{grandTotal.toFixed(2)}</span>
                                 </div>
                             </div>
+
+                            {/* Loyalty points summary + history */}
+                            {order?.partnerId && loyaltyInfo && (loyaltyInfo.pointsEarned != null || loyaltyInfo.pointsRedeemed > 0) && (
+                                <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-orange-50 px-4 py-3">
+                                    <div className="text-sm text-orange-900">
+                                        {loyaltyInfo.pointsEarned != null && loyaltyInfo.pointsEarned > 0 ? (
+                                            <>You earned <span className="font-bold">{loyaltyInfo.pointsEarned} points</span> on this order 🎉</>
+                                        ) : (
+                                            <>You redeemed <span className="font-bold">{loyaltyInfo.pointsRedeemed} points</span> on this order</>
+                                        )}
+                                    </div>
+                                    <LoyaltyPointsBadge
+                                        partnerId={order.partnerId}
+                                        currency={order?.partner?.currency || "₹"}
+                                        storeName={order?.partner?.store_name}
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         {/* Card: Delivery details (delivery only) */}

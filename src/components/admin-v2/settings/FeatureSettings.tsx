@@ -353,6 +353,23 @@ export function FeatureSettings() {
                                     />
                                 </div>
                             )}
+
+                            {features.loyalty_points?.access && (
+                                <div className="flex items-center justify-between p-4 border rounded-lg">
+                                    <div className="space-y-0.5">
+                                        <div className="font-medium">Loyalty Points</div>
+                                        <div className="text-sm text-muted-foreground">
+                                            {features.loyalty_points.enabled
+                                                ? "Enabled — customers earn & redeem points. Configure earn rate in Loyalty settings."
+                                                : "Disabled — no points are earned or redeemable"}
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={features.loyalty_points.enabled}
+                                        onCheckedChange={(checked) => handleFeatureToggle("loyalty_points", checked)}
+                                    />
+                                </div>
+                            )}
                         </>
                     )}
                 </CardContent>

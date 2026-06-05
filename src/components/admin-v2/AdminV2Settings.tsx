@@ -14,6 +14,7 @@ import { SlotBookingSettings } from "./settings/SlotBookingSettings";
 import { OrderTypesSettings } from "./settings/OrderTypesSettings";
 import { BrandingSettings } from "./settings/BrandingSettings";
 import { IntegrationsSettings } from "./settings/IntegrationsSettings";
+import { LoyaltyPointsSettings } from "./settings/LoyaltyPointsSettings";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +27,7 @@ import {
     Palette,
     SlidersHorizontal,
     Plug,
+    Gift,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
@@ -76,6 +78,7 @@ export function AdminV2Settings() {
     const showDiscountSettings = features?.ordering?.access || features?.delivery?.access;
     const showPrebookingGroup = features?.prebooking?.access && features?.prebooking?.enabled;
     const showStorefront = features?.storefront?.access && features?.storefront?.enabled;
+    const showLoyalty = features?.loyalty_points?.access;
 
     const username = (userData as any)?.username;
     const firstQrCodeId = (userData as any)?.qr_codes?.[0]?.id;
@@ -146,6 +149,15 @@ export function AdminV2Settings() {
             desc: "Google Business, WhatsApp & delivery platforms",
             icon: Plug,
             sections: [{ key: "integrations", label: "Integrations", Component: IntegrationsSettings }],
+        },
+        {
+            key: "loyalty",
+            label: "Loyalty",
+            desc: "Points customers earn & redeem at your store",
+            icon: Gift,
+            sections: showLoyalty
+                ? [{ key: "loyalty-points", label: "Loyalty Points", Component: LoyaltyPointsSettings }]
+                : [],
         },
         {
             key: "features",

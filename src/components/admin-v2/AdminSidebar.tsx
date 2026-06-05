@@ -22,6 +22,7 @@ import {
   Bike,
   MessageSquare,
   Inbox,
+  Gift,
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
@@ -51,6 +52,7 @@ const sidebarItems: SidebarItem[] = [
   { title: "Delivery Boys", icon: Truck, id: "deliveryboys" },
   { title: "POS", icon: CreditCard, id: "pos" },
   { title: "Customers", icon: Users, id: "customers" },
+  { title: "Loyalty", icon: Gift, id: "loyalty" },
   { title: "Website", icon: Globe, id: "website" },
   { title: "WhatsApp Inbox", icon: Inbox, id: "whatsapp-inbox" },
   { title: "WhatsApp Templates", icon: MessageSquare, id: "whatsapp-templates" },
@@ -80,6 +82,7 @@ const FREE_PLAN_LOCKED_IDS = [
   "reviews",
   "whatsapp-templates",
   "whatsapp-inbox",
+  "loyalty",
 ];
 
 interface AdminSidebarProps {
@@ -141,6 +144,9 @@ export function AdminSidebar({
     }
     if (item.id === "whatsapp-inbox") {
       return features?.whatsappOrdering?.enabled ? "visible" : "hidden";
+    }
+    if (item.id === "loyalty") {
+      return features?.loyalty_points?.enabled ? "visible" : "hidden";
     }
     return "visible";
   };

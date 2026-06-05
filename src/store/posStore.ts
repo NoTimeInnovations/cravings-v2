@@ -14,6 +14,7 @@ import {
 } from "@/api/orders";
 import { deleteBillMutation } from "@/api/pos";
 import { getNextOrderNumber, Order } from "./orderStore";
+import { awardLoyaltyForOrder } from "@/app/actions/loyalty";
 import { v4 as uuidv4 } from "uuid";
 
 
@@ -1150,6 +1151,17 @@ export const usePOSStore = create<POSState>((set, get) => ({
         }`,
         { id: orderId, status }
       );
+
+      // Award loyalty points when a POS order is completed (idempotent, server-gated).
+      if (status === "completed") {
+        awardLoyaltyForOrder(orderId)
+          .then((r) => {
+            if (r.ok && r.points > 0) {
+              toast.success(`${r.points} loyalty points credited to the customer`);
+            }
+          })
+          .catch((e) => console.warn("[loyalty] award failed", e));
+      }
 
       // Update local state
       const { pastBills, tables } = get();

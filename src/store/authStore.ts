@@ -120,6 +120,8 @@ export interface Partner extends BaseUser {
   prebooking_settings?: string | null;
   /** JSON string of OrderTypesEnabled { delivery, takeaway, dine_in }. NULL = all enabled. */
   order_types_enabled?: string | null;
+  /** JSON string of LoyaltySettings (see lib/loyalty/config.ts). Gated by the `loyalty_points` feature flag. */
+  loyalty_settings?: string | null;
   /**
    * Mobile registered on porter-bridge for this partner's delivery dispatch.
    * Read by src/app/actions/porterBridge.ts at dispatch time. Falls back to

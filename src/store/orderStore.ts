@@ -37,6 +37,7 @@ import {
 import { Notification } from "@/app/actions/notification";
 import { dispatchDeliveryAgent, cancelDeliveryAgent } from "@/app/actions/deliveryAgent";
 import { dispatchViaDeliveryBridge, cancelDispatch } from "@/app/actions/porterBridge";
+import { awardLoyaltyForOrder } from "@/app/actions/loyalty";
 // import { sendOrderNotification } from "@/app/actions/notification";
 
 export interface OrderItem extends HotelDataMenus {
@@ -204,6 +205,12 @@ export interface Order {
   id: string;
   items: OrderItem[];
   totalPrice: number;
+  /** Loyalty points spent on this order (0 if none). `totalPrice` already reflects the deduction. */
+  loyaltyPointsRedeemed?: number;
+  /** ₹ value of the loyalty points redeemed on this order. */
+  loyaltyRedeemValue?: number;
+  /** Loyalty points awarded for this order once completed (null until processed). */
+  loyaltyPointsEarned?: number | null;
   payment_method?: "cash" | "card" | "upi";
   createdAt: string;
   notes?: string | null;
@@ -630,6 +637,17 @@ const useOrderStore = create(
               }
               revalidateTag(userData?.id as string);
             }
+
+            // Award loyalty points for the completed order. Server-side, idempotent,
+            // re-reads the real order, and self-gates on the partner's loyalty flag —
+            // so it's safe to fire-and-forget and never blocks the status update.
+            awardLoyaltyForOrder(orderId)
+              .then((r) => {
+                if (r.ok && r.points > 0) {
+                  toast.success(`${r.points} loyalty points credited to the customer`);
+                }
+              })
+              .catch((e) => console.warn("[loyalty] award failed", e));
           }
 
           // Send order status notification to user (fire-and-forget, never block order)

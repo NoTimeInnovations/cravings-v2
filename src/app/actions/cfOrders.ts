@@ -236,5 +236,15 @@ const EXPIRE_PENDING = `
 
 export async function expireCfOrder(orderId: string) {
   const res = await fetchFromHasura(EXPIRE_PENDING, { id: orderId });
-  return res?.update_orders?.affected_rows ?? 0;
+  const affected = res?.update_orders?.affected_rows ?? 0;
+  // Abandoned/unpaid online order — return any loyalty points it had redeemed.
+  if (affected > 0) {
+    try {
+      const { refundLoyaltyForOrder } = await import("@/app/actions/loyalty");
+      await refundLoyaltyForOrder(orderId, "Order expired (unpaid)");
+    } catch (e) {
+      console.warn("[loyalty] expire refund failed", orderId, e);
+    }
+  }
+  return affected;
 }

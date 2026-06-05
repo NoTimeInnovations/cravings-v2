@@ -40,6 +40,7 @@ export const partnerIdQuery = `
       post_payment_message
       fssai_licence_no
       feature_flags
+      loyalty_settings
       description
       phone
       district
@@ -105,6 +106,7 @@ export const partnerLoginQuery = `
       post_payment_message
       fssai_licence_no
       feature_flags
+      loyalty_settings
       description
       phone
       district
@@ -241,6 +243,7 @@ export const partnerMutation = `
     country
     state
     feature_flags
+    loyalty_settings
     subscription_details
     username
   }

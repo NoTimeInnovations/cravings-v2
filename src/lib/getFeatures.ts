@@ -88,6 +88,18 @@ export type FeatureFlags = {
     access: boolean;
     enabled: boolean;
   };
+  /**
+   * Partner-scoped loyalty points. Customers earn a configurable % of each
+   * completed order's total as points (1 point = ₹1 by default) and redeem them
+   * against future orders at the same partner only. Earn rate, caps and minimums
+   * live in the admin-v2 Loyalty settings (`partners.loyalty_settings`); the
+   * balance/ledger is a signed, tamper-evident server-side store. `enabled` gates
+   * earning, redemption UI, and the admin loyalty surfaces.
+   */
+  loyalty_points: {
+    access: boolean;
+    enabled: boolean;
+  };
 };
 
 export const revertFeatureToString = (features: FeatureFlags): string => {
@@ -151,6 +163,10 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
 
   if (features.prebooking.access) {
     parts.push(`prebooking-${features.prebooking.enabled}`);
+  }
+
+  if (features.loyalty_points.access) {
+    parts.push(`loyalty_points-${features.loyalty_points.enabled}`);
   }
 
   return parts.join(",");
@@ -218,6 +234,10 @@ export const getFeatures = (perm: string | null) => {
       access: false,
       enabled: false,
     },
+    loyalty_points: {
+      access: false,
+      enabled: false,
+    },
   };
 
   if (!perm) {
@@ -275,6 +295,9 @@ export const getFeatures = (perm: string | null) => {
       } else if (key === "prebooking") {
         permissions.prebooking.access = true;
         permissions.prebooking.enabled = value === "true";
+      } else if (key === "loyalty_points") {
+        permissions.loyalty_points.access = true;
+        permissions.loyalty_points.enabled = value === "true";
       }
     }
   }

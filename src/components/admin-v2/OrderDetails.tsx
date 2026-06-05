@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import useOrderStore from "@/store/orderStore";
 import { useOrderSubscriptionStore } from "@/store/orderSubscriptionStore";
+import { getOrderLoyaltyInfo } from "@/app/actions/loyalty";
 import { toast } from "sonner";
 import { Printer, Edit, MapPin, Phone, MessageCircle } from "lucide-react";
 
@@ -197,6 +198,17 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
     const [passwordModalOpen, setPasswordModalOpen] = React.useState(false);
     const [pendingAction, setPendingAction] = React.useState<(() => void) | null>(null);
     const [cancelOpen, setCancelOpen] = React.useState(false);
+    const [loyaltyInfo, setLoyaltyInfo] = React.useState<{ pointsRedeemed: number; redeemValue: number; pointsEarned: number | null } | null>(null);
+
+    React.useEffect(() => {
+        const id = order?.id;
+        if (!id) return;
+        let cancelled = false;
+        getOrderLoyaltyInfo(id)
+            .then((info) => { if (!cancelled) setLoyaltyInfo(info); })
+            .catch(() => { });
+        return () => { cancelled = true; };
+    }, [order?.id]);
 
     if (!order) return null;
 
@@ -899,13 +911,35 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                             </TableRow>
                         )}
 
-                        {/* Total Amount */}
+                        {/* Loyalty points redeemed */}
+                        {loyaltyInfo && loyaltyInfo.pointsRedeemed > 0 && (
+                            <TableRow className="bg-orange-50 font-medium text-orange-700">
+                                <TableCell colSpan={3} className="text-right text-sm">
+                                    Loyalty Points Redeemed ({loyaltyInfo.pointsRedeemed} pts)
+                                </TableCell>
+                                <TableCell className="text-right text-sm text-orange-700">
+                                    - {currency}{loyaltyInfo.redeemValue.toFixed(2)}
+                                </TableCell>
+                            </TableRow>
+                        )}
+
+                        {/* Total Amount (balance payable after points) */}
                         <TableRow className="bg-muted/50 font-bold text-lg border-t-2">
-                            <TableCell colSpan={3} className="text-right">Total Amount</TableCell>
+                            <TableCell colSpan={3} className="text-right">
+                                {loyaltyInfo && loyaltyInfo.pointsRedeemed > 0 ? "Balance Payable" : "Total Amount"}
+                            </TableCell>
                             <TableCell className="text-right">
                                 {currency}{grandTotal.toFixed(2)}
                             </TableCell>
                         </TableRow>
+
+                        {loyaltyInfo && loyaltyInfo.pointsEarned != null && loyaltyInfo.pointsEarned > 0 && (
+                            <TableRow>
+                                <TableCell colSpan={4} className="text-right text-xs text-emerald-600 pt-2">
+                                    Customer earned {loyaltyInfo.pointsEarned} loyalty points on this order
+                                </TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </div>
