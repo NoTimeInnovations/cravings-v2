@@ -148,8 +148,15 @@ LOYALTY_LEDGER_SECRET=<random 32-byte hex>              # server-only; permanent
 ```
 
 (`HASURA_SERVER_GRAPHQL_ENDPOINT` is optional; it falls back to the public endpoint URL,
-which isn't a secret.) `.env` already has them locally — generate a fresh
-`LOYALTY_LEDGER_SECRET` per environment with `openssl rand -hex 32`.
+which isn't a secret.) `.env` already has both locally.
+
+> **Use the SAME `LOYALTY_LEDGER_SECRET` in every environment that touches the shared
+> production ledger** (Vercel prod, local dev, previews). The secret is the HMAC key for
+> the ledger signatures, so a different value in another environment would make rows
+> signed elsewhere fail verification. Copy the exact value from `.env` — do NOT generate
+> a new one per environment. (Only a genuinely separate database, e.g. an isolated
+> staging DB, would get its own key.) `HASURA_SERVER_ADMIN_SECRET` is simply your
+> existing Hasura admin secret under a non-public name.
 
 ### Optional: Hasura event trigger (most robust earn)
 The in-app hooks cover every UI completion path. For a DB-level backstop, add a Hasura

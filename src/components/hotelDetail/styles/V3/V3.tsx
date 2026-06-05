@@ -25,6 +25,7 @@ import { updateUserAddressesMutation } from "@/api/auth";
 import { toast } from "sonner";
 import { useLocationStore } from "@/store/geolocationStore";
 import PullToRefresh from "@/components/PullToRefresh";
+import { LoyaltyPointsBadge } from "@/components/loyalty/LoyaltyPointsBadge";
 
 const V3 = ({
   styles,
@@ -309,6 +310,11 @@ const V3 = ({
                   logout / from the router cache. */}
               {(authUser as any)?.role === "user" && (
                 <>
+                  <LoyaltyPointsBadge
+                    partnerId={(hoteldata as any)?.id}
+                    currency={(hoteldata as any)?.currency || "₹"}
+                    storeName={(hoteldata as any)?.store_name}
+                  />
                   <Link
                     href="/user-profile"
                     className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"

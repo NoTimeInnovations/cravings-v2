@@ -58,6 +58,10 @@ import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { waitForCashfreeContainer } from "@/lib/cashfreeEmbed";
 import { finalizeCfOrder } from "@/app/actions/cfOrders";
+import { LoyaltyRedeemCard } from "./LoyaltyRedeemCard";
+import { LoyaltyHistorySheet } from "@/components/loyalty/LoyaltyPointsBadge";
+import { getLoyaltyRedeemContext, redeemLoyaltyPoints, refundLoyaltyForOrder } from "@/app/actions/loyalty";
+import { computeMaxRedeemable } from "@/lib/loyalty/config";
 
 type AppliedDiscount = {
   id: string;
@@ -182,6 +186,18 @@ const PlaceOrderModalV2 = ({
   const [discountInput, setDiscountInput] = useState("");
   const [discountError, setDiscountError] = useState("");
   const [validatingCode, setValidatingCode] = useState(false);
+
+  // Loyalty points state (mirrors PlaceOrderModal). Redemption is finalized
+  // server-side after the order exists; this only drives the UI + the requested amount.
+  const [loyaltyCtx, setLoyaltyCtx] = useState<{
+    enabled: boolean;
+    balance: number;
+    pointValue: number;
+    minRedeemPoints: number;
+    maxRedeemPercent: number;
+  } | null>(null);
+  const [redeemPoints, setRedeemPoints] = useState(0);
+  const [loyaltyHistoryOpen, setLoyaltyHistoryOpen] = useState(false);
 
   // Address management state
   const [showAddressSheet, setShowAddressSheet] = useState(false);
@@ -561,6 +577,37 @@ const PlaceOrderModalV2 = ({
 
   const extraChargesTotal = deliveryCharge + parcelCharge + qrExtraCharge;
   const grandTotal = Math.max(0, subtotal + extraChargesTotal + additionalGst - discountSavings);
+
+  // ---- Loyalty redemption (derived) ----
+  // grandTotal is the pre-redemption total; payableTotal is what the customer pays.
+  const loyaltyPointValue = loyaltyCtx?.pointValue && loyaltyCtx.pointValue > 0 ? loyaltyCtx.pointValue : 1;
+  const loyaltyMaxPoints = loyaltyCtx?.enabled
+    ? computeMaxRedeemable(grandTotal, loyaltyCtx.balance, {
+        earn_percent: 0,
+        min_order_amount: 0,
+        max_redeem_percent: loyaltyCtx.maxRedeemPercent,
+        min_redeem_points: loyaltyCtx.minRedeemPoints,
+        point_value: loyaltyPointValue,
+      })
+    : 0;
+  const effectiveRedeemPoints = Math.max(0, Math.min(redeemPoints, loyaltyMaxPoints));
+  const loyaltyRedeemValue = Math.round(effectiveRedeemPoints * loyaltyPointValue * 100) / 100;
+  const payableTotal = Math.max(0, Math.round((grandTotal - loyaltyRedeemValue) * 100) / 100);
+
+  // Load the customer's loyalty standing for this partner when the sheet opens.
+  useEffect(() => {
+    if (!open_place_order_modal || !(user as any)?.id || !hotelData?.id) return;
+    let cancelled = false;
+    getLoyaltyRedeemContext(hotelData.id)
+      .then((ctx) => { if (!cancelled) setLoyaltyCtx(ctx); })
+      .catch(() => { if (!cancelled) setLoyaltyCtx(null); });
+    return () => { cancelled = true; };
+  }, [open_place_order_modal, (user as any)?.id, hotelData?.id]);
+
+  // Clear points selection when the sheet closes.
+  useEffect(() => {
+    if (!open_place_order_modal) setRedeemPoints(0);
+  }, [open_place_order_modal]);
 
   // Fetch available coupon discounts
   useEffect(() => {
@@ -1031,7 +1078,7 @@ const PlaceOrderModalV2 = ({
         setPlacedOrderId(pending.orderId);
       }
 
-      setSavedOrderTotal(grandTotal);
+      setSavedOrderTotal((pending as any).amount ?? grandTotal);
       // Payment done — clear the cart now (it was kept through the pending phase
       // so the customer could retry if payment failed).
       try {
@@ -1207,13 +1254,24 @@ const PlaceOrderModalV2 = ({
       }
       const orderId = placed.id;
 
+      // Redeem loyalty points BEFORE locking the Cashfree amount; charge the corrected total.
+      let payable = grandTotal;
+      if (redeemPoints > 0 && loyaltyCtx?.enabled) {
+        try {
+          const r = await redeemLoyaltyPoints({ orderId, points: redeemPoints });
+          if (r.ok && r.value > 0) payable = r.orderTotal;
+        } catch (e) {
+          console.warn("[loyalty] redeem failed", e);
+        }
+      }
+
       sessionStorage.setItem(
         "cashfree_pending_order",
         JSON.stringify({
           cfOrderId,
           orderId,
           partnerId: hotelData.id,
-          amount: grandTotal,
+          amount: payable,
           orderType: orderType || null,
           address: address || null,
           orderNote: orderNote || null,
@@ -1227,7 +1285,7 @@ const PlaceOrderModalV2 = ({
       const cfRes = await createCashfreeOrderForPartner(
         hotelData.id,
         cfOrderId,
-        Math.round(grandTotal * 100) / 100,
+        Math.round(payable * 100) / 100,
         {
           id: user.id,
           name: (user as any)?.full_name || "Customer",
@@ -1238,6 +1296,7 @@ const PlaceOrderModalV2 = ({
       );
 
       if (!cfRes.success) {
+        if (redeemPoints > 0) refundLoyaltyForOrder(orderId, "Payment could not be started").catch(() => {});
         toast.error(`Payment failed: ${cfRes.error || "could not create payment order"}`, { duration: 30000 });
         setOrderStatus("idle");
         sessionStorage.removeItem("cashfree_pending_order");
@@ -1277,6 +1336,7 @@ const PlaceOrderModalV2 = ({
 
       if (result?.error) {
         console.error("Cashfree error:", result.error);
+        if (redeemPoints > 0) refundLoyaltyForOrder(orderId, "Payment failed").catch(() => {});
         const full =
           typeof result.error === "string"
             ? result.error
@@ -1403,7 +1463,7 @@ const PlaceOrderModalV2 = ({
       return;
     }
 
-    setSavedOrderTotal(grandTotal);
+    setSavedOrderTotal(payableTotal);
     setOrderStatus("placing");
     try {
       const extraCharges: { name: string; amount: number; charge_type: string }[] = [];
@@ -1449,10 +1509,21 @@ const PlaceOrderModalV2 = ({
         if (result.id) {
           localStorage?.setItem("last-order-id", result.id);
           setPlacedOrderId(result.id);
+
+          // Redeem loyalty points server-side (validates balance, writes signed debit,
+          // corrects the order total). COD: no charge to reconcile.
+          if (redeemPoints > 0 && loyaltyCtx?.enabled) {
+            try {
+              await redeemLoyaltyPoints({ orderId: result.id, points: redeemPoints });
+            } catch (e) {
+              console.warn("[loyalty] redeem failed", e);
+            }
+          }
         }
         if (appliedDiscount?.id) {
           fetchFromHasura(incrementDiscountUsageMutation, { id: appliedDiscount.id }).catch(() => {});
         }
+        setRedeemPoints(0);
         setAppliedDiscount(null);
         setDiscountInput("");
         setDiscountError("");
@@ -2065,6 +2136,30 @@ const PlaceOrderModalV2 = ({
               )}
             </div>
 
+            {/* Loyalty points */}
+            {user && loyaltyCtx?.enabled && loyaltyCtx.balance > 0 && (
+              <LoyaltyRedeemCard
+                currency={currency}
+                balance={loyaltyCtx.balance}
+                pointValue={loyaltyPointValue}
+                maxPoints={loyaltyMaxPoints}
+                minRedeemPoints={loyaltyCtx.minRedeemPoints}
+                points={effectiveRedeemPoints}
+                value={loyaltyRedeemValue}
+                onChange={(p) => setRedeemPoints(Math.max(0, Math.min(p, loyaltyMaxPoints)))}
+                onViewHistory={() => setLoyaltyHistoryOpen(true)}
+              />
+            )}
+            {user && loyaltyCtx?.enabled && (
+              <LoyaltyHistorySheet
+                partnerId={hotelData.id}
+                currency={currency}
+                storeName={hotelData?.store_name}
+                open={loyaltyHistoryOpen}
+                onOpenChange={setLoyaltyHistoryOpen}
+              />
+            )}
+
             {/* To Pay Breakdown */}
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <button
@@ -2080,7 +2175,7 @@ const PlaceOrderModalV2 = ({
                 </div>
                 <div className="flex-1 text-left text-sm font-bold text-gray-900">
                   To Pay {currency}
-                  {grandTotal.toFixed(0)}
+                  {payableTotal.toFixed(0)}
                 </div>
                 {showBreakdown ? (
                   <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -2188,12 +2283,19 @@ const PlaceOrderModalV2 = ({
                   {additionalGst > 0 && (
                     <Row label="GST & Other Charges" value={`${currency}${additionalGst.toFixed(0)}`} />
                   )}
+                  {loyaltyRedeemValue > 0 && (
+                    <Row
+                      label={`Loyalty Points (${effectiveRedeemPoints} pts)`}
+                      value={`-${currency}${loyaltyRedeemValue.toFixed(0)}`}
+                      accent={accent}
+                    />
+                  )}
                   <div className="border-t border-dashed border-gray-200 pt-2" />
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-gray-900">To Pay</span>
                     <span className="text-sm font-bold text-gray-900">
                       {currency}
-                      {grandTotal.toFixed(0)}
+                      {payableTotal.toFixed(0)}
                     </span>
                   </div>
                 </div>
@@ -2263,7 +2365,7 @@ const PlaceOrderModalV2 = ({
             style={{ backgroundColor: accent }}
           >
             {paymentMethod === "online" ? (
-              `Pay ${currency}${grandTotal.toFixed(0)}`
+              `Pay ${currency}${payableTotal.toFixed(0)}`
             ) : (
               "Place Order"
             )}
