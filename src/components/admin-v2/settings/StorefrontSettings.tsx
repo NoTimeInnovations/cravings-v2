@@ -28,6 +28,7 @@ import {
     DialogClose,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Check } from "lucide-react";
 
 const SECTION_TYPES = [
@@ -696,6 +697,13 @@ function HeroEditor({ content, set, partnerId }: { content: Record<string, any>;
         set({ slides: updated });
     };
 
+    // Per-slide button editing. Seeds from the slide's own button, falling back to
+    // any legacy content-level button so existing storefronts migrate on first edit.
+    const setSlideCta = (key: "ctaPrimary" | "ctaSecondary", patch: Record<string, any>) => {
+        const base = (slides[activeSlide] || {})[key] ?? content[key] ?? {};
+        setSlide(activeSlide, { [key]: { ...base, ...patch } });
+    };
+
     const addSlide = () => {
         set({
             slides: [...slides, {
@@ -792,35 +800,60 @@ function HeroEditor({ content, set, partnerId }: { content: Record<string, any>;
                 </TabsContent>
 
                 <TabsContent value="cta" className="space-y-5">
-                    <SubCard title="Primary Button">
-                        <FieldRow label="Label">
-                            <Input
-                                value={content.ctaPrimary?.label || ""}
-                                onChange={(e) => set({ ctaPrimary: { ...content.ctaPrimary, label: e.target.value } })}
-                            />
-                        </FieldRow>
-                        <FieldRow label="Link / URL">
-                            <Input
-                                value={content.ctaPrimary?.link || ""}
-                                onChange={(e) => set({ ctaPrimary: { ...content.ctaPrimary, link: e.target.value } })}
-                                placeholder="/ or https://..."
-                            />
-                        </FieldRow>
-                    </SubCard>
-                    <SubCard title="Secondary Button">
-                        <FieldRow label="Label" hint="Leave empty to hide">
-                            <Input
-                                value={content.ctaSecondary?.label || ""}
-                                onChange={(e) => set({ ctaSecondary: { ...content.ctaSecondary, label: e.target.value } })}
-                            />
-                        </FieldRow>
-                        <FieldRow label="Link / URL">
-                            <Input
-                                value={content.ctaSecondary?.link || ""}
-                                onChange={(e) => set({ ctaSecondary: { ...content.ctaSecondary, link: e.target.value } })}
-                            />
-                        </FieldRow>
-                    </SubCard>
+                    <p className="text-[11px] text-muted-foreground">
+                        Buttons are configured per slide. You are editing <span className="font-semibold">Slide {activeSlide + 1}</span>.
+                    </p>
+                    {(() => {
+                        const primary = slide.ctaPrimary ?? content.ctaPrimary ?? {};
+                        const secondary = slide.ctaSecondary ?? content.ctaSecondary ?? {};
+                        return (
+                            <>
+                                <SubCard title="Primary Button">
+                                    <FieldRow label="Label">
+                                        <Input
+                                            value={primary.label || ""}
+                                            onChange={(e) => setSlideCta("ctaPrimary", { label: e.target.value })}
+                                        />
+                                    </FieldRow>
+                                    <FieldRow label="Link / URL">
+                                        <Input
+                                            value={primary.link || ""}
+                                            onChange={(e) => setSlideCta("ctaPrimary", { link: e.target.value })}
+                                            placeholder="/ or https://..."
+                                        />
+                                    </FieldRow>
+                                    <label className="flex items-center gap-2 text-[13px] font-medium cursor-pointer select-none">
+                                        <Checkbox
+                                            checked={!!primary.requireAuth}
+                                            onCheckedChange={(v) => setSlideCta("ctaPrimary", { requireAuth: v === true })}
+                                        />
+                                        Only show when the user is logged in
+                                    </label>
+                                </SubCard>
+                                <SubCard title="Secondary Button">
+                                    <FieldRow label="Label" hint="Leave empty to hide">
+                                        <Input
+                                            value={secondary.label || ""}
+                                            onChange={(e) => setSlideCta("ctaSecondary", { label: e.target.value })}
+                                        />
+                                    </FieldRow>
+                                    <FieldRow label="Link / URL">
+                                        <Input
+                                            value={secondary.link || ""}
+                                            onChange={(e) => setSlideCta("ctaSecondary", { link: e.target.value })}
+                                        />
+                                    </FieldRow>
+                                    <label className="flex items-center gap-2 text-[13px] font-medium cursor-pointer select-none">
+                                        <Checkbox
+                                            checked={!!secondary.requireAuth}
+                                            onCheckedChange={(v) => setSlideCta("ctaSecondary", { requireAuth: v === true })}
+                                        />
+                                        Only show when the user is logged in
+                                    </label>
+                                </SubCard>
+                            </>
+                        );
+                    })()}
                 </TabsContent>
 
                 <TabsContent value="style" className="space-y-4">

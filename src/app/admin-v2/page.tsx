@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { AdminNavbar } from "@/components/admin-v2/AdminNavbar";
 import { AdminSidebar } from "@/components/admin-v2/AdminSidebar";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -84,18 +84,43 @@ import { UpgradePlanDialog } from "@/components/admin-v2/UpgradePlanDialog";
 export default function AdminPage() {
     const { activeView, setActiveView } = useAdminStore();
     const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [renderedViews, setRenderedViews] = useState<string[]>([]);
     const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false);
 
-    // Handle view query param (e.g., from Google OAuth redirect)
+    // Reflect the active section into the URL (?view=...) so a reload restores it.
+    // Written synchronously from the navigation handler — calling router.replace from
+    // an event handler is reliable, unlike doing it from an effect. Other params
+    // (e.g. the settings sg/ss keys) are preserved by reading the live URL.
+    const syncViewToUrl = (view: string) => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("view") === view) return;
+        params.set("view", view);
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    };
+
+    // Read: apply the ?view= query param into the active view. Covers the initial
+    // load / reload (so the open section is restored), back/forward navigation, and
+    // external redirects (e.g. Google OAuth).
     useEffect(() => {
         const view = searchParams.get("view");
-        if (view) {
+        if (view && view !== useAdminStore.getState().activeView) {
             setActiveView(view);
         }
     }, [searchParams, setActiveView]);
+
+    // Fallback for programmatic navigation that goes straight through the store
+    // (dashboard shortcuts, order notifications) rather than handleNavigate. Fires
+    // only when the active view changes. Reads the store via getState() so it uses
+    // the value the read effect (declared above, runs first) may have just applied
+    // from the URL — avoiding a mount-time clobber of a restored ?view=.
+    useEffect(() => {
+        syncViewToUrl(useAdminStore.getState().activeView);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeView]);
 
     // Track visited views to keep them mounted
     if (!renderedViews.includes(activeView)) {
@@ -105,6 +130,7 @@ export default function AdminPage() {
 
     const handleNavigate = (view: string) => {
         setActiveView(view);
+        syncViewToUrl(view);
         if (view === "POS") {
             setIsSidebarOpen(false);
         }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Phone, Mail, ArrowRight, Star, Menu as MenuIcon, X, ChevronDown } from "lucide-react";
 import { brandColorToHex } from "@/lib/brandColor";
+import { useAuthStore } from "@/store/authStore";
 
 interface NavbarLink {
     id: string;
@@ -580,7 +581,8 @@ function NavbarSection({
 
 /* ================== HERO ================== */
 function HeroSection({ content, onContinue, accent }: { content: Record<string, any>; onContinue: () => void; accent: string }) {
-    const { ctaPrimary, ctaSecondary, autoScrollInterval = 5 } = content || {};
+    const { autoScrollInterval = 5 } = content || {};
+    const loggedIn = useAuthStore((s) => !!s.userData);
 
     const slides: any[] = content.slides || (content.heading ? [{
         heading: content.heading,
@@ -648,6 +650,12 @@ function HeroSection({ content, onContinue, accent }: { content: Record<string, 
     if (!slides.length) return null;
     const slide = slides[current] || slides[0];
 
+    // Buttons are per-slide; fall back to legacy content-level buttons for older configs.
+    const ctaPrimary = slide.ctaPrimary ?? content.ctaPrimary;
+    const ctaSecondary = slide.ctaSecondary ?? content.ctaSecondary;
+    const showPrimary = !!ctaPrimary?.label && (!ctaPrimary.requireAuth || loggedIn);
+    const showSecondary = !!ctaSecondary?.label && (!ctaSecondary.requireAuth || loggedIn);
+
     return (
         <section ref={sectionRef} className="relative overflow-hidden">
             {slides.map((s: any, i: number) => (
@@ -678,7 +686,7 @@ function HeroSection({ content, onContinue, accent }: { content: Record<string, 
                 </div>
 
                 <div className="mt-7 flex flex-wrap items-center gap-3">
-                    {ctaPrimary?.label && (
+                    {showPrimary && (
                         <CtaAction
                             link={ctaPrimary.link}
                             onContinue={onContinue}
@@ -688,7 +696,7 @@ function HeroSection({ content, onContinue, accent }: { content: Record<string, 
                             {ctaPrimary.label}
                         </CtaAction>
                     )}
-                    {ctaSecondary?.label && (
+                    {showSecondary && (
                         <CtaAction
                             link={ctaSecondary.link}
                             onContinue={onContinue}

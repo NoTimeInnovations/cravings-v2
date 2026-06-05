@@ -1,0 +1,392 @@
+"use client";
+import React, { useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useRouter, useParams } from "next/navigation";
+import {
+  Loader2,
+  ExternalLink,
+  ArrowLeft,
+  Star,
+} from "lucide-react";
+import { format, isToday, isYesterday } from "date-fns";
+import { Partner, useAuthStore } from "@/store/authStore";
+import { usePOSStore } from "@/store/posStore";
+import useOrderStore, { Order } from "@/store/orderStore";
+import { EditOrderModal } from "@/components/admin/pos/EditOrderModal";
+import { calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
+import { fetchFromHasura } from "@/lib/hasuraClient";
+import Link from "next/link";
+import { getExtraCharge } from "@/lib/getExtraCharge";
+import { getStatusDisplay } from "@/lib/getStatusDisplay";
+import { OrderReviewModal } from "@/components/OrderReviewModal";
+
+// Resolve just enough of the restaurant to scope and label the page.
+const getPartnerScopeQuery = `
+query GetPartnerScope($username: String!) {
+  partners(where: { username: { _eq: $username } }, limit: 1) {
+    id
+    store_name
+    currency
+  }
+}`;
+
+const Page = () => {
+  const { userData } = useAuthStore();
+  const { userOrders, subscribeUserOrders } = useOrderStore();
+  const { setOrder, setEditOrderModalOpen } = usePOSStore();
+  const [loading, setLoading] = useState(true);
+  const [justReviewedIds, setJustReviewedIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [reviewOrder, setReviewOrder] = useState<Order | null>(null);
+  const router = useRouter();
+
+  const params = useParams();
+  const username = Array.isArray(params?.username)
+    ? params.username[0]
+    : (params?.username as string) || "";
+  const restaurantPath = `/${username}`;
+
+  // The restaurant this page is scoped to. Resolved from the username param.
+  const [partnerId, setPartnerId] = useState<string | null>(null);
+  const [storeName, setStoreName] = useState<string>("");
+  const [storeCurrency, setStoreCurrency] = useState<string>("₹");
+  const [partnerResolved, setPartnerResolved] = useState(false);
+
+  const isReviewEligible = (o: Order) =>
+    o.status === "completed" && !o.review && !justReviewedIds.has(o.id);
+
+  const handleReviewSubmitted = (orderId: string) => {
+    setJustReviewedIds((prev) => {
+      const next = new Set(prev);
+      next.add(orderId);
+      return next;
+    });
+    setReviewOrder(null);
+  };
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!username) {
+        setPartnerResolved(true);
+        return;
+      }
+      try {
+        const data = await fetchFromHasura(getPartnerScopeQuery, { username });
+        const partner = data?.partners?.[0];
+        if (active && partner) {
+          setPartnerId(partner.id);
+          setStoreName(partner.store_name || "");
+          setStoreCurrency(partner.currency || "₹");
+        }
+      } catch (err) {
+        console.error("Error resolving restaurant for orders:", err);
+      } finally {
+        if (active) setPartnerResolved(true);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [username]);
+
+  useEffect(() => {
+    if (userData?.id) {
+      const unsubscribe = subscribeUserOrders(() => {
+        setLoading(false);
+      });
+
+      return () => {
+        unsubscribe();
+      };
+    }
+  }, [userData]);
+
+  const handleEditOrder = (order: any) => {
+    setOrder({
+      id: order.id,
+      totalPrice: order.totalPrice,
+      tableNumber: order.tableNumber,
+      phone: order.phone,
+      items: order.items.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        category: item.category,
+      })),
+      extraCharges: order.extraCharges || [],
+      createdAt: order.createdAt,
+      status: order.status,
+      partnerId: order.partnerId,
+    });
+    setEditOrderModalOpen(true);
+  };
+
+  // Only this restaurant's orders — never orders from other restaurants.
+  const restaurantOrders = useMemo(() => {
+    if (!partnerId) return [];
+    return userOrders
+      .filter((order) => {
+        const oPartner = (order as any).partnerId || (order as any).partner_id;
+        return oPartner === partnerId;
+      })
+      .sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+  }, [userOrders, partnerId]);
+
+  const displayStoreName =
+    storeName || (restaurantOrders[0]?.partner as any)?.store_name || "Orders";
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentOrders = restaurantOrders.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(restaurantOrders.length / itemsPerPage);
+
+  const dateLabel = (iso: string) => {
+    const d = new Date(iso);
+    if (isToday(d)) return "Today";
+    if (isYesterday(d)) return "Yesterday";
+    return format(d, "MMMM d, yyyy");
+  };
+
+  // Group the current page's orders under date headings (Today, Yesterday, then
+  // older dates). Orders are already sorted newest-first, so consecutive runs of
+  // the same date form each group in the right order.
+  const groupedOrders = useMemo(() => {
+    const groups: { label: string; orders: typeof currentOrders }[] = [];
+    for (const order of currentOrders) {
+      const label = dateLabel(order.createdAt);
+      const last = groups[groups.length - 1];
+      if (last && last.label === label) last.orders.push(order);
+      else groups.push({ label, orders: [order] });
+    }
+    return groups;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentOrders]);
+
+  const handlePageChange = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const renderOrderCard = (order: any) => {
+    const gstPercentage =
+      (order.partner as Partner)?.gst_percentage || 0;
+    const foodTotal = (order.items || []).reduce(
+      (sum: number, item: any) => sum + item.price * item.quantity,
+      0
+    );
+
+    const extraChargesTotal =
+      (order.extraCharges || []).reduce(
+        (sum: number, charge: any) =>
+          sum +
+          getExtraCharge(
+            order?.items || [],
+            charge.amount,
+            charge.charge_type
+          ) || 0,
+        0
+      ) || 0;
+
+    const subtotal = foodTotal + extraChargesTotal;
+
+    const discounts = order.discounts || [];
+    const discountAmount = discounts.reduce((total: number, discount: any) => {
+      if (discount.type === "flat") {
+        return total + discount.value;
+      } else {
+        return total + (subtotal * discount.value) / 100;
+      }
+    }, 0);
+
+    const discountedSubtotal = Math.max(0, subtotal - discountAmount);
+    const discountedFoodTotal = Math.max(0, foodTotal - discountAmount);
+    const ratio = foodTotal > 0 ? discountedFoodTotal / foodTotal : 0;
+    const adjItems = (order.items || []).map((i: any) => ({ price: i.price * ratio, quantity: i.quantity, tax_inclusive: i.tax_inclusive }));
+    const { additionalGst: gstAmount } = calculateGstForItems(adjItems, gstPercentage);
+    const grandTotal = discountedSubtotal + gstAmount;
+    const statusDisplay = getStatusDisplay(order);
+    const deliveryOtp =
+      (order as any)?.delivery_provider === "adloggs" &&
+      order.status !== "completed" &&
+      order.status !== "cancelled"
+        ? (order as any)?.delivery_provider_meta?.otps?.delivery_otp ?? null
+        : null;
+
+    return (
+      <Link
+        href={`/order/${order.id}`}
+        id={`order-${order.id}`}
+        key={order.id}
+        className="block rounded-xl p-5 shadow-sm transition-shadow relative bg-white border border-gray-200"
+      >
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-semibold text-lg text-gray-900">
+                #{order.id.slice(0, 8)}
+              </h3>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${statusDisplay.className}`}
+              >
+                {statusDisplay.text}
+              </span>
+            </div>
+            <p className="text-sm text-gray-500">
+              {format(new Date(order.createdAt), "MMM d, h:mm a")} • {order.items?.length || 0} items
+            </p>
+          </div>
+          <div className="p-2 rounded-full transition-colors text-orange-500 bg-orange-50">
+            <ExternalLink className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="space-y-1 mb-4">
+          {order.items.map((item: any) => (
+            <div key={item.id} className="flex justify-between text-sm">
+              <span className="text-gray-600">
+                {item.quantity} × {item.name}
+              </span>
+              <span className="font-medium text-gray-900">
+                {(order.partner as Partner)?.currency || storeCurrency}
+                {(item.price * item.quantity).toFixed(2)}
+              </span>
+            </div>
+          ))}
+          {discountAmount > 0 && (
+            <div className="flex justify-between text-sm text-green-600">
+              <span>Discount</span>
+              <span className="font-medium">
+                - {(order.partner as Partner)?.currency || storeCurrency}
+                {discountAmount.toFixed(2)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-gray-200 pt-3 flex justify-between items-center font-bold text-gray-900">
+          <span>Total</span>
+          <span>
+            {(order.partner as Partner)?.currency || storeCurrency}
+            {grandTotal.toFixed(2)}
+          </span>
+        </div>
+
+        {deliveryOtp && (
+          <div className="mt-3 rounded-lg bg-orange-50 border border-orange-200 px-3 py-2 flex items-center justify-between gap-3">
+            <span className="text-xs font-semibold uppercase tracking-wide text-orange-700">
+              Delivery OTP
+            </span>
+            <span className="font-mono font-bold tracking-[0.25em] text-orange-900">
+              {deliveryOtp}
+            </span>
+          </div>
+        )}
+
+        {isReviewEligible(order) && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setReviewOrder(order);
+            }}
+            className="mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+          >
+            <Star className="h-4 w-4" />
+            Add Review
+          </button>
+        )}
+      </Link>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Top Navbar */}
+      <div className="border-b border-gray-200 sticky top-0 z-50 px-4 py-3 flex items-center gap-3 shadow-sm bg-white">
+        <button
+          onClick={() => router.push(restaurantPath)}
+          className="p-2 rounded-full transition-colors hover:bg-gray-100 text-gray-700"
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <div className="min-w-0">
+          <h1 className="font-semibold text-lg text-gray-900 truncate">{displayStoreName}</h1>
+          <p className="text-xs text-gray-500">My Orders</p>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 pb-8 pt-4 max-w-3xl">
+
+        {loading || !partnerResolved ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+          </div>
+        ) : restaurantOrders.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            You haven&apos;t placed any orders here yet.
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {groupedOrders.map((group) => (
+              <div key={group.label} className="space-y-3">
+                <h2 className="text-sm font-bold uppercase tracking-wide text-gray-500">
+                  {group.label}
+                </h2>
+                <div className="space-y-4">
+                  {group.orders.map((order) => renderOrderCard(order))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-4 mt-8">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <span className="text-sm font-medium text-gray-900">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        )}
+
+        <EditOrderModal />
+      </div>
+
+      {reviewOrder && (
+        <OrderReviewModal
+          key={reviewOrder.id}
+          order={reviewOrder}
+          onSubmitted={() => handleReviewSubmitted(reviewOrder.id)}
+          onClose={() => setReviewOrder(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default Page;

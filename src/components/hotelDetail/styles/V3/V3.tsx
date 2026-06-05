@@ -56,6 +56,9 @@ const V3 = ({
   const hasOffers = offers && offers.length > 0;
   const { orderType, items: cartItems, userAddress } = useOrderStore();
   const { userData: authUser } = useAuthStore();
+  // Restaurant username — used to build the restaurant-scoped profile/orders
+  // route (/<username>/user-profile) so those screens survive a reload.
+  const username = (hoteldata as any)?.username as string | undefined;
   const savedAddresses = useMemo(
     () => ((authUser as any)?.addresses || []) as SavedAddress[],
     [(authUser as any)?.addresses],
@@ -316,19 +319,32 @@ const V3 = ({
                     storeName={(hoteldata as any)?.store_name}
                   />
                   <Link
-                    href="/user-profile"
+                    href={username ? `/${username}/user-profile` : "/user-profile"}
                     className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"
                     aria-label="Profile"
                   >
                     <User className="h-[18px] w-[18px] text-gray-900" />
                   </Link>
-                  <button
-                    onClick={() => setOrdersOpen(true)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"
-                    aria-label="Your orders"
-                  >
-                    <ShoppingBag className="h-[18px] w-[18px] text-gray-900" />
-                  </button>
+                  {/* Orders open the restaurant-scoped orders route so they
+                      persist on reload; fall back to the in-page modal only
+                      when there is no username to route to. */}
+                  {username ? (
+                    <Link
+                      href={`/${username}/my-orders`}
+                      className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"
+                      aria-label="Your orders"
+                    >
+                      <ShoppingBag className="h-[18px] w-[18px] text-gray-900" />
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => setOrdersOpen(true)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"
+                      aria-label="Your orders"
+                    >
+                      <ShoppingBag className="h-[18px] w-[18px] text-gray-900" />
+                    </button>
+                  )}
                 </>
               )}
             </div>

@@ -277,6 +277,8 @@ const PARTNER_SUBROUTES = new Set([
   "terms-and-conditions",
   "refund-and-cancellation-policy",
   "shipping-and-delivery-policy",
+  "user-profile",
+  "my-orders",
 ]);
 
 import { Partner, useAuthStore } from "@/store/authStore";

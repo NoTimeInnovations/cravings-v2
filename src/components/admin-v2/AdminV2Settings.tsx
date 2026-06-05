@@ -32,7 +32,8 @@ import {
 import { useAuthStore } from "@/store/authStore";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { Loader2, Save } from "lucide-react";
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 function FloatingSaveButton() {
     const { saveAction, isSaving, hasChanges } = useAdminSettingsStore();
@@ -171,13 +172,54 @@ export function AdminV2Settings() {
     const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null);
     const [activeSectionKey, setActiveSectionKey] = useState<string>("");
 
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const didInitRef = useRef(false);
+
+    // Persist the open group/section in the URL (sg = settings group, ss = settings
+    // section) so a reload restores the exact settings screen instead of the home grid.
+    // Other params (notably ?view=Settings set by the admin page) are preserved.
+    const writeUrl = (groupKey: string | null, sectionKey: string | null) => {
+        const params = new URLSearchParams(Array.from(searchParams.entries()));
+        if (groupKey) params.set("sg", groupKey); else params.delete("sg");
+        if (sectionKey) params.set("ss", sectionKey); else params.delete("ss");
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    };
+
+    // Restore from the URL once the feature-gated groups are available (features load
+    // asynchronously, so we wait until groups is populated before validating keys).
+    useEffect(() => {
+        if (didInitRef.current || groups.length === 0) return;
+        didInitRef.current = true;
+        const sg = searchParams.get("sg");
+        const grp = groups.find((g) => g.key === sg);
+        if (!grp) return;
+        setActiveGroupKey(grp.key);
+        const ss = searchParams.get("ss");
+        const valid = grp.sections.some((s) => s.key === ss);
+        setActiveSectionKey(valid ? (ss as string) : grp.sections[0]?.key ?? "");
+    }, [groups, searchParams]);
+
     const activeGroup = groups.find((g) => g.key === activeGroupKey) ?? null;
     const activeSection =
         activeGroup?.sections.find((s) => s.key === activeSectionKey) ?? activeGroup?.sections[0] ?? null;
 
     const openGroup = (g: SettingsGroup) => {
+        const sectionKey = g.sections[0]?.key ?? "";
         setActiveGroupKey(g.key);
-        setActiveSectionKey(g.sections[0]?.key ?? "");
+        setActiveSectionKey(sectionKey);
+        writeUrl(g.key, sectionKey || null);
+    };
+
+    const closeGroup = () => {
+        setActiveGroupKey(null);
+        writeUrl(null, null);
+    };
+
+    const selectSection = (sectionKey: string) => {
+        setActiveSectionKey(sectionKey);
+        writeUrl(activeGroupKey, sectionKey);
     };
 
     return (
@@ -227,7 +269,7 @@ export function AdminV2Settings() {
             {activeGroup && (
                 <div className="space-y-4">
                     <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => setActiveGroupKey(null)} className="gap-1 px-2">
+                        <Button variant="ghost" size="sm" onClick={closeGroup} className="gap-1 px-2">
                             <ChevronLeft className="h-4 w-4" />
                             Settings
                         </Button>
@@ -243,7 +285,7 @@ export function AdminV2Settings() {
                                     <button
                                         key={s.key}
                                         type="button"
-                                        onClick={() => setActiveSectionKey(s.key)}
+                                        onClick={() => selectSection(s.key)}
                                         className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                                             selected
                                                 ? "bg-background text-foreground shadow"

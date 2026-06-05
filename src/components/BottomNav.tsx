@@ -50,12 +50,17 @@ const BottomNav = () => {
   // Check if current path is a username route
   const isUsernameRoute = (() => {
     const segments = pathname.split("/").filter(Boolean);
+    // Partner-scoped subroutes (/<username>/<slug>) that belong to the
+    // restaurant experience — they hide the global menuthere bottom nav.
+    const partnerSubroutes = new Set([
+      "info",
+      "home",
+      "user-profile",
+      "my-orders",
+    ]);
     if (
       segments.length !== 1 &&
-      !(
-        segments.length === 2 &&
-        (segments[1] === "info" || segments[1] === "home")
-      )
+      !(segments.length === 2 && partnerSubroutes.has(segments[1]))
     ) {
       return false;
     }
