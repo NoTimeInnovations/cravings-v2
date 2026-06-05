@@ -69,6 +69,8 @@ export const partnerIdQuery = `
       cashfree_merchant_id
       adloggs_merchant_id
       porter_mobile
+      uber_mobile
+      rapido_mobile
       accept_payments_via_cashfree
       accept_cod
       payment_modes
@@ -132,6 +134,8 @@ export const partnerLoginQuery = `
       cashfree_merchant_id
       adloggs_merchant_id
       porter_mobile
+      uber_mobile
+      rapido_mobile
       accept_payments_via_cashfree
       accept_cod
       payment_modes

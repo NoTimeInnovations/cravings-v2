@@ -334,6 +334,8 @@ export function DeliverySettings() {
                 delivery_provider_priority:
                     userData.delivery_rules?.delivery_provider_priority || ["porter", "uber", "rapido"],
                 delivery_vehicle_mode: userData.delivery_rules?.delivery_vehicle_mode || "bike",
+                delivery_payment_modes: userData.delivery_rules?.delivery_payment_modes || {},
+                delivery_wait_seconds: userData.delivery_rules?.delivery_wait_seconds ?? 90,
             });
 
             // Initialize WhatsApp numbers
@@ -669,10 +671,10 @@ export function DeliverySettings() {
                             </p>
                             <div className="grid gap-3 sm:grid-cols-3">
                                 {([
-                                    { label: "Porter", value: porterMobile, set: setPorterMobile },
-                                    { label: "Uber", value: uberMobile, set: setUberMobile },
-                                    { label: "Rapido", value: rapidoMobile, set: setRapidoMobile },
-                                ] as { label: string; value: string; set: (v: string) => void }[]).map(({ label, value, set }) => (
+                                    { label: "Porter", key: "porter", value: porterMobile, set: setPorterMobile },
+                                    { label: "Uber", key: "uber", value: uberMobile, set: setUberMobile },
+                                    { label: "Rapido", key: "rapido", value: rapidoMobile, set: setRapidoMobile },
+                                ] as { label: string; key: "porter" | "uber" | "rapido"; value: string; set: (v: string) => void }[]).map(({ label, key, value, set }) => (
                                     <div key={label} className="space-y-1">
                                         <Label className="text-sm">{label} mobile</Label>
                                         <div className="flex items-center rounded-md border bg-white pl-2 focus-within:ring-1 focus-within:ring-orange-300">
@@ -686,9 +688,30 @@ export function DeliverySettings() {
                                                 className="border-0 shadow-none focus-visible:ring-0"
                                             />
                                         </div>
+                                        <select
+                                            value={deliveryRules.delivery_payment_modes?.[key] || "cash"}
+                                            onChange={(e) =>
+                                                setDeliveryRules((prev) => ({
+                                                    ...prev,
+                                                    delivery_payment_modes: {
+                                                        ...(prev.delivery_payment_modes || {}),
+                                                        [key]: e.target.value as "cash" | "wallet",
+                                                    },
+                                                }))
+                                            }
+                                            className="w-full rounded-md border bg-white px-2 py-1.5 text-sm"
+                                        >
+                                            <option value="cash">Cash payment</option>
+                                            <option value="wallet">Wallet payment</option>
+                                        </select>
                                     </div>
                                 ))}
                             </div>
+                            <p className="text-xs text-muted-foreground">
+                                <strong>Payment</strong>: how each provider collects the fare. <strong>Wallet</strong> draws
+                                from that provider&apos;s prepaid balance (Porter credits / Rapido wallet) so the rider
+                                collects less (or no) cash. Uber is effectively cash-only upstream.
+                            </p>
 
                             <div className="border-t border-orange-100 pt-3">
                                 <Label className="text-base">Booking method</Label>
@@ -714,9 +737,33 @@ export function DeliverySettings() {
                             </div>
 
                             <div className="border-t border-orange-100 pt-3">
+                                <Label className="text-base">Search wait limit</Label>
+                                <p className="text-xs text-muted-foreground mb-2">
+                                    How long to keep searching on each provider for a rider before escalating to the next one in the priority list. Default 90 seconds.
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        type="number"
+                                        min={30}
+                                        max={600}
+                                        step={5}
+                                        value={deliveryRules.delivery_wait_seconds ?? 90}
+                                        onChange={(e) =>
+                                            setDeliveryRules((prev) => ({
+                                                ...prev,
+                                                delivery_wait_seconds: Math.max(30, Math.min(600, Number(e.target.value) || 90)),
+                                            }))
+                                        }
+                                        className="w-28"
+                                    />
+                                    <span className="text-sm text-muted-foreground">seconds per provider</span>
+                                </div>
+                            </div>
+
+                            <div className="border-t border-orange-100 pt-3">
                                 <Label className="text-base">Provider priority</Label>
                                 <p className="text-xs text-muted-foreground mb-2">
-                                    Dispatch tries these in order, one at a time, escalating if no rider is found in time. The customer is charged the highest of the available quotes.
+                                    Dispatch tries these in order, one at a time, escalating if no rider is found in time. The customer is charged the highest of the available quotes. Use ✕ to remove a provider from the queue; add it back below.
                                 </p>
                                 <div className="space-y-1.5">
                                     {(deliveryRules.delivery_provider_priority || ["porter", "uber", "rapido"]).map((prov, i, arr) => (
@@ -745,9 +792,41 @@ export function DeliverySettings() {
                                                 })}
                                                 className="rounded px-2 py-0.5 hover:bg-muted disabled:opacity-30"
                                             >↓</button>
+                                            <button
+                                                type="button"
+                                                disabled={arr.length <= 1}
+                                                aria-label={`Remove ${prov} from queue`}
+                                                title={arr.length <= 1 ? "Keep at least one provider" : `Remove ${prov}`}
+                                                onClick={() => setDeliveryRules(prev => {
+                                                    const a = (prev.delivery_provider_priority || ["porter", "uber", "rapido"]).filter(x => x !== prov);
+                                                    return { ...prev, delivery_provider_priority: a };
+                                                })}
+                                                className="rounded px-2 py-0.5 text-red-500 hover:bg-red-50 disabled:opacity-30"
+                                            >✕</button>
                                         </div>
                                     ))}
                                 </div>
+                                {(() => {
+                                    const active = deliveryRules.delivery_provider_priority || ["porter", "uber", "rapido"];
+                                    const removed = (["porter", "uber", "rapido"] as const).filter(p => !active.includes(p));
+                                    if (removed.length === 0) return null;
+                                    return (
+                                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                                            <span className="text-xs text-muted-foreground">Add back:</span>
+                                            {removed.map(prov => (
+                                                <button
+                                                    key={prov}
+                                                    type="button"
+                                                    onClick={() => setDeliveryRules(prev => {
+                                                        const a = [...(prev.delivery_provider_priority || ["porter", "uber", "rapido"]), prov];
+                                                        return { ...prev, delivery_provider_priority: a };
+                                                    })}
+                                                    className="rounded-full border border-orange-300 bg-orange-50 px-3 py-1 text-xs capitalize text-orange-700 hover:bg-orange-100"
+                                                >+ {prov}</button>
+                                            ))}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                     )}

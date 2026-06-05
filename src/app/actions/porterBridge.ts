@@ -641,6 +641,11 @@ interface PartnerDispatchCfg {
   priority: string[] | undefined;
   /** Booking method: "bike" (normal 2-wheeler ride) or "parcel" (courier class). */
   vehicleMode: "bike" | "parcel";
+  /** Per-provider payment mode override (e.g. Porter:wallet). Sent to the bridge
+   *  as `paymentModes`; unset providers default to cash. */
+  paymentModes: Partial<Record<"porter" | "uber" | "rapido", "cash" | "wallet">>;
+  /** Seconds the bridge waits per provider before escalating. Sent as `timeoutSec`. */
+  waitSeconds: number;
   enabled: boolean;
 }
 
@@ -655,7 +660,12 @@ async function loadPartnerDispatchCfg(
     uber_mobile: string | null;
     rapido_mobile: string | null;
     feature_flags: string | null;
-    delivery_rules: { delivery_provider_priority?: unknown; delivery_vehicle_mode?: unknown } | null;
+    delivery_rules: {
+      delivery_provider_priority?: unknown;
+      delivery_vehicle_mode?: unknown;
+      delivery_payment_modes?: { porter?: unknown; uber?: unknown; rapido?: unknown } | null;
+      delivery_wait_seconds?: unknown;
+    } | null;
   } | null;
   try {
     const data = await fetchFromHasura(
@@ -688,9 +698,20 @@ async function loadPartnerDispatchCfg(
   const priority = Array.isArray(pri) && pri.length ? pri.map(String) : undefined;
   const vehicleMode: "bike" | "parcel" =
     p.delivery_rules?.delivery_vehicle_mode === "parcel" ? "parcel" : "bike";
+  // Per-provider payment modes — keep only valid "cash"/"wallet" values.
+  const pm = p.delivery_rules?.delivery_payment_modes ?? null;
+  const paymentModes: Partial<Record<"porter" | "uber" | "rapido", "cash" | "wallet">> = {};
+  for (const prov of ["porter", "uber", "rapido"] as const) {
+    const v = pm?.[prov];
+    if (v === "wallet" || v === "cash") paymentModes[prov] = v;
+  }
+  // Per-provider search wait (seconds before escalating); clamp to the bridge's
+  // accepted 30–600 window, default 90.
+  const ws = Number(p.delivery_rules?.delivery_wait_seconds);
+  const waitSeconds = Number.isFinite(ws) ? Math.max(30, Math.min(600, ws)) : 90;
   return {
     ok: true,
-    cfg: { mobile, mobiles, pickup, storeName: p.store_name ?? "Store", priority, vehicleMode, enabled },
+    cfg: { mobile, mobiles, pickup, storeName: p.store_name ?? "Store", priority, vehicleMode, paymentModes, waitSeconds, enabled },
   };
 }
 
@@ -787,6 +808,8 @@ export async function dispatchViaDeliveryBridge(orderId: string): Promise<Result
       vehicleMode: c.cfg.vehicleMode,
       priority: c.cfg.priority,
       paymentMode: "cash",
+      paymentModes: c.cfg.paymentModes,
+      timeoutSec: c.cfg.waitSeconds,
       pickup: {
         lat: c.cfg.pickup.lat,
         lng: c.cfg.pickup.lng,

@@ -94,6 +94,19 @@ export interface DeliveryRules {
   /** Booking method for the delivery-bridge dispatch: "bike" (normal 2-wheeler
    *  ride) or "parcel" (courier/parcel class). Defaults to "bike". */
   delivery_vehicle_mode?: "bike" | "parcel";
+  /** Per-provider payment mode for the delivery-bridge dispatch. "wallet" draws
+   *  from that provider's prepaid balance (Porter credits / Rapido wallet);
+   *  Uber is effectively cash-only upstream. Defaults to cash for any unset
+   *  provider. Sent to the bridge as `paymentModes`. */
+  delivery_payment_modes?: {
+    porter?: "cash" | "wallet";
+    uber?: "cash" | "wallet";
+    rapido?: "cash" | "wallet";
+  };
+  /** How many seconds the bridge waits for a rider on each provider before
+   *  escalating to the next in the priority list. Sent as `timeoutSec`.
+   *  Defaults to 90. */
+  delivery_wait_seconds?: number;
   announcement?: string;
   banner_mode?: "single" | "carousel";
   carousel_banners?: string[];
