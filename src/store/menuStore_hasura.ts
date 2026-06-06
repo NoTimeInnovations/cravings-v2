@@ -27,6 +27,10 @@ interface MenuItemCategory {
 export interface MenuItem {
   id?: string;
   name: string;
+  /** Optional second-language name shown on its own line below `name` (e.g. Arabic / Hindi). */
+  name_secondary?: string | null;
+  /** When true the secondary name is rendered right-to-left (Arabic, Hebrew, Urdu …). */
+  name_secondary_rtl?: boolean;
   category: MenuItemCategory & {
     is_active: boolean;
   };
@@ -215,6 +219,8 @@ export const useMenuStore = create<MenuState>((set, get) => ({
         const menuItem: MenuItem = {
           id: mi.id,
           name: mi.name,
+          name_secondary: mi.name_secondary ?? null,
+          name_secondary_rtl: Boolean(mi.name_secondary_rtl),
           category: {
             id: mi.category.id,
             name: mi.category.name,
@@ -306,6 +312,8 @@ export const useMenuStore = create<MenuState>((set, get) => ({
 
       const newMenu = {
         name: item.name,
+        name_secondary: item.name_secondary ?? null,
+        name_secondary_rtl: item.name_secondary_rtl ?? false,
         category_id: category_id,
         image_url: s3Url || "",
         image_source: item.image_source || "",

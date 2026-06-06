@@ -321,10 +321,18 @@ const V3ItemCard = ({
               ? `${item.name} (${offerData.variant.name})`
               : item.name}
           </h3>
+          {item.name_secondary && (
+            <p
+              dir={item.name_secondary_rtl ? "rtl" : "ltr"}
+              className="mt-0.5 text-left text-xs font-medium leading-snug text-gray-500"
+            >
+              {item.name_secondary}
+            </p>
+          )}
 
           {/* Price */}
           {shouldShowPrice && (
-            <div className="mt-0.5 flex items-center gap-2 text-xs font-bold">
+            <div className="mt-1.5 flex items-center gap-2 text-xs font-bold">
               {item.is_price_as_per_size !== true ? (
                 hasValidMainOffer ? (
                   <div className="flex items-center gap-1.5">
@@ -488,6 +496,14 @@ const V3ItemCard = ({
               )}
             </div>
             <h2 className="mt-1.5 text-lg font-extrabold tracking-tight text-gray-900">{item.name}</h2>
+            {item.name_secondary && (
+              <p
+                dir={item.name_secondary_rtl ? "rtl" : "ltr"}
+                className="mt-0.5 text-left text-sm font-medium leading-snug text-gray-500"
+              >
+                {item.name_secondary}
+              </p>
+            )}
 
             {shouldShowPrice && (
               <div className="mt-1 flex items-center gap-2">
@@ -569,6 +585,14 @@ const V3ItemCard = ({
                 {item.is_veg !== null && item.is_veg !== undefined && <VegMark isVeg={item.is_veg} />}
                 <h3 className="font-bold text-lg text-gray-900">{item.name}</h3>
               </div>
+              {item.name_secondary && (
+                <p
+                  dir={item.name_secondary_rtl ? "rtl" : "ltr"}
+                  className="text-left text-sm font-medium leading-snug text-gray-500"
+                >
+                  {item.name_secondary}
+                </p>
+              )}
               {item.description && (
                 <p className="text-sm text-gray-400 mt-1 leading-relaxed">{item.description}</p>
               )}

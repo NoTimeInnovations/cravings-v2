@@ -251,6 +251,8 @@ query GetPartnerAndOffersQuery($id: uuid! , $offer_types: [String!]) {
       tags
       is_price_as_per_size
       name
+      name_secondary
+      name_secondary_rtl
       price
       visibility_config
       offers(where: {_and: [{ offer_type : { _in : $offer_types } } ,{end_time: {_gt: "now()"}}, {deletion_status: {_eq: 0}}]}) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useMenuStore, MenuItem } from "@/store/menuStore_hasura";
 import { useAuthStore, Partner } from "@/store/authStore";
 import { Input } from "@/components/ui/input";
@@ -75,6 +76,28 @@ export function AdminV2Menu() {
   const [lastEditedItemId, setLastEditedItemId] = useState<string | null>(null);
   const [isPriorityMode, setIsPriorityMode] = useState(false);
   const [isAvailabilityMode, setIsAvailabilityMode] = useState(false);
+
+  // Quick-access deep link from the dashboard: ?menuPanel=availability|priority
+  // auto-opens that sub-panel. The param is consumed (removed) once handled so
+  // closing the panel doesn't immediately reopen it. Works on fresh load and
+  // when the kept-alive Menu view is re-shown (effect keys on the query string).
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  useEffect(() => {
+    const panel = searchParams.get("menuPanel");
+    if (panel !== "availability" && panel !== "priority") return;
+    if (panel === "availability") {
+      setIsAvailabilityMode(true);
+      setIsPriorityMode(false);
+    } else {
+      setIsPriorityMode(true);
+      setIsAvailabilityMode(false);
+    }
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.delete("menuPanel");
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [searchParams, router, pathname]);
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const { updateCategory, categories, fetchCategories } = useCategoryStore();

@@ -19,13 +19,15 @@ import {
   BarChart3,
   ExternalLink,
   Globe,
-  Lightbulb,
   Loader2,
   Download,
   MessageCircle,
   AlertTriangle,
   Bike,
+  Power,
+  ArrowUpDown,
 } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
 import QRCodeLib from "qrcode";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { Partner, useAuthStore } from "@/store/authStore";
@@ -65,24 +67,6 @@ const tutorialVideos = [
   },
 ];
 
-const tips = [
-  {
-    title: "Add photos to your menu items",
-    description:
-      "Items with images get up to 70% more orders. Upload clear, well-lit photos to grab attention.",
-  },
-  {
-    title: "Keep your menu updated",
-    description:
-      "Restaurants that update prices and availability weekly see 40% fewer order cancellations.",
-  },
-  {
-    title: "Respond to orders quickly",
-    description:
-      "Accepting orders within 2 minutes boosts repeat customers by 35%. Speed builds trust.",
-  },
-];
-
 interface QuickAction {
   title: string;
   icon: React.ElementType;
@@ -94,6 +78,8 @@ interface QuickAction {
 export function AdminV2Dashboard() {
   const { userData } = useAuthStore();
   const { setActiveView } = useAdminStore();
+  const router = useRouter();
+  const pathname = usePathname();
   const partner = userData as Partner;
   const planId = (userData as any)?.subscription_details?.plan?.id;
   const isOnFreePlan = isFreePlan(planId);
@@ -212,6 +198,18 @@ export function AdminV2Dashboard() {
     }
   };
 
+  // Jump straight into a Menu sub-panel (availability / priority manager). We do
+  // a SINGLE navigation that sets both view=Menu and the menuPanel param — and
+  // intentionally do NOT call setActiveView here. Letting the admin page's read
+  // effect derive the view from the URL avoids a race where its view→URL sync
+  // would strip menuPanel before AdminV2Menu can read it.
+  const openMenuPanel = (panel: "availability" | "priority") => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("view", "Menu");
+    params.set("menuPanel", panel);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
   const viewMenuHref = partner?.username
     ? `/${partner.username}`
     : qrId
@@ -252,6 +250,8 @@ export function AdminV2Dashboard() {
         ),
     },
     { title: "Edit Menu", icon: UtensilsCrossed, view: "Menu" },
+    { title: "Availability", icon: Power, onClick: () => openMenuPanel("availability") },
+    { title: "Priority", icon: ArrowUpDown, onClick: () => openMenuPanel("priority") },
     { title: "Analytics", icon: BarChart3, view: "Analytics" },
     { title: "Settings", icon: Settings, view: "Settings" },
   ];
@@ -437,28 +437,6 @@ export function AdminV2Dashboard() {
         </div>
       </div>
       */}
-
-      {/* Tips & Announcements */}
-      <div>
-        <h2 className="text-base font-bold tracking-tight mb-3">Tips</h2>
-        <div className="grid gap-3 md:grid-cols-3">
-          {tips.map((tip, index) => (
-            <Card key={index} className="transition-shadow hover:shadow-md">
-              <CardContent className="flex gap-3 py-5">
-                <div className="rounded-lg bg-muted p-2 shrink-0 h-fit">
-                  <Lightbulb className="h-4 w-4 text-orange-500" />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">{tip.title}</p>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    {tip.description}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
 
       {/* View QR Dialog */}
       <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>

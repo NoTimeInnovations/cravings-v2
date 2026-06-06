@@ -36,6 +36,8 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
 
     const [newItem, setNewItem] = useState<{
         name: string;
+        name_secondary: string;
+        name_secondary_rtl: boolean;
         price: string;
         description: string;
         image_url: string;
@@ -45,6 +47,8 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
         tax_inclusive: boolean;
     }>({
         name: "",
+        name_secondary: "",
+        name_secondary_rtl: false,
         price: "",
         description: "",
         image_url: "",
@@ -84,6 +88,8 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
         try {
             await addItem({
                 name: newItem.name,
+                name_secondary: newItem.name_secondary?.trim() || null,
+                name_secondary_rtl: newItem.name_secondary_rtl,
                 price: parseFloat(newItem.price) || 0,
                 image_url: newItem.image_url,
                 description: newItem.description,
@@ -179,6 +185,28 @@ export function AdminV2AddMenuItem({ onBack }: AdminV2AddMenuItemProps) {
                                     value={newItem.name}
                                     onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
                                 />
+                            </div>
+
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                    <label className="text-sm font-medium">Secondary Name (optional)</label>
+                                    <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground">
+                                        <span>Right-to-left (Arabic/Urdu)</span>
+                                        <Switch
+                                            checked={newItem.name_secondary_rtl}
+                                            onCheckedChange={(checked) => setNewItem({ ...newItem, name_secondary_rtl: checked })}
+                                        />
+                                    </label>
+                                </div>
+                                <Input
+                                    placeholder="Second-language name, e.g. أرز مقلي روبيان"
+                                    value={newItem.name_secondary}
+                                    dir={newItem.name_secondary_rtl ? "rtl" : "ltr"}
+                                    onChange={(e) => setNewItem({ ...newItem, name_secondary: e.target.value })}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Shown on a second line below the item name. Turn on RTL for Arabic/Urdu/Hebrew.
+                                </p>
                             </div>
 
                             <div className="space-y-2">

@@ -37,6 +37,8 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
 
     const [editingItem, setEditingItem] = useState({
         ...item,
+        name_secondary: item.name_secondary ?? "",
+        name_secondary_rtl: item.name_secondary_rtl ?? false,
         price: item.price.toString(),
         delivery_price: item.delivery_price != null ? item.delivery_price.toString() : "",
         tags: item.tags || [],
@@ -78,6 +80,8 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
         try {
             await updateItem(item.id!, {
                 name: editingItem.name,
+                name_secondary: editingItem.name_secondary?.trim() || null,
+                name_secondary_rtl: editingItem.name_secondary_rtl,
                 price: editingItem.is_price_as_per_size ? 0 : parseFloat(editingItem.price),
                 delivery_price: editingItem.delivery_price !== "" ? parseFloat(editingItem.delivery_price) : undefined,
                 show_on_delivery: editingItem.show_on_delivery,
@@ -193,6 +197,28 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                                     value={editingItem.name}
                                     onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
                                 />
+                            </div>
+
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between gap-2">
+                                    <label className="text-sm font-medium">Secondary Name (optional)</label>
+                                    <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground">
+                                        <span>Right-to-left (Arabic/Urdu)</span>
+                                        <Switch
+                                            checked={editingItem.name_secondary_rtl}
+                                            onCheckedChange={(checked) => setEditingItem({ ...editingItem, name_secondary_rtl: checked })}
+                                        />
+                                    </label>
+                                </div>
+                                <Input
+                                    placeholder="Second-language name, e.g. أرز مقلي روبيان"
+                                    value={editingItem.name_secondary}
+                                    dir={editingItem.name_secondary_rtl ? "rtl" : "ltr"}
+                                    onChange={(e) => setEditingItem({ ...editingItem, name_secondary: e.target.value })}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Shown on a second line below the item name. Turn on RTL for Arabic/Urdu/Hebrew.
+                                </p>
                             </div>
 
                             <div className="space-y-2">

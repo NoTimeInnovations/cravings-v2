@@ -5,6 +5,8 @@ export const getMenu = `
         menu(where: {partner_id: {_eq: $partner_id} , deletion_status: {_eq: 0}} ) {
             id
             name
+            name_secondary
+            name_secondary_rtl
             category {
                 id
                 name
@@ -102,7 +104,9 @@ export const addMenu = `
         returning {
             id
             name
-            category { 
+            name_secondary
+            name_secondary_rtl
+            category {
                 id
                 name
                 priority
@@ -129,7 +133,9 @@ export const updateMenu = `
             returning {
                 id
             name
-            category { 
+            name_secondary
+            name_secondary_rtl
+            category {
                 id
                 name
                 priority
