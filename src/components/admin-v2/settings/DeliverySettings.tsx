@@ -336,6 +336,7 @@ export function DeliverySettings() {
                 delivery_vehicle_mode: userData.delivery_rules?.delivery_vehicle_mode || "bike",
                 delivery_payment_modes: userData.delivery_rules?.delivery_payment_modes || {},
                 delivery_wait_seconds: userData.delivery_rules?.delivery_wait_seconds ?? 90,
+                delivery_provider_groups: userData.delivery_rules?.delivery_provider_groups || {},
             });
 
             // Initialize WhatsApp numbers
@@ -656,9 +657,10 @@ export function DeliverySettings() {
                             </div>
                             <p className="text-xs text-muted-foreground">
                                 Dispatch routes through your provider accounts on the bridge. Enter the
-                                mobile each provider is logged in with — leave one blank to fall back to
-                                your Porter number (or store phone). Manage the accounts (OTP login, view
-                                bookings) at{" "}
+                                <strong> group number</strong> for each provider — the bridge books on a free
+                                account in that group, so you can run several accounts at once (e.g. multiple
+                                Rapido accounts, which each allow only one live order). Create accounts and tag
+                                them into a group at{" "}
                                 <a
                                     href="https://deliverybridge.menuthere.com/accounts"
                                     target="_blank"
@@ -671,23 +673,25 @@ export function DeliverySettings() {
                             </p>
                             <div className="grid gap-3 sm:grid-cols-3">
                                 {([
-                                    { label: "Porter", key: "porter", value: porterMobile, set: setPorterMobile },
-                                    { label: "Uber", key: "uber", value: uberMobile, set: setUberMobile },
-                                    { label: "Rapido", key: "rapido", value: rapidoMobile, set: setRapidoMobile },
-                                ] as { label: string; key: "porter" | "uber" | "rapido"; value: string; set: (v: string) => void }[]).map(({ label, key, value, set }) => (
+                                    { label: "Porter", key: "porter" },
+                                    { label: "Uber", key: "uber" },
+                                    { label: "Rapido", key: "rapido" },
+                                ] as { label: string; key: "porter" | "uber" | "rapido" }[]).map(({ label, key }) => (
                                     <div key={label} className="space-y-1">
-                                        <Label className="text-sm">{label} mobile</Label>
-                                        <div className="flex items-center rounded-md border bg-white pl-2 focus-within:ring-1 focus-within:ring-orange-300">
-                                            <span className="select-none text-sm text-muted-foreground">+91</span>
-                                            <Input
-                                                type="tel"
-                                                inputMode="numeric"
-                                                value={value}
-                                                placeholder="10-digit"
-                                                onChange={(e) => set(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                                                className="border-0 shadow-none focus-visible:ring-0"
-                                            />
-                                        </div>
+                                        <Label className="text-sm">{label} group</Label>
+                                        <Input
+                                            value={deliveryRules.delivery_provider_groups?.[key] ?? ""}
+                                            placeholder="group #"
+                                            onChange={(e) =>
+                                                setDeliveryRules((prev) => ({
+                                                    ...prev,
+                                                    delivery_provider_groups: {
+                                                        ...(prev.delivery_provider_groups || {}),
+                                                        [key]: e.target.value.replace(/^\s+/, "").slice(0, 40),
+                                                    },
+                                                }))
+                                            }
+                                        />
                                         <select
                                             value={deliveryRules.delivery_payment_modes?.[key] || "cash"}
                                             onChange={(e) =>

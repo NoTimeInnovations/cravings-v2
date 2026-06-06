@@ -108,6 +108,15 @@ export interface DeliveryRules {
    *  escalating to the next in the priority list. Sent as `timeoutSec`.
    *  Defaults to 90. */
   delivery_wait_seconds?: number;
+  /** Per-provider delivery-bridge GROUP number. Replaces the per-provider
+   *  mobile: the bridge resolves the group to a pool of accounts and books on a
+   *  free one (lets a partner run several Rapido accounts — 1 live order each).
+   *  Sent to the bridge as `groups`. */
+  delivery_provider_groups?: {
+    porter?: string;
+    uber?: string;
+    rapido?: string;
+  };
   announcement?: string;
   banner_mode?: "single" | "carousel";
   carousel_banners?: string[];

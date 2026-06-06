@@ -649,6 +649,10 @@ interface PartnerDispatchCfg {
   /** Per-provider payment mode override (e.g. Porter:wallet). Sent to the bridge
    *  as `paymentModes`; unset providers default to cash. */
   paymentModes: Partial<Record<"porter" | "uber" | "rapido", "cash" | "wallet">>;
+  /** Per-provider delivery-bridge group number. Sent as `groups`; the bridge
+   *  resolves a group to a free account in its pool. Takes precedence over the
+   *  per-provider mobile for any provider that has a group set. */
+  groups: Partial<Record<"porter" | "uber" | "rapido", string>>;
   /** Seconds the bridge waits per provider before escalating. Sent as `timeoutSec`. */
   waitSeconds: number;
   enabled: boolean;
@@ -670,6 +674,7 @@ async function loadPartnerDispatchCfg(
       delivery_vehicle_mode?: unknown;
       delivery_payment_modes?: { porter?: unknown; uber?: unknown; rapido?: unknown } | null;
       delivery_wait_seconds?: unknown;
+      delivery_provider_groups?: { porter?: unknown; uber?: unknown; rapido?: unknown } | null;
     } | null;
   } | null;
   try {
@@ -736,9 +741,16 @@ async function loadPartnerDispatchCfg(
   // accepted 30–600 window, default 90.
   const ws = Number(p.delivery_rules?.delivery_wait_seconds);
   const waitSeconds = Number.isFinite(ws) ? Math.max(30, Math.min(600, ws)) : 90;
+  // Per-provider group numbers — only keep non-blank ones.
+  const grp = p.delivery_rules?.delivery_provider_groups ?? null;
+  const groups: Partial<Record<"porter" | "uber" | "rapido", string>> = {};
+  for (const prov of ["porter", "uber", "rapido"] as const) {
+    const g = String(grp?.[prov] ?? "").trim();
+    if (g) groups[prov] = g;
+  }
   return {
     ok: true,
-    cfg: { mobile, mobiles, pickup, storeName: p.store_name ?? "Store", priority, vehicleMode, paymentModes, waitSeconds, enabled },
+    cfg: { mobile, mobiles, pickup, storeName: p.store_name ?? "Store", priority, vehicleMode, paymentModes, waitSeconds, groups, enabled },
   };
 }
 
@@ -765,6 +777,7 @@ export async function quoteDeliveryFare(input: {
     json: {
       mobile: c.cfg.mobile,
       mobiles: c.cfg.mobiles,
+      groups: c.cfg.groups,
       vehicleMode: c.cfg.vehicleMode,
       priority: c.cfg.priority,
       paymentMode: input.paymentMode ?? "cash",
@@ -832,6 +845,7 @@ export async function dispatchViaDeliveryBridge(orderId: string): Promise<Result
     json: {
       mobile: c.cfg.mobile,
       mobiles: c.cfg.mobiles,
+      groups: c.cfg.groups,
       vehicleMode: c.cfg.vehicleMode,
       priority: c.cfg.priority,
       paymentMode: "cash",
