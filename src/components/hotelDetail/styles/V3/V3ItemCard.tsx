@@ -368,7 +368,7 @@ const V3ItemCard = ({
 
           {/* Description */}
           {item.description && (
-            <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-gray-400">
+            <p className="mt-1 line-clamp-2 whitespace-pre-line text-[11px] leading-relaxed text-gray-400">
               {item.description}
             </p>
           )}
@@ -521,7 +521,7 @@ const V3ItemCard = ({
             )}
 
             {item.description && (
-              <p className="mt-2 text-xs leading-relaxed text-gray-400">{item.description}</p>
+              <p className="mt-2 whitespace-pre-line text-xs leading-relaxed text-gray-400">{item.description}</p>
             )}
 
             {isOrderable && showAddButton && (
@@ -594,7 +594,7 @@ const V3ItemCard = ({
                 </p>
               )}
               {item.description && (
-                <p className="text-sm text-gray-400 mt-1 leading-relaxed">{item.description}</p>
+                <p className="text-sm text-gray-400 mt-1 leading-relaxed whitespace-pre-line">{item.description}</p>
               )}
             </div>
           </div>
