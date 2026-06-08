@@ -5,6 +5,7 @@ export const getPartnerCategories = `
         category(where: {partner_id: {_eq: $partner_id}, deletion_status: {_eq: 0}, menus: {_not: {deletion_status: {_eq: 1}}}}, limit: 100) {
             id
             name
+            priority
             is_active
             visibility_config
         }

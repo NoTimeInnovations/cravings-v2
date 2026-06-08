@@ -46,7 +46,9 @@ export function AdminV2AvailabilityManager({ onBack }: AdminV2AvailabilityManage
         if (categories.length > 0 && items.length > 0) {
             const data = categories.map(cat => ({
                 category: cat,
-                items: items.filter(item => item.category.id === cat.id)
+                items: items
+                    .filter(item => item.category.id === cat.id)
+                    .sort((a, b) => (a.priority || 0) - (b.priority || 0))
             })).sort((a, b) => (a.category.priority || 0) - (b.category.priority || 0));
 
             if (searchQuery) {

@@ -526,10 +526,14 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     // 3. Sort categories by priority (ascending)
     categories.sort((a, b) => a.priority - b.priority);
 
-    // 4. Create the final grouped object with original names
+    // 4. Create the final grouped object with original names,
+    //    sorting items within each category by priority (ascending).
+    //    Array.prototype.sort is stable, so equal-priority items keep order.
     const groupedByPriority: GroupedItems = {};
     categories.forEach((category) => {
-      groupedByPriority[category.displayName] = category.items;
+      groupedByPriority[category.displayName] = [...category.items].sort(
+        (a, b) => (a.priority || 0) - (b.priority || 0)
+      );
     });
     set({ groupedItems: groupedByPriority });
   },
