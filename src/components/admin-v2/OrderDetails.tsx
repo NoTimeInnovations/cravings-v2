@@ -499,10 +499,11 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     </div>
                 </div>
 
-                {/* Delivery Boy Assignment — hidden when partner uses a 3PL delivery agent */}
+                {/* Delivery Boy Assignment — only while the order is still pending
+                    (removed once accepted), and hidden when the partner uses a 3PL
+                    delivery agent */}
                 {order.type === "delivery" &&
-                    order.status !== "completed" &&
-                    order.status !== "cancelled" &&
+                    order.status === "pending" &&
                     !getFeatures((userData as Partner)?.feature_flags || null).delivery_agent.enabled && (
                         <DeliveryBoyAssignment order={order} />
                     )}

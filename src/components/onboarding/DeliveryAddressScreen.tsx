@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Loader2, MapPin, Search, LocateFixed, ChevronLeft, ChevronRight, Home, Building2, Navigation, Trash2 } from "lucide-react";
+import { Loader2, MapPin, Search, LocateFixed, ChevronLeft, ChevronRight, Home, Building2, Navigation, Trash2, ArrowLeft } from "lucide-react";
 import { useLoadScript } from "@react-google-maps/api";
 import { useAuthStore } from "@/store/authStore";
 import type { SavedAddress } from "@/components/hotelDetail/placeOrder/AddressManagementModal";
@@ -71,6 +71,23 @@ export default function DeliveryAddressScreen({
     { address?: string; coords: { lat: number; lng: number } } | null
   >(null);
 
+  // After the map pick, collect the same delivery-address details PlaceOrderModalV2
+  // asks for (receiver name/phone + building/floor/save-as) before continuing.
+  const [showDetailForm, setShowDetailForm] = useState(false);
+  const [pendingAddress, setPendingAddress] = useState<SavedAddress | null>(null);
+  const [addressFormData, setAddressFormData] = useState({
+    useAccountDetails: false,
+    receiverName: "",
+    receiverPhone: "",
+    locationType: "Other" as "House" | "Office" | "Other",
+    buildingFloor: "",
+    street: "",
+    saveAs: "",
+    deliveryInstructions: "",
+  });
+  // Flips true on a save attempt so required fields highlight as required.
+  const [triedSaveDetails, setTriedSaveDetails] = useState(false);
+
   const openPickerWith = useCallback(
     (addr: string, c: { lat: number; lng: number } | null) => {
       if (c) {
@@ -99,6 +116,79 @@ export default function DeliveryAddressScreen({
       toast.error("Failed to delete address");
     }
   }, [authUser, savedAddresses]);
+
+  const persistAddresses = useCallback(
+    async (addresses: SavedAddress[]) => {
+      if (!authUser || (authUser as any).role !== "user") return false;
+      try {
+        await fetchFromHasura(updateUserAddressesMutation, {
+          id: authUser.id,
+          addresses,
+        });
+        useAuthStore.setState({
+          userData: { ...(authUser as any), addresses } as any,
+        });
+        return true;
+      } catch {
+        toast.error("Failed to save address");
+        return false;
+      }
+    },
+    [authUser],
+  );
+
+  // Save the receiver + location details onto the picked address, persist it to
+  // the user's saved addresses, then continue — mirrors PlaceOrderModalV2's
+  // handleSaveAddressForm so onboarding captures the same delivery details.
+  const handleSaveDetails = useCallback(async () => {
+    if (!pendingAddress) return;
+    setTriedSaveDetails(true);
+    if (
+      !addressFormData.receiverName.trim() ||
+      !addressFormData.receiverPhone.trim() ||
+      !addressFormData.buildingFloor.trim()
+    ) {
+      toast.error("Please fill the required fields");
+      return; // the empty required fields highlight inline
+    }
+    const label = addressFormData.saveAs.trim() || addressFormData.locationType;
+    const finalAddress: SavedAddress = {
+      ...pendingAddress,
+      label,
+      house_no: addressFormData.buildingFloor.trim() || undefined,
+      street: addressFormData.street.trim() || undefined,
+      customLabel: addressFormData.saveAs.trim() || undefined,
+      receiverName: addressFormData.receiverName.trim() || undefined,
+      receiverPhone: addressFormData.receiverPhone.trim() || undefined,
+    };
+    const existing = [...savedAddresses];
+    const idx = existing.findIndex((a) => a.id === finalAddress.id);
+    if (idx >= 0) existing[idx] = finalAddress;
+    else existing.push(finalAddress);
+    await persistAddresses(existing);
+
+    const fullAddress =
+      finalAddress.address ||
+      [finalAddress.flat_no, finalAddress.house_no, finalAddress.area, finalAddress.city]
+        .filter(Boolean)
+        .join(", ");
+    const c =
+      finalAddress.latitude != null && finalAddress.longitude != null
+        ? { lat: finalAddress.latitude, lng: finalAddress.longitude }
+        : null;
+    setShowDetailForm(false);
+    setPendingAddress(null);
+    onContinue(fullAddress, c);
+  }, [pendingAddress, addressFormData, savedAddresses, persistAddresses, onContinue]);
+
+  // A required field is in error once a save was attempted and it's still empty.
+  const requiredError = (value: string) => triedSaveDetails && !value.trim();
+  const inputCls = (isErr: boolean) =>
+    `w-full h-12 px-4 rounded-xl border bg-white text-sm focus:outline-none focus:ring-2 ${
+      isErr
+        ? "border-red-400 focus:ring-red-200"
+        : "border-gray-200 focus:ring-gray-300"
+    }`;
 
   useEffect(() => {
     if (isLoaded && typeof google !== "undefined") {
@@ -344,6 +434,224 @@ export default function DeliveryAddressScreen({
        </div>
       </div>
 
+      {/* Delivery-address details (same fields as PlaceOrderModalV2) — shown
+          after the map pick, before continuing. */}
+      {showDetailForm && pendingAddress && (
+        <div
+          className="fixed inset-0 z-[600] bg-gray-50 overflow-y-auto"
+          style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
+        >
+          {/* Header */}
+          <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+            <div className="px-4 py-3 flex items-center gap-3 lg:max-w-md lg:mx-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDetailForm(false);
+                  setPendingAddress(null);
+                }}
+                className="p-1"
+              >
+                <ArrowLeft className="h-6 w-6 text-gray-900" />
+              </button>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-gray-900 truncate">
+                  {pendingAddress.area || pendingAddress.city || "Location"}{" "}
+                  <span className="text-gray-400 font-normal">| </span>
+                  <span className="text-gray-500 font-normal text-xs">
+                    {(pendingAddress.address || "").slice(0, 40)}
+                    {(pendingAddress.address || "").length > 40 ? "…" : ""}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 space-y-5 pb-32 lg:max-w-md lg:mx-auto">
+            {/* Receiver Details */}
+            <div>
+              <h4 className="text-base font-bold text-gray-900 mb-3">Receiver Details</h4>
+              <label className="flex items-center gap-2 mb-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={addressFormData.useAccountDetails}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setAddressFormData((prev) => ({
+                      ...prev,
+                      useAccountDetails: checked,
+                      receiverName: checked ? ((authUser as any)?.full_name || "") : "",
+                      receiverPhone: checked ? ((authUser as any)?.phone || "") : "",
+                    }));
+                  }}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <span className="text-sm text-gray-700">Use my account details</span>
+              </label>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Receiver name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    aria-required="true"
+                    aria-invalid={requiredError(addressFormData.receiverName)}
+                    placeholder="Full name"
+                    value={addressFormData.receiverName}
+                    onChange={(e) =>
+                      setAddressFormData((prev) => ({ ...prev, receiverName: e.target.value }))
+                    }
+                    className={inputCls(requiredError(addressFormData.receiverName))}
+                  />
+                  {requiredError(addressFormData.receiverName) && (
+                    <p className="mt-1 text-xs text-red-500">Receiver name is required</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Receiver&apos;s number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    aria-required="true"
+                    aria-invalid={requiredError(addressFormData.receiverPhone)}
+                    placeholder="10-digit mobile number"
+                    value={addressFormData.receiverPhone}
+                    onChange={(e) =>
+                      setAddressFormData((prev) => ({ ...prev, receiverPhone: e.target.value }))
+                    }
+                    className={inputCls(requiredError(addressFormData.receiverPhone))}
+                  />
+                  {requiredError(addressFormData.receiverPhone) && (
+                    <p className="mt-1 text-xs text-red-500">Receiver&apos;s number is required</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Location Details */}
+            <div>
+              <h4 className="text-base font-bold text-gray-900 mb-3">Location Details</h4>
+              <div className="flex gap-2 mb-4">
+                {(["House", "Office", "Other"] as const).map((type) => {
+                  const selected = addressFormData.locationType === type;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() =>
+                        setAddressFormData((prev) => ({ ...prev, locationType: type }))
+                      }
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-colors"
+                      style={
+                        selected
+                          ? { backgroundColor: accent, borderColor: accent, color: "white" }
+                          : { backgroundColor: "white", borderColor: "#e5e7eb", color: "#4b5563" }
+                      }
+                    >
+                      {type === "House" && <Home className="h-3.5 w-3.5" />}
+                      {type === "Office" && <Building2 className="h-3.5 w-3.5" />}
+                      {type === "Other" && <Navigation className="h-3.5 w-3.5" />}
+                      {type}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Building / Floor <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    aria-required="true"
+                    aria-invalid={requiredError(addressFormData.buildingFloor)}
+                    placeholder="e.g. Flat 3B, 2nd floor"
+                    value={addressFormData.buildingFloor}
+                    onChange={(e) =>
+                      setAddressFormData((prev) => ({ ...prev, buildingFloor: e.target.value }))
+                    }
+                    className={inputCls(requiredError(addressFormData.buildingFloor))}
+                  />
+                  {requiredError(addressFormData.buildingFloor) && (
+                    <p className="mt-1 text-xs text-red-500">Building / Floor is required</p>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  placeholder="Street (optional)"
+                  value={addressFormData.street}
+                  onChange={(e) =>
+                    setAddressFormData((prev) => ({ ...prev, street: e.target.value }))
+                  }
+                  className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+                />
+
+                {/* Area / Locality with Change */}
+                <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-gray-400">Area/Locality</div>
+                    <div className="text-sm text-gray-700 truncate mt-0.5">
+                      {pendingAddress.address || ""}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const c =
+                        pendingAddress.latitude != null && pendingAddress.longitude != null
+                          ? { lat: pendingAddress.latitude, lng: pendingAddress.longitude }
+                          : null;
+                      setShowDetailForm(false);
+                      openPickerWith(pendingAddress.address || "", c);
+                    }}
+                    className="flex items-center gap-1 shrink-0"
+                    style={{ color: accent }}
+                  >
+                    <MapPin className="h-4 w-4" />
+                    <span className="text-sm font-semibold">Change</span>
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  placeholder="Save address as (optional)"
+                  value={addressFormData.saveAs}
+                  onChange={(e) =>
+                    setAddressFormData((prev) => ({ ...prev, saveAs: e.target.value }))
+                  }
+                  className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Save button */}
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-20">
+            <div className="px-4 py-3 pb-8 lg:max-w-md lg:mx-auto">
+              <button
+                type="button"
+                onClick={handleSaveDetails}
+                disabled={loading}
+                className="w-full rounded-xl py-3.5 font-semibold text-white disabled:opacity-40"
+                style={{ backgroundColor: accent }}
+              >
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                ) : (
+                  "Save & Continue"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Map confirm + save (same flow as V3 bottom sheet) */}
       <AddressPickerV2
         open={addressPickerOpen}
@@ -351,36 +659,24 @@ export default function DeliveryAddressScreen({
           setAddressPickerOpen(false);
           setPickerInitial(null);
         }}
-        onSaved={async (saved) => {
-          const fullAddress =
-            saved.address ||
-            [saved.flat_no, saved.house_no, saved.area, saved.city]
-              .filter(Boolean)
-              .join(", ");
-          const c =
-            saved.latitude != null && saved.longitude != null
-              ? { lat: saved.latitude, lng: saved.longitude }
-              : null;
-          if (authUser && (authUser as any).role === "user") {
-            const existing = [...savedAddresses];
-            const idx = existing.findIndex((x) => x.id === saved.id);
-            if (idx >= 0) existing[idx] = saved;
-            else existing.push(saved);
-            try {
-              await fetchFromHasura(updateUserAddressesMutation, {
-                id: authUser.id,
-                addresses: existing,
-              });
-              useAuthStore.setState({
-                userData: { ...(authUser as any), addresses: existing } as any,
-              });
-            } catch {
-              toast.error("Failed to save address");
-            }
-          }
+        onSaved={(saved) => {
+          // Don't finish here — first collect the receiver + location details
+          // (same fields PlaceOrderModalV2 asks for) on the next screen.
           setAddressPickerOpen(false);
           setPickerInitial(null);
-          onContinue(fullAddress, c);
+          setPendingAddress(saved);
+          setAddressFormData({
+            useAccountDetails: false,
+            receiverName: "",
+            receiverPhone: "",
+            locationType: "Other",
+            buildingFloor: "",
+            street: "",
+            saveAs: "",
+            deliveryInstructions: "",
+          });
+          setTriedSaveDetails(false);
+          setShowDetailForm(true);
         }}
         hotelData={hotelData}
         accent={accent}
