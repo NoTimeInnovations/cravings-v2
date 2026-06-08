@@ -2,12 +2,14 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
   getLegalPartnerByUsername,
-  getDisplayLegalName,
+  getBrandName,
+  getMerchantEntityName,
+  hasDistinctLegalName,
   getContactEmail,
   getContactPhone,
 } from "@/lib/legalInfo";
 import { LegalPageLayout } from "@/components/legal/LegalPageLayout";
-import { Mail, Phone, MapPin, Building2 } from "lucide-react";
+import { Mail, Phone, MapPin, Building2, Store } from "lucide-react";
 
 const SLUG = "contact-us";
 const LAST_UPDATED = "29 April 2026";
@@ -20,7 +22,7 @@ export async function generateMetadata({
   const { username } = await params;
   const partner = await getLegalPartnerByUsername(username);
   if (!partner) return { title: "Not Found" };
-  const name = getDisplayLegalName(partner);
+  const name = getBrandName(partner);
   return {
     title: `Contact Us — ${name}`,
     description: `Get in touch with ${name}.`,
@@ -78,7 +80,9 @@ export default async function ContactUsPage({
   const partner = await getLegalPartnerByUsername(username);
   if (!partner) notFound();
 
-  const name = getDisplayLegalName(partner);
+  const brand = getBrandName(partner);
+  const entityName = getMerchantEntityName(partner);
+  const showBrandRow = hasDistinctLegalName(partner);
   const email = getContactEmail(partner);
   const phone = getContactPhone(partner);
   const address = partner.operating_address?.trim();
@@ -96,8 +100,11 @@ export default async function ContactUsPage({
         <ContactRow
           icon={Building2}
           label="Merchant Legal Entity Name"
-          value={name}
+          value={entityName}
         />
+        {showBrandRow && (
+          <ContactRow icon={Store} label="Brand Name" value={brand} />
+        )}
         {address && (
           <ContactRow
             icon={MapPin}

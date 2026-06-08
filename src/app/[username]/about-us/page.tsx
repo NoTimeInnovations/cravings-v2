@@ -1,6 +1,11 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getLegalPartnerByUsername, getDisplayLegalName } from "@/lib/legalInfo";
+import {
+  getLegalPartnerByUsername,
+  getBrandName,
+  getLegalName,
+  hasDistinctLegalName,
+} from "@/lib/legalInfo";
 import { LegalPageLayout } from "@/components/legal/LegalPageLayout";
 
 const SLUG = "about-us";
@@ -13,7 +18,7 @@ export async function generateMetadata({
   const { username } = await params;
   const partner = await getLegalPartnerByUsername(username);
   if (!partner) return { title: "Not Found" };
-  const name = getDisplayLegalName(partner);
+  const name = getBrandName(partner);
   return {
     title: `About Us — ${name}`,
     description: `Learn more about ${name}.`,
@@ -30,7 +35,7 @@ export default async function AboutUsPage({
   if (!partner) notFound();
 
   const aboutText = partner.about_us?.trim();
-  const name = getDisplayLegalName(partner);
+  const name = getBrandName(partner);
 
   return (
     <LegalPageLayout partner={partner} title="About Us" currentSlug={SLUG}>
@@ -47,6 +52,11 @@ export default async function AboutUsPage({
           ingredients, and attentive service. Browse our menu to explore our
           offerings, and feel free to reach out if you would like to know
           more about us.
+        </p>
+      )}
+      {hasDistinctLegalName(partner) && (
+        <p className="mb-4 text-sm text-neutral-500">
+          {name} is a brand owned and operated by {getLegalName(partner)}.
         </p>
       )}
     </LegalPageLayout>

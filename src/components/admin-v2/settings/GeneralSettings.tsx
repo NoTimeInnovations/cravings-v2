@@ -418,8 +418,11 @@ export function GeneralSettings() {
                     <CardContent className="space-y-4">
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="space-y-2">
-                                <Label>Official Name (Legal Entity)</Label>
+                                <Label>Merchant Legal Entity Name</Label>
                                 <Input value={officialName} onChange={(e) => setOfficialName(e.target.value)} placeholder="e.g. Notime Services Pvt Ltd" />
+                                <p className="text-xs text-muted-foreground">
+                                    Your registered legal entity. Leave blank to show only your brand name everywhere. When set, your storefront reads &ldquo;{`{brand} (operated by {this name})`}&rdquo; on policy pages and the footer.
+                                </p>
                             </div>
                             <div className="space-y-2">
                                 <Label>Official Email ID</Label>

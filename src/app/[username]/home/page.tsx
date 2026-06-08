@@ -12,6 +12,7 @@ interface PartnerRow {
   id: string;
   username: string;
   store_name: string;
+  official_name?: string | null;
   store_banner?: string;
   description?: string;
   phone?: string;

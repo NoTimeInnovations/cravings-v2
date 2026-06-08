@@ -1,6 +1,9 @@
 import type { LegalPartnerInfo } from "@/lib/legalInfo";
 import {
-  getDisplayLegalName,
+  getBrandName,
+  getLegalName,
+  hasDistinctLegalName,
+  getLegalEntityPhrase,
   getContactEmail,
   getContactPhone,
   getJurisdiction,
@@ -24,14 +27,21 @@ function Section({
 }
 
 function Contact({ partner }: { partner: LegalPartnerInfo }) {
-  const name = getDisplayLegalName(partner);
+  const brand = getBrandName(partner);
+  const legalName = getLegalName(partner);
+  const showLegal = hasDistinctLegalName(partner);
   const email = getContactEmail(partner);
   const phone = getContactPhone(partner);
   const address = partner.operating_address;
 
   return (
     <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
-      <p className="font-medium text-neutral-900">{name}</p>
+      <p className="font-medium text-neutral-900">{brand}</p>
+      {showLegal && (
+        <p className="mt-0.5 text-sm text-neutral-600">
+          Merchant Legal Entity Name: {legalName}
+        </p>
+      )}
       {address && <p className="mt-1 text-neutral-700">{address}</p>}
       {email && (
         <p className="mt-1 text-neutral-700">
@@ -60,7 +70,7 @@ function Contact({ partner }: { partner: LegalPartnerInfo }) {
 }
 
 export function TermsContent({ partner }: { partner: LegalPartnerInfo }) {
-  const name = getDisplayLegalName(partner);
+  const entity = getLegalEntityPhrase(partner);
   const jurisdiction = getJurisdiction(partner);
   return (
     <>
@@ -68,7 +78,7 @@ export function TermsContent({ partner }: { partner: LegalPartnerInfo }) {
         <p>
           These Terms and Conditions, along with privacy policy or other terms
           (&ldquo;Terms&rdquo;) constitute a binding agreement by and between{" "}
-          {name}, (&ldquo;Website Owner&rdquo; or &ldquo;we&rdquo; or
+          {entity}, (&ldquo;Website Owner&rdquo; or &ldquo;we&rdquo; or
           &ldquo;us&rdquo; or &ldquo;our&rdquo;) and you (&ldquo;you&rdquo; or
           &ldquo;your&rdquo;) and relate to your use of our website, goods (as
           applicable) or services (as applicable) (collectively,
@@ -176,12 +186,12 @@ export function TermsContent({ partner }: { partner: LegalPartnerInfo }) {
 }
 
 export function PrivacyContent({ partner }: { partner: LegalPartnerInfo }) {
-  const name = getDisplayLegalName(partner);
+  const entity = getLegalEntityPhrase(partner);
   return (
     <>
       <Section title="1. Introduction">
         <p>
-          {name} (&ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;)
+          {entity} (&ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;)
           respects your privacy and is committed to protecting the personal
           information you share with us. This Privacy Policy explains what
           information we collect, how we use it, and the choices you have.
@@ -284,12 +294,13 @@ export function PrivacyContent({ partner }: { partner: LegalPartnerInfo }) {
 }
 
 export function RefundContent({ partner }: { partner: LegalPartnerInfo }) {
-  const name = getDisplayLegalName(partner);
+  const brand = getBrandName(partner);
+  const entity = getLegalEntityPhrase(partner);
   return (
     <>
       <Section title="Overview">
         <p>
-          {name} believes in helping its customers as far as possible, and has
+          {entity} believes in helping its customers as far as possible, and has
           therefore a liberal cancellation policy. Under this policy:
         </p>
         <ul className="ml-5 list-disc space-y-3">
@@ -301,7 +312,7 @@ export function RefundContent({ partner }: { partner: LegalPartnerInfo }) {
             process of shipping them.
           </li>
           <li>
-            {name} does not accept cancellation requests for perishable items
+            {brand} does not accept cancellation requests for perishable items
             like flowers, eatables etc. However, refund/replacement can be
             made if the customer establishes that the quality of product
             delivered is not good.
@@ -321,7 +332,7 @@ export function RefundContent({ partner }: { partner: LegalPartnerInfo }) {
           <li>
             In case of complaints regarding products that come with a
             warranty from manufacturers, please refer the issue to them. In
-            case of any Refunds approved by {name}, it will take 1&ndash;2
+            case of any Refunds approved by {brand}, it will take 1&ndash;2
             days for the refund to be processed to the end customer.
           </li>
         </ul>
@@ -339,12 +350,12 @@ export function RefundContent({ partner }: { partner: LegalPartnerInfo }) {
 }
 
 export function ShippingContent({ partner }: { partner: LegalPartnerInfo }) {
-  const name = getDisplayLegalName(partner);
+  const entity = getLegalEntityPhrase(partner);
   return (
     <>
       <Section title="1. Overview">
         <p>
-          {name} offers takeaway and (where available) delivery for orders
+          {entity} offers takeaway and (where available) delivery for orders
           placed through our website. This policy outlines our delivery and
           pickup practices.
         </p>
