@@ -16,6 +16,7 @@ interface PartnerData {
   id: string;
   username: string;
   store_name: string;
+  official_name?: string | null;
   store_banner?: string;
   description?: string;
   phone?: string;
@@ -647,6 +648,14 @@ export default function WebsitePageV4({
             <div className="wb4-foot-bot">
               {merged.footer.copyright ||
                 `© ${new Date().getFullYear()} ${partner.store_name}`}
+              {partner.official_name?.trim() &&
+                partner.official_name.trim().toLowerCase() !==
+                  partner.store_name.trim().toLowerCase() && (
+                  <div className="wb4-foot-legal">
+                    {partner.store_name} is a brand operated by{" "}
+                    {partner.official_name.trim()}.
+                  </div>
+                )}
             </div>
           </div>
         </footer>

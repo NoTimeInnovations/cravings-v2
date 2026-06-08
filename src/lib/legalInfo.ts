@@ -28,8 +28,60 @@ export async function getLegalPartnerByUsername(
   }
 }
 
+/**
+ * Brand name — the public-facing identity (store name). This is the name shown
+ * everywhere by default. A partner always has a brand name.
+ */
+export function getBrandName(p: LegalPartnerInfo): string {
+  return (p.store_name || "").trim();
+}
+
+/**
+ * Legal entity name ("Merchant Legal Entity Name") as set in Official Settings.
+ * Returns null when the partner has not provided one — in that case only the
+ * brand name should be displayed.
+ */
+export function getLegalName(p: LegalPartnerInfo): string | null {
+  return p.official_name?.trim() || null;
+}
+
+/**
+ * True only when a legal entity name has been provided AND it is meaningfully
+ * different from the brand name. Drives whether we surface the legal entity
+ * alongside the brand (e.g. "Brand, operated by Legal Entity").
+ */
+export function hasDistinctLegalName(p: LegalPartnerInfo): boolean {
+  const legal = getLegalName(p);
+  if (!legal) return false;
+  return legal.toLowerCase() !== getBrandName(p).toLowerCase();
+}
+
+/**
+ * The value to show against a "Merchant Legal Entity Name" label. Falls back to
+ * the brand name so the field is never blank, but prefers the legal entity.
+ */
+export function getMerchantEntityName(p: LegalPartnerInfo): string {
+  return getLegalName(p) || getBrandName(p);
+}
+
+/**
+ * The phrase used for the FIRST mention of the business in a legal document.
+ *   - no distinct legal name:  "Brand"
+ *   - distinct legal name set:  "Brand (operated by Legal Entity)"
+ * Subsequent mentions should use {@link getBrandName} (or "we"/"us").
+ */
+export function getLegalEntityPhrase(p: LegalPartnerInfo): string {
+  const brand = getBrandName(p);
+  if (!hasDistinctLegalName(p)) return brand;
+  return `${brand} (operated by ${getLegalName(p)})`;
+}
+
+/**
+ * Public display name used for page titles / metadata. Always the brand name —
+ * the legal entity is reserved for the body of policy pages.
+ */
 export function getDisplayLegalName(p: LegalPartnerInfo): string {
-  return p.official_name?.trim() || p.store_name;
+  return getBrandName(p);
 }
 
 export function getContactEmail(p: LegalPartnerInfo): string | null {

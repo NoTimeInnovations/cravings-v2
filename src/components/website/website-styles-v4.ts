@@ -120,6 +120,7 @@ export const WEBSITE_STYLES_V4 = `
 .wb4-foot-sublabel{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#9A9A9A;margin-top:18px;font-weight:500}
 .wb4-foot-sublist{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 .wb4-foot-bot{margin-top:48px;font-size:13px;color:#9A9A9A}
+.wb4-foot-legal{margin-top:6px;font-size:12px;color:#B5B5B5}
 
 .wb4 .wb4-watermark{position:fixed;right:18px;bottom:18px;z-index:60;background:#fff;border-radius:999px;padding:8px 14px;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:#0c0a09;box-shadow:0 6px 18px -6px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.05);transition:transform .15s, box-shadow .15s}
 .wb4 .wb4-watermark:hover{transform:translateY(-1px);box-shadow:0 10px 22px -6px rgba(0,0,0,.22),0 0 0 1px rgba(0,0,0,.05);color:#0c0a09}

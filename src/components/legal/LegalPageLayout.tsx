@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft } from "lucide-react";
 import type { LegalPartnerInfo } from "@/lib/legalInfo";
-import { getDisplayLegalName } from "@/lib/legalInfo";
+import { getBrandName, getLegalName, hasDistinctLegalName } from "@/lib/legalInfo";
 
 const POLICY_LINKS = [
   { href: "about-us", label: "About Us" },
@@ -29,7 +29,9 @@ export function LegalPageLayout({
   currentSlug,
   children,
 }: Props) {
-  const displayName = getDisplayLegalName(partner);
+  const brand = getBrandName(partner);
+  const legalName = getLegalName(partner);
+  const showLegal = hasDistinctLegalName(partner);
   const username = partner.username;
   const year = new Date().getFullYear();
 
@@ -43,12 +45,12 @@ export function LegalPageLayout({
             className="flex items-center gap-2 text-sm font-medium text-neutral-700 hover:text-neutral-900"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>Back to {partner.store_name}</span>
+            <span>Back to {brand}</span>
           </Link>
           <div className="text-right">
-            <p className="text-sm font-semibold text-neutral-900">{displayName}</p>
-            {partner.official_name && partner.official_name !== partner.store_name && (
-              <p className="text-xs text-neutral-500">{partner.store_name}</p>
+            <p className="text-sm font-semibold text-neutral-900">{brand}</p>
+            {showLegal && (
+              <p className="text-xs text-neutral-500">Operated by {legalName}</p>
             )}
           </div>
         </div>
@@ -60,7 +62,7 @@ export function LegalPageLayout({
           <CardContent className="px-5 py-8 sm:px-10 sm:py-12">
             <div className="mb-6">
               <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                {displayName}
+                {brand}
               </p>
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">
                 {title}
@@ -108,7 +110,8 @@ export function LegalPageLayout({
           </nav>
           <Separator className="my-6 bg-neutral-200" />
           <p className="text-xs text-neutral-500">
-            &copy; {year} {displayName}. All rights reserved.
+            &copy; {year} {brand}. All rights reserved.
+            {showLegal && <> {brand} is a brand operated by {legalName}.</>}
           </p>
         </div>
       </footer>

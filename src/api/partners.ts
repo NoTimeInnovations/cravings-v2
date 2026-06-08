@@ -132,6 +132,7 @@ query GetPartnerStorefrontByUsername($username: String!) {
     id
     username
     store_name
+    official_name
     store_banner
     description
     phone
