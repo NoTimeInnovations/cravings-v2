@@ -249,6 +249,11 @@ export default function SignupFromGoogleClient({
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return toast.error("Enter a valid email address");
     }
+    // Dev mode (?dev=1): skip OTP verification entirely and build directly.
+    if (dev) {
+      await buildSite(email);
+      return;
+    }
     setIsSending(true);
     try {
       const res = await sendOtp(email);
@@ -257,6 +262,38 @@ export default function SignupFromGoogleClient({
       setView("otp");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not send code");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Run menu extraction + quick signup, then redirect. Shared by the verified
+  // (post-OTP) flow and the dev flow that skips OTP.
+  const buildSite = async (signupEmail: string) => {
+    setIsSending(true);
+    setView("building");
+    const stepTimer = setInterval(() => {
+      setStepIndex((i) => Math.min(i + 1, STEPS.length - 1));
+    }, 2500);
+    try {
+      const items = await extractMenuItems();
+      const result = await quickSignupFromGoogle({
+        placeId,
+        email: signupEmail,
+        extractedItems: items,
+      });
+      clearInterval(stepTimer);
+      try {
+        sessionStorage.removeItem("gbp_signup_place");
+        sessionStorage.removeItem("uploaded_menu_files");
+      } catch {}
+      window.location.assign(result.redirectUrl);
+    } catch (err) {
+      clearInterval(stepTimer);
+      toast.error(
+        err instanceof Error ? err.message : "Could not finish signup",
+      );
+      setView("email");
     } finally {
       setIsSending(false);
     }
@@ -515,27 +552,23 @@ export default function SignupFromGoogleClient({
                 Continue with Google
               </button>
 
-              {!dev && (
-                <>
-                  <div className="relative my-5">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-stone-200" />
-                    </div>
-                    <div className="relative flex justify-center text-xs">
-                      <span className="bg-white px-3 text-stone-400">or</span>
-                    </div>
-                  </div>
+              <div className="relative my-5">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-stone-200" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-white px-3 text-stone-400">or</span>
+                </div>
+              </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setView("email")}
-                    className="w-full h-11 flex items-center justify-center gap-3 rounded-xl bg-stone-900 text-white text-sm font-medium hover:bg-stone-800 transition-colors"
-                  >
-                    <Mail className="h-4 w-4" />
-                    Continue with email
-                  </button>
-                </>
-              )}
+              <button
+                type="button"
+                onClick={() => setView("email")}
+                className="w-full h-11 flex items-center justify-center gap-3 rounded-xl bg-stone-900 text-white text-sm font-medium hover:bg-stone-800 transition-colors"
+              >
+                <Mail className="h-4 w-4" />
+                Continue with email
+              </button>
             </>
           )}
 
