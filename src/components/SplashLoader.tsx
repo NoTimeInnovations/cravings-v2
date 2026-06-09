@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 
 function getPathInitial(): string {
   try {
@@ -44,6 +45,13 @@ export default function SplashLoader() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Video banners can't render in an <img>; fall back to the thumbnail jpg.
+  const logoSrc = storeBanner
+    ? isVideoUrl(storeBanner)
+      ? getVideoThumbnailUrl(storeBanner)
+      : storeBanner
+    : null;
+
   return (
     <div
       className="fixed inset-0 z-[9998] bg-[#fafafa] flex flex-col items-center justify-center overflow-hidden"
@@ -70,9 +78,9 @@ export default function SplashLoader() {
           style={{ animation: "splashLogoIn 0.5s ease-out forwards" }}
         >
           <div className="w-24 h-24 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-md overflow-hidden">
-            {storeBanner ? (
+            {logoSrc ? (
               <img
-                src={storeBanner}
+                src={logoSrc}
                 alt={storeName}
                 className="w-full h-full object-cover"
               />
@@ -97,9 +105,9 @@ export default function SplashLoader() {
                 className="w-[76px] h-[76px] rounded-full mx-auto mb-5 bg-white border border-gray-200 flex items-center justify-center shadow-sm overflow-hidden"
                 style={{ animation: "splashLogoShrink 0.4s ease-out forwards" }}
               >
-                {storeBanner ? (
+                {logoSrc ? (
                   <img
-                    src={storeBanner}
+                    src={logoSrc}
                     alt={storeName}
                     className="w-full h-full object-cover"
                   />

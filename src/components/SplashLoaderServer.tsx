@@ -1,3 +1,5 @@
+import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
+
 interface SplashLoaderServerProps {
   initial: string;
   storeName?: string;
@@ -6,7 +8,13 @@ interface SplashLoaderServerProps {
 }
 
 export default function SplashLoaderServer({ initial, storeName, storeBanner, username }: SplashLoaderServerProps) {
-  const isVideo = storeBanner?.endsWith(".mp4");
+  // When the banner is a video, an <img> can't render it — use the generated
+  // thumbnail jpg (same as the page metadata does) so the logo still shows.
+  const logoSrc = storeBanner
+    ? isVideoUrl(storeBanner)
+      ? getVideoThumbnailUrl(storeBanner)
+      : storeBanner
+    : null;
   const useNilaFont = username === "nila";
 
   return (
@@ -19,9 +27,9 @@ export default function SplashLoaderServer({ initial, storeName, storeBanner, us
           className="w-20 h-20 rounded-full bg-white border border-gray-200 flex items-center justify-center overflow-hidden"
           style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.04)" }}
         >
-          {storeBanner && !isVideo ? (
+          {logoSrc ? (
             <img
-              src={storeBanner}
+              src={logoSrc}
               alt={storeName || ""}
               className="w-full h-full object-cover"
             />
