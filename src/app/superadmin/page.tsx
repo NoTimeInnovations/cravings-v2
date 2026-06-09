@@ -43,6 +43,12 @@ const page = async (props: { searchParams: SearchParams }) => {
       href: "/superadmin/create-partner",
     },
     {
+      name: "Create Partner V3",
+      component: null,
+      id: "create-partner-v3",
+      href: "/superadmin/create-partner-v3",
+    },
+    {
       name: "Create PetPooja Partner",
       component: null,
       id: "create-pp-partner",
