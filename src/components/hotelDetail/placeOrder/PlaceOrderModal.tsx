@@ -2134,21 +2134,40 @@ const PlaceOrderModal = ({
   const isDeliveryAvailable =
     (hotelData?.delivery_rules?.isDeliveryActive ?? true) &&
     isWithinTimeWindow(hotelData?.delivery_rules?.delivery_time_allowed);
+  const isTakeawayAvailable = isWithinTimeWindow(
+    hotelData?.delivery_rules?.takeaway_time_allowed
+  );
 
+  // Order types that are both offered AND currently available (open), in the
+  // same priority order as the selector. Closed / disabled / unoffered types
+  // are excluded, so they can never be auto-selected below.
+  const availableOrderTypes = useMemo<("delivery" | "takeaway" | "dine_in")[]>(() => {
+    const list: ("delivery" | "takeaway" | "dine_in")[] = [];
+    if (offered.delivery && isDeliveryAvailable) list.push("delivery");
+    if (offered.takeaway && isTakeawayAvailable) list.push("takeaway");
+    if (allowDineInReservation) list.push("dine_in");
+    return list;
+  }, [offered.delivery, offered.takeaway, allowDineInReservation, isDeliveryAvailable, isTakeawayAvailable]);
+
+  // When the modal is open and no order type is selected yet, auto-select an
+  // available one. Prefer the saved onboarding choice, but only if it is
+  // actually available; otherwise fall back to the first available type. Never
+  // selects a closed/disabled type (availableOrderTypes is already filtered).
   useEffect(() => {
-    if (open_place_order_modal && tableNumber === 0 && !orderType) {
-      try {
-        const savedType = localStorage.getItem("onboarding_order_type");
-        if (savedType === "delivery" || savedType === "takeaway") {
-          setOrderType(!isDeliveryAvailable && savedType === "delivery" ? "takeaway" : savedType);
-        } else {
-          setOrderType(isDeliveryAvailable ? "delivery" : "takeaway");
-        }
-      } catch {
-        setOrderType(isDeliveryAvailable ? "delivery" : "takeaway");
+    if (!(open_place_order_modal && tableNumber === 0 && !orderType)) return;
+    if (availableOrderTypes.length === 0) return;
+    let chosen: "delivery" | "takeaway" | "dine_in" = availableOrderTypes[0];
+    try {
+      const savedType = localStorage.getItem("onboarding_order_type");
+      if (
+        (savedType === "delivery" || savedType === "takeaway") &&
+        availableOrderTypes.includes(savedType)
+      ) {
+        chosen = savedType;
       }
-    }
-  }, [open_place_order_modal, tableNumber, orderType, setOrderType, isDeliveryAvailable]);
+    } catch {}
+    setOrderType(chosen);
+  }, [open_place_order_modal, tableNumber, orderType, setOrderType, availableOrderTypes]);
 
   // Pre-fill address from onboarding
   useEffect(() => {

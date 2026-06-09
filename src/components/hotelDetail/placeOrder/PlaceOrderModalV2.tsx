@@ -290,6 +290,27 @@ const PlaceOrderModalV2 = ({
   const isDineIn = orderType === "dine_in";
   // Dine-in table reservation: dine-in offered + slot booking turned on.
   const allowDineInReservation = slotBookingEnabled && !isQrScan && offered.dine_in;
+
+  // Order types that are both offered AND currently available (open), in the
+  // same priority order as the switcher. Anything closed/disabled is excluded,
+  // so it can never be auto-selected below.
+  const availableOrderTypes = useMemo<("delivery" | "takeaway" | "dine_in")[]>(() => {
+    const list: ("delivery" | "takeaway" | "dine_in")[] = [];
+    if (offered.delivery && isDeliveryOpen) list.push("delivery");
+    if (offered.takeaway && isTakeawayOpen) list.push("takeaway");
+    if (allowDineInReservation) list.push("dine_in");
+    return list;
+  }, [offered.delivery, offered.takeaway, allowDineInReservation, isDeliveryOpen, isTakeawayOpen]);
+
+  // When the modal is open and no order type is selected yet, auto-select the
+  // first available one. Skipped for QR scans (order type is table-driven there).
+  useEffect(() => {
+    if (isQrScan || !open_place_order_modal) return;
+    if (orderType) return; // only when none is selected
+    if (availableOrderTypes.length === 0) return;
+    setOrderType(availableOrderTypes[0]);
+  }, [isQrScan, open_place_order_modal, orderType, availableOrderTypes, setOrderType]);
+
   // Picker visibility: dine-in uses slot booking; delivery/takeaway use prebooking.
   const showPicker = !!prebookingSettings && (isDineIn ? allowDineInReservation : scheduleEnabled);
   // What we hand to placeOrder: the picker's selection (which already carries
