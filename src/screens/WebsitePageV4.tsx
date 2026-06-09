@@ -159,6 +159,11 @@ export default function WebsitePageV4({
       : mapsLink;
 
   const visitHours = merged.visit.hours.filter((h) => h.label && h.value);
+  const legalEntityName = partner.official_name?.trim() || "";
+  const hasDistinctLegalName =
+    !!legalEntityName &&
+    legalEntityName.toLowerCase() !==
+      (partner.store_name || "").trim().toLowerCase();
   const heroHeadline = merged.hero.headline || partner.store_name;
   const heroSubheadline = merged.hero.subheadline || partner.description || "";
   const visitAddress =
@@ -234,14 +239,14 @@ export default function WebsitePageV4({
                 (partner.store_name?.[0] || "?").toUpperCase()
               )}
             </span>
-            {partner.store_name}
+            {hasDistinctLegalName ? legalEntityName : partner.store_name}
           </div>
           <div className="wb4-nav-divider" />
           <div className="wb4-nav-links">
             {sectionAvailable.menu && <a href="#menu">Menu</a>}
             {sectionAvailable.why && <a href="#why-choose-us">Highlights</a>}
             {sectionAvailable.reviews && <a href="#reviews">Reviews</a>}
-            {sectionAvailable.hours && <a href="#hours">Contact</a>}
+            <a href={`/${partner.username}/contact-us`}>Contact</a>
           </div>
           <div className="wb4-nav-cta">
             <a className="wb4-nav-btn" href={orderUrl}>
@@ -257,6 +262,9 @@ export default function WebsitePageV4({
         <div className="wb4-container">
           <div className="wb4-hero-grid">
             <div>
+              {hasDistinctLegalName && (
+                <div className="wb4-eyebrow">Operated by {legalEntityName}</div>
+              )}
               <h1>{heroHeadline}</h1>
               {heroSubheadline && (
                 <p className="wb4-hero-sub">{heroSubheadline}</p>
