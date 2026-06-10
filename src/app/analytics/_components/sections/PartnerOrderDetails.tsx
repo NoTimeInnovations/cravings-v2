@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { ArrowLeft, MapPin, MessageCircle, Phone, XCircle } from "lucide-react";
 import { format } from "date-fns";
+import { getDiscountAmount } from "@/lib/discountUtils";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import type { AnalyticsOrder, PartnerOrdersPartner } from "../types";
 
@@ -349,12 +350,7 @@ export default function PartnerOrderDetails({
 
             {discounts.map((discount, index) => {
               const disc = discount as any;
-              const discountValue =
-                disc.type === "freebie"
-                  ? disc.savings || disc.value || 0
-                  : disc.type === "flat"
-                    ? disc.value
-                    : (subtotal * (disc.value || 0)) / 100;
+              const discountValue = getDiscountAmount(disc, subtotal);
               const discountLabel =
                 disc.type === "freebie"
                   ? `Freebie Discount${disc.freebie_item_names ? ` (${disc.freebie_item_names})` : ""}`

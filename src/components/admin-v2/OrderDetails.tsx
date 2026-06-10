@@ -64,6 +64,7 @@ const DeliveryRiderPanel = dynamic(
 
 
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { getDiscountAmount } from "@/lib/discountUtils";
 import { DeliveryBoyAssignment } from "./DeliveryBoyAssignment";
 import { checkAllProvidersAvailability } from "@/app/actions/deliveryAgent";
 
@@ -314,15 +315,10 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
     const gstAmount = order.gstIncluded ?? (foodSubtotal * gstPercentage) / 100;
 
     const discounts = order.discounts || [];
-    const discountAmount = discounts.reduce((total, discount) => {
-        const disc = discount as any;
-        if (disc.type === "flat") {
-            return total + (disc.value || 0);
-        } else if (disc.type === "percentage") {
-            return total + (subtotal * (disc.value || 0)) / 100;
-        }
-        return total;
-    }, 0);
+    const discountAmount = discounts.reduce(
+        (total, discount) => total + getDiscountAmount(discount as any, subtotal),
+        0
+    );
 
     const grandTotal = order.totalPrice;
 
@@ -876,11 +872,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                         {/* Discounts */}
                         {discounts.map((discount, index) => {
                             const disc = discount as any;
-                            const discountValue = disc.type === "freebie"
-                                ? (disc.savings || disc.value || 0)
-                                : disc.type === "flat"
-                                ? disc.value
-                                : (subtotal * disc.value) / 100;
+                            const discountValue = getDiscountAmount(disc, subtotal);
                             const discountLabel = disc.type === "freebie"
                                 ? `Freebie Discount${disc.freebie_item_names ? ` (${disc.freebie_item_names})` : ""}`
                                 : disc.type === "percentage"

@@ -3,6 +3,7 @@
 import { QrGroup } from "@/app/admin/qr-management/page";
 import { getGstAmount, calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import { getDateOnly } from "@/lib/formatDate";
+import { getDiscountAmount } from "@/lib/discountUtils";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
@@ -224,16 +225,10 @@ const PrintOrderPage = () => {
 
         const calcGstAmount = orders_by_pk.gst_included ?? (foodSubtotal * gstPercentage) / 100;
         const calcDiscounts = formattedOrder.discounts || [];
-        const calcDiscountAmount = calcDiscounts.reduce((total: number, discount: any) => {
-          if (discount.type === "freebie") {
-            return total + (discount.savings || discount.value || 0); // Freebie discount = item price
-          } else if (discount.type === "flat") {
-            return total + (discount.value || 0);
-          } else if (discount.type === "percentage") {
-            return total + (subtotal * (discount.value || 0)) / 100;
-          }
-          return total;
-        }, 0);
+        const calcDiscountAmount = calcDiscounts.reduce(
+          (total: number, discount: any) => total + getDiscountAmount(discount, subtotal),
+          0
+        );
         const grandTotal = orders_by_pk.total_price;
 
         // Generate UPI payment QR code if enabled
@@ -403,12 +398,8 @@ const PrintOrderPage = () => {
   const discountAmount = discounts.reduce((total: number, discount: any) => {
     if (discount.type === "freebie") {
       return total; // Freebie discounts don't reduce monetary total
-    } else if (discount.type === "flat") {
-      return total + (discount.value || 0);
-    } else if (discount.type === "percentage") {
-      return total + (subtotal * (discount.value || 0)) / 100;
     }
-    return total;
+    return total + getDiscountAmount(discount, subtotal);
   }, 0);
 
   const grandTotal = order.total_price;
@@ -610,11 +601,7 @@ const PrintOrderPage = () => {
             <h3 className="font-bold text-sm uppercase mb-1">Discounts</h3>
             <ul className="space-y-1 text-sm">
               {discounts.map((discount: any, index: number) => {
-                const discountValue = discount.type === "freebie"
-                  ? (discount.savings || discount.value || 0)
-                  : discount.type === "flat"
-                  ? discount.value
-                  : (subtotal * discount.value) / 100;
+                const discountValue = getDiscountAmount(discount, subtotal);
                 return (
                   <li key={index}>
                     <div className="flex justify-between">

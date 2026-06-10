@@ -15,6 +15,7 @@ import useOrderStore, { Order } from "@/store/orderStore";
 import { EditOrderModal } from "@/components/admin/pos/EditOrderModal";
 import { getGstAmount, calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import Link from "next/link";
+import { getDiscountAmount } from "@/lib/discountUtils";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getStatusDisplay } from "@/lib/getStatusDisplay";
 import { OrderReviewModal } from "@/components/OrderReviewModal";
@@ -141,13 +142,11 @@ const Page = () => {
               const subtotal = foodTotal + extraChargesTotal;
 
               const discounts = order.discounts || [];
-              const discountAmount = discounts.reduce((total: number, discount: any) => {
-                if (discount.type === "flat") {
-                  return total + discount.value;
-                } else {
-                  return total + (subtotal * discount.value) / 100;
-                }
-              }, 0);
+              const discountAmount = discounts.reduce(
+                (total: number, discount: any) =>
+                  total + getDiscountAmount(discount, subtotal),
+                0
+              );
 
               const discountedSubtotal = Math.max(0, subtotal - discountAmount);
               const discountedFoodTotal = Math.max(0, foodTotal - discountAmount);

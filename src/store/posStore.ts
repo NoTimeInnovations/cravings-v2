@@ -18,6 +18,7 @@ import { awardLoyaltyForOrder } from "@/app/actions/loyalty";
 import { v4 as uuidv4 } from "uuid";
 
 
+import { computeDiscountAmount } from "@/lib/discountUtils";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
@@ -504,11 +505,8 @@ export const usePOSStore = create<POSState>((set, get) => ({
       const discountAmount = discounts.reduce((total, discount) => {
         if (discount.type === "freebie") {
           return total + discount.value; // Freebie discount = item price as flat discount
-        } else if (discount.type === "flat") {
-          return total + discount.value;
-        } else {
-          return total + (subtotal * discount.value) / 100;
         }
+        return total + computeDiscountAmount(discount as any, subtotal);
       }, 0);
 
       const discountedSubtotal = Math.max(0, subtotal - discountAmount);
@@ -619,11 +617,8 @@ export const usePOSStore = create<POSState>((set, get) => ({
     const discountAmount = discounts.reduce((total, discount) => {
       if (discount.type === "freebie") {
         return total; // Freebie discounts don't reduce monetary total
-      } else if (discount.type === "flat") {
-        return total + discount.value;
-      } else {
-        return total + (subtotal * discount.value) / 100;
       }
+      return total + computeDiscountAmount(discount as any, subtotal);
     }, 0);
 
     const discountedSubtotal = Math.max(0, subtotal - discountAmount);
@@ -701,11 +696,8 @@ export const usePOSStore = create<POSState>((set, get) => ({
       const discountAmount = discounts.reduce((total, discount) => {
         if (discount.type === "freebie") {
           return total + discount.value; // Freebie discount = item price as flat discount
-        } else if (discount.type === "flat") {
-          return total + discount.value;
-        } else {
-          return total + (subtotal * discount.value) / 100;
         }
+        return total + computeDiscountAmount(discount as any, subtotal);
       }, 0);
 
       const discountedSubtotal = Math.max(0, subtotal - discountAmount);

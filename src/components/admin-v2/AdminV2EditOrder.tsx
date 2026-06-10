@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Partner, useAuthStore } from "@/store/authStore";
 import { getExtraCharge } from "@/lib/getExtraCharge";
+import { computeDiscountAmount, getDiscountAmount } from "@/lib/discountUtils";
 import { getQrGroupForTable } from "@/lib/getQrGroupForTable";
 import useOrderStore, { Order } from "@/store/orderStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -197,12 +198,13 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
 
         const subtotal = foodSubtotal + extraChargesTotal + qrGroupCharges;
 
+        // Recompute on the edited items, but honour the discount's
+        // max_discount_amount cap — saving an edit must never undo it.
         const discountAmount = discounts.reduce((total, discount) => {
-            if (discount.type === "flat") {
-                return total + discount.value;
-            } else {
-                return total + (subtotal * discount.value) / 100;
-            }
+            const disc = discount as any;
+            return total + (disc.type === "freebie"
+                ? getDiscountAmount(disc, subtotal)
+                : computeDiscountAmount(disc, subtotal));
         }, 0);
 
         const discountedSubtotal = Math.max(0, subtotal - discountAmount);
@@ -773,11 +775,10 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                                     const qrGroupCharges = qrGroup?.extra_charge ? getExtraCharge(items as any[], qrGroup.extra_charge, qrGroup.charge_type || "FLAT_FEE") : 0;
                                                     const taxableAmount = foodSubtotal + extraChargesTotal + qrGroupCharges;
 
-                                                    if (discount.type === "flat") {
-                                                        return total + discount.value;
-                                                    } else {
-                                                        return total + (taxableAmount * discount.value) / 100;
-                                                    }
+                                                    const disc = discount as any;
+                                                    return total + (disc.type === "freebie"
+                                                        ? getDiscountAmount(disc, taxableAmount)
+                                                        : computeDiscountAmount(disc, taxableAmount));
                                                 }, 0).toFixed(2)}
                                             </span>
                                         </div>
@@ -797,11 +798,10 @@ export const AdminV2EditOrder = ({ order, onBack }: AdminV2EditOrderProps) => {
                                                     const subtotal = foodSubtotal + extraChargesTotal + qrGroupCharges;
 
                                                     const discountAmount = discounts.reduce((total, discount) => {
-                                                        if (discount.type === "flat") {
-                                                            return total + discount.value;
-                                                        } else {
-                                                            return total + (subtotal * discount.value) / 100;
-                                                        }
+                                                        const disc = discount as any;
+                                                        return total + (disc.type === "freebie"
+                                                            ? getDiscountAmount(disc, subtotal)
+                                                            : computeDiscountAmount(disc, subtotal));
                                                     }, 0);
 
                                                     const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);

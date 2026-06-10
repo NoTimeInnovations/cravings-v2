@@ -3,6 +3,7 @@ import {
   getGstAmount,
   calculateGstForItems,
 } from "@/components/hotelDetail/OrderDrawer";
+import { getDiscountAmount } from "@/lib/discountUtils";
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getDateOnly } from "@/lib/formatDate";
 import { Partner } from "@/store/authStore";
@@ -50,13 +51,10 @@ const BillTemplate = React.forwardRef<HTMLDivElement, BillTemplateProps>(
 
     // Calculate discount
     const discounts = order.discounts || [];
-    const discountAmount = discounts.reduce((total, discount) => {
-      if (discount.type === "flat") {
-        return total + discount.value;
-      } else {
-        return total + (subtotal * discount.value) / 100;
-      }
-    }, 0);
+    const discountAmount = discounts.reduce(
+      (total, discount) => total + getDiscountAmount(discount as any, subtotal),
+      0
+    );
 
     const discountedSubtotal = Math.max(0, subtotal - discountAmount);
     const discountedFoodSubtotal = Math.max(0, foodSubtotal - discountAmount);

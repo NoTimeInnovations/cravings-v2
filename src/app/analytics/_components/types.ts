@@ -103,6 +103,7 @@ export type AnalyticsOrder = {
     type?: string;
     value?: number;
     savings?: number;
+    max_discount_amount?: number | null;
     reason?: string;
     freebie_item_names?: string;
   }>;

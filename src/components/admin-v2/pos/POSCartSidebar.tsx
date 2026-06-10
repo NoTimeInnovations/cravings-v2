@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { getGstAmount, calculateGstForItems } from "@/components/hotelDetail/OrderDrawer";
 import Img from "@/components/Img";
 import { formatCurrency } from "@/lib/utils";
+import { computeDiscountAmount, getDiscountAmount } from "@/lib/discountUtils";
 import { toast } from "sonner";
 import { hasuraClient, subscribeToHasura } from "@/lib/hasuraSubscription";
 import { subscriptionQuery } from "@/api/orders";
@@ -288,11 +289,8 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     const discountAmount = usePOSStore.getState().discounts.reduce((total, discount) => {
         if (discount.type === "freebie") {
             return total + (discount.value || 0); // Freebie discount = item price as flat discount
-        } else if (discount.type === "flat") {
-            return total + discount.value;
-        } else {
-            return total + (subtotal * discount.value) / 100;
         }
+        return total + computeDiscountAmount(discount as any, subtotal);
     }, 0);
 
     const discountedSubtotal = Math.max(0, subtotal - discountAmount);
@@ -318,15 +316,11 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
     const activeOrderDataTotal = activeOrderDataSubtotal + activeOrderDataExtraChargesTotal;
 
     const activeOrderDataDiscounts = activeOrderData?.discounts || [];
-    const activeOrderDataDiscountAmount = activeOrderDataDiscounts.reduce((total: number, discount: any) => {
-        if (discount.type === "freebie") {
-            return total + (discount.value || 0); // Freebie discount = item price as flat discount
-        } else if (discount.type === "flat") {
-            return total + (discount.value || 0);
-        } else {
-            return total + (activeOrderDataTotal * (discount.value || 0)) / 100;
-        }
-    }, 0);
+    const activeOrderDataDiscountAmount = activeOrderDataDiscounts.reduce(
+        (total: number, discount: any) =>
+            total + getDiscountAmount(discount, activeOrderDataTotal),
+        0
+    );
 
     const activeOrderDataDiscountedTotal = Math.max(0, activeOrderDataTotal - activeOrderDataDiscountAmount);
     const activeOrderDataDiscountedFoodSubtotal = Math.max(0, activeOrderDataSubtotal - activeOrderDataDiscountAmount);
@@ -746,9 +740,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                     {discounts.map((discount) => {
                                         const discountValue = discount.type === "freebie"
                                             ? discount.value
-                                            : discount.type === "flat"
-                                            ? discount.value
-                                            : (subtotal * discount.value) / 100;
+                                            : computeDiscountAmount(discount as any, subtotal);
                                         return (
                                             <div key={discount.id} className="flex justify-between text-green-600 text-xs pl-2 border-l-2 border-green-200">
                                                 <span>
@@ -867,11 +859,7 @@ export function POSCartSidebar({ onMobileBack, initialViewMode = "current" }: PO
                                     {(activeOrderDataDiscountAmount > 0 || activeOrderDataDiscounts.some((d: any) => d.type === "freebie")) && (
                                         <>
                                             {activeOrderDataDiscounts.map((discount: any, idx: number) => {
-                                                const discountValue = discount.type === "freebie"
-                                                    ? (discount.savings || discount.value || 0)
-                                                    : discount.type === "flat"
-                                                    ? discount.value
-                                                    : (activeOrderDataTotal * discount.value) / 100;
+                                                const discountValue = getDiscountAmount(discount, activeOrderDataTotal);
                                                 return (
                                                     <div key={idx} className="flex flex-col text-green-600 text-xs pl-2 border-l-2 border-green-200 gap-0.5">
                                                         {discount.type === "freebie" && discount.freebie_item_names && (
