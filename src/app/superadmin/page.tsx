@@ -25,16 +25,48 @@ const page = async (props: { searchParams: SearchParams }) => {
   const page = (await props.searchParams).page;
   const pages = [
     {
-      name: "Analytics",
-      component: null,
-      id: "analytics",
-      href: "/superadmin/analytics",
-    },
-    {
       name: "Analytics V2",
       component: null,
       id: "analytics-v2",
       href: "/analytics",
+    },
+    {
+      name: "Create PetPooja Partner",
+      component: null,
+      id: "create-pp-partner",
+      href: "/superadmin/create-pp-partner",
+    },
+    {
+      name: "Edit Partners",
+      component: <EditPartners />,
+      id: "edit-partners",
+    },
+    {
+      name: "Assign QR",
+      component: <AssignQrPartners />,
+      id: "assign-qr",
+    },
+    {
+      name: "Subscription Management V2",
+      component: <SubscriptionManagementV2 />,
+      id: "subscription-management-v2",
+    },
+    {
+      name: "WhatsApp Analytics",
+      component: <WhatsAppAnalytics />,
+      id: "whatsapp-analytics",
+    },
+    {
+      name: "Remove Partner Full Data",
+      component: null,
+      id: "remove-partner-fulldata",
+      href: "/test/remove-partner-fulldata",
+    },
+    {
+      name: "Analytics",
+      component: null,
+      id: "analytics",
+      href: "/superadmin/analytics",
     },
     {
       name: "Create Partner",
@@ -47,12 +79,6 @@ const page = async (props: { searchParams: SearchParams }) => {
       component: null,
       id: "create-partner-v3",
       href: "/superadmin/create-partner-v3",
-    },
-    {
-      name: "Create PetPooja Partner",
-      component: null,
-      id: "create-pp-partner",
-      href: "/superadmin/create-pp-partner",
     },
     {
       name: "Create Demo Partner",
@@ -70,11 +96,6 @@ const page = async (props: { searchParams: SearchParams }) => {
     //   component: <OfferDetails />,
     //   id: "offer-Details",
     // },
-    {
-      name: "Assign QR",
-      component: <AssignQrPartners />,
-      id: "assign-qr",
-    },
     {
       name: "Bulk QR Management",
       component: <QrManagement_v2 />,
@@ -106,11 +127,6 @@ const page = async (props: { searchParams: SearchParams }) => {
       id: "feature-flag-management",
     },
     {
-      name: "Edit Partners",
-      component: <EditPartners />,
-      id: "edit-partners",
-    },
-    {
       name: "Subscription Management",
       component: <SubscriptionManagement />,
       id: "subscription-management",
@@ -132,16 +148,6 @@ const page = async (props: { searchParams: SearchParams }) => {
       id: "partner-payments",
     },
     {
-      name: "Subscription Management V2",
-      component: <SubscriptionManagementV2 />,
-      id: "subscription-management-v2",
-    },
-    {
-      name: "WhatsApp Analytics",
-      component: <WhatsAppAnalytics />,
-      id: "whatsapp-analytics",
-    },
-    {
       name: "Google Business Integration",
       component: null,
       id: "google-business",
@@ -153,12 +159,6 @@ const page = async (props: { searchParams: SearchParams }) => {
       id: "onesignal-apps",
       href: "/superadmin/onesignal-apps",
     },
-    {
-      name: "Remove Partner Full Data",
-      component: null,
-      id: "remove-partner-fulldata",
-      href: "/test/remove-partner-fulldata",
-    }
   ];
 
   if (page) {
