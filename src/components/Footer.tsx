@@ -12,8 +12,8 @@ export default function Footer({
   appName?: string;
 }) {
   return (
-    <footer className="bg-orange-600 pt-16 pb-10 geist-font text-white relative overflow-hidden">
-      <div className="max-w-6xl mx-auto px-6 lg:px-8 relative z-10">
+    <footer className="bg-orange-600 pt-16 md:pt-24 pb-10 geist-font text-white relative overflow-hidden">
+      <div className="max-w-7xl mx-auto px-6 md:px-10 lg:px-12 relative z-10">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-10 mb-14">
           {/* Column 1: Brand */}
           <div className="col-span-2">

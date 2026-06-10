@@ -5,13 +5,11 @@ export default function StartFreeTrailSection() {
     <section className="relative overflow-hidden bg-orange-600 py-16 md:py-24 border-t border-b border-stone-200">
       <div className="bg-orange-400/20 w-full h-px" />
 
-      <div className="w-full h-full z-20 absolute top-0 left-1/2 -translate-x-1/2 sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] border-l border-r border-orange-400/20 pointer-events-none" />
-
-      <div className="sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] mx-auto grid md:grid-cols-2">
-        <div className="max-w-xl p-6 md:p-12">
-          <h1 className="text-3xl md:text-4xl font-semibold text-white mb-4">
+      <div className="mx-auto w-full max-w-7xl px-6 md:px-10 lg:px-12 grid md:grid-cols-2">
+        <div className="max-w-xl py-6 md:py-12">
+          <h2 className="text-3xl md:text-4xl font-semibold text-white mb-4">
             Launch your delivery website in under 2 minutes.
-          </h1>
+          </h2>
           <p className="text-white/70 mb-6">
             Upload your menu, set up your delivery zones, and start taking
             orders directly from your customers with full

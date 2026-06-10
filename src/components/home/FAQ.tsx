@@ -7,6 +7,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { cn } from "@/lib/utils";
+import { SECTION_GUTTER, SECTION_SPACING } from "./section";
 
 const FAQS = [
   {
@@ -63,11 +65,11 @@ const FAQS = [
 
 export default function FAQ() {
   return (
-    <section className="py-24 bg-white relative overflow-hidden sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] mx-auto border-r border-l border-stone-200">
-
-        <div className="max-w-3xl mx-auto px-6 lg:px-8">
+    <section className="relative bg-white overflow-hidden">
+      <div className={cn("mx-auto w-full max-w-7xl", SECTION_SPACING, SECTION_GUTTER)}>
+        <div className="max-w-3xl mx-auto">
           <div className="text-center mb-14">
-            <h2 className="geist-font text-3xl md:text-5xl font-semibold text-gray-900 tracking-tight">
+            <h2 className="geist-font text-3xl md:text-4xl font-semibold text-gray-900 tracking-tight">
               Frequently asked{" "}
               <span className="text-gray-400 italic">questions.</span>
             </h2>
@@ -90,6 +92,7 @@ export default function FAQ() {
             ))}
           </Accordion>
         </div>
+      </div>
     </section>
   );
 }

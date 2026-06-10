@@ -1,6 +1,7 @@
 import Link from "next/link";
-import Image from "next/image";
 import dynamic from "next/dynamic";
+import { cn } from "@/lib/utils";
+import { SECTION_GUTTER, SECTION_SPACING } from "./section";
 
 const RealTimeMenuAnimation = dynamic(() => import("./RealTimeMenuAnimation"));
 const OffersAnimation = dynamic(() => import("./OffersAnimation"));
@@ -10,24 +11,18 @@ const SmartQRAnimation = dynamic(() => import("./SmartQRAnimation"));
 const AggregatorAnimation = dynamic(() => import("./AggregatorAnimation"));
 const PetpoojaAnimation = dynamic(() => import("./PetpoojaAnimation"));
 const DeliveryBoyAnimation = dynamic(() => import("./DeliveryBoyAnimation"));
-const BrandedAppAnimation = dynamic(() => import("./BrandedAppAnimation"));
+const PaymentIntegrationAnimation = dynamic(
+  () => import("./PaymentIntegrationAnimation"),
+);
 
 const FEATURES = [
   {
-    title: "Your Own Delivery Website",
+    title: "Your Own Website & Branded App",
     description:
-      "Launch a branded online ordering website for your restaurant in minutes. Customers order directly from you. No aggregator middlemen, no 30% commissions. You own the customer relationship, control your pricing, and keep every rupee of profit.",
+      "Launch a branded ordering website and your own app on the App Store and Play Store, all under your name. Customers order directly from you. No aggregator middlemen, no 20-33% commissions. They browse, order, track deliveries, and reorder in one tap, while you own the customer relationship, control your pricing, and keep every rupee of profit.",
     href: "/product/delivery-website",
     cta: "See how it works",
-    image: "/features/smartqr-v2.webp",
-  },
-  {
-    title: "Save 30% vs Aggregators",
-    description:
-      "Aggregators charge 20-33% commission + hidden fees, totaling up to 45% of every order. With Menuthere, get your own ordering app with just 0% commission and Petpooja POS integration. Own your customer data, control your pricing, and build brand loyalty.",
-    href: "/solutions/petpooja",
-    cta: "See full comparison & savings calculator",
-    image: "/features/smartqr-v2.webp",
+    panel: "aggregator",
   },
   {
     title: "Petpooja POS Integration",
@@ -35,7 +30,15 @@ const FEATURES = [
       "Every online order flows directly into your Petpooja POS in real-time. No manual entry, no missed orders, no double handling. Menu items, prices, and categories sync automatically between your POS and delivery website. The only platform in India with deep Petpooja integration built-in.",
     href: "/solutions/petpooja",
     cta: "Learn about Petpooja integration",
-    image: "/features/smartqr-v2.webp",
+    panel: "petpooja",
+  },
+  {
+    title: "Payment Integration",
+    description:
+      "Accept payments instantly with built-in UPI, cards, net banking, and wallets, plus cash on delivery. Secure, PCI-compliant checkout powered by Cashfree, with money settling directly to your bank account. No aggregator holding your funds and no payout delays. Every rupee reaches you.",
+    href: "/get-started",
+    cta: "See payment options",
+    panel: "payment",
   },
   {
     title: "Real-Time Order Management",
@@ -43,15 +46,15 @@ const FEATURES = [
       "Accept, track, and manage delivery orders from a single dashboard. Get instant notifications for new orders, update order status in real-time, and keep your kitchen and delivery team in sync. No more juggling multiple tablets or missing orders during rush hours.",
     href: "/get-started",
     cta: "Explore order management",
-    image: "/features/realtimesync-v2.webp",
+    panel: "realtime",
   },
   {
-    title: "Digital Menu Creator",
+    title: "Digital Menu Management",
     description:
-      "Create a beautiful, mobile-first digital menu with high-quality images, dietary filters, and smart search. Customers scan a QR code and instantly browse your full menu. No app downloads needed. Designed to increase average order value by up to 25%.",
+      "Manage your entire menu from one dashboard: add or edit items, prices, categories, photos, and variants in real time. Toggle dishes in or out of stock instantly, set dietary filters and smart search, and keep everything in sync across your website, app, and QR codes. No reprinting, no developers. Changes go live the moment you save.",
     href: "/product/digital-menu",
     cta: "Learn more about Digital Menu",
-    image: "/features/smartqr-v2.webp",
+    panel: "smartqr",
   },
   {
     title: "Dynamic Offers & Promotions",
@@ -59,7 +62,7 @@ const FEATURES = [
       "Run flash deals, happy-hour specials, or time-based discounts that activate and expire automatically. Highlight best-sellers with Must-Try badges and Chef's Choice tags. Drive repeat orders and boost revenue without printing a single flyer.",
     href: "/solutions/owners",
     cta: "See how offers work",
-    image: "/features/offersandpromo-v2.webp",
+    panel: "offers",
   },
   {
     title: "Google Business Menu Sync",
@@ -67,7 +70,7 @@ const FEATURES = [
       "Automatically sync your complete menu (categories, items, prices, and photos) to your Google Business Profile in one click. Show up on Google Maps with a full menu. Restaurants with complete profiles get 7x more clicks and drive 30% more footfall.",
     href: "/solutions/google-business",
     cta: "See how Google Sync works",
-    image: "/features/syncmenu-v2.webp",
+    panel: "googlesync",
   },
   {
     title: "Delivery Boy App",
@@ -75,15 +78,7 @@ const FEATURES = [
       "A dedicated app for your delivery team. Delivery boys receive order notifications, navigate to customer locations, and update delivery status, all in real-time. Track live locations, assign orders automatically, and ensure faster deliveries with complete visibility.",
     href: "/download-app",
     cta: "Learn about the delivery app",
-    image: "/features/analytics-v2.webp",
-  },
-  {
-    title: "Your Own Branded Restaurant App",
-    description:
-      "Get your own restaurant app published on the App Store and Play Store under your brand name. Customers can browse your menu, place orders, track deliveries, and reorder with one tap. Build loyalty and drive repeat business with push notifications and in-app offers.",
-    href: "/get-started",
-    cta: "Get your own app",
-    image: "/features/analytics-v2.webp",
+    panel: "deliveryboy",
   },
   {
     title: "Analytics & Insights",
@@ -91,54 +86,41 @@ const FEATURES = [
       "Track order volumes, revenue trends, peak hours, and best-selling items. Make data-driven decisions about your pricing, promotions, and delivery operations. Know exactly what is working and where to optimize.",
     href: "/solutions/owners",
     cta: "Learn about analytics",
-    image: "/features/analytics-v2.webp",
+    panel: "analytics",
   },
-];
+] as const;
 
 export default function MonitorSection() {
   return (
-    <section className="border-r border-l border-stone-200 mx-auto sm:max-w-[90%] md:max-w-[80%] lg:max-w-[75%] min-h-screen pt-20">
-      <div className="flex flex-col gap-6 relative z-10 max-w-5xl px-8 md:px-16 mb-20">
-        <h2 className="font-geist font-medium text-3xl md:text-4xl text-stone-900 leading-tight">
-          Everything your restaurant needs,{" "}
-          <span className="text-stone-500">in one platform.</span>
-        </h2>
-      </div>
+    <section className="relative">
+      {/* Same content column as the hero: max-w-7xl + the shared gutter, so
+          the heading and feature cards line up with the rest of the page. */}
+      <div
+        className={cn(
+          "mx-auto w-full max-w-7xl",
+          SECTION_GUTTER,
+          SECTION_SPACING,
+        )}
+      >
+        <div className="flex flex-col gap-6 relative z-10 mb-16">
+          <h2 className="font-geist font-medium text-3xl md:text-4xl text-stone-900 leading-tight">
+            Everything your restaurant needs,{" "}
+            <span className="text-stone-500">in one platform.</span>
+          </h2>
+        </div>
 
-      {FEATURES.map((feature, index) => (
+        {FEATURES.map((feature, index) => (
         <MonitorSectionCard
           key={feature.title}
           title={feature.title}
           description={feature.description}
           href={feature.href}
           cta={feature.cta}
-          image={feature.image}
           align={index % 2 === 0 ? "left" : "right"}
-          customPanel={
-            feature.title === "Your Own Delivery Website"
-              ? "aggregator"
-              : feature.title === "Save 30% vs Aggregators"
-                ? "aggregator"
-                : feature.title === "Petpooja POS Integration"
-                  ? "petpooja"
-                  : feature.title === "Real-Time Order Management"
-                    ? "realtime"
-                    : feature.title === "Digital Menu Creator"
-                      ? "smartqr"
-                      : feature.title === "Dynamic Offers & Promotions"
-                        ? "offers"
-                        : feature.title === "Google Business Menu Sync"
-                          ? "googlesync"
-                          : feature.title === "Delivery Boy App"
-                            ? "deliveryboy"
-                            : feature.title === "Your Own Branded Restaurant App"
-                              ? "brandedapp"
-                              : feature.title === "Analytics & Insights"
-                                ? "analytics"
-                                : undefined
-          }
+          customPanel={feature.panel}
         />
-      ))}
+        ))}
+      </div>
     </section>
   );
 }
@@ -189,28 +171,11 @@ function CardContent({
   );
 }
 
-function ImagePanel({ image, title }: { image: string; title: string }) {
-  return (
-    <div className="relative w-full h-full">
-      <div className="absolute w-full h-full inset-0 bg-[radial-gradient(circle,#a8a29e_1px,transparent_1px)] bg-[size:10px_10px] opacity-20"></div>
-      <div className="w-full h-full relative overflow-hidden">
-        <Image
-          src={image}
-          alt={title}
-          fill
-          className="object-contain transition-transform duration-500 ease-out hover:scale-110"
-        />
-      </div>
-    </div>
-  );
-}
-
 function MonitorSectionCard({
   title,
   description,
   href,
   cta,
-  image,
   align,
   customPanel,
 }: {
@@ -218,15 +183,16 @@ function MonitorSectionCard({
   description: string;
   href: string;
   cta: string;
-  image: string;
   align: "left" | "right";
-  customPanel?: "realtime" | "offers" | "analytics" | "googlesync" | "smartqr" | "aggregator" | "petpooja" | "deliveryboy" | "brandedapp";
+  customPanel: "realtime" | "offers" | "analytics" | "googlesync" | "smartqr" | "aggregator" | "petpooja" | "deliveryboy" | "payment";
 }) {
   const panel =
     customPanel === "aggregator" ? (
       <AggregatorAnimation />
     ) : customPanel === "petpooja" ? (
       <PetpoojaAnimation />
+    ) : customPanel === "payment" ? (
+      <PaymentIntegrationAnimation />
     ) : customPanel === "realtime" ? (
       <RealTimeMenuAnimation />
     ) : customPanel === "offers" ? (
@@ -237,12 +203,8 @@ function MonitorSectionCard({
       <GoogleSyncAnimation />
     ) : customPanel === "smartqr" ? (
       <SmartQRAnimation />
-    ) : customPanel === "deliveryboy" ? (
-      <DeliveryBoyAnimation />
-    ) : customPanel === "brandedapp" ? (
-      <BrandedAppAnimation />
     ) : (
-      <ImagePanel image={image} title={title} />
+      <DeliveryBoyAnimation />
     );
 
   return (
