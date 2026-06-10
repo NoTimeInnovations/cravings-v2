@@ -70,6 +70,78 @@ export type LiveStats = {
   syncedAt: string;
 };
 
+export type AnalyticsOrderItem = {
+  name: string;
+  price: number;
+  quantity: number;
+  isFreebie: boolean;
+};
+
+// Full order shape returned by /api/stats/partner-orders — mirrors the
+// fields the admin-v2 OrderDetails view renders, mapped to camelCase.
+export type AnalyticsOrder = {
+  id: string;
+  displayId: string | null;
+  createdAt: string;
+  status: string | null;
+  type: string | null;
+  totalPrice: number;
+  tableNumber: number | null;
+  tableName: string | null;
+  deliveryAddress: string | null;
+  deliveryLocation: { coordinates: [number, number] } | null;
+  phone: string | null;
+  orderedby: string | null;
+  paymentMethod: string | null;
+  isPaid: boolean;
+  cashfreePaymentId: string | null;
+  orderChannel: string | null;
+  notes: string | null;
+  gstIncluded: number | null;
+  extraCharges: Array<{ name: string; amount: number; charge_type?: string }>;
+  discounts: Array<{
+    type?: string;
+    value?: number;
+    savings?: number;
+    reason?: string;
+    freebie_item_names?: string;
+  }>;
+  cancelReason: string | null;
+  cancelledBy: string | null;
+  scheduledDate: string | null;
+  scheduledTime: string | null;
+  bookingPersons: number | null;
+  loyaltyPointsRedeemed: number;
+  loyaltyRedeemValue: number;
+  loyaltyPointsEarned: number | null;
+  userName: string | null;
+  userPhone: string | null;
+  items: AnalyticsOrderItem[];
+};
+
+export type PartnerOrdersPartner = {
+  id: string;
+  name: string;
+  district: string | null;
+  currency: string;
+  gstPercentage: number;
+  country: string | null;
+};
+
+export type PartnerOrdersStats = {
+  partner: PartnerOrdersPartner;
+  summary: {
+    today: { count: number; gmv: number };
+    all: { count: number; gmv: number };
+  };
+  scope: "today" | "all";
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  orders: AnalyticsOrder[];
+  syncedAt: string;
+};
+
 export type PartnerRow = {
   id: string;
   name: string;

@@ -10,6 +10,7 @@ import RangeSelector from "./RangeSelector";
 import { DesktopSidebar, MobileTabs, TABS, type Tab } from "./Sidebar";
 import OverviewSection from "./sections/OverviewSection";
 import LiveOrdersSection from "./sections/LiveOrdersSection";
+import PartnerOrdersSection from "./sections/PartnerOrdersSection";
 import SelectedPartnersSection from "./sections/SelectedPartnersSection";
 import GrowthSection from "./sections/GrowthSection";
 import RestaurantsSection from "./sections/RestaurantsSection";
@@ -21,6 +22,7 @@ const REFRESH_MS = 30_000;
 const VALID_TABS = new Set<Tab>([
   "overview",
   "live",
+  "orders",
   "selected",
   "growth",
   "restaurants",
@@ -108,14 +110,18 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-          {tab !== "live" && tab !== "selected" && (
+          {tab !== "live" && tab !== "selected" && tab !== "orders" && (
             <RangeSelector current={range} disabled={refreshing} />
           )}
-          {(tab === "live" || tab === "selected") && (
+          {(tab === "live" || tab === "selected" || tab === "orders") && (
             <div className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-1.5 text-sm">
               <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-muted-foreground">
-                {tab === "live" ? "Today, real-time" : "Last 24h, real-time"}
+                {tab === "live"
+                  ? "Today, real-time"
+                  : tab === "orders"
+                    ? "Per-partner, real-time"
+                    : "Last 24h, real-time"}
               </span>
             </div>
           )}
@@ -140,6 +146,7 @@ export default function Dashboard() {
               <OverviewSection hasura={hasura} posthog={posthog} range={range} />
             )}
             {tab === "live" && <LiveOrdersSection />}
+            {tab === "orders" && <PartnerOrdersSection />}
             {tab === "selected" && <SelectedPartnersSection />}
             {tab === "growth" && <GrowthSection hasura={hasura} range={range} />}
             {tab === "restaurants" && (

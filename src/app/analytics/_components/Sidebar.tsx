@@ -12,11 +12,13 @@ import {
   Wifi,
   Star,
   Gauge,
+  ReceiptText,
 } from "lucide-react";
 
 export type Tab =
   | "overview"
   | "live"
+  | "orders"
   | "selected"
   | "growth"
   | "restaurants"
@@ -40,6 +42,12 @@ export const TABS: Array<{
     label: "Live orders",
     icon: Activity,
     description: "Delivery & takeaway right now",
+  },
+  {
+    id: "orders",
+    label: "Partner orders",
+    icon: ReceiptText,
+    description: "Pick a partner — today's & all orders",
   },
   {
     id: "selected",
