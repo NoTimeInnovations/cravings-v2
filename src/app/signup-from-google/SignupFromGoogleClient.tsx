@@ -22,6 +22,7 @@ import {
   type ExtractedMenuItem,
 } from "@/app/actions/quickSignupFromGoogle";
 import { aiGenerate, fileToBase64 } from "@/lib/ai/generateContent";
+import { isDevModeOn } from "@/lib/devMode";
 import type { Schema } from "@google/generative-ai";
 
 const MAX_MENU_SIZE = 10 * 1024 * 1024; // 10MB — Gemini inline-data limit
@@ -84,6 +85,12 @@ export default function SignupFromGoogleClient({
   dev?: boolean;
 }) {
   const router = useRouter();
+  // Dev mode is ON if the URL said so (?dev=1) OR it's persisted in localStorage.
+  // Resolved on mount to avoid an SSR/client hydration mismatch.
+  const [devMode, setDevModeState] = useState<boolean>(!!dev);
+  useEffect(() => {
+    if (dev || isDevModeOn()) setDevModeState(true);
+  }, [dev]);
   const [view, setView] = useState<View>("choose");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -249,8 +256,8 @@ export default function SignupFromGoogleClient({
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return toast.error("Enter a valid email address");
     }
-    // Dev mode (?dev=1): skip OTP verification entirely and build directly.
-    if (dev) {
+    // Dev mode (?dev=1 or persisted): skip OTP verification entirely and build directly.
+    if (devMode) {
       await buildSite(email);
       return;
     }

@@ -3,11 +3,13 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Dancing_Script, Poppins, Roboto, Geist, Bricolage_Grotesque } from "next/font/google";
 import Script from "next/script";
 import dynamic from "next/dynamic";
+import { Suspense } from "react";
 import { headers } from "next/headers";
 import "./globals.css";
 import "@smastrom/react-rating/style.css";
 import { Toaster } from "@/components/ui/sonner";
 import BottomNav from "@/components/BottomNav";
+import DevModeSync from "@/components/DevModeSync";
 import DisableZoom from "@/components/DisableZoom";
 import OrderChannelInit from "@/components/OrderChannelInit";
 import { Navbar } from "@/components/Navbar";
@@ -192,6 +194,9 @@ document.head.appendChild(o)}initApollo();`,
         <PostHogProvider>
           <DomainProvider config={MENUTHERE_CONFIG}>
             <AuthInitializer />
+            <Suspense fallback={null}>
+              <DevModeSync />
+            </Suspense>
             <DisableZoom />
             <OrderChannelInit />
 <Toaster richColors closeButton position="top-center" />

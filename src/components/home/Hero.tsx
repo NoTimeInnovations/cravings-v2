@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useLoadScript } from "@react-google-maps/api";
 import { toast } from "sonner";
+import { isDevModeOn } from "@/lib/devMode";
 import {
   Search,
   MapPin,
@@ -159,6 +160,9 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
       placeId: selected.placeId,
       name: selected.name,
     });
+    // Carry the persisted dev flag so the signup page skips OTP without the
+    // worker having to manually append &dev=1.
+    if (isDevModeOn()) params.set("dev", "1");
     router.push(`/signup-from-google?${params.toString()}`);
   };
 
