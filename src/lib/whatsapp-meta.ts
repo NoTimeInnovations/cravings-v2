@@ -525,3 +525,80 @@ export async function sendWhatsAppCloudMessage(
 
   return true;
 }
+
+// ─── Provision our standard templates onto a partner's WABA ──────
+// When a partner connects (Coexistence), copy our approved templates (OTP,
+// order updates, etc.) onto THEIR WABA so they can send those messages from
+// their own number — templates are per-WABA, so ours don't exist on theirs.
+//
+// Source = WHATSAPP_WABA_ID (our WABA). Auth = WHATSAPP_ACCESS_TOKEN (our
+// system user has whatsapp_business_management; a partner's Coexistence token
+// is manage_events-only and can't create templates). Entirely best-effort:
+// returns a count and NEVER throws, so it can't block the connect. Common
+// no-ops: WHATSAPP_WABA_ID unset, our token lacks access to the partner WABA,
+// a template already exists, or Meta rejects a re-create.
+export async function provisionPartnerTemplates(
+  partnerWabaId: string,
+): Promise<{ created: number; skipped: number; failed: number }> {
+  const result = { created: 0, skipped: 0, failed: 0 };
+  const sourceWabaId = process.env.WHATSAPP_WABA_ID;
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  if (!sourceWabaId || !token) {
+    console.warn(
+      "provisionPartnerTemplates skipped: set WHATSAPP_WABA_ID (our source WABA) to enable copying templates to partner WABAs.",
+    );
+    return result;
+  }
+
+  let source: MetaTemplateListItem[];
+  try {
+    source = await listMetaTemplates(sourceWabaId, token);
+  } catch (e) {
+    console.error("provisionPartnerTemplates: failed to list source templates:", e);
+    return result;
+  }
+
+  // Only copy APPROVED templates — drafts/pending/rejected aren't worth pushing.
+  const toCopy = source.filter(
+    (t) => (t.status || "").toUpperCase() === "APPROVED",
+  );
+  if (!toCopy.length) return result;
+
+  // Skip any the partner already has (by name). If we can't even list the
+  // partner's templates, our token has no access to their WABA — bail cleanly.
+  let existingNames: Set<string>;
+  try {
+    const existing = await listMetaTemplates(partnerWabaId, token);
+    existingNames = new Set(existing.map((t) => t.name));
+  } catch (e) {
+    console.error(
+      "provisionPartnerTemplates: can't list partner templates (token lacks access to their WABA?):",
+      e,
+    );
+    return result;
+  }
+
+  for (const t of toCopy) {
+    if (existingNames.has(t.name)) {
+      result.skipped++;
+      continue;
+    }
+    try {
+      await createMetaTemplate(partnerWabaId, token, {
+        name: t.name,
+        language: t.language,
+        category: t.category as MetaTemplatePayload["category"],
+        components: t.components,
+      });
+      result.created++;
+    } catch (e) {
+      console.error(`provisionPartnerTemplates: failed to create "${t.name}":`, e);
+      result.failed++;
+    }
+  }
+
+  console.log(
+    `provisionPartnerTemplates(${partnerWabaId}): created=${result.created} skipped=${result.skipped} failed=${result.failed}`,
+  );
+  return result;
+}

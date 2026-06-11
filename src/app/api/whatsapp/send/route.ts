@@ -69,30 +69,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine which credentials to use — default to Menuthere's
-    let phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID!;
-    let accessToken = process.env.WHATSAPP_ACCESS_TOKEN!;
+    // Always authenticate with our messaging-capable system-user token. A
+    // partner's own connected token (Coexistence) is scoped to
+    // whatsapp_business_manage_events and can't call /messages.
+    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN!;
+    const menutherePhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID!;
 
-    // If partnerId provided, check if they have their own WABA connected
+    // Prefer the partner's own number when they've connected one, so customers
+    // see the restaurant's brand. Falls back to Menuthere's number below.
+    let partnerPhoneNumberId: string | null = null;
     if (partnerId) {
       try {
         const query = `
           query GetPartnerWhatsApp($partner_id: uuid!) {
             whatsapp_business_integrations(where: {partner_id: {_eq: $partner_id}}) {
               phone_number_id
-              access_token
             }
           }
         `;
         const data = await fetchFromHasura(query, { partner_id: partnerId });
         const integration = data?.whatsapp_business_integrations?.[0];
 
-        if (integration?.phone_number_id && integration?.access_token) {
-          phoneNumberId = integration.phone_number_id;
-          accessToken = integration.access_token;
+        if (integration?.phone_number_id) {
+          partnerPhoneNumberId = integration.phone_number_id;
         }
       } catch {
-        // Table may not exist yet or query failed — use Menuthere's credentials
+        // Table may not exist yet or query failed — use Menuthere's number
       }
     }
 
@@ -153,18 +155,33 @@ export async function POST(request: NextRequest) {
 
     const category = inferCategory(template, text);
 
-    // Send via WhatsApp Cloud API
-    const res = await fetch(
-      `https://graph.facebook.com/${API_VERSION}/${phoneNumberId}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(messagePayload),
-      }
-    );
+    // Send via WhatsApp Cloud API. Try the partner's number first (when set),
+    // then fall back to Menuthere's shared number if that send fails — e.g. our
+    // token lacks send access to their WABA, or the template isn't approved on
+    // their WABA yet — so the customer still gets the message.
+    const sendFrom = (fromPhoneNumberId: string) =>
+      fetch(
+        `https://graph.facebook.com/${API_VERSION}/${fromPhoneNumberId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(messagePayload),
+        }
+      );
+
+    let res = await sendFrom(partnerPhoneNumberId || menutherePhoneNumberId);
+    if (!res.ok && partnerPhoneNumberId) {
+      const errBody = await res.text();
+      console.warn(
+        "WhatsApp send via partner number failed, retrying from Menuthere:",
+        res.status,
+        errBody
+      );
+      res = await sendFrom(menutherePhoneNumberId);
+    }
 
     if (!res.ok) {
       const errBody = await res.text();

@@ -5,6 +5,7 @@ import {
   getTokenMetaUserId,
   subscribeWabaWebhooks,
   saveWhatsAppIntegration,
+  provisionPartnerTemplates,
 } from "@/lib/whatsapp-meta";
 
 export async function GET(request: NextRequest) {
@@ -65,6 +66,9 @@ export async function GET(request: NextRequest) {
       access_token,
       meta_user_id: metaUserId,
     });
+
+    // 4b. Best-effort: copy our standard templates onto the partner's WABA.
+    await provisionPartnerTemplates(wabaId);
 
     // 5. Redirect back to the app
     const host = request.headers.get("host");
@@ -156,6 +160,10 @@ export async function POST(request: NextRequest) {
       access_token,
       meta_user_id: metaUserId,
     });
+
+    // Best-effort: copy our standard templates onto the partner's WABA so they
+    // can send OTP/order messages from their own number. Never blocks connect.
+    await provisionPartnerTemplates(wabaId);
 
     return NextResponse.json({
       connected: true,
