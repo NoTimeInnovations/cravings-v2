@@ -319,9 +319,16 @@ export function IntegrationsSettings() {
                 override_default_response_type: true,
                 extras: {
                     setup: {},
-                    featureType: "whatsapp_business_app_onboarding",
+                    // Must stay "" (standard WhatsApp Cloud API Embedded Signup).
+                    // "whatsapp_business_app_onboarding" selects Meta's Coexistence
+                    // flow, which returns a SYSTEM_USER token scoped only to
+                    // whatsapp_business_manage_events with no WABA target_id — the
+                    // Cloud API integration here (templates + /{phone_number_id}/messages)
+                    // needs whatsapp_business_management + whatsapp_business_messaging,
+                    // so that flow fails in getConnectedWabaInfo. (`version` is not a
+                    // real extras field; sessionInfoVersion is the one Meta reads.)
+                    featureType: "",
                     sessionInfoVersion: "3",
-                    version: "v4",
                 },
             }
         );
