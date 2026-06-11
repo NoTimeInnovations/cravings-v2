@@ -20,6 +20,8 @@
 - "!include public_qr_codes.yaml"
 - "!include public_qr_groups.yaml"
 - "!include public_reviews.yaml"
+- "!include public_scheduled_notification_runs.yaml"
+- "!include public_scheduled_notifications.yaml"
 - "!include public_spatial_ref_sys.yaml"
 - "!include public_stocks.yaml"
 - "!include public_super_admin.yaml"

@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/reconcile-cf-orders",
       "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cron/dispatch-notifications",
+      "schedule": "* * * * *"
     }
   ]
 }

@@ -1,0 +1,22 @@
+table:
+  name: scheduled_notifications
+  schema: public
+object_relationships:
+  - name: partner
+    using:
+      foreign_key_constraint_on: partner_id
+array_relationships:
+  - name: runs
+    using:
+      foreign_key_constraint_on:
+        column: schedule_id
+        table:
+          name: scheduled_notification_runs
+          schema: public
+select_permissions:
+  - role: partner
+    permission:
+      columns: '*'
+      filter:
+        partner_id:
+          _eq: X-Hasura-Partner-Id
