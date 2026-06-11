@@ -57,6 +57,14 @@ const UPDATE_LOCAL_STATUS = `
   }
 `;
 
+const DELETE_STALE_LOCAL = `
+  mutation DeleteStaleTemplates($ids: [uuid!]!) {
+    delete_whatsapp_message_templates(where: { id: { _in: $ids } }) {
+      affected_rows
+    }
+  }
+`;
+
 // GET /api/whatsapp/templates?partnerId=<uuid>&sync=1
 // Returns local rows. If sync=1 and the partner has a WABA integration,
 // also pulls the current state from Meta and reconciles statuses/ids.
@@ -213,18 +221,18 @@ async function reconcileWithMeta(
   partnerId: string,
   metaTemplates: Awaited<ReturnType<typeof listMetaTemplates>>,
 ) {
-  if (!metaTemplates.length) return;
-
   const data = await fetchFromHasura(LIST_LOCAL, { partner_id: partnerId });
   const local = (data?.whatsapp_message_templates || []) as Array<{
     id: string;
     name: string;
     language: string;
+    meta_template_id: string | null;
   }>;
   const localByKey = new Map(
     local.map((l) => [`${l.name}::${l.language}`, l]),
   );
 
+  // Upsert the templates that currently live on the partner's WABA.
   for (const t of metaTemplates) {
     const key = `${t.name}::${t.language}`;
     const match = localByKey.get(key);
@@ -250,5 +258,25 @@ async function reconcileWithMeta(
         },
       }).catch(() => {});
     }
+  }
+
+  // Prune local rows that were previously synced from Meta (they carry a
+  // meta_template_id) but no longer exist on the partner's CURRENT WABA — e.g.
+  // templates left over from a different WhatsApp account the partner was
+  // connected to before. Rows without a meta_template_id are unsubmitted local
+  // drafts, so we keep those. Safe: only runs after a successful
+  // listMetaTemplates against the current WABA (an empty list prunes them all).
+  const currentKeys = new Set(
+    metaTemplates.map((t) => `${t.name}::${t.language}`),
+  );
+  const staleIds = local
+    .filter(
+      (l) => l.meta_template_id && !currentKeys.has(`${l.name}::${l.language}`),
+    )
+    .map((l) => l.id);
+  if (staleIds.length) {
+    await fetchFromHasura(DELETE_STALE_LOCAL, { ids: staleIds }).catch((e) =>
+      console.warn("Prune stale templates failed:", e?.message || e),
+    );
   }
 }
