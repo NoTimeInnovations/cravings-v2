@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { getPartnerWabaIntegration } from "@/lib/whatsapp-meta";
+import { getPartnerWabaIntegration, getWabaOpsToken } from "@/lib/whatsapp-meta";
 
 const INSERT_OUTBOX = `
   mutation InsertOutboxMessage($obj: whatsapp_messages_insert_input!) {
@@ -180,10 +180,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Authenticate with our messaging-capable system-user token, NOT the
+    // partner's Coexistence token (manage_events-only, can't call /messages).
+    // We still send from the partner's own phone_number_id (graphUrl) so the
+    // reply stays in the customer's existing thread — no Menuthere fallback
+    // here, because falling back to a different number would split the chat.
     const res = await fetch(graphUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${integration.access_token}`,
+        Authorization: `Bearer ${getWabaOpsToken()}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(metaPayload),

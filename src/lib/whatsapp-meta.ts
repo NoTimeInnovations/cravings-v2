@@ -3,6 +3,16 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 const GRAPH_API_VERSION = "v21.0";
 const GRAPH_API_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
+// The access token to use for Graph send/template operations on ANY partner's
+// WABA. A partner's stored integration.access_token is a Coexistence token
+// (whatsapp_business_manage_events) that CANNOT send messages or manage
+// templates — only our system-user token has whatsapp_business_messaging +
+// whatsapp_business_management. We still target the partner's own
+// waba_id / phone_number_id; only the auth token is ours.
+export function getWabaOpsToken(): string {
+  return process.env.WHATSAPP_ACCESS_TOKEN!;
+}
+
 // ─── Token Exchange ───────────────────────────────────────────────
 export async function exchangeCodeForToken(code: string): Promise<{
   access_token: string;

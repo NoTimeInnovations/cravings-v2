@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
   getPartnerWabaIntegration,
+  getWabaOpsToken,
   listMetaTemplates,
   createMetaTemplate,
   type MetaTemplatePayload,
@@ -73,7 +74,7 @@ export async function GET(req: NextRequest) {
         try {
           const metaTemplates = await listMetaTemplates(
             integration.waba_id,
-            integration.access_token,
+            getWabaOpsToken(),
           );
           await reconcileWithMeta(partnerId, metaTemplates);
         } catch (e: any) {
@@ -164,7 +165,7 @@ export async function POST(req: NextRequest) {
     };
     const metaRes = await createMetaTemplate(
       integration.waba_id,
-      integration.access_token,
+      getWabaOpsToken(),
       payload,
     );
     await fetchFromHasura(UPDATE_LOCAL_STATUS, {
