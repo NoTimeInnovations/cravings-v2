@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,10 @@ export function IntegrationsSettings() {
     const [wabaConnected, setWabaConnected] = useState(false);
     const [wabaPhoneNumber, setWabaPhoneNumber] = useState<string | null>(null);
     const [isWabaLoading, setIsWabaLoading] = useState(false);
+    // WABA + Phone Number IDs captured from the Embedded Signup session-info
+    // postMessage (see the listener effect below). In the Coexistence flow these
+    // arrive ONLY via postMessage — the access token doesn't carry them.
+    const waSessionRef = useRef<{ waba_id?: string; phone_number_id?: string }>({});
 
     // Handle WhatsApp connection redirect params
     useEffect(() => {
@@ -92,6 +96,40 @@ export function IntegrationsSettings() {
             script.crossOrigin = "anonymous";
             document.body.appendChild(script);
         }
+    }, []);
+
+    // Capture the Embedded Signup session info (WABA ID + Phone Number ID) that
+    // the popup posts back via window.postMessage. For the WhatsApp Business app
+    // (Coexistence) flow this is the ONLY place those IDs are exposed — the
+    // access token is scoped to whatsapp_business_manage_events and contains no
+    // WABA. We stash them here and forward them to the backend when FB.login
+    // returns the auth code.
+    useEffect(() => {
+        const onMessage = (event: MessageEvent) => {
+            if (
+                event.origin !== "https://www.facebook.com" &&
+                event.origin !== "https://web.facebook.com" &&
+                event.origin !== "https://business.facebook.com"
+            ) {
+                return;
+            }
+            try {
+                const parsed =
+                    typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+                // type: "WA_EMBEDDED_SIGNUP"; event e.g. "FINISH",
+                // "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING"; data carries the IDs.
+                if (parsed?.type === "WA_EMBEDDED_SIGNUP" && parsed?.data) {
+                    const { waba_id, phone_number_id } = parsed.data;
+                    if (waba_id || phone_number_id) {
+                        waSessionRef.current = { waba_id, phone_number_id };
+                    }
+                }
+            } catch {
+                // Not an Embedded Signup message — ignore.
+            }
+        };
+        window.addEventListener("message", onMessage);
+        return () => window.removeEventListener("message", onMessage);
     }, []);
 
     // Handle Google Business connection redirect params
@@ -285,10 +323,17 @@ export function IntegrationsSettings() {
         const exchangeCode = async (code: string) => {
             setIsWabaLoading(true);
             try {
+                const session = waSessionRef.current;
                 const res = await fetch("/api/whatsapp/meta/auth/callback", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ code, partnerId: userData.id }),
+                    body: JSON.stringify({
+                        code,
+                        partnerId: userData.id,
+                        // From the session-info postMessage (Coexistence flow).
+                        waba_id: session.waba_id,
+                        phone_number_id: session.phone_number_id,
+                    }),
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok || !data.connected) {
@@ -301,6 +346,7 @@ export function IntegrationsSettings() {
                 toast.error(e?.message || "WhatsApp connection failed");
             } finally {
                 setIsWabaLoading(false);
+                waSessionRef.current = {};
             }
         };
 
@@ -319,16 +365,17 @@ export function IntegrationsSettings() {
                 override_default_response_type: true,
                 extras: {
                     setup: {},
-                    // Must stay "" (standard WhatsApp Cloud API Embedded Signup).
-                    // "whatsapp_business_app_onboarding" selects Meta's Coexistence
-                    // flow, which returns a SYSTEM_USER token scoped only to
-                    // whatsapp_business_manage_events with no WABA target_id — the
-                    // Cloud API integration here (templates + /{phone_number_id}/messages)
-                    // needs whatsapp_business_management + whatsapp_business_messaging,
-                    // so that flow fails in getConnectedWabaInfo. (`version` is not a
-                    // real extras field; sessionInfoVersion is the one Meta reads.)
-                    featureType: "",
+                    // WhatsApp Business app onboarding (Coexistence): partners link
+                    // the number they already run on the WhatsApp Business app.
+                    // These four fields mirror Meta's working hosted onboarding URL
+                    // (config 4370725216536298). Meta returns the WABA + Phone
+                    // Number IDs via the session-info postMessage captured above,
+                    // NOT in the token (which is scoped to
+                    // whatsapp_business_manage_events).
+                    featureType: "whatsapp_business_app_onboarding",
                     sessionInfoVersion: "3",
+                    version: "v4",
+                    features: [{ name: "app_only_install" }],
                 },
             }
         );

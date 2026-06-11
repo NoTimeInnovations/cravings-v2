@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   exchangeCodeForToken,
   getConnectedWabaInfo,
+  getTokenMetaUserId,
   subscribeWabaWebhooks,
   saveWhatsAppIntegration,
 } from "@/lib/whatsapp-meta";
@@ -95,23 +96,58 @@ export async function GET(request: NextRequest) {
 // above but returns JSON instead of redirecting — lets the admin-v2 page
 // stay put while the FB.login popup result is exchanged in the background.
 export async function POST(request: NextRequest) {
-  let body: { code?: string; partnerId?: string };
+  let body: {
+    code?: string;
+    partnerId?: string;
+    waba_id?: string;
+    phone_number_id?: string;
+  };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
-  const { code, partnerId } = body;
+  const { code, partnerId, waba_id, phone_number_id } = body;
   if (!code) return NextResponse.json({ error: "Missing code" }, { status: 400 });
   if (!partnerId)
     return NextResponse.json({ error: "Missing partnerId" }, { status: 400 });
 
   try {
     const { access_token } = await exchangeCodeForToken(code);
-    const { wabaId, phoneNumberId, metaUserId } =
-      await getConnectedWabaInfo(access_token);
 
-    await subscribeWabaWebhooks(wabaId, access_token);
+    let wabaId: string | undefined = waba_id;
+    let phoneNumberId: string | undefined = phone_number_id;
+    let metaUserId: string | null = null;
+
+    if (wabaId && phoneNumberId) {
+      // WhatsApp Business app (Coexistence) flow: the client forwards the WABA +
+      // Phone Number IDs from the Embedded Signup session-info postMessage. The
+      // token here is scoped to whatsapp_business_manage_events and carries no
+      // WABA, so getConnectedWabaInfo can't be used — trust the session IDs and
+      // just capture the Meta user_id for the Data Deletion Callback.
+      metaUserId = await getTokenMetaUserId(access_token);
+    } else {
+      // Standard Cloud API Embedded Signup: derive the WABA + phone from the
+      // token's granular scopes.
+      const info = await getConnectedWabaInfo(access_token);
+      wabaId = info.wabaId;
+      phoneNumberId = info.phoneNumberId;
+      metaUserId = info.metaUserId;
+    }
+
+    if (!wabaId || !phoneNumberId) {
+      throw new Error(
+        "Could not determine the WhatsApp Business Account or phone number for this connection.",
+      );
+    }
+
+    // Best-effort: subscribe this WABA to our webhooks. Don't fail the whole
+    // connect if Meta rejects it — the integration is still usable once saved.
+    try {
+      await subscribeWabaWebhooks(wabaId, access_token);
+    } catch (e) {
+      console.error("subscribeWabaWebhooks failed (continuing):", e);
+    }
 
     await saveWhatsAppIntegration({
       partner_id: partnerId,

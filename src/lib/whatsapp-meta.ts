@@ -157,6 +157,33 @@ export async function getConnectedWabaInfo(accessToken: string): Promise<{
   return { wabaId, phoneNumberId, metaUserId };
 }
 
+// ─── Lightweight: Meta user_id from a token ──────────────────────
+// Unlike getConnectedWabaInfo this does NOT require any WhatsApp scope, so it's
+// safe for the Coexistence flow where the token is scoped only to
+// whatsapp_business_manage_events. We still want the Meta user_id so the Data
+// Deletion Callback can map a signed_request back to the partner. Returns null
+// if it can't be read — never throws (the connection shouldn't fail over this).
+export async function getTokenMetaUserId(
+  accessToken: string,
+): Promise<string | null> {
+  try {
+    const appAccessToken = `${process.env.META_APP_ID}|${process.env.META_APP_SECRET}`;
+    const res = await fetch(
+      `${GRAPH_API_BASE}/debug_token?` +
+        new URLSearchParams({
+          input_token: accessToken,
+          access_token: appAccessToken,
+        }),
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.data?.user_id || null;
+  } catch (e) {
+    console.error("getTokenMetaUserId failed:", e);
+    return null;
+  }
+}
+
 // ─── Subscribe to webhooks for a WABA ────────────────────────────
 export async function subscribeWabaWebhooks(
   wabaId: string,
