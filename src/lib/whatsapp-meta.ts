@@ -349,14 +349,25 @@ export type MetaTemplateComponent =
       text?: string;
       example?: { header_text?: string[]; header_handle?: string[] };
     }
-  | { type: "BODY"; text: string; example?: { body_text?: string[][] } }
-  | { type: "FOOTER"; text: string }
+  | {
+      type: "BODY";
+      text?: string;
+      example?: { body_text?: string[][] };
+      // Authentication templates have no custom body text — Meta generates it.
+      add_security_recommendation?: boolean;
+    }
+  | { type: "FOOTER"; text?: string; code_expiration_minutes?: number }
   | {
       type: "BUTTONS";
       buttons: Array<
         | { type: "QUICK_REPLY"; text: string }
         | { type: "URL"; text: string; url: string; example?: string[] }
         | { type: "PHONE_NUMBER"; text: string; phone_number: string }
+        | {
+            type: "OTP";
+            otp_type: "COPY_CODE" | "ONE_TAP" | "ZERO_TAP";
+            text?: string;
+          }
       >;
     };
 

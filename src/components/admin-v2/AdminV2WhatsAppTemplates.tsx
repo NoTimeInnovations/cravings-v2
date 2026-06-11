@@ -357,6 +357,9 @@ function TemplateEditorDialog({
   const [bodySamples, setBodySamples] = useState<string[]>([]);
   const [footer, setFooter] = useState("");
   const [buttons, setButtons] = useState<ButtonDraft[]>([]);
+  // Authentication templates: Meta auto-generates the body + Copy-code button;
+  // we only let the partner set how long the code stays valid.
+  const [codeExpiryMinutes, setCodeExpiryMinutes] = useState(5);
   const [submitting, setSubmitting] = useState(false);
 
   const reset = () => {
@@ -371,6 +374,7 @@ function TemplateEditorDialog({
     setBodySamples([]);
     setFooter("");
     setButtons([]);
+    setCodeExpiryMinutes(5);
   };
 
   // Prefill the form from an existing template when entering edit mode (or
@@ -389,6 +393,7 @@ function TemplateEditorDialog({
       let bodyEx: string[] = [];
       let footerTxt = "";
       let btns: ButtonDraft[] = [];
+      let expiry = 5;
       for (const c of initial.components || []) {
         if (c.type === "HEADER") {
           header = (c.format || "TEXT") as HeaderFormat;
@@ -403,6 +408,9 @@ function TemplateEditorDialog({
           bodyEx = c.example?.body_text?.[0] || [];
         } else if (c.type === "FOOTER") {
           footerTxt = c.text || "";
+          if (typeof (c as any).code_expiration_minutes === "number") {
+            expiry = (c as any).code_expiration_minutes;
+          }
         } else if (c.type === "BUTTONS") {
           btns = (c.buttons || []).slice(0, 3).map((b: any) => ({
             type: b.type as ButtonKind,
@@ -420,6 +428,7 @@ function TemplateEditorDialog({
       setBodySamples(bodyEx);
       setFooter(footerTxt);
       setButtons(btns);
+      setCodeExpiryMinutes(expiry);
     } else if (!isEdit) {
       reset();
     }
@@ -455,6 +464,17 @@ function TemplateEditorDialog({
   };
 
   const buildComponents = (): any[] => {
+    // Authentication (OTP) templates have a fixed shape: Meta auto-generates the
+    // body ("<code> is your verification code") + security note, and we add a
+    // Copy-code button. No custom body/header/footer text is allowed.
+    if (category === "AUTHENTICATION") {
+      return [
+        { type: "BODY", add_security_recommendation: true },
+        { type: "FOOTER", code_expiration_minutes: codeExpiryMinutes },
+        { type: "BUTTONS", buttons: [{ type: "OTP", otp_type: "COPY_CODE" }] },
+      ];
+    }
+
     const comps: any[] = [];
     if (headerFormat !== "NONE") {
       if (headerFormat === "TEXT" && headerText) {
@@ -498,16 +518,18 @@ function TemplateEditorDialog({
   };
 
   const valid =
-    !nameInvalid &&
-    body.trim().length > 0 &&
-    (varCount === 0 || bodySamples.every((s) => s.trim().length > 0)) &&
-    (headerFormat !== "TEXT" || !headerHasVar || headerSample.trim().length > 0) &&
-    buttons.every((b) => {
-      if (!b.text.trim()) return false;
-      if (b.type === "URL" && !b.url?.trim()) return false;
-      if (b.type === "PHONE_NUMBER" && !b.phone_number?.trim()) return false;
-      return true;
-    });
+    category === "AUTHENTICATION"
+      ? !nameInvalid
+      : !nameInvalid &&
+        body.trim().length > 0 &&
+        (varCount === 0 || bodySamples.every((s) => s.trim().length > 0)) &&
+        (headerFormat !== "TEXT" || !headerHasVar || headerSample.trim().length > 0) &&
+        buttons.every((b) => {
+          if (!b.text.trim()) return false;
+          if (b.type === "URL" && !b.url?.trim()) return false;
+          if (b.type === "PHONE_NUMBER" && !b.phone_number?.trim()) return false;
+          return true;
+        });
 
   const submit = async () => {
     if (!partnerId) return;
@@ -641,6 +663,37 @@ function TemplateEditorDialog({
               </div>
             </div>
 
+            {category === "AUTHENTICATION" && (
+              <div className="space-y-2 rounded-md border border-blue-200 bg-blue-50 p-3">
+                <p className="text-sm font-medium text-blue-900">
+                  One-time passcode template
+                </p>
+                <p className="text-xs text-blue-800">
+                  Meta writes this template for you — &ldquo;&#123;&#123;1&#125;&#125; is your
+                  verification code&rdquo; plus a &ldquo;don&apos;t share this code&rdquo; note —
+                  and adds a Copy-code button. There&apos;s no body text to write. Just
+                  set the name, language, and how long the code stays valid.
+                </p>
+                <div className="space-y-1 pt-1">
+                  <Label className="text-xs">Code expires after (minutes)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={90}
+                    value={codeExpiryMinutes}
+                    onChange={(e) =>
+                      setCodeExpiryMinutes(
+                        Math.max(1, Math.min(90, Number(e.target.value) || 5)),
+                      )
+                    }
+                    className="w-28"
+                  />
+                </div>
+              </div>
+            )}
+
+            {category !== "AUTHENTICATION" && (
+              <>
             <div className="space-y-1.5">
               <Label>Header</Label>
               <Select value={headerFormat} onValueChange={(v) => setHeaderFormat(v as HeaderFormat)}>
@@ -797,6 +850,8 @@ function TemplateEditorDialog({
                 </div>
               ))}
             </div>
+              </>
+            )}
           </div>
 
           {/* Right column: preview */}
@@ -814,6 +869,17 @@ function TemplateEditorDialog({
                     {headerFormat} preview
                   </div>
                 )}
+                {category === "AUTHENTICATION" && (
+                  <>
+                    <div className="whitespace-pre-wrap text-foreground">
+                      123456 is your verification code. For your security, do not
+                      share this code.
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      This code expires in {codeExpiryMinutes} minutes.
+                    </div>
+                  </>
+                )}
                 {body && (
                   <div className="whitespace-pre-wrap text-foreground">
                     {previewText(body, bodySamples)}
@@ -823,6 +889,13 @@ function TemplateEditorDialog({
                   <div className="text-xs text-muted-foreground">{footer}</div>
                 )}
               </div>
+              {category === "AUTHENTICATION" && (
+                <div className="mt-2 space-y-1">
+                  <div className="bg-white rounded text-center py-1.5 text-sm text-[#34B7F1] font-medium shadow-sm">
+                    Copy code
+                  </div>
+                </div>
+              )}
               {buttons.length > 0 && (
                 <div className="mt-2 space-y-1">
                   {buttons.map((b, i) => (
