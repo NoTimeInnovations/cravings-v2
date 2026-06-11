@@ -17,6 +17,7 @@ import { getSocialLinks } from "@/lib/getSocialLinks";
 import { useAdminSettingsStore } from "@/store/adminSettingsStore";
 import { isFreePlan } from "@/lib/getPlanLimits";
 import { UpgradePrompt } from "@/components/admin-v2/UpgradePrompt";
+import { WhatsAppHealthStatus } from "@/components/admin-v2/WhatsAppHealthStatus";
 
 export function IntegrationsSettings() {
     const { userData, setState } = useAuthStore();
@@ -676,6 +677,7 @@ export function IntegrationsSettings() {
                                                         </p>
                                                     </div>
                                                 </div>
+                                                <WhatsAppHealthStatus partnerId={userData?.id} />
                                                 <Button
                                                     variant="outline"
                                                     size="sm"

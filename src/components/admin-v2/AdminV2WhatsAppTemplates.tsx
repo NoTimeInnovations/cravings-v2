@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { WhatsAppHealthStatus } from "@/components/admin-v2/WhatsAppHealthStatus";
 import {
   Dialog,
   DialogContent,
@@ -230,6 +231,8 @@ export function AdminV2WhatsAppTemplates() {
           </CardContent>
         </Card>
       )}
+
+      {connected && <WhatsAppHealthStatus partnerId={partnerId} />}
 
       <Card>
         <CardHeader>
