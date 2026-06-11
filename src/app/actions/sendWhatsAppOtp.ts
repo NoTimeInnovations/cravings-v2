@@ -1,6 +1,7 @@
 "use server";
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { getPartnerWabaIntegration } from "@/lib/whatsapp-meta";
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
 
@@ -77,8 +78,29 @@ export async function sendWhatsAppOtp(
 
     otpStore.set(formattedPhone, { code, expiresAt });
 
-    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID!;
+    // Default sender: Menuthere's shared WhatsApp number.
+    const menutherePhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID!;
+    // Sending always uses our messaging-capable system-user token. A partner's
+    // own connected token is scoped to whatsapp_business_manage_events
+    // (Coexistence) and can't call /messages — so even when we send from the
+    // partner's number we authenticate with WHATSAPP_ACCESS_TOKEN.
     const accessToken = process.env.WHATSAPP_ACCESS_TOKEN!;
+
+    // If this partner connected their own WhatsApp, prefer their number so the
+    // customer sees the restaurant's brand. Requires (a) our token to have send
+    // access to their WABA and (b) the otp_message_v2 template approved on that
+    // WABA — if either is missing the send below fails and we fall back.
+    let partnerPhoneNumberId: string | null = null;
+    if (partnerId) {
+      try {
+        const integration = await getPartnerWabaIntegration(partnerId);
+        if (integration?.phone_number_id) {
+          partnerPhoneNumberId = integration.phone_number_id;
+        }
+      } catch {
+        // ignore — fall back to Menuthere's number
+      }
+    }
 
     const messagePayload = {
       messaging_product: "whatsapp",
@@ -102,17 +124,32 @@ export async function sendWhatsAppOtp(
       },
     };
 
-    const res = await fetch(
-      `https://graph.facebook.com/${API_VERSION}/${phoneNumberId}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(messagePayload),
-      }
-    );
+    const sendFrom = (fromPhoneNumberId: string) =>
+      fetch(
+        `https://graph.facebook.com/${API_VERSION}/${fromPhoneNumberId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(messagePayload),
+        }
+      );
+
+    // Try the partner's own number first; if it fails (no send access, or the
+    // template isn't approved on their WABA yet), retry from Menuthere's shared
+    // number so the OTP still lands and login isn't blocked.
+    let res = await sendFrom(partnerPhoneNumberId || menutherePhoneNumberId);
+    if (!res.ok && partnerPhoneNumberId) {
+      const errBody = await res.text();
+      console.warn(
+        "OTP via partner number failed, retrying from Menuthere:",
+        res.status,
+        errBody
+      );
+      res = await sendFrom(menutherePhoneNumberId);
+    }
 
     if (!res.ok) {
       const errBody = await res.text();
