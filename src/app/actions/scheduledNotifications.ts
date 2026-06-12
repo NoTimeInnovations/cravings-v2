@@ -328,6 +328,83 @@ const DELETE_SCHEDULE = `
   }
 `;
 
+export interface UpdateScheduleInput {
+  id: string;
+  title: string;
+  body: string;
+  imageUrl?: string | null;
+  audience: NotifyAudience;
+  scheduleType: "once" | "recurring";
+  /** ISO/local datetime — for "once". */
+  scheduledAt?: string;
+  /** for "recurring" */
+  frequency?: Frequency;
+  time?: string;
+  daysOfWeek?: number[];
+  timezone?: string;
+  endAt?: string | null;
+}
+
+/**
+ * Edit a scheduled / recurring notification's content and timing. Recomputes
+ * cron_expr + next_run_at from the new schedule (so a time change takes effect
+ * on the next run). Status is left as-is — a paused schedule stays paused.
+ */
+export async function updateScheduledNotificationAction(
+  input: UpdateScheduleInput
+): Promise<{ ok: boolean; error?: string }> {
+  let partnerId: string;
+  try {
+    partnerId = await requirePartnerId();
+  } catch (e: any) {
+    return { ok: false, error: e?.message || "Not authorized" };
+  }
+
+  const title = input.title?.trim();
+  const body = input.body?.trim();
+  if (!title || !body) return { ok: false, error: "Title and message are required." };
+
+  const timezone = input.timezone || "Asia/Kolkata";
+  const set: Record<string, unknown> = {
+    title,
+    body,
+    image_url: input.imageUrl?.trim() || null,
+    audience: input.audience,
+    schedule_type: input.scheduleType,
+    timezone,
+    end_at: input.endAt || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (input.scheduleType === "once") {
+    if (!input.scheduledAt) return { ok: false, error: "Pick a date and time." };
+    const when = new Date(input.scheduledAt);
+    if (isNaN(when.getTime())) return { ok: false, error: "Invalid date/time." };
+    set.scheduled_at = input.scheduledAt;
+    set.next_run_at = input.scheduledAt;
+    set.cron_expr = null;
+  } else {
+    const cron = buildCronExpr({
+      frequency: input.frequency as Frequency,
+      time: input.time || "",
+      daysOfWeek: input.daysOfWeek,
+    });
+    if (!cron) return { ok: false, error: "Choose a valid frequency, time, and days." };
+    const next = computeNextRun(cron, timezone, new Date());
+    if (!next) return { ok: false, error: "Could not compute the next run time." };
+    set.cron_expr = cron;
+    set.next_run_at = next.toISOString();
+    set.scheduled_at = null;
+  }
+
+  try {
+    await fetchFromHasuraServer(UPDATE_SCHEDULE, { id: input.id, partnerId, set });
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || "Failed to update schedule." };
+  }
+}
+
 export async function deleteScheduledNotificationAction(
   id: string
 ): Promise<{ ok: boolean; error?: string }> {

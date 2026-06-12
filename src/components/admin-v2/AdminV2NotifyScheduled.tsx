@@ -8,6 +8,7 @@ import {
   Loader2,
   Pause,
   Play,
+  Pencil,
   Repeat,
   Trash2,
   Users,
@@ -22,6 +23,7 @@ import {
   deleteScheduledNotificationAction,
   type ScheduleRow,
 } from "@/app/actions/scheduledNotifications";
+import { EditScheduleDialog } from "@/components/admin-v2/EditScheduleDialog";
 
 function fmt(iso: string | null, tz?: string): string {
   if (!iso) return "—";
@@ -57,6 +59,7 @@ export function AdminV2NotifyScheduled({
   const [schedules, setSchedules] = useState<ScheduleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<ScheduleRow | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -186,6 +189,17 @@ export function AdminV2NotifyScheduled({
                       <span className="ml-1 hidden sm:inline">Resume</span>
                     </Button>
                   )}
+                  {!isClosed && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => setEditing(s)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span className="ml-1 hidden sm:inline">Edit</span>
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="ghost"
@@ -269,6 +283,18 @@ export function AdminV2NotifyScheduled({
           </Card>
         );
       })}
+
+      <EditScheduleDialog
+        schedule={editing}
+        open={!!editing}
+        onOpenChange={(o) => {
+          if (!o) setEditing(null);
+        }}
+        onSaved={() => {
+          setEditing(null);
+          load();
+        }}
+      />
     </div>
   );
 }
