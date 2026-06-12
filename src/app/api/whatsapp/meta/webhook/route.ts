@@ -1,8 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getPartnerByPhoneNumberId } from "@/lib/whatsapp-meta";
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
+
+// Flow execution can emit several Graph sends per inbound message; give the
+// handler headroom so it doesn't get cut off mid-turn.
+export const maxDuration = 30;
+
+// Constant-time string compare (length guard first — timingSafeEqual throws on
+// unequal-length buffers).
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ab, bb);
+}
+
+// Verify Meta's X-Hub-Signature-256 over the RAW request body using our app
+// secret. Without this, anyone who learns the webhook URL could forge inbound
+// events and drive flows / trigger sends from partner numbers.
+function verifyMetaSignature(rawBody: string, signature: string | null): boolean {
+  const appSecret = process.env.META_APP_SECRET;
+  if (!appSecret || !signature || !signature.startsWith("sha256=")) return false;
+  const expected =
+    "sha256=" +
+    crypto.createHmac("sha256", appSecret).update(rawBody, "utf8").digest("hex");
+  return safeEqual(expected, signature);
+}
 
 // Insert an inbound row into the inbox so partners can see every message
 // their WABA receives. Fire-and-forget — never blocks the webhook ACK.
@@ -85,7 +111,8 @@ export async function GET(req: NextRequest) {
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
-  if (mode === "subscribe" && token === process.env.META_WEBHOOK_VERIFY_TOKEN) {
+  const verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || "";
+  if (mode === "subscribe" && token && verifyToken && safeEqual(token, verifyToken)) {
     console.log("WhatsApp webhook verified");
     return new NextResponse(challenge, { status: 200 });
   }
@@ -96,7 +123,25 @@ export async function GET(req: NextRequest) {
 // ─── Receive Incoming Messages & Status Updates ──────────────────
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const raw = await req.text();
+
+    // Authenticate the payload as genuinely from Meta. Reject forged requests.
+    // A missing app secret is a deploy error we log loudly rather than fail
+    // closed on, so a misconfig can't silently drop every real event.
+    if (process.env.META_APP_SECRET) {
+      if (!verifyMetaSignature(raw, req.headers.get("x-hub-signature-256"))) {
+        console.warn(
+          "WhatsApp webhook: invalid X-Hub-Signature-256 — ignoring payload",
+        );
+        return NextResponse.json({ status: "ok" });
+      }
+    } else {
+      console.error(
+        "META_APP_SECRET not set — webhook signature NOT verified",
+      );
+    }
+
+    const body = JSON.parse(raw);
     const entries = body.entry || [];
 
     for (const entry of entries) {
