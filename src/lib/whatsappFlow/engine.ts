@@ -93,6 +93,11 @@ const M_EXPIRE_RUN = `
     update_whatsapp_flow_execution_state_by_pk(pk_columns: {id: $id}, _set: {status: "expired"}) { id }
   }
 `;
+const M_ABORT_RUN = `
+  mutation Abort($id: uuid!) {
+    update_whatsapp_flow_execution_state_by_pk(pk_columns: {id: $id}, _set: {status: "aborted", current_node_id: null}) { id }
+  }
+`;
 const M_OUTBOX = `
   mutation Outbox($o: whatsapp_messages_insert_input!) {
     insert_whatsapp_messages_one(object: $o) { id }
@@ -386,6 +391,14 @@ export async function runFlowForInbound(args: {
   if (active) {
     if (active.expires_at && new Date(active.expires_at).getTime() < Date.now()) {
       await fetchFromHasura(M_EXPIRE_RUN, { id: active.id }).catch(() => {});
+    } else if (await matchesSpecificTrigger(partnerId, input.normalized)) {
+      // A specific keyword trigger (exact/contains) restarts its flow even
+      // mid-run, so re-sending the trigger word replays the WHOLE flow instead
+      // of being treated as a reply to the parked step. (Generic any/welcome
+      // triggers don't do this, so button choices / captures still work.)
+      await abortRun(active.id);
+      await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input);
+      return;
     } else {
       await resumeRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, active);
       return;
@@ -393,6 +406,24 @@ export async function runFlowForInbound(args: {
   }
 
   await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input);
+}
+
+// True if the inbound matches a SPECIFIC (exact/contains) keyword trigger of an
+// enabled flow — used to decide whether to restart a flow mid-run.
+async function matchesSpecificTrigger(partnerId: string, normalized: string): Promise<boolean> {
+  const res = await fetchFromHasura(Q_ENABLED_FLOWS, { p: partnerId });
+  const flows = (res?.whatsapp_flows || []) as Array<{ triggers: TriggerDef[] }>;
+  return flows.some((f) =>
+    (f.triggers || []).some(
+      (t) =>
+        (t.matchType === "exact" || t.matchType === "contains") &&
+        triggerMatches(t, normalized, false),
+    ),
+  );
+}
+
+async function abortRun(id: string): Promise<void> {
+  await fetchFromHasura(M_ABORT_RUN, { id }).catch(() => {});
 }
 
 async function startNewRun(
