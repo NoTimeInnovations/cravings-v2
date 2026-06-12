@@ -78,6 +78,13 @@ export default function OutletPickerScreen({
   const [finding, setFinding] = useState(false);
   const [findError, setFindError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Delivery is a two-page flow: first the address, then the outlet list. Start
+  // on the outlet page only when a delivery address is already known (returning
+  // user); otherwise collect the address first. Takeaway keeps its single
+  // combined page (address card is just "find nearest"), so view is unused there.
+  const [view, setView] = useState<"address" | "outlets">(
+    isDelivery && !(savedUserAddress && storedCoords) ? "address" : "outlets",
+  );
 
   // Google Places autocomplete (delivery mode only).
   const { isLoaded: isGoogleLoaded } = useLoadScript({
@@ -350,6 +357,26 @@ export default function OutletPickerScreen({
     if (target) onSelect(target);
   };
 
+  // Two-page delivery flow: address page first, outlets page next. Takeaway is
+  // always a single page (showOutletsView true, showAddressView false).
+  const showAddressView = isDelivery && view === "address";
+  const showOutletsView = !isDelivery || view === "outlets";
+  const headerBack =
+    isDelivery && view === "outlets" ? () => setView("address") : onBack;
+  const bottomLabel = showAddressView
+    ? savedAddress
+      ? "Continue"
+      : "Enter delivery address"
+    : selectedOutOfRange
+      ? "Explore menu"
+      : "Order now";
+  const bottomDisabled = showAddressView ? !savedAddress : !canContinue;
+  const onBottomClick = showAddressView
+    ? () => {
+        if (savedAddress) setView("outlets");
+      }
+    : handleContinue;
+
   return (
     <div
       className="flex flex-col min-h-dvh bg-white mx-auto w-full md:max-w-md relative"
@@ -358,9 +385,9 @@ export default function OutletPickerScreen({
       <div ref={dummyDivRef} className="hidden" />
       <div className="sticky top-0 z-10 bg-white">
         <div className="flex items-center gap-3 px-4 py-3.5 lg:max-w-md lg:mx-auto">
-          {onBack && (
+          {headerBack && (
             <button
-              onClick={onBack}
+              onClick={headerBack}
               className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0 transition active:opacity-60"
             >
               <ChevronLeft className="w-[18px] h-[18px] text-gray-900" />
@@ -371,24 +398,73 @@ export default function OutletPickerScreen({
 
       <div className="flex-1 pb-32">
         <div className="px-6 lg:max-w-md lg:mx-auto">
-          {/* Section heading */}
-          <div className="flex items-center gap-2">
-            {isDelivery ? (
-              <MapPin className="w-5 h-5" style={{ color: accent }} />
-            ) : (
-              <Store className="w-5 h-5" style={{ color: accent }} />
-            )}
-            <h1 className="text-xl font-semibold tracking-tight text-gray-900">
-              {isDelivery ? "Delivery address" : "Pick an outlet"}
-            </h1>
-          </div>
-          {!isDelivery && (
-            <p className="mt-1 text-sm text-gray-500">
-              Choose where you'd like to pick up your order.
-            </p>
+          {/* Heading — address page (delivery), outlet page (delivery), or takeaway */}
+          {showAddressView ? (
+            <>
+              <div className="flex items-center gap-2">
+                <MapPin className="w-5 h-5" style={{ color: accent }} />
+                <h1 className="text-xl font-semibold tracking-tight text-gray-900">
+                  Delivery address
+                </h1>
+              </div>
+              <p className="mt-1 text-sm text-gray-500">
+                Where should we deliver your order?
+              </p>
+            </>
+          ) : isDelivery ? (
+            <>
+              {savedAddress && (
+                <div className="flex items-start gap-2.5 rounded-2xl bg-gray-50 p-4">
+                  <div
+                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                    style={{ backgroundColor: `${accent}15` }}
+                  >
+                    <MapPin className="w-3.5 h-3.5" style={{ color: accent }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-semibold tracking-[0.12em] uppercase text-gray-500">
+                      Delivering to
+                    </p>
+                    <p className="mt-0.5 text-[13px] text-gray-900 leading-snug line-clamp-2">
+                      {savedAddress}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setView("address")}
+                    className="text-xs font-semibold shrink-0 active:opacity-60"
+                    style={{ color: accent }}
+                  >
+                    Change
+                  </button>
+                </div>
+              )}
+              <div className="mt-5 flex items-center gap-2">
+                <Store className="w-5 h-5" style={{ color: accent }} />
+                <h1 className="text-xl font-semibold tracking-tight text-gray-900">
+                  Pick an outlet
+                </h1>
+              </div>
+              <p className="mt-1 text-sm text-gray-500">
+                Choose the outlet to deliver from.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <Store className="w-5 h-5" style={{ color: accent }} />
+                <h1 className="text-xl font-semibold tracking-tight text-gray-900">
+                  Pick an outlet
+                </h1>
+              </div>
+              <p className="mt-1 text-sm text-gray-500">
+                Choose where you'd like to pick up your order.
+              </p>
+            </>
           )}
 
-          {/* Address / find-nearest card */}
+          {/* Address / find-nearest card — address page (delivery) or takeaway */}
+          {(showAddressView || !isDelivery) && (
           <div className="mt-5 rounded-2xl bg-gray-50 p-4">
             <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-gray-500">
               {isDelivery ? "Your delivery address" : "Find nearest to me"}
@@ -495,19 +571,11 @@ export default function OutletPickerScreen({
               </div>
             )}
           </div>
-
-          {/* Outlets section heading (delivery only — picker needs context
-              between the address card and the outlet list). */}
-          {isDelivery && (
-            <div className="mt-6 flex items-center gap-2">
-              <Store className="w-5 h-5" style={{ color: accent }} />
-              <h2 className="text-base font-semibold tracking-tight text-gray-900">
-                Nearest outlet
-              </h2>
-            </div>
           )}
 
-          {/* Outlets */}
+          {/* Outlets — outlet page (delivery) or takeaway */}
+          {showOutletsView && (
+            <>
           <div className="mt-3 flex flex-col gap-2">
             {sortedOutlets.length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-6">
@@ -596,22 +664,20 @@ export default function OutletPickerScreen({
               </div>
             </div>
           )}
+            </>
+          )}
         </div>
       </div>
 
       <div className="absolute left-0 right-0 bottom-0 bg-white/95 backdrop-blur-lg border-t border-gray-100 z-30">
         <div className="px-4 pt-3.5 pb-8 lg:max-w-md lg:mx-auto">
           <button
-            onClick={handleContinue}
-            disabled={!canContinue}
+            onClick={onBottomClick}
+            disabled={bottomDisabled}
             className="w-full h-[52px] rounded-[14px] text-white font-semibold text-base flex items-center justify-center transition active:scale-[0.98] disabled:opacity-40"
             style={{ backgroundColor: accent }}
           >
-            {isDelivery && !savedAddress
-              ? "Enter delivery address"
-              : selectedOutOfRange
-                ? "Explore menu"
-                : "Order now"}
+            {bottomLabel}
           </button>
         </div>
       </div>
