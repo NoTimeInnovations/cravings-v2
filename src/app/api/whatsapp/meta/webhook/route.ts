@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getPartnerByPhoneNumberId } from "@/lib/whatsapp-meta";
+import { runFlowForInbound, type FlowInput } from "@/lib/whatsappFlow/engine";
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
 
@@ -77,6 +78,28 @@ function extractIncomingBody(msg: any): { type: string; body: string | null; med
     default:
       return { type: "unknown", body: null, mediaUrl: null };
   }
+}
+
+// Normalize an inbound message into the flow engine's input shape. Only
+// text / interactive-reply / button messages drive flows; everything else
+// returns null (ignored by the engine).
+function normalizeFlowInput(msg: any): FlowInput | null {
+  let text: string | null = null;
+  let replyId: string | null = null;
+  if (msg.type === "text") {
+    text = msg.text?.body ?? null;
+  } else if (msg.type === "interactive") {
+    const ir = msg.interactive?.button_reply || msg.interactive?.list_reply;
+    if (ir) {
+      text = ir.title ?? null;
+      replyId = ir.id ?? null;
+    }
+  } else if (msg.type === "button") {
+    text = msg.button?.text ?? null;
+    replyId = msg.button?.payload ?? null;
+  }
+  if (text == null) return null;
+  return { text, normalized: String(text).trim().toLowerCase(), replyId };
 }
 
 async function persistIncoming(
@@ -169,6 +192,23 @@ export async function POST(req: NextRequest) {
 
           if (partner?.partner_id) {
             await persistIncoming(partner.partner_id, msg, contactName);
+
+            // Run the partner's WhatsApp flows for this inbound. Idempotent and
+            // self-contained; never let it throw out of the webhook loop.
+            const flowInput = normalizeFlowInput(msg);
+            if (flowInput && msg.id && phoneNumberId) {
+              try {
+                await runFlowForInbound({
+                  partnerId: partner.partner_id,
+                  phoneNumberId,
+                  contactPhone: msg.from,
+                  waMessageId: msg.id,
+                  input: flowInput,
+                });
+              } catch (e) {
+                console.error("Flow engine error:", e);
+              }
+            }
           }
 
           // Handle "Track Order Status" quick reply button click
