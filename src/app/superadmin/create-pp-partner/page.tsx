@@ -20,12 +20,12 @@ import {
 import { sendPetpoojaOnboardingEmailAction } from "@/app/actions/sendPetpoojaOnboardingEmail";
 
 const DEFAULT_TO_EMAILS = [
-  "siddharth.patel@petpooja.com",
+  "akshay.acharya@petpooja.com",
 ];
 
 const DEFAULT_CC_EMAILS = [
-  "malvi.vaghela@petpooja.com",
-  "shivam.tiwari1@petpooja.com",
+  "harsh.rathod@petpooja.com",
+  "yashpal.parmar@petpooja.com",
 ];
 
 const CreatePartnerPage = () => {
