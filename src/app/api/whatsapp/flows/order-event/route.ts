@@ -1,0 +1,121 @@
+import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
+import { fetchFromHasura } from "@/lib/hasuraClient";
+import { runOrderTriggeredFlows } from "@/lib/whatsappFlow/engine";
+
+// Receives the Hasura event trigger on `orders` (INSERT/UPDATE). On a new order
+// or a status change it fires the partner's matching order-triggered WhatsApp
+// flows, injecting the order context as variables.
+export const maxDuration = 30;
+
+const Q_ORDER = `
+  query OrderForFlow($id: uuid!) {
+    orders_by_pk(id: $id) {
+      id display_id short_id status total_price type table_name phone orderedby partner_id
+      partner { store_name currency }
+      user { full_name phone }
+      order_items { quantity item }
+    }
+  }
+`;
+const Q_PHONE_NUMBER_ID = `
+  query Pnid($p: uuid!) {
+    whatsapp_business_integrations(where: {partner_id: {_eq: $p}}, limit: 1) { phone_number_id }
+  }
+`;
+
+function normalizePhone(raw: string): string {
+  let p = String(raw || "").replace(/[^0-9]/g, "");
+  if (p.startsWith("0")) p = "91" + p.slice(1);
+  if (p.length === 10) p = "91" + p;
+  return p;
+}
+
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ab, bb);
+}
+
+export async function POST(req: NextRequest) {
+  // Auth: the Hasura event trigger sends a shared secret header (set to the
+  // webhook verify token — a server-only secret). Reject anything else so a
+  // forged request can't drive sends.
+  const token = req.headers.get("x-flow-event-token") || "";
+  const expected = process.env.META_WEBHOOK_VERIFY_TOKEN || "";
+  if (!expected || !safeEqual(token, expected)) {
+    return NextResponse.json({ ok: false }, { status: 401 });
+  }
+
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: true });
+  }
+
+  try {
+    const ev = body?.event;
+    const op = ev?.op;
+    const newRow = ev?.data?.new;
+    const oldRow = ev?.data?.old;
+    if (!newRow?.id) return NextResponse.json({ ok: true });
+
+    // "placed" fires on a new order; otherwise fire on the new status value.
+    let fireStatus: string | null = null;
+    if (op === "INSERT") fireStatus = "placed";
+    else if (op === "UPDATE" && newRow.status && newRow.status !== oldRow?.status) {
+      fireStatus = newRow.status;
+    }
+    if (!fireStatus) return NextResponse.json({ ok: true });
+
+    const partnerId = newRow.partner_id;
+    if (!partnerId) return NextResponse.json({ ok: true });
+
+    // The partner must have a connected WhatsApp number to send from.
+    const pnidRes = await fetchFromHasura(Q_PHONE_NUMBER_ID, { p: partnerId });
+    const phoneNumberId =
+      pnidRes?.whatsapp_business_integrations?.[0]?.phone_number_id;
+    if (!phoneNumberId) return NextResponse.json({ ok: true });
+
+    const ordRes = await fetchFromHasura(Q_ORDER, { id: newRow.id });
+    const order = ordRes?.orders_by_pk;
+    if (!order) return NextResponse.json({ ok: true });
+
+    const customerRaw = order.phone || order.user?.phone;
+    if (!customerRaw) return NextResponse.json({ ok: true });
+    const customerPhone = normalizePhone(customerRaw);
+    if (customerPhone.length < 11) return NextResponse.json({ ok: true });
+
+    const currency = order.partner?.currency ?? "₹";
+    const items = (order.order_items || [])
+      .map((oi: any) => `${oi.item?.name || "Item"} × ${oi.quantity}`)
+      .join("\n");
+
+    const variables = {
+      store_name: order.partner?.store_name || "",
+      order_id: order.display_id || order.short_id || String(order.id).slice(0, 8),
+      order_status: fireStatus,
+      customer_name: order.user?.full_name || order.orderedby || "Customer",
+      items,
+      total: `${currency}${order.total_price ?? ""}`,
+      order_type: order.type || "",
+      currency,
+    };
+
+    await runOrderTriggeredFlows({
+      partnerId,
+      phoneNumberId,
+      orderId: order.id,
+      status: fireStatus,
+      customerPhone,
+      variables,
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("Order-event flow error:", e);
+    return NextResponse.json({ ok: true });
+  }
+}

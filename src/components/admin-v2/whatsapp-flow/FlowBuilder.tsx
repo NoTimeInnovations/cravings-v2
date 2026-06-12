@@ -63,6 +63,7 @@ import type {
   ButtonItem,
   ConditionRule,
 } from "@/lib/whatsappFlow/types";
+import { ORDER_STATUSES, ORDER_FLOW_VARIABLES } from "@/lib/whatsappFlow/types";
 
 const NODE_META: Record<FlowNodeType, { label: string; icon: React.ElementType; accent: string }> = {
   trigger: { label: "Trigger", icon: Zap, accent: "#f59e0b" },
@@ -79,8 +80,10 @@ const NODE_META: Record<FlowNodeType, { label: string; icon: React.ElementType; 
   end: { label: "End", icon: Square, accent: "#ef4444" },
 };
 
-// Everything except trigger can be added from the palette (trigger is seeded).
+// Steps that can be added from the palette. "trigger" is included so a flow can
+// have multiple entry points (e.g. a keyword trigger AND an order-status trigger).
 const PALETTE: FlowNodeType[] = [
+  "trigger",
   "send_text",
   "send_image",
   "send_audio",
@@ -150,6 +153,7 @@ function nodeSummary(type: FlowNodeType, data: any): string {
   switch (type) {
     case "trigger": {
       const mt = data?.matchType || "any";
+      if (mt === "order") return `on order: ${data?.orderStatus || "?"}`;
       const kw = (data?.keywords || []).join(", ");
       return mt === "exact" || mt === "contains" ? `${mt}: ${kw || "—"}` : `on ${mt}`;
     }
@@ -576,11 +580,9 @@ function Inspector({
           <meta.icon className="h-4 w-4" style={{ color: meta.accent }} />
           <span className="text-sm font-semibold">{meta.label}</span>
         </div>
-        {type !== "trigger" && (
-          <Button variant="ghost" size="sm" onClick={onDelete} className="text-red-600 hover:text-red-700">
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        )}
+        <Button variant="ghost" size="sm" onClick={onDelete} className="text-red-600 hover:text-red-700">
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </div>
 
       {type === "trigger" && (
@@ -593,6 +595,7 @@ function Inspector({
                 <SelectItem value="exact">Exact keyword</SelectItem>
                 <SelectItem value="contains">Message contains</SelectItem>
                 <SelectItem value="welcome">First-ever message</SelectItem>
+                <SelectItem value="order">Order status update</SelectItem>
               </SelectContent>
             </Select>
           </Field>
@@ -608,6 +611,27 @@ function Inspector({
                 placeholder="hi, menu, order"
               />
             </Field>
+          )}
+          {data.matchType === "order" && (
+            <>
+              <Field label="Order status">
+                <Select value={data.orderStatus || ""} onValueChange={(v) => onChange({ orderStatus: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select a status…" /></SelectTrigger>
+                  <SelectContent>
+                    {ORDER_STATUSES.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <div className="rounded-md border bg-muted/40 p-2 text-[11px] leading-relaxed text-muted-foreground">
+                <p className="font-medium text-foreground">Variables you can use</p>
+                <p>
+                  Put these in any message:{" "}
+                  {ORDER_FLOW_VARIABLES.map((v) => `{{${v}}}`).join("  ")}
+                </p>
+              </div>
+            </>
           )}
         </>
       )}

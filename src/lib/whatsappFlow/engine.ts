@@ -463,12 +463,20 @@ async function startNewRun(
   const candidates = flows
     .flatMap((f) => (f.triggers || []).map((t) => ({ flow: f, t })))
     .sort((a, b) => a.t.priority - b.t.priority);
-  const matched = candidates.find((c) => triggerMatches(c.t, input.normalized, firstContact))?.flow;
-  if (!matched) return;
+  const matchedCand = candidates.find((c) =>
+    triggerMatches(c.t, input.normalized, firstContact),
+  );
+  if (!matchedCand) return;
+  const matched = matchedCand.flow;
 
   const graph = matched.graph || { nodes: [], edges: [] };
-  const triggerNode = (graph.nodes || []).find((n) => n.type === "trigger");
-  const startId = triggerNode ? firstEdgeTarget(graph, triggerNode.id) : null;
+  // Start from the MATCHED trigger node's branch — a flow can have multiple
+  // trigger nodes (entry points), each starting its own branch.
+  const startNodeId =
+    matchedCand.t.nodeId ||
+    (graph.nodes || []).find((n) => n.type === "trigger")?.id ||
+    null;
+  const startId = startNodeId ? firstEdgeTarget(graph, startNodeId) : null;
 
   const state: RunState = { flowId: matched.id, variables: {}, stepCount: 0, version: 0 };
   const outbound: Outbound[] = [];
@@ -502,6 +510,91 @@ async function startNewRun(
   }
 
   await dispatch(partnerId, phoneNumberId, contactPhone, outbound);
+}
+
+// ─── Order-triggered flows ───────────────────────────────────────
+// Fired (from the order-event webhook) when an order's status changes. Runs
+// every enabled flow whose order trigger matches `status`, starting from that
+// trigger's branch, with the order context injected as variables.
+export async function runOrderTriggeredFlows(args: {
+  partnerId: string;
+  phoneNumberId: string;
+  orderId: string;
+  status: string;
+  customerPhone: string;
+  variables: Record<string, unknown>;
+}): Promise<void> {
+  const { partnerId, phoneNumberId, orderId, status, customerPhone, variables } = args;
+
+  const flowsRes = await fetchFromHasura(Q_ENABLED_FLOWS, { p: partnerId });
+  const flows = (flowsRes?.whatsapp_flows || []) as Array<{
+    id: string;
+    graph: FlowGraph;
+    triggers: TriggerDef[];
+    run_ttl_hours: number;
+  }>;
+
+  const candidates = flows.flatMap((f) =>
+    (f.triggers || [])
+      .filter((t) => t.matchType === "order" && t.orderStatus === status)
+      .map((t) => ({ flow: f, t })),
+  );
+  if (!candidates.length) return;
+
+  for (const { flow, t } of candidates) {
+    // Idempotency: each (order, status, trigger) fires at most once even if the
+    // order row is updated again or the event is redelivered.
+    const idemKey = `order_${orderId}_${status}_${t.nodeId || flow.id}`;
+    try {
+      await fetchFromHasura(M_EVENT, {
+        o: {
+          partner_id: partnerId,
+          contact_phone: customerPhone,
+          wa_message_id: idemKey,
+          input: { orderTrigger: status, orderId },
+        },
+      });
+    } catch (e: any) {
+      if (/unique|duplicate/i.test(String(e?.message || e))) continue;
+      console.error("Order flow idempotency insert failed:", e);
+    }
+
+    const graph = flow.graph || { nodes: [], edges: [] };
+    const startId = t.nodeId ? firstEdgeTarget(graph, t.nodeId) : null;
+    const state: RunState = { flowId: flow.id, variables: { ...variables }, stepCount: 0, version: 0 };
+    const outbound: Outbound[] = [];
+    const { parkedNodeId, completed } = executeForward(graph, startId, state, outbound);
+
+    const ttlMs = (flow.run_ttl_hours || 24) * 3600 * 1000;
+    try {
+      await fetchFromHasura(M_INSERT_RUN, {
+        o: {
+          partner_id: partnerId,
+          flow_id: flow.id,
+          contact_phone: customerPhone,
+          current_node_id: parkedNodeId,
+          status: completed ? "completed" : "active",
+          variables: state.variables,
+          step_count: state.stepCount,
+          version: 1,
+          last_inbound_wa_id: idemKey,
+          last_interaction_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + ttlMs).toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      });
+    } catch (e: any) {
+      // The customer already has an active run (e.g. mid-conversation). Order
+      // notifications should still go out, so dispatch without tracking a run.
+      if (/unique|duplicate/i.test(String(e?.message || e))) {
+        await dispatch(partnerId, phoneNumberId, customerPhone, outbound);
+        continue;
+      }
+      console.error("Order flow insert run failed:", e);
+      continue;
+    }
+    await dispatch(partnerId, phoneNumberId, customerPhone, outbound);
+  }
 }
 
 async function resumeRun(

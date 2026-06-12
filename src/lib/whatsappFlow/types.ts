@@ -45,23 +45,62 @@ export interface FlowGraph {
 }
 
 // ─── Triggers ────────────────────────────────────────────────────
-export type TriggerMatchType = "exact" | "contains" | "welcome" | "any" | "default";
+// "order" triggers fire on an order STATUS change rather than an inbound
+// message; every other matchType fires on an inbound customer message. A flow
+// may contain MULTIPLE trigger nodes (multiple entry points) — each starts its
+// own branch of the graph.
+export type TriggerMatchType =
+  | "exact"
+  | "contains"
+  | "welcome"
+  | "any"
+  | "default"
+  | "order";
 
 export interface TriggerDef {
   matchType: TriggerMatchType;
   /** Normalized (trim + lowercase) keywords for exact/contains matching. */
   keywords?: string[];
+  /** For matchType "order": which order status fires this trigger. */
+  orderStatus?: string;
+  /** The trigger node id — the engine starts the run from this node's branch. */
+  nodeId?: string;
   priority: number;
 }
 
 /** Deterministic trigger priority — lower wins. */
 export const TRIGGER_PRIORITY: Record<TriggerMatchType, number> = {
   exact: 0,
+  order: 5,
   contains: 10,
   welcome: 20,
   any: 30,
   default: 40,
 };
+
+// Order-status values a flow can be triggered on. "placed" fires when the order
+// is created; the rest fire when the order's status changes to that value.
+export const ORDER_STATUSES: { value: string; label: string }[] = [
+  { value: "placed", label: "Order placed" },
+  { value: "accepted", label: "Accepted" },
+  { value: "food_ready", label: "Food ready" },
+  { value: "dispatched", label: "Dispatched" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
+// Variables the engine injects into an order-triggered run, usable as {{name}}
+// in any send/text step.
+export const ORDER_FLOW_VARIABLES = [
+  "store_name",
+  "order_id",
+  "order_status",
+  "customer_name",
+  "items",
+  "total",
+  "order_type",
+  "currency",
+] as const;
 
 // ─── Conditions / captures ───────────────────────────────────────
 export type ConditionOp = "equals" | "contains" | "isEmpty" | "gt" | "lt";

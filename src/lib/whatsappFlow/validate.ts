@@ -22,6 +22,8 @@ export function extractTriggers(graph: FlowGraph): TriggerDef[] {
     out.push({
       matchType,
       keywords,
+      orderStatus: matchType === "order" ? String(data.orderStatus || "") : undefined,
+      nodeId: node.id,
       priority: TRIGGER_PRIORITY[matchType] ?? 30,
     });
   }
@@ -55,7 +57,15 @@ export function validateGraph(graph: FlowGraph): void {
     }
     ids.add(node.id);
 
-    if (node.type === "trigger") triggerCount++;
+    if (node.type === "trigger") {
+      triggerCount++;
+      const td = (node.data || {}) as any;
+      if (td.matchType === "order" && !td.orderStatus) {
+        throw new FlowValidationError(
+          "An order trigger needs an order status (e.g. Accepted, Completed).",
+        );
+      }
+    }
 
     if (node.type === "wait_for_reply") {
       const v = (node.data as any)?.variableName;
@@ -80,10 +90,7 @@ export function validateGraph(graph: FlowGraph): void {
   }
 
   if (triggerCount === 0) {
-    throw new FlowValidationError("A flow must have a trigger step.");
-  }
-  if (triggerCount > 1) {
-    throw new FlowValidationError("A flow must have exactly one trigger step.");
+    throw new FlowValidationError("A flow must have at least one trigger step.");
   }
 
   for (const edge of edges) {
