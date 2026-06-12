@@ -658,6 +658,93 @@ export async function runOrderTriggeredFlows(args: {
   }
 }
 
+// ─── Loyalty-triggered flows ─────────────────────────────────────
+// Fired (from the loyalty-event webhook) when a loyalty-points transaction is
+// recorded for a customer. Runs every enabled flow whose loyalty trigger
+// matches `event` ("earned" / "redeemed"), starting from that trigger's branch,
+// with the loyalty context injected as variables. Mirrors order-triggered flows
+// but keyed on the (immutable, append-only) transaction id for idempotency.
+export async function runLoyaltyTriggeredFlows(args: {
+  partnerId: string;
+  phoneNumberId: string;
+  txnId: string;
+  event: string;
+  customerPhone: string;
+  variables: Record<string, unknown>;
+}): Promise<void> {
+  const { partnerId, phoneNumberId, txnId, event, customerPhone, variables } = args;
+
+  const flowsRes = await fetchFromHasura(Q_ENABLED_FLOWS, { p: partnerId });
+  const flows = (flowsRes?.whatsapp_flows || []) as Array<{
+    id: string;
+    graph: FlowGraph;
+    triggers: TriggerDef[];
+    run_ttl_hours: number;
+  }>;
+
+  const candidates = flows.flatMap((f) =>
+    (f.triggers || [])
+      .filter((t) => t.matchType === "loyalty" && t.loyaltyEvent === event)
+      .map((t) => ({ flow: f, t })),
+  );
+  if (!candidates.length) return;
+
+  for (const { flow, t } of candidates) {
+    // Idempotency: each (transaction, event, trigger) fires at most once even if
+    // the event is redelivered by Hasura's at-least-once delivery.
+    const idemKey = `loyalty_${txnId}_${event}_${t.nodeId || flow.id}`;
+    try {
+      await fetchFromHasura(M_EVENT, {
+        o: {
+          partner_id: partnerId,
+          contact_phone: customerPhone,
+          wa_message_id: idemKey,
+          input: { loyaltyTrigger: event, txnId },
+        },
+      });
+    } catch (e: any) {
+      if (/unique|duplicate/i.test(String(e?.message || e))) continue;
+      console.error("Loyalty flow idempotency insert failed:", e);
+    }
+
+    const graph = flow.graph || { nodes: [], edges: [] };
+    const startId = t.nodeId ? firstEdgeTarget(graph, t.nodeId) : null;
+    const state: RunState = { flowId: flow.id, variables: { ...variables }, stepCount: 0, version: 0 };
+    const outbound: Outbound[] = [];
+    const { parkedNodeId, completed } = executeForward(graph, startId, state, outbound);
+
+    const ttlMs = (flow.run_ttl_hours || 24) * 3600 * 1000;
+    try {
+      await fetchFromHasura(M_INSERT_RUN, {
+        o: {
+          partner_id: partnerId,
+          flow_id: flow.id,
+          contact_phone: customerPhone,
+          current_node_id: parkedNodeId,
+          status: completed ? "completed" : "active",
+          variables: state.variables,
+          step_count: state.stepCount,
+          version: 1,
+          last_inbound_wa_id: idemKey,
+          last_interaction_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + ttlMs).toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      });
+    } catch (e: any) {
+      // The customer already has an active run (e.g. mid-conversation). Loyalty
+      // notifications should still go out, so dispatch without tracking a run.
+      if (/unique|duplicate/i.test(String(e?.message || e))) {
+        await dispatch(partnerId, phoneNumberId, customerPhone, outbound);
+        continue;
+      }
+      console.error("Loyalty flow insert run failed:", e);
+      continue;
+    }
+    await dispatch(partnerId, phoneNumberId, customerPhone, outbound);
+  }
+}
+
 async function resumeRun(
   partnerId: string,
   phoneNumberId: string,

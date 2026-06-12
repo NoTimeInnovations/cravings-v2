@@ -23,6 +23,7 @@ export function extractTriggers(graph: FlowGraph): TriggerDef[] {
       matchType,
       keywords,
       orderStatus: matchType === "order" ? String(data.orderStatus || "") : undefined,
+      loyaltyEvent: matchType === "loyalty" ? String(data.loyaltyEvent || "") : undefined,
       nodeId: node.id,
       priority: TRIGGER_PRIORITY[matchType] ?? 30,
     });
@@ -63,6 +64,11 @@ export function validateGraph(graph: FlowGraph): void {
       if (td.matchType === "order" && !td.orderStatus) {
         throw new FlowValidationError(
           "An order trigger needs an order status (e.g. Accepted, Completed).",
+        );
+      }
+      if (td.matchType === "loyalty" && !td.loyaltyEvent) {
+        throw new FlowValidationError(
+          "A loyalty trigger needs an event (e.g. Points earned).",
         );
       }
     }

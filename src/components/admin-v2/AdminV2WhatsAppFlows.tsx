@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { Plus, Workflow, Loader2, Pencil, Trash2, Power } from "lucide-react";
 import { toast } from "sonner";
 import type { Flow } from "@/lib/whatsappFlow/types";
+import { getFeatures } from "@/lib/getFeatures";
 import { FlowBuilder } from "@/components/admin-v2/whatsapp-flow/FlowBuilder";
 
 type FlowListItem = Pick<
@@ -21,12 +22,18 @@ function triggerSummary(f: FlowListItem): string {
   }
   if (t.matchType === "welcome") return "On first message";
   if (t.matchType === "any") return "On any message";
+  if (t.matchType === "order") return `On order: ${t.orderStatus || "—"}`;
+  if (t.matchType === "loyalty") return `On loyalty: ${t.loyaltyEvent || "—"}`;
   return t.matchType;
 }
 
 export function AdminV2WhatsAppFlows() {
   const { userData } = useAuthStore();
   const partnerId = (userData as any)?.id as string | undefined;
+  const loyaltyEnabled = useMemo(() => {
+    const f = getFeatures((userData as any)?.feature_flags || null);
+    return !!(f.loyalty_points?.access && f.loyalty_points?.enabled);
+  }, [userData]);
 
   const [flows, setFlows] = useState<FlowListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,6 +94,7 @@ export function AdminV2WhatsAppFlows() {
       <FlowBuilder
         partnerId={partnerId}
         flowId={editingId}
+        loyaltyEnabled={loyaltyEnabled}
         onClose={() => {
           setMode("list");
           setEditingId(null);

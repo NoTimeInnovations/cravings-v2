@@ -1,7 +1,7 @@
 "use server";
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { buildDefaultFlows } from "@/lib/whatsappFlow/defaultFlows";
+import { buildDefaultFlows, buildLoyaltyFlows, type DefaultFlowDef } from "@/lib/whatsappFlow/defaultFlows";
 
 const EXISTING = `
   query ExistingFlowNames($p: uuid!) {
@@ -14,12 +14,12 @@ const INSERT = `
   }
 `;
 
-// Create the built-in WhatsApp flow set for a partner. Idempotent: only inserts
-// the default flows the partner doesn't already have (matched by name), so it's
-// safe to call every time WhatsApp ordering is enabled, and never clobbers a
-// partner's edits or duplicates flows.
-export async function provisionDefaultFlows(
+// Insert any of `defs` the partner doesn't already have (matched by name).
+// Idempotent and shared by every provisioning entry point below, so re-running
+// never clobbers a partner's edits or duplicates flows.
+async function provisionFlowSet(
   partnerId: string,
+  defs: DefaultFlowDef[],
 ): Promise<{ created: number }> {
   if (!partnerId) return { created: 0 };
   try {
@@ -27,7 +27,7 @@ export async function provisionDefaultFlows(
     const existing = new Set(
       (data?.whatsapp_flows || []).map((f: { name: string }) => f.name),
     );
-    const toCreate = buildDefaultFlows().filter((f) => !existing.has(f.name));
+    const toCreate = defs.filter((f) => !existing.has(f.name));
     if (!toCreate.length) return { created: 0 };
 
     await fetchFromHasura(INSERT, {
@@ -43,7 +43,24 @@ export async function provisionDefaultFlows(
     });
     return { created: toCreate.length };
   } catch (e) {
-    console.error("provisionDefaultFlows failed:", e);
+    console.error("provisionFlowSet failed:", e);
     return { created: 0 };
   }
+}
+
+// Create the built-in WhatsApp flow set for a partner (welcome + order-status).
+// Idempotent — safe to call every time WhatsApp ordering is enabled.
+export async function provisionDefaultFlows(
+  partnerId: string,
+): Promise<{ created: number }> {
+  return provisionFlowSet(partnerId, buildDefaultFlows());
+}
+
+// Create the built-in loyalty flow set for a partner (points earned). Called
+// whenever the loyalty feature is enabled — kept separate so a partner without
+// loyalty never gets a loyalty flow.
+export async function provisionLoyaltyFlows(
+  partnerId: string,
+): Promise<{ created: number }> {
+  return provisionFlowSet(partnerId, buildLoyaltyFlows());
 }

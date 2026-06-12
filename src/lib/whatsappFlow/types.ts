@@ -46,17 +46,19 @@ export interface FlowGraph {
 }
 
 // ─── Triggers ────────────────────────────────────────────────────
-// "order" triggers fire on an order STATUS change rather than an inbound
-// message; every other matchType fires on an inbound customer message. A flow
-// may contain MULTIPLE trigger nodes (multiple entry points) — each starts its
-// own branch of the graph.
+// "order" and "loyalty" triggers fire on a backend EVENT (an order status
+// change / a loyalty-points transaction) rather than an inbound message; every
+// other matchType fires on an inbound customer message. A flow may contain
+// MULTIPLE trigger nodes (multiple entry points) — each starts its own branch
+// of the graph.
 export type TriggerMatchType =
   | "exact"
   | "contains"
   | "welcome"
   | "any"
   | "default"
-  | "order";
+  | "order"
+  | "loyalty";
 
 export interface TriggerDef {
   matchType: TriggerMatchType;
@@ -64,6 +66,8 @@ export interface TriggerDef {
   keywords?: string[];
   /** For matchType "order": which order status fires this trigger. */
   orderStatus?: string;
+  /** For matchType "loyalty": which loyalty event fires this trigger. */
+  loyaltyEvent?: string;
   /** The trigger node id — the engine starts the run from this node's branch. */
   nodeId?: string;
   priority: number;
@@ -73,6 +77,7 @@ export interface TriggerDef {
 export const TRIGGER_PRIORITY: Record<TriggerMatchType, number> = {
   exact: 0,
   order: 5,
+  loyalty: 6,
   contains: 10,
   welcome: 20,
   any: 30,
@@ -100,6 +105,35 @@ export const ORDER_FLOW_VARIABLES = [
   "items",
   "total",
   "order_type",
+  "currency",
+] as const;
+
+// ─── Loyalty triggers ────────────────────────────────────────────
+// Loyalty events a flow can be triggered on. "earned" fires when points are
+// credited to a customer (an order earn or a manual store credit); "redeemed"
+// fires when a customer spends points on an order.
+export const LOYALTY_EVENTS: { value: string; label: string }[] = [
+  { value: "earned", label: "Points earned" },
+  { value: "redeemed", label: "Points redeemed" },
+];
+
+// Variables the engine injects into a loyalty-triggered run, usable as
+// {{name}} in any send/text step.
+//   points         — points added (earned) or spent (redeemed), always positive
+//   points_value   — currency value of those points (e.g. ₹50)
+//   points_balance — the customer's new total balance after this transaction
+//   balance_value  — currency value of the total balance
+//   lifetime_earned— points the customer has earned all-time at this store
+//   order_id       — the order this transaction is tied to (blank if manual)
+export const LOYALTY_FLOW_VARIABLES = [
+  "store_name",
+  "customer_name",
+  "points",
+  "points_value",
+  "points_balance",
+  "balance_value",
+  "lifetime_earned",
+  "order_id",
   "currency",
 ] as const;
 

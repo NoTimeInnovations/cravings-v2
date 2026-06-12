@@ -43,7 +43,7 @@ import { countryCodes } from "@/utils/countryCodes";
 import { useLocationStore } from "@/store/locationStore";
 import BranchesPanel from "./BranchesPanel";
 import { FeatureFlags, getFeatures, revertFeatureToString } from "@/lib/getFeatures";
-import { provisionDefaultFlows } from "@/app/actions/provisionDefaultFlows";
+import { provisionDefaultFlows, provisionLoyaltyFlows } from "@/app/actions/provisionDefaultFlows";
 import { Trash2, ArrowLeft } from "lucide-react";
 
 interface PartnerWithDetails extends Partner {
@@ -314,6 +314,15 @@ const EditPartners = () => {
       provisionDefaultFlows(selectedPartner.id)
         .then((r) => {
           if (r.created > 0) toast.success(`Added ${r.created} WhatsApp flow${r.created > 1 ? "s" : ""}`);
+        })
+        .catch(() => {});
+    }
+    // When loyalty is enabled, seed the built-in loyalty flow (points earned).
+    // Idempotent, so re-saving never duplicates.
+    if (featureFlags?.loyalty_points?.enabled) {
+      provisionLoyaltyFlows(selectedPartner.id)
+        .then((r) => {
+          if (r.created > 0) toast.success(`Added ${r.created} loyalty WhatsApp flow${r.created > 1 ? "s" : ""}`);
         })
         .catch(() => {});
     }

@@ -64,7 +64,12 @@ import type {
   ButtonItem,
   ConditionRule,
 } from "@/lib/whatsappFlow/types";
-import { ORDER_STATUSES, ORDER_FLOW_VARIABLES } from "@/lib/whatsappFlow/types";
+import {
+  ORDER_STATUSES,
+  ORDER_FLOW_VARIABLES,
+  LOYALTY_EVENTS,
+  LOYALTY_FLOW_VARIABLES,
+} from "@/lib/whatsappFlow/types";
 
 const NODE_META: Record<FlowNodeType, { label: string; icon: React.ElementType; accent: string }> = {
   trigger: { label: "Trigger", icon: Zap, accent: "#f59e0b" },
@@ -242,6 +247,7 @@ const nodeTypes = Object.fromEntries(
 export function FlowBuilder(props: {
   partnerId?: string;
   flowId: string | null;
+  loyaltyEnabled?: boolean;
   onClose: () => void;
 }) {
   return (
@@ -254,10 +260,12 @@ export function FlowBuilder(props: {
 function BuilderInner({
   partnerId,
   flowId,
+  loyaltyEnabled,
   onClose,
 }: {
   partnerId?: string;
   flowId: string | null;
+  loyaltyEnabled?: boolean;
   onClose: () => void;
 }) {
   const isNew = !flowId;
@@ -507,6 +515,7 @@ function BuilderInner({
               <Inspector
                 node={selectedNode}
                 allNodes={nodes}
+                loyaltyEnabled={loyaltyEnabled}
                 onChange={(patch) => updateNodeData(selectedNode.id, patch)}
                 onSyncBranches={syncBranches}
                 onDelete={() => deleteNode(selectedNode.id)}
@@ -566,12 +575,14 @@ function BuilderInner({
 function Inspector({
   node,
   allNodes,
+  loyaltyEnabled,
   onChange,
   onSyncBranches,
   onDelete,
 }: {
   node: Node;
   allNodes: Node[];
+  loyaltyEnabled?: boolean;
   onChange: (patch: Record<string, unknown>) => void;
   onSyncBranches: (nodeId: string, keep: string[]) => void;
   onDelete: () => void;
@@ -579,6 +590,9 @@ function Inspector({
   const type = node.type as FlowNodeType;
   const data = (node.data || {}) as any;
   const meta = NODE_META[type];
+  // Show the loyalty trigger only to partners with loyalty enabled — but always
+  // show it when a flow already uses it, so existing loyalty flows stay editable.
+  const showLoyalty = loyaltyEnabled || data.matchType === "loyalty";
 
   return (
     <div className="space-y-3">
@@ -603,6 +617,7 @@ function Inspector({
                 <SelectItem value="contains">Message contains</SelectItem>
                 <SelectItem value="welcome">First-ever message</SelectItem>
                 <SelectItem value="order">Order status update</SelectItem>
+                {showLoyalty && <SelectItem value="loyalty">Loyalty points</SelectItem>}
               </SelectContent>
             </Select>
           </Field>
@@ -636,6 +651,27 @@ function Inspector({
                 <p>
                   Put these in any message:{" "}
                   {ORDER_FLOW_VARIABLES.map((v) => `{{${v}}}`).join("  ")}
+                </p>
+              </div>
+            </>
+          )}
+          {data.matchType === "loyalty" && (
+            <>
+              <Field label="Loyalty event">
+                <Select value={data.loyaltyEvent || ""} onValueChange={(v) => onChange({ loyaltyEvent: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select an event…" /></SelectTrigger>
+                  <SelectContent>
+                    {LOYALTY_EVENTS.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <div className="rounded-md border bg-muted/40 p-2 text-[11px] leading-relaxed text-muted-foreground">
+                <p className="font-medium text-foreground">Variables you can use</p>
+                <p>
+                  Put these in any message:{" "}
+                  {LOYALTY_FLOW_VARIABLES.map((v) => `{{${v}}}`).join("  ")}
                 </p>
               </div>
             </>

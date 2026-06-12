@@ -57,6 +57,20 @@ function orderFlow(name: string, status: string, text: string): DefaultFlowDef {
   };
 }
 
+function loyaltyFlow(name: string, event: string, text: string): DefaultFlowDef {
+  return {
+    name,
+    graph: {
+      nodes: [
+        { id: "trigger", type: "trigger", position: { x: 140, y: 220 }, data: { matchType: "loyalty", loyaltyEvent: event } },
+        { id: "msg", type: "send_text", position: { x: 440, y: 160 }, data: { text } },
+      ],
+      edges: [{ id: "e", source: "trigger", target: "msg", sourceHandle: null, targetHandle: null }],
+    },
+    triggers: [{ matchType: "loyalty", loyaltyEvent: event, nodeId: "trigger", priority: TRIGGER_PRIORITY.loyalty }],
+  };
+}
+
 export function buildDefaultFlows(): DefaultFlowDef[] {
   return [
     // ── Welcome: "hi" -> caption + Order Now link button (30-min link) ──
@@ -108,6 +122,25 @@ export function buildDefaultFlows(): DefaultFlowDef[] {
       "❌ *Order Cancelled*\n\n" +
         "Hi {{customer_name}}, your order *{{order_id}}* from *{{store_name}}* has been cancelled.\n\n" +
         "If this wasn't expected, please reach out to us. 🙏",
+    ),
+  ];
+}
+
+// The built-in loyalty flow set, provisioned ONLY for partners with the loyalty
+// feature enabled (separate from buildDefaultFlows so a partner without loyalty
+// never gets a loyalty flow). Variables injected by the engine:
+//   store_name, customer_name, points, points_value, points_balance,
+//   balance_value, lifetime_earned, order_id, currency
+export function buildLoyaltyFlows(): DefaultFlowDef[] {
+  return [
+    loyaltyFlow(
+      "Loyalty points earned",
+      "earned",
+      "🎉 *You earned {{points}} points!*\n\n" +
+        "Hi {{customer_name}}, thank you for shopping at *{{store_name}}*! 🙏\n\n" +
+        "💎 Points added: *{{points}}* (worth *{{points_value}}*)\n" +
+        "👛 Your balance: *{{points_balance}} pts* (worth *{{balance_value}}*)\n\n" +
+        "Redeem them on your next order for instant savings! ✨",
     ),
   ];
 }
