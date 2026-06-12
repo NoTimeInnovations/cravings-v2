@@ -19,6 +19,7 @@ import {
 } from "@/components/SubscriptionStatusCards";
 import { ExpiredOrderLinkCard } from "@/components/ExpiredOrderLinkCard";
 import { verifyOrderLinkToken } from "@/lib/whatsappFlow/orderLink";
+import OrderLinkAutoLogin from "@/components/OrderLinkAutoLogin";
 
 async function getBranchContextForParent(
   parentPartnerId: string,
@@ -167,11 +168,12 @@ const UsernamePage = async ({
     notFound();
   }
 
-  // 30-minute WhatsApp order link: if the customer opened an expired link, prompt
-  // them to message "hi" for a fresh one. Only triggers for an expired token —
-  // direct visits and valid links are unaffected.
+  // WhatsApp order link: if the customer opened an expired link, prompt them to
+  // message "hi" for a fresh one. Only triggers for an expired token — direct
+  // visits and valid links are unaffected.
   const olt = (sp as any).olt as string | undefined;
-  if (olt && verifyOrderLinkToken(partnerId, olt).expired) {
+  const oltStatus = olt ? verifyOrderLinkToken(partnerId, olt) : null;
+  if (oltStatus?.expired) {
     const info = await fetchFromHasura(
       `query OrderLinkInfo($p: uuid!) {
         whatsapp_business_integrations(where: {partner_id: {_eq: $p}}, limit: 1) { display_phone }
@@ -221,8 +223,19 @@ const UsernamePage = async ({
     isDeliveryActive && isWithinTimeWindow(deliveryRules?.delivery_time_allowed, hotelTimezone);
   const initialTakeawayOpen = isWithinTimeWindow(deliveryRules?.takeaway_time_allowed, hotelTimezone);
 
+  // A valid WhatsApp order-link token that carries a user id silently logs that
+  // customer in (no OTP) — but only if nobody is already signed in on this
+  // device. The cookie can't be set during a server render, so a tiny client
+  // component does it via a server action, then refreshes.
+  const autoLoginToken =
+    olt && oltStatus?.valid && oltStatus.userId && !auth ? olt : null;
+
   return (
-    <HotelMenuPage
+    <>
+      {autoLoginToken && (
+        <OrderLinkAutoLogin partnerId={partnerId} token={autoLoginToken} />
+      )}
+      <HotelMenuPage
       socialLinks={data.socialLinks}
       offers={data.filteredOffers}
       hoteldata={data.hotelData}
@@ -243,6 +256,7 @@ const UsernamePage = async ({
       preselectedOrderType={preselectedOrderType}
       brandLink={brandLink}
     />
+    </>
   );
 };
 

@@ -8,6 +8,7 @@
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { buildOrderLink } from "@/lib/whatsappFlow/orderLink";
+import { findOrCreateUserByPhone, toLocalPhone } from "@/lib/whatsappFlow/silentUser";
 import type {
   FlowGraph,
   FlowNode,
@@ -74,7 +75,7 @@ const Q_FLOW = `
 `;
 const Q_PARTNER_INFO = `
   query PartnerInfo($id: uuid!) {
-    partners_by_pk(id: $id) { store_name username currency }
+    partners_by_pk(id: $id) { store_name username currency country_code }
   }
 `;
 const M_EVENT = `
@@ -425,8 +426,9 @@ export async function runFlowForInbound(args: {
   contactPhone: string;
   waMessageId: string;
   input: FlowInput;
+  contactName?: string | null;
 }): Promise<void> {
-  const { partnerId, phoneNumberId, contactPhone, waMessageId, input } = args;
+  const { partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName = null } = args;
 
   // Layer 1 — idempotency: claim this Meta message id. A retry (or a second
   // instance handed the same delivery) throws on the partial-unique index and
@@ -453,7 +455,7 @@ export async function runFlowForInbound(args: {
       // of being treated as a reply to the parked step. (Generic any/welcome
       // triggers don't do this, so button choices / captures still work.)
       await abortRun(active.id);
-      await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input);
+      await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName);
       return;
     } else {
       await resumeRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, active);
@@ -461,7 +463,7 @@ export async function runFlowForInbound(args: {
     }
   }
 
-  await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input);
+  await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName);
 }
 
 // True if the inbound matches a SPECIFIC (exact/contains) keyword trigger of an
@@ -483,16 +485,31 @@ async function abortRun(id: string): Promise<void> {
 }
 
 // System variables available to every message-triggered run.
-async function buildMessageRunVars(partnerId: string): Promise<Record<string, unknown>> {
+async function buildMessageRunVars(
+  partnerId: string,
+  contactPhone: string,
+  contactName: string | null,
+): Promise<Record<string, unknown>> {
   try {
     const res = await fetchFromHasura(Q_PARTNER_INFO, { id: partnerId });
     const p = res?.partners_by_pk;
     if (!p) return {};
+
+    // Silently make this WhatsApp sender one of our users (created from their
+    // WhatsApp name + phone if new), then hand out an order link that auto-logs
+    // them in when tapped — no OTP. The country code is stripped so the account
+    // matches their normal OTP login instead of forking a duplicate.
+    let userId: string | null = null;
+    if (contactPhone) {
+      const localPhone = toLocalPhone(contactPhone, p.country_code);
+      userId = await findOrCreateUserByPhone(localPhone, contactName);
+    }
+
     return {
       store_name: p.store_name || "",
       username: p.username || "",
       currency: p.currency ?? "₹",
-      order_link: p.username ? buildOrderLink(p.username, partnerId) : "",
+      order_link: p.username ? buildOrderLink(p.username, partnerId, { userId }) : "",
     };
   } catch (e) {
     console.error("buildMessageRunVars failed:", e);
@@ -506,6 +523,7 @@ async function startNewRun(
   contactPhone: string,
   waMessageId: string,
   input: FlowInput,
+  contactName: string | null = null,
 ) {
   const flowsRes = await fetchFromHasura(Q_ENABLED_FLOWS, { p: partnerId });
   const flows = (flowsRes?.whatsapp_flows || []) as Array<{
@@ -544,7 +562,7 @@ async function startNewRun(
 
   // Inject system variables (store name, a fresh 30-min order link, etc.) so
   // welcome/menu flows can use {{order_link}}, {{store_name}}, etc.
-  const sysVars = await buildMessageRunVars(partnerId);
+  const sysVars = await buildMessageRunVars(partnerId, contactPhone, contactName);
   const state: RunState = { flowId: matched.id, variables: sysVars, stepCount: 0, version: 0 };
   const outbound: Outbound[] = [];
   const { parkedNodeId, completed } = executeForward(graph, startId, state, outbound);

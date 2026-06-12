@@ -204,6 +204,7 @@ export async function POST(req: NextRequest) {
                   contactPhone: msg.from,
                   waMessageId: msg.id,
                   input: flowInput,
+                  contactName,
                 });
               } catch (e) {
                 console.error("Flow engine error:", e);

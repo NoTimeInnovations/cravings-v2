@@ -14,8 +14,9 @@ export interface DefaultFlowDef {
   triggers: TriggerDef[];
 }
 
-// Welcome: "hi" -> a caption + a tappable "Order Now" link button carrying the
-// fresh 30-min order link (instead of a raw link in the text).
+// Welcome: "hi" -> a caption + a tappable "Order Now" link button carrying a
+// fresh order link that also silently logs the customer in (instead of a raw
+// link in the text).
 function welcomeFlow(): DefaultFlowDef {
   return {
     name: "Welcome",
@@ -30,8 +31,9 @@ function welcomeFlow(): DefaultFlowDef {
             text:
               "Hi 👋 Welcome to *{{store_name}}*!\n\n" +
               "🛒 Tap *Order Now* below to place your order.\n" +
-              "_The link is valid for 30 minutes._ ⏱️\n" +
+              "_The link is valid for 10 minutes._ ⏱️\n" +
               "Send *hi* again anytime for a fresh link.",
+            // NOTE keep this duration in sync with AUTH_TTL_MIN in orderLink.ts
             buttonText: "Order Now",
             url: "{{order_link}}",
           },
@@ -96,7 +98,7 @@ function loyaltyFlow(name: string, event: string, text: string): DefaultFlowDef 
 
 export function buildDefaultFlows(): DefaultFlowDef[] {
   return [
-    // ── Welcome: "hi" -> caption + Order Now link button (30-min link) ──
+    // ── Welcome: "hi" -> caption + Order Now link button (auto-login link) ──
     welcomeFlow(),
 
     // ── Order status updates ──
