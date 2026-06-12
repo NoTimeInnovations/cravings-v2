@@ -17,6 +17,8 @@ import {
   SubscriptionExpiredCard,
   SubscriptionInactiveCard,
 } from "@/components/SubscriptionStatusCards";
+import { ExpiredOrderLinkCard } from "@/components/ExpiredOrderLinkCard";
+import { verifyOrderLinkToken } from "@/lib/whatsappFlow/orderLink";
 
 async function getBranchContextForParent(
   parentPartnerId: string,
@@ -163,6 +165,26 @@ const UsernamePage = async ({
 
   if (!partnerId) {
     notFound();
+  }
+
+  // 30-minute WhatsApp order link: if the customer opened an expired link, prompt
+  // them to message "hi" for a fresh one. Only triggers for an expired token —
+  // direct visits and valid links are unaffected.
+  const olt = (sp as any).olt as string | undefined;
+  if (olt && verifyOrderLinkToken(partnerId, olt).expired) {
+    const info = await fetchFromHasura(
+      `query OrderLinkInfo($p: uuid!) {
+        whatsapp_business_integrations(where: {partner_id: {_eq: $p}}, limit: 1) { display_phone }
+        partners_by_pk(id: $p) { store_name }
+      }`,
+      { p: partnerId },
+    ).catch(() => null);
+    return (
+      <ExpiredOrderLinkCard
+        storeName={info?.partners_by_pk?.store_name ?? null}
+        waNumber={info?.whatsapp_business_integrations?.[0]?.display_phone ?? null}
+      />
+    );
   }
 
   const { pageStatus, data, partnerContact } = await processHotelPage(partnerId, search, selectedCat);

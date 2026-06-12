@@ -7,6 +7,7 @@
 // NATIVE WhatsApp interactive reply buttons.
 
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { buildOrderLink } from "@/lib/whatsappFlow/orderLink";
 import type {
   FlowGraph,
   FlowNode,
@@ -67,6 +68,11 @@ const Q_ENABLED_FLOWS = `
 const Q_FLOW = `
   query Flow($id: uuid!) {
     whatsapp_flows_by_pk(id: $id) { id graph enabled escape_keyword run_ttl_hours }
+  }
+`;
+const Q_PARTNER_INFO = `
+  query PartnerInfo($id: uuid!) {
+    partners_by_pk(id: $id) { store_name username currency }
   }
 `;
 const M_EVENT = `
@@ -436,6 +442,24 @@ async function abortRun(id: string): Promise<void> {
   await fetchFromHasura(M_ABORT_RUN, { id }).catch(() => {});
 }
 
+// System variables available to every message-triggered run.
+async function buildMessageRunVars(partnerId: string): Promise<Record<string, unknown>> {
+  try {
+    const res = await fetchFromHasura(Q_PARTNER_INFO, { id: partnerId });
+    const p = res?.partners_by_pk;
+    if (!p) return {};
+    return {
+      store_name: p.store_name || "",
+      username: p.username || "",
+      currency: p.currency ?? "₹",
+      order_link: p.username ? buildOrderLink(p.username, partnerId) : "",
+    };
+  } catch (e) {
+    console.error("buildMessageRunVars failed:", e);
+    return {};
+  }
+}
+
 async function startNewRun(
   partnerId: string,
   phoneNumberId: string,
@@ -478,7 +502,10 @@ async function startNewRun(
     null;
   const startId = startNodeId ? firstEdgeTarget(graph, startNodeId) : null;
 
-  const state: RunState = { flowId: matched.id, variables: {}, stepCount: 0, version: 0 };
+  // Inject system variables (store name, a fresh 30-min order link, etc.) so
+  // welcome/menu flows can use {{order_link}}, {{store_name}}, etc.
+  const sysVars = await buildMessageRunVars(partnerId);
+  const state: RunState = { flowId: matched.id, variables: sysVars, stepCount: 0, version: 0 };
   const outbound: Outbound[] = [];
   const { parkedNodeId, completed } = executeForward(graph, startId, state, outbound);
 

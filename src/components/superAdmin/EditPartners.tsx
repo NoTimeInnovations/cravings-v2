@@ -43,6 +43,7 @@ import { countryCodes } from "@/utils/countryCodes";
 import { useLocationStore } from "@/store/locationStore";
 import BranchesPanel from "./BranchesPanel";
 import { FeatureFlags, getFeatures, revertFeatureToString } from "@/lib/getFeatures";
+import { provisionDefaultFlows } from "@/app/actions/provisionDefaultFlows";
 import { Trash2, ArrowLeft } from "lucide-react";
 
 interface PartnerWithDetails extends Partner {
@@ -307,6 +308,15 @@ const EditPartners = () => {
       ...(featureFlags ? { feature_flags: revertFeatureToString(featureFlags) } : {}),
     };
     updatePartner(selectedPartner.id, updates);
+    // When WhatsApp ordering is enabled, seed the partner's built-in flow set
+    // (welcome + order-status). Idempotent, so re-saving never duplicates.
+    if (featureFlags?.whatsappOrdering?.enabled) {
+      provisionDefaultFlows(selectedPartner.id)
+        .then((r) => {
+          if (r.created > 0) toast.success(`Added ${r.created} WhatsApp flow${r.created > 1 ? "s" : ""}`);
+        })
+        .catch(() => {});
+    }
     closeEditor();
   };
 
