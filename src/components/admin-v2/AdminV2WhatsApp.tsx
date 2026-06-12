@@ -62,7 +62,9 @@ export function AdminV2WhatsApp() {
           ))}
           </div>
         </>
-      ) : (
+      ) : screen !== "Inbox" ? (
+        // Inbox renders its own back button in its header (it's a full-height
+        // layout that would otherwise hide a button placed above it).
         <Button
           variant="ghost"
           size="sm"
@@ -71,11 +73,11 @@ export function AdminV2WhatsApp() {
         >
           <ChevronLeft className="mr-1 h-4 w-4" /> WhatsApp
         </Button>
-      )}
+      ) : null}
 
       {mounted.includes("Inbox") && (
         <div className={screen === "Inbox" ? "block" : "hidden"}>
-          <AdminV2WhatsAppInbox />
+          <AdminV2WhatsAppInbox onBack={() => setScreen(null)} />
         </div>
       )}
       {mounted.includes("Templates") && (

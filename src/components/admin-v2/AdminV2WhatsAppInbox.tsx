@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import {
   MessageSquare,
+  ChevronLeft,
   Send,
   Plus,
   CheckCheck,
@@ -143,7 +144,7 @@ function statusIcon(status: string) {
   }
 }
 
-export function AdminV2WhatsAppInbox() {
+export function AdminV2WhatsAppInbox({ onBack }: { onBack?: () => void } = {}) {
   const { userData } = useAuthStore();
   const partnerId = (userData as any)?.id as string | undefined;
 
@@ -340,6 +341,15 @@ export function AdminV2WhatsAppInbox() {
     <div className="flex flex-col h-[calc(100vh-7rem)] max-w-7xl mx-auto -mt-2">
       <div className="flex items-center justify-between mb-3 px-1">
         <div>
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="-ml-1 mb-1 flex items-center text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" /> WhatsApp
+            </button>
+          )}
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <MessageSquare className="h-6 w-6 text-green-600" />
             WhatsApp Inbox
