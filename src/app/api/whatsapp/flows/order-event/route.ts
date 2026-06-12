@@ -12,9 +12,10 @@ const Q_ORDER = `
   query OrderForFlow($id: uuid!) {
     orders_by_pk(id: $id) {
       id display_id short_id status total_price type table_name phone orderedby partner_id
+      gst_included extra_charges discounts loyalty_redeem_value loyalty_points_redeemed
       partner { store_name currency }
       user { full_name phone }
-      order_items { quantity item }
+      order_items { quantity item menu { name price } }
     }
   }
 `;
@@ -36,6 +37,12 @@ function safeEqual(a: string, b: string): boolean {
   const bb = Buffer.from(b);
   if (ab.length !== bb.length) return false;
   return crypto.timingSafeEqual(ab, bb);
+}
+
+// Money rounded to 2 decimals with trailing zeros trimmed (250 -> "250", 52.5 -> "52.5").
+function fmtMoney(n: number): string {
+  if (!isFinite(n)) return "0";
+  return String(Math.round(n * 100) / 100);
 }
 
 export async function POST(req: NextRequest) {
@@ -89,9 +96,46 @@ export async function POST(req: NextRequest) {
     if (customerPhone.length < 11) return NextResponse.json({ ok: true });
 
     const currency = order.partner?.currency ?? "₹";
-    const items = (order.order_items || [])
-      .map((oi: any) => `${oi.item?.name || "Item"} × ${oi.quantity}`)
-      .join("\n");
+
+    // ── Full bill, reconstructed from the persisted order columns ──
+    // Items with per-line price; subtotal = Σ(price × qty). gst_included,
+    // extra_charges (named delivery/parcel/QR lines), discount savings and
+    // loyalty redemption are read straight off the order row; `total` is the
+    // authoritative persisted grand total.
+    const lineItems = (order.order_items || []).map((oi: any, i: number) => {
+      const it = oi.item || {};
+      const name = it.name || oi.menu?.name || "Item";
+      const qty = Number(oi.quantity) || 0;
+      const price = Number(it.price ?? oi.menu?.price ?? 0);
+      const line = price * qty;
+      return { label: `${i + 1}. ${name} × ${qty} — ${currency}${fmtMoney(line)}`, line };
+    });
+    const items = lineItems.map((l: any) => l.label).join("\n");
+    const subtotalNum = lineItems.reduce((s: number, l: any) => s + l.line, 0);
+
+    const chargeLines: string[] = [];
+    if (Array.isArray(order.extra_charges)) {
+      for (const c of order.extra_charges) {
+        const amt = Number(c?.amount) || 0;
+        if (amt) chargeLines.push(`${c?.name || "Charge"}: ${currency}${fmtMoney(amt)}`);
+      }
+    }
+
+    let discountNum = 0;
+    if (Array.isArray(order.discounts)) {
+      for (const d of order.discounts) discountNum += Number(d?.savings) || 0;
+    }
+
+    const gstNum = Number(order.gst_included) || 0;
+    const loyaltyVal = Number(order.loyalty_redeem_value) || 0;
+    const totalNum = Number(order.total_price) || 0;
+
+    const billLines: string[] = [`Subtotal: ${currency}${fmtMoney(subtotalNum)}`];
+    if (gstNum > 0) billLines.push(`GST: ${currency}${fmtMoney(gstNum)}`);
+    billLines.push(...chargeLines);
+    if (discountNum > 0) billLines.push(`Discount: -${currency}${fmtMoney(discountNum)}`);
+    if (loyaltyVal > 0) billLines.push(`Points redeemed: -${currency}${fmtMoney(loyaltyVal)}`);
+    billLines.push(`*Total: ${currency}${fmtMoney(totalNum)}*`);
 
     const variables = {
       store_name: order.partner?.store_name || "",
@@ -99,7 +143,12 @@ export async function POST(req: NextRequest) {
       order_status: fireStatus,
       customer_name: order.user?.full_name || order.orderedby || "Customer",
       items,
-      total: `${currency}${order.total_price ?? ""}`,
+      subtotal: `${currency}${fmtMoney(subtotalNum)}`,
+      gst: gstNum > 0 ? `${currency}${fmtMoney(gstNum)}` : "",
+      charges: chargeLines.join("\n"),
+      discount: discountNum > 0 ? `-${currency}${fmtMoney(discountNum)}` : "",
+      total: `${currency}${fmtMoney(totalNum)}`,
+      bill: billLines.join("\n"),
       order_type: order.type || "",
       currency,
     };

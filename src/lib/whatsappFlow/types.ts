@@ -103,7 +103,12 @@ export const ORDER_FLOW_VARIABLES = [
   "order_status",
   "customer_name",
   "items",
+  "subtotal",
+  "gst",
+  "charges",
+  "discount",
   "total",
+  "bill",
   "order_type",
   "currency",
 ] as const;

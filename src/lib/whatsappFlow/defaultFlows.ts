@@ -82,9 +82,9 @@ export function buildDefaultFlows(): DefaultFlowDef[] {
       "placed",
       "🧾 *Order Received!*\n\n" +
         "Hi {{customer_name}}, thanks for ordering from *{{store_name}}*! 🎉\n\n" +
-        "🆔 Order: *{{order_id}}*\n" +
+        "🆔 Order: *{{order_id}}*\n\n" +
         "🛍️ *Items:*\n{{items}}\n\n" +
-        "💰 Total: *{{total}}*\n\n" +
+        "🧾 *Bill:*\n{{bill}}\n\n" +
         "We'll keep you updated here. 🙌",
     ),
     orderFlow(
