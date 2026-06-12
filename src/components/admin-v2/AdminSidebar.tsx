@@ -21,7 +21,6 @@ import {
   Plug,
   Bike,
   MessageSquare,
-  Inbox,
   Gift,
   ChevronDown,
   ChevronRight,
@@ -54,8 +53,7 @@ const sidebarItems: SidebarItem[] = [
   { title: "Customers", icon: Users, id: "customers" },
   { title: "Loyalty", icon: Gift, id: "loyalty" },
   { title: "Website", icon: Globe, id: "website" },
-  { title: "WhatsApp Inbox", icon: Inbox, id: "whatsapp-inbox" },
-  { title: "WhatsApp Templates", icon: MessageSquare, id: "whatsapp-templates" },
+  { title: "WhatsApp", icon: MessageSquare, id: "whatsapp" },
   { title: "Settings", icon: Settings, id: "settings" },
   { title: "Billing", icon: Receipt, id: "billing" },
 ];
@@ -80,8 +78,7 @@ const FREE_PLAN_LOCKED_IDS = [
   "deliveryboys",
   "customers",
   "reviews",
-  "whatsapp-templates",
-  "whatsapp-inbox",
+  "whatsapp",
   "loyalty",
 ];
 
@@ -139,10 +136,7 @@ export function AdminSidebar({
         ? "visible"
         : "hidden";
     }
-    if (item.id === "whatsapp-templates") {
-      return features?.whatsappOrdering?.enabled ? "visible" : "hidden";
-    }
-    if (item.id === "whatsapp-inbox") {
+    if (item.id === "whatsapp") {
       return features?.whatsappOrdering?.enabled ? "visible" : "hidden";
     }
     if (item.id === "loyalty") {
