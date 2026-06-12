@@ -36,8 +36,15 @@ export function AdminV2WhatsApp() {
   return (
     <div className="space-y-4">
       {screen === null ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {SCREENS.map((s) => (
+        <>
+          <div>
+            <h1 className="text-2xl font-bold sm:text-3xl">WhatsApp</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Manage customer conversations, message templates, and automated flows.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {SCREENS.map((s) => (
             <button
               key={s.id}
               type="button"
@@ -53,7 +60,8 @@ export function AdminV2WhatsApp() {
               </div>
             </button>
           ))}
-        </div>
+          </div>
+        </>
       ) : (
         <Button
           variant="ghost"

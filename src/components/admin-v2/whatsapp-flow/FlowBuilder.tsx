@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { uploadFileToS3 } from "@/app/actions/aws-s3";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -53,6 +54,8 @@ import {
   Zap,
   Plus,
   Loader2,
+  Upload,
+  AudioLines,
 } from "lucide-react";
 import type {
   FlowNodeType,
@@ -65,6 +68,7 @@ const NODE_META: Record<FlowNodeType, { label: string; icon: React.ElementType; 
   trigger: { label: "Trigger", icon: Zap, accent: "#f59e0b" },
   send_text: { label: "Send text", icon: MessageSquare, accent: "#16a34a" },
   send_image: { label: "Send image", icon: ImageIcon, accent: "#0ea5e9" },
+  send_audio: { label: "Send audio", icon: AudioLines, accent: "#14b8a6" },
   send_document: { label: "Send document", icon: FileText, accent: "#6366f1" },
   buttons: { label: "Buttons", icon: ListChecks, accent: "#a855f7" },
   wait_for_reply: { label: "Wait for reply", icon: MessageCircleQuestion, accent: "#ec4899" },
@@ -79,6 +83,7 @@ const NODE_META: Record<FlowNodeType, { label: string; icon: React.ElementType; 
 const PALETTE: FlowNodeType[] = [
   "send_text",
   "send_image",
+  "send_audio",
   "send_document",
   "buttons",
   "wait_for_reply",
@@ -100,6 +105,8 @@ function defaultData(type: FlowNodeType): Record<string, unknown> {
       return { text: "" };
     case "send_image":
       return { mediaUrl: "", caption: "" };
+    case "send_audio":
+      return { mediaUrl: "" };
     case "send_document":
       return { mediaUrl: "", filename: "", caption: "" };
     case "buttons":
@@ -149,7 +156,9 @@ function nodeSummary(type: FlowNodeType, data: any): string {
     case "send_text":
       return t(data?.text) || "Empty message";
     case "send_image":
-      return data?.mediaUrl ? t(data.mediaUrl) : "No image URL";
+      return data?.mediaUrl ? t(data.mediaUrl) : "No image";
+    case "send_audio":
+      return data?.mediaUrl ? t(data.mediaUrl) : "No audio";
     case "send_document":
       return data?.filename || (data?.mediaUrl ? t(data.mediaUrl) : "No document");
     case "buttons":
@@ -611,14 +620,23 @@ function Inspector({
 
       {type === "send_image" && (
         <>
-          <Field label="Image URL"><Input value={data.mediaUrl || ""} onChange={(e) => onChange({ mediaUrl: e.target.value })} placeholder="https://…" /></Field>
+          <MediaField label="Image" accept="image/*" value={data.mediaUrl || ""} onChange={(url) => onChange({ mediaUrl: url })} />
           <Field label="Caption"><Input value={data.caption || ""} onChange={(e) => onChange({ caption: e.target.value })} /></Field>
         </>
       )}
 
+      {type === "send_audio" && (
+        <MediaField label="Audio" accept="audio/*" value={data.mediaUrl || ""} onChange={(url) => onChange({ mediaUrl: url })} />
+      )}
+
       {type === "send_document" && (
         <>
-          <Field label="Document URL"><Input value={data.mediaUrl || ""} onChange={(e) => onChange({ mediaUrl: e.target.value })} placeholder="https://…" /></Field>
+          <MediaField
+            label="Document"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf"
+            value={data.mediaUrl || ""}
+            onChange={(url) => onChange({ mediaUrl: url })}
+          />
           <Field label="File name"><Input value={data.filename || ""} onChange={(e) => onChange({ filename: e.target.value })} placeholder="menu.pdf" /></Field>
           <Field label="Caption"><Input value={data.caption || ""} onChange={(e) => onChange({ caption: e.target.value })} /></Field>
         </>
@@ -810,6 +828,80 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
       {children}
+    </div>
+  );
+}
+
+// Media input: paste a link OR upload a file (uploaded to S3 via uploadFileToS3,
+// the same helper the rest of the app uses). The resulting URL is stored either
+// way, so the engine just sends a link.
+function MediaField({
+  label,
+  accept,
+  value,
+  onChange,
+}: {
+  label: string;
+  accept: string;
+  value: string;
+  onChange: (url: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+      const safe = file.name.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9.\-_]/g, "");
+      const url = await uploadFileToS3(dataUrl, `whatsapp-flow/${Date.now()}_${safe}`);
+      onChange(url);
+      toast.success(`${label} uploaded`);
+    } catch {
+      toast.error("Upload failed — try a smaller file or paste a link.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label} — upload or paste a link</Label>
+      <div className="flex gap-1">
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="https://…"
+          className="flex-1"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          title={`Upload ${label.toLowerCase()}`}
+        >
+          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+        </Button>
+        <input
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleFile(f);
+            e.target.value = "";
+          }}
+        />
+      </div>
+      {value && <p className="truncate text-[11px] text-muted-foreground">{value}</p>}
     </div>
   );
 }
