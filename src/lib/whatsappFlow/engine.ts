@@ -351,19 +351,25 @@ function buildPayload(to: string, o: Outbound): { payload: Record<string, unknow
       };
     case "cta": {
       const url = (o.url || "").trim();
-      // No valid URL → degrade to a plain text message so the caption still sends.
+      // No valid URL → degrade to a plain text message so the caption still sends
+      // (text body allows 4096 chars; the button is just dropped).
       if (!/^https?:\/\//i.test(url)) {
-        return { type: "text", body: o.text || "", payload: { to, type: "text", text: { body: o.text || " " } } };
+        const t = (o.text || " ").slice(0, 4096);
+        return { type: "text", body: t, payload: { to, type: "text", text: { body: t } } };
       }
+      // Interactive body is capped at 1024 chars by WhatsApp — clamp so a long
+      // caption (e.g. a big order bill) never fails the send. Full detail is on
+      // the linked page the button opens.
+      const body = (o.text || " ").slice(0, 1024);
       return {
         type: "interactive",
-        body: o.text || "",
+        body,
         payload: {
           to,
           type: "interactive",
           interactive: {
             type: "cta_url",
-            body: { text: o.text || " " },
+            body: { text: body },
             action: {
               name: "cta_url",
               parameters: { display_text: (o.buttonText || "Open").slice(0, 20), url },

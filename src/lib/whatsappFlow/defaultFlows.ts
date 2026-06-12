@@ -57,6 +57,29 @@ function orderFlow(name: string, status: string, text: string): DefaultFlowDef {
   };
 }
 
+// An order-status flow whose single step is a caption + tappable link button
+// (cta_url). If the {{url}} resolves empty/invalid the engine degrades it to a
+// plain text message, so this is safe for optional links (e.g. tracking).
+function orderLinkButtonFlow(
+  name: string,
+  status: string,
+  text: string,
+  buttonText: string,
+  url: string,
+): DefaultFlowDef {
+  return {
+    name,
+    graph: {
+      nodes: [
+        { id: "trigger", type: "trigger", position: { x: 140, y: 220 }, data: { matchType: "order", orderStatus: status } },
+        { id: "msg", type: "link_button", position: { x: 440, y: 160 }, data: { text, buttonText, url } },
+      ],
+      edges: [{ id: "e", source: "trigger", target: "msg", sourceHandle: null, targetHandle: null }],
+    },
+    triggers: [{ matchType: "order", orderStatus: status, nodeId: "trigger", priority: TRIGGER_PRIORITY.order }],
+  };
+}
+
 function loyaltyFlow(name: string, event: string, text: string): DefaultFlowDef {
   return {
     name,
@@ -77,7 +100,7 @@ export function buildDefaultFlows(): DefaultFlowDef[] {
     welcomeFlow(),
 
     // ── Order status updates ──
-    orderFlow(
+    orderLinkButtonFlow(
       "Order placed",
       "placed",
       "🧾 *Order Received!*\n\n" +
@@ -85,7 +108,9 @@ export function buildDefaultFlows(): DefaultFlowDef[] {
         "🆔 Order: *{{order_id}}*\n\n" +
         "🛍️ *Items:*\n{{items}}\n\n" +
         "🧾 *Bill:*\n{{bill}}\n\n" +
-        "We'll keep you updated here. 🙌",
+        "Tap *View Order* below to track it anytime. 🙌",
+      "View Order",
+      "{{order_url}}",
     ),
     orderFlow(
       "Order accepted",
@@ -101,12 +126,15 @@ export function buildDefaultFlows(): DefaultFlowDef[] {
         "Hi {{customer_name}}, your order *{{order_id}}* from *{{store_name}}* is ready! 🔔\n\n" +
         "🛍️ *Items:*\n{{items}}",
     ),
-    orderFlow(
+    orderLinkButtonFlow(
       "Order dispatched",
       "dispatched",
       "🚀 *Order Dispatched!*\n\n" +
-        "Hi {{customer_name}}, your order *{{order_id}}* is on the way! 🛵💨\n\n" +
+        "Hi {{customer_name}}, your order *{{order_id}}* from *{{store_name}}* is on the way! 🛵💨" +
+        "{{driver_details}}\n\n" +
         "It'll reach you shortly. 📍",
+      "Track Order",
+      "{{tracking_url}}",
     ),
     orderFlow(
       "Order completed",

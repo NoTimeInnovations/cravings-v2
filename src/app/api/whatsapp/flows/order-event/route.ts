@@ -13,6 +13,8 @@ const Q_ORDER = `
     orders_by_pk(id: $id) {
       id display_id short_id status total_price type table_name phone orderedby partner_id
       gst_included extra_charges discounts loyalty_redeem_value loyalty_points_redeemed
+      delivery_agent delivery_provider_meta
+      delivery_boy { name phone }
       partner { store_name currency }
       user { full_name phone }
       order_items { quantity item menu { name price } }
@@ -137,6 +139,41 @@ export async function POST(req: NextRequest) {
     if (loyaltyVal > 0) billLines.push(`Points redeemed: -${currency}${fmtMoney(loyaltyVal)}`);
     billLines.push(`*Total: ${currency}${fmtMoney(totalNum)}*`);
 
+    // ── Order link + driver / tracking (for placed & dispatched flows) ──
+    // The order page resolves the order UUID, so the link uses order.id.
+    const orderUrl = `https://menuthere.com/order/${order.id}`;
+
+    // Driver may come from the partner's own rider, the Adloggs agent, or the
+    // Porter/bridge provider meta — first non-empty wins. All optional.
+    const dpm: any =
+      order.delivery_provider_meta && typeof order.delivery_provider_meta === "object"
+        ? order.delivery_provider_meta
+        : {};
+    const da: any =
+      order.delivery_agent && typeof order.delivery_agent === "object" ? order.delivery_agent : {};
+    const driverName = String(
+      order.delivery_boy?.name || da.name || dpm.driver?.name || "",
+    ).trim();
+    const driverPhone = String(
+      order.delivery_boy?.phone || da.phone || dpm.driver?.phone || "",
+    ).trim();
+
+    // Tracking link: provider meta trackUrl, else a Porter share link extracted
+    // from shareText. Must be a real http(s) URL or the button degrades to text.
+    let trackingUrl = typeof dpm.trackUrl === "string" ? dpm.trackUrl.trim() : "";
+    if (!trackingUrl && typeof dpm.shareText === "string") {
+      const m = dpm.shareText.match(/porter\.in\/rd\/[a-z0-9]+/i);
+      if (m) trackingUrl = `https://${m[0]}`;
+    }
+    if (trackingUrl && !/^https?:\/\//i.test(trackingUrl)) trackingUrl = "";
+
+    // A ready-to-drop block, blank when no driver is assigned yet.
+    let driverDetails = "";
+    if (driverName || driverPhone) {
+      driverDetails = `\n\n🛵 *Rider:* ${driverName || "Assigned"}`;
+      if (driverPhone) driverDetails += `\n📞 ${driverPhone}`;
+    }
+
     const variables = {
       store_name: order.partner?.store_name || "",
       order_id: order.display_id || order.short_id || String(order.id).slice(0, 8),
@@ -149,6 +186,11 @@ export async function POST(req: NextRequest) {
       discount: discountNum > 0 ? `-${currency}${fmtMoney(discountNum)}` : "",
       total: `${currency}${fmtMoney(totalNum)}`,
       bill: billLines.join("\n"),
+      order_url: orderUrl,
+      driver_name: driverName,
+      driver_phone: driverPhone,
+      driver_details: driverDetails,
+      tracking_url: trackingUrl,
       order_type: order.type || "",
       currency,
     };

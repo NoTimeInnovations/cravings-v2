@@ -109,6 +109,11 @@ export const ORDER_FLOW_VARIABLES = [
   "discount",
   "total",
   "bill",
+  "order_url",
+  "driver_name",
+  "driver_phone",
+  "driver_details",
+  "tracking_url",
   "order_type",
   "currency",
 ] as const;
