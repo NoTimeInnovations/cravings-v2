@@ -14,6 +14,7 @@ export type FlowNodeType =
   | "send_audio"
   | "send_document"
   | "buttons"
+  | "link_button"
   | "wait_for_reply"
   | "condition"
   | "delay"

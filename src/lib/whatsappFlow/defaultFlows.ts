@@ -14,17 +14,32 @@ export interface DefaultFlowDef {
   triggers: TriggerDef[];
 }
 
-function messageFlow(name: string, keyword: string, text: string): DefaultFlowDef {
+// Welcome: "hi" -> a caption + a tappable "Order Now" link button carrying the
+// fresh 30-min order link (instead of a raw link in the text).
+function welcomeFlow(): DefaultFlowDef {
   return {
-    name,
+    name: "Welcome",
     graph: {
       nodes: [
-        { id: "trigger", type: "trigger", position: { x: 140, y: 220 }, data: { matchType: "exact", keywords: [keyword] } },
-        { id: "msg", type: "send_text", position: { x: 440, y: 160 }, data: { text } },
+        { id: "trigger", type: "trigger", position: { x: 140, y: 220 }, data: { matchType: "exact", keywords: ["hi"] } },
+        {
+          id: "msg",
+          type: "link_button",
+          position: { x: 440, y: 160 },
+          data: {
+            text:
+              "Hi 👋 Welcome to *{{store_name}}*!\n\n" +
+              "🛒 Tap *Order Now* below to place your order.\n" +
+              "_The link is valid for 30 minutes._ ⏱️\n" +
+              "Send *hi* again anytime for a fresh link.",
+            buttonText: "Order Now",
+            url: "{{order_link}}",
+          },
+        },
       ],
       edges: [{ id: "e", source: "trigger", target: "msg", sourceHandle: null, targetHandle: null }],
     },
-    triggers: [{ matchType: "exact", keywords: [keyword], nodeId: "trigger", priority: TRIGGER_PRIORITY.exact }],
+    triggers: [{ matchType: "exact", keywords: ["hi"], nodeId: "trigger", priority: TRIGGER_PRIORITY.exact }],
   };
 }
 
@@ -44,15 +59,8 @@ function orderFlow(name: string, status: string, text: string): DefaultFlowDef {
 
 export function buildDefaultFlows(): DefaultFlowDef[] {
   return [
-    // ── Welcome: "hi" -> a fresh 30-minute ordering link ──
-    messageFlow(
-      "Welcome",
-      "hi",
-      "Hi 👋 Welcome to *{{store_name}}*!\n\n" +
-        "🛒 You can place your order here:\n{{order_link}}\n\n" +
-        "_This link is valid for 30 minutes._ ⏱️\n" +
-        "Just send *hi* again anytime for a fresh link.",
-    ),
+    // ── Welcome: "hi" -> caption + Order Now link button (30-min link) ──
+    welcomeFlow(),
 
     // ── Order status updates ──
     orderFlow(

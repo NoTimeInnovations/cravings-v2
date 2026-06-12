@@ -37,12 +37,14 @@ interface RunState {
 }
 
 interface Outbound {
-  kind: "text" | "image" | "audio" | "document" | "buttons";
+  kind: "text" | "image" | "audio" | "document" | "buttons" | "cta";
   text?: string;
   mediaUrl?: string;
   caption?: string;
   filename?: string;
   items?: ButtonItem[];
+  buttonText?: string;
+  url?: string;
 }
 
 // ─── GraphQL ─────────────────────────────────────────────────────
@@ -270,6 +272,15 @@ function executeForward(
       case "jump":
         nodeId = data.targetNodeId || null;
         break;
+      case "link_button":
+        outbound.push({
+          kind: "cta",
+          text: interpolate(data.text || "", state.variables),
+          buttonText: data.buttonText || "Open",
+          url: interpolate(data.url || "", state.variables),
+        });
+        nodeId = firstEdgeTarget(graph, node.id);
+        break;
       case "buttons":
         outbound.push({
           kind: "buttons",
@@ -338,6 +349,29 @@ function buildPayload(to: string, o: Outbound): { payload: Record<string, unknow
         body: "",
         payload: { to, type: "audio", audio: { link: o.mediaUrl } },
       };
+    case "cta": {
+      const url = (o.url || "").trim();
+      // No valid URL → degrade to a plain text message so the caption still sends.
+      if (!/^https?:\/\//i.test(url)) {
+        return { type: "text", body: o.text || "", payload: { to, type: "text", text: { body: o.text || " " } } };
+      }
+      return {
+        type: "interactive",
+        body: o.text || "",
+        payload: {
+          to,
+          type: "interactive",
+          interactive: {
+            type: "cta_url",
+            body: { text: o.text || " " },
+            action: {
+              name: "cta_url",
+              parameters: { display_text: (o.buttonText || "Open").slice(0, 20), url },
+            },
+          },
+        },
+      };
+    }
     case "document":
       return {
         type: "document",

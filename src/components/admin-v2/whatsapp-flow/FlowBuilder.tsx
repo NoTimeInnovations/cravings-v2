@@ -56,6 +56,7 @@ import {
   Loader2,
   Upload,
   AudioLines,
+  ExternalLink,
 } from "lucide-react";
 import type {
   FlowNodeType,
@@ -72,6 +73,7 @@ const NODE_META: Record<FlowNodeType, { label: string; icon: React.ElementType; 
   send_audio: { label: "Send audio", icon: AudioLines, accent: "#14b8a6" },
   send_document: { label: "Send document", icon: FileText, accent: "#6366f1" },
   buttons: { label: "Buttons", icon: ListChecks, accent: "#a855f7" },
+  link_button: { label: "Link button", icon: ExternalLink, accent: "#2563eb" },
   wait_for_reply: { label: "Wait for reply", icon: MessageCircleQuestion, accent: "#ec4899" },
   condition: { label: "Condition", icon: GitBranch, accent: "#f97316" },
   delay: { label: "Delay", icon: Clock, accent: "#64748b" },
@@ -89,6 +91,7 @@ const PALETTE: FlowNodeType[] = [
   "send_audio",
   "send_document",
   "buttons",
+  "link_button",
   "wait_for_reply",
   "condition",
   "delay",
@@ -114,6 +117,8 @@ function defaultData(type: FlowNodeType): Record<string, unknown> {
       return { mediaUrl: "", filename: "", caption: "" };
     case "buttons":
       return { text: "Choose an option:", items: [{ id: genId("opt"), label: "Option 1" }] };
+    case "link_button":
+      return { text: "", buttonText: "Open", url: "" };
     case "wait_for_reply":
       return { variableName: "reply", validation: "text", retryText: "" };
     case "condition":
@@ -167,6 +172,8 @@ function nodeSummary(type: FlowNodeType, data: any): string {
       return data?.filename || (data?.mediaUrl ? t(data.mediaUrl) : "No document");
     case "buttons":
       return `${(data?.items || []).length} button(s)`;
+    case "link_button":
+      return data?.buttonText ? `🔗 ${data.buttonText}` : "Link button";
     case "wait_for_reply":
       return `→ {{${data?.variableName || "reply"}}}`;
     case "condition":
@@ -711,6 +718,34 @@ function Inspector({
                 </Button>
               )}
             </div>
+          </Field>
+        </>
+      )}
+
+      {type === "link_button" && (
+        <>
+          <Field label="Message (caption)">
+            <Textarea
+              rows={4}
+              value={data.text || ""}
+              onChange={(e) => onChange({ text: e.target.value })}
+              placeholder="Tap the button below to order."
+            />
+          </Field>
+          <Field label="Button text">
+            <Input
+              value={data.buttonText || ""}
+              onChange={(e) => onChange({ buttonText: e.target.value })}
+              maxLength={20}
+              placeholder="Order Now"
+            />
+          </Field>
+          <Field label="Link URL">
+            <Input
+              value={data.url || ""}
+              onChange={(e) => onChange({ url: e.target.value })}
+              placeholder="https://…  or  {{order_link}}"
+            />
           </Field>
         </>
       )}
