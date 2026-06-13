@@ -495,12 +495,12 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     </div>
                 </div>
 
-                {/* Delivery Boy Assignment — only while the order is still pending
-                    (removed once accepted), and hidden when the partner uses a 3PL
-                    delivery agent */}
+                {/* Manual delivery-partner assignment. Partners NOT on porter-bridge
+                    auto-dispatch assign their own riders, so show this for every
+                    delivery order regardless of status. Porter-bridge partners get
+                    automatic dispatch on accept and don't need the manual card. */}
                 {order.type === "delivery" &&
-                    order.status === "pending" &&
-                    !getFeatures((userData as Partner)?.feature_flags || null).delivery_agent.enabled && (
+                    !getFeatures((userData as Partner)?.feature_flags || null).porter_bridge.enabled && (
                         <DeliveryBoyAssignment order={order} />
                     )}
             </div>
