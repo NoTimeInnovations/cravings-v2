@@ -40,6 +40,7 @@ import useOrderStore from "@/store/orderStore";
 import { FaWhatsapp, FaInstagram, FaFacebook } from "react-icons/fa";
 import { Star, Phone } from "lucide-react";
 import LocationHeader from "../../LocationHeader";
+import { getPartnerMapsUrl } from "@/lib/getPartnerMapsUrl";
 
 // Helper to check darkness for contrast
 const isColorDark = (hex: string) => {
@@ -980,13 +981,7 @@ const Compact = ({
             <CompactSocialIcons
               socialLinks={socialLinks}
               hoteldata={hoteldata}
-              geoLocationLink={
-                hoteldata?.place_id
-                  ? `https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${hoteldata.place_id}`
-                  : hoteldata?.geo_location?.coordinates
-                    ? `https://www.google.com/maps?q=${hoteldata.geo_location.coordinates[1]},${hoteldata.geo_location.coordinates[0]}`
-                    : undefined
-              }
+              geoLocationLink={getPartnerMapsUrl(hoteldata) || undefined}
             />
 
             {/* Theme customizer button for owner */}

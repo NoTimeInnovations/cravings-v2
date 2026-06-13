@@ -36,6 +36,7 @@ import {
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { onBoardUserSignup } from "@/app/actions/onBoardUserSignup";
+import { uploadFileToS3 } from "@/app/actions/aws-s3";
 import plansData from "@/data/plans.json";
 import { useAuthStore } from "@/store/authStore";
 import { FcGoogle } from "react-icons/fc";
@@ -182,6 +183,13 @@ export default function GetStartedClient({
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isHydrated, setIsHydrated] = useState(false);
   const [menuFiles, setMenuFiles] = useState<File[]>([]);
+  // Logo (optional) — saved into store_banner; the V3 storefront renders it on
+  // a colored tile sized by storefront_settings.bannerLogo. bgColor defaults to
+  // white to match the banner-settings default (V3 uses bgColor || "#ffffff").
+  const [logoDataUrl, setLogoDataUrl] = useState<string>("");
+  const [logoScale, setLogoScale] = useState<number>(100);
+  const [logoBgColor, setLogoBgColor] = useState<string>("#ffffff");
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [showSampleMenuDialog, setShowSampleMenuDialog] = useState(false);
 
   const getDefaultPhoneCode = (country: string) => {
@@ -743,7 +751,20 @@ export default function GetStartedClient({
       const countryCode = hotelDetails.phoneCode || "+1";
       let bannerUrl = "";
 
-      // Handle Banner Upload
+      // Upload the onboarding logo (if any). It's stored as store_banner; the
+      // V3 storefront renders it on a colored tile sized via
+      // storefront_settings.bannerLogo (same model as Settings → Branding).
+      if (logoDataUrl) {
+        try {
+          const uploaded = await uploadFileToS3(
+            logoDataUrl,
+            `hotel_banners/onboarding_${Date.now()}.png`,
+          );
+          if (uploaded) bannerUrl = uploaded as string;
+        } catch (err) {
+          console.error("Logo upload failed", err);
+        }
+      }
 
       const finalPhone = sanitizePhone(hotelDetails.phone, countryCode);
 
@@ -814,6 +835,16 @@ export default function GetStartedClient({
         country_code: countryCode,
         social_links: JSON.stringify(socialLinksData),
         store_banner: bannerUrl || "",
+        // Logo size + background tile for the V3 hero (editable later in
+        // Settings → Branding). Only set when a logo was actually uploaded.
+        storefront_settings: bannerUrl
+          ? JSON.stringify({
+              bannerLogo: {
+                scale: Math.min(500, Math.max(50, Math.round(logoScale))),
+                bgColor: logoBgColor || "#ffffff",
+              },
+            })
+          : undefined,
         is_shop_open: true,
         theme: JSON.stringify({
           colors: {
@@ -1255,6 +1286,26 @@ export default function GetStartedClient({
     </div>
   );
 
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file for your logo");
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("Logo must be under 10MB");
+      return;
+    }
+    try {
+      const b64 = await fileToBase64(file);
+      setLogoDataUrl(`data:${file.type};base64,${b64}`);
+    } catch {
+      toast.error("Could not read that image");
+    }
+  };
+
   const renderStep2 = () => (
     <div className="max-w-md mx-auto space-y-4 md:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="sm:text-center space-y-2">
@@ -1474,6 +1525,98 @@ export default function GetStartedClient({
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      {/* Logo (optional) — shown on your storefront. Saved as the banner; you
+          can re-adjust the size & background later in Settings → Branding. */}
+      <div className="space-y-3">
+        <Label className="text-sm">Logo (optional)</Label>
+        <div className="flex items-center gap-4">
+          <div
+            className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-stone-200"
+            style={{ background: logoBgColor || "#ffffff" }}
+          >
+            {logoDataUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoDataUrl}
+                alt="Logo preview"
+                className="h-full w-full object-contain"
+                style={{ transform: `scale(${Math.min(5, Math.max(0.5, logoScale / 100))})` }}
+              />
+            ) : (
+              <Upload className="h-5 w-5 text-stone-400" />
+            )}
+          </div>
+          <div className="flex-1 space-y-2">
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleLogoChange}
+              className="hidden"
+            />
+            <ButtonV2
+              type="button"
+              variant="secondary"
+              onClick={() => logoInputRef.current?.click()}
+              className="w-full justify-center"
+            >
+              {logoDataUrl ? "Change logo" : "Upload logo"}
+            </ButtonV2>
+            {logoDataUrl && (
+              <button
+                type="button"
+                onClick={() => setLogoDataUrl("")}
+                className="text-xs text-stone-400 hover:text-red-500"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+
+        {logoDataUrl && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="logoSize" className="text-xs text-stone-500">
+                Size (%)
+              </Label>
+              <Input
+                id="logoSize"
+                type="number"
+                min={50}
+                max={500}
+                step={5}
+                value={logoScale}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setLogoScale(
+                    Number.isFinite(v) ? Math.min(500, Math.max(50, v)) : 100,
+                  );
+                }}
+                className="h-10 rounded-xl border-stone-200 bg-stone-50 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="logoBg" className="text-xs text-stone-500">
+                Background
+              </Label>
+              <div className="flex h-10 items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-2">
+                <input
+                  id="logoBg"
+                  type="color"
+                  value={logoBgColor || "#ffffff"}
+                  onChange={(e) => setLogoBgColor(e.target.value)}
+                  className="h-7 w-7 shrink-0 cursor-pointer rounded-md border-0 bg-transparent p-0"
+                />
+                <span className="text-sm text-stone-600">
+                  {logoBgColor || "#ffffff"}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <ButtonV2

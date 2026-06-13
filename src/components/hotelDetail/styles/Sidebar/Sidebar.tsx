@@ -24,6 +24,7 @@ import OrderDrawer from "../../OrderDrawer";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 import CompactOrders from "../Compact/CompactOrders";
 import { getFeatures } from "@/lib/getFeatures";
+import { getPartnerMapsUrl } from "@/lib/getPartnerMapsUrl";
 import DiscountBanner from "../../DiscountBanner";
 
 export interface SidebarHotelPageProps {
@@ -575,14 +576,10 @@ const Sidebar = ({
                     <ExternalLink size={14} />
                   </a>
                 )}
-                {(hoteldata?.place_id || hoteldata?.geo_location?.coordinates || (socialLinks.location && socialLinks.location !== "")) && (
+                {(getPartnerMapsUrl(hoteldata) || (socialLinks.location && socialLinks.location !== "")) && (
                   <a
                     href={
-                      hoteldata?.place_id
-                        ? `https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${hoteldata.place_id}`
-                        : hoteldata?.geo_location?.coordinates
-                          ? `https://www.google.com/maps?q=${hoteldata.geo_location.coordinates[1]},${hoteldata.geo_location.coordinates[0]}`
-                          : socialLinks.location as string
+                      (getPartnerMapsUrl(hoteldata) || socialLinks.location) as string
                     }
                     target="_blank"
                     rel="noopener noreferrer"

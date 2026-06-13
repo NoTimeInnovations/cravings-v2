@@ -12,6 +12,7 @@ import { OwnerDashboardPill } from "@/components/website/OwnerDashboardPill";
 import { GalleryImageV4 } from "@/components/website/GalleryImageV4";
 import { MadeWithMenuthereBadge } from "@/components/website/MadeWithMenuthereBadge";
 import { parseBannerLogo } from "@/lib/bannerLogo";
+import { getPartnerMapsUrl } from "@/lib/getPartnerMapsUrl";
 
 interface PartnerData {
   id: string;
@@ -152,9 +153,10 @@ export default function WebsitePageV4({
       ? `https://www.google.com/maps/dir/?api=1&destination=${coords![1]},${coords![0]}`
       : "");
   const openInMapsUrl =
-    hasCoords
+    getPartnerMapsUrl(partner) ||
+    (hasCoords
       ? `https://www.google.com/maps/search/?api=1&query=${coords![1]},${coords![0]}`
-      : mapsLink;
+      : mapsLink);
 
   const visitHours = merged.visit.hours.filter((h) => h.label && h.value);
   const legalEntityName = partner.official_name?.trim() || "";

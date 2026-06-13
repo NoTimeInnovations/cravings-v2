@@ -5,6 +5,7 @@ import {
 } from "@/types/website";
 import { WEBSITE_STYLES } from "@/components/website/website-styles";
 import { MenuTabs } from "@/components/website/MenuTabs";
+import { getPartnerMapsUrl } from "@/lib/getPartnerMapsUrl";
 
 interface PartnerData {
   id: string;
@@ -117,11 +118,13 @@ export default function WebsitePage({ partner, config, menuItems }: Props) {
     mapCoords && mapboxToken
       ? `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/pin-l+e25822(${mapCoords[0]},${mapCoords[1]})/${mapCoords[0]},${mapCoords[1]},17,0/900x720@2x?access_token=${mapboxToken}`
       : "";
-  const mapOpenUrl = mapCoords
-    ? `https://www.google.com/maps/search/?api=1&query=${mapCoords[1]},${mapCoords[0]}`
-    : mapQuery
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
-    : "";
+  const mapOpenUrl =
+    getPartnerMapsUrl(partner) ||
+    (mapCoords
+      ? `https://www.google.com/maps/search/?api=1&query=${mapCoords[1]},${mapCoords[0]}`
+      : mapQuery
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`
+      : "");
 
   // Build menu groups for the menu section
   const itemById: Record<string, MenuItem> = {};

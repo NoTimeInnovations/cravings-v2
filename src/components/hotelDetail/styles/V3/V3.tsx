@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { useLocationStore } from "@/store/geolocationStore";
 import PullToRefresh from "@/components/PullToRefresh";
 import { LoyaltyPointsBadge } from "@/components/loyalty/LoyaltyPointsBadge";
+import { getPartnerMapsUrl } from "@/lib/getPartnerMapsUrl";
 
 const V3 = ({
   styles,
@@ -230,11 +231,7 @@ const V3 = ({
   const phoneHref = socialLinks?.phone ? `tel:${socialLinks.phone}` : null;
   const whatsappHref = socialLinks?.whatsapp || null;
   const instagramHref = socialLinks?.instagram || null;
-  const mapHref = hoteldata?.place_id
-    ? `https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${hoteldata.place_id}`
-    : hoteldata?.geo_location?.coordinates
-      ? `https://www.google.com/maps?q=${hoteldata.geo_location.coordinates[1]},${hoteldata.geo_location.coordinates[0]}`
-      : null;
+  const mapHref = getPartnerMapsUrl(hoteldata);
   const reviewHref = socialLinks?.googleReview || null;
   const hasContacts = phoneHref || whatsappHref || mapHref || instagramHref || reviewHref;
 
