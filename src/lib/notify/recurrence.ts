@@ -9,7 +9,7 @@
  * `computeNextRun` to advance `next_run_at` after each fire.
  */
 
-import { parseExpression } from "cron-parser";
+import { CronExpressionParser } from "cron-parser";
 
 export type Frequency = "daily" | "weekly";
 
@@ -58,7 +58,7 @@ export function computeNextRun(
   after: Date = new Date()
 ): Date | null {
   try {
-    const interval = parseExpression(cronExpr, {
+    const interval = CronExpressionParser.parse(cronExpr, {
       tz: timezone || "Asia/Kolkata",
       currentDate: after,
     });
@@ -71,7 +71,7 @@ export function computeNextRun(
 /** True if `cronExpr` is a parseable 5-field cron expression. */
 export function isValidCron(cronExpr: string, timezone = "Asia/Kolkata"): boolean {
   try {
-    parseExpression(cronExpr, { tz: timezone });
+    CronExpressionParser.parse(cronExpr, { tz: timezone });
     return true;
   } catch {
     return false;
