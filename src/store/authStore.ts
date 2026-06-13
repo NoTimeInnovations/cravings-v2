@@ -34,7 +34,7 @@ import {
 } from "@/lib/newPartnerDefaults";
 
 // New partner accounts created via self-serve signup get a 30-day trial:
-// ordering+delivery enabled out of the box, storefront+newonboarding access-only.
+// ordering+delivery+newonboarding enabled out of the box, storefront access-only.
 // See /Users/abhinks/.claude/projects/-Users-abhinks-Documents-cravings-v2/memory/new-partner-trial-defaults.md
 const NEW_PARTNER_TRIAL_FEATURE_FLAGS = NEW_PARTNER_FEATURE_FLAGS;
 

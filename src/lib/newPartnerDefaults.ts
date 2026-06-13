@@ -24,10 +24,10 @@ export const NEW_PARTNER_THEME: NewPartnerTheme = {
   checkoutStyle: "v2",
 };
 
-// ordering + delivery enabled; storefront + newonboarding access-only.
+// ordering + delivery + newonboarding enabled; storefront access-only.
 // Mirrors the 30-day-trial policy — see memory/new-partner-trial-defaults.md
 export const NEW_PARTNER_FEATURE_FLAGS =
-  "ordering-true,delivery-true,storefront-false,newonboarding-false";
+  "ordering-true,delivery-true,storefront-false,newonboarding-true";
 
 // Stringified theme for the partners.theme column (used by paths that store a JSON string).
 export const NEW_PARTNER_THEME_STRING = JSON.stringify(NEW_PARTNER_THEME);
