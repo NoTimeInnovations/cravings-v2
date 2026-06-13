@@ -14,6 +14,7 @@ import { Loader2, MapPin } from "lucide-react";
 import { GoogleMap, useLoadScript, Marker, Autocomplete } from "@react-google-maps/api";
 import { useLocationStore } from "@/store/geolocationStore";
 import { Save } from "lucide-react";
+import convertQarsToCoord from "@/app/actions/convertQarsToCoord";
 
 // Google Maps libraries
 const libraries: ("places" | "geometry" | "drawing" | "visualization")[] = ["places"];
@@ -27,6 +28,13 @@ export function LocationSettings() {
     const [locationDetails, setLocationDetails] = useState("");
     const [placeId, setPlaceId] = useState("");
     const [geoLocation, setGeoLocation] = useState<{ latitude: number; longitude: number }>({ latitude: 0, longitude: 0 });
+
+    // Qatar "blue plate" (QARS) address state
+    const [qars, setQars] = useState({ zone: "", street: "", building: "" });
+    const [qarsLoading, setQarsLoading] = useState(false);
+    const isQatar =
+        (userData as any)?.country?.trim?.().toLowerCase() === "qatar" ||
+        (userData as any)?.country_code === "+974";
 
     // Map State
     const [mapDialogOpen, setMapDialogOpen] = useState(false);
@@ -208,6 +216,40 @@ export function LocationSettings() {
         }
     };
 
+    const handleQarsLookup = useCallback(async () => {
+        const zone = Number(qars.zone);
+        const street = Number(qars.street);
+        const building = Number(qars.building);
+        if (!zone || !street || !building) {
+            toast.error("Enter Zone, Street and Building numbers");
+            return;
+        }
+        setQarsLoading(true);
+        try {
+            const result = await convertQarsToCoord(zone, street, building);
+            if (!result) {
+                toast.error("No building found for that Zone / Street / Building");
+                return;
+            }
+            const [lng, lat] = result.coordinates;
+            setSelectedLocation({ lat, lng });
+            setGeoLocation({ latitude: lat, longitude: lng });
+            if (!location.trim()) {
+                setLocation(`Zone ${zone}, Street ${street}, Building ${building}, Qatar`);
+            }
+            if (mapRef.current) {
+                mapRef.current.panTo({ lat, lng });
+                mapRef.current.setZoom(17);
+            }
+            toast.success("Location found from blue-plate address");
+        } catch (error) {
+            console.error("QARS lookup failed:", error);
+            toast.error("Failed to look up address");
+        } finally {
+            setQarsLoading(false);
+        }
+    }, [qars, location]);
+
     const handleMapSave = () => {
         if (selectedLocation) {
             setGeoLocation({ latitude: selectedLocation.lat, longitude: selectedLocation.lng });
@@ -251,6 +293,51 @@ export function LocationSettings() {
                             placeholder="Landmarks, floor number, etc."
                         />
                     </div>
+
+                    {isQatar && (
+                        <div className="space-y-2 rounded-md border p-3 bg-muted/30">
+                            <Label>Qatar Address (Blue Plate)</Label>
+                            <p className="text-xs text-muted-foreground">
+                                Enter the Zone, Street and Building numbers from your blue building plate to pin the exact location on the map.
+                            </p>
+                            <div className="flex flex-wrap items-end gap-2">
+                                <div className="space-y-1">
+                                    <Label className="text-xs">Zone</Label>
+                                    <Input
+                                        inputMode="numeric"
+                                        value={qars.zone}
+                                        onChange={(e) => setQars((p) => ({ ...p, zone: e.target.value.replace(/\D/g, "") }))}
+                                        placeholder="35"
+                                        className="w-20"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label className="text-xs">Street</Label>
+                                    <Input
+                                        inputMode="numeric"
+                                        value={qars.street}
+                                        onChange={(e) => setQars((p) => ({ ...p, street: e.target.value.replace(/\D/g, "") }))}
+                                        placeholder="877"
+                                        className="w-24"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label className="text-xs">Building</Label>
+                                    <Input
+                                        inputMode="numeric"
+                                        value={qars.building}
+                                        onChange={(e) => setQars((p) => ({ ...p, building: e.target.value.replace(/\D/g, "") }))}
+                                        placeholder="41"
+                                        className="w-24"
+                                    />
+                                </div>
+                                <Button type="button" variant="secondary" onClick={handleQarsLookup} disabled={qarsLoading}>
+                                    {qarsLoading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <MapPin className="mr-2 h-3 w-3" />}
+                                    Find on map
+                                </Button>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="space-y-2">
                         <Label>Map Location</Label>

@@ -12,6 +12,7 @@ import {
 import { GoogleMap, useLoadScript } from "@react-google-maps/api";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import type { SavedAddress } from "./AddressManagementModal";
+import QarsBluePlateInput from "@/components/location/QarsBluePlateInput";
 
 type RecentSearch = {
   placeId: string;
@@ -177,6 +178,12 @@ const AddressPickerV2 = ({
   const radiusKm = hotelData?.delivery_rules?.delivery_radius;
   const isPinOutOfRange =
     !!radiusKm && pinDistanceKm != null && pinDistanceKm > radiusKm;
+
+  // Qatar partners can refine the rough Google pin to an exact building using
+  // their blue-plate (QARS) Zone / Street / Building numbers.
+  const isQatar =
+    (hotelData as any)?.country === "Qatar" ||
+    (hotelData as any)?.country_code === "+974";
 
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -434,6 +441,19 @@ const AddressPickerV2 = ({
     setPinDistanceKm(null);
     if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
   }, []);
+
+  const handleQarsResolved = useCallback(
+    (coords: { lat: number; lng: number }) => {
+      // Move the map/pin to the exact building and refresh the address label so
+      // the Confirm button enables.
+      updateMapCenter(coords);
+      reverseGeocode(coords.lat, coords.lng);
+      if (hotelCoords) {
+        setPinDistanceKm(haversineKm(hotelCoords, coords));
+      }
+    },
+    [updateMapCenter, reverseGeocode, hotelCoords],
+  );
 
   const handleConfirm = async () => {
     if (!geocodedInfo) {
@@ -789,6 +809,14 @@ const AddressPickerV2 = ({
                 </p>
               </div>
             </div>
+          )}
+
+          {isQatar && (
+            <QarsBluePlateInput
+              accent={accent}
+              className="mt-4"
+              onResolved={handleQarsResolved}
+            />
           )}
 
           <textarea
