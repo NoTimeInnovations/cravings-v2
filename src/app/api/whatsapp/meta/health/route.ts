@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPartnerWabaIntegration, getWabaOpsToken } from "@/lib/whatsapp-meta";
+import { getPartnerWabaIntegration, partnerWabaToken } from "@/lib/whatsapp-meta";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 
 // GET /api/whatsapp/meta/health?partnerId=<uuid>
 // Reports the partner WABA's Meta account state — business verification +
 // messaging/payment health — so the UI can explain why OTP/authentication
-// templates or proactive sends are blocked. Uses our system-user token
-// (getWabaOpsToken), since a partner's Coexistence token can't read this.
+// templates or proactive sends are blocked. Uses the partner's own Embedded
+// Signup token (partnerWabaToken) — the Tech Provider per-customer token with a
+// role on their WABA; our system-user token has none and returns 100/33.
 export async function GET(req: NextRequest) {
   const partnerId = req.nextUrl.searchParams.get("partnerId");
   if (!partnerId) {
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
         new URLSearchParams({
           fields:
             "id,name,account_review_status,business_verification_status,health_status",
-          access_token: getWabaOpsToken(),
+          access_token: partnerWabaToken(integration),
         }),
     );
     const data = await res.json();

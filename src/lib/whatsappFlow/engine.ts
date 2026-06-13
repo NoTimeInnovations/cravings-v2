@@ -301,11 +301,11 @@ function executeForward(
 }
 
 // ─── Sending (native interactive) ────────────────────────────────
-async function graphSend(phoneNumberId: string, payload: Record<string, unknown>) {
+async function graphSend(phoneNumberId: string, payload: Record<string, unknown>, token: string) {
   const res = await fetch(`https://graph.facebook.com/${API_VERSION}/${phoneNumberId}/messages`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ messaging_product: "whatsapp", ...payload }),
@@ -395,15 +395,38 @@ function buildPayload(to: string, o: Outbound): { payload: Record<string, unknow
   }
 }
 
+// Coexistence Tech Provider model: flows send from the PARTNER's own number, so
+// they must authenticate with the partner's per-customer Embedded Signup token
+// (the only token with a role on their WABA). Falls back to our system-user
+// token for WABAs inside our own business (demo/test).
+async function getPartnerSendToken(partnerId: string): Promise<string> {
+  try {
+    const res = await fetchFromHasura(
+      `query WaSendToken($p: uuid!) {
+        whatsapp_business_integrations(where: { partner_id: { _eq: $p } }, limit: 1) { access_token }
+      }`,
+      { p: partnerId },
+    );
+    return (
+      res?.whatsapp_business_integrations?.[0]?.access_token ||
+      process.env.WHATSAPP_ACCESS_TOKEN!
+    );
+  } catch {
+    return process.env.WHATSAPP_ACCESS_TOKEN!;
+  }
+}
+
 async function dispatch(
   partnerId: string,
   phoneNumberId: string,
   to: string,
   outbound: Outbound[],
 ): Promise<void> {
+  if (!outbound.length) return;
+  const token = await getPartnerSendToken(partnerId);
   for (const o of outbound) {
     const { payload, type, body } = buildPayload(to, o);
-    const sent = await graphSend(phoneNumberId, payload);
+    const sent = await graphSend(phoneNumberId, payload, token);
     // Persist to the inbox so flow replies show in the Inbox tab.
     fetchFromHasura(M_OUTBOX, {
       o: {

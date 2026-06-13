@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
   getPartnerWabaIntegration,
-  getWabaOpsToken,
+  partnerWabaToken,
   deleteMetaTemplate,
   editMetaTemplate,
   MetaTemplateNotFoundError,
@@ -88,7 +88,7 @@ export async function DELETE(
         try {
           await deleteMetaTemplate(
             integration.waba_id,
-            getWabaOpsToken(),
+            partnerWabaToken(integration),
             row.name,
             row.meta_template_id,
           );
@@ -192,7 +192,7 @@ export async function PATCH(
       );
     }
 
-    await editMetaTemplate(row.meta_template_id, getWabaOpsToken(), {
+    await editMetaTemplate(row.meta_template_id, partnerWabaToken(integration), {
       category,
       components: components as MetaTemplateComponent[],
     });

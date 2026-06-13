@@ -78,12 +78,14 @@ export async function POST(request: NextRequest) {
     // Prefer the partner's own number when they've connected one, so customers
     // see the restaurant's brand. Falls back to Menuthere's number below.
     let partnerPhoneNumberId: string | null = null;
+    let partnerToken: string | null = null;
     if (partnerId) {
       try {
         const query = `
           query GetPartnerWhatsApp($partner_id: uuid!) {
             whatsapp_business_integrations(where: {partner_id: {_eq: $partner_id}}) {
               phone_number_id
+              access_token
             }
           }
         `;
@@ -92,6 +94,9 @@ export async function POST(request: NextRequest) {
 
         if (integration?.phone_number_id) {
           partnerPhoneNumberId = integration.phone_number_id;
+          // Coexistence: the partner's own Embedded Signup token is the only one
+          // with a role on their WABA. Fall back to ours for in-business WABAs.
+          partnerToken = integration.access_token || null;
         }
       } catch {
         // Table may not exist yet or query failed — use Menuthere's number
@@ -159,20 +164,23 @@ export async function POST(request: NextRequest) {
     // then fall back to Menuthere's shared number if that send fails — e.g. our
     // token lacks send access to their WABA, or the template isn't approved on
     // their WABA yet — so the customer still gets the message.
-    const sendFrom = (fromPhoneNumberId: string) =>
+    const sendFrom = (fromPhoneNumberId: string, token: string) =>
       fetch(
         `https://graph.facebook.com/${API_VERSION}/${fromPhoneNumberId}/messages`,
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify(messagePayload),
         }
       );
 
-    let res = await sendFrom(partnerPhoneNumberId || menutherePhoneNumberId);
+    // Partner number -> partner's own token; Menuthere number -> our token.
+    let res = partnerPhoneNumberId
+      ? await sendFrom(partnerPhoneNumberId, partnerToken || accessToken)
+      : await sendFrom(menutherePhoneNumberId, accessToken);
     if (!res.ok && partnerPhoneNumberId) {
       const errBody = await res.text();
       console.warn(
@@ -180,7 +188,7 @@ export async function POST(request: NextRequest) {
         res.status,
         errBody
       );
-      res = await sendFrom(menutherePhoneNumberId);
+      res = await sendFrom(menutherePhoneNumberId, accessToken);
     }
 
     if (!res.ok) {

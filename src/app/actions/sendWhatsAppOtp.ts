@@ -93,20 +93,19 @@ export async function sendWhatsAppOtp(
 
     otpStore.set(formattedPhone, { code, expiresAt });
 
-    // Default sender: Menuthere's shared WhatsApp number.
+    // Default sender: Menuthere's shared WhatsApp number, with our token.
     const menutherePhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID!;
-    // Sending always uses our messaging-capable system-user token. A partner's
-    // own connected token is scoped to whatsapp_business_manage_events
-    // (Coexistence) and can't call /messages — so even when we send from the
-    // partner's number we authenticate with WHATSAPP_ACCESS_TOKEN.
-    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN!;
+    const menuthereToken = process.env.WHATSAPP_ACCESS_TOKEN!;
 
     // Sender preference: default is Menuthere's number. Only send from the
     // partner's OWN connected WhatsApp when they've opted in (otp_sender = "own")
-    // AND have a connected integration. Even then we fall back to Menuthere if
-    // the send fails (no send access, or otp_message_v2 not approved on their
-    // WABA), so the OTP always lands and login is never blocked.
+    // AND have a connected integration. The partner's number must be sent with
+    // the partner's OWN Embedded Signup token (the Tech Provider per-customer
+    // token that has a role on their WABA) — our system-user token has none.
+    // Even then we fall back to Menuthere if the send fails (no send access, or
+    // otp_message_v2 not approved on their WABA), so the OTP always lands.
     let partnerPhoneNumberId: string | null = null;
+    let partnerToken: string | null = null;
     if (partnerId) {
       try {
         const otpSender = await getPartnerOtpSender(partnerId);
@@ -114,6 +113,7 @@ export async function sendWhatsAppOtp(
           const integration = await getPartnerWabaIntegration(partnerId);
           if (integration?.phone_number_id) {
             partnerPhoneNumberId = integration.phone_number_id;
+            partnerToken = integration.access_token || null;
           }
         }
       } catch {
@@ -143,23 +143,25 @@ export async function sendWhatsAppOtp(
       },
     };
 
-    const sendFrom = (fromPhoneNumberId: string) =>
+    const sendFrom = (fromPhoneNumberId: string, token: string) =>
       fetch(
         `https://graph.facebook.com/${API_VERSION}/${fromPhoneNumberId}/messages`,
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify(messagePayload),
         }
       );
 
-    // Try the partner's own number first; if it fails (no send access, or the
-    // template isn't approved on their WABA yet), retry from Menuthere's shared
-    // number so the OTP still lands and login isn't blocked.
-    let res = await sendFrom(partnerPhoneNumberId || menutherePhoneNumberId);
+    // Try the partner's own number (with their token) first; if it fails (no
+    // send access, or otp_message_v2 not approved on their WABA), retry from
+    // Menuthere's shared number with our token so the OTP still lands.
+    let res = partnerPhoneNumberId
+      ? await sendFrom(partnerPhoneNumberId, partnerToken || menuthereToken)
+      : await sendFrom(menutherePhoneNumberId, menuthereToken);
     if (!res.ok && partnerPhoneNumberId) {
       const errBody = await res.text();
       console.warn(
@@ -167,7 +169,7 @@ export async function sendWhatsAppOtp(
         res.status,
         errBody
       );
-      res = await sendFrom(menutherePhoneNumberId);
+      res = await sendFrom(menutherePhoneNumberId, menuthereToken);
     }
 
     if (!res.ok) {

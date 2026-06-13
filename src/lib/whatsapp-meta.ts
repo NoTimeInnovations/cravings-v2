@@ -13,6 +13,26 @@ export function getWabaOpsToken(): string {
   return process.env.WHATSAPP_ACCESS_TOKEN!;
 }
 
+// Token for operating on a PARTNER's own WABA (sends, templates, reads). The
+// Coexistence Tech Provider model requires the PER-PARTNER Business Integration
+// System User token captured during Embedded Signup (integration.access_token)
+// — it is the only token with a role on that customer's WABA. Our global
+// system-user token (WHATSAPP_ACCESS_TOKEN) has NO role on a partner's WABA and
+// returns error 100/subcode 33 on every call. We fall back to it only for WABAs
+// that live inside our own Meta business (the demo/test WABA), where it works.
+//
+// NOTE: the per-partner token must carry whatsapp_business_messaging +
+// whatsapp_business_management for /messages and /message_templates to succeed.
+// That depends on the Embedded Signup config requesting those scopes (see the
+// connect flow); a token scoped only to whatsapp_business_manage_events still
+// fails — the partner must re-onboard once the config grants the messaging
+// scopes.
+export function partnerWabaToken(
+  integration: { access_token?: string | null } | null | undefined,
+): string {
+  return integration?.access_token || process.env.WHATSAPP_ACCESS_TOKEN!;
+}
+
 // ─── Token Exchange ───────────────────────────────────────────────
 export async function exchangeCodeForToken(code: string): Promise<{
   access_token: string;
