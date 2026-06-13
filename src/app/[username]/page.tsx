@@ -224,11 +224,18 @@ const UsernamePage = async ({
   const initialTakeawayOpen = isWithinTimeWindow(deliveryRules?.takeaway_time_allowed, hotelTimezone);
 
   // A valid WhatsApp order-link token that carries a user id silently logs that
-  // customer in (no OTP) — but only if nobody is already signed in on this
-  // device. The cookie can't be set during a server render, so a tiny client
-  // component does it via a server action, then refreshes.
+  // customer in (no OTP). The link is personal — issued to one customer's
+  // WhatsApp — so it runs when nobody is signed in OR when a DIFFERENT customer
+  // is signed in (it switches to the link's customer). A partner/superadmin
+  // session is never overridden, and an already-correct session is a no-op.
+  // The cookie can't be set during a server render, so a tiny client component
+  // does it via a server action, then refreshes.
+  const oltUserId = oltStatus?.valid ? oltStatus.userId : null;
   const autoLoginToken =
-    olt && oltStatus?.valid && oltStatus.userId && !auth ? olt : null;
+    olt && oltUserId &&
+    (!auth || (auth.role === "user" && auth.id !== oltUserId))
+      ? olt
+      : null;
 
   return (
     <>

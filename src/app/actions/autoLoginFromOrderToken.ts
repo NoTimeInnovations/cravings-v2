@@ -14,13 +14,20 @@ export async function autoLoginFromOrderToken(
   try {
     if (!partnerId || !token) return false;
 
-    // Don't clobber an existing session (customer, partner, or superadmin
-    // already signed in on this device).
-    const existing = await getAuthCookie();
-    if (existing?.id) return false;
-
     const v = verifyOrderLinkToken(partnerId, token);
     if (!v.valid || !v.userId) return false;
+
+    // The order link is personal to the customer it was issued for. If a session
+    // already exists on this device:
+    //   • a partner / superadmin / captain session is NEVER overridden (staff
+    //     may be testing on the same browser),
+    //   • the SAME customer is a no-op,
+    //   • a DIFFERENT customer session IS switched to the link's customer.
+    const existing = await getAuthCookie();
+    if (existing?.id) {
+      if (existing.role !== "user") return false;
+      if (existing.id === v.userId) return false;
+    }
 
     // The token is signed, but confirm the user still exists and isn't deleted
     // before minting a session.
