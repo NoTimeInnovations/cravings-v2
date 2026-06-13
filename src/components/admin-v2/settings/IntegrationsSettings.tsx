@@ -46,6 +46,11 @@ export function IntegrationsSettings() {
     const [wabaConnected, setWabaConnected] = useState(false);
     const [wabaPhoneNumber, setWabaPhoneNumber] = useState<string | null>(null);
     const [isWabaLoading, setIsWabaLoading] = useState(false);
+    // Where login OTPs are sent FROM. Defaults to "menuthere"; "own" sends from
+    // the partner's connected number. Only shown when their WhatsApp is connected.
+    const [otpSender, setOtpSender] = useState<"menuthere" | "own">(
+        ((userData as any)?.otp_sender === "own" ? "own" : "menuthere"),
+    );
     // WABA + Phone Number IDs captured from the Embedded Signup session-info
     // postMessage (see the listener effect below). In the Coexistence flow these
     // arrive ONLY via postMessage — the access token doesn't carry them.
@@ -166,7 +171,12 @@ export function IntegrationsSettings() {
             // Check WhatsApp Business Connection
             checkWhatsAppConnection(userData.id);
         }
-    }, [userData]);
+        // Only re-run when the actual partner changes — depending on the whole
+        // userData object re-fires this (and the WhatsApp status fetch) on every
+        // setState (e.g. toggling otp_sender), which flashes the spinner and
+        // briefly unmounts the toggle the user just clicked.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userData?.id, userData?.role]);
 
     const checkGoogleConnection = async (partnerId: string) => {
         setIsGoogleLoading(true);
@@ -414,6 +424,22 @@ export function IntegrationsSettings() {
         try {
             await updatePartner(userData.id, { whatsapp_integration_mode: mode });
             setState({ whatsapp_integration_mode: mode } as any);
+        } catch {
+            // silent — non-critical
+        }
+    };
+
+    // Keep the OTP-sender toggle in sync with the loaded partner.
+    useEffect(() => {
+        setOtpSender((userData as any)?.otp_sender === "own" ? "own" : "menuthere");
+    }, [(userData as any)?.otp_sender]);
+
+    const handleOtpSenderChange = async (mode: "menuthere" | "own") => {
+        setOtpSender(mode);
+        if (!userData) return;
+        try {
+            await updatePartner(userData.id, { otp_sender: mode });
+            setState({ otp_sender: mode } as any);
         } catch {
             // silent — non-critical
         }
@@ -724,6 +750,55 @@ export function IntegrationsSettings() {
                                         <p className="text-sm text-green-800">
                                             Active — Order notifications will be sent via Menuthere&apos;s WhatsApp.
                                         </p>
+                                    </div>
+                                )}
+
+                                {/* Login OTP sender — only when their own WhatsApp is connected */}
+                                {wabaConnected && (
+                                    <div className="mt-2 space-y-3 border-t pt-4">
+                                        <div>
+                                            <p className="text-sm font-semibold">Login OTP sender</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                Choose which WhatsApp number sends the login verification code (OTP) to your customers.
+                                            </p>
+                                        </div>
+                                        <div className="grid gap-3 sm:grid-cols-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleOtpSenderChange("menuthere")}
+                                                className={`relative flex flex-col gap-1.5 rounded-lg border-2 p-3 text-left transition-all ${
+                                                    otpSender === "menuthere"
+                                                        ? "border-green-500 bg-green-50"
+                                                        : "border-muted hover:border-muted-foreground/30"
+                                                }`}
+                                            >
+                                                {otpSender === "menuthere" && (
+                                                    <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 text-green-600" />
+                                                )}
+                                                <span className="text-sm font-semibold">Menuthere (default)</span>
+                                                <p className="text-xs text-muted-foreground">
+                                                    OTP is sent from Menuthere&apos;s shared WhatsApp number.
+                                                </p>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleOtpSenderChange("own")}
+                                                className={`relative flex flex-col gap-1.5 rounded-lg border-2 p-3 text-left transition-all ${
+                                                    otpSender === "own"
+                                                        ? "border-blue-500 bg-blue-50"
+                                                        : "border-muted hover:border-muted-foreground/30"
+                                                }`}
+                                            >
+                                                {otpSender === "own" && (
+                                                    <CheckCircle2 className="absolute right-3 top-3 h-5 w-5 text-blue-600" />
+                                                )}
+                                                <span className="text-sm font-semibold">Your WhatsApp</span>
+                                                <p className="text-xs text-muted-foreground">
+                                                    OTP is sent from your own connected number
+                                                    {wabaPhoneNumber ? ` (${wabaPhoneNumber})` : ""}.
+                                                </p>
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </>

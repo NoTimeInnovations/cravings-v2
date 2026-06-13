@@ -39,6 +39,21 @@ function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+// Per-partner OTP sender preference. Defaults to "menuthere" (our shared number)
+// unless the partner has explicitly opted into sending from their own connected
+// WhatsApp via the Integrations settings toggle.
+async function getPartnerOtpSender(partnerId: string): Promise<string> {
+  try {
+    const res = await fetchFromHasura(
+      `query GetOtpSender($id: uuid!) { partners_by_pk(id: $id) { otp_sender } }`,
+      { id: partnerId },
+    );
+    return res?.partners_by_pk?.otp_sender || "menuthere";
+  } catch {
+    return "menuthere";
+  }
+}
+
 function cleanExpired() {
   const now = Date.now();
   for (const [key, value] of otpStore) {
@@ -86,16 +101,20 @@ export async function sendWhatsAppOtp(
     // partner's number we authenticate with WHATSAPP_ACCESS_TOKEN.
     const accessToken = process.env.WHATSAPP_ACCESS_TOKEN!;
 
-    // If this partner connected their own WhatsApp, prefer their number so the
-    // customer sees the restaurant's brand. Requires (a) our token to have send
-    // access to their WABA and (b) the otp_message_v2 template approved on that
-    // WABA — if either is missing the send below fails and we fall back.
+    // Sender preference: default is Menuthere's number. Only send from the
+    // partner's OWN connected WhatsApp when they've opted in (otp_sender = "own")
+    // AND have a connected integration. Even then we fall back to Menuthere if
+    // the send fails (no send access, or otp_message_v2 not approved on their
+    // WABA), so the OTP always lands and login is never blocked.
     let partnerPhoneNumberId: string | null = null;
     if (partnerId) {
       try {
-        const integration = await getPartnerWabaIntegration(partnerId);
-        if (integration?.phone_number_id) {
-          partnerPhoneNumberId = integration.phone_number_id;
+        const otpSender = await getPartnerOtpSender(partnerId);
+        if (otpSender === "own") {
+          const integration = await getPartnerWabaIntegration(partnerId);
+          if (integration?.phone_number_id) {
+            partnerPhoneNumberId = integration.phone_number_id;
+          }
         }
       } catch {
         // ignore — fall back to Menuthere's number

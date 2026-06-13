@@ -41,6 +41,7 @@ export const partnerIdQuery = `
       fssai_licence_no
       feature_flags
       loyalty_settings
+      otp_sender
       description
       phone
       district
@@ -107,6 +108,7 @@ export const partnerLoginQuery = `
       fssai_licence_no
       feature_flags
       loyalty_settings
+      otp_sender
       description
       phone
       district
