@@ -39,6 +39,15 @@ interface QuickSignupInput {
    * generic sample menu.
    */
   extractedItems?: ExtractedMenuItem[];
+  /**
+   * Optional logo uploaded during signup (base64 data URL). When present it
+   * becomes the store_banner (the V3 hero logo) instead of the Google photo,
+   * and its size + background tile are saved to storefront_settings.bannerLogo
+   * (same model as Settings → Branding / get-started).
+   */
+  logo?: string;
+  logoScale?: number;
+  logoBgColor?: string;
 }
 
 export interface QuickSignupResult {
@@ -84,7 +93,7 @@ async function uploadBufferToS3(
 export async function quickSignupFromGoogle(
   input: QuickSignupInput,
 ): Promise<QuickSignupResult> {
-  const { placeId, sessionToken, email, password, extractedItems } = input;
+  const { placeId, sessionToken, email, password, extractedItems, logo, logoScale, logoBgColor } = input;
 
   if (!placeId?.trim()) {
     throw new Error("Please pick your business from the dropdown");
@@ -147,6 +156,30 @@ export async function quickSignupFromGoogle(
   // First entry is Google's "best/most representative" photo — usually exterior
   // or hero shot, much better as a banner than the last (often a food close-up).
   const bannerUrl = s3Photos[0] || "";
+
+  // A user-uploaded logo overrides the Google photo as the V3 hero image, and
+  // carries its own size + background tile (storefront_settings.bannerLogo).
+  let finalBanner = bannerUrl;
+  let storefrontSettings: string | undefined;
+  if (logo) {
+    try {
+      const uploaded = await uploadFileToS3(
+        logo,
+        `hotel_banners/onboarding_${Date.now()}.png`,
+      );
+      if (uploaded) {
+        finalBanner = uploaded as string;
+        storefrontSettings = JSON.stringify({
+          bannerLogo: {
+            scale: Math.min(500, Math.max(50, Math.round(logoScale ?? 100))),
+            bgColor: logoBgColor || "#ffffff",
+          },
+        });
+      }
+    } catch (e) {
+      console.error("logo upload failed", e);
+    }
+  }
 
   const username = await generateUniqueUsername(data.name);
   if (!username) {
@@ -273,7 +306,8 @@ export async function quickSignupFromGoogle(
     currency: meta.symbol,
     country_code: meta.code,
     social_links: JSON.stringify({}),
-    store_banner: bannerUrl,
+    store_banner: finalBanner,
+    storefront_settings: storefrontSettings,
     is_shop_open: true,
     theme: JSON.stringify({
       colors: { text: "#1a1a1a", bg: "#ffffff", accent: "#ea580c" },

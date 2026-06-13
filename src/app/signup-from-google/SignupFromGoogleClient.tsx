@@ -12,6 +12,7 @@ import {
   FileText,
   X,
   AlertCircle,
+  Image as ImageIcon,
 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { Input } from "@/components/ui/input";
@@ -104,6 +105,14 @@ export default function SignupFromGoogleClient({
   const [oversizedFiles, setOversizedFiles] = useState<File[]>([]);
   const menuInputRef = useRef<HTMLInputElement>(null);
 
+  // Optional logo — saved to store_banner (the V3 hero logo) with size + bg
+  // tile in storefront_settings.bannerLogo. Persisted in sessionStorage so it
+  // survives the Google OAuth round-trip, like the uploaded menu files.
+  const [logoDataUrl, setLogoDataUrl] = useState<string>("");
+  const [logoScale, setLogoScale] = useState<number>(100);
+  const [logoBgColor, setLogoBgColor] = useState<string>("#ffffff");
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
   const readFileToBase64 = (f: File) =>
     new Promise<{ name: string; type: string; size: number; data: string }>(
       (resolve, reject) => {
@@ -167,6 +176,66 @@ export default function SignupFromGoogleClient({
     setOversizedFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const persistLogo = (dataUrl: string, scale: number, bgColor: string) => {
+    try {
+      if (!dataUrl) {
+        sessionStorage.removeItem("uploaded_logo");
+        return;
+      }
+      sessionStorage.setItem(
+        "uploaded_logo",
+        JSON.stringify({ dataUrl, scale, bgColor }),
+      );
+    } catch {
+      /* storage disabled — ignore */
+    }
+  };
+
+  // Logo payload for quickSignupFromGoogle. Read from sessionStorage so it
+  // works after the Google OAuth bounce (React state is reset on that reload).
+  const readLogoPayload = (): {
+    logo?: string;
+    logoScale?: number;
+    logoBgColor?: string;
+  } => {
+    try {
+      const raw = sessionStorage.getItem("uploaded_logo");
+      if (!raw) return {};
+      const o = JSON.parse(raw);
+      if (!o?.dataUrl) return {};
+      return { logo: o.dataUrl, logoScale: o.scale, logoBgColor: o.bgColor };
+    } catch {
+      return {};
+    }
+  };
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (logoInputRef.current) logoInputRef.current.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file for your logo");
+      return;
+    }
+    if (file.size > MAX_MENU_SIZE) {
+      toast.error("Logo must be under 10MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setLogoDataUrl(dataUrl);
+      persistLogo(dataUrl, logoScale, logoBgColor);
+    };
+    reader.onerror = () => toast.error("Could not read that image");
+    reader.readAsDataURL(file);
+  };
+
+  const removeLogo = () => {
+    setLogoDataUrl("");
+    persistLogo("", logoScale, logoBgColor);
+  };
+
   useEffect(() => {
     if (googleError) {
       toast.error("Google sign-in didn't complete. Try again or use email.");
@@ -197,6 +266,17 @@ export default function SignupFromGoogleClient({
     } catch {
       /* storage disabled or bad JSON — ignore */
     }
+  }, []);
+
+  // Restore a logo picked before the Google OAuth bounce.
+  useEffect(() => {
+    const p = readLogoPayload();
+    if (p.logo) {
+      setLogoDataUrl(p.logo);
+      if (typeof p.logoScale === "number") setLogoScale(p.logoScale);
+      if (typeof p.logoBgColor === "string") setLogoBgColor(p.logoBgColor);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Guardrail: if someone lands here without a placeId, send them home.
@@ -230,11 +310,13 @@ export default function SignupFromGoogleClient({
           placeId,
           email: googleEmail,
           extractedItems: items,
+          ...readLogoPayload(),
         });
         clearInterval(stepTimer);
         try {
           sessionStorage.removeItem("gbp_signup_place");
           sessionStorage.removeItem("uploaded_menu_files");
+          sessionStorage.removeItem("uploaded_logo");
         } catch {}
         window.location.assign(result.redirectUrl);
       } catch (e) {
@@ -288,11 +370,13 @@ export default function SignupFromGoogleClient({
         placeId,
         email: signupEmail,
         extractedItems: items,
+        ...readLogoPayload(),
       });
       clearInterval(stepTimer);
       try {
         sessionStorage.removeItem("gbp_signup_place");
         sessionStorage.removeItem("uploaded_menu_files");
+        sessionStorage.removeItem("uploaded_logo");
       } catch {}
       window.location.assign(result.redirectUrl);
     } catch (err) {
@@ -374,11 +458,13 @@ export default function SignupFromGoogleClient({
           placeId,
           email,
           extractedItems: items,
+          ...readLogoPayload(),
         });
         clearInterval(stepTimer);
         try {
           sessionStorage.removeItem("gbp_signup_place");
           sessionStorage.removeItem("uploaded_menu_files");
+          sessionStorage.removeItem("uploaded_logo");
         } catch {}
         window.location.assign(result.redirectUrl);
       } catch (e2) {
@@ -547,6 +633,111 @@ export default function SignupFromGoogleClient({
                     <FileUp className="w-4 h-4" />
                     Add another file
                   </label>
+                </div>
+              )}
+
+              {/* Optional logo — becomes the storefront hero logo */}
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleLogoChange}
+              />
+              {!logoDataUrl ? (
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  className="group flex w-full items-center gap-3 cursor-pointer rounded-xl border border-dashed border-[#e8d2c1] bg-white hover:border-[#a23717]/40 hover:bg-[#fdf5ee]/60 transition-colors px-3.5 py-3 mb-4 text-left"
+                >
+                  <span className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#fbe6d6] shrink-0">
+                    <ImageIcon className="w-[18px] h-[18px] text-[#a23717]" />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-[#1a1410]">
+                      Add your logo{" "}
+                      <span className="text-stone-400 font-normal">
+                        (optional)
+                      </span>
+                    </span>
+                    <span className="block text-xs text-stone-500 mt-0.5">
+                      Shown on your storefront · PNG or JPG
+                    </span>
+                  </span>
+                </button>
+              ) : (
+                <div className="mb-4 space-y-3 rounded-xl border border-[#e8d2c1] bg-[#fdf5ee] px-3.5 py-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-stone-200"
+                      style={{ background: logoBgColor || "#ffffff" }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={logoDataUrl}
+                        alt="Logo preview"
+                        className="h-full w-full object-contain"
+                        style={{
+                          transform: `scale(${Math.min(5, Math.max(0.5, logoScale / 100))})`,
+                        }}
+                      />
+                    </div>
+                    <span className="flex-1 text-sm font-medium text-[#1a1410]">
+                      Logo added
+                    </span>
+                    <button
+                      type="button"
+                      onClick={removeLogo}
+                      className="text-stone-400 hover:text-red-600 shrink-0"
+                      aria-label="Remove logo"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="logo-size" className="text-xs text-stone-500">
+                        Size (%)
+                      </Label>
+                      <Input
+                        id="logo-size"
+                        type="number"
+                        min={50}
+                        max={500}
+                        step={5}
+                        value={logoScale}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          const next = Number.isFinite(v)
+                            ? Math.min(500, Math.max(50, v))
+                            : 100;
+                          setLogoScale(next);
+                          persistLogo(logoDataUrl, next, logoBgColor);
+                        }}
+                        className="h-9 bg-white"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="logo-bg" className="text-xs text-stone-500">
+                        Background
+                      </Label>
+                      <div className="flex h-9 items-center gap-2 rounded-md border border-stone-200 bg-white px-2">
+                        <input
+                          id="logo-bg"
+                          type="color"
+                          value={logoBgColor || "#ffffff"}
+                          onChange={(e) => {
+                            setLogoBgColor(e.target.value);
+                            persistLogo(logoDataUrl, logoScale, e.target.value);
+                          }}
+                          className="h-6 w-6 shrink-0 cursor-pointer rounded border-0 bg-transparent p-0"
+                        />
+                        <span className="text-xs text-stone-600">
+                          {logoBgColor || "#ffffff"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
