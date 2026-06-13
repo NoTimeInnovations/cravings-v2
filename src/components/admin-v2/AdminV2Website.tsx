@@ -391,23 +391,18 @@ function HeroEditor({
         </div>
 
         <div>
-          <Label className="mb-2 block">Hero collage (4 images)</Label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="space-y-2 p-3 border rounded-md">
-                <div className="text-xs text-muted-foreground">Image {i + 1}</div>
-                <ImageUpload
-                  value={value.collage_images[i] || ""}
-                  onChange={(url) => setImage(i, url)}
-                  folder="website-hero"
-                />
-                <Input
-                  placeholder="Caption (optional)"
-                  value={value.collage_labels[i] || ""}
-                  onChange={(e) => setLabel(i, e.target.value)}
-                />
-              </div>
-            ))}
+          <Label className="mb-2 block">Hero image</Label>
+          <div className="space-y-2 p-3 border rounded-md">
+            <ImageUpload
+              value={value.collage_images[0] || ""}
+              onChange={(url) => setImage(0, url)}
+              folder="website-hero"
+            />
+            <Input
+              placeholder="Caption (optional)"
+              value={value.collage_labels[0] || ""}
+              onChange={(e) => setLabel(0, e.target.value)}
+            />
           </div>
         </div>
       </CardContent>

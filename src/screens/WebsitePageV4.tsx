@@ -11,6 +11,7 @@ import { MenuTabsV4 } from "@/components/website/MenuTabsV4";
 import { OwnerDashboardPill } from "@/components/website/OwnerDashboardPill";
 import { GalleryImageV4 } from "@/components/website/GalleryImageV4";
 import { MadeWithMenuthereBadge } from "@/components/website/MadeWithMenuthereBadge";
+import { parseBannerLogo } from "@/lib/bannerLogo";
 
 interface PartnerData {
   id: string;
@@ -26,6 +27,7 @@ interface PartnerData {
   social_links?: any;
   currency?: string;
   theme?: any;
+  storefront_settings?: any;
   subscription_details?: any;
 }
 
@@ -119,15 +121,11 @@ export default function WebsitePageV4({
 
   const menuUrl = `/${partner.username}?back=true`;
   const orderUrl = merged.hero.cta_link || menuUrl;
-  const heroPhotoIdx = merged.hero.collage_images.findIndex((u) => !!u);
-  const heroPhoto =
-    (heroPhotoIdx >= 0 ? merged.hero.collage_images[heroPhotoIdx] : "") ||
-    partner.store_banner ||
-    "";
-  const heroPhotoCaption =
-    heroPhotoIdx >= 0
-      ? merged.hero.collage_labels[heroPhotoIdx] || ""
-      : "";
+  // The hero uses its own dedicated image (the first collage slot) and is
+  // intentionally NOT tied to the store banner — changing the banner should
+  // never change the hero. The banner is only used as the loading splash logo.
+  const heroPhoto = merged.hero.collage_images[0] || "";
+  const heroPhotoCaption = merged.hero.collage_labels[0] || "";
   const galleryPhotoCount = merged.gallery.items.length;
   const mapsLink =
     merged.visit.map_link ||
@@ -176,6 +174,9 @@ export default function WebsitePageV4({
   const currency = partner.currency || "$";
   const accent = parseAccent(partner.theme);
   const cssVars = { "--wb4-accent": accent } as React.CSSProperties;
+  // Banner-logo display settings (zoom + background color) shared with the
+  // storefront and loading splash, applied to the navbar brand mark below.
+  const bannerLogo = parseBannerLogo(partner.storefront_settings);
 
   // Menu categories — same derivation as V3
   const itemById: Record<string, MenuItem> = {};
@@ -232,9 +233,23 @@ export default function WebsitePageV4({
       <nav className="wb4-nav">
         <div className="wb4-nav-inner">
           <div className="wb4-brand">
-            <span className="wb4-brand-mark">
+            <span
+              className="wb4-brand-mark"
+              style={
+                partner.store_banner && bannerLogo.bgColor
+                  ? { background: bannerLogo.bgColor }
+                  : undefined
+              }
+            >
               {partner.store_banner ? (
-                <img src={partner.store_banner} alt={partner.store_name} />
+                <img
+                  src={partner.store_banner}
+                  alt={partner.store_name}
+                  style={{
+                    objectFit: "contain",
+                    transform: `scale(${bannerLogo.scale})`,
+                  }}
+                />
               ) : (
                 (partner.store_name?.[0] || "?").toUpperCase()
               )}

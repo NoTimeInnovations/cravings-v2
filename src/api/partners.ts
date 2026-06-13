@@ -177,6 +177,8 @@ query GetPartnerSplash($username: String!) {
   partners(where: {username: {_eq: $username}}, limit: 1) {
     store_name
     store_banner
+    website_config
+    storefront_settings
   }
 }
 `;
