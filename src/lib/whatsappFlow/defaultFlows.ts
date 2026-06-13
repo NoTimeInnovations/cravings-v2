@@ -166,8 +166,8 @@ export function buildLoyaltyFlows(): DefaultFlowDef[] {
     loyaltyFlow(
       "Loyalty points earned",
       "earned",
-      "🎉 You earned *{{points}} points*!\n\n" +
-        "👛 Your balance is now *{{points_balance}} pts*.\n" +
+      "🎉 You earned *{{points}} loyalty points* for *{{store_name}}*!\n\n" +
+        "👛 You have *{{points_balance}} loyalty points* for *{{store_name}}*.\n\n" +
         "Redeem them on your next order! ✨",
     ),
   ];
