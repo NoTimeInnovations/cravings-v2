@@ -27,6 +27,12 @@ const QUERY = `
 
 const EXCLUDE_RE = /\b(test|demo|sample|sandbox|qa|staging)\b/i;
 
+/** Display-name overrides for the trust bar (matched against store_name). */
+const RENAME: Array<{ match: RegExp; to: string }> = [
+  { match: /moosa/i, to: "Rimaal" },
+  { match: /jui[zc]y\s*man/i, to: "Nila" },
+];
+
 export async function getTrustBarPartners(limit = 6): Promise<string[]> {
   const endpoint = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT;
   const secret = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET;
@@ -62,7 +68,7 @@ export async function getTrustBarPartners(limit = 6): Promise<string[]> {
       .filter((p) => p.name.length > 0 && !EXCLUDE_RE.test(p.name))
       .sort((a, b) => b.count - a.count)
       .slice(0, limit)
-      .map((p) => p.name);
+      .map((p) => RENAME.find((r) => r.match.test(p.name))?.to ?? p.name);
   } catch {
     return [];
   }

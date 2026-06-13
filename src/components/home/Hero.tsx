@@ -5,15 +5,13 @@ import { useRouter } from "next/navigation";
 import { useLoadScript } from "@react-google-maps/api";
 import { toast } from "sonner";
 import { isDevModeOn } from "@/lib/devMode";
+import CustomerReviews from "./CustomerReviews";
 import {
   Search,
   MapPin,
   X,
   Sparkles,
   Check,
-  Tag,
-  Palette,
-  Rocket,
   ShoppingBag,
   Users,
   BarChart3,
@@ -358,27 +356,8 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
             </div>
           )}
 
-          {/* FEATURE CARDS */}
-          <div
-            data-section="features"
-            className="mt-10 lg:mt-14 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5"
-          >
-            <FeatureCard
-              icon={<Tag className="h-5 w-5" />}
-              title="No Commission"
-              body="Keep more of what you earn. Zero commissions, zero hidden fees."
-            />
-            <FeatureCard
-              icon={<Palette className="h-5 w-5" />}
-              title="Your Brand. Your Way."
-              body="Fully branded ordering experience that builds customer loyalty."
-            />
-            <FeatureCard
-              icon={<Rocket className="h-5 w-5" />}
-              title="Live in Minutes"
-              body="Get your ordering platform up and running in minutes, not weeks."
-            />
-          </div>
+          {/* CUSTOMER REVIEWS — two partner testimonials side by side */}
+          <CustomerReviews />
         </div>
       </section>
   );
@@ -509,36 +488,6 @@ function Bullet({ children }: { children: React.ReactNode }) {
   );
 }
 
-function FeatureCard({
-  icon,
-  title,
-  body,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  body: string;
-}) {
-  return (
-    <div className="group relative rounded-2xl bg-white border border-[rgba(11,11,12,0.06)] p-6 lg:p-7 transition-all duration-300 hover:border-[rgba(11,11,12,0.12)] hover:-translate-y-0.5 hover:shadow-[0_12px_32px_-16px_rgba(11,11,12,0.18)]">
-      <div className="flex items-start gap-4">
-        <div className="grid place-items-center h-11 w-11 rounded-full bg-[#E85D04] text-white shadow-[0_8px_16px_-8px_rgba(232,93,4,0.6)] shrink-0">
-          {icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3
-            className="text-[17px] sm:text-[18px] font-bold text-[#0A0A0B] tracking-tight"
-            style={{ letterSpacing: "-0.015em" }}
-          >
-            {title}
-          </h3>
-          <p className="mt-1.5 text-[13.5px] sm:text-[14px] text-[#5A5A60] leading-[1.55]">
-            {body}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /*  Dashboard mockup (HTML/CSS — no images)                                   */
