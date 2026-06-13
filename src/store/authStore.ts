@@ -28,12 +28,15 @@ import { transferTempDataToUserAccount } from "@/lib/transferTempDataToUserAccou
 import { CommonOffer } from "@/components/superAdmin/OfferUploadSuperAdmin";
 import { UserCountryInfo } from "@/lib/getUserCountry";
 import plansData from "@/data/plans.json";
+import {
+  NEW_PARTNER_FEATURE_FLAGS,
+  NEW_PARTNER_THEME_STRING,
+} from "@/lib/newPartnerDefaults";
 
 // New partner accounts created via self-serve signup get a 30-day trial:
 // ordering+delivery enabled out of the box, storefront+newonboarding access-only.
 // See /Users/abhinks/.claude/projects/-Users-abhinks-Documents-cravings-v2/memory/new-partner-trial-defaults.md
-const NEW_PARTNER_TRIAL_FEATURE_FLAGS =
-  "ordering-true,delivery-true,storefront-false,newonboarding-false";
+const NEW_PARTNER_TRIAL_FEATURE_FLAGS = NEW_PARTNER_FEATURE_FLAGS;
 
 const buildNewPartnerTrialSubscription = (country?: string) => {
   const isIndia = (country || "").trim().toLowerCase() === "india";
@@ -473,6 +476,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           },
           feature_flags: NEW_PARTNER_TRIAL_FEATURE_FLAGS,
           subscription_details: trialSubscription,
+          theme: NEW_PARTNER_THEME_STRING,
         },
       })) as { insert_partners_one: Partner };
 
@@ -793,6 +797,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           phone,
           description: "",
           role: "partner",
+          feature_flags: NEW_PARTNER_FEATURE_FLAGS,
+          theme: NEW_PARTNER_THEME_STRING,
         },
       })) as { insert_partners_one: Partner };
 

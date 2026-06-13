@@ -7,18 +7,16 @@ import { addMenu } from "@/api/menu";
 import { setAuthCookie } from "@/app/auth/actions";
 import { INSERT_QR_CODE } from "@/api/qrcodes";
 import plansData from "@/data/plans.json";
+import {
+    NEW_PARTNER_FEATURE_FLAGS,
+    applyNewPartnerThemeDefaults,
+} from "@/lib/newPartnerDefaults";
 
 interface OnboardingData {
     partner: any;
     categories: Record<string, any>;
     menu: { items: Record<string, any> };
 }
-
-// New partner accounts get a 30-day trial: ordering+delivery enabled,
-// storefront+newonboarding access-only. Mirrors signUpWithEmailForPartner.
-// See memory/new-partner-trial-defaults.md
-const NEW_PARTNER_TRIAL_FEATURE_FLAGS =
-    "ordering-true,delivery-true,storefront-false,newonboarding-false";
 
 const buildNewPartnerTrialSubscription = (country?: string) => {
     const isIndia = (country || "").trim().toLowerCase() === "india";
@@ -48,11 +46,13 @@ export const onBoardUserSignup = async (data: OnboardingData) => {
         // Every new signup gets the 30-day trial. Caller-supplied feature_flags
         // / subscription_details (e.g. the /get-started wizard pre-fills a
         // free_plan stub) are intentionally overwritten — this server action is
-        // the policy boundary for new-user defaults.
+        // the policy boundary for new-user defaults. Theme is normalised to the
+        // v3 storefront + v2 checkout while preserving any colours the caller chose.
         const partnerPayload = {
             ...partner,
-            feature_flags: NEW_PARTNER_TRIAL_FEATURE_FLAGS,
+            feature_flags: NEW_PARTNER_FEATURE_FLAGS,
             subscription_details: buildNewPartnerTrialSubscription(partner?.country),
+            theme: applyNewPartnerThemeDefaults(partner?.theme),
             // referral_code is already in partner object from get-started
         };
 

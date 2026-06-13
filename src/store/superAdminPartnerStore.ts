@@ -13,6 +13,10 @@ import { aiGenerate, fileToBase64 } from "@/lib/ai/generateContent";
 import { Partner } from "./authStore";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { getSafeStorage } from "@/lib/safeStorage";
+import {
+  NEW_PARTNER_FEATURE_FLAGS,
+  NEW_PARTNER_THEME_STRING,
+} from "@/lib/newPartnerDefaults";
 import { useCategoryStore } from "./categoryStore_hasura";
 
 const MAX_RETRIES = 3;
@@ -151,6 +155,8 @@ export const useSuperAdminPartnerStore = create<SuperAdminPartnerState>()(
               phone,
               description: "",
               role: "partner",
+              feature_flags: NEW_PARTNER_FEATURE_FLAGS,
+              theme: NEW_PARTNER_THEME_STRING,
             },
           })) as { insert_partners_one: Partner };
 

@@ -17,6 +17,10 @@ import {
   createPpPartnerMutation,
   getPartnerByPpidOrEmailQuery,
 } from "@/api/partners";
+import {
+  NEW_PARTNER_FEATURE_FLAGS,
+  NEW_PARTNER_THEME,
+} from "@/lib/newPartnerDefaults";
 import { sendPetpoojaOnboardingEmailAction } from "@/app/actions/sendPetpoojaOnboardingEmail";
 
 const DEFAULT_TO_EMAILS = [
@@ -150,10 +154,8 @@ const CreatePartnerPage = () => {
           petpooja_restaurant_id: restaurantId,
           password,
           subscription_details: {},
-          theme: {
-            colors: { text: "#000000", bg: "#ffffff", accent: "#E9701B" },
-            menuStyle: "compact",
-          },
+          theme: NEW_PARTNER_THEME,
+          feature_flags: NEW_PARTNER_FEATURE_FLAGS,
         }
       );
 
