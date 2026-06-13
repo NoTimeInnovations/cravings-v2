@@ -12,7 +12,9 @@ import {
 import { GoogleMap, useLoadScript } from "@react-google-maps/api";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import type { SavedAddress } from "./AddressManagementModal";
-import QarsBluePlateInput from "@/components/location/QarsBluePlateInput";
+import reverseQarsFromCoord, {
+  type QarsReverseResult,
+} from "@/app/actions/reverseQarsFromCoord";
 
 type RecentSearch = {
   placeId: string;
@@ -143,6 +145,8 @@ const AddressPickerV2 = ({
   const [manualAddress, setManualAddress] = useState("");
   const [mapMoving, setMapMoving] = useState(false);
   const [pinDistanceKm, setPinDistanceKm] = useState<number | null>(null);
+  // Qatar: the nearest blue-plate (QARS) building resolved from the current pin.
+  const [qarsHit, setQarsHit] = useState<QarsReverseResult | null>(null);
 
   const mapRef = useRef<google.maps.Map | null>(null);
   const mapCenterRef = useRef(mapCenter);
@@ -336,6 +340,30 @@ const AddressPickerV2 = ({
     [isLoaded],
   );
 
+  // Qatar only: resolve the nearest blue-plate building from the settled pin,
+  // snap the pin to its exact coordinate, and refresh the address label. Falls
+  // back to a plain Google reverse-geocode when no building is found nearby.
+  const refineWithQars = useCallback(
+    async (lat: number, lng: number) => {
+      setGeocoding(true);
+      try {
+        const hit = await reverseQarsFromCoord(lat, lng);
+        if (hit) {
+          setQarsHit(hit);
+          const [bLng, bLat] = hit.coordinates;
+          updateMapCenter({ lat: bLat, lng: bLng }); // snap to exact building
+          reverseGeocode(bLat, bLng);
+          return;
+        }
+        setQarsHit(null);
+      } catch {
+        setQarsHit(null);
+      }
+      reverseGeocode(lat, lng);
+    },
+    [updateMapCenter, reverseGeocode],
+  );
+
   const handleSelectPrediction = (
     prediction: google.maps.places.AutocompletePrediction,
   ) => {
@@ -419,8 +447,9 @@ const AddressPickerV2 = ({
 
     if (!mapInitializedRef.current) {
       mapInitializedRef.current = true;
-      // Geocode on first load
-      reverseGeocode(lat, lng);
+      // Resolve on first load — QARS (exact building) for Qatar, else Google.
+      if (isQatar) refineWithQars(lat, lng);
+      else reverseGeocode(lat, lng);
       return;
     }
 
@@ -429,31 +458,20 @@ const AddressPickerV2 = ({
       geocodeTimerRef.current = setTimeout(() => {
         mapDraggedRef.current = false;
         setMapMoving(false);
-        reverseGeocode(lat, lng);
+        if (isQatar) refineWithQars(lat, lng);
+        else reverseGeocode(lat, lng);
       }, 800);
     }
-  }, [reverseGeocode, hotelCoords]);
+  }, [reverseGeocode, refineWithQars, isQatar, hotelCoords]);
 
   const handleMapDragStart = useCallback(() => {
     mapDraggedRef.current = true;
     setMapMoving(true);
     setGeocodedInfo(null);
     setPinDistanceKm(null);
+    setQarsHit(null);
     if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
   }, []);
-
-  const handleQarsResolved = useCallback(
-    (coords: { lat: number; lng: number }) => {
-      // Move the map/pin to the exact building and refresh the address label so
-      // the Confirm button enables.
-      updateMapCenter(coords);
-      reverseGeocode(coords.lat, coords.lng);
-      if (hotelCoords) {
-        setPinDistanceKm(haversineKm(hotelCoords, coords));
-      }
-    },
-    [updateMapCenter, reverseGeocode, hotelCoords],
-  );
 
   const handleConfirm = async () => {
     if (!geocodedInfo) {
@@ -468,10 +486,20 @@ const AddressPickerV2 = ({
     }
     setSaving(true);
     try {
+      // For Qatar, prepend the derived blue-plate so the saved address carries
+      // the canonical Zone/Street/Building drivers actually use.
+      const bluePlate = qarsHit
+        ? `Zone ${qarsHit.zone}, Street ${qarsHit.street}, Building ${qarsHit.building}`
+        : "";
+      const baseAddress = manualAddress.trim() || geocodedInfo.address;
+      const fullAddress =
+        bluePlate && !manualAddress.trim()
+          ? `${bluePlate} — ${baseAddress}`
+          : baseAddress;
       const addr: SavedAddress = {
         id: `${Date.now()}`,
         label: geocodedInfo.name || "Other",
-        address: manualAddress.trim() || geocodedInfo.address,
+        address: fullAddress,
         customLocation: manualAddress.trim() || undefined,
         area: geocodedInfo.area,
         city: geocodedInfo.city,
@@ -811,12 +839,14 @@ const AddressPickerV2 = ({
             </div>
           )}
 
-          {isQatar && (
-            <QarsBluePlateInput
-              accent={accent}
-              className="mt-4"
-              onResolved={handleQarsResolved}
-            />
+          {isQatar && qarsHit && !mapMoving && !geocoding && (
+            <div className="mt-3 flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-200 px-3 py-2">
+              <MapPin className="h-4 w-4 shrink-0" style={{ color: accent }} />
+              <p className="text-xs text-gray-700">
+                <span className="font-semibold">Exact building</span>
+                {" · "}Zone {qarsHit.zone}, Street {qarsHit.street}, Building {qarsHit.building}
+              </p>
+            </div>
           )}
 
           <textarea
