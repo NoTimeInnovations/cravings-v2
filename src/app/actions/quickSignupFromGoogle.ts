@@ -28,8 +28,8 @@ interface QuickSignupInput {
   email: string;
   /**
    * Optional. When omitted (e.g. after email OTP verification or Google
-   * OAuth), we generate a random password so the partners.password column
-   * stays populated; the user can change it later via the admin reset flow.
+   * OAuth), the account is created with the default password "123456" so the
+   * partners.password column stays populated; the user can change it later.
    */
   password?: string;
   /**
@@ -46,14 +46,6 @@ export interface QuickSignupResult {
   username: string;
   partnerId: string;
   redirectUrl: string;
-}
-
-function generatePlaceholderPassword(): string {
-  // 24 hex chars — only ever stored, never shown to the user.
-  return (
-    Math.random().toString(36).slice(2) +
-    Math.random().toString(36).slice(2)
-  ).slice(0, 24);
 }
 
 function pickSampleMenu(types: string[]) {
@@ -100,8 +92,11 @@ export async function quickSignupFromGoogle(
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new Error("Enter a valid email address");
   }
+  // Google-business / OTP signups have no user-chosen password — default to
+  // "123456" (same as the Petpooja onboarding default) so partners.password
+  // stays populated and support can hand it to the merchant.
   const finalPassword =
-    password && password.length >= 6 ? password : generatePlaceholderPassword();
+    password && password.length >= 6 ? password : "123456";
 
   const data = await extractGoogleBusinessDataByPlaceId(placeId, sessionToken);
 
@@ -260,6 +255,9 @@ export async function quickSignupFromGoogle(
     phone: data.phone || "",
     country: countryName,
     location: `https://www.google.com/maps/place/?q=place_id:${data.placeId}`,
+    // Persist the Google place_id so the V3 storefront links to the business
+    // listing (name/reviews/hours) instead of a bare lat,lng pin.
+    place_id: data.placeId,
     status: "active",
     upi_id: "",
     whatsapp_numbers: [],
