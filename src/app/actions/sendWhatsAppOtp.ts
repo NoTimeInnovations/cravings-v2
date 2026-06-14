@@ -54,6 +54,27 @@ async function getPartnerOtpSender(partnerId: string): Promise<string> {
   }
 }
 
+// The language code of the partner's APPROVED otp_message_v2 template. Templates
+// are per-WABA and the partner may have created theirs as en_US (the template
+// creator's default) — sending with a mismatched language code fails, so we use
+// whatever they actually got approved. Defaults to "en".
+async function getPartnerOtpTemplateLang(partnerId: string): Promise<string> {
+  try {
+    const res = await fetchFromHasura(
+      `query OtpTemplateLang($p: uuid!) {
+        whatsapp_message_templates(
+          where: { partner_id: { _eq: $p }, name: { _eq: "otp_message_v2" }, status: { _eq: "APPROVED" } }
+          limit: 1
+        ) { language }
+      }`,
+      { p: partnerId },
+    );
+    return res?.whatsapp_message_templates?.[0]?.language || "en";
+  } catch {
+    return "en";
+  }
+}
+
 function cleanExpired() {
   const now = Date.now();
   for (const [key, value] of otpStore) {
@@ -106,6 +127,7 @@ export async function sendWhatsAppOtp(
     // otp_message_v2 not approved on their WABA), so the OTP always lands.
     let partnerPhoneNumberId: string | null = null;
     let partnerToken: string | null = null;
+    let partnerLang = "en";
     if (partnerId) {
       try {
         const otpSender = await getPartnerOtpSender(partnerId);
@@ -114,6 +136,9 @@ export async function sendWhatsAppOtp(
           if (integration?.phone_number_id) {
             partnerPhoneNumberId = integration.phone_number_id;
             partnerToken = integration.access_token || null;
+            // Use the partner's own approved template language (e.g. en_US),
+            // not a hardcoded "en", or the send fails on a language mismatch.
+            partnerLang = await getPartnerOtpTemplateLang(partnerId);
           }
         }
       } catch {
@@ -121,13 +146,13 @@ export async function sendWhatsAppOtp(
       }
     }
 
-    const messagePayload = {
+    const buildPayload = (language: string) => ({
       messaging_product: "whatsapp",
       to: formattedPhone,
       type: "template",
       template: {
         name: "otp_message_v2",
-        language: { code: "en" },
+        language: { code: language },
         components: [
           {
             type: "body",
@@ -141,9 +166,9 @@ export async function sendWhatsAppOtp(
           },
         ],
       },
-    };
+    });
 
-    const sendFrom = (fromPhoneNumberId: string, token: string) =>
+    const sendFrom = (fromPhoneNumberId: string, token: string, language: string) =>
       fetch(
         `https://graph.facebook.com/${API_VERSION}/${fromPhoneNumberId}/messages`,
         {
@@ -152,16 +177,16 @@ export async function sendWhatsAppOtp(
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(messagePayload),
+          body: JSON.stringify(buildPayload(language)),
         }
       );
 
-    // Try the partner's own number (with their token) first; if it fails (no
-    // send access, or otp_message_v2 not approved on their WABA), retry from
-    // Menuthere's shared number with our token so the OTP still lands.
+    // Partner number uses their own token + their template language; if it fails
+    // (no send access, or otp_message_v2 not approved on their WABA), retry from
+    // Menuthere's shared number (our token + "en" template) so the OTP lands.
     let res = partnerPhoneNumberId
-      ? await sendFrom(partnerPhoneNumberId, partnerToken || menuthereToken)
-      : await sendFrom(menutherePhoneNumberId, menuthereToken);
+      ? await sendFrom(partnerPhoneNumberId, partnerToken || menuthereToken, partnerLang)
+      : await sendFrom(menutherePhoneNumberId, menuthereToken, "en");
     if (!res.ok && partnerPhoneNumberId) {
       const errBody = await res.text();
       console.warn(
@@ -169,7 +194,7 @@ export async function sendWhatsAppOtp(
         res.status,
         errBody
       );
-      res = await sendFrom(menutherePhoneNumberId, menuthereToken);
+      res = await sendFrom(menutherePhoneNumberId, menuthereToken, "en");
     }
 
     if (!res.ok) {
