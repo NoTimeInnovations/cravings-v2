@@ -19,7 +19,20 @@
 
 const KEY = "mt_order_channel";
 
-export type OrderChannel = "app" | "web";
+export type OrderChannel = "app" | "web" | "whatsapp";
+
+/**
+ * The customer arrived via a WhatsApp order link (the `?olt=` token our ordering
+ * flow hands out). Used to tag the order's channel as "whatsapp".
+ */
+function hasOrderLinkParam(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return new URLSearchParams(window.location.search).has("olt");
+  } catch {
+    return false;
+  }
+}
 
 function detectStandalone(): boolean {
   if (typeof window === "undefined") return false;
@@ -87,7 +100,21 @@ export function captureOrderChannel(): void {
       sessionStorage.setItem(KEY, JSON.stringify({ channel: "app", pkg }));
       return;
     }
-    // Don't downgrade a previously-detected app flag this session.
+    // WhatsApp order link (?olt=) → tag the session as "whatsapp". Sticky, and
+    // it upgrades a prior "web" detection, but never overrides a native "app".
+    if (hasOrderLinkParam()) {
+      let prior: string | null = null;
+      try {
+        prior = JSON.parse(sessionStorage.getItem(KEY) || "null")?.channel ?? null;
+      } catch {
+        /* ignore */
+      }
+      if (prior !== "app") {
+        sessionStorage.setItem(KEY, JSON.stringify({ channel: "whatsapp", pkg: null }));
+      }
+      return;
+    }
+    // Don't downgrade a previously-detected app/whatsapp flag this session.
     if (sessionStorage.getItem(KEY)) return;
     const channel: OrderChannel = detectStandalone() ? "app" : "web";
     sessionStorage.setItem(KEY, JSON.stringify({ channel, pkg: null }));
@@ -106,15 +133,19 @@ export function getOrderChannel(): OrderChannel {
   } catch {
     /* ignore */
   }
-  // Cached (captures the android-app:// referrer from first load before SPA nav).
+  // Cached (captures the android-app:// referrer / ?olt= from first load before
+  // SPA nav strips them).
   try {
     const raw = sessionStorage.getItem(KEY);
     if (raw) {
       const v = JSON.parse(raw);
       if (v?.channel === "app") return "app";
+      if (v?.channel === "whatsapp") return "whatsapp";
     }
   } catch {
     /* ignore */
   }
+  // Live fallback: still on the order-link URL but capture didn't run yet.
+  if (hasOrderLinkParam()) return "whatsapp";
   return detectStandalone() ? "app" : "web";
 }

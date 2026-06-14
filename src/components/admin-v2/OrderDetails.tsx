@@ -424,12 +424,16 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                                 {order.order_channel && (
                                     <Badge
                                         className={
-                                            order.order_channel === "app"
+                                            order.order_channel === "app" || order.order_channel === "whatsapp"
                                                 ? "bg-green-100 text-green-800 hover:bg-green-100 font-medium"
                                                 : "bg-gray-100 text-gray-700 hover:bg-gray-100 font-medium"
                                         }
                                     >
-                                        {order.order_channel === "app" ? "App" : "Web"}
+                                        {order.order_channel === "app"
+                                            ? "App"
+                                            : order.order_channel === "whatsapp"
+                                                ? "WhatsApp"
+                                                : "Web"}
                                     </Badge>
                                 )}
                             </div>

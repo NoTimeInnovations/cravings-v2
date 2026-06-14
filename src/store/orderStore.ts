@@ -273,8 +273,9 @@ export interface Order {
   scheduled_time_to?: string | null;
   /** Dine-in reservation: party size (number of guests). Null = not a table reservation. */
   booking_persons?: number | null;
-  /** Where the order was placed from: "app" (published TWA) or "web" (website). */
-  order_channel?: "app" | "web" | null;
+  /** Where the order was placed from: "app" (published TWA), "whatsapp" (a
+   * WhatsApp order link), or "web" (website). */
+  order_channel?: "app" | "web" | "whatsapp" | null;
   deliveryAddress?: string | null;
   gstIncluded?: number;
   orderedby?: string;
