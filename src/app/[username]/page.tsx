@@ -19,7 +19,7 @@ import {
 } from "@/components/SubscriptionStatusCards";
 import { ExpiredOrderLinkCard } from "@/components/ExpiredOrderLinkCard";
 import { verifyOrderLinkToken } from "@/lib/whatsappFlow/orderLink";
-import { getOrderLinkClaim } from "@/lib/whatsappFlow/orderLinkClaim";
+import { isOrderLinkLockedToOther } from "@/lib/whatsappFlow/orderLinkClaim";
 import OrderLinkAutoLogin from "@/components/OrderLinkAutoLogin";
 
 async function getBranchContextForParent(
@@ -175,18 +175,12 @@ const UsernamePage = async ({
   const olt = (sp as any).olt as string | undefined;
   const oltStatus = olt ? verifyOrderLinkToken(partnerId, olt) : null;
   // Show the "expired" screen when the link is past its expiry OR — for a valid
-  // link — when it has already been claimed by its first opener. Order links are
-  // single-use ("session-locked"): forwarding the link is useless because the
-  // first person to open it claims it. The current visitor is the legit claimer
-  // only when they're already signed in as the link's own customer.
+  // link — when it is locked to a different visitor. Order links are single-use
+  // ("session-locked"): the first opener claims it and gets a matching cookie;
+  // anyone the link is forwarded to has no matching cookie and is blocked.
   let oltBlocked = !!oltStatus?.expired;
   if (olt && oltStatus?.valid && !oltBlocked) {
-    const claim = await getOrderLinkClaim(olt);
-    if (claim) {
-      const isClaimer =
-        !!auth?.id && !!oltStatus.userId && auth.id === oltStatus.userId;
-      if (!isClaimer) oltBlocked = true;
-    }
+    oltBlocked = await isOrderLinkLockedToOther(olt);
   }
   if (oltBlocked) {
     const info = await fetchFromHasura(
