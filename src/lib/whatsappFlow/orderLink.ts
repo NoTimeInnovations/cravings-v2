@@ -79,13 +79,23 @@ export function verifyOrderLinkToken(
 //   https://menuthere.com/oreodemo?olt=<token>
 // Pass `userId` to mint an auto-login (10-min) link; omit it for a plain
 // 30-min order link.
+//
+// When the partner has a verified custom domain we point at its ROOT
+// (https://flaminhotchickenindia.com/?olt=<token>): proxy.ts maps a custom
+// domain's root to /{username}, so we must NOT include the username in the
+// path — doing so would rewrite to /{username}/{username} and 404. The ?olt
+// query survives the rewrite. Plain menuthere links keep the /{username} path.
 export function buildOrderLink(
   username: string,
   partnerId: string,
-  opts?: { userId?: string | null; ttlMinutes?: number },
+  opts?: { userId?: string | null; ttlMinutes?: number; customDomain?: string | null },
 ): string {
   const userId = opts?.userId ?? null;
   const ttl = opts?.ttlMinutes ?? (userId ? AUTH_TTL_MIN : DEFAULT_TTL_MIN);
   const token = signOrderLinkToken(partnerId, ttl, userId);
+  const customDomain = opts?.customDomain?.trim();
+  if (customDomain) {
+    return `https://${customDomain}/?olt=${token}`;
+  }
   return `${STOREFRONT_ORIGIN}/${username}?olt=${token}`;
 }

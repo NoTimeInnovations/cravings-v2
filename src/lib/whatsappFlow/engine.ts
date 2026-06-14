@@ -75,7 +75,7 @@ const Q_FLOW = `
 `;
 const Q_PARTNER_INFO = `
   query PartnerInfo($id: uuid!) {
-    partners_by_pk(id: $id) { store_name username currency country_code }
+    partners_by_pk(id: $id) { store_name username currency country_code custom_domain }
   }
 `;
 const M_EVENT = `
@@ -532,7 +532,9 @@ async function buildMessageRunVars(
       store_name: p.store_name || "",
       username: p.username || "",
       currency: p.currency ?? "₹",
-      order_link: p.username ? buildOrderLink(p.username, partnerId, { userId }) : "",
+      order_link: p.username
+        ? buildOrderLink(p.username, partnerId, { userId, customDomain: p.custom_domain })
+        : "",
     };
   } catch (e) {
     console.error("buildMessageRunVars failed:", e);
