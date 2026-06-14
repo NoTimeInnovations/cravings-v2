@@ -177,9 +177,13 @@ const V3 = ({
       } else {
         pool = (hoteldata?.menus || []).filter((item) => item.category.id === category.id);
       }
+      // Top/bestseller items stay visible in "Must Try" even when the partner
+      // hides unavailable items — they show the Unavailable badge instead of
+      // disappearing, so the curated highlight always surfaces at the top.
+      const hideUnavForCat = category.id === "must-try" ? false : hideUnav;
       const items = pool
         .map((item) => {
-          const state = getItemDisplayState(item as any, tz, undefined, hideUnav);
+          const state = getItemDisplayState(item as any, tz, undefined, hideUnavForCat);
           if (state === "hidden") return null;
           return state === "unavailable" ? { ...item, is_available: false } : item;
         })

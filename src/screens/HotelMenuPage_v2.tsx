@@ -370,10 +370,27 @@ const HotelMenuPage = ({
     });
   }, [selectedCategory, filteredMenus, offeredItems]);
 
-  // ✅ Memoize top-selling items
+  // ✅ Memoize top-selling / bestseller items for the V3 "Must Try" section.
+  // Built straight from hoteldata.menus (NOT filteredMenus) with hide_unavailable
+  // forced OFF: a bestseller is an intentional highlight, so it must still surface
+  // at the top even when the partner hides unavailable items everywhere else — it
+  // simply shows the "Unavailable" badge. Truly hidden items (inactive category or
+  // scheduled-off with hideItems) are still dropped by applyVisibilityState.
   const topItems = useMemo(() => {
-    return filteredMenus.filter((item) => item.is_top === true) || [];
-  }, [filteredMenus]);
+    if (!hoteldata?.menus) return [];
+    const tz = (hoteldata as any)?.timezone || hotelTimezone || "Asia/Kolkata";
+    return hoteldata.menus
+      .filter((item: any) => {
+        if (item.is_top !== true) return false;
+        if (orderType === "delivery" && item.show_on_delivery === false) return false;
+        if (orderType === "takeaway" && item.show_on_takeaway === false) return false;
+        if (lockedCategory && item.category?.name !== lockedCategory) return false;
+        if (hiddenCategoryNames && hiddenCategoryNames.has(item.category?.name)) return false;
+        return true;
+      })
+      .map((item: any) => applyVisibilityState(item, tz, undefined, false))
+      .filter(Boolean) as any[];
+  }, [hoteldata?.menus, orderType, lockedCategory, hiddenCategoryNames, hotelTimezone]);
 
   // ✅ Memoize the function passed as a prop to prevent child re-renders
   const setSelectedCategory = useCallback(
