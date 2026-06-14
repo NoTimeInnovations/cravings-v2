@@ -73,34 +73,44 @@ export async function claimOrderLink(
 
 /**
  * Is the order link locked to a DIFFERENT visitor? True when the link has been
- * claimed and the current request's cookie does NOT match the stored claim id
- * (a forwarded link opened by someone other than the first opener). False when
- * the link is unclaimed (the first opener may still claim it) or when the
- * cookie matches. Fails OPEN (false) on DB errors so a blip never wrongly
- * expires a valid link. Safe from a server component (read-only).
+ * claimed and the current visitor is NOT the original opener. The original
+ * opener is recognised TWO ways (either is enough), so a legitimate re-open
+ * always works even if the device cookie was lost:
+ *   • signed in as the customer the link was claimed for (`currentUserId`
+ *     === the claim's user_id — the auto-login set this, and the auth cookie is
+ *     reliable across re-opens), OR
+ *   • the browser holds the matching claim cookie.
+ * False when unclaimed (the first opener may still claim it). Fails OPEN (false)
+ * on DB errors so a blip never wrongly expires a valid link. Read-only — safe
+ * from a server component.
  */
-export async function isOrderLinkLockedToOther(token: string): Promise<boolean> {
-  let claimId: string | null | undefined;
+export async function isOrderLinkLockedToOther(
+  token: string,
+  currentUserId?: string | null,
+): Promise<boolean> {
+  let row: { claim_id: string | null; user_id: string | null } | null = null;
   try {
     const res = await fetchFromHasura(
       `query OrderLinkClaim($h: String!) {
-        order_link_claims_by_pk(token_hash: $h) { claim_id }
+        order_link_claims_by_pk(token_hash: $h) { claim_id user_id }
       }`,
       { h: hashToken(token) },
     );
-    const row = res?.order_link_claims_by_pk;
-    if (!row) return false; // not claimed yet — the first opener may still claim it
-    claimId = row.claim_id;
+    row = res?.order_link_claims_by_pk ?? null;
   } catch (e) {
     console.error("isOrderLinkLockedToOther error:", e);
     return false; // fail open
   }
-  if (!claimId) return false; // claimed without an id (legacy) — can't match, don't lock
+  if (!row) return false; // not claimed yet — the first opener may still claim it
+  // (1) Signed in as the link's own customer → the legit opener.
+  if (currentUserId && row.user_id && currentUserId === row.user_id) return false;
+  // (2) Holds the matching claim cookie.
+  if (!row.claim_id) return false; // legacy claim w/o id — can't match, don't lock
   let cookieVal: string | undefined;
   try {
     cookieVal = (await cookies()).get(claimCookieName(token))?.value;
   } catch {
     cookieVal = undefined;
   }
-  return cookieVal !== claimId; // locked unless this browser holds the matching id
+  return cookieVal !== row.claim_id; // otherwise locked to whoever first opened it
 }

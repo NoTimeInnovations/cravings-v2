@@ -175,25 +175,33 @@ const UsernamePage = async ({
   const olt = (sp as any).olt as string | undefined;
   const oltStatus = olt ? verifyOrderLinkToken(partnerId, olt) : null;
   // Show the "expired" screen when the link is past its expiry OR — for a valid
-  // link — when it is locked to a different visitor. Order links are single-use
-  // ("session-locked"): the first opener claims it and gets a matching cookie;
-  // anyone the link is forwarded to has no matching cookie and is blocked.
+  // link — when it is locked to a DIFFERENT visitor. Order links are single-use
+  // ("session-locked"): the first opener claims it, and is recognised on re-open
+  // either by being signed in as the link's own customer (the auto-login set
+  // this) OR by holding the matching claim cookie. Anyone the link is forwarded
+  // to is neither, so they're blocked.
   let oltBlocked = !!oltStatus?.expired;
   if (olt && oltStatus?.valid && !oltBlocked) {
-    oltBlocked = await isOrderLinkLockedToOther(olt);
+    oltBlocked = await isOrderLinkLockedToOther(olt, auth?.id);
   }
   if (oltBlocked) {
     const info = await fetchFromHasura(
       `query OrderLinkInfo($p: uuid!) {
         whatsapp_business_integrations(where: {partner_id: {_eq: $p}}, limit: 1) { display_phone }
-        partners_by_pk(id: $p) { store_name }
+        partners_by_pk(id: $p) { store_name phone }
       }`,
       { p: partnerId },
     ).catch(() => null);
+    // Prefer the connected WhatsApp number (it runs the welcome flow); fall back
+    // to the partner's phone so the "Send Hi" button always has a destination.
+    const waNumber =
+      info?.whatsapp_business_integrations?.[0]?.display_phone ||
+      info?.partners_by_pk?.phone ||
+      null;
     return (
       <ExpiredOrderLinkCard
         storeName={info?.partners_by_pk?.store_name ?? null}
-        waNumber={info?.whatsapp_business_integrations?.[0]?.display_phone ?? null}
+        waNumber={waNumber}
         reason={oltStatus?.expired ? "expired" : "used"}
       />
     );
