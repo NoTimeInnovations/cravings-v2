@@ -188,16 +188,15 @@ const UsernamePage = async ({
     const info = await fetchFromHasura(
       `query OrderLinkInfo($p: uuid!) {
         whatsapp_business_integrations(where: {partner_id: {_eq: $p}}, limit: 1) { display_phone }
-        partners_by_pk(id: $p) { store_name phone }
+        partners_by_pk(id: $p) { store_name }
       }`,
       { p: partnerId },
     ).catch(() => null);
-    // Prefer the connected WhatsApp number (it runs the welcome flow); fall back
-    // to the partner's phone so the "Send Hi" button always has a destination.
+    // Use the partner's CONNECTED WhatsApp number (the one running the welcome
+    // flow — what customers must message for a fresh link). Not partner.phone,
+    // which is just a contact field and may be junk.
     const waNumber =
-      info?.whatsapp_business_integrations?.[0]?.display_phone ||
-      info?.partners_by_pk?.phone ||
-      null;
+      info?.whatsapp_business_integrations?.[0]?.display_phone ?? null;
     return (
       <ExpiredOrderLinkCard
         storeName={info?.partners_by_pk?.store_name ?? null}

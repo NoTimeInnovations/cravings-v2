@@ -255,6 +255,25 @@ export async function saveWhatsAppIntegration(data: {
   const existingId =
     checkRes?.whatsapp_business_integrations?.[0]?.id;
 
+  // Best-effort: resolve the connected number's display phone (the number
+  // customers actually message) so the storefront "Send Hi" button points at the
+  // partner's WhatsApp — NOT their contact phone, which may be junk. Null if the
+  // token can't read it; a backfill / later connect fills it in.
+  let displayPhone: string | null = null;
+  try {
+    const res = await fetch(
+      `${GRAPH_API_BASE}/${data.phone_number_id}?fields=display_phone_number&access_token=${encodeURIComponent(
+        data.access_token,
+      )}`,
+    );
+    if (res.ok) {
+      const d = await res.json();
+      displayPhone = d?.display_phone_number || null;
+    }
+  } catch {
+    /* ignore — leave null */
+  }
+
   if (existingId) {
     // Update existing
     const mutation = `
@@ -271,6 +290,7 @@ export async function saveWhatsAppIntegration(data: {
         phone_number_id: data.phone_number_id,
         access_token: data.access_token,
         meta_user_id: data.meta_user_id ?? null,
+        ...(displayPhone ? { display_phone: displayPhone } : {}),
         updated_at: new Date().toISOString(),
       },
     });
@@ -290,6 +310,7 @@ export async function saveWhatsAppIntegration(data: {
         phone_number_id: data.phone_number_id,
         access_token: data.access_token,
         meta_user_id: data.meta_user_id ?? null,
+        ...(displayPhone ? { display_phone: displayPhone } : {}),
         updated_at: new Date().toISOString(),
       },
     });
