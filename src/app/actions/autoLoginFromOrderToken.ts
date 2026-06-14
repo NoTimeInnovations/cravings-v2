@@ -1,6 +1,7 @@
 "use server";
 
 import { verifyOrderLinkToken } from "@/lib/whatsappFlow/orderLink";
+import { claimOrderLink } from "@/lib/whatsappFlow/orderLinkClaim";
 import { getAuthCookie, setAuthCookie } from "@/app/auth/actions";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 
@@ -39,6 +40,12 @@ export async function autoLoginFromOrderToken(
     )) as { users?: Array<{ id: string }> };
 
     if (!res?.users?.length) return false;
+
+    // Single-use lock: the first opener claims the link. If it was already
+    // claimed (the link was forwarded/shared), don't establish a session — the
+    // storefront then shows the expired screen for this visitor.
+    const claimed = await claimOrderLink(token, partnerId, v.userId);
+    if (!claimed) return false;
 
     await setAuthCookie({
       id: v.userId,

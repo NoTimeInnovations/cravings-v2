@@ -19,6 +19,7 @@ import {
 } from "@/components/SubscriptionStatusCards";
 import { ExpiredOrderLinkCard } from "@/components/ExpiredOrderLinkCard";
 import { verifyOrderLinkToken } from "@/lib/whatsappFlow/orderLink";
+import { getOrderLinkClaim } from "@/lib/whatsappFlow/orderLinkClaim";
 import OrderLinkAutoLogin from "@/components/OrderLinkAutoLogin";
 
 async function getBranchContextForParent(
@@ -173,7 +174,21 @@ const UsernamePage = async ({
   // visits and valid links are unaffected.
   const olt = (sp as any).olt as string | undefined;
   const oltStatus = olt ? verifyOrderLinkToken(partnerId, olt) : null;
-  if (oltStatus?.expired) {
+  // Show the "expired" screen when the link is past its expiry OR — for a valid
+  // link — when it has already been claimed by its first opener. Order links are
+  // single-use ("session-locked"): forwarding the link is useless because the
+  // first person to open it claims it. The current visitor is the legit claimer
+  // only when they're already signed in as the link's own customer.
+  let oltBlocked = !!oltStatus?.expired;
+  if (olt && oltStatus?.valid && !oltBlocked) {
+    const claim = await getOrderLinkClaim(olt);
+    if (claim) {
+      const isClaimer =
+        !!auth?.id && !!oltStatus.userId && auth.id === oltStatus.userId;
+      if (!isClaimer) oltBlocked = true;
+    }
+  }
+  if (oltBlocked) {
     const info = await fetchFromHasura(
       `query OrderLinkInfo($p: uuid!) {
         whatsapp_business_integrations(where: {partner_id: {_eq: $p}}, limit: 1) { display_phone }
@@ -185,6 +200,7 @@ const UsernamePage = async ({
       <ExpiredOrderLinkCard
         storeName={info?.partners_by_pk?.store_name ?? null}
         waNumber={info?.whatsapp_business_integrations?.[0]?.display_phone ?? null}
+        reason={oltStatus?.expired ? "expired" : "used"}
       />
     );
   }
