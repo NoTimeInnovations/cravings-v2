@@ -73,6 +73,12 @@ const ORDERS_QUERY = `
   query PartnerOrders(
     $partnerId: uuid!,
     $today: timestamptz!,
+    $monthWhere: orders_bool_exp!,
+    $weekWhere: orders_bool_exp!,
+    $chAppWhere: orders_bool_exp!,
+    $chWebWhere: orders_bool_exp!,
+    $chWaWhere: orders_bool_exp!,
+    $chTotalWhere: orders_bool_exp!,
     $ordersWhere: orders_bool_exp!,
     $limit: Int!,
     $offset: Int!
@@ -97,6 +103,30 @@ const ORDERS_QUERY = `
       partner_id: { _eq: $partnerId },
       status: { _nin: ["pending_payment", "expired"] }
     }) { aggregate { count, sum { total_price } } }
+
+    month_agg: orders_aggregate(where: $monthWhere) {
+      aggregate { count, sum { total_price } }
+    }
+
+    week_agg: orders_aggregate(where: $weekWhere) {
+      aggregate { count, sum { total_price } }
+    }
+
+    ch_app_agg: orders_aggregate(where: $chAppWhere) {
+      aggregate { count, sum { total_price } }
+    }
+
+    ch_web_agg: orders_aggregate(where: $chWebWhere) {
+      aggregate { count, sum { total_price } }
+    }
+
+    ch_wa_agg: orders_aggregate(where: $chWaWhere) {
+      aggregate { count, sum { total_price } }
+    }
+
+    ch_total_agg: orders_aggregate(where: $chTotalWhere) {
+      aggregate { count, sum { total_price } }
+    }
 
     page_agg: orders_aggregate(where: $ordersWhere) {
       aggregate { count }
@@ -198,9 +228,86 @@ export async function GET(req: NextRequest) {
     const pageParam = Number(req.nextUrl.searchParams.get("page") ?? "1");
     const page = Number.isFinite(pageParam) && pageParam >= 1 ? Math.floor(pageParam) : 1;
 
+    const now = new Date();
+
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayIso = todayStart.toISOString();
+
+    // Selected month/year for the monthly card (defaults to the current month).
+    const monthParam = Number(req.nextUrl.searchParams.get("month"));
+    const yearParam = Number(req.nextUrl.searchParams.get("year"));
+    const selMonth =
+      Number.isFinite(monthParam) && monthParam >= 1 && monthParam <= 12
+        ? Math.floor(monthParam)
+        : now.getMonth() + 1;
+    const selYear =
+      Number.isFinite(yearParam) && yearParam >= 2000 && yearParam <= 3000
+        ? Math.floor(yearParam)
+        : now.getFullYear();
+    const monthStart = new Date(selYear, selMonth - 1, 1, 0, 0, 0, 0);
+    const monthEnd = new Date(selYear, selMonth, 1, 0, 0, 0, 0);
+
+    // Start of the current week (Monday-based).
+    const weekStart = new Date();
+    weekStart.setHours(0, 0, 0, 0);
+    const diffToMonday = (weekStart.getDay() + 6) % 7;
+    weekStart.setDate(weekStart.getDate() - diffToMonday);
+
+    // Customisable channel-breakdown range (defaults: from the beginning → now).
+    const fromParam = req.nextUrl.searchParams.get("from");
+    const toParam = req.nextUrl.searchParams.get("to");
+    const dateOnlyRe = /^\d{4}-\d{2}-\d{2}$/;
+    const rangeFrom =
+      fromParam && dateOnlyRe.test(fromParam)
+        ? new Date(`${fromParam}T00:00:00.000`)
+        : null;
+    const rangeTo =
+      toParam && dateOnlyRe.test(toParam)
+        ? new Date(`${toParam}T23:59:59.999`)
+        : now;
+
+    // New metrics ignore cancelled orders (as well as the always-hidden drafts).
+    const ACTIVE_STATUS = {
+      status: { _nin: ["pending_payment", "expired", "cancelled"] },
+    };
+
+    const monthWhere = {
+      partner_id: { _eq: partnerId },
+      ...ACTIVE_STATUS,
+      created_at: { _gte: monthStart.toISOString(), _lt: monthEnd.toISOString() },
+    };
+
+    const weekWhere = {
+      partner_id: { _eq: partnerId },
+      ...ACTIVE_STATUS,
+      created_at: { _gte: weekStart.toISOString() },
+    };
+
+    const rangeCreatedAt: Record<string, string> = {
+      ...(rangeFrom ? { _gte: rangeFrom.toISOString() } : {}),
+      _lte: rangeTo.toISOString(),
+    };
+    const chBase = {
+      partner_id: { _eq: partnerId },
+      ...ACTIVE_STATUS,
+      created_at: rangeCreatedAt,
+    };
+    // Untagged (null) orders predate the order_channel column → counted as web.
+    const chAppWhere = { ...chBase, order_channel: { _eq: "app" } };
+    const chWebWhere = {
+      _and: [
+        chBase,
+        {
+          _or: [
+            { order_channel: { _eq: "web" } },
+            { order_channel: { _is_null: true } },
+          ],
+        },
+      ],
+    };
+    const chWaWhere = { ...chBase, order_channel: { _in: ["whatsapp", "wa"] } };
+    const chTotalWhere = chBase;
 
     const ordersWhere: Record<string, unknown> = {
       partner_id: { _eq: partnerId },
@@ -211,6 +318,12 @@ export async function GET(req: NextRequest) {
     const data = await hasura(ORDERS_QUERY, {
       partnerId,
       today: todayIso,
+      monthWhere,
+      weekWhere,
+      chAppWhere,
+      chWebWhere,
+      chWaWhere,
+      chTotalWhere,
       ordersWhere,
       limit: PAGE_SIZE,
       offset: (page - 1) * PAGE_SIZE,
@@ -237,6 +350,35 @@ export async function GET(req: NextRequest) {
         all: {
           count: data.all_agg?.aggregate?.count ?? 0,
           gmv: Math.round(data.all_agg?.aggregate?.sum?.total_price ?? 0),
+        },
+        month: {
+          count: data.month_agg?.aggregate?.count ?? 0,
+          gmv: Math.round(data.month_agg?.aggregate?.sum?.total_price ?? 0),
+        },
+        week: {
+          count: data.week_agg?.aggregate?.count ?? 0,
+          gmv: Math.round(data.week_agg?.aggregate?.sum?.total_price ?? 0),
+        },
+      },
+      monthSelection: { year: selYear, month: selMonth },
+      channels: {
+        from: rangeFrom ? fromParam : null,
+        to: toParam && dateOnlyRe.test(toParam) ? toParam : null,
+        app: {
+          count: data.ch_app_agg?.aggregate?.count ?? 0,
+          gmv: Math.round(data.ch_app_agg?.aggregate?.sum?.total_price ?? 0),
+        },
+        web: {
+          count: data.ch_web_agg?.aggregate?.count ?? 0,
+          gmv: Math.round(data.ch_web_agg?.aggregate?.sum?.total_price ?? 0),
+        },
+        whatsapp: {
+          count: data.ch_wa_agg?.aggregate?.count ?? 0,
+          gmv: Math.round(data.ch_wa_agg?.aggregate?.sum?.total_price ?? 0),
+        },
+        total: {
+          count: data.ch_total_agg?.aggregate?.count ?? 0,
+          gmv: Math.round(data.ch_total_agg?.aggregate?.sum?.total_price ?? 0),
         },
       },
       scope,

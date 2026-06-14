@@ -23,14 +23,18 @@ import { cn } from "@/lib/utils";
 import {
   Building2,
   CalendarDays,
+  CalendarRange,
   Check,
   ChevronsUpDown,
   Clock,
   CreditCard,
+  Globe,
   Loader2,
   MapPin,
+  MessageCircle,
   ReceiptText,
   Search,
+  Smartphone,
   Table2,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -50,12 +54,38 @@ const REFRESH_MS = 30_000;
 
 type Scope = "today" | "all";
 
+/** Short channel tag for the invoice column: app / web / WA. */
+function channelSuffix(orderChannel: string | null): string | null {
+  if (orderChannel === "app") return "app";
+  if (orderChannel === "web") return "web";
+  if (orderChannel === "whatsapp" || orderChannel === "wa") return "WA";
+  return null;
+}
+
+/**
+ * Invoice number shown per order: "{orderNumber}-{channel}" (e.g. "2-web",
+ * "2-app", "2-WA"). Falls back to a short id only when there's no display_id.
+ */
+function invoiceLabel(order: AnalyticsOrder): string {
+  if (Number(order.displayId) > 0) {
+    const sfx = channelSuffix(order.orderChannel);
+    return sfx ? `${order.displayId}-${sfx}` : `${order.displayId}`;
+  }
+  return order.id.slice(0, 8);
+}
+
 export default function PartnerOrdersSection() {
   const [partnerOptions, setPartnerOptions] = useState<LivePartnerOption[]>([]);
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [partnerId, setPartnerId] = useState<string | null>(null);
   const [scope, setScope] = useState<Scope>("today");
   const [page, setPage] = useState(1);
+  // Monthly card selection — defaults to the current month.
+  const [month, setMonth] = useState(() => new Date().getMonth() + 1);
+  const [year, setYear] = useState(() => new Date().getFullYear());
+  // Channel-breakdown date range — empty = beginning / today.
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
   const [data, setData] = useState<PartnerOrdersStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [tick, setTick] = useState(0);
@@ -94,7 +124,11 @@ export default function PartnerOrdersSection() {
           partnerId: partnerId!,
           scope,
           page: String(page),
+          month: String(month),
+          year: String(year),
         });
+        if (rangeFrom) params.set("from", rangeFrom);
+        if (rangeTo) params.set("to", rangeTo);
         const r = await fetch(`/api/stats/partner-orders?${params}`, {
           cache: "no-store",
         });
@@ -113,7 +147,7 @@ export default function PartnerOrdersSection() {
       cancelled = true;
       clearInterval(id);
     };
-  }, [partnerId, scope, page, tick]);
+  }, [partnerId, scope, page, month, year, rangeFrom, rangeTo, tick]);
 
   const selectedPartner = useMemo(
     () => partnerOptions.find((p) => p.id === partnerId) ?? null,
@@ -192,6 +226,64 @@ export default function PartnerOrdersSection() {
             />
           </div>
 
+          {/* Monthly + this-week (cancelled orders excluded) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Card className="p-4 bg-white">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Selected month
+                </div>
+                <input
+                  type="month"
+                  value={`${year}-${String(month).padStart(2, "0")}`}
+                  max={`${new Date().getFullYear()}-${String(
+                    new Date().getMonth() + 1
+                  ).padStart(2, "0")}`}
+                  onChange={(e) => {
+                    const [y, m] = e.target.value.split("-").map(Number);
+                    if (y && m) {
+                      setYear(y);
+                      setMonth(m);
+                    }
+                  }}
+                  className="h-7 rounded-md border border-input bg-white px-2 text-xs shadow-sm"
+                />
+              </div>
+              {loading || !data ? (
+                <Skeleton className="h-8 w-16 mt-2" />
+              ) : (
+                <>
+                  <div className="mt-2 text-2xl font-semibold tabular-nums">
+                    {compact(data.summary.month.count)}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {rupees(data.summary.month.gmv)} GMV ·{" "}
+                    {format(new Date(year, month - 1, 1), "MMM yyyy")}
+                  </div>
+                </>
+              )}
+            </Card>
+
+            <SummaryCard
+              label="This week"
+              icon={<CalendarDays className="size-4" />}
+              accent="text-violet-700 bg-violet-50"
+              count={data?.summary.week.count ?? 0}
+              gmv={data?.summary.week.gmv ?? 0}
+              loading={loading || !data}
+            />
+          </div>
+
+          {/* Channel breakdown — app / web / WhatsApp over a custom range */}
+          <ChannelBreakdown
+            channels={data?.channels ?? null}
+            loading={loading || !data}
+            from={rangeFrom}
+            to={rangeTo}
+            onFrom={setRangeFrom}
+            onTo={setRangeTo}
+          />
+
           {/* Orders list */}
           <Card className="p-5 bg-white">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -259,9 +351,7 @@ export default function PartnerOrdersSection() {
                           onClick={() => setSelectedOrder(order)}
                         >
                           <TableCell className="font-medium">
-                            {Number(order.displayId) > 0
-                              ? `${order.displayId}-${format(new Date(order.createdAt), "ddMMyy")}`
-                              : order.id.slice(0, 8)}
+                            {invoiceLabel(order)}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground font-mono">
                             {order.id.slice(0, 8)}
@@ -314,7 +404,7 @@ export default function PartnerOrdersSection() {
                         <div>
                           <div className="text-sm font-medium">
                             {Number(order.displayId) > 0
-                              ? `Invoice No: ${order.displayId}-${format(new Date(order.createdAt), "ddMMyy")}`
+                              ? `Invoice No: ${invoiceLabel(order)}`
                               : `Order #${order.id.slice(0, 8)}`}
                           </div>
                           <p className="text-xs text-muted-foreground font-mono mt-0.5">
@@ -443,6 +533,147 @@ function SummaryCard({
             {rupees(gmv)} GMV
           </div>
         </>
+      )}
+    </Card>
+  );
+}
+
+function ChannelBreakdown({
+  channels,
+  loading,
+  from,
+  to,
+  onFrom,
+  onTo,
+}: {
+  channels: PartnerOrdersStats["channels"] | null;
+  loading: boolean;
+  from: string;
+  to: string;
+  onFrom: (v: string) => void;
+  onTo: (v: string) => void;
+}) {
+  const today = format(new Date(), "yyyy-MM-dd");
+  const rows: {
+    key: string;
+    label: string;
+    icon: React.ReactNode;
+    accent: string;
+    stat: { count: number; gmv: number };
+  }[] = [
+    {
+      key: "app",
+      label: "App",
+      icon: <Smartphone className="size-4" />,
+      accent: "text-green-700 bg-green-50",
+      stat: channels?.app ?? { count: 0, gmv: 0 },
+    },
+    {
+      key: "web",
+      label: "Website",
+      icon: <Globe className="size-4" />,
+      accent: "text-gray-700 bg-gray-100",
+      stat: channels?.web ?? { count: 0, gmv: 0 },
+    },
+    {
+      key: "whatsapp",
+      label: "WhatsApp",
+      icon: <MessageCircle className="size-4" />,
+      accent: "text-emerald-700 bg-emerald-50",
+      stat: channels?.whatsapp ?? { count: 0, gmv: 0 },
+    },
+  ];
+
+  return (
+    <Card className="p-5 bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <div className="text-base font-semibold">Orders by channel</div>
+          <div className="text-xs text-muted-foreground">
+            App vs Website vs WhatsApp · cancelled orders excluded ·{" "}
+            {from ? from : "from the beginning"} → {to ? to : "today"}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <CalendarRange className="size-3.5" />
+            From
+          </div>
+          <input
+            type="date"
+            value={from}
+            max={to || today}
+            onChange={(e) => onFrom(e.target.value)}
+            className="h-8 rounded-md border border-input bg-white px-2 text-xs shadow-sm"
+          />
+          <span className="text-xs text-muted-foreground">To</span>
+          <input
+            type="date"
+            value={to}
+            min={from || undefined}
+            max={today}
+            onChange={(e) => onTo(e.target.value)}
+            className="h-8 rounded-md border border-input bg-white px-2 text-xs shadow-sm"
+          />
+          {(from || to) && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => {
+                onFrom("");
+                onTo("");
+              }}
+            >
+              All time
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {rows.map((row) => (
+          <div
+            key={row.key}
+            className="rounded-md border p-4 flex items-start justify-between"
+          >
+            <div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wide">
+                {row.label}
+              </div>
+              {loading ? (
+                <Skeleton className="h-7 w-14 mt-2" />
+              ) : (
+                <>
+                  <div className="mt-2 text-2xl font-semibold tabular-nums">
+                    {compact(row.stat.count)}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {rupees(row.stat.gmv)} GMV
+                  </div>
+                </>
+              )}
+            </div>
+            <div
+              className={cn(
+                "size-7 rounded-md flex items-center justify-center shrink-0",
+                row.accent
+              )}
+            >
+              {row.icon}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {!loading && channels && (
+        <div className="mt-3 text-xs text-muted-foreground">
+          Total in range:{" "}
+          <span className="font-medium text-foreground">
+            {compact(channels.total.count)} orders
+          </span>{" "}
+          · {rupees(channels.total.gmv)} GMV
+        </div>
       )}
     </Card>
   );

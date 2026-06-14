@@ -129,11 +129,24 @@ export type PartnerOrdersPartner = {
   country: string | null;
 };
 
+export type OrderStat = { count: number; gmv: number };
+
 export type PartnerOrdersStats = {
   partner: PartnerOrdersPartner;
   summary: {
-    today: { count: number; gmv: number };
-    all: { count: number; gmv: number };
+    today: OrderStat;
+    all: OrderStat;
+    month: OrderStat;
+    week: OrderStat;
+  };
+  monthSelection: { year: number; month: number };
+  channels: {
+    from: string | null;
+    to: string | null;
+    app: OrderStat;
+    web: OrderStat;
+    whatsapp: OrderStat;
+    total: OrderStat;
   };
   scope: "today" | "all";
   page: number;
