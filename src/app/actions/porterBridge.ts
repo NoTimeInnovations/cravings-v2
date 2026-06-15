@@ -946,6 +946,7 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
   let dispatchId: string | null = null;
   let storedState: string | null = null;
   let storedPickupPin: string | null = null;
+  let storedDropPin: string | null = null;
   try {
     const data = await fetchFromHasura(
       `query GetDispatchProg($id: uuid!) { orders_by_pk(id: $id) { delivery_provider_state delivery_provider_meta } }`,
@@ -954,6 +955,7 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
     dispatchId = data.orders_by_pk?.delivery_provider_meta?.dispatchId ?? null;
     storedState = data.orders_by_pk?.delivery_provider_state ?? null;
     storedPickupPin = data.orders_by_pk?.delivery_provider_meta?.pickupPin ?? null;
+    storedDropPin = data.orders_by_pk?.delivery_provider_meta?.dropPin ?? null;
   } catch (err) {
     return { ok: false, message: `hasura: ${(err as Error).message}` };
   }
@@ -1014,8 +1016,16 @@ export async function getDispatchProgress(orderId: string): Promise<Result> {
   // OrderDetails can show the pickup OTP without a live bridge call.
   const pickupPin = d.booking?.pickupPin ?? null;
   const dropPin = d.booking?.dropPin ?? null;
-  if (pickupPin && pickupPin !== storedPickupPin) {
-    await appendDispatchMeta(orderId, { pickupPin, ...(dropPin ? { dropPin } : {}) });
+  // Persist each PIN independently the first time it appears (append-only).
+  // Rapido parcel exposes BOTH pickup + drop pins (often together, but the drop
+  // pin can arrive without/after the pickup pin); Uber exposes only a pickup
+  // pin. Gating on pickupPin alone dropped the drop OTP in those cases, so we
+  // check each against its own stored value.
+  const pinMeta: Record<string, string> = {};
+  if (pickupPin && pickupPin !== storedPickupPin) pinMeta.pickupPin = pickupPin;
+  if (dropPin && dropPin !== storedDropPin) pinMeta.dropPin = dropPin;
+  if (Object.keys(pinMeta).length > 0) {
+    await appendDispatchMeta(orderId, pinMeta);
   }
 
   return {
