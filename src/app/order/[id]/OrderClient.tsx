@@ -678,6 +678,23 @@ ${itemsText}
                                 </div>
                             )}
 
+                        {/* Delivery-bridge drop OTP (Porter / Uber / Rapido) — hand this to the
+                            rider at delivery. The pickup OTP stays admin-only. */}
+                        {(order as any)?.delivery_provider_meta?.dropPin &&
+                            !isCompleted && (
+                                <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 flex items-center gap-3 shadow-sm">
+                                    <Bike className="h-5 w-5 text-orange-700" />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-orange-700">
+                                            Show this OTP to the delivery rider
+                                        </p>
+                                        <p className="mt-1 text-2xl font-bold tracking-[0.3em] font-mono text-orange-900">
+                                            {(order as any).delivery_provider_meta.dropPin}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
                         {/* Prebooked (scheduled order) banner */}
                         {order?.scheduled_date && (
                             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 flex items-start gap-3 shadow-sm">

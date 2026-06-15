@@ -857,6 +857,9 @@ export async function dispatchViaDeliveryBridge(orderId: string): Promise<Result
         title: c.cfg.storeName,
         contactName: c.cfg.storeName,
         contactPhone: c.cfg.mobile,
+        // Order ref shown to the rider at pickup so the restaurant can match
+        // the order. Porter → from_address_doorstep; Rapido → pickup landmark.
+        note: order.display_id ? `Order #${order.display_id}` : undefined,
       },
       drop: {
         lat: drop.lat,
