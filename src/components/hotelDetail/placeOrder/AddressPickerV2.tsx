@@ -501,10 +501,16 @@ const AddressPickerV2 = ({
         label: geocodedInfo.name || "Other",
         address: fullAddress,
         customLocation: manualAddress.trim() || undefined,
-        area: geocodedInfo.area,
+        area: qarsHit ? `Zone ${qarsHit.zone}` : geocodedInfo.area,
         city: geocodedInfo.city,
         district: geocodedInfo.district,
         pincode: geocodedInfo.pincode,
+        // Qatar blue-plate (QARS) parts so the detail form can prefill
+        // Building / Floor and Street without the user retyping.
+        house_no: qarsHit ? String(qarsHit.building) : undefined,
+        road_no: qarsHit ? String(qarsHit.street) : undefined,
+        street: qarsHit ? `Street ${qarsHit.street}` : undefined,
+        country: isQatar ? "QA" : undefined,
         latitude: mapCenterRef.current.lat,
         longitude: mapCenterRef.current.lng,
         isDefault: false,
