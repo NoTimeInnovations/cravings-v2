@@ -94,7 +94,11 @@ export function CancelOrderDialog({
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[100]" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+        >
           <motion.div
             className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
@@ -117,11 +121,10 @@ export function CancelOrderDialog({
               if (info.offset.y > 120 || info.velocity.y > 600) close();
             }}
             className={cn(
-              "fixed left-0 right-0 bottom-0 bg-background shadow-2xl",
+              "relative z-10 w-full bg-background shadow-2xl",
               "flex flex-col rounded-t-2xl overflow-hidden",
               "max-h-[85svh] sm:max-h-[85vh]",
-              "sm:left-1/2 sm:right-auto sm:bottom-auto sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2",
-              "sm:w-full sm:max-w-lg sm:rounded-2xl",
+              "sm:max-w-lg sm:rounded-2xl",
             )}
           >
             <div className="flex justify-center pt-2 sm:hidden">

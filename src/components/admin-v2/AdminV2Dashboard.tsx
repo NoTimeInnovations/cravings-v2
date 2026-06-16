@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { format, startOfMonth } from "date-fns";
+import { startOfMonth } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +39,7 @@ import { GET_QR_CODES_BY_PARTNER } from "@/api/qrcodes";
 import { useTourStore } from "@/store/tourStore";
 import { DashboardTour } from "./tour/DashboardTour";
 import { DESKTOP_TOUR_STEPS, MOBILE_TOUR_STEPS } from "./tour/tourSteps";
+import { DashboardLiveOrders } from "./DashboardLiveOrders";
 
 const tutorialVideos = [
   {
@@ -278,6 +279,9 @@ export function AdminV2Dashboard() {
     <div className="space-y-8 max-w-7xl mx-auto">
       <DashboardTour />
 
+      {/* Live orders pinned at the top — stays until each order is completed */}
+      <DashboardLiveOrders />
+
       {showPorterMobileWarning && (
         <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-900/40 dark:bg-amber-950/40">
           <div className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200">
@@ -329,33 +333,6 @@ export function AdminV2Dashboard() {
           </div>
         </div>
       )}
-
-      {/* Welcome Header + Monthly Scans */}
-      <div
-        className="rounded-xl border bg-muted/40 p-4 sm:p-6 md:p-8 flex items-center justify-between gap-4 cursor-pointer hover:shadow-md transition-shadow"
-        onClick={() => setActiveView("Analytics")}
-      >
-        <div>
-          <p className="text-sm text-muted-foreground mb-1">
-            {format(new Date(), "EEEE, MMMM d, yyyy")}
-          </p>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            Hey, {partner?.store_name || "there"} 👋
-          </h1>
-        </div>
-        <div className="text-right shrink-0">
-          <p className="text-xs text-muted-foreground mb-1">
-            This Month&apos;s Scans
-          </p>
-          {loading ? (
-            <Loader2 className="h-6 w-6 animate-spin text-orange-500 ml-auto" />
-          ) : (
-            <div className="text-3xl font-bold tracking-tight">
-              {monthlyScans}
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Quick Actions */}
       <div>
