@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Briefcase,
   ShieldAlert,
+  MessageCircle,
 } from "lucide-react";
 import { ButtonV2 } from "@/components/ui/ButtonV2";
 import RestaurantMarquee from "@/components/international/RestaurantMarquee";
@@ -105,6 +106,12 @@ const SOLUTIONS = [
     title: "Direct Ordering & PetPooja",
     shortDesc: "Zero commission alternative to Swiggy & Zomato",
     icon: ShieldAlert,
+  },
+  {
+    slug: "whatsapp-ordering",
+    title: "WhatsApp Ordering",
+    shortDesc: "Customers order by just sending “Hi” — no app, no signup",
+    icon: MessageCircle,
   },
 ];
 

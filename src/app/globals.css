@@ -644,3 +644,13 @@ button[data-state="open"] h1 .left-marker {
     animation: none;
   }
 }
+
+/* WhatsApp ordering demo — chat bubble pop + typing dots */
+@keyframes wapop {
+  0%   { opacity: 0; transform: translateY(6px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes watyping {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30%           { opacity: 1;   transform: translateY(-2px); }
+}

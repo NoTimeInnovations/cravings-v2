@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useLoadScript } from "@react-google-maps/api";
 import { toast } from "sonner";
 import { isDevModeOn } from "@/lib/devMode";
@@ -19,7 +20,9 @@ import {
   Settings,
   LayoutDashboard,
   Utensils,
+  ArrowRight,
 } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 const LIBRARIES: ["places"] = ["places"];
@@ -329,6 +332,29 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
                 <Bullet>Your brand</Bullet>
                 <Bullet>Live in minutes</Bullet>
               </div>
+
+              {/* Highlighted WhatsApp ordering callout → dedicated page */}
+              <Link
+                href="/solutions/whatsapp-ordering"
+                aria-label="Explore WhatsApp ordering"
+                className="group mt-6 inline-flex items-center gap-3 rounded-2xl border border-[#25D366]/30 bg-[#25D366]/[0.07] py-2 pl-2 pr-3.5 transition-all duration-300 hover:border-[#25D366]/50 hover:bg-[#25D366]/[0.12] hover:shadow-[0_12px_28px_-14px_rgba(37,211,102,0.5)] active:scale-[0.99]"
+              >
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#25D366] text-white shadow-[0_6px_14px_-6px_rgba(37,211,102,0.8)]">
+                  <FaWhatsapp className="h-[18px] w-[18px]" />
+                </span>
+                <span className="text-left leading-tight">
+                  <span className="flex items-center gap-1.5 text-[13px] font-bold text-[#0A0A0B]">
+                    WhatsApp Ordering
+                    <span className="rounded-full bg-[#25D366]/15 px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-wide text-[#1d9e4e]">
+                      New
+                    </span>
+                  </span>
+                  <span className="mt-0.5 block text-[12px] text-[#4A4A50]">
+                    Customers order on WhatsApp — no app, no login.
+                  </span>
+                </span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-[#1d9e4e] transition-transform duration-300 group-hover:translate-x-0.5" />
+              </Link>
             </div>
 
             {/* RIGHT — dashboard mockup + floating storefront cart.

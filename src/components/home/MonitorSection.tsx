@@ -14,6 +14,9 @@ const DeliveryBoyAnimation = dynamic(() => import("./DeliveryBoyAnimation"));
 const PaymentIntegrationAnimation = dynamic(
   () => import("./PaymentIntegrationAnimation"),
 );
+const WhatsAppOrderingAnimation = dynamic(
+  () => import("./WhatsAppOrderingAnimation"),
+);
 
 const FEATURES = [
   {
@@ -23,6 +26,14 @@ const FEATURES = [
     href: "/product/delivery-website",
     cta: "See how it works",
     panel: "aggregator",
+  },
+  {
+    title: "Order on WhatsApp — just send “Hi”",
+    description:
+      "Turn your WhatsApp number into your easiest ordering channel. Customers send a simple “Hi” and instantly get an auto-login link to your menu — no app to download, no signup, no OTP. They order in a few taps and get live status updates back on WhatsApp, while you keep the customer and pay zero commission.",
+    href: "/solutions/whatsapp-ordering",
+    cta: "See WhatsApp ordering",
+    panel: "whatsapp",
   },
   {
     title: "Petpooja POS Integration",
@@ -184,11 +195,13 @@ function MonitorSectionCard({
   href: string;
   cta: string;
   align: "left" | "right";
-  customPanel: "realtime" | "offers" | "analytics" | "googlesync" | "smartqr" | "aggregator" | "petpooja" | "deliveryboy" | "payment";
+  customPanel: "realtime" | "offers" | "analytics" | "googlesync" | "smartqr" | "aggregator" | "petpooja" | "deliveryboy" | "payment" | "whatsapp";
 }) {
   const panel =
     customPanel === "aggregator" ? (
       <AggregatorAnimation />
+    ) : customPanel === "whatsapp" ? (
+      <WhatsAppOrderingAnimation />
     ) : customPanel === "petpooja" ? (
       <PetpoojaAnimation />
     ) : customPanel === "payment" ? (

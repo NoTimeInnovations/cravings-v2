@@ -68,6 +68,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // { url: `${BASE_URL}/pricing`, lastModified: staticDate },
     // Solutions - Featured
     { url: `${BASE_URL}/solutions/google-business`, lastModified: staticDate },
+    { url: `${BASE_URL}/solutions/whatsapp-ordering`, lastModified: staticDate },
     // Solutions - Roles
     { url: `${BASE_URL}/solutions/owners`, lastModified: staticDate },
     { url: `${BASE_URL}/solutions/agencies`, lastModified: staticDate },

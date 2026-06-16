@@ -30,6 +30,7 @@ import {
   Wine,
   PartyPopper,
   UserCircle,
+  MessageCircle,
 } from "lucide-react";
 
 import { getFeatures } from "@/lib/getFeatures";
@@ -676,6 +677,29 @@ export function Navbar() {
                     </p>
                   </div>
                 </Link>
+
+                <Link
+                  href="/solutions/whatsapp-ordering"
+                  className="flex items-center gap-3.5 p-3.5 rounded-xl bg-gradient-to-r from-[#25D366]/10 to-[#25D366]/5 border border-[#25D366]/15 hover:border-[#25D366]/35 hover:from-[#25D366]/15 hover:to-[#25D366]/8 transition-all duration-200 group/wa"
+                  onClick={() => setIsSolutionsOpen(false)}
+                >
+                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm ring-1 ring-stone-100">
+                    <MessageCircle className="w-5 h-5 text-[#0f9d58]" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-stone-900 font-semibold text-sm group-hover/wa:text-[#0f9d58] transition-colors">
+                        WhatsApp Ordering
+                      </h3>
+                      <span className="px-1.5 py-0.5 bg-[#25D366] text-white text-[9px] font-bold rounded-md uppercase leading-none tracking-wide">
+                        New
+                      </span>
+                    </div>
+                    <p className="text-stone-500 text-xs mt-0.5">
+                      Customers order by just sending “Hi” — no app, no signup
+                    </p>
+                  </div>
+                </Link>
               </div>
 
               <div className="h-px bg-stone-100 mx-5" />
@@ -1045,6 +1069,26 @@ export function Navbar() {
                         </div>
                         <span className="text-gray-500 text-xs">
                           0% commission, PetPooja POS integration
+                        </span>
+                      </div>
+                    </Link>
+                    <Link
+                      href="/solutions/whatsapp-ordering"
+                      className="flex items-center gap-3 p-3 rounded-lg bg-[#25D366]/10 border border-[#25D366]/15"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <MessageCircle className="w-5 h-5 text-[#0f9d58]" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-gray-900">
+                            WhatsApp Ordering
+                          </span>
+                          <span className="px-1.5 py-0.5 bg-[#25D366] text-white text-[10px] font-bold rounded uppercase leading-none">
+                            New
+                          </span>
+                        </div>
+                        <span className="text-gray-500 text-xs">
+                          Customers order by sending “Hi”
                         </span>
                       </div>
                     </Link>
