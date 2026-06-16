@@ -409,6 +409,11 @@ interface OrderState {
   deliveryCost: number | null;
   open_place_order_modal: boolean;
   setOpenPlaceOrderModal: (open: boolean) => void;
+  // One-shot intent: when a deep link (e.g. WhatsApp reorder) wants checkout
+  // opened on load. OrderDrawer's mount effect force-closes the modal otherwise,
+  // which would clobber a reorder-initiated open; it honors this flag instead.
+  pendingCheckoutOpen: boolean;
+  setPendingCheckoutOpen: (open: boolean) => void;
   lastOrderPlacedAt: number;
   notifyOrderPlaced: () => void;
   orderType: "takeaway" | "delivery" | "dine_in" | null;
@@ -504,6 +509,7 @@ const useOrderStore = create(
       coordinates: null,
       open_drawer_bottom: false,
       open_place_order_modal: false,
+      pendingCheckoutOpen: false,
       orderType: null,
       lastOrderPlacedAt: 0,
       notifyOrderPlaced: () => set({ lastOrderPlacedAt: Date.now() }),
@@ -771,6 +777,10 @@ const useOrderStore = create(
 
       setOpenPlaceOrderModal: (open) => {
         set({ open_place_order_modal: open });
+      },
+
+      setPendingCheckoutOpen: (open) => {
+        set({ pendingCheckoutOpen: open });
       },
 
       setUserCoordinates: (coords) => {
@@ -1955,7 +1965,9 @@ const useOrderStore = create(
       name: "order-storage",
       storage: createJSONStorage(() => getSafeStorage()),
       partialize: (state) => {
-        const { orderType: _orderType, ...rest } = state as any;
+        // pendingCheckoutOpen is a transient one-shot intent — never persist it.
+        const { orderType: _orderType, pendingCheckoutOpen: _pco, ...rest } =
+          state as any;
         return rest;
       },
     }

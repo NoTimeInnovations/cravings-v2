@@ -75,6 +75,7 @@ export default function ReorderHandler({ hotelData }: { hotelData: HotelData }) 
       setUserAddress,
       setUserCoordinates,
       setOpenPlaceOrderModal,
+      setPendingCheckoutOpen,
     } = useOrderStore.getState();
 
     const stripParams = () => {
@@ -142,6 +143,10 @@ export default function ReorderHandler({ hotelData }: { hotelData: HotelData }) 
           } no longer available and ${skipped === 1 ? "was" : "were"} skipped.`,
         );
       }
+      // Set both: the flag opens it directly if OrderDrawer is already mounted,
+      // and the one-shot intent covers the race where OrderDrawer mounts AFTER
+      // us and would otherwise reset the modal closed.
+      setPendingCheckoutOpen(true);
       setOpenPlaceOrderModal(true);
       return true;
     };

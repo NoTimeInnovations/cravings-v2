@@ -322,7 +322,16 @@ const OrderDrawer = ({
   }, [hotelData]);
 
   useEffect(() => {
-    setOpenPlaceOrderModal(false);
+    // Start closed on load — UNLESS a deep link (e.g. WhatsApp reorder) asked to
+    // open checkout straight away. Honor that one-shot intent and consume it, so
+    // this mount reset doesn't clobber a reorder-initiated open.
+    const { pendingCheckoutOpen, setPendingCheckoutOpen } = useOrderStore.getState();
+    if (pendingCheckoutOpen) {
+      setOpenPlaceOrderModal(true);
+      setPendingCheckoutOpen(false);
+    } else {
+      setOpenPlaceOrderModal(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
