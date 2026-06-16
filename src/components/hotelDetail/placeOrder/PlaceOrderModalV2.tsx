@@ -210,7 +210,6 @@ const PlaceOrderModalV2 = ({
     { address?: string; coords: { lat: number; lng: number } } | null
   >(null);
   const [addressFormData, setAddressFormData] = useState({
-    useAccountDetails: false,
     receiverName: "",
     receiverPhone: "",
     locationType: "Other" as "House" | "Office" | "Other",
@@ -883,22 +882,24 @@ const PlaceOrderModalV2 = ({
   }, [user]);
 
   const handleAddressModalSaved = useCallback((addr: SavedAddress) => {
-    // Address coming from map picker — show the details form
+    // Address coming from map picker — show the details form.
+    // Receiver name/phone always prefill from the signed-in account (editable).
+    // In Qatar, Building/Floor + Street prefill from the QARS blue-plate parts.
+    const isQatar = addr.country === "QA";
     setPendingAddress(addr);
     setAddressFormData({
-      useAccountDetails: false,
-      receiverName: "",
-      receiverPhone: "",
+      receiverName: (user as any)?.full_name || "",
+      receiverPhone: (user as any)?.phone || "",
       locationType: "Other",
-      buildingFloor: "",
-      street: "",
+      buildingFloor: isQatar ? (addr.house_no || "") : "",
+      street: isQatar ? (addr.street || "") : "",
       saveAs: "",
       deliveryInstructions: "",
     });
     setShowAddressModal(false);
     setShowAddressSheet(false);
     setShowAddressForm(true);
-  }, []);
+  }, [user]);
 
   const handleSaveAddressForm = useCallback(async () => {
     if (!pendingAddress) return;
@@ -2523,23 +2524,6 @@ const PlaceOrderModalV2 = ({
           {/* Receiver Details */}
           <div>
             <h4 className="text-base font-bold text-gray-900 mb-3">Receiver Details</h4>
-            <label className="flex items-center gap-2 mb-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={addressFormData.useAccountDetails}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setAddressFormData((prev) => ({
-                    ...prev,
-                    useAccountDetails: checked,
-                    receiverName: checked ? ((user as any)?.full_name || "") : "",
-                    receiverPhone: checked ? ((user as any)?.phone || "") : "",
-                  }));
-                }}
-                className="h-4 w-4 rounded border-gray-300"
-              />
-              <span className="text-sm text-gray-700">Use my account details</span>
-            </label>
             <div className="space-y-3">
               <input
                 type="text"

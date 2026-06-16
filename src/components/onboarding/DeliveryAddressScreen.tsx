@@ -76,7 +76,6 @@ export default function DeliveryAddressScreen({
   const [showDetailForm, setShowDetailForm] = useState(false);
   const [pendingAddress, setPendingAddress] = useState<SavedAddress | null>(null);
   const [addressFormData, setAddressFormData] = useState({
-    useAccountDetails: false,
     receiverName: "",
     receiverPhone: "",
     locationType: "Other" as "House" | "Office" | "Other",
@@ -471,23 +470,6 @@ export default function DeliveryAddressScreen({
             {/* Receiver Details */}
             <div>
               <h4 className="text-base font-bold text-gray-900 mb-3">Receiver Details</h4>
-              <label className="flex items-center gap-2 mb-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={addressFormData.useAccountDetails}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setAddressFormData((prev) => ({
-                      ...prev,
-                      useAccountDetails: checked,
-                      receiverName: checked ? ((authUser as any)?.full_name || "") : "",
-                      receiverPhone: checked ? ((authUser as any)?.phone || "") : "",
-                    }));
-                  }}
-                  className="h-4 w-4 rounded border-gray-300"
-                />
-                <span className="text-sm text-gray-700">Use my account details</span>
-              </label>
               <div className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -665,13 +647,15 @@ export default function DeliveryAddressScreen({
           setAddressPickerOpen(false);
           setPickerInitial(null);
           setPendingAddress(saved);
+          // Receiver name/phone always prefill from the account (editable).
+          // In Qatar, Building/Floor + Street prefill from the QARS blue-plate parts.
+          const isQatar = saved.country === "QA";
           setAddressFormData({
-            useAccountDetails: false,
-            receiverName: "",
-            receiverPhone: "",
+            receiverName: (authUser as any)?.full_name || "",
+            receiverPhone: (authUser as any)?.phone || "",
             locationType: "Other",
-            buildingFloor: "",
-            street: "",
+            buildingFloor: isQatar ? (saved.house_no || "") : "",
+            street: isQatar ? (saved.street || "") : "",
             saveAs: "",
             deliveryInstructions: "",
           });

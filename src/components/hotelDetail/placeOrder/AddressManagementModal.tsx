@@ -31,6 +31,8 @@ export type SavedAddress = {
   city?: string;
   district?: string;
   pincode?: string;
+  /** ISO country code from the picker (e.g. "QA" for Qatar). Drives Qatar-only autofill. */
+  country?: string;
   address?: string;
   latitude?: number;
   longitude?: number;
