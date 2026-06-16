@@ -826,7 +826,8 @@ query UserPartnerOrdersPage($user_id: uuid!, $partner_id: uuid!, $limit: Int!, $
 
 // Most recent order a customer placed at a given partner, with everything the
 // WhatsApp "Reorder" flow needs to rebuild the cart + checkout: line items
-// (menu_id + snapshot + variant), order type, delivery address and location.
+// (menu_id + item snapshot, variant encoded in item.id), order type, delivery
+// address and location.
 export const userPartnerLastOrderQuery = `
 query UserPartnerLastOrder($user_id: uuid!, $partner_id: uuid!) {
   orders(
@@ -847,7 +848,6 @@ query UserPartnerLastOrder($user_id: uuid!, $partner_id: uuid!) {
       menu_id
       quantity
       item
-      variant
     }
   }
 }

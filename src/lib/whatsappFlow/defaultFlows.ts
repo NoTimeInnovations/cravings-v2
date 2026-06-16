@@ -17,6 +17,18 @@ export interface DefaultFlowDef {
 // Welcome: "hi" -> a caption + a tappable "Order Now" link button carrying a
 // fresh order link that also silently logs the customer in (instead of a raw
 // link in the text).
+// Welcome is a SINGLE quick-reply message. WhatsApp doesn't allow a URL button
+// and quick-reply buttons in the same message, so both actions are quick
+// replies: "Order Now" always, and "Reorder" only for returning customers.
+// A condition on {{reorder_link}} (empty = first-timer) picks which button set
+// to send. Tapping a button sends its label as text, which the matching
+// exact-trigger flow (Order link / Reorder) picks up and answers with the
+// actual auto-login link.
+const WELCOME_TEXT =
+  "Hi 👋 Welcome to *{{store_name}}*!\n\n🛒 Tap *Order Now* to place your order.";
+const WELCOME_TEXT_RETURNING =
+  "Hi 👋 Welcome back to *{{store_name}}*!\n\n🛒 Tap *Order Now* for the full menu, or *Reorder* to repeat your last order.";
+
 function welcomeFlow(): DefaultFlowDef {
   return {
     name: "Welcome",
@@ -24,51 +36,70 @@ function welcomeFlow(): DefaultFlowDef {
       nodes: [
         { id: "trigger", type: "trigger", position: { x: 140, y: 220 }, data: { matchType: "exact", keywords: ["hi"] } },
         {
-          id: "msg",
-          type: "link_button",
-          position: { x: 440, y: 160 },
-          data: {
-            text:
-              "Hi 👋 Welcome to *{{store_name}}*!\n\n" +
-              "🛒 Tap *Order Now* below to place your order.\n" +
-              "_The link is valid for 10 minutes._ ⏱️\n" +
-              "Send *hi* again anytime for a fresh link.",
-            // NOTE keep this duration in sync with AUTH_TTL_MIN in orderLink.ts
-            buttonText: "Order Now",
-            url: "{{order_link}}",
-          },
-        },
-        // Reorder is offered as a quick-reply button — but only to returning
-        // customers. {{reorder_link}} is empty for first-time customers, so the
-        // condition routes them past it (they just see "Order Now"). Tapping
-        // "Reorder" sends the text "Reorder", which the separate Reorder flow
-        // picks up (an exact trigger wins over this parked welcome run).
-        {
-          id: "reorder_cond",
+          id: "cond",
           type: "condition",
-          position: { x: 740, y: 160 },
+          position: { x: 440, y: 220 },
           data: {
             rules: [{ var: "reorder_link", op: "isEmpty", handle: "empty" }],
             defaultHandle: "has",
           },
         },
+        // First-time customer: just "Order Now".
         {
-          id: "reorder",
+          id: "welcome_new",
           type: "buttons",
-          position: { x: 1040, y: 160 },
+          position: { x: 760, y: 320 },
+          data: { text: WELCOME_TEXT, items: [{ id: "order_now", label: "Order Now" }] },
+        },
+        // Returning customer: "Order Now" + "Reorder".
+        {
+          id: "welcome_returning",
+          type: "buttons",
+          position: { x: 760, y: 120 },
           data: {
-            text: "🔁 Want the same as last time? Tap *Reorder* to reload your last order.",
-            items: [{ id: "reorder", label: "Reorder" }],
+            text: WELCOME_TEXT_RETURNING,
+            items: [
+              { id: "order_now", label: "Order Now" },
+              { id: "reorder", label: "Reorder" },
+            ],
           },
         },
       ],
       edges: [
-        { id: "e", source: "trigger", target: "msg", sourceHandle: null, targetHandle: null },
-        { id: "e2", source: "msg", target: "reorder_cond", sourceHandle: null, targetHandle: null },
-        { id: "e3", source: "reorder_cond", target: "reorder", sourceHandle: "has", targetHandle: null },
+        { id: "e", source: "trigger", target: "cond", sourceHandle: null, targetHandle: null },
+        { id: "e_empty", source: "cond", target: "welcome_new", sourceHandle: "empty", targetHandle: null },
+        { id: "e_has", source: "cond", target: "welcome_returning", sourceHandle: "has", targetHandle: null },
       ],
     },
     triggers: [{ matchType: "exact", keywords: ["hi"], nodeId: "trigger", priority: TRIGGER_PRIORITY.exact }],
+  };
+}
+
+// Order link: triggered when the customer taps the "Order Now" quick-reply
+// (which sends the text "Order Now") or types it. Replies with the auto-login
+// order link that opens the menu already signed in.
+function orderNowFlow(): DefaultFlowDef {
+  return {
+    name: "Order link",
+    graph: {
+      nodes: [
+        { id: "trigger", type: "trigger", position: { x: 140, y: 220 }, data: { matchType: "exact", keywords: ["order now"] } },
+        {
+          id: "link",
+          type: "link_button",
+          position: { x: 440, y: 160 },
+          data: {
+            text:
+              "🛒 Tap *Order Now* below to open the menu — you'll be signed in automatically.\n" +
+              "_The link is valid for 10 minutes._ ⏱️",
+            buttonText: "Order Now",
+            url: "{{order_link}}",
+          },
+        },
+      ],
+      edges: [{ id: "e", source: "trigger", target: "link", sourceHandle: null, targetHandle: null }],
+    },
+    triggers: [{ matchType: "exact", keywords: ["order now"], nodeId: "trigger", priority: TRIGGER_PRIORITY.exact }],
   };
 }
 
@@ -176,8 +207,11 @@ function loyaltyFlow(name: string, event: string, text: string): DefaultFlowDef 
 
 export function buildDefaultFlows(): DefaultFlowDef[] {
   return [
-    // ── Welcome: "hi" -> caption + Order Now link button (auto-login link) ──
+    // ── Welcome: "hi" -> single quick-reply message (Order Now [+ Reorder]) ──
     welcomeFlow(),
+
+    // ── Order link: "order now" -> auto-login menu link ──
+    orderNowFlow(),
 
     // ── Reorder: "reorder" -> one-tap link to reload the last order ──
     reorderFlow(),

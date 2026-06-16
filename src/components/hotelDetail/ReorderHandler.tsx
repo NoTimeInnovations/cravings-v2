@@ -10,16 +10,44 @@ import { userPartnerLastOrderQuery } from "@/api/orders";
 import type { HotelData } from "@/app/hotels/[...id]/page";
 
 /**
- * Consumes the WhatsApp "Reorder" deep link (`?reorder=1`). When a customer who
- * arrived via their welcome-flow Reorder button is logged in (the `?olt=` token
- * has auto-logged them in) and the menu is loaded, this:
- *   1. fetches their most recent order at this partner,
- *   2. rebuilds the cart against the CURRENT menu (skipping removed/unavailable
- *      items and variants that no longer exist — using current prices),
- *   3. restores the order type + delivery address,
- *   4. opens the checkout modal so they can just tap "Place order".
- * Renders nothing. Runs once per mount.
+ * Consumes the WhatsApp "Reorder" deep link. The link carries the customer's
+ * last order encoded in `?ro=` (base64url JSON), so we can rebuild the cart +
+ * address synchronously against the CURRENT menu — no query, no auth-timing
+ * race. (`?reorder=1` without `ro` is the legacy path: we query the last order.)
+ *
+ * Onboarding is skipped because the link also sets `?back=true`. Once we've
+ * applied the order we open the checkout modal and strip the params.
+ * Renders nothing; runs once per mount.
  */
+
+interface ReorderLine {
+  menuId: string;
+  qty: number;
+  variantName: string | null;
+}
+
+function decodeRo(s: string): {
+  items: ReorderLine[];
+  type: string | null;
+  addr: string | null;
+  coords: number[] | null;
+} | null {
+  try {
+    const b64 = s.replace(/-/g, "+").replace(/_/g, "/");
+    const bin = atob(b64);
+    const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    const payload = JSON.parse(new TextDecoder().decode(bytes));
+    const items: ReorderLine[] = (payload.i || []).map((x: any[]) => ({
+      menuId: x[0],
+      qty: Number(x[1]) || 1,
+      variantName: x[2] || null,
+    }));
+    return { items, type: payload.t || null, addr: payload.a || null, coords: payload.c || null };
+  } catch {
+    return null;
+  }
+}
+
 export default function ReorderHandler({ hotelData }: { hotelData: HotelData }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -29,12 +57,14 @@ export default function ReorderHandler({ hotelData }: { hotelData: HotelData }) 
 
   const partnerId = hotelData?.id;
   const userId = (userData as any)?.id as string | undefined;
-  const isCustomer = (userData as any)?.role === "user";
+  const ro = searchParams?.get("ro") || null;
 
   useEffect(() => {
     if (ranRef.current) return;
-    if (!partnerId || !userId || !isCustomer) return; // wait for auto-login to settle
-    if (!hotelData?.menus?.length) return;
+    if (!partnerId || !hotelData?.menus?.length) return;
+    // The encoded path runs immediately; the legacy query path waits for the
+    // olt auto-login to populate the customer before it can look up their order.
+    if (!ro && !userId) return;
     ranRef.current = true;
 
     const {
@@ -47,108 +77,129 @@ export default function ReorderHandler({ hotelData }: { hotelData: HotelData }) 
       setOpenPlaceOrderModal,
     } = useOrderStore.getState();
 
-    const stripReorderParam = () => {
+    const stripParams = () => {
       const sp = new URLSearchParams(Array.from(searchParams?.entries() || []));
-      sp.delete("reorder");
+      ["ro", "reorder", "back"].forEach((k) => sp.delete(k));
       const qs = sp.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname || "/");
     };
 
-    (async () => {
-      try {
-        const res = await fetchFromHasura(userPartnerLastOrderQuery, {
-          user_id: userId,
-          partner_id: partnerId,
-        });
-        const order = res?.orders?.[0];
-        if (!order) {
-          stripReorderParam();
-          return;
+    // Rebuild the cart from the resolved order lines against the current menu.
+    const apply = (
+      lines: ReorderLine[],
+      type: string | null,
+      addr: string | null,
+      coords: number[] | null,
+    ): boolean => {
+      const byId = new Map<string, any>((hotelData.menus || []).map((m: any) => [m.id, m]));
+      setHotelId(partnerId);
+      clearOrder();
+      let added = 0;
+      let skipped = 0;
+      for (const line of lines) {
+        const menu = line.menuId ? byId.get(line.menuId) : null;
+        if (!menu || menu.is_active === false) {
+          skipped++;
+          continue;
         }
-
-        const menus = hotelData.menus || [];
-        const byId = new Map<string, any>(menus.map((m: any) => [m.id, m]));
-
-        setHotelId(partnerId);
-        clearOrder(); // start clean so reorder reflects exactly the last order
-
-        let added = 0;
-        let skipped = 0;
-        for (const line of order.order_items || []) {
-          const menuId =
-            line.menu_id || String(line?.item?.id || "").split("|")[0];
-          const menu = menuId ? byId.get(menuId) : null;
-          // Removed item, or hidden/disabled — skip.
-          if (!menu || menu.is_active === false) {
+        const qty = Math.max(1, line.qty);
+        if (line.variantName) {
+          const cur = (menu.variants || []).find((v: any) => v.name === line.variantName);
+          if (!cur) {
             skipped++;
             continue;
           }
-          const qty = Math.max(1, Number(line.quantity) || 1);
-          const variant = line.variant as { id?: string; name?: string } | null;
+          const cartItem = {
+            ...menu,
+            id: `${line.menuId}|${cur.name}`,
+            name: `${menu.name} (${cur.name})`,
+            price: cur.price,
+            variantSelections: [{ id: cur.id, name: cur.name, price: cur.price, quantity: 1 }],
+          };
+          for (let k = 0; k < qty; k++) addItem(cartItem as any);
+        } else {
+          const cartItem = { ...menu, variantSelections: [] };
+          for (let k = 0; k < qty; k++) addItem(cartItem as any);
+        }
+        added++;
+      }
 
-          if (variant?.name) {
-            const cur = (menu.variants || []).find(
-              (v: any) => v.name === variant.name || v.id === variant.id,
-            );
-            if (!cur) {
-              skipped++; // variant no longer offered
-              continue;
-            }
-            const cartItem = {
-              ...menu,
-              id: `${menuId}|${cur.name}`,
-              name: `${menu.name} (${cur.name})`,
-              price: cur.price,
-              variantSelections: [
-                { id: cur.id, name: cur.name, price: cur.price, quantity: 1 },
-              ],
-            };
-            for (let k = 0; k < qty; k++) addItem(cartItem as any);
-          } else {
-            const cartItem = { ...menu, variantSelections: [] };
-            for (let k = 0; k < qty; k++) addItem(cartItem as any);
+      if (added === 0) return false;
+
+      if (type === "takeaway" || type === "delivery" || type === "dine_in") {
+        setOrderType(type);
+      }
+      if (type === "delivery" && addr) {
+        setUserAddress(addr);
+        if (Array.isArray(coords) && coords.length === 2) {
+          setUserCoordinates({ lat: Number(coords[1]), lng: Number(coords[0]) });
+        }
+      }
+      if (skipped > 0) {
+        toast.info(
+          `${skipped} item${skipped === 1 ? "" : "s"} from your last order ${
+            skipped === 1 ? "is" : "are"
+          } no longer available and ${skipped === 1 ? "was" : "were"} skipped.`,
+        );
+      }
+      setOpenPlaceOrderModal(true);
+      return true;
+    };
+
+    (async () => {
+      try {
+        // Primary path: order encoded in the URL — synchronous, no query.
+        if (ro) {
+          const decoded = decodeRo(ro);
+          if (decoded && decoded.items.length) {
+            const ok = apply(decoded.items, decoded.type, decoded.addr, decoded.coords);
+            if (!ok)
+              toast.error("Couldn't reorder — those items aren't available anymore.");
+            stripParams();
+            return;
           }
-          added++;
         }
 
-        if (added === 0) {
-          toast.error(
-            "Couldn't reorder — those items aren't available anymore. Please pick from the menu.",
-          );
-          stripReorderParam();
+        // Legacy / fallback path: query the last order (links minted before the
+        // encoded payload existed). Needs the olt auto-login to have signed the
+        // customer in so we have their user id.
+        if (!userId) {
+          stripParams();
           return;
         }
-
-        // Restore order type + delivery address.
-        const type = order.type as string | null;
-        if (type === "takeaway" || type === "delivery" || type === "dine_in") {
-          setOrderType(type);
+        const res = await fetchFromHasura(userPartnerLastOrderQuery, {
+          user_id: userId,
+          partner_id: partnerId,
+        }).catch(() => null);
+        const order = res?.orders?.[0];
+        if (!order) {
+          stripParams();
+          return;
         }
-        if (type === "delivery" && order.delivery_address) {
-          setUserAddress(order.delivery_address);
-          const coords = order.delivery_location?.coordinates;
-          if (Array.isArray(coords) && coords.length === 2) {
-            setUserCoordinates({ lat: Number(coords[1]), lng: Number(coords[0]) });
-          }
-        }
-
-        if (skipped > 0) {
-          toast.info(
-            `${skipped} item${skipped === 1 ? "" : "s"} from your last order ${
-              skipped === 1 ? "is" : "are"
-            } no longer available and ${skipped === 1 ? "was" : "were"} skipped.`,
-          );
-        }
-
-        setOpenPlaceOrderModal(true);
-        stripReorderParam();
+        const lines: ReorderLine[] = (order.order_items || []).map((l: any) => {
+          const composite = String(l?.item?.id || "");
+          const pipe = composite.indexOf("|");
+          return {
+            menuId: l.menu_id || composite.split("|")[0],
+            qty: Number(l.quantity) || 1,
+            variantName: pipe >= 0 ? composite.slice(pipe + 1) || null : null,
+          };
+        });
+        const ok = apply(
+          lines,
+          order.type || null,
+          order.delivery_address || null,
+          order.delivery_location?.coordinates || null,
+        );
+        if (!ok) toast.error("Couldn't reorder — those items aren't available anymore.");
+        stripParams();
       } catch (e) {
         console.error("Reorder failed:", e);
-        ranRef.current = false; // allow a retry if userData/menu update re-triggers
+        ranRef.current = false; // allow a retry if inputs change
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [partnerId, userId, isCustomer, hotelData?.menus?.length]);
+  }, [partnerId, hotelData?.menus?.length, ro, userId]);
 
   return null;
 }

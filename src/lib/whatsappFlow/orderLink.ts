@@ -92,16 +92,19 @@ export function buildOrderLink(
     userId?: string | null;
     ttlMinutes?: number;
     customDomain?: string | null;
-    // When true, append &reorder=1 so the storefront pre-fills the cart from the
-    // customer's last order and jumps straight to checkout (auto-login token is
-    // unchanged — reorder rides the same single-use ?olt= claim).
-    reorder?: boolean;
+    // A base64url-encoded snapshot of the customer's last order. When present we
+    // append &back=true (skip onboarding) + &ro=<payload> so the storefront
+    // pre-fills the cart + address and opens checkout straight away — no client
+    // query needed. Rides the same single-use ?olt= auto-login claim.
+    reorderPayload?: string | null;
   },
 ): string {
   const userId = opts?.userId ?? null;
   const ttl = opts?.ttlMinutes ?? (userId ? AUTH_TTL_MIN : DEFAULT_TTL_MIN);
   const token = signOrderLinkToken(partnerId, ttl, userId);
-  const reorderQ = opts?.reorder ? "&reorder=1" : "";
+  const reorderQ = opts?.reorderPayload
+    ? `&back=true&ro=${opts.reorderPayload}`
+    : "";
   const customDomain = opts?.customDomain?.trim();
   if (customDomain) {
     return `https://${customDomain}/?olt=${token}${reorderQ}`;

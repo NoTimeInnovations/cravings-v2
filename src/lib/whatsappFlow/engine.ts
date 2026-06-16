@@ -78,10 +78,11 @@ const Q_PARTNER_INFO = `
     partners_by_pk(id: $id) { store_name username currency country_code custom_domain }
   }
 `;
-// Does this customer have a previous order at this partner? Used to decide
-// whether the welcome flow offers a "Reorder" link. Excludes cancelled/expired.
-const Q_HAS_PREVIOUS_ORDER = `
-  query HasPreviousOrder($user_id: uuid!, $partner_id: uuid!) {
+// The customer's most recent order at this partner. Drives whether the welcome
+// flow offers "Reorder" (non-empty link) AND the reorder payload encoded into
+// the link, so the storefront can pre-fill the cart + address with no query.
+const Q_LAST_ORDER = `
+  query LastOrder($user_id: uuid!, $partner_id: uuid!) {
     orders(
       where: {
         user_id: { _eq: $user_id }
@@ -91,10 +92,45 @@ const Q_HAS_PREVIOUS_ORDER = `
       order_by: { created_at: desc }
       limit: 1
     ) {
-      id
+      type
+      delivery_address
+      delivery_location
+      order_items { menu_id quantity item }
     }
   }
 `;
+
+// Variant name is encoded in the line item's composite id ("<menuId>|<Variant>"),
+// since order_items has no separate variant column.
+function variantNameFromItem(it: any): string | null {
+  const composite = String(it?.item?.id || "");
+  const idx = composite.indexOf("|");
+  return idx >= 0 ? composite.slice(idx + 1) || null : null;
+}
+
+// Compact, base64url-encoded snapshot of an order for the reorder link.
+// Shape: { i: [[menu_id, qty, variantName|null], ...], t: type, a: address, c: [lng,lat] }
+function encodeReorderPayload(order: any): string | null {
+  try {
+    const items = (order?.order_items || [])
+      .map((it: any) => [
+        it.menu_id || String(it?.item?.id || "").split("|")[0],
+        it.quantity,
+        variantNameFromItem(it),
+      ])
+      .filter((x: any[]) => x[0]);
+    if (!items.length) return null;
+    const payload = {
+      i: items,
+      t: order.type || null,
+      a: order.delivery_address || null,
+      c: order.delivery_location?.coordinates || null,
+    };
+    return Buffer.from(JSON.stringify(payload)).toString("base64url");
+  } catch {
+    return null;
+  }
+}
 const M_EVENT = `
   mutation Event($o: whatsapp_flow_events_insert_input!) {
     insert_whatsapp_flow_events_one(object: $o) { id }
@@ -554,19 +590,21 @@ async function buildMessageRunVars(
       userId = await findOrCreateUserByPhone(localPhone, contactName);
     }
 
-    // Offer a "Reorder" link only when this customer has ordered here before.
-    // The welcome flow's reorder node is marked skipIfUrlEmpty, so an empty
-    // reorder_link makes it disappear for first-time customers.
-    let hasPreviousOrder = false;
+    // Offer a "Reorder" link only when this customer has a previous order here.
+    // We encode that order into the link so the storefront pre-fills the cart +
+    // address without a query. reorder_link is empty for first-time customers,
+    // so the welcome condition hides the Reorder button for them.
+    let reorderPayload: string | null = null;
     if (userId) {
       try {
-        const orderRes = await fetchFromHasura(Q_HAS_PREVIOUS_ORDER, {
+        const orderRes = await fetchFromHasura(Q_LAST_ORDER, {
           user_id: userId,
           partner_id: partnerId,
         });
-        hasPreviousOrder = (orderRes?.orders?.length || 0) > 0;
+        const lastOrder = orderRes?.orders?.[0];
+        if (lastOrder) reorderPayload = encodeReorderPayload(lastOrder);
       } catch {
-        hasPreviousOrder = false;
+        reorderPayload = null;
       }
     }
 
@@ -578,11 +616,11 @@ async function buildMessageRunVars(
         ? buildOrderLink(p.username, partnerId, { userId, customDomain: p.custom_domain })
         : "",
       reorder_link:
-        p.username && userId && hasPreviousOrder
+        p.username && userId && reorderPayload
           ? buildOrderLink(p.username, partnerId, {
               userId,
               customDomain: p.custom_domain,
-              reorder: true,
+              reorderPayload,
             })
           : "",
     };

@@ -161,8 +161,17 @@ const HotelMenuPage = ({
   // pre-mark onboarding dismissed so the menu renders on first paint without
   // waiting for the client-side dismiss effect.
   const isBackNavInitial = searchParams?.get("back") === "true";
+  // A reorder deep link (?ro=<order> or legacy ?reorder=1, both with ?back=true)
+  // goes straight to a pre-filled checkout — never show the onboarding splash
+  // (it would cover the checkout modal and block the menu from mounting, since
+  // renderPage only mounts once onboarding is dismissed). Latched once, because
+  // ReorderHandler strips the params after it runs and onboarding must not
+  // re-appear when it does.
+  const [isReorderMode] = useState(
+    () => searchParams?.get("ro") != null || searchParams?.get("reorder") === "1",
+  );
   const [onboardingDismissed, setOnboardingDismissed] = useState(
-    !showOnboarding || isBackNavInitial,
+    !showOnboarding || isBackNavInitial || isReorderMode,
   );
   const [onboardingKey, setOnboardingKey] = useState(0);
   // When the menu-page back button reopens onboarding, start at the storefront
@@ -532,9 +541,7 @@ const HotelMenuPage = ({
 
   return (
     <>
-      {searchParams?.get("reorder") === "1" && (
-        <ReorderHandler hotelData={hoteldata} />
-      )}
+      {isReorderMode && <ReorderHandler hotelData={hoteldata} />}
       {!onboardingDismissed ? null : (
         <>
           {features?.delivery.enabled &&
@@ -568,7 +575,7 @@ const HotelMenuPage = ({
           )}
         </>
       )}
-      {showOnboarding && (
+      {showOnboarding && !isReorderMode && (
         <OnboardingFlow
           key={onboardingKey}
           featureFlags={hoteldata?.feature_flags || ""}
