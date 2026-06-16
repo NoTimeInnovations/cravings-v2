@@ -27,6 +27,7 @@ import { QrCode, useQrDataStore } from "@/store/qrDataStore";
 import DeliveryTimeCampain from "@/components/hotelDetail/DeliveryTimeCampain";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 import NoticesOverlay from "@/components/NoticesOverlay";
+import ReorderHandler from "@/components/hotelDetail/ReorderHandler";
 import type { BranchContext } from "@/api/branches";
 import type { BrandLinkInfo } from "@/app/[username]/page";
 
@@ -531,6 +532,9 @@ const HotelMenuPage = ({
 
   return (
     <>
+      {searchParams?.get("reorder") === "1" && (
+        <ReorderHandler hotelData={hoteldata} />
+      )}
       {!onboardingDismissed ? null : (
         <>
           {features?.delivery.enabled &&

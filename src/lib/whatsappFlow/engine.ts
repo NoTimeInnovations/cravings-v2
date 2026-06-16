@@ -78,6 +78,23 @@ const Q_PARTNER_INFO = `
     partners_by_pk(id: $id) { store_name username currency country_code custom_domain }
   }
 `;
+// Does this customer have a previous order at this partner? Used to decide
+// whether the welcome flow offers a "Reorder" link. Excludes cancelled/expired.
+const Q_HAS_PREVIOUS_ORDER = `
+  query HasPreviousOrder($user_id: uuid!, $partner_id: uuid!) {
+    orders(
+      where: {
+        user_id: { _eq: $user_id }
+        partner_id: { _eq: $partner_id }
+        status: { _nin: ["cancelled", "expired"] }
+      }
+      order_by: { created_at: desc }
+      limit: 1
+    ) {
+      id
+    }
+  }
+`;
 const M_EVENT = `
   mutation Event($o: whatsapp_flow_events_insert_input!) {
     insert_whatsapp_flow_events_one(object: $o) { id }
@@ -273,15 +290,24 @@ function executeForward(
       case "jump":
         nodeId = data.targetNodeId || null;
         break;
-      case "link_button":
-        outbound.push({
-          kind: "cta",
-          text: interpolate(data.text || "", state.variables),
-          buttonText: data.buttonText || "Open",
-          url: interpolate(data.url || "", state.variables),
-        });
+      case "link_button": {
+        const ctaUrl = interpolate(data.url || "", state.variables);
+        // Opt-in: a node flagged skipIfUrlEmpty with a blank/non-http URL is
+        // dropped entirely (e.g. the welcome "Reorder" link for a customer with
+        // no past order) instead of degrading to a plain-text bubble.
+        const skip =
+          data.skipIfUrlEmpty && !/^https?:\/\//i.test(ctaUrl.trim());
+        if (!skip) {
+          outbound.push({
+            kind: "cta",
+            text: interpolate(data.text || "", state.variables),
+            buttonText: data.buttonText || "Open",
+            url: ctaUrl,
+          });
+        }
         nodeId = firstEdgeTarget(graph, node.id);
         break;
+      }
       case "buttons":
         outbound.push({
           kind: "buttons",
@@ -528,6 +554,22 @@ async function buildMessageRunVars(
       userId = await findOrCreateUserByPhone(localPhone, contactName);
     }
 
+    // Offer a "Reorder" link only when this customer has ordered here before.
+    // The welcome flow's reorder node is marked skipIfUrlEmpty, so an empty
+    // reorder_link makes it disappear for first-time customers.
+    let hasPreviousOrder = false;
+    if (userId) {
+      try {
+        const orderRes = await fetchFromHasura(Q_HAS_PREVIOUS_ORDER, {
+          user_id: userId,
+          partner_id: partnerId,
+        });
+        hasPreviousOrder = (orderRes?.orders?.length || 0) > 0;
+      } catch {
+        hasPreviousOrder = false;
+      }
+    }
+
     return {
       store_name: p.store_name || "",
       username: p.username || "",
@@ -535,6 +577,14 @@ async function buildMessageRunVars(
       order_link: p.username
         ? buildOrderLink(p.username, partnerId, { userId, customDomain: p.custom_domain })
         : "",
+      reorder_link:
+        p.username && userId && hasPreviousOrder
+          ? buildOrderLink(p.username, partnerId, {
+              userId,
+              customDomain: p.custom_domain,
+              reorder: true,
+            })
+          : "",
     };
   } catch (e) {
     console.error("buildMessageRunVars failed:", e);

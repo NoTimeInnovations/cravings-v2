@@ -824,6 +824,35 @@ query UserPartnerOrdersPage($user_id: uuid!, $partner_id: uuid!, $limit: Int!, $
 }
 `;
 
+// Most recent order a customer placed at a given partner, with everything the
+// WhatsApp "Reorder" flow needs to rebuild the cart + checkout: line items
+// (menu_id + snapshot + variant), order type, delivery address and location.
+export const userPartnerLastOrderQuery = `
+query UserPartnerLastOrder($user_id: uuid!, $partner_id: uuid!) {
+  orders(
+    where: {
+      user_id: { _eq: $user_id }
+      partner_id: { _eq: $partner_id }
+      status: { _nin: ["expired", "cancelled"] }
+    }
+    order_by: { created_at: desc }
+    limit: 1
+  ) {
+    id
+    created_at
+    type
+    delivery_address
+    delivery_location
+    order_items {
+      menu_id
+      quantity
+      item
+      variant
+    }
+  }
+}
+`;
+
 // Add a new query to fetch captains
 export const getCaptainsQuery = `
   query GetCaptains($captain_ids: [uuid!]!) {

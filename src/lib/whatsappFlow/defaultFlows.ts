@@ -38,8 +38,28 @@ function welcomeFlow(): DefaultFlowDef {
             url: "{{order_link}}",
           },
         },
+        // Reorder: only shown to returning customers. {{reorder_link}} is empty
+        // for first-time customers, and skipIfUrlEmpty drops this whole message
+        // so they just see "Order Now". Tapping it pre-fills their last order
+        // (items + address + type) and opens checkout.
+        {
+          id: "reorder",
+          type: "link_button",
+          position: { x: 740, y: 160 },
+          data: {
+            text:
+              "🔁 Want the same as last time?\n" +
+              "Tap *Reorder* to load your last order and check out in one tap.",
+            buttonText: "Reorder",
+            url: "{{reorder_link}}",
+            skipIfUrlEmpty: true,
+          },
+        },
       ],
-      edges: [{ id: "e", source: "trigger", target: "msg", sourceHandle: null, targetHandle: null }],
+      edges: [
+        { id: "e", source: "trigger", target: "msg", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "msg", target: "reorder", sourceHandle: null, targetHandle: null },
+      ],
     },
     triggers: [{ matchType: "exact", keywords: ["hi"], nodeId: "trigger", priority: TRIGGER_PRIORITY.exact }],
   };
