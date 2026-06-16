@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Inbox, MessageSquare, Workflow, ChevronLeft } from "lucide-react";
+import { Inbox, MessageSquare, Workflow, Megaphone, ChevronLeft } from "lucide-react";
 import { AdminV2WhatsAppInbox } from "@/components/admin-v2/AdminV2WhatsAppInbox";
 import { AdminV2WhatsAppTemplates } from "@/components/admin-v2/AdminV2WhatsAppTemplates";
 import { AdminV2WhatsAppFlows } from "@/components/admin-v2/AdminV2WhatsAppFlows";
+import { AdminV2WhatsAppBroadcast } from "@/components/admin-v2/AdminV2WhatsAppBroadcast";
 
-type Screen = "Inbox" | "Templates" | "Flows";
+type Screen = "Inbox" | "Templates" | "Flows" | "Broadcast";
 
 const SCREENS: {
   id: Screen;
@@ -19,6 +20,7 @@ const SCREENS: {
   { id: "Inbox", title: "Inbox", desc: "View and reply to customer conversations.", icon: Inbox, accent: "text-green-600" },
   { id: "Templates", title: "Templates", desc: "Create and manage message templates.", icon: MessageSquare, accent: "text-blue-600" },
   { id: "Flows", title: "Flows", desc: "Build automated conversation flows.", icon: Workflow, accent: "text-purple-600" },
+  { id: "Broadcast", title: "Broadcast", desc: "Send a template to many customers at once.", icon: Megaphone, accent: "text-orange-600" },
 ];
 
 // The merged WhatsApp view: a hub of buttons that open Inbox / Templates / Flows.
@@ -88,6 +90,11 @@ export function AdminV2WhatsApp() {
       {mounted.includes("Flows") && (
         <div className={screen === "Flows" ? "block" : "hidden"}>
           <AdminV2WhatsAppFlows />
+        </div>
+      )}
+      {mounted.includes("Broadcast") && (
+        <div className={screen === "Broadcast" ? "block" : "hidden"}>
+          <AdminV2WhatsAppBroadcast />
         </div>
       )}
     </div>
