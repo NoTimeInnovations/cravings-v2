@@ -10,6 +10,7 @@ import { updateUserAddressesMutation } from "@/api/auth";
 import { toast } from "sonner";
 import AddressPickerV2 from "@/components/hotelDetail/placeOrder/AddressPickerV2";
 import { DEFAULT_BRAND_COLOR_HEX } from "@/lib/brandColor";
+import { resolveAutocompleteCountry } from "@/lib/autocompleteCountry";
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 const GOOGLE_MAPS_LIBRARIES: ["places"] = ["places"];
@@ -59,6 +60,14 @@ export default function DeliveryAddressScreen({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: GOOGLE_MAPS_LIBRARIES,
   });
+
+  // Bias autocomplete to the partner's country instead of hardcoding India,
+  // so e.g. Qatar partners surface Qatar addresses. Falls back to no
+  // restriction (worldwide) when the partner's country is unknown.
+  const autocompleteCountry = useMemo(
+    () => resolveAutocompleteCountry(hotelData),
+    [hotelData],
+  );
 
   const { userData: authUser } = useAuthStore();
   const savedAddresses = useMemo(
@@ -212,13 +221,15 @@ export default function DeliveryAddressScreen({
       autocompleteRef.current?.getPlacePredictions(
         {
           input: query,
-          componentRestrictions: { country: "in" },
+          ...(autocompleteCountry
+            ? { componentRestrictions: { country: autocompleteCountry } }
+            : {}),
           sessionToken: sessionTokenRef.current || undefined,
         },
         (results) => setSuggestions(results || []),
       );
     }, 300);
-  }, []);
+  }, [autocompleteCountry]);
 
   const selectSuggestion = useCallback((placeId: string, description: string) => {
     setSuggestions([]);

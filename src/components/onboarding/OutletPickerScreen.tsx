@@ -6,6 +6,7 @@ import { useLoadScript } from "@react-google-maps/api";
 import { useLocationStore } from "@/store/geolocationStore";
 import useOrderStore from "@/store/orderStore";
 import { DEFAULT_BRAND_COLOR_HEX } from "@/lib/brandColor";
+import { resolveAutocompleteCountry } from "@/lib/autocompleteCountry";
 import AddressPickerV2 from "@/components/hotelDetail/placeOrder/AddressPickerV2";
 import type { BranchContext, BranchOutlet } from "@/api/branches";
 
@@ -204,6 +205,14 @@ export default function OutletPickerScreen({
     ? distanceKmFor(effectiveSelected)
     : null;
 
+  // Bias autocomplete to the partner's country instead of hardcoding India,
+  // so e.g. Qatar partners surface Qatar addresses. Falls back to no
+  // restriction (worldwide) when the partner's country is unknown.
+  const autocompleteCountry = useMemo(
+    () => resolveAutocompleteCountry(hotelData),
+    [hotelData],
+  );
+
   const handleAddressInputChange = (value: string) => {
     setAreaInput(value);
     if (!isDelivery) return;
@@ -216,7 +225,9 @@ export default function OutletPickerScreen({
       autocompleteRef.current?.getPlacePredictions(
         {
           input: value,
-          componentRestrictions: { country: "in" },
+          ...(autocompleteCountry
+            ? { componentRestrictions: { country: autocompleteCountry } }
+            : {}),
           sessionToken: sessionTokenRef.current || undefined,
         },
         (results) => setSuggestions(results || []),
