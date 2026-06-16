@@ -199,7 +199,7 @@ document.head.appendChild(o)}initApollo();`,
             </Suspense>
             <DisableZoom />
             <OrderChannelInit />
-<Toaster richColors closeButton position="top-center" />
+<Toaster richColors closeButton position="top-center" visibleToasts={1} />
             {!isCustomDomain && <Navbar />}
             <main id="main-content">
               {children}

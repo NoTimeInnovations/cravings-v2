@@ -104,7 +104,14 @@ export function OrderSubscriptionManager() {
                 const listGrew = paginatedOrders.length > prevOrdersRef.current.length;
                 if (genuinelyNewOrders.length > 0 && listGrew) {
                     soundRef.current?.play();
-                    toast.info(`New order received!`);
+                    // Stable id → a fresh new-order alert replaces the previous
+                    // one instead of stacking another toast on top.
+                    toast.info(
+                        genuinelyNewOrders.length === 1
+                            ? "New order received!"
+                            : `${genuinelyNewOrders.length} new orders received!`,
+                        { id: "new-order-toast" },
+                    );
                 }
 
                 prevOrdersRef.current = paginatedOrders;
