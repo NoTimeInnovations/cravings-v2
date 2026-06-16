@@ -565,7 +565,11 @@ export default function WhatsAppOrderingPage() {
         </div>
       </section>
 
-      <StartFreeTrailSection />
+      <StartFreeTrailSection
+        theme="whatsapp"
+        heading="Launch your WhatsApp ordering system in under 2 minutes."
+        description="Connect your WhatsApp number, upload your menu, and let customers order with a single “Hi” — auto-login link, live status updates, and zero commission. Join 600+ restaurants already growing with Menuthere."
+      />
       <Footer appName="Menuthere" />
       <WhatsAppButton />
     </main>
