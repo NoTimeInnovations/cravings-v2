@@ -38,30 +38,88 @@ function welcomeFlow(): DefaultFlowDef {
             url: "{{order_link}}",
           },
         },
-        // Reorder: only shown to returning customers. {{reorder_link}} is empty
-        // for first-time customers, and skipIfUrlEmpty drops this whole message
-        // so they just see "Order Now". Tapping it pre-fills their last order
-        // (items + address + type) and opens checkout.
+        // Reorder is offered as a quick-reply button — but only to returning
+        // customers. {{reorder_link}} is empty for first-time customers, so the
+        // condition routes them past it (they just see "Order Now"). Tapping
+        // "Reorder" sends the text "Reorder", which the separate Reorder flow
+        // picks up (an exact trigger wins over this parked welcome run).
         {
-          id: "reorder",
-          type: "link_button",
+          id: "reorder_cond",
+          type: "condition",
           position: { x: 740, y: 160 },
           data: {
-            text:
-              "🔁 Want the same as last time?\n" +
-              "Tap *Reorder* to load your last order and check out in one tap.",
-            buttonText: "Reorder",
-            url: "{{reorder_link}}",
-            skipIfUrlEmpty: true,
+            rules: [{ var: "reorder_link", op: "isEmpty", handle: "empty" }],
+            defaultHandle: "has",
+          },
+        },
+        {
+          id: "reorder",
+          type: "buttons",
+          position: { x: 1040, y: 160 },
+          data: {
+            text: "🔁 Want the same as last time? Tap *Reorder* to reload your last order.",
+            items: [{ id: "reorder", label: "Reorder" }],
           },
         },
       ],
       edges: [
         { id: "e", source: "trigger", target: "msg", sourceHandle: null, targetHandle: null },
-        { id: "e2", source: "msg", target: "reorder", sourceHandle: null, targetHandle: null },
+        { id: "e2", source: "msg", target: "reorder_cond", sourceHandle: null, targetHandle: null },
+        { id: "e3", source: "reorder_cond", target: "reorder", sourceHandle: "has", targetHandle: null },
       ],
     },
     triggers: [{ matchType: "exact", keywords: ["hi"], nodeId: "trigger", priority: TRIGGER_PRIORITY.exact }],
+  };
+}
+
+// Reorder: triggered when the customer taps the "Reorder" quick-reply (which
+// sends the text "Reorder") or types it. Sends a one-tap auto-login link that
+// reloads their last order straight into checkout. {{reorder_link}} is filled
+// by the engine only when a previous order exists, so the condition falls back
+// to a friendly message for first-time customers.
+function reorderFlow(): DefaultFlowDef {
+  return {
+    name: "Reorder",
+    graph: {
+      nodes: [
+        { id: "trigger", type: "trigger", position: { x: 140, y: 220 }, data: { matchType: "exact", keywords: ["reorder"] } },
+        {
+          id: "cond",
+          type: "condition",
+          position: { x: 440, y: 220 },
+          data: {
+            rules: [{ var: "reorder_link", op: "isEmpty", handle: "empty" }],
+            defaultHandle: "has",
+          },
+        },
+        {
+          id: "link",
+          type: "link_button",
+          position: { x: 740, y: 140 },
+          data: {
+            text: "🔁 Here's your last order — review and place it in one tap.",
+            buttonText: "Reorder",
+            url: "{{reorder_link}}",
+          },
+        },
+        {
+          id: "none",
+          type: "send_text",
+          position: { x: 740, y: 320 },
+          data: {
+            text:
+              "You don't have a previous order here yet 🙂\n" +
+              "Send *hi* and tap *Order Now* to place your first one.",
+          },
+        },
+      ],
+      edges: [
+        { id: "e", source: "trigger", target: "cond", sourceHandle: null, targetHandle: null },
+        { id: "e_has", source: "cond", target: "link", sourceHandle: "has", targetHandle: null },
+        { id: "e_empty", source: "cond", target: "none", sourceHandle: "empty", targetHandle: null },
+      ],
+    },
+    triggers: [{ matchType: "exact", keywords: ["reorder"], nodeId: "trigger", priority: TRIGGER_PRIORITY.exact }],
   };
 }
 
@@ -120,6 +178,9 @@ export function buildDefaultFlows(): DefaultFlowDef[] {
   return [
     // ── Welcome: "hi" -> caption + Order Now link button (auto-login link) ──
     welcomeFlow(),
+
+    // ── Reorder: "reorder" -> one-tap link to reload the last order ──
+    reorderFlow(),
 
     // ── Order status updates ──
     orderLinkButtonFlow(
