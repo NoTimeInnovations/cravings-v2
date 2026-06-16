@@ -27,7 +27,10 @@ function nextStep(order: Order): { status: string; label: string } | null {
     case "accepted":
       return { status: "food_ready", label: "Mark Ready" };
     case "food_ready":
-      return order.type === "delivery"
+      // Only true delivery orders (with a delivery address) get a Dispatch step.
+      // Takeaway orders are typed "delivery" but have no address — skip straight
+      // to Complete.
+      return order.type === "delivery" && order.deliveryAddress
         ? { status: "dispatched", label: "Dispatch" }
         : { status: "completed", label: "Complete" };
     case "dispatched":
