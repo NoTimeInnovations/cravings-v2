@@ -43,6 +43,10 @@ interface ButtonDraft {
   type: ButtonKind;
   text: string;
   url?: string;
+  // URL buttons can be static (one fixed link) or dynamic (link ends with a
+  // {{1}} variable filled per message). Dynamic links require an example.
+  urlType?: "static" | "dynamic";
+  urlExample?: string;
   phone_number?: string;
 }
 
@@ -499,12 +503,20 @@ function TemplateEditorDialog({
             expiry = (c as any).code_expiration_minutes;
           }
         } else if (c.type === "BUTTONS") {
-          btns = (c.buttons || []).slice(0, 3).map((b: any) => ({
-            type: b.type as ButtonKind,
-            text: b.text || "",
-            url: b.url,
-            phone_number: b.phone_number,
-          }));
+          btns = (c.buttons || []).slice(0, 3).map((b: any) => {
+            const isUrl = b.type === "URL";
+            const dynamic = isUrl && /\{\{\d+\}\}/.test(b.url || "");
+            return {
+              type: b.type as ButtonKind,
+              text: b.text || "",
+              url: b.url,
+              urlType: isUrl ? (dynamic ? "dynamic" : "static") : undefined,
+              urlExample: dynamic
+                ? (Array.isArray(b.example) ? b.example[0] : b.example) || ""
+                : undefined,
+              phone_number: b.phone_number,
+            } as ButtonDraft;
+          });
         }
       }
       setHeaderFormat(header);
@@ -541,7 +553,10 @@ function TemplateEditorDialog({
 
   const addButton = (type: ButtonKind) => {
     if (buttons.length >= 3) return;
-    setButtons((b) => [...b, { type, text: "" }]);
+    setButtons((b) => [
+      ...b,
+      { type, text: "", ...(type === "URL" ? { urlType: "static" as const } : {}) },
+    ]);
   };
   const updateButton = (idx: number, patch: Partial<ButtonDraft>) => {
     setButtons((b) => b.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
@@ -592,7 +607,14 @@ function TemplateEditorDialog({
       const cleanButtons = buttons
         .filter((b) => b.text.trim())
         .map((b) => {
-          if (b.type === "URL") return { type: "URL", text: b.text, url: b.url || "" };
+          if (b.type === "URL") {
+            const btn: any = { type: "URL", text: b.text, url: b.url || "" };
+            // Dynamic links carry a {{1}} variable; Meta requires an example URL.
+            if (b.urlType === "dynamic" && b.urlExample?.trim()) {
+              btn.example = [b.urlExample.trim()];
+            }
+            return btn;
+          }
           if (b.type === "PHONE_NUMBER")
             return { type: "PHONE_NUMBER", text: b.text, phone_number: b.phone_number || "" };
           return { type: "QUICK_REPLY", text: b.text };
@@ -613,7 +635,14 @@ function TemplateEditorDialog({
         (headerFormat !== "TEXT" || !headerHasVar || headerSample.trim().length > 0) &&
         buttons.every((b) => {
           if (!b.text.trim()) return false;
-          if (b.type === "URL" && !b.url?.trim()) return false;
+          if (b.type === "URL") {
+            if (!b.url?.trim()) return false;
+            if (b.urlType === "dynamic") {
+              // Dynamic URL must contain a {{1}} variable and an example value.
+              if (!/\{\{\d+\}\}/.test(b.url)) return false;
+              if (!b.urlExample?.trim()) return false;
+            }
+          }
           if (b.type === "PHONE_NUMBER" && !b.phone_number?.trim()) return false;
           return true;
         });
@@ -921,11 +950,48 @@ function TemplateEditorDialog({
                     maxLength={25}
                   />
                   {b.type === "URL" && (
-                    <Input
-                      value={b.url || ""}
-                      onChange={(e) => updateButton(i, { url: e.target.value })}
-                      placeholder="https://…"
-                    />
+                    <>
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={b.urlType || "static"}
+                          onValueChange={(v) =>
+                            updateButton(i, { urlType: v as "static" | "dynamic" })
+                          }
+                        >
+                          <SelectTrigger className="w-32 shrink-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="static">Static URL</SelectItem>
+                            <SelectItem value="dynamic">Dynamic URL</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          value={b.url || ""}
+                          onChange={(e) => updateButton(i, { url: e.target.value })}
+                          placeholder={
+                            b.urlType === "dynamic"
+                              ? "https://example.com/{{1}}"
+                              : "https://…"
+                          }
+                        />
+                      </div>
+                      {b.urlType === "dynamic" && (
+                        <>
+                          <Input
+                            value={b.urlExample || ""}
+                            onChange={(e) =>
+                              updateButton(i, { urlExample: e.target.value })
+                            }
+                            placeholder="Example full URL, e.g. https://example.com/order/123"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            End the URL with {"{{1}}"} — it&apos;s filled in per
+                            message. Provide one example link for Meta&apos;s review.
+                          </p>
+                        </>
+                      )}
+                    </>
                   )}
                   {b.type === "PHONE_NUMBER" && (
                     <Input
