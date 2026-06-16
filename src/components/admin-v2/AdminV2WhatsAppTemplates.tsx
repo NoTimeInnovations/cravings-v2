@@ -32,6 +32,7 @@ import {
   AlertCircle,
   Loader2,
   Pencil,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 
@@ -79,6 +80,23 @@ const CATEGORIES: Array<{ value: "UTILITY" | "MARKETING" | "AUTHENTICATION"; lab
   { value: "AUTHENTICATION", label: "Authentication", hint: "One-time passcodes, login codes" },
 ];
 
+// The standard OTP / login-code template the app uses to send verification
+// codes (see src/app/actions/sendWhatsAppOtp.ts → name "otp_message_v2"). It's
+// identical for every partner, so we offer it as a one-click default rather
+// than making each partner hand-build an AUTHENTICATION template. Meta
+// auto-generates the body + copy-code button for AUTHENTICATION templates.
+const OTP_TEMPLATE_NAME = "otp_message_v2";
+const OTP_TEMPLATE_PAYLOAD = {
+  name: OTP_TEMPLATE_NAME,
+  language: "en_US",
+  category: "AUTHENTICATION" as const,
+  components: [
+    { type: "BODY", add_security_recommendation: true },
+    { type: "FOOTER", code_expiration_minutes: 5 },
+    { type: "BUTTONS", buttons: [{ type: "OTP", otp_type: "COPY_CODE" }] },
+  ],
+};
+
 function statusVariant(status: string) {
   switch (status) {
     case "APPROVED":
@@ -124,6 +142,11 @@ export function AdminV2WhatsAppTemplates() {
   const [editingTemplate, setEditingTemplate] = useState<TemplateRow | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [connected, setConnected] = useState<boolean | null>(null);
+  const [addingOtp, setAddingOtp] = useState(false);
+
+  // The OTP template is the same for everyone; show a one-click "add" until the
+  // partner has it (in any status — submitted/approved).
+  const hasOtpTemplate = templates.some((t) => t.name === OTP_TEMPLATE_NAME);
 
   const load = async (withSync = false) => {
     if (!partnerId) return;
@@ -181,6 +204,27 @@ export function AdminV2WhatsAppTemplates() {
     }
   };
 
+  // One-click create + submit the standard OTP template for Meta review.
+  const handleAddOtp = async () => {
+    if (!partnerId) return;
+    setAddingOtp(true);
+    try {
+      const res = await fetch("/api/whatsapp/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partnerId, ...OTP_TEMPLATE_PAYLOAD }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Meta rejected the template");
+      toast.success("OTP template submitted — Meta will review within ~24h");
+      load(false);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to submit OTP template");
+    } finally {
+      setAddingOtp(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-6xl">
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -233,6 +277,46 @@ export function AdminV2WhatsAppTemplates() {
       )}
 
       {connected && <WhatsAppHealthStatus partnerId={partnerId} />}
+
+      {connected && !loading && !hasOtpTemplate && (
+        <Card className="border-green-200 bg-green-50/40">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg bg-green-100 p-2">
+                <ShieldCheck className="h-5 w-5 text-green-700" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 font-medium">
+                  OTP / Login code
+                  <Badge className="border-green-200 bg-green-100 text-green-800">
+                    Recommended
+                  </Badge>
+                </div>
+                <p className="mt-0.5 max-w-xl text-sm text-muted-foreground">
+                  The standard verification-code template used to log customers in over
+                  WhatsApp. It&apos;s the same for every business — just add it and we&apos;ll
+                  submit it to Meta for review.
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={handleAddOtp}
+              disabled={addingOtp}
+              className="shrink-0 bg-green-600 text-white hover:bg-green-700"
+            >
+              {addingOtp ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting…
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" /> Add &amp; submit for review
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

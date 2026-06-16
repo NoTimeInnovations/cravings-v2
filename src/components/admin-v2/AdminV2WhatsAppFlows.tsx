@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { Flow } from "@/lib/whatsappFlow/types";
 import { getFeatures } from "@/lib/getFeatures";
 import { FlowBuilder } from "@/components/admin-v2/whatsapp-flow/FlowBuilder";
+import { provisionDefaultFlows } from "@/app/actions/provisionDefaultFlows";
 
 type FlowListItem = Pick<
   Flow,
@@ -34,6 +35,10 @@ export function AdminV2WhatsAppFlows() {
     const f = getFeatures((userData as any)?.feature_flags || null);
     return !!(f.loyalty_points?.access && f.loyalty_points?.enabled);
   }, [userData]);
+  const whatsappOrderingEnabled = useMemo(() => {
+    const f = getFeatures((userData as any)?.feature_flags || null);
+    return !!f.whatsappOrdering?.enabled;
+  }, [userData]);
 
   const [flows, setFlows] = useState<FlowListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,9 +59,27 @@ export function AdminV2WhatsAppFlows() {
     }
   }, [partnerId]);
 
+  // Every partner with WhatsApp ordering gets the built-in order flows
+  // (welcome + order-status) seeded automatically — disabled by default — so
+  // they're ready to switch on without a superadmin adding them by hand.
+  // Idempotent: existing flows (by name) are never duplicated or re-enabled.
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!partnerId) return;
+    let cancelled = false;
+    (async () => {
+      if (whatsappOrderingEnabled) {
+        try {
+          await provisionDefaultFlows(partnerId);
+        } catch {
+          /* best-effort — fall through to load whatever exists */
+        }
+      }
+      if (!cancelled) load();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [partnerId, whatsappOrderingEnabled, load]);
 
   const openNew = () => {
     setEditingId(null);

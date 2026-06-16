@@ -20,6 +20,7 @@ const INSERT = `
 async function provisionFlowSet(
   partnerId: string,
   defs: DefaultFlowDef[],
+  enabled: boolean,
 ): Promise<{ created: number }> {
   if (!partnerId) return { created: 0 };
   try {
@@ -34,7 +35,7 @@ async function provisionFlowSet(
       objects: toCreate.map((f) => ({
         partner_id: partnerId,
         name: f.name,
-        enabled: true,
+        enabled,
         graph: f.graph,
         triggers: f.triggers,
         run_ttl_hours: 24,
@@ -49,11 +50,13 @@ async function provisionFlowSet(
 }
 
 // Create the built-in WhatsApp flow set for a partner (welcome + order-status).
-// Idempotent — safe to call every time WhatsApp ordering is enabled.
+// Idempotent — safe to call every time WhatsApp ordering is enabled. Provisioned
+// DISABLED by default: every partner with the WhatsApp-ordering feature gets the
+// flows ready to go, but they stay off until the partner turns them on.
 export async function provisionDefaultFlows(
   partnerId: string,
 ): Promise<{ created: number }> {
-  return provisionFlowSet(partnerId, buildDefaultFlows());
+  return provisionFlowSet(partnerId, buildDefaultFlows(), false);
 }
 
 // Create the built-in loyalty flow set for a partner (points earned). Called
@@ -62,5 +65,5 @@ export async function provisionDefaultFlows(
 export async function provisionLoyaltyFlows(
   partnerId: string,
 ): Promise<{ created: number }> {
-  return provisionFlowSet(partnerId, buildLoyaltyFlows());
+  return provisionFlowSet(partnerId, buildLoyaltyFlows(), true);
 }
