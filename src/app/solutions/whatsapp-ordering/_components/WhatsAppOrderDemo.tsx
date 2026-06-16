@@ -177,8 +177,8 @@ export default function WhatsAppOrderDemo() {
       {/* Soft glow behind the phone */}
       <div className="absolute inset-0 -z-10 mx-auto h-[70%] w-[70%] translate-y-10 rounded-full bg-[#25D366]/20 blur-3xl" />
 
-      {/* Phone — narrower, realistic frame */}
-      <div className="relative w-[268px] sm:w-[284px]">
+      {/* Phone — realistic iPhone-16-like proportions */}
+      <div className="relative w-[286px] sm:w-[306px]">
         {/* Side buttons */}
         <span className="absolute -left-[3px] top-[88px] h-7 w-[3px] rounded-l-md bg-gradient-to-b from-[#2c2c2f] to-[#0b0b0c]" />
         <span className="absolute -left-[3px] top-[128px] h-12 w-[3px] rounded-l-md bg-gradient-to-b from-[#2c2c2f] to-[#0b0b0c]" />
@@ -188,11 +188,11 @@ export default function WhatsAppOrderDemo() {
         {/* Frame + screen */}
         <div className="relative rounded-[2.7rem] border-[11px] border-[#0b0b0c] bg-[#0b0b0c] shadow-[0_30px_70px_-25px_rgba(11,11,12,0.6)] ring-1 ring-white/5">
           {/* Dynamic island */}
-          <div className="absolute left-1/2 top-[9px] z-50 flex h-[24px] w-[82px] -translate-x-1/2 items-center justify-end gap-2 rounded-full bg-black pr-2.5">
+          <div className="absolute left-1/2 top-[9px] z-50 flex h-[25px] w-[92px] -translate-x-1/2 items-center justify-end gap-2 rounded-full bg-black pr-2.5">
             <span className="h-[7px] w-[7px] rounded-full bg-[#10201d]" />
           </div>
 
-          <div className="relative flex h-[604px] flex-col overflow-hidden rounded-[2.05rem] bg-[#EAE1D9]">
+          <div className="relative flex h-[612px] flex-col overflow-hidden rounded-[2.05rem] bg-[#EAE1D9]">
             {/* ── WhatsApp chat header ── */}
             <div className="relative z-20 bg-[#008069] text-white">
               {/* Status bar */}
