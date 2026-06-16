@@ -164,10 +164,13 @@ export function AdminV2WhatsAppBroadcast() {
     try {
       const res = await fetch(`/api/whatsapp/templates?partnerId=${partnerId}`);
       const data = await res.json();
-      const approved = (data.templates || []).filter(
-        (t: TemplateRow) => (t.status || "").toUpperCase() === "APPROVED",
+      // Broadcasts are promotional, so only approved MARKETING templates qualify.
+      const marketing = (data.templates || []).filter(
+        (t: TemplateRow) =>
+          (t.status || "").toUpperCase() === "APPROVED" &&
+          (t.category || "").toUpperCase() === "MARKETING",
       );
-      setTemplates(approved);
+      setTemplates(marketing);
     } catch {
       /* surfaced in dialog */
     }
@@ -615,8 +618,9 @@ function BroadcastCreatorDialog({
             <Label>Template</Label>
             {templates.length === 0 ? (
               <div className="text-sm text-muted-foreground border rounded-md p-3 bg-muted/40">
-                No approved templates yet. Create one in <b>Templates</b> and wait
-                for Meta approval, then come back here.
+                No approved <b>Marketing</b> templates yet. Create one (category
+                Marketing) in <b>Templates</b> and wait for Meta approval, then
+                come back here.
               </div>
             ) : (
               <Select value={templateId} onValueChange={setTemplateId}>
