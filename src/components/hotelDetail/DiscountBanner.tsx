@@ -24,6 +24,7 @@ type DiscountData = {
   usage_limit: number | null;
   used_count: number;
   per_user_usage_limit: number | null;
+  show_on_storefront: boolean;
 };
 
 const DiscountBanner = ({
@@ -51,6 +52,7 @@ const DiscountBanner = ({
           where: {
             partner_id: { _eq: $partner_id }
             is_active: { _eq: true }
+            show_on_storefront: { _eq: true }
             _or: [
               { expires_at: { _is_null: true } }
               { expires_at: { _gt: "now()" } }
@@ -61,7 +63,7 @@ const DiscountBanner = ({
           id code discount_type discount_value min_order_value
           max_discount_amount starts_at expires_at valid_time_from
           valid_time_to has_coupon freebie_item_count freebie_item_ids
-          usage_limit used_count per_user_usage_limit
+          usage_limit used_count per_user_usage_limit show_on_storefront
         }
       }`,
       { partner_id: partnerId }

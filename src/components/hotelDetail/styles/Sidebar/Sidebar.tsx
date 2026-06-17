@@ -88,7 +88,7 @@ const SidebarBannerCarousel = ({ banners, accent }: { banners: string[]; accent:
   useEffect(() => { if (!transitioning) { const t = setTimeout(() => setTransitioning(true), 50); return () => clearTimeout(t); } }, [transitioning]);
 
   return (
-    <div className="relative w-full h-full overflow-hidden rounded-3xl" style={{ clipPath: "inset(0 round 24px)" }}
+    <div className="relative w-full h-full overflow-hidden rounded-xl" style={{ clipPath: "inset(0 round 12px)" }}
       onTouchStart={isMultiple ? (e) => { touchX.current = e.touches[0].clientX; deltaX.current = 0; if (autoRef.current) clearInterval(autoRef.current); } : undefined}
       onTouchMove={isMultiple ? (e) => { deltaX.current = e.touches[0].clientX - touchX.current; if (trackRef.current) { const w = trackRef.current.parentElement?.offsetWidth || 0; trackRef.current.style.transition = "none"; trackRef.current.style.transform = `translateX(${-index * w + deltaX.current}px)`; } } : undefined}
       onTouchEnd={isMultiple ? () => { setTransitioning(true); if (trackRef.current) { trackRef.current.style.transition = ""; trackRef.current.style.transform = ""; } if (deltaX.current < -50) setIndex((p) => p + 1); else if (deltaX.current > 50) setIndex((p) => p - 1); resetAuto(); } : undefined}

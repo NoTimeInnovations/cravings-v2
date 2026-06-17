@@ -26,6 +26,7 @@ const discountFields = `
   pp_overwrite_enabled
   freebie_item_count
   freebie_item_ids
+  show_on_storefront
   created_at
 `;
 

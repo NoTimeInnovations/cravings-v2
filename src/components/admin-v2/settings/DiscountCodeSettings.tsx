@@ -50,6 +50,7 @@ type Discount = {
     freebie_item_ids: string | null;
     pp_discount_id: string | null;
     pp_overwrite_enabled: boolean;
+    show_on_storefront: boolean;
     created_at: string;
 };
 
@@ -81,6 +82,7 @@ const emptyForm = {
     rank: "",
     freebie_item_ids: "",
     freebie_item_count: "",
+    show_on_storefront: true,
 };
 
 function generateCode() {
@@ -106,6 +108,7 @@ export function DiscountCodeSettings() {
     const [form, setForm] = useState(emptyForm);
     const [togglingId, setTogglingId] = useState<string | null>(null);
     const [togglingPpId, setTogglingPpId] = useState<string | null>(null);
+    const [togglingStorefrontId, setTogglingStorefrontId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [selectedDays, setSelectedDays] = useState<string[]>([]);
@@ -185,6 +188,7 @@ export function DiscountCodeSettings() {
                     ? Number(form.freebie_item_count)
                     : 1
                 : null,
+            show_on_storefront: form.show_on_storefront,
         };
         if (!forUpdate) {
             payload.partner_id = userData!.id;
@@ -221,6 +225,7 @@ export function DiscountCodeSettings() {
             rank: disc.rank != null ? String(disc.rank) : "",
             freebie_item_ids: disc.freebie_item_ids ?? "",
             freebie_item_count: disc.freebie_item_count != null ? String(disc.freebie_item_count) : "",
+            show_on_storefront: disc.show_on_storefront ?? true,
         });
         setAllDays(!disc.valid_days || disc.valid_days === "All");
         setSelectedDays(days);
@@ -316,6 +321,21 @@ export function DiscountCodeSettings() {
             toast.error("Failed to update Petpooja sync setting");
         } finally {
             setTogglingPpId(null);
+        }
+    };
+
+    // Show/hide this discount's card on the customer store page. When off, the
+    // banner/carousel can take its place instead of the discount-only card.
+    const handleStorefrontToggle = async (id: string, show: boolean) => {
+        setTogglingStorefrontId(id);
+        try {
+            await fetchFromHasura(updateDiscountMutation, { id, updates: { show_on_storefront: show } });
+            setDiscounts((prev) => prev.map((c) => (c.id === id ? { ...c, show_on_storefront: show } : c)));
+            toast.success(show ? "Discount will show on your store page." : "Discount hidden from your store page.");
+        } catch {
+            toast.error("Failed to update visibility");
+        } finally {
+            setTogglingStorefrontId(null);
         }
     };
 
@@ -720,6 +740,14 @@ export function DiscountCodeSettings() {
                                     />
                                     <Label htmlFor="has-coupon">Requires Coupon Code</Label>
                                 </div>
+                                <div className="flex items-center gap-2">
+                                    <Switch
+                                        id="show-on-storefront"
+                                        checked={form.show_on_storefront}
+                                        onCheckedChange={(checked) => setForm({ ...form, show_on_storefront: checked })}
+                                    />
+                                    <Label htmlFor="show-on-storefront">Show on store page</Label>
+                                </div>
                             </div>
 
                             <div className="flex gap-2 pt-2">
@@ -832,6 +860,21 @@ export function DiscountCodeSettings() {
                                             >
                                                 <Pencil className="h-4 w-4" />
                                             </Button>
+                                            <div
+                                                className="flex flex-col items-end gap-1"
+                                                title="Show this discount as a card on your store page. Turn off to let the banner/carousel show instead."
+                                            >
+                                                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                                    On page
+                                                </span>
+                                                <Switch
+                                                    checked={disc.show_on_storefront ?? true}
+                                                    disabled={togglingStorefrontId === disc.id}
+                                                    onCheckedChange={(checked) =>
+                                                        handleStorefrontToggle(disc.id, checked)
+                                                    }
+                                                />
+                                            </div>
                                             <div
                                                 className="flex flex-col items-end gap-1"
                                                 title="Allow Petpooja menu sync to overwrite this discount. Turn off to keep your local edits."

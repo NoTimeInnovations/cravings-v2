@@ -233,9 +233,14 @@ const V3 = ({
   const showBanner = storeBanner && !bannerError;
   const carouselBanners: string[] = (hoteldata as any)?.delivery_rules?.carousel_banners || [];
 
-  // When the onboarding feature is on, the store identity (logo/name/contacts)
-  // is shown on the order-type screen instead, so hide it from the menu page.
-  const hideStoreIdentity = !!features?.newonboarding?.enabled && tableNumber === 0;
+  // The store identity (logo/name/contacts) is surfaced earlier in the flow —
+  // on the order-type screen when onboarding is on, and on the brand's
+  // onboarding/outlet-picker for multi-outlet brands (brandHeader is set for
+  // both the parent brand and its child outlets). Hide it from the menu page in
+  // those cases so it isn't repeated, including on secondary outlets whose own
+  // feature_flags may not carry the onboarding flag.
+  const hideStoreIdentity =
+    (!!features?.newonboarding?.enabled || !!brandHeader) && tableNumber === 0;
 
   // Social links
   const phoneHref = socialLinks?.phone ? `tel:${socialLinks.phone}` : null;
@@ -269,9 +274,9 @@ const V3 = ({
         {/* ===== STICKY HEADER (exact cravings-v3 style) ===== */}
         <header className="sticky top-0 z-40 w-full border-b border-gray-200/60 bg-white/90 backdrop-blur-xl">
           <div className="mx-auto flex h-14 max-w-2xl items-center gap-2 px-4">
-            {onShowStorefront && (
+            {(onShowStorefront || brandHeader?.onChange) && (
               <button
-                onClick={onShowStorefront}
+                onClick={onShowStorefront || brandHeader?.onChange}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-gray-100 transition"
               >
                 <ArrowLeft className="h-[18px] w-[18px] text-gray-900" />

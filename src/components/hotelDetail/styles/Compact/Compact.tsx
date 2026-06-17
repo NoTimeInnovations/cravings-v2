@@ -255,8 +255,8 @@ const BannerCarousel = ({
   return (
     <div className="relative px-4 pt-3">
       <div
-        className="relative overflow-hidden rounded-3xl"
-        style={{ height: isMultiple ? "180px" : "200px", clipPath: "inset(0 round 24px)" }}
+        className="relative overflow-hidden rounded-xl"
+        style={{ height: isMultiple ? "180px" : "200px", clipPath: "inset(0 round 12px)" }}
         onTouchStart={isMultiple ? handleTouchStart : undefined}
         onTouchMove={isMultiple ? handleTouchMove : undefined}
         onTouchEnd={isMultiple ? handleTouchEnd : undefined}
