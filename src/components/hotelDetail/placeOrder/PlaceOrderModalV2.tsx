@@ -206,13 +206,21 @@ const PlaceOrderModalV2 = ({
   const [pendingAddress, setPendingAddress] = useState<SavedAddress | null>(null);
   /** Phone of the address chosen for delivery. Falls back to `user.phone`. */
   const [selectedReceiverPhone, setSelectedReceiverPhone] = useState<string | null>(null);
+  /**
+   * Whether a full delivery address (with receiver/location details) has been
+   * explicitly selected in THIS checkout. The onboarding "basic location" sets
+   * userAddress but is not a delivery address — for delivery we always require
+   * the customer to pick/add an address at checkout, so this starts false on
+   * every open.
+   */
+  const [deliveryAddressChosen, setDeliveryAddressChosen] = useState(false);
   const [mapInitialPick, setMapInitialPick] = useState<
     { address?: string; coords: { lat: number; lng: number } } | null
   >(null);
   const [addressFormData, setAddressFormData] = useState({
-    useAccountDetails: false,
-    receiverName: "",
-    receiverPhone: "",
+    useAccountDetails: true,
+    receiverName: (user as any)?.full_name || "",
+    receiverPhone: (user as any)?.phone || "",
     locationType: "Other" as "House" | "Office" | "Other",
     buildingFloor: "",
     street: "",
@@ -630,6 +638,11 @@ const PlaceOrderModalV2 = ({
     if (!open_place_order_modal) setRedeemPoints(0);
   }, [open_place_order_modal]);
 
+  // Require a fresh delivery-address selection each time checkout opens.
+  useEffect(() => {
+    if (open_place_order_modal) setDeliveryAddressChosen(false);
+  }, [open_place_order_modal]);
+
   // Fetch available coupon discounts
   useEffect(() => {
     if (!open_place_order_modal || !hotelData?.id) return;
@@ -856,6 +869,7 @@ const PlaceOrderModalV2 = ({
       useLocationStore.getState().setCoords(coords);
     }
     setSelectedReceiverPhone(addr.receiverPhone?.trim() || null);
+    setDeliveryAddressChosen(true);
     setShowAddressSheet(false);
     if (orderType === "delivery") {
       const coords = addr.latitude && addr.longitude
@@ -886,9 +900,10 @@ const PlaceOrderModalV2 = ({
     // Address coming from map picker — show the details form
     setPendingAddress(addr);
     setAddressFormData({
-      useAccountDetails: false,
-      receiverName: "",
-      receiverPhone: "",
+      // Default to the logged-in user's details (checkbox pre-checked).
+      useAccountDetails: true,
+      receiverName: (user as any)?.full_name || "",
+      receiverPhone: (user as any)?.phone || "",
       locationType: "Other",
       buildingFloor: "",
       street: "",
@@ -899,6 +914,23 @@ const PlaceOrderModalV2 = ({
     setShowAddressSheet(false);
     setShowAddressForm(true);
   }, []);
+
+  // Delivery: the basic location is already set (onboarding). Go straight to
+  // the address-details form seeded with that location — don't re-ask location.
+  // Falls back to the map only when no location is set yet.
+  // "Add new address" → show the existing map picker so the location can be
+  // dragged & confirmed. Seed it with the already-selected location so it opens
+  // right there (no GPS refetch); dragging the pin reverse-geocodes via the
+  // picker. After confirming, handleAddressModalSaved opens the details form.
+  const openDeliveryAddress = useCallback(() => {
+    setShowAddressSheet(false);
+    if (address?.trim() && userCoordinates) {
+      setMapInitialPick({ address, coords: userCoordinates });
+    } else {
+      setMapInitialPick(null);
+    }
+    setShowAddressModal(true);
+  }, [address, userCoordinates]);
 
   const handleSaveAddressForm = useCallback(async () => {
     if (!pendingAddress) return;
@@ -914,7 +946,10 @@ const PlaceOrderModalV2 = ({
       customLabel: addressFormData.saveAs.trim() || undefined,
       receiverName: addressFormData.receiverName.trim() || undefined,
       receiverPhone: addressFormData.receiverPhone.trim() || undefined,
-    };
+      ...(addressFormData.deliveryInstructions.trim()
+        ? { deliveryInstructions: addressFormData.deliveryInstructions.trim() }
+        : {}),
+    } as SavedAddress;
 
     const existing = [...savedAddresses];
     const idx = existing.findIndex((a) => a.id === finalAddress.id);
@@ -2357,7 +2392,28 @@ const PlaceOrderModalV2 = ({
     {view === "main" && (items?.length ?? 0) > 0 && (
       <>
         <div className="v2-checkout-fixed fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[510]">
-         <div className="px-4 py-3 flex items-center justify-between gap-3">
+         {orderType === "delivery" && !deliveryAddressChosen ? (
+          <div className="px-4 py-3">
+            <p className="mb-2.5 flex items-center gap-2 text-sm font-bold text-gray-900">
+              <MapPin className="h-4 w-4 shrink-0" style={{ color: accent }} />
+              Where would you like us to deliver this order?
+            </p>
+            {address?.trim() && (
+              <p className="mb-2.5 text-xs text-gray-500">
+                Delivering near <span className="font-medium text-gray-700">{address}</span> — please confirm your full address.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowAddressSheet(true)}
+              className="w-full rounded-xl py-3.5 font-semibold text-white"
+              style={{ backgroundColor: accent }}
+            >
+              Add or Select address
+            </button>
+          </div>
+         ) : (
+          <div className="px-4 py-3 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => {
@@ -2394,6 +2450,7 @@ const PlaceOrderModalV2 = ({
             )}
           </button>
          </div>
+         )}
         </div>
 
         {showPaymentMethods && (
@@ -2461,6 +2518,7 @@ const PlaceOrderModalV2 = ({
             if (orderType === "delivery") {
               calculateDeliveryDistanceAndCost(hotelData, coords ?? null);
             }
+            setDeliveryAddressChosen(true);
           }
           setShowAddressSheet(false);
         }}
@@ -2473,6 +2531,7 @@ const PlaceOrderModalV2 = ({
           }
           setShowAddressModal(true);
         }}
+        onAddNew={openDeliveryAddress}
         onClose={() => setShowAddressSheet(false)}
       />
     )}
@@ -2644,6 +2703,15 @@ const PlaceOrderModalV2 = ({
                   setAddressFormData((prev) => ({ ...prev, saveAs: e.target.value }))
                 }
                 className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+              />
+              <textarea
+                placeholder="Special instructions (optional)"
+                value={addressFormData.deliveryInstructions}
+                onChange={(e) =>
+                  setAddressFormData((prev) => ({ ...prev, deliveryInstructions: e.target.value }))
+                }
+                rows={2}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 resize-none"
               />
             </div>
           </div>

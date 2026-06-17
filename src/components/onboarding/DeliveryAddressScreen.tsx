@@ -85,9 +85,10 @@ export default function DeliveryAddressScreen({
   const [showDetailForm, setShowDetailForm] = useState(false);
   const [pendingAddress, setPendingAddress] = useState<SavedAddress | null>(null);
   const [addressFormData, setAddressFormData] = useState({
-    useAccountDetails: false,
-    receiverName: "",
-    receiverPhone: "",
+    // Default to the logged-in user's details (checkbox pre-checked).
+    useAccountDetails: true,
+    receiverName: (authUser as any)?.full_name || "",
+    receiverPhone: (authUser as any)?.phone || "",
     locationType: "Other" as "House" | "Office" | "Other",
     buildingFloor: "",
     street: "",
@@ -671,23 +672,16 @@ export default function DeliveryAddressScreen({
           setPickerInitial(null);
         }}
         onSaved={(saved) => {
-          // Don't finish here — first collect the receiver + location details
-          // (same fields PlaceOrderModalV2 asks for) on the next screen.
+          // Onboarding only captures the rough delivery location. The full
+          // receiver + location details are collected later at checkout (via
+          // the "Add or Select address" flow), so continue straight away.
           setAddressPickerOpen(false);
           setPickerInitial(null);
-          setPendingAddress(saved);
-          setAddressFormData({
-            useAccountDetails: false,
-            receiverName: "",
-            receiverPhone: "",
-            locationType: "Other",
-            buildingFloor: "",
-            street: "",
-            saveAs: "",
-            deliveryInstructions: "",
-          });
-          setTriedSaveDetails(false);
-          setShowDetailForm(true);
+          const coords =
+            saved.latitude != null && saved.longitude != null
+              ? { lat: saved.latitude, lng: saved.longitude }
+              : null;
+          onContinue(saved.address || "", coords);
         }}
         hotelData={hotelData}
         accent={accent}

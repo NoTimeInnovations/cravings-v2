@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { MapPin, Search, LocateFixed, Loader2, X, Home, Building2, Navigation, Trash2, ChevronDown } from "lucide-react";
+import { MapPin, Search, LocateFixed, Loader2, X, Home, Building2, Navigation, Trash2, ChevronDown, Plus } from "lucide-react";
 import { useLoadScript } from "@react-google-maps/api";
 import type { SavedAddress } from "../../placeOrder/AddressManagementModal";
 
@@ -21,6 +21,12 @@ interface V3AddressSheetProps {
    * the consumer can open a map picker for fine-tuning and saving.
    */
   onPickForMap?: (address: string, coords: { lat: number; lng: number } | null) => void;
+  /**
+   * If provided, the "Add new Address" row calls this instead of the map
+   * picker — so the consumer can jump straight to the address-details form
+   * using the already-selected location (no location re-ask).
+   */
+  onAddNew?: () => void;
   brandHeader?: {
     brandName: string;
     outletLabel: string | null;
@@ -39,7 +45,7 @@ const labelIcon = (label?: string) => {
   return Navigation;
 };
 
-export default function V3AddressSheet({ currentAddress, onSelect, onClose, accent = "#1f2937", savedAddresses, onDeleteSaved, onPickForMap, brandHeader }: V3AddressSheetProps) {
+export default function V3AddressSheet({ currentAddress, onSelect, onClose, accent = "#1f2937", savedAddresses, onDeleteSaved, onPickForMap, onAddNew, brandHeader }: V3AddressSheetProps) {
   const [address, setAddress] = useState("");
   const [locating, setLocating] = useState(false);
   const [suggestions, setSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
@@ -201,7 +207,7 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
         </div>
 
         <div className="px-4 pb-2 shrink-0">
-          <h2 className="text-base font-bold text-gray-900">Delivery address</h2>
+          <h2 className="text-base font-bold text-gray-900">Choose a delivery address</h2>
           {currentAddress && (
             <p className="text-xs text-gray-400 mt-0.5 truncate">Current: {currentAddress}</p>
           )}
@@ -294,6 +300,31 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
           ))
           ) : (
             <>
+              {/* Add new address — opens the map picker, then the receiver/location form */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (onAddNew) {
+                    setClosing(true);
+                    setTimeout(() => onAddNew(), ANIM_MS);
+                  } else {
+                    animateAndPickForMap("", null);
+                  }
+                }}
+                className="w-full mb-3 flex items-center gap-3 rounded-xl border border-dashed p-3 text-left transition active:opacity-60"
+                style={{ borderColor: `${accent}66` }}
+              >
+                <span
+                  className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0"
+                  style={{ backgroundColor: `${accent}14` }}
+                >
+                  <Plus className="w-4 h-4" style={{ color: accent }} />
+                </span>
+                <span className="text-sm font-bold" style={{ color: accent }}>
+                  Add new Address
+                </span>
+              </button>
+
               {/* Saved addresses (selected first, then last added) */}
               {savedAddresses && savedAddresses.length > 0 && (() => {
                 const isMatch = (a: SavedAddress) => {
