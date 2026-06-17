@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { MapPin, Phone, Star, ChevronRight, ShoppingBag, Search, Store, ChevronDown, LocateFixed, Loader2, X, ArrowLeft, User } from "lucide-react";
 import { FaWhatsapp, FaInstagram } from "react-icons/fa";
@@ -72,6 +72,38 @@ const V3 = ({
   const [pickerInitial, setPickerInitial] = useState<
     { address?: string; coords: { lat: number; lng: number } } | null
   >(null);
+
+  // Persist a fully-detailed delivery address (after the receiver/location form)
+  // and set it as the current delivery address.
+  const persistDeliveryAddress = useCallback(async (saved: SavedAddress) => {
+    const fullAddress =
+      saved.address ||
+      [saved.flat_no, saved.house_no, saved.area, saved.city].filter(Boolean).join(", ");
+    useOrderStore.getState().setUserAddress(fullAddress);
+    if (saved.latitude != null && saved.longitude != null) {
+      const c = { lat: saved.latitude, lng: saved.longitude };
+      useOrderStore.getState().setUserCoordinates(c);
+      useLocationStore.getState().setCoords(c);
+    }
+    if (authUser && (authUser as any).role === "user") {
+      const existing = [...savedAddresses];
+      const idx = existing.findIndex((x) => x.id === saved.id);
+      if (idx >= 0) existing[idx] = saved;
+      else existing.push(saved);
+      try {
+        await fetchFromHasura(updateUserAddressesMutation, {
+          id: authUser.id,
+          addresses: existing,
+        });
+        useAuthStore.setState({
+          userData: { ...(authUser as any), addresses: existing } as any,
+        });
+        toast.success("Address saved");
+      } catch {
+        toast.error("Failed to save address");
+      }
+    }
+  }, [authUser, savedAddresses]);
 
   useEffect(() => {
     setBannerError(false);
@@ -680,38 +712,12 @@ const V3 = ({
             setAddressPickerOpen(false);
             setPickerInitial(null);
           }}
-          onSaved={async (saved) => {
-            const fullAddress =
-              saved.address ||
-              [saved.flat_no, saved.house_no, saved.area, saved.city]
-                .filter(Boolean)
-                .join(", ");
-            useOrderStore.getState().setUserAddress(fullAddress);
-            if (saved.latitude != null && saved.longitude != null) {
-              const c = { lat: saved.latitude, lng: saved.longitude };
-              useOrderStore.getState().setUserCoordinates(c);
-              useLocationStore.getState().setCoords(c);
-            }
-            if (authUser && (authUser as any).role === "user") {
-              const existing = [...savedAddresses];
-              const idx = existing.findIndex((x) => x.id === saved.id);
-              if (idx >= 0) existing[idx] = saved;
-              else existing.push(saved);
-              try {
-                await fetchFromHasura(updateUserAddressesMutation, {
-                  id: authUser.id,
-                  addresses: existing,
-                });
-                useAuthStore.setState({
-                  userData: { ...(authUser as any), addresses: existing } as any,
-                });
-                toast.success("Address saved");
-              } catch {
-                toast.error("Failed to save address");
-              }
-            }
+          onSaved={(saved) => {
+            // Header picks a LOCATION only — no receiver/building fields here.
+            // Those are collected at checkout (before Place Order) if missing.
             setAddressPickerOpen(false);
             setPickerInitial(null);
+            persistDeliveryAddress(saved);
           }}
           hotelData={hoteldata}
           accent="#ea580c"

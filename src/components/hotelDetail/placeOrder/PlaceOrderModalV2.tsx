@@ -233,6 +233,25 @@ const PlaceOrderModalV2 = ({
     [(user as any)?.addresses],
   );
 
+  // A delivery address is "complete" only when it carries the receiver +
+  // building details (the fields collected in the checkout details form).
+  // A bare location picked in the header has none of these.
+  const isAddressComplete = useCallback(
+    (a?: SavedAddress | null) =>
+      !!(a && a.receiverName?.trim() && a.receiverPhone?.trim() && a.house_no?.trim()),
+    [],
+  );
+  // Find the saved address matching a chosen address string / coords.
+  const findSavedAddress = useCallback(
+    (addr: string, coords?: { lat: number; lng: number } | null) =>
+      savedAddresses.find(
+        (a) =>
+          (coords != null && a.latitude === coords.lat && a.longitude === coords.lng) ||
+          (!!a.address && a.address === addr),
+      ) || null,
+    [savedAddresses],
+  );
+
   const isQrScan = qrId !== null && tableNumber !== 0;
 
   const isDeliveryActive = hotelData?.delivery_rules?.isDeliveryActive ?? true;
@@ -638,9 +657,13 @@ const PlaceOrderModalV2 = ({
     if (!open_place_order_modal) setRedeemPoints(0);
   }, [open_place_order_modal]);
 
-  // Require a fresh delivery-address selection each time checkout opens.
+  // On open, treat the delivery address as "chosen" only if the current address
+  // already has full receiver/building details. A bare header location does not,
+  // so checkout will ask for the address details before showing Place Order.
   useEffect(() => {
-    if (open_place_order_modal) setDeliveryAddressChosen(false);
+    if (!open_place_order_modal) return;
+    const match = findSavedAddress(address || "", useOrderStore.getState().coordinates);
+    setDeliveryAddressChosen(isAddressComplete(match));
   }, [open_place_order_modal]);
 
   // Fetch available coupon discounts
@@ -2509,18 +2532,49 @@ const PlaceOrderModalV2 = ({
         onDeleteSaved={handleDeleteAddress}
         accent={accent}
         onSelect={(addr, coords) => {
-          if (addr) {
-            useOrderStore.getState().setUserAddress(addr);
-            if (coords) {
-              useOrderStore.getState().setUserCoordinates(coords);
-              useLocationStore.getState().setCoords(coords);
-            }
-            if (orderType === "delivery") {
-              calculateDeliveryDistanceAndCost(hotelData, coords ?? null);
-            }
-            setDeliveryAddressChosen(true);
+          if (!addr) {
+            setShowAddressSheet(false);
+            return;
           }
-          setShowAddressSheet(false);
+          useOrderStore.getState().setUserAddress(addr);
+          if (coords) {
+            useOrderStore.getState().setUserCoordinates(coords);
+            useLocationStore.getState().setCoords(coords);
+          }
+          if (orderType === "delivery") {
+            calculateDeliveryDistanceAndCost(hotelData, coords ?? null);
+          }
+          const match = findSavedAddress(addr, coords);
+          if (isAddressComplete(match)) {
+            // Complete saved address — ready to order.
+            setSelectedReceiverPhone(match!.receiverPhone?.trim() || null);
+            setDeliveryAddressChosen(true);
+            setShowAddressSheet(false);
+          } else {
+            // A location without full details — collect them before ordering.
+            setShowAddressSheet(false);
+            setPendingAddress(
+              match ||
+                ({
+                  id: `addr_${Date.now()}`,
+                  label: "Other",
+                  address: addr,
+                  latitude: coords?.lat,
+                  longitude: coords?.lng,
+                } as SavedAddress),
+            );
+            setAddressFormData({
+              useAccountDetails: true,
+              receiverName: (user as any)?.full_name || "",
+              receiverPhone: (user as any)?.phone || "",
+              locationType: "Other",
+              buildingFloor: match?.house_no || "",
+              street: match?.street || "",
+              saveAs: match?.customLabel || "",
+              deliveryInstructions: "",
+            });
+            setShowAddressForm(true);
+          }
         }}
         onPickForMap={(addr, coords) => {
           setShowAddressSheet(false);
