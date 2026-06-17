@@ -520,7 +520,7 @@ export function IntegrationsSettings() {
                 </Card>
                 */}
 
-                <Card className="relative">
+                <Card className="relative order-2">
                     <CardHeader>
                         <div className="flex items-center gap-2">
                             <CardTitle>Google Business Profile</CardTitle>
@@ -613,8 +613,8 @@ export function IntegrationsSettings() {
                     </CardContent>
                 </Card>
 
-                {/* WhatsApp Business Integration */}
-                <Card className="relative">
+                {/* WhatsApp Business Integration — shown first */}
+                <Card className="relative order-1">
                     <CardHeader>
                         <div className="flex items-center gap-2">
                             <CardTitle>WhatsApp Business</CardTitle>

@@ -94,6 +94,17 @@ type AvailableDiscount = {
   terms_conditions?: string | null;
 };
 
+/**
+ * The real account name for prefilling the receiver field. Phone-signup accounts
+ * default to a "user" / "user 9876543210" placeholder — return "" for those so
+ * the customer types their actual name instead.
+ */
+function accountReceiverName(user: any): string {
+  const name = (user?.full_name || "").trim();
+  if (!name || /^user[\s\d+]*$/i.test(name)) return "";
+  return name;
+}
+
 const PlaceOrderModalV2 = ({
   hotelData,
   tableNumber,
@@ -206,6 +217,10 @@ const PlaceOrderModalV2 = ({
   const [pendingAddress, setPendingAddress] = useState<SavedAddress | null>(null);
   /** Phone of the address chosen for delivery. Falls back to `user.phone`. */
   const [selectedReceiverPhone, setSelectedReceiverPhone] = useState<string | null>(null);
+  /** Receiver name for the chosen delivery address (used as the order name). */
+  const [selectedReceiverName, setSelectedReceiverName] = useState<string | null>(null);
+  /** Flips true on a save attempt so required address fields highlight. */
+  const [triedSaveAddress, setTriedSaveAddress] = useState(false);
   /**
    * Whether a full delivery address (with receiver/location details) has been
    * explicitly selected in THIS checkout. The onboarding "basic location" sets
@@ -219,7 +234,7 @@ const PlaceOrderModalV2 = ({
   >(null);
   const [addressFormData, setAddressFormData] = useState({
     useAccountDetails: true,
-    receiverName: (user as any)?.full_name || "",
+    receiverName: accountReceiverName(user),
     receiverPhone: (user as any)?.phone || "",
     locationType: "Other" as "House" | "Office" | "Other",
     buildingFloor: "",
@@ -663,7 +678,12 @@ const PlaceOrderModalV2 = ({
   useEffect(() => {
     if (!open_place_order_modal) return;
     const match = findSavedAddress(address || "", useOrderStore.getState().coordinates);
-    setDeliveryAddressChosen(isAddressComplete(match));
+    const complete = isAddressComplete(match);
+    setDeliveryAddressChosen(complete);
+    if (complete && match) {
+      setSelectedReceiverName(match.receiverName?.trim() || null);
+      setSelectedReceiverPhone(match.receiverPhone?.trim() || null);
+    }
   }, [open_place_order_modal]);
 
   // Fetch available coupon discounts
@@ -892,6 +912,7 @@ const PlaceOrderModalV2 = ({
       useLocationStore.getState().setCoords(coords);
     }
     setSelectedReceiverPhone(addr.receiverPhone?.trim() || null);
+    setSelectedReceiverName(addr.receiverName?.trim() || null);
     setDeliveryAddressChosen(true);
     setShowAddressSheet(false);
     if (orderType === "delivery") {
@@ -925,7 +946,7 @@ const PlaceOrderModalV2 = ({
     setAddressFormData({
       // Default to the logged-in user's details (checkbox pre-checked).
       useAccountDetails: true,
-      receiverName: (user as any)?.full_name || "",
+      receiverName: accountReceiverName(user),
       receiverPhone: (user as any)?.phone || "",
       locationType: "Other",
       buildingFloor: "",
@@ -957,6 +978,16 @@ const PlaceOrderModalV2 = ({
 
   const handleSaveAddressForm = useCallback(async () => {
     if (!pendingAddress) return;
+    // Receiver name, number and building/floor are required.
+    if (
+      !addressFormData.receiverName.trim() ||
+      !addressFormData.receiverPhone.trim() ||
+      !addressFormData.buildingFloor.trim()
+    ) {
+      setTriedSaveAddress(true);
+      toast.error("Please fill the required fields");
+      return;
+    }
     const label =
       addressFormData.saveAs.trim() ||
       addressFormData.locationType;
@@ -982,11 +1013,17 @@ const PlaceOrderModalV2 = ({
     const success = await saveAddressesForUser(existing);
     if (success) {
       toast.success("Address saved");
+      setTriedSaveAddress(false);
       handleSelectSavedAddress(finalAddress);
     }
     setShowAddressForm(false);
     setPendingAddress(null);
   }, [pendingAddress, addressFormData, savedAddresses, saveAddressesForUser, handleSelectSavedAddress]);
+
+  // Reset the "required" highlight each time the address form opens.
+  useEffect(() => {
+    if (showAddressForm) setTriedSaveAddress(false);
+  }, [showAddressForm]);
 
   const handleDeleteAddress = useCallback(async (addressId: string) => {
     const updated = savedAddresses.filter((a) => a.id !== addressId);
@@ -1320,7 +1357,7 @@ const PlaceOrderModalV2 = ({
         orderNote || "",
         tableName,
         buildDiscountArg(),
-        (user as any)?.full_name || undefined,
+        selectedReceiverName || accountReceiverName(user) || undefined,
         selectedReceiverPhone || (user as any)?.phone || undefined,
         cfOrderId,
         prebookingArg,
@@ -1367,7 +1404,7 @@ const PlaceOrderModalV2 = ({
         Math.round(payable * 100) / 100,
         {
           id: user.id,
-          name: (user as any)?.full_name || "Customer",
+          name: selectedReceiverName || accountReceiverName(user) || "Customer",
           phone: ((user as any)?.phone || "9999999999").replace(/\D/g, "").slice(-10),
           email: (user as any)?.email,
         },
@@ -1578,7 +1615,7 @@ const PlaceOrderModalV2 = ({
         orderNote || "",
         tableName,
         buildDiscountArg(),
-        (user as any)?.full_name || undefined,
+        selectedReceiverName || accountReceiverName(user) || undefined,
         selectedReceiverPhone || (user as any)?.phone || undefined,
         null,
         prebookingArg,
@@ -2548,6 +2585,7 @@ const PlaceOrderModalV2 = ({
           if (isAddressComplete(match)) {
             // Complete saved address — ready to order.
             setSelectedReceiverPhone(match!.receiverPhone?.trim() || null);
+            setSelectedReceiverName(match!.receiverName?.trim() || null);
             setDeliveryAddressChosen(true);
             setShowAddressSheet(false);
           } else {
@@ -2565,7 +2603,7 @@ const PlaceOrderModalV2 = ({
             );
             setAddressFormData({
               useAccountDetails: true,
-              receiverName: (user as any)?.full_name || "",
+              receiverName: accountReceiverName(user),
               receiverPhone: (user as any)?.phone || "",
               locationType: "Other",
               buildingFloor: match?.house_no || "",
@@ -2647,7 +2685,7 @@ const PlaceOrderModalV2 = ({
                   setAddressFormData((prev) => ({
                     ...prev,
                     useAccountDetails: checked,
-                    receiverName: checked ? ((user as any)?.full_name || "") : "",
+                    receiverName: checked ? accountReceiverName(user) : "",
                     receiverPhone: checked ? ((user as any)?.phone || "") : "",
                   }));
                 }}
@@ -2656,24 +2694,34 @@ const PlaceOrderModalV2 = ({
               <span className="text-sm text-gray-700">Use my account details</span>
             </label>
             <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="Receiver name *"
-                value={addressFormData.receiverName}
-                onChange={(e) =>
-                  setAddressFormData((prev) => ({ ...prev, receiverName: e.target.value }))
-                }
-                className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
-              />
-              <input
-                type="tel"
-                placeholder="Receiver's number *"
-                value={addressFormData.receiverPhone}
-                onChange={(e) =>
-                  setAddressFormData((prev) => ({ ...prev, receiverPhone: e.target.value }))
-                }
-                className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
-              />
+              <div>
+                <input
+                  type="text"
+                  placeholder="Receiver name *"
+                  value={addressFormData.receiverName}
+                  onChange={(e) =>
+                    setAddressFormData((prev) => ({ ...prev, receiverName: e.target.value }))
+                  }
+                  className={`w-full h-12 px-4 rounded-xl border bg-white text-sm focus:outline-none focus:ring-2 ${triedSaveAddress && !addressFormData.receiverName.trim() ? "border-red-400 focus:ring-red-200" : "border-gray-200 focus:ring-gray-300"}`}
+                />
+                {triedSaveAddress && !addressFormData.receiverName.trim() && (
+                  <p className="mt-1 text-xs text-red-500">Receiver name is required</p>
+                )}
+              </div>
+              <div>
+                <input
+                  type="tel"
+                  placeholder="Receiver's number *"
+                  value={addressFormData.receiverPhone}
+                  onChange={(e) =>
+                    setAddressFormData((prev) => ({ ...prev, receiverPhone: e.target.value }))
+                  }
+                  className={`w-full h-12 px-4 rounded-xl border bg-white text-sm focus:outline-none focus:ring-2 ${triedSaveAddress && !addressFormData.receiverPhone.trim() ? "border-red-400 focus:ring-red-200" : "border-gray-200 focus:ring-gray-300"}`}
+                />
+                {triedSaveAddress && !addressFormData.receiverPhone.trim() && (
+                  <p className="mt-1 text-xs text-red-500">Receiver's number is required</p>
+                )}
+              </div>
             </div>
           </div>
 
@@ -2707,15 +2755,20 @@ const PlaceOrderModalV2 = ({
             </div>
 
             <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="Building / Floor *"
-                value={addressFormData.buildingFloor}
-                onChange={(e) =>
-                  setAddressFormData((prev) => ({ ...prev, buildingFloor: e.target.value }))
-                }
-                className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
-              />
+              <div>
+                <input
+                  type="text"
+                  placeholder="Building / Floor *"
+                  value={addressFormData.buildingFloor}
+                  onChange={(e) =>
+                    setAddressFormData((prev) => ({ ...prev, buildingFloor: e.target.value }))
+                  }
+                  className={`w-full h-12 px-4 rounded-xl border bg-white text-sm focus:outline-none focus:ring-2 ${triedSaveAddress && !addressFormData.buildingFloor.trim() ? "border-red-400 focus:ring-red-200" : "border-gray-200 focus:ring-gray-300"}`}
+                />
+                {triedSaveAddress && !addressFormData.buildingFloor.trim() && (
+                  <p className="mt-1 text-xs text-red-500">Building / Floor is required</p>
+                )}
+              </div>
               <input
                 type="text"
                 placeholder="Street (Recommended)"

@@ -249,7 +249,14 @@ const V3ItemCard = ({
       return;
     }
     if (hasVariants) {
-      setShowVariants(!showVariants);
+      // Add the first variant to the cart by default AND open the picker so the
+      // customer sees it added and can switch / add other variants.
+      const total = Object.values(variantQuantities).reduce((s, q) => s + q, 0);
+      if (total === 0) {
+        const firstVariant = (item.variants || []).find(Boolean);
+        if (firstVariant) handleVariantAdd(firstVariant);
+      }
+      setShowVariants(true);
     } else {
       addItem({ ...item, variantSelections: [], price: isUpcomingOffer ? item.price : offerData?.offer_price || item.price });
     }
@@ -429,7 +436,7 @@ const V3ItemCard = ({
                     </div>
                   ) : (
                     <button
-                      onClick={(e) => { e.stopPropagation(); setShowVariants(!showVariants); }}
+                      onClick={(e) => { e.stopPropagation(); handleAddItem(); }}
                       className="rounded-md border border-emerald-600/30 bg-white px-4 py-1 text-[11px] font-extrabold uppercase tracking-wider text-emerald-700 shadow-md transition active:scale-95"
                     >
                       Add
