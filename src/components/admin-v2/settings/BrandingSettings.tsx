@@ -50,8 +50,7 @@ export function BrandingSettings() {
     // Announcement State
     const [announcement, setAnnouncement] = useState("");
 
-    // Banner Mode State
-    const [bannerMode, setBannerMode] = useState<"single" | "carousel">("single");
+    // Banner State
     const [carouselBanners, setCarouselBanners] = useState<string[]>([]);
     const [isCarouselUploading, setIsCarouselUploading] = useState(false);
     const [carouselCropperOpen, setCarouselCropperOpen] = useState(false);
@@ -80,10 +79,9 @@ export function BrandingSettings() {
         if (userData?.role === "partner") {
             setBannerImage((userData as any).store_banner || null);
 
-            // Announcement & Banner Mode
+            // Announcement & Banners
             const rules = (userData as any).delivery_rules;
             setAnnouncement(rules?.announcement || "");
-            setBannerMode(rules?.banner_mode || "single");
             setCarouselBanners(rules?.carousel_banners || []);
 
             // V3 hero-logo customization (size & bg color)
@@ -108,7 +106,8 @@ export function BrandingSettings() {
             const updatedRules = {
                 ...currentRules,
                 announcement,
-                banner_mode: bannerMode,
+                // Carousel is shown whenever banners exist; keep banner_mode in sync for any legacy readers.
+                banner_mode: carouselBanners.length > 0 ? "carousel" : "single",
                 carousel_banners: carouselBanners,
             };
 
@@ -141,7 +140,7 @@ export function BrandingSettings() {
             console.error("Error saving branding settings:", error);
             toast.error("Failed to save branding settings");
         }
-    }, [userData, announcement, bannerMode, carouselBanners, bannerLogoScale, bannerLogoBgColor, setState, setHasChanges]);
+    }, [userData, announcement, carouselBanners, bannerLogoScale, bannerLogoBgColor, setState, setHasChanges]);
 
     useEffect(() => {
         if (userData?.role !== "partner") return;
@@ -297,7 +296,7 @@ export function BrandingSettings() {
 
             // Save to DB immediately
             const currentRules = (userData as any).delivery_rules || {};
-            const updatedRules = { ...currentRules, carousel_banners: updated, banner_mode: bannerMode };
+            const updatedRules = { ...currentRules, carousel_banners: updated, banner_mode: "carousel" };
             await updatePartner((userData as any).id, { delivery_rules: updatedRules });
             revalidateTag((userData as any).id);
             setState({ delivery_rules: updatedRules } as any);
@@ -320,7 +319,7 @@ export function BrandingSettings() {
                 await deleteFileFromS3(bannerToRemove);
             }
             const currentRules = (userData as any).delivery_rules || {};
-            const updatedRules = { ...currentRules, carousel_banners: updated };
+            const updatedRules = { ...currentRules, carousel_banners: updated, banner_mode: updated.length > 0 ? "carousel" : "single" };
             await updatePartner((userData as any).id, { delivery_rules: updatedRules });
             revalidateTag((userData as any).id);
             setState({ delivery_rules: updatedRules } as any);
@@ -347,83 +346,49 @@ export function BrandingSettings() {
                     )}
                     <Card className={isOnFreePlan ? "opacity-60 pointer-events-none" : ""}>
                         <CardHeader>
-                            <CardTitle>Store Banner</CardTitle>
-                            <CardDescription>Choose single banner or carousel (up to 5 banners).</CardDescription>
+                            <CardTitle>Logo & Banners</CardTitle>
+                            <CardDescription>Upload your store logo, and optionally up to 5 carousel banners shown across the top of your store page.</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-5">
-                            {/* Banner Mode Toggle */}
-                            <div className="flex items-center gap-3">
-                                <Button
-                                    variant={bannerMode === "single" ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={async () => {
-                                        setBannerMode("single");
-                                        if (!userData) return;
-                                        const currentRules = (userData as any).delivery_rules || {};
-                                        const updatedRules = { ...currentRules, banner_mode: "single" };
-                                        await updatePartner((userData as any).id, { delivery_rules: updatedRules });
-                                        revalidateTag((userData as any).id);
-                                        setState({ delivery_rules: updatedRules } as any);
-                                    }}
-                                >
-                                    Single Banner
-                                </Button>
-                                <Button
-                                    variant={bannerMode === "carousel" ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={async () => {
-                                        setBannerMode("carousel");
-                                        if (!userData) return;
-                                        const currentRules = (userData as any).delivery_rules || {};
-                                        const updatedRules = { ...currentRules, banner_mode: "carousel" };
-                                        await updatePartner((userData as any).id, { delivery_rules: updatedRules });
-                                        revalidateTag((userData as any).id);
-                                        setState({ delivery_rules: updatedRules } as any);
-                                    }}
-                                >
-                                    Carousel (Max 5)
+                        <CardContent className="space-y-6">
+                            {/* Store Logo */}
+                            <div className="space-y-3">
+                                <Label>Store Logo</Label>
+                                <p className="text-xs text-muted-foreground">Shown as your store logo. Used on its own when no banners are added.</p>
+                                <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border bg-muted">
+                                    {bannerImage ? (
+                                        isVideoUrl(bannerImage) ? (
+                                            <video src={bannerImage} autoPlay muted loop playsInline className="h-full w-full object-cover" />
+                                        ) : (
+                                            <Img src={bannerImage} alt="Store Logo" className="h-full w-full object-cover" />
+                                        )
+                                    ) : (
+                                        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                                            No logo
+                                        </div>
+                                    )}
+                                    {isBannerUploading && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+                                            <Loader2 className="h-6 w-6 animate-spin" />
+                                        </div>
+                                    )}
+                                </div>
+                                <Button variant="outline" className="relative" disabled={isBannerUploading}>
+                                    <Upload className="mr-2 h-4 w-4" />
+                                    Upload Logo
+                                    <Input
+                                        type="file"
+                                        className="absolute inset-0 cursor-pointer opacity-0"
+                                        accept="image/*,video/mp4,video/webm"
+                                        onChange={handleBannerChange}
+                                        disabled={isBannerUploading}
+                                    />
                                 </Button>
                             </div>
 
-                            {/* Single Banner Upload */}
-                            {bannerMode === "single" && (
-                                <>
-                                    <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-lg border bg-muted">
-                                        {bannerImage ? (
-                                            isVideoUrl(bannerImage) ? (
-                                                <video src={bannerImage} autoPlay muted loop playsInline className="h-full w-full object-cover" />
-                                            ) : (
-                                                <Img src={bannerImage} alt="Store Banner" className="h-full w-full object-cover" />
-                                            )
-                                        ) : (
-                                            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                                                No banner image
-                                            </div>
-                                        )}
-                                        {isBannerUploading && (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-                                                <Loader2 className="h-6 w-6 animate-spin" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    <Button variant="outline" className="relative" disabled={isBannerUploading}>
-                                        <Upload className="mr-2 h-4 w-4" />
-                                        Upload Banner
-                                        <Input
-                                            type="file"
-                                            className="absolute inset-0 cursor-pointer opacity-0"
-                                            accept="image/*,video/mp4,video/webm"
-                                            onChange={handleBannerChange}
-                                            disabled={isBannerUploading}
-                                        />
-                                    </Button>
-                                </>
-                            )}
-
-                            {/* Carousel Banners Upload */}
-                            {bannerMode === "carousel" && (
-                                <div className="space-y-3">
-                                    <Label>Carousel Banners ({carouselBanners.length}/5)</Label>
+                            {/* Banner Carousel */}
+                            <div className="space-y-3 border-t pt-5">
+                                    <Label>Banner Carousel ({carouselBanners.length}/5)</Label>
+                                    <p className="text-xs text-muted-foreground">Full-width banners shown above your menu. Add at least one to enable the carousel.</p>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                         {carouselBanners.map((url, idx) => (
                                             <div key={idx} className="relative aspect-video rounded-lg overflow-hidden border bg-muted group">
@@ -459,8 +424,7 @@ export function BrandingSettings() {
                                             </div>
                                         )}
                                     </div>
-                                </div>
-                            )}
+                            </div>
                         </CardContent>
                     </Card>
                 </div>

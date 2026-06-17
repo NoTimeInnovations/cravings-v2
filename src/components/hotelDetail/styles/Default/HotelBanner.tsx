@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { X } from "lucide-react";
 
-const DefaultBannerCarousel = ({ banners, accent }: { banners: string[]; accent: string }) => {
+export const DefaultBannerCarousel = ({ banners, accent }: { banners: string[]; accent: string }) => {
   const items = banners.slice(0, 5);
   const count = items.length;
   const isMultiple = count > 1;
@@ -45,18 +45,23 @@ const DefaultBannerCarousel = ({ banners, accent }: { banners: string[]; accent:
   useEffect(() => { if (!transitioning) { const t = setTimeout(() => setTransitioning(true), 50); return () => clearTimeout(t); } }, [transitioning]);
 
   return (
-    <div className="relative w-full overflow-hidden rounded-2xl" style={{ height: "180px" }}
+    <div className="relative w-full overflow-hidden rounded-3xl" style={{ height: "180px", clipPath: "inset(0 round 24px)" }}
       onTouchStart={isMultiple ? (e) => { touchX.current = e.touches[0].clientX; deltaX.current = 0; if (autoRef.current) clearInterval(autoRef.current); } : undefined}
       onTouchMove={isMultiple ? (e) => { deltaX.current = e.touches[0].clientX - touchX.current; if (trackRef.current) { const w = trackRef.current.parentElement?.offsetWidth || 0; trackRef.current.style.transition = "none"; trackRef.current.style.transform = `translateX(${-index * w + deltaX.current}px)`; } } : undefined}
       onTouchEnd={isMultiple ? () => { setTransitioning(true); if (trackRef.current) { trackRef.current.style.transition = ""; trackRef.current.style.transform = ""; } if (deltaX.current < -50) setIndex((p) => p + 1); else if (deltaX.current > 50) setIndex((p) => p - 1); resetAuto(); } : undefined}
     >
       <div ref={trackRef} className="flex h-full" style={{ transform: `translateX(-${index * 100}%)`, transition: transitioning ? "transform 500ms ease-in-out" : "none" }}>
         {extended.map((url, idx) => (
-          <div key={idx} className="w-full h-full flex-shrink-0">
+          <div key={idx} className="relative w-full h-full flex-shrink-0 bg-gray-100">
             {isVideoUrl(url) ? (
-              <video src={url} poster={getVideoThumbnailUrl(url)} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+              <video src={url} poster={getVideoThumbnailUrl(url)} autoPlay muted loop playsInline className="absolute inset-0 block h-full w-full object-cover" />
             ) : (
-              <img src={url} alt={`Banner ${idx + 1}`} className="w-full h-full object-cover" />
+              <div
+                className="absolute inset-0 bg-center bg-no-repeat bg-cover"
+                style={{ backgroundImage: `url("${url}")`, transform: "scale(1.08)" }}
+                role="img"
+                aria-label={`Banner ${idx + 1}`}
+              />
             )}
           </div>
         ))}
@@ -76,15 +81,8 @@ const DefaultBannerCarousel = ({ banners, accent }: { banners: string[]; accent:
 };
 
 const HotelBanner = ({ styles, hoteldata }: { styles: Styles; hoteldata: HotelData }) => {
-  const bannerMode = (hoteldata as any)?.delivery_rules?.banner_mode || "single";
-  const carouselBanners: string[] = (hoteldata as any)?.delivery_rules?.carousel_banners || [];
-
-  // Carousel mode - show full-width carousel
-  if (bannerMode === "carousel" && carouselBanners.length > 0) {
-    return <DefaultBannerCarousel banners={carouselBanners} accent={styles.accent || "#ea580c"} />;
-  }
-
-  // Single banner mode - original circular avatar
+  // The store logo (store_banner) always renders as the circular avatar.
+  // The full-width carousel banners are rendered separately by the page layout.
   const bannerSrc = hoteldata?.store_banner || "/image_placeholder.png";
   const isVideo = isVideoUrl(bannerSrc);
   const posterSrc = isVideo ? getVideoThumbnailUrl(bannerSrc) : undefined;

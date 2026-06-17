@@ -12,6 +12,7 @@ import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import { getFeatures } from "@/lib/getFeatures";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
 import DiscountBanner from "../../DiscountBanner";
+import { DefaultBannerCarousel } from "../Default/HotelBanner";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 import useOrderStore from "@/store/orderStore";
 import { useAuthStore } from "@/store/authStore";
@@ -230,6 +231,11 @@ const V3 = ({
   // Banner
   const storeBanner = hoteldata?.store_banner;
   const showBanner = storeBanner && !bannerError;
+  const carouselBanners: string[] = (hoteldata as any)?.delivery_rules?.carousel_banners || [];
+
+  // When the onboarding feature is on, the store identity (logo/name/contacts)
+  // is shown on the order-type screen instead, so hide it from the menu page.
+  const hideStoreIdentity = !!features?.newonboarding?.enabled && tableNumber === 0;
 
   // Social links
   const phoneHref = socialLinks?.phone ? `tel:${socialLinks.phone}` : null;
@@ -363,6 +369,7 @@ const V3 = ({
         )}
 
         {/* ===== HERO SECTION - Compact (same as cravings-v3) ===== */}
+        {!hideStoreIdentity && (
         <section className="px-4 pt-3">
           <div className="flex items-center gap-3">
             {/* Logo */}
@@ -448,6 +455,14 @@ const V3 = ({
             </div>
           )}
         </section>
+        )}
+
+        {/* Full-width banner carousel (shown when banners are uploaded) */}
+        {carouselBanners.length > 0 && (
+          <section className="px-4 pt-3">
+            <DefaultBannerCarousel banners={carouselBanners} accent={styles.accent || "#ea580c"} />
+          </section>
+        )}
 
         {/* Discount Banner */}
         <DiscountBanner

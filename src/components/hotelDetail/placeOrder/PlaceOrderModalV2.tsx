@@ -2257,9 +2257,11 @@ const PlaceOrderModalV2 = ({
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-gray-400 mt-0.5">
-                          {deliveryInfo.distance.toFixed(1)} kms
-                        </div>
+                        {deliveryInfo.distance > 0 && (
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            {deliveryInfo.distance.toFixed(1)} kms
+                          </div>
+                        )}
                       </div>
                     )}
                   {/* Porter Bridge: dedicated row with loading state so we

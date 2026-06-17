@@ -1,6 +1,6 @@
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import React, { useState } from "react";
-import HotelBanner from "./HotelBanner";
+import HotelBanner, { DefaultBannerCarousel } from "./HotelBanner";
 import LocationHeader from "../../LocationHeader";
 import DescriptionWithTextBreak from "@/components/DescriptionWithTextBreak";
 import ThemeChangeButton, { ThemeConfig } from "../../ThemeChangeButton";
@@ -217,6 +217,16 @@ const Default = ({
               />
             </div>
           </section>
+
+          {/* full-width banner carousel (shown when banners are uploaded) */}
+          {((hoteldata as any)?.delivery_rules?.carousel_banners?.length ?? 0) > 0 && (
+            <section className="px-[8%] pt-1">
+              <DefaultBannerCarousel
+                banners={(hoteldata as any).delivery_rules.carousel_banners}
+                accent={styles.accent || "#ea580c"}
+              />
+            </section>
+          )}
 
           {/* search bar  */}
           <section className="px-[8%]">

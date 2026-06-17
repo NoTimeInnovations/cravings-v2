@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bike, Store, Clock, ChevronLeft, Utensils } from "lucide-react";
+import { Bike, Store, Clock, ChevronLeft, Utensils, Phone, MapPin, Star } from "lucide-react";
+import { FaWhatsapp, FaInstagram } from "react-icons/fa";
 import { isWithinTimeWindow, formatTime12h } from "@/lib/isWithinTimeWindow";
 import { DEFAULT_BRAND_COLOR_HEX } from "@/lib/brandColor";
 
@@ -25,6 +26,10 @@ interface OrderTypeScreenProps {
   initialTakeawayOpen?: boolean;
   hotelTimezone?: string;
   accent?: string;
+  /** Store identity shown at the top (logo/name passed via storeBanner/storeName). */
+  locationText?: string;
+  socialLinks?: { phone?: string; whatsapp?: string; instagram?: string; googleReview?: string } | null;
+  mapHref?: string | null;
 }
 
 export default function OrderTypeScreen({
@@ -43,7 +48,18 @@ export default function OrderTypeScreen({
   initialTakeawayOpen,
   hotelTimezone,
   accent = DEFAULT_BRAND_COLOR_HEX,
+  storeBanner,
+  storeName,
+  locationText,
+  socialLinks,
+  mapHref,
 }: OrderTypeScreenProps) {
+  const phoneHref = socialLinks?.phone ? `tel:${socialLinks.phone}` : null;
+  const whatsappHref = socialLinks?.whatsapp || null;
+  const instagramHref = socialLinks?.instagram || null;
+  const reviewHref = socialLinks?.googleReview || null;
+  const hasContacts = !!(phoneHref || whatsappHref || mapHref || instagramHref || reviewHref);
+  const heroGradient = `linear-gradient(160deg, ${accent} 0%, color-mix(in srgb, ${accent} 72%, #000) 100%)`;
   // Server pre-computes open state in the hotel's timezone and passes it via
   // initial props — first render matches SSR (no hydration mismatch). The
   // effect below re-runs the check on the client so the state stays correct
@@ -83,22 +99,62 @@ export default function OrderTypeScreen({
   }, [takeawayTimeAllowed, deliveryTimeAllowed, isDeliveryActive, hotelTimezone, hasDelivery, hasOrdering, hasDineIn]);
 
   return (
-    <div className="flex flex-col min-h-dvh bg-white pt-[60px] lg:pt-16 mx-auto w-full md:max-w-md relative" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-white">
-        <div className="flex items-center gap-3 px-4 py-3.5 lg:max-w-md lg:mx-auto">
-          <button
-            onClick={onBack || onSkip}
-            className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0 transition active:opacity-60"
-          >
-            <ChevronLeft className="w-[18px] h-[18px] text-gray-900" />
-          </button>
+    <div className="relative flex min-h-dvh flex-col mx-auto w-full md:max-w-md" style={{ fontFamily: "'Inter', system-ui, sans-serif", background: heroGradient }}>
+      {/* Branded hero header */}
+      <div className="relative px-6 pt-[56px] pb-12 text-white">
+        <button
+          onClick={onBack || onSkip}
+          className="absolute left-5 top-[50px] flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm transition active:opacity-70"
+        >
+          <ChevronLeft className="h-[18px] w-[18px] text-gray-900" />
+        </button>
+
+        <div className="mt-8 flex flex-col items-center text-center">
+          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-black/5">
+            {storeBanner ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={storeBanner} alt={storeName} className="h-full w-full object-contain" />
+            ) : (
+              <span className="text-3xl">🍽️</span>
+            )}
+          </div>
+          {storeName && <h2 className="mt-3 text-xl font-bold tracking-tight">{storeName}</h2>}
+          {locationText && <p className="mt-0.5 text-[13px] text-white/70">{locationText}</p>}
+
+          {hasContacts && (
+            <div className="mt-4 flex items-center justify-center gap-2">
+              {phoneHref && (
+                <a href={phoneHref} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-white/10 transition active:scale-95">
+                  <Phone className="h-4 w-4 text-white" />
+                </a>
+              )}
+              {whatsappHref && (
+                <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-white/10 transition active:scale-95">
+                  <FaWhatsapp size={16} className="text-white" />
+                </a>
+              )}
+              {mapHref && (
+                <a href={mapHref} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-white/10 transition active:scale-95">
+                  <MapPin className="h-4 w-4 text-white" />
+                </a>
+              )}
+              {instagramHref && (
+                <a href={instagramHref} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-white/10 transition active:scale-95">
+                  <FaInstagram size={16} className="text-white" />
+                </a>
+              )}
+              {reviewHref && (
+                <a href={reviewHref} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 items-center justify-center rounded-full border border-white/30 bg-white/10 transition active:scale-95">
+                  <Star className="h-4 w-4 text-white" />
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1">
-       <div className="px-6 lg:max-w-md lg:mx-auto">
+      {/* White content sheet */}
+      <div className="relative z-[1] -mt-6 flex-1 rounded-t-[28px] bg-white px-6 pt-7 pb-[130px] shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
         <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-gray-900">
           How would you like your order?
         </h1>
@@ -235,7 +291,6 @@ export default function OrderTypeScreen({
             </button>
           </p>
         )}
-       </div>
       </div>
 
       {/* Sticky CTA */}

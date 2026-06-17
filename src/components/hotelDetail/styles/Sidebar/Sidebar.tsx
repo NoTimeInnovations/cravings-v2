@@ -88,7 +88,7 @@ const SidebarBannerCarousel = ({ banners, accent }: { banners: string[]; accent:
   useEffect(() => { if (!transitioning) { const t = setTimeout(() => setTransitioning(true), 50); return () => clearTimeout(t); } }, [transitioning]);
 
   return (
-    <div className="relative w-full h-full overflow-hidden"
+    <div className="relative w-full h-full overflow-hidden rounded-3xl" style={{ clipPath: "inset(0 round 24px)" }}
       onTouchStart={isMultiple ? (e) => { touchX.current = e.touches[0].clientX; deltaX.current = 0; if (autoRef.current) clearInterval(autoRef.current); } : undefined}
       onTouchMove={isMultiple ? (e) => { deltaX.current = e.touches[0].clientX - touchX.current; if (trackRef.current) { const w = trackRef.current.parentElement?.offsetWidth || 0; trackRef.current.style.transition = "none"; trackRef.current.style.transform = `translateX(${-index * w + deltaX.current}px)`; } } : undefined}
       onTouchEnd={isMultiple ? () => { setTransitioning(true); if (trackRef.current) { trackRef.current.style.transition = ""; trackRef.current.style.transform = ""; } if (deltaX.current < -50) setIndex((p) => p + 1); else if (deltaX.current > 50) setIndex((p) => p - 1); resetAuto(); } : undefined}
@@ -431,11 +431,14 @@ const Sidebar = ({
           <section className="relative">
             <div className="w-full h-[28vh] relative overflow-hidden">
               {(() => {
-                const bannerMode = hoteldata?.delivery_rules?.banner_mode || "single";
                 const carouselBanners: string[] = hoteldata?.delivery_rules?.carousel_banners || [];
 
-                if (bannerMode === "carousel" && carouselBanners.length > 0) {
-                  return <SidebarBannerCarousel banners={carouselBanners} accent={styles.accent} />;
+                if (carouselBanners.length > 0) {
+                  return (
+                    <div className="w-full h-full p-3">
+                      <SidebarBannerCarousel banners={carouselBanners} accent={styles.accent} />
+                    </div>
+                  );
                 } else if (hoteldata?.store_banner && hoteldata?.store_banner !== "") {
                   return isVideoUrl(hoteldata.store_banner) ? (
                     <video

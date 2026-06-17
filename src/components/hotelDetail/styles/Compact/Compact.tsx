@@ -79,7 +79,6 @@ const BannerCarousel = ({
   accent: string;
   topItems: any[];
 }) => {
-  const bannerMode = hoteldata?.delivery_rules?.banner_mode || "single";
   const carouselBanners: string[] = useMemo(
     () => hoteldata?.delivery_rules?.carousel_banners || [],
     [hoteldata?.delivery_rules?.carousel_banners]
@@ -87,7 +86,7 @@ const BannerCarousel = ({
 
   const slides = useMemo(() => {
     const slideList: { image: string; title?: string }[] = [];
-    if (bannerMode === "carousel" && carouselBanners.length > 0) {
+    if (carouselBanners.length > 0) {
       carouselBanners.slice(0, 5).forEach((url, idx) => {
         slideList.push({ image: url, title: `Banner ${idx + 1}` });
       });
@@ -100,7 +99,7 @@ const BannerCarousel = ({
       slideList.push({ image: "", title: hoteldata?.store_name });
     }
     return slideList;
-  }, [hoteldata?.store_banner, hoteldata?.store_name, bannerError, bannerMode, carouselBanners]);
+  }, [hoteldata?.store_banner, hoteldata?.store_name, bannerError, carouselBanners]);
 
   const count = slides.length;
   const isMultiple = count > 1;
@@ -254,10 +253,10 @@ const BannerCarousel = ({
   );
 
   return (
-    <div className={`relative ${isMultiple ? "px-4 pt-3" : ""}`}>
+    <div className="relative px-4 pt-3">
       <div
-        className={`relative overflow-hidden ${isMultiple ? "rounded-2xl" : ""}`}
-        style={{ height: isMultiple ? "180px" : "200px" }}
+        className="relative overflow-hidden rounded-3xl"
+        style={{ height: isMultiple ? "180px" : "200px", clipPath: "inset(0 round 24px)" }}
         onTouchStart={isMultiple ? handleTouchStart : undefined}
         onTouchMove={isMultiple ? handleTouchMove : undefined}
         onTouchEnd={isMultiple ? handleTouchEnd : undefined}

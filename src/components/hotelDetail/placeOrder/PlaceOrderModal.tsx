@@ -772,9 +772,11 @@ const BillCard = ({
                 </span>
               )}
             </div>
-            <div className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
-              {deliveryInfo.distance.toFixed(1)} kms
-            </div>
+            {deliveryInfo.distance > 0 && (
+              <div className="text-xs mt-0.5" style={{ color: "var(--pom-text-muted)" }}>
+                {deliveryInfo.distance.toFixed(1)} kms
+              </div>
+            )}
           </div>
         )}
 

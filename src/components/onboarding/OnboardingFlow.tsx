@@ -12,6 +12,7 @@ import DeliveryAddressScreen from "./DeliveryAddressScreen";
 import OrderTypeScreen from "./OrderTypeScreen";
 import OutletPickerScreen from "./OutletPickerScreen";
 import { brandColorToHex } from "@/lib/brandColor";
+import { getPartnerMapsUrl } from "@/lib/getPartnerMapsUrl";
 import type { BranchContext, BranchOutlet } from "@/api/branches";
 
 type OnboardingStep = "splash" | "address" | "orderType" | "outletPicker";
@@ -432,6 +433,9 @@ export default function OnboardingFlow({
             initialTakeawayOpen={initialTakeawayOpen}
             hotelTimezone={hotelTimezone}
             accent={accent}
+            locationText={hotelData?.location_details || hotelData?.district || hotelData?.country || ""}
+            socialLinks={socialLinks}
+            mapHref={getPartnerMapsUrl(hotelData)}
           />
         )}
 
