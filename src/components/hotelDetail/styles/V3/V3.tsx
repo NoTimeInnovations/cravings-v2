@@ -655,6 +655,19 @@ const V3 = ({
               }
               setAddressPickerOpen(true);
             }}
+            onAddNew={() => {
+              // Open the map picker straight on the interactive map (search +
+              // draggable pin), seeded with the current location so it skips the
+              // "turn on device location" landing screen.
+              setAddressSheetOpen(false);
+              const coords = useOrderStore.getState().coordinates;
+              if (userAddress?.trim() && coords) {
+                setPickerInitial({ address: userAddress, coords });
+              } else {
+                setPickerInitial(null);
+              }
+              setAddressPickerOpen(true);
+            }}
             onClose={() => setAddressSheetOpen(false)}
             accent={styles.accent}
           />
