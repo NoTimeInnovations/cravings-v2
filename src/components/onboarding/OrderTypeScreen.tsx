@@ -110,12 +110,12 @@ export default function OrderTypeScreen({
         </button>
 
         <div className="mt-8 flex flex-col items-center text-center">
-          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-black/5">
+          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border-4 border-white shadow-md">
             {storeBanner ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={storeBanner} alt={storeName} className="h-full w-full object-contain" />
+              <img src={storeBanner} alt={storeName} className="h-full w-full object-cover" />
             ) : (
-              <span className="text-3xl">🍽️</span>
+              <span className="text-3xl text-white">🍽️</span>
             )}
           </div>
           {storeName && <h2 className="mt-3 text-xl font-bold tracking-tight">{storeName}</h2>}
