@@ -61,6 +61,7 @@ import { PaymentMethodChooseV2 } from "./PaymentMethodChooseV2";
 import { AdminV2EditOrder } from "./AdminV2EditOrder";
 import { Edit, FileClock } from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { expireCfOrder } from "@/app/actions/cfOrders";
 import { getFeatures } from "@/lib/getFeatures";
 import { formatPrebookDateLabel, formatPrebookSlotLabel, parsePrebookingSettings } from "@/lib/prebooking";
 
@@ -79,10 +80,37 @@ export function AdminV2Orders() {
   // the "Draft Orders" toggle is on, rendered in the SAME table/cards as orders.
   const [drafts, setDrafts] = useState<Order[]>([]);
   const [showDrafts, setShowDrafts] = useState(false);
+  const [clearingDrafts, setClearingDrafts] = useState(false);
   useEffect(() => {
     const unsubscribe = subscribeDraftOrders((d) => setDrafts(d));
     return () => unsubscribe();
   }, [subscribeDraftOrders]);
+
+  // Drafts are no longer auto-expired by the reconcile cron — partners clear
+  // them here. expireCfOrder soft-deletes the unpaid order (status "expired")
+  // and refunds any loyalty points it had redeemed; the draft subscription
+  // (status = pending_payment) then drops it from the list automatically.
+  const handleClearDrafts = async () => {
+    if (!drafts.length || clearingDrafts) return;
+    if (
+      !window.confirm(
+        `Clear ${drafts.length} draft order${drafts.length > 1 ? "s" : ""}? These are unpaid online orders that were never completed.`,
+      )
+    )
+      return;
+    setClearingDrafts(true);
+    try {
+      const results = await Promise.allSettled(drafts.map((d) => expireCfOrder(d.id)));
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed) toast.error(`Cleared with ${failed} error${failed > 1 ? "s" : ""}`);
+      else toast.success("Draft orders cleared");
+    } catch (e) {
+      console.error("clear drafts failed", e);
+      toast.error("Failed to clear drafts");
+    } finally {
+      setClearingDrafts(false);
+    }
+  };
 
   const {
     orders,
@@ -465,9 +493,23 @@ export function AdminV2Orders() {
       </div>
 
       {showDrafts && (
-        <div className="rounded-md border border-amber-200 bg-amber-50/60 px-4 py-2 text-sm text-amber-800">
-          Showing <b>draft orders</b> — online orders whose payment is still processing. Not
-          confirmed yet, so they don&apos;t appear in the normal list or trigger alerts.
+        <div className="flex items-start justify-between gap-3 rounded-md border border-amber-200 bg-amber-50/60 px-4 py-2 text-sm text-amber-800">
+          <span>
+            Showing <b>draft orders</b> — online orders whose payment is still processing. Not
+            confirmed yet, so they don&apos;t appear in the normal list or trigger alerts.
+          </span>
+          {drafts.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearDrafts}
+              disabled={clearingDrafts}
+              className="shrink-0 gap-1.5 border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {clearingDrafts ? "Clearing…" : "Clear drafts"}
+            </Button>
+          )}
         </div>
       )}
 

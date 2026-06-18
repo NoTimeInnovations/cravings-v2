@@ -79,6 +79,15 @@ export const getStatusDisplay = (
     };
   }
 
+  // Online order whose payment never completed — a draft, not a live order.
+  // (status is a narrower union type that omits this DB-only value.)
+  if (String(order?.status) === "pending_payment") {
+    return {
+      text: "Draft",
+      className: "bg-amber-100 text-amber-800",
+    };
+  }
+
   return {
     text: "Pending",
     className: "bg-yellow-100 text-yellow-800",

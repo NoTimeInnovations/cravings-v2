@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getStalePendingCfOrders,
   finalizeCfOrder,
-  expireCfOrder,
 } from "@/app/actions/cfOrders";
 import { verifyCashfreePayment } from "@/app/actions/cashfree";
 
@@ -12,13 +11,13 @@ export const maxDuration = 60;
 // Backstop reconciler for online (Cashfree) orders stuck in pending_payment.
 // Runs on a Vercel cron. For each order whose payment never finalized (missed
 // webhook, customer never returned), it asks Cashfree for the current status:
-//   - PAID            -> finalizeCfOrder (mark paid, push to Petpooja, notify)
-//   - still ACTIVE and older than EXPIRE_AFTER_MIN -> expire (abandoned)
+//   - PAID   -> finalizeCfOrder (mark paid, push to Petpooja, notify)
+//   - unpaid -> left as a draft. Drafts are NO LONGER auto-expired here;
+//               partners clear them manually from the Draft Orders view.
 // This guarantees no paid order is ever lost even if both the webhook and the
 // client-return path fail.
 
 const PENDING_MIN = 2; // only evaluate orders at least this old (avoid racing checkout)
-const EXPIRE_AFTER_MIN = 3; // unpaid pending_payment orders older than this are soft-deleted (status "expired")
 
 export async function GET(req: NextRequest) {
   // Protect the endpoint. Vercel cron can be configured to send
@@ -55,14 +54,9 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      // Not paid. Expire if it's been abandoned long enough.
-      const ageMin = (now - new Date(o.created_at).getTime()) / 60_000;
-      if (ageMin >= EXPIRE_AFTER_MIN) {
-        await expireCfOrder(o.id);
-        summary.expired++;
-      } else {
-        summary.stillPending++;
-      }
+      // Not paid yet — leave it as a draft. Drafts are no longer auto-expired;
+      // partners clear them manually from the Draft Orders view.
+      summary.stillPending++;
     } catch (e: any) {
       console.error(`[reconcile-cf-orders] error on order=${o.id}:`, e?.message || e);
       summary.errors++;
