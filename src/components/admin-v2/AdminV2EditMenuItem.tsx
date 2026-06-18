@@ -11,7 +11,7 @@ import { ImageGridModalV2 } from "../bulkMenuUpload/ImageGridModalV2";
 import CategoryDropdown from "@/components/ui/CategoryDropdown";
 import { TAG_CATEGORIES, getTagColor } from "@/data/foodTags";
 import { useCategoryStore, formatDisplayName } from "@/store/categoryStore_hasura";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore, Partner } from "@/store/authStore";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
@@ -31,6 +31,10 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
     const { updateItem, deleteItem } = useMenuStore();
     const { userData } = useAuthStore();
     const { categories, fetchCategories } = useCategoryStore();
+    // Petpooja owns the menu (name/category/price/variants are synced from there),
+    // so those fields are read-only here. Image, description, tags and visibility
+    // toggles stay editable.
+    const isPetpooja = !!(userData as Partner)?.petpooja_restaurant_id;
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
     const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
@@ -189,6 +193,11 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                             <CardTitle>Basic Details</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            {isPetpooja && (
+                                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                                    Name, category, price and variants are synced from <b>Petpooja</b> and can&apos;t be edited here. You can still update the image, description, tags and visibility.
+                                </div>
+                            )}
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Item Name</label>
                                 <Input
@@ -196,6 +205,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                                     placeholder="e.g. Butter Chicken"
                                     value={editingItem.name}
                                     onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                                    disabled={isPetpooja}
                                 />
                             </div>
 
@@ -231,7 +241,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
+                                <div className={`space-y-2 ${isPetpooja ? "pointer-events-none opacity-60" : ""}`}>
                                     <label className="text-sm font-medium">Category</label>
                                     <CategoryDropdown
                                         value={editingItem.category.name}
@@ -273,7 +283,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                                         placeholder="0.00"
                                         value={editingItem.price}
                                         onChange={(e) => setEditingItem({ ...editingItem, price: e.target.value })}
-                                        disabled={variants.length > 0}
+                                        disabled={isPetpooja || variants.length > 0}
                                     />
                                     {variants.length > 0 && (
                                         <p className="text-xs text-muted-foreground">
@@ -291,7 +301,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                                         placeholder="Same as base price"
                                         value={editingItem.delivery_price}
                                         onChange={(e) => setEditingItem({ ...editingItem, delivery_price: e.target.value })}
-                                        disabled={variants.length > 0}
+                                        disabled={isPetpooja || variants.length > 0}
                                     />
                                     <p className="text-xs text-muted-foreground">
                                         {variants.length > 0 ? "Set per variant below" : "Used for hotel/delivery orders. Leave blank to use base price."}
@@ -355,6 +365,7 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                                     <Switch
                                         checked={editingItem.is_price_as_per_size}
                                         onCheckedChange={(checked) => setEditingItem({ ...editingItem, is_price_as_per_size: checked })}
+                                        disabled={isPetpooja}
                                     />
                                 </div>
 
@@ -397,18 +408,20 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
                             <CardTitle>Variants / Options</CardTitle>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                    setEditingVariantIndex(null);
-                                    setNewVariant({ name: "", price: 0 });
-                                    setShowVariantForm(!showVariantForm);
-                                }}
-                            >
-                                {showVariantForm ? "Cancel" : <><Plus className="h-4 w-4 mr-2" /> Add Option</>}
-                            </Button>
+                            {!isPetpooja && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        setEditingVariantIndex(null);
+                                        setNewVariant({ name: "", price: 0 });
+                                        setShowVariantForm(!showVariantForm);
+                                    }}
+                                >
+                                    {showVariantForm ? "Cancel" : <><Plus className="h-4 w-4 mr-2" /> Add Option</>}
+                                </Button>
+                            )}
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {showVariantForm && (
@@ -456,14 +469,16 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                                                     )}
                                                 </p>
                                             </div>
-                                            <div className="flex gap-1">
-                                                <Button type="button" variant="ghost" size="icon" onClick={() => startEditingVariant(index)}>
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeVariant(index)}>
-                                                    <X className="h-4 w-4" />
-                                                </Button>
-                                            </div>
+                                            {!isPetpooja && (
+                                                <div className="flex gap-1">
+                                                    <Button type="button" variant="ghost" size="icon" onClick={() => startEditingVariant(index)}>
+                                                        <Edit className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeVariant(index)}>
+                                                        <X className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
