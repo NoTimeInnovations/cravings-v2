@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuthStore } from "@/store/authStore";
+import { useAuthStore, Partner } from "@/store/authStore";
 import { useMenuStore } from "@/store/menuStore_hasura";
 import { useOfferStore } from "@/store/offerStore_hasura";
 import { OfferDetails, SelectedItem } from "../../components/admin/InteractiveOfferCreation";
@@ -15,6 +15,9 @@ export function AdminV2Offers() {
     const { items } = useMenuStore();
     const { addOffer, fetchPartnerOffers, offers, deleteOffer } = useOfferStore();
     const { userData } = useAuthStore();
+    // Petpooja partners' discounts are managed in Petpooja, so creating offers
+    // here is disabled.
+    const isPetpooja = !!(userData as Partner)?.petpooja_restaurant_id;
     const [isCreateOfferOpen, setIsCreateOfferOpen] = useState(false);
     const [isOfferFetched, setIsOfferFetched] = useState(false);
     const [isDeleting, setDeleting] = useState<Record<string, boolean>>({});
@@ -155,13 +158,15 @@ export function AdminV2Offers() {
                     )}
                 </div>
                 {!isCreateOfferOpen ? (
-                    <Button
-                        onClick={() => setIsCreateOfferOpen(true)}
-                        className="bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
-                    >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Create Offer
-                    </Button>
+                    !isPetpooja && (
+                        <Button
+                            onClick={() => setIsCreateOfferOpen(true)}
+                            className="bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+                        >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Create Offer
+                        </Button>
+                    )
                 ) : (
                     <div className="flex gap-2">
                         <Button
@@ -185,6 +190,12 @@ export function AdminV2Offers() {
                     </div>
                 )}
             </div>
+
+            {isPetpooja && !isCreateOfferOpen && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+                    Offers are managed through <b>Petpooja</b> discounts and can&apos;t be created here.
+                </div>
+            )}
 
             {isCreateOfferOpen ? (
                 <div className="bg-card rounded-lg border shadow-sm p-3 sm:p-6">
@@ -351,13 +362,17 @@ export function AdminV2Offers() {
                         <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed rounded-lg bg-card/50">
                             {isOfferFetched ? (
                                 <>
-                                    <p className="text-muted-foreground mb-4">No active offers found</p>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setIsCreateOfferOpen(true)}
-                                    >
-                                        Create your first offer
-                                    </Button>
+                                    <p className="text-muted-foreground mb-4">
+                                        {isPetpooja ? "Offers are managed through Petpooja." : "No active offers found"}
+                                    </p>
+                                    {!isPetpooja && (
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => setIsCreateOfferOpen(true)}
+                                        >
+                                            Create your first offer
+                                        </Button>
+                                    )}
                                 </>
                             ) : (
                                 <div className="flex items-center gap-2 text-muted-foreground">

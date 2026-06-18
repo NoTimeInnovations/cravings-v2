@@ -116,6 +116,9 @@ export function AdminV2Menu() {
   const [isGoogleLinked, setIsGoogleLinked] = useState(false);
 
   const partner = userData as Partner;
+  // Petpooja partners' menu (items, categories, prices, variants, offers) is
+  // owned by Petpooja and synced in — so adding/editing those here is disabled.
+  const isPetpooja = !!partner?.petpooja_restaurant_id;
   const planId = partner?.subscription_details?.plan?.id;
   const isFreePlan = checkIsFreePlan(planId);
 
@@ -413,20 +416,24 @@ export function AdminV2Menu() {
                 <Crown className="h-3.5 w-3.5 ml-1 text-yellow-500" />
               )}
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => setIsAddingItem(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Item
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setIsAddingCategory(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Category
-            </Button>
+            {!isPetpooja && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsAddingItem(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Item
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsAddingCategory(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Category
+                </Button>
+              </>
+            )}
             {partner?.username && (
               <Button
                 variant="outline"
