@@ -1,4 +1,4 @@
-import type { FlowGraph, TriggerDef } from "@/lib/whatsappFlow/types";
+import type { FlowGraph, TriggerDef, ButtonItem } from "@/lib/whatsappFlow/types";
 import { TRIGGER_PRIORITY } from "@/lib/whatsappFlow/types";
 
 // The built-in flow set provisioned for a partner when WhatsApp ordering is
@@ -14,20 +14,16 @@ export interface DefaultFlowDef {
   triggers: TriggerDef[];
 }
 
-// Welcome: "hi" -> a caption + a tappable "Order Now" link button carrying a
-// fresh order link that also silently logs the customer in (instead of a raw
-// link in the text).
-// Welcome is a SINGLE quick-reply message. WhatsApp doesn't allow a URL button
-// and quick-reply buttons in the same message, so both actions are quick
-// replies: "Order Now" always, and "Reorder" only for returning customers.
-// A condition on {{reorder_link}} (empty = first-timer) picks which button set
-// to send. Tapping a button sends its label as text, which the matching
-// exact-trigger flow (Order link / Reorder) picks up and answers with the
-// actual auto-login link.
+// Welcome: "hi" -> a caption + a tappable "Order Now" CTA-URL button carrying a
+// fresh auto-login order link that opens the menu already signed in. A single
+// link-button message (no quick replies, no Reorder) so the customer reaches
+// the menu in one tap. {{order_link}} is injected by the engine for message
+// flows. (Reorder was removed for now; the separate "Reorder" flow still
+// responds if a customer types "reorder".)
 const WELCOME_TEXT =
-  "Hi 👋 Welcome to *{{store_name}}*!\n\n🛒 Tap *Order Now* to place your order.";
-const WELCOME_TEXT_RETURNING =
-  "Hi 👋 Welcome back to *{{store_name}}*!\n\n🛒 Tap *Order Now* for the full menu, or *Reorder* to repeat your last order.";
+  "Hi 👋 Welcome to *{{store_name}}*!\n\n" +
+  "🛒 Tap *Order Now* below to open the menu — you'll be signed in automatically.\n" +
+  "_The link is valid for 10 minutes._ ⏱️";
 
 function welcomeFlow(): DefaultFlowDef {
   return {
@@ -36,40 +32,17 @@ function welcomeFlow(): DefaultFlowDef {
       nodes: [
         { id: "trigger", type: "trigger", position: { x: 140, y: 220 }, data: { matchType: "exact", keywords: ["hi"] } },
         {
-          id: "cond",
-          type: "condition",
-          position: { x: 440, y: 220 },
+          id: "welcome",
+          type: "link_button",
+          position: { x: 440, y: 200 },
           data: {
-            rules: [{ var: "reorder_link", op: "isEmpty", handle: "empty" }],
-            defaultHandle: "has",
-          },
-        },
-        // First-time customer: just "Order Now".
-        {
-          id: "welcome_new",
-          type: "buttons",
-          position: { x: 760, y: 320 },
-          data: { text: WELCOME_TEXT, items: [{ id: "order_now", label: "Order Now" }] },
-        },
-        // Returning customer: "Order Now" + "Reorder".
-        {
-          id: "welcome_returning",
-          type: "buttons",
-          position: { x: 760, y: 120 },
-          data: {
-            text: WELCOME_TEXT_RETURNING,
-            items: [
-              { id: "order_now", label: "Order Now" },
-              { id: "reorder", label: "Reorder" },
-            ],
+            text: WELCOME_TEXT,
+            buttonText: "Order Now",
+            url: "{{order_link}}",
           },
         },
       ],
-      edges: [
-        { id: "e", source: "trigger", target: "cond", sourceHandle: null, targetHandle: null },
-        { id: "e_empty", source: "cond", target: "welcome_new", sourceHandle: "empty", targetHandle: null },
-        { id: "e_has", source: "cond", target: "welcome_returning", sourceHandle: "has", targetHandle: null },
-      ],
+      edges: [{ id: "e", source: "trigger", target: "welcome", sourceHandle: null, targetHandle: null }],
     },
     triggers: [{ matchType: "exact", keywords: ["hi"], nodeId: "trigger", priority: TRIGGER_PRIORITY.exact }],
   };
@@ -128,7 +101,11 @@ function reorderFlow(): DefaultFlowDef {
           type: "link_button",
           position: { x: 740, y: 140 },
           data: {
-            text: "🔁 Here's your last order — review and place it in one tap.",
+            text:
+              "🔁 *Here's your last order:*\n\n" +
+              "{{reorder_items}}\n\n" +
+              "💰 *Total:* {{reorder_total}}\n\n" +
+              "Review & place it in one tap 👇",
             buttonText: "Reorder",
             url: "{{reorder_link}}",
           },
@@ -161,6 +138,23 @@ function orderFlow(name: string, status: string, text: string): DefaultFlowDef {
       nodes: [
         { id: "trigger", type: "trigger", position: { x: 140, y: 220 }, data: { matchType: "order", orderStatus: status } },
         { id: "msg", type: "send_text", position: { x: 440, y: 160 }, data: { text } },
+      ],
+      edges: [{ id: "e", source: "trigger", target: "msg", sourceHandle: null, targetHandle: null }],
+    },
+    triggers: [{ matchType: "order", orderStatus: status, nodeId: "trigger", priority: TRIGGER_PRIORITY.order }],
+  };
+}
+
+// An order-status flow whose message carries native quick-reply buttons. Tapping
+// a button sends its label as text; an exact-keyword flow (e.g. Reorder) then
+// picks it up — the same handoff the welcome's "Order Now" button uses.
+function orderButtonsFlow(name: string, status: string, text: string, items: ButtonItem[]): DefaultFlowDef {
+  return {
+    name,
+    graph: {
+      nodes: [
+        { id: "trigger", type: "trigger", position: { x: 140, y: 220 }, data: { matchType: "order", orderStatus: status } },
+        { id: "msg", type: "buttons", position: { x: 440, y: 160 }, data: { text, items } },
       ],
       edges: [{ id: "e", source: "trigger", target: "msg", sourceHandle: null, targetHandle: null }],
     },
@@ -253,13 +247,14 @@ export function buildDefaultFlows(): DefaultFlowDef[] {
       "Track Order",
       "{{tracking_url}}",
     ),
-    orderFlow(
+    orderButtonsFlow(
       "Order completed",
       "completed",
       "🎉 *Order Completed!*\n\n" +
         "Thank you for ordering from *{{store_name}}*, {{customer_name}}! 🙏\n\n" +
         "🆔 Order *{{order_id}}* · 💰 *{{total}}*\n\n" +
-        "We hope you enjoyed it! ⭐ See you again soon.",
+        "We hope you enjoyed it! ⭐ Tap *Reorder* to order the same again.",
+      [{ id: "reorder", label: "Reorder" }],
     ),
     orderFlow(
       "Order cancelled",

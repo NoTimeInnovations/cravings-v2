@@ -93,12 +93,19 @@ const Q_LAST_ORDER = `
       limit: 1
     ) {
       type
+      total_price
       delivery_address
       delivery_location
       order_items { menu_id quantity item }
     }
   }
 `;
+
+// Same money formatting the order-status flows use (whole numbers stay whole).
+function fmtMoney(n: number): string {
+  if (!isFinite(n)) return "0";
+  return String(Math.round(n * 100) / 100);
+}
 
 // Variant name is encoded in the line item's composite id ("<menuId>|<Variant>"),
 // since order_items has no separate variant column.
@@ -595,23 +602,46 @@ async function buildMessageRunVars(
     // address without a query. reorder_link is empty for first-time customers,
     // so the welcome condition hides the Reorder button for them.
     let reorderPayload: string | null = null;
+    let lastOrder: any = null;
     if (userId) {
       try {
         const orderRes = await fetchFromHasura(Q_LAST_ORDER, {
           user_id: userId,
           partner_id: partnerId,
         });
-        const lastOrder = orderRes?.orders?.[0];
+        lastOrder = orderRes?.orders?.[0] || null;
         if (lastOrder) reorderPayload = encodeReorderPayload(lastOrder);
       } catch {
         reorderPayload = null;
+        lastOrder = null;
       }
+    }
+
+    const cur = p.currency ?? "₹";
+
+    // Itemised summary of the last order for the Reorder message ({{reorder_items}})
+    // and its grand total ({{reorder_total}}). Same line format the order-status
+    // flows use: "1. Name × qty — ₹line". Empty when there's no prior order.
+    let reorderItems = "";
+    let reorderTotal = "";
+    if (lastOrder) {
+      reorderItems = (lastOrder.order_items || [])
+        .map((oi: any, i: number) => {
+          const it = oi.item || {};
+          const name = it.name || "Item";
+          const qty = Number(oi.quantity) || 0;
+          const line = Number(it.price ?? 0) * qty;
+          return `${i + 1}. ${name} × ${qty} — ${cur}${fmtMoney(line)}`;
+        })
+        .join("\n");
+      const total = Number(lastOrder.total_price) || 0;
+      if (total > 0) reorderTotal = `${cur}${fmtMoney(total)}`;
     }
 
     return {
       store_name: p.store_name || "",
       username: p.username || "",
-      currency: p.currency ?? "₹",
+      currency: cur,
       order_link: p.username
         ? buildOrderLink(p.username, partnerId, { userId, customDomain: p.custom_domain })
         : "",
@@ -623,6 +653,8 @@ async function buildMessageRunVars(
               reorderPayload,
             })
           : "",
+      reorder_items: reorderItems,
+      reorder_total: reorderTotal,
     };
   } catch (e) {
     console.error("buildMessageRunVars failed:", e);
