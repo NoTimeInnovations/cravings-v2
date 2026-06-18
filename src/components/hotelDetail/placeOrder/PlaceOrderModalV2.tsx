@@ -1362,6 +1362,11 @@ const PlaceOrderModalV2 = ({
         cfOrderId,
         prebookingArg,
         true, // deferForPayment
+        // Loyalty: bake the redeemed ₹ into the stashed payload so finalizeCfOrder
+        // pushes a loyalty-correct order (total reduced + Fixed discount) post-payment.
+        redeemPoints > 0 && loyaltyCtx?.enabled && loyaltyRedeemValue > 0
+          ? { points: effectiveRedeemPoints, value: loyaltyRedeemValue }
+          : null,
       );
       if (!placed?.id) {
         toast.error("Could not start your order. Please try again.");
@@ -1619,6 +1624,11 @@ const PlaceOrderModalV2 = ({
         selectedReceiverPhone || (user as any)?.phone || undefined,
         null,
         prebookingArg,
+        false, // deferForPayment
+        // Loyalty: relay the redeemed ₹ as a discount in the Petpooja payload.
+        redeemPoints > 0 && loyaltyCtx?.enabled && loyaltyRedeemValue > 0
+          ? { points: effectiveRedeemPoints, value: loyaltyRedeemValue }
+          : null,
       );
 
       if (result) {

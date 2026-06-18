@@ -449,6 +449,14 @@ interface OrderState {
     cashfreeOrderId?: string | null,
     prebooking?: { date: string; time: string; timeTo?: string; persons?: number; dineIn?: boolean } | null,
     deferForPayment?: boolean,
+    /**
+     * Loyalty redemption applied to this order. When present (value > 0), the
+     * Petpooja push payload is built net of it: `total_price` is reduced and a
+     * synthetic Fixed ("flat") loyalty discount is appended to `discounts[]` so
+     * the POS shows the redemption. The authoritative ledger debit still happens
+     * server-side via redeemLoyaltyPoints after the order is created.
+     */
+    loyaltyRedeem?: { points: number; value: number } | null,
   ) => Promise<Order | null>;
   getCurrentOrder: () => HotelOrderState;
   fetchOrderOfPartner: (partnerId: string) => Promise<Order[] | null>;
@@ -1321,6 +1329,7 @@ const useOrderStore = create(
          * payment confirms. Returns the order without clearing the cart.
          */
         deferForPayment?: boolean,
+        loyaltyRedeem?: { points: number; value: number } | null,
       ) => {
         try {
           const state = get();
@@ -1429,10 +1438,54 @@ const useOrderStore = create(
 
           // PetPooja Order Push Logic
           if (hotelData.petpooja_restaurant_id) {
+            // Loyalty redemption: build the Petpooja payload net of the redeemed
+            // ₹ value and relay it as a Fixed discount. The value is known here
+            // (computed client-side) and matches what redeemLoyaltyPoints debits
+            // server-side after the order is created — so the POS totals reconcile.
+            // Baking it here (before the cfPpPayload stash) also fixes the online
+            // path: the stashed payload finalizeCfOrder pushes is loyalty-correct.
+            const loyaltyValue = Math.max(0, Math.round(((loyaltyRedeem?.value) || 0) * 100) / 100);
+            const ppTotalPrice = Math.max(0, Math.round((grandTotal - loyaltyValue) * 100) / 100);
+            const ppDiscounts: any[] = [];
+            if (discounts) {
+              ppDiscounts.push({
+                code: discounts.code,
+                type: discounts.type,
+                value: discounts.value,
+                savings: discounts.savings,
+                pp_discount_id: discounts.pp_discount_id || null,
+                description: discounts.description || null,
+                terms_conditions: discounts.terms_conditions || null,
+                max_discount_amount: discounts.max_discount_amount || null,
+                min_order_value: discounts.min_order_value || null,
+                discount_on_total: discounts.discount_on_total ?? true,
+                discount_order_types: discounts.discount_order_types || null,
+                valid_days: discounts.valid_days || null,
+                applicable_on: discounts.applicable_on || null,
+                rank: discounts.rank || null,
+                freebie_item_count: discounts.freebie_item_count || null,
+                freebie_item_ids: discounts.freebie_item_ids || null,
+                freebie_item_names: discounts.freebie_item_names || null,
+              });
+            }
+            if (loyaltyValue > 0) {
+              ppDiscounts.push({
+                code: "LOYALTY",
+                type: "flat",
+                value: loyaltyValue,
+                savings: loyaltyValue,
+                pp_discount_id: null,
+                description: "Loyalty points redemption",
+                discount_on_total: true,
+                applicable_on: "All",
+                rank: 99,
+              });
+            }
+
             const petpoojaOrder: Order = {
               id: orderId,
               items: currentOrder.items,
-              totalPrice: grandTotal,
+              totalPrice: ppTotalPrice,
               createdAt,
               tableNumber: tableNumber || null,
               qrId: validQrId,
@@ -1456,7 +1509,7 @@ const useOrderStore = create(
             const payload = {
               id: orderId,
               short_id: orderId?.slice(0, 8),
-              total_price: grandTotal,
+              total_price: ppTotalPrice,
               created_at: createdAt,
               table_number: tableNumber || null,
               qr_id: validQrId,
@@ -1500,25 +1553,7 @@ const useOrderStore = create(
               table_name: tableName || null,
               payment_method: "cash",
               petpooja_restaurant_id: hotelData.petpooja_restaurant_id,
-              discounts: discounts ? [{
-                code: discounts.code,
-                type: discounts.type,
-                value: discounts.value,
-                savings: discounts.savings,
-                pp_discount_id: discounts.pp_discount_id || null,
-                description: discounts.description || null,
-                terms_conditions: discounts.terms_conditions || null,
-                max_discount_amount: discounts.max_discount_amount || null,
-                min_order_value: discounts.min_order_value || null,
-                discount_on_total: discounts.discount_on_total ?? true,
-                discount_order_types: discounts.discount_order_types || null,
-                valid_days: discounts.valid_days || null,
-                applicable_on: discounts.applicable_on || null,
-                rank: discounts.rank || null,
-                freebie_item_count: discounts.freebie_item_count || null,
-                freebie_item_ids: discounts.freebie_item_ids || null,
-                freebie_item_names: discounts.freebie_item_names || null,
-              }] : [],
+              discounts: ppDiscounts,
               items: [
                 ...currentOrder.items.map((item) => {
                   const menuId = item.id.split("|")[0];

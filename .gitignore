@@ -53,3 +53,4 @@ google_tokens.json
 
 # Local-only task list
 tasks.md
+.env*.local
