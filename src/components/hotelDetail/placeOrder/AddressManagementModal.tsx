@@ -63,6 +63,18 @@ type GeocodedInfo = {
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 const DEFAULT_CENTER = { lat: 10.050525, lng: 76.322455 };
 const GOOGLE_MAPS_LIBRARIES: ["places"] = ["places"];
+// Stable identities so react-google-maps doesn't re-run setOptions()/restyle the
+// live map on every parent re-render — repeated setOptions calls interrupt the
+// touch gesture and make dragging feel laggy/stuck on mobile.
+const MAP_CONTAINER_STYLE = { width: "100%", height: "100%" } as const;
+const MAP_OPTIONS: google.maps.MapOptions = {
+  zoomControl: false,
+  streetViewControl: false,
+  mapTypeControl: false,
+  fullscreenControl: false,
+  gestureHandling: "greedy",
+  clickableIcons: false,
+};
 const RECENT_SEARCHES_KEY = "recent-address-searches";
 const MAX_RECENT = 5;
 const GREEN_PIN_SVG = `data:image/svg+xml,${encodeURIComponent('<svg width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 26 16 26s16-14 16-26C32 7.2 24.8 0 16 0z" fill="#16a34a"/><circle cx="16" cy="14.5" r="6" fill="white"/></svg>')}`;
@@ -218,10 +230,17 @@ const AddressManagementModal = ({
     libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
-  // Hotel coordinates from geo_location
-  const hotelCoords = hotelData?.geo_location && typeof hotelData.geo_location === "object" && "coordinates" in hotelData.geo_location
-    ? { lat: hotelData.geo_location.coordinates[1], lng: hotelData.geo_location.coordinates[0] }
-    : null;
+  // Hotel coordinates from geo_location. Memoized so it keeps a stable identity
+  // across re-renders — otherwise the marker/circle effect and the idle handler
+  // (which depend on it) re-run every render, recreating the marker and
+  // re-binding map listeners mid-gesture, which makes dragging stutter.
+  const hotelCoords = useMemo(
+    () =>
+      hotelData?.geo_location && typeof hotelData.geo_location === "object" && "coordinates" in hotelData.geo_location
+        ? { lat: hotelData.geo_location.coordinates[1], lng: hotelData.geo_location.coordinates[0] }
+        : null,
+    [hotelData?.geo_location],
+  );
 
   const radiusKm = hotelData?.delivery_rules?.delivery_radius;
   const isPinOutOfRange =
@@ -497,7 +516,6 @@ const AddressManagementModal = ({
 
     // Mark initialized after first idle (skip geocode timer during init)
     if (!mapInitializedRef.current) {
-      console.log("[Map] Initialized");
       mapInitializedRef.current = true;
     }
 
@@ -522,7 +540,6 @@ const AddressManagementModal = ({
     if (mapDraggedRef.current) {
       geocodeTimerRef.current = setTimeout(() => {
         mapDraggedRef.current = false;
-        console.log("[Map] Idle — fetching address");
         setMapMoving(false);
         reverseGeocode(lat, lng);
       }, 1200);
@@ -817,7 +834,7 @@ const AddressManagementModal = ({
           </div>
         ) : (
           <GoogleMap
-            mapContainerStyle={{ width: "100%", height: "100%" }}
+            mapContainerStyle={MAP_CONTAINER_STYLE}
             center={mapCenter}
             zoom={17}
             onLoad={(map) => {
@@ -856,13 +873,7 @@ const AddressManagementModal = ({
             }}
             onIdle={handleMapIdle}
             onDragStart={handleMapDragStart}
-            options={{
-              zoomControl: false,
-              streetViewControl: false,
-              mapTypeControl: false,
-              fullscreenControl: false,
-              gestureHandling: "greedy",
-            }}
+            options={MAP_OPTIONS}
           />
         )}
 

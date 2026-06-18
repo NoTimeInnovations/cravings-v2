@@ -223,6 +223,13 @@ export const calculateDeliveryDistanceAndCost = async (
   }
 };
 
+// The login modal intentionally uses fixed default colors instead of the
+// partner theme — some stores (e.g. blue accents) made the login screen hard
+// to read/looked off-brand. These keep it neutral regardless of theme.
+const LOGIN_BG = "#ffffff";
+const LOGIN_TEXT = "#111827";
+const LOGIN_ACCENT = "#ea580c";
+
 const OrderDrawer = ({
   styles,
   hotelData,
@@ -807,16 +814,16 @@ const OrderDrawer = ({
         <div
           className="fixed inset-0 z-[200] flex flex-col"
           style={{
-            backgroundColor: styles.backgroundColor || "#fff",
-            color: styles.color || "#000",
+            backgroundColor: LOGIN_BG,
+            color: LOGIN_TEXT,
           }}
         >
           {/* Header Bar */}
           <div
             className="sticky top-0 z-10"
             style={{
-              backgroundColor: styles.backgroundColor || "#fff",
-              borderBottom: `1px solid ${styles.color}15`,
+              backgroundColor: LOGIN_BG,
+              borderBottom: `1px solid ${LOGIN_TEXT}15`,
             }}
           >
             <div className="flex items-center justify-between px-4 pt-4">
@@ -830,7 +837,7 @@ const OrderDrawer = ({
                   }
                 }}
                 className="p-2 -ml-2 rounded-full transition-all duration-200"
-                style={{ color: styles.color }}
+                style={{ color: LOGIN_TEXT }}
                 aria-label={otpStep === "otp" && requireOtp ? "Back" : "Close"}
               >
                 <svg
@@ -850,7 +857,7 @@ const OrderDrawer = ({
               </button>
               <h2
                 className="text-base font-semibold"
-                style={{ color: styles.color }}
+                style={{ color: LOGIN_TEXT }}
               >
                 {otpStep === "otp" && requireOtp ? "Verify OTP" : "Login to Continue"}
               </h2>
@@ -858,7 +865,7 @@ const OrderDrawer = ({
             </div>
             <p
               className="text-xs text-center pb-3 px-4"
-              style={{ color: `${styles.color}80` }}
+              style={{ color: `${LOGIN_TEXT}80` }}
             >
               {otpStep === "otp"
                 ? `Enter the code sent to ${hotelData?.country_code || "+91"} ${phoneNumber}`
@@ -876,13 +883,13 @@ const OrderDrawer = ({
                     <Label
                       htmlFor="phone"
                       className="text-sm font-semibold block"
-                      style={{ color: styles.color }}
+                      style={{ color: LOGIN_TEXT }}
                     >
                       Phone Number
                       {hotelData?.country && (
                         <span
                           className="font-normal ml-2 text-xs"
-                          style={{ color: `${styles.color}80` }}
+                          style={{ color: `${LOGIN_TEXT}80` }}
                         >
                           ({hotelData.country})
                         </span>
@@ -892,9 +899,9 @@ const OrderDrawer = ({
                       <div
                         className="flex items-center justify-center px-4 sm:px-5 rounded-2xl text-base font-bold border"
                         style={{
-                          backgroundColor: `${styles.accent}15`,
-                          color: styles.accent,
-                          borderColor: `${styles.accent}30`,
+                          backgroundColor: `${LOGIN_ACCENT}15`,
+                          color: LOGIN_ACCENT,
+                          borderColor: `${LOGIN_ACCENT}30`,
                         }}
                       >
                         {hotelData?.country_code || "+91"}
@@ -915,9 +922,9 @@ const OrderDrawer = ({
                         autoFocus
                         className="flex-1 rounded-2xl h-14 text-base px-4 sm:px-5 transition-all duration-200 placeholder:text-inherit placeholder:opacity-40"
                         style={{
-                          backgroundColor: styles.backgroundColor,
-                          color: styles.color,
-                          borderColor: `${styles.color}20`,
+                          backgroundColor: LOGIN_BG,
+                          color: LOGIN_TEXT,
+                          borderColor: `${LOGIN_TEXT}20`,
                           outline: "none",
                         }}
                       />
@@ -931,9 +938,9 @@ const OrderDrawer = ({
                       disabled={(requireOtp ? isSending : isSubmitting) || !phoneNumber}
                       className="w-full px-6 py-4 rounded-full transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
                       style={{
-                        backgroundColor: `${styles.accent}18`,
-                        color: styles.accent,
-                        border: `1px solid ${styles.accent}30`,
+                        backgroundColor: `${LOGIN_ACCENT}18`,
+                        color: LOGIN_ACCENT,
+                        border: `1px solid ${LOGIN_ACCENT}30`,
                       }}
                     >
                       {(requireOtp ? isSending : isSubmitting) ? (
@@ -950,8 +957,8 @@ const OrderDrawer = ({
                       onClick={handleCloseLoginModal}
                       className="w-full px-6 py-3.5 rounded-full bg-transparent transition-all duration-200 font-medium text-base"
                       style={{
-                        color: styles.color,
-                        border: `1px solid ${styles.color}30`,
+                        color: LOGIN_TEXT,
+                        border: `1px solid ${LOGIN_TEXT}30`,
                       }}
                     >
                       Cancel
@@ -961,19 +968,19 @@ const OrderDrawer = ({
                   {/* Privacy Note */}
                   <p
                     className="text-xs text-center leading-relaxed pt-2"
-                    style={{ color: `${styles.color}80` }}
+                    style={{ color: `${LOGIN_TEXT}80` }}
                   >
                     By continuing, you agree to our{" "}
                     <span
                       className="hover:underline cursor-pointer"
-                      style={{ color: styles.accent }}
+                      style={{ color: LOGIN_ACCENT }}
                     >
                       Terms of Service
                     </span>{" "}
                     and{" "}
                     <span
                       className="hover:underline cursor-pointer"
-                      style={{ color: styles.accent }}
+                      style={{ color: LOGIN_ACCENT }}
                     >
                       Privacy Policy
                     </span>
@@ -986,7 +993,7 @@ const OrderDrawer = ({
                     <OtpInput
                       value={otp}
                       onChange={setOtp}
-                      accentColor={styles.accent}
+                      accentColor={LOGIN_ACCENT}
                     />
                     {otpError && (
                       <p className="text-sm text-red-500 text-center">{otpError}</p>
@@ -1000,9 +1007,9 @@ const OrderDrawer = ({
                       disabled={isVerifying || isSubmitting || otp.length !== 6}
                       className="w-full px-6 py-4 rounded-full transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
                       style={{
-                        backgroundColor: `${styles.accent}18`,
-                        color: styles.accent,
-                        border: `1px solid ${styles.accent}30`,
+                        backgroundColor: `${LOGIN_ACCENT}18`,
+                        color: LOGIN_ACCENT,
+                        border: `1px solid ${LOGIN_ACCENT}30`,
                       }}
                     >
                       {isVerifying || isSubmitting ? (
@@ -1019,7 +1026,7 @@ const OrderDrawer = ({
                       <button
                         onClick={() => { resetOtp(); setOtp(""); }}
                         className="text-sm font-medium transition-colors"
-                        style={{ color: `${styles.color}80` }}
+                        style={{ color: `${LOGIN_TEXT}80` }}
                       >
                         Change Number
                       </button>
@@ -1027,7 +1034,7 @@ const OrderDrawer = ({
                         onClick={handleSendOtp}
                         disabled={isSending}
                         className="text-sm font-medium transition-colors disabled:opacity-50"
-                        style={{ color: styles.accent }}
+                        style={{ color: LOGIN_ACCENT }}
                       >
                         {isSending ? "Sending..." : "Resend OTP"}
                       </button>

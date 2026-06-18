@@ -40,6 +40,23 @@ const GOOGLE_MAPS_LIBRARIES: ["places"] = ["places"];
 const RECENT_SEARCHES_KEY = "recent-address-searches";
 const MAX_RECENT = 5;
 
+// Stable identities so react-google-maps doesn't re-run setOptions()/restyle the
+// live map on every parent re-render — repeated setOptions calls interrupt the
+// touch gesture and make dragging feel laggy/stuck on mobile.
+const MAP_CONTAINER_STYLE = { width: "100%", height: "100%" } as const;
+const MAP_OPTIONS: google.maps.MapOptions = {
+  zoomControl: false,
+  streetViewControl: false,
+  mapTypeControl: false,
+  fullscreenControl: false,
+  gestureHandling: "greedy",
+  clickableIcons: false,
+};
+const MAP_OPTIONS_LANDING: google.maps.MapOptions = {
+  ...MAP_OPTIONS,
+  disableDefaultUI: true,
+};
+
 function getRecentSearches(): RecentSearch[] {
   try {
     const raw = localStorage?.getItem(RECENT_SEARCHES_KEY);
@@ -528,17 +545,10 @@ const AddressPickerV2 = ({
         <div className="flex-1 relative">
           {isLoaded && !loadError ? (
             <GoogleMap
-              mapContainerStyle={{ width: "100%", height: "100%" }}
+              mapContainerStyle={MAP_CONTAINER_STYLE}
               center={initialCenter}
               zoom={14}
-              options={{
-                zoomControl: false,
-                streetViewControl: false,
-                mapTypeControl: false,
-                fullscreenControl: false,
-                gestureHandling: "greedy",
-                disableDefaultUI: true,
-              }}
+              options={MAP_OPTIONS_LANDING}
             />
           ) : (
             <div className="w-full h-full bg-gray-200" />
@@ -657,7 +667,7 @@ const AddressPickerV2 = ({
           </div>
         ) : (
           <GoogleMap
-            mapContainerStyle={{ width: "100%", height: "100%" }}
+            mapContainerStyle={MAP_CONTAINER_STYLE}
             zoom={17}
             onLoad={(map) => {
               mapRef.current = map;
@@ -696,13 +706,7 @@ const AddressPickerV2 = ({
             }}
             onIdle={handleMapIdle}
             onDragStart={handleMapDragStart}
-            options={{
-              zoomControl: false,
-              streetViewControl: false,
-              mapTypeControl: false,
-              fullscreenControl: false,
-              gestureHandling: "greedy",
-            }}
+            options={MAP_OPTIONS}
           />
         )}
 
