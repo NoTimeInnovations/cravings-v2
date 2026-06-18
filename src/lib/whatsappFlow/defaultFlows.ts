@@ -1,4 +1,4 @@
-import type { FlowGraph, TriggerDef } from "@/lib/whatsappFlow/types";
+import type { FlowGraph, TriggerDef, ButtonItem } from "@/lib/whatsappFlow/types";
 import { TRIGGER_PRIORITY } from "@/lib/whatsappFlow/types";
 
 // The built-in flow set provisioned for a partner when WhatsApp ordering is
@@ -101,7 +101,11 @@ function reorderFlow(): DefaultFlowDef {
           type: "link_button",
           position: { x: 740, y: 140 },
           data: {
-            text: "🔁 Here's your last order — review and place it in one tap.",
+            text:
+              "🔁 *Here's your last order:*\n\n" +
+              "{{reorder_items}}\n\n" +
+              "💰 *Total:* {{reorder_total}}\n\n" +
+              "Review & place it in one tap 👇",
             buttonText: "Reorder",
             url: "{{reorder_link}}",
           },
@@ -134,6 +138,23 @@ function orderFlow(name: string, status: string, text: string): DefaultFlowDef {
       nodes: [
         { id: "trigger", type: "trigger", position: { x: 140, y: 220 }, data: { matchType: "order", orderStatus: status } },
         { id: "msg", type: "send_text", position: { x: 440, y: 160 }, data: { text } },
+      ],
+      edges: [{ id: "e", source: "trigger", target: "msg", sourceHandle: null, targetHandle: null }],
+    },
+    triggers: [{ matchType: "order", orderStatus: status, nodeId: "trigger", priority: TRIGGER_PRIORITY.order }],
+  };
+}
+
+// An order-status flow whose message carries native quick-reply buttons. Tapping
+// a button sends its label as text; an exact-keyword flow (e.g. Reorder) then
+// picks it up — the same handoff the welcome's "Order Now" button uses.
+function orderButtonsFlow(name: string, status: string, text: string, items: ButtonItem[]): DefaultFlowDef {
+  return {
+    name,
+    graph: {
+      nodes: [
+        { id: "trigger", type: "trigger", position: { x: 140, y: 220 }, data: { matchType: "order", orderStatus: status } },
+        { id: "msg", type: "buttons", position: { x: 440, y: 160 }, data: { text, items } },
       ],
       edges: [{ id: "e", source: "trigger", target: "msg", sourceHandle: null, targetHandle: null }],
     },
@@ -226,13 +247,14 @@ export function buildDefaultFlows(): DefaultFlowDef[] {
       "Track Order",
       "{{tracking_url}}",
     ),
-    orderFlow(
+    orderButtonsFlow(
       "Order completed",
       "completed",
       "🎉 *Order Completed!*\n\n" +
         "Thank you for ordering from *{{store_name}}*, {{customer_name}}! 🙏\n\n" +
         "🆔 Order *{{order_id}}* · 💰 *{{total}}*\n\n" +
-        "We hope you enjoyed it! ⭐ See you again soon.",
+        "We hope you enjoyed it! ⭐ Tap *Reorder* to order the same again.",
+      [{ id: "reorder", label: "Reorder" }],
     ),
     orderFlow(
       "Order cancelled",
