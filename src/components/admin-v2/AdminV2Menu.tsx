@@ -592,37 +592,41 @@ export function AdminV2Menu() {
                                 {formatDisplayName(category)}
                               </span>
                             </h2>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 transition-opacity"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingCategory({
-                                  id: categoryId!,
-                                  name: formatDisplayName(category),
-                                });
-                              }}
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (
-                                  confirm(
-                                    "Are you sure you want to delete this category and all its items?",
-                                  )
-                                ) {
-                                  deleteCategoryAndItems(categoryId!);
-                                }
-                              }}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
+                            {!isPetpooja && (
+                              <>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 transition-opacity"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingCategory({
+                                      id: categoryId!,
+                                      name: formatDisplayName(category),
+                                    });
+                                  }}
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (
+                                      confirm(
+                                        "Are you sure you want to delete this category and all its items?",
+                                      )
+                                    ) {
+                                      deleteCategoryAndItems(categoryId!);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                           <span className="text-sm font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded-full ml-auto sm:ml-0">
                             {items.length} items
