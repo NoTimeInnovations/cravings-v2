@@ -334,10 +334,12 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
                     (text === currentAddress || a.address === currentAddress)
                   );
                 };
-                const reversed = [...savedAddresses].reverse();
+                // Incoming list is already newest-first; keep the selected one
+                // pinned to the very top.
+                const ordered = [...savedAddresses];
                 const sorted = [
-                  ...reversed.filter(isMatch),
-                  ...reversed.filter((a) => !isMatch(a)),
+                  ...ordered.filter(isMatch),
+                  ...ordered.filter((a) => !isMatch(a)),
                 ];
                 const visible = showAllSaved ? sorted : sorted.slice(0, 3);
                 const hidden = sorted.length - visible.length;
@@ -402,6 +404,11 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
                                 {a.customLabel || a.label || "Saved"}
                               </p>
                               <p className="text-[11px] text-gray-400 truncate mt-0.5">{text}</p>
+                              {a.receiverPhone?.trim() && (
+                                <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                                  📞 {a.receiverPhone.trim()}
+                                </p>
+                              )}
                             </div>
                             {isSelected && (
                               <span

@@ -39,6 +39,8 @@ export type SavedAddress = {
   /** Receiver name and phone for the order — used by V2 checkout + 3PL booking. */
   receiverName?: string;
   receiverPhone?: string;
+  /** Epoch ms of when this address was last saved/selected — drives newest-first ordering. */
+  savedAt?: number;
 };
 
 type RecentSearch = {
@@ -202,7 +204,6 @@ const AddressManagementModal = ({
   const [geocoding, setGeocoding] = useState(false);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
-  const [manualAddress, setManualAddress] = useState("");
   const [mapMoving, setMapMoving] = useState(false);
   const [pinDistanceKm, setPinDistanceKm] = useState<number | null>(null);
 
@@ -303,7 +304,6 @@ const AddressManagementModal = ({
       setSearchValue("");
       setPredictions([]);
       setGeocodedInfo(null);
-      setManualAddress("");
       setMapMoving(false);
       mapInitializedRef.current = false;
       if (isLoaded) {
@@ -572,8 +572,7 @@ const AddressManagementModal = ({
       const addr: SavedAddress = {
         id: editAddress?.id || `${Date.now()}`,
         label: editAddress?.label || geocodedInfo.name || "Other",
-        address: manualAddress.trim() || geocodedInfo.address,
-        customLocation: manualAddress.trim() || undefined,
+        address: geocodedInfo.address,
         area: geocodedInfo.area,
         city: geocodedInfo.city,
         district: geocodedInfo.district,
@@ -1018,15 +1017,6 @@ const AddressManagementModal = ({
               </div>
             </div>
           )}
-
-          <textarea
-            placeholder="Enter complete address - optional (flat/house no, street, landmark)"
-            value={manualAddress}
-            onChange={(e) => setManualAddress(e.target.value)}
-            rows={2}
-            className="w-full mt-4 p-3 rounded-xl outline-none transition-colors text-[14px] resize-none placeholder:text-inherit placeholder:opacity-40"
-            style={{ backgroundColor: cardBg, backdropFilter: "blur(12px)", color: themeText, border: `1px solid ${cardBorder}` }}
-          />
 
           <button
             onClick={handleConfirm}

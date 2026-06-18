@@ -16,9 +16,6 @@ import {
   Check,
   ClipboardList,
   MapPin,
-  Home,
-  Building2,
-  Navigation,
   Bike,
   ShoppingBag,
   Clock,
@@ -28,6 +25,12 @@ import useOrderStore from "@/store/orderStore";
 import { useAuthStore } from "@/store/authStore";
 import { useLocationStore } from "@/store/geolocationStore";
 import { type SavedAddress } from "./AddressManagementModal";
+import {
+  getLocalAddresses,
+  setLocalAddresses,
+  sortNewestFirst,
+  mergeAddresses,
+} from "@/lib/localAddresses";
 import AddressPickerV2 from "./AddressPickerV2";
 import { updateUserAddressesMutation } from "@/api/auth";
 import { HotelData } from "@/app/hotels/[...id]/page";
@@ -213,49 +216,81 @@ const PlaceOrderModalV2 = ({
   // Address management state
   const [showAddressSheet, setShowAddressSheet] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
-  const [showAddressForm, setShowAddressForm] = useState(false);
-  const [pendingAddress, setPendingAddress] = useState<SavedAddress | null>(null);
   /** Phone of the address chosen for delivery. Falls back to `user.phone`. */
   const [selectedReceiverPhone, setSelectedReceiverPhone] = useState<string | null>(null);
   /** Receiver name for the chosen delivery address (used as the order name). */
   const [selectedReceiverName, setSelectedReceiverName] = useState<string | null>(null);
-  /** Flips true on a save attempt so required address fields highlight. */
-  const [triedSaveAddress, setTriedSaveAddress] = useState(false);
-  /**
-   * Whether a full delivery address (with receiver/location details) has been
-   * explicitly selected in THIS checkout. The onboarding "basic location" sets
-   * userAddress but is not a delivery address — for delivery we always require
-   * the customer to pick/add an address at checkout, so this starts false on
-   * every open.
-   */
-  const [deliveryAddressChosen, setDeliveryAddressChosen] = useState(false);
   const [mapInitialPick, setMapInitialPick] = useState<
     { address?: string; coords: { lat: number; lng: number } } | null
   >(null);
-  const [addressFormData, setAddressFormData] = useState({
-    useAccountDetails: true,
-    receiverName: accountReceiverName(user),
-    receiverPhone: (user as any)?.phone || "",
-    locationType: "Other" as "House" | "Office" | "Other",
-    buildingFloor: "",
-    street: "",
-    saveAs: "",
-    deliveryInstructions: "",
-  });
 
-  const savedAddresses = useMemo(
-    () => ((user as any)?.addresses || []) as SavedAddress[],
-    [(user as any)?.addresses],
+  // Saved addresses are local-first (work for guests too) and merged with the
+  // logged-in user's DB list. Always newest-first so the last saved/selected
+  // address appears at the top.
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+
+  useEffect(() => {
+    if (!open_place_order_modal) return;
+    let merged = mergeAddresses(
+      getLocalAddresses(),
+      ((user as any)?.addresses || []) as SavedAddress[],
+    );
+    // Force the currently-selected location (set via the header / onboarding) to
+    // always show up in saved addresses, even if it was never explicitly saved.
+    const curAddr = (useOrderStore.getState().userAddress || "").trim();
+    const curCoords = useOrderStore.getState().coordinates;
+    if (curAddr || curCoords) {
+      const exists = merged.some(
+        (a) =>
+          (curCoords != null &&
+            a.latitude === curCoords.lat &&
+            a.longitude === curCoords.lng) ||
+          (!!a.address && a.address === curAddr),
+      );
+      if (!exists) {
+        const entry: SavedAddress = {
+          id: `addr_${Date.now()}`,
+          label: "Other",
+          address: curAddr || undefined,
+          latitude: curCoords?.lat,
+          longitude: curCoords?.lng,
+          receiverName: accountReceiverName(user) || undefined,
+          receiverPhone: (user as any)?.phone || undefined,
+          savedAt: Date.now(),
+        };
+        merged = sortNewestFirst([entry, ...merged]);
+      }
+    }
+    setLocalAddresses(merged);
+    setSavedAddresses(merged);
+  }, [open_place_order_modal, (user as any)?.addresses]);
+
+  // Persist a full address list: local always, DB when logged in. Returns the
+  // saved list so callers can keep state in sync.
+  const persistAddresses = useCallback(
+    (list: SavedAddress[]) => {
+      // Dedupe by location (same point) AND id, keeping the newest copy — so
+      // re-saving a spot (e.g. as "Home") replaces the auto-added "Other" entry
+      // instead of leaving a duplicate.
+      const sorted = mergeAddresses(list, []);
+      setLocalAddresses(sorted);
+      setSavedAddresses(sorted);
+      if (user && (user as any).role === "user") {
+        fetchFromHasura(updateUserAddressesMutation, { id: user.id, addresses: sorted })
+          .then(() => {
+            useAuthStore.setState({ userData: { ...user, addresses: sorted } as any });
+          })
+          .catch(() => {
+            // DB save failed — the local copy is still saved, so the customer
+            // keeps their address and can still order.
+            toast.error("Couldn't sync address to your account (saved on this device)");
+          });
+      }
+      return sorted;
+    },
+    [user],
   );
 
-  // A delivery address is "complete" only when it carries the receiver +
-  // building details (the fields collected in the checkout details form).
-  // A bare location picked in the header has none of these.
-  const isAddressComplete = useCallback(
-    (a?: SavedAddress | null) =>
-      !!(a && a.receiverName?.trim() && a.receiverPhone?.trim() && a.house_no?.trim()),
-    [],
-  );
   // Find the saved address matching a chosen address string / coords.
   const findSavedAddress = useCallback(
     (addr: string, coords?: { lat: number; lng: number } | null) =>
@@ -266,6 +301,13 @@ const PlaceOrderModalV2 = ({
       ) || null,
     [savedAddresses],
   );
+
+  // Label (Home / Office / Other) of the currently-selected delivery address,
+  // shown on the "Deliver to" line in the header.
+  const selectedAddressLabel = useMemo(() => {
+    const match = findSavedAddress(address || "", userCoordinates);
+    return match?.customLabel?.trim() || match?.label?.trim() || null;
+  }, [findSavedAddress, address, userCoordinates]);
 
   const isQrScan = qrId !== null && tableNumber !== 0;
 
@@ -672,19 +714,16 @@ const PlaceOrderModalV2 = ({
     if (!open_place_order_modal) setRedeemPoints(0);
   }, [open_place_order_modal]);
 
-  // On open, treat the delivery address as "chosen" only if the current address
-  // already has full receiver/building details. A bare header location does not,
-  // so checkout will ask for the address details before showing Place Order.
+  // On open (and once saved addresses load), if the current location matches a
+  // saved address, treat it as chosen and pull its receiver phone/name.
   useEffect(() => {
     if (!open_place_order_modal) return;
     const match = findSavedAddress(address || "", useOrderStore.getState().coordinates);
-    const complete = isAddressComplete(match);
-    setDeliveryAddressChosen(complete);
-    if (complete && match) {
-      setSelectedReceiverName(match.receiverName?.trim() || null);
-      setSelectedReceiverPhone(match.receiverPhone?.trim() || null);
+    if (match) {
+      setSelectedReceiverName(match.receiverName?.trim() || accountReceiverName(user) || null);
+      setSelectedReceiverPhone(match.receiverPhone?.trim() || (user as any)?.phone || null);
     }
-  }, [open_place_order_modal]);
+  }, [open_place_order_modal, savedAddresses]);
 
   // Fetch available coupon discounts
   useEffect(() => {
@@ -911,9 +950,11 @@ const PlaceOrderModalV2 = ({
       useOrderStore.getState().setUserCoordinates(coords);
       useLocationStore.getState().setCoords(coords);
     }
-    setSelectedReceiverPhone(addr.receiverPhone?.trim() || null);
-    setSelectedReceiverName(addr.receiverName?.trim() || null);
-    setDeliveryAddressChosen(true);
+    // Receiver phone/name travel with the address; fall back to the account.
+    const receiverPhone = addr.receiverPhone?.trim() || (user as any)?.phone || undefined;
+    const receiverName = addr.receiverName?.trim() || accountReceiverName(user) || undefined;
+    setSelectedReceiverPhone(receiverPhone || null);
+    setSelectedReceiverName(receiverName || null);
     setShowAddressSheet(false);
     if (orderType === "delivery") {
       const coords = addr.latitude && addr.longitude
@@ -921,43 +962,27 @@ const PlaceOrderModalV2 = ({
         : null;
       calculateDeliveryDistanceAndCost(hotelData, coords);
     }
-  }, [hotelData, orderType]);
-
-  const saveAddressesForUser = useCallback(async (addresses: SavedAddress[]) => {
-    if (!user || (user as any).role !== "user") return false;
-    try {
-      await fetchFromHasura(updateUserAddressesMutation, {
-        id: user.id,
-        addresses,
-      });
-      useAuthStore.setState({
-        userData: { ...user, addresses } as any,
-      });
-      return true;
-    } catch {
-      toast.error("Failed to save address");
-      return false;
-    }
-  }, [user]);
+    // Bump this address to "latest" (with phone attached) so it shows first
+    // next time. Saved locally always, and to the DB when logged in.
+    const stamped: SavedAddress = { ...addr, receiverPhone, receiverName, savedAt: Date.now() };
+    const rest = savedAddresses.filter((a) => a.id !== addr.id);
+    persistAddresses([stamped, ...rest]);
+  }, [hotelData, orderType, user, savedAddresses, persistAddresses]);
 
   const handleAddressModalSaved = useCallback((addr: SavedAddress) => {
-    // Address coming from map picker — show the details form
-    setPendingAddress(addr);
-    setAddressFormData({
-      // Default to the logged-in user's details (checkbox pre-checked).
-      useAccountDetails: true,
-      receiverName: accountReceiverName(user),
-      receiverPhone: (user as any)?.phone || "",
-      locationType: "Other",
-      buildingFloor: "",
-      street: "",
-      saveAs: "",
-      deliveryInstructions: "",
-    });
+    // Address coming from map picker. The map location IS the address and the
+    // receiver falls back to the logged-in account. Selecting it also persists
+    // it (local first, DB when logged in) and bumps it to the top.
+    const finalAddress: SavedAddress = {
+      ...addr,
+      label: addr.label || addr.area || addr.city || "Delivery",
+      receiverName: addr.receiverName?.trim() || accountReceiverName(user) || undefined,
+      receiverPhone: addr.receiverPhone?.trim() || (user as any)?.phone || undefined,
+    };
     setShowAddressModal(false);
     setShowAddressSheet(false);
-    setShowAddressForm(true);
-  }, []);
+    handleSelectSavedAddress(finalAddress);
+  }, [user, handleSelectSavedAddress]);
 
   // Delivery: the basic location is already set (onboarding). Go straight to
   // the address-details form seeded with that location — don't re-ask location.
@@ -976,65 +1001,14 @@ const PlaceOrderModalV2 = ({
     setShowAddressModal(true);
   }, [address, userCoordinates]);
 
-  const handleSaveAddressForm = useCallback(async () => {
-    if (!pendingAddress) return;
-    // Receiver name, number and building/floor are required.
-    if (
-      !addressFormData.receiverName.trim() ||
-      !addressFormData.receiverPhone.trim() ||
-      !addressFormData.buildingFloor.trim()
-    ) {
-      setTriedSaveAddress(true);
-      toast.error("Please fill the required fields");
-      return;
+  const handleDeleteAddress = useCallback((addressId: string) => {
+    const removed = savedAddresses.find((a) => a.id === addressId);
+    persistAddresses(savedAddresses.filter((a) => a.id !== addressId));
+    toast.success("Address deleted");
+    if (removed && address === (removed.address || "")) {
+      useOrderStore.getState().setUserAddress("");
     }
-    const label =
-      addressFormData.saveAs.trim() ||
-      addressFormData.locationType;
-
-    const finalAddress: SavedAddress = {
-      ...pendingAddress,
-      label,
-      house_no: addressFormData.buildingFloor.trim() || undefined,
-      street: addressFormData.street.trim() || undefined,
-      customLabel: addressFormData.saveAs.trim() || undefined,
-      receiverName: addressFormData.receiverName.trim() || undefined,
-      receiverPhone: addressFormData.receiverPhone.trim() || undefined,
-      ...(addressFormData.deliveryInstructions.trim()
-        ? { deliveryInstructions: addressFormData.deliveryInstructions.trim() }
-        : {}),
-    } as SavedAddress;
-
-    const existing = [...savedAddresses];
-    const idx = existing.findIndex((a) => a.id === finalAddress.id);
-    if (idx >= 0) existing[idx] = finalAddress;
-    else existing.push(finalAddress);
-
-    const success = await saveAddressesForUser(existing);
-    if (success) {
-      toast.success("Address saved");
-      setTriedSaveAddress(false);
-      handleSelectSavedAddress(finalAddress);
-    }
-    setShowAddressForm(false);
-    setPendingAddress(null);
-  }, [pendingAddress, addressFormData, savedAddresses, saveAddressesForUser, handleSelectSavedAddress]);
-
-  // Reset the "required" highlight each time the address form opens.
-  useEffect(() => {
-    if (showAddressForm) setTriedSaveAddress(false);
-  }, [showAddressForm]);
-
-  const handleDeleteAddress = useCallback(async (addressId: string) => {
-    const updated = savedAddresses.filter((a) => a.id !== addressId);
-    const success = await saveAddressesForUser(updated);
-    if (success) {
-      toast.success("Address deleted");
-      if (address === savedAddresses.find((a) => a.id === addressId)?.address) {
-        useOrderStore.getState().setUserAddress("");
-      }
-    }
-  }, [savedAddresses, saveAddressesForUser, address]);
+  }, [savedAddresses, persistAddresses, address]);
 
   const [closing, setClosing] = useState(false);
 
@@ -1899,7 +1873,7 @@ const PlaceOrderModalV2 = ({
                 <MapPin className="h-4 w-4 shrink-0" style={{ color: accent }} />
                 <div className="min-w-0 leading-tight">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                    Deliver to
+                    Deliver to{selectedAddressLabel ? `: ${selectedAddressLabel}` : ""}
                   </p>
                   <p className="truncate text-sm font-bold" style={{ color: accent }}>
                     {address || "Add delivery address"}
@@ -2462,27 +2436,6 @@ const PlaceOrderModalV2 = ({
     {view === "main" && (items?.length ?? 0) > 0 && (
       <>
         <div className="v2-checkout-fixed fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-[510]">
-         {orderType === "delivery" && !deliveryAddressChosen ? (
-          <div className="px-4 py-3">
-            <p className="mb-2.5 flex items-center gap-2 text-sm font-bold text-gray-900">
-              <MapPin className="h-4 w-4 shrink-0" style={{ color: accent }} />
-              Where would you like us to deliver this order?
-            </p>
-            {address?.trim() && (
-              <p className="mb-2.5 text-xs text-gray-500">
-                Delivering near <span className="font-medium text-gray-700">{address}</span> — please confirm your full address.
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={() => setShowAddressSheet(true)}
-              className="w-full rounded-xl py-3.5 font-semibold text-white"
-              style={{ backgroundColor: accent }}
-            >
-              Add or Select address
-            </button>
-          </div>
-         ) : (
           <div className="px-4 py-3 flex items-center justify-between gap-3">
           <button
             type="button"
@@ -2520,7 +2473,6 @@ const PlaceOrderModalV2 = ({
             )}
           </button>
          </div>
-         )}
         </div>
 
         {showPaymentMethods && (
@@ -2583,6 +2535,14 @@ const PlaceOrderModalV2 = ({
             setShowAddressSheet(false);
             return;
           }
+          // Tapping a saved address → select it (this also bumps it to the top
+          // of the list as the latest and persists local + DB).
+          const match = findSavedAddress(addr, coords);
+          if (match) {
+            handleSelectSavedAddress(match);
+            return;
+          }
+          // Fallback: a bare location with no saved entry.
           useOrderStore.getState().setUserAddress(addr);
           if (coords) {
             useOrderStore.getState().setUserCoordinates(coords);
@@ -2591,38 +2551,9 @@ const PlaceOrderModalV2 = ({
           if (orderType === "delivery") {
             calculateDeliveryDistanceAndCost(hotelData, coords ?? null);
           }
-          const match = findSavedAddress(addr, coords);
-          if (isAddressComplete(match)) {
-            // Complete saved address — ready to order.
-            setSelectedReceiverPhone(match!.receiverPhone?.trim() || null);
-            setSelectedReceiverName(match!.receiverName?.trim() || null);
-            setDeliveryAddressChosen(true);
-            setShowAddressSheet(false);
-          } else {
-            // A location without full details — collect them before ordering.
-            setShowAddressSheet(false);
-            setPendingAddress(
-              match ||
-                ({
-                  id: `addr_${Date.now()}`,
-                  label: "Other",
-                  address: addr,
-                  latitude: coords?.lat,
-                  longitude: coords?.lng,
-                } as SavedAddress),
-            );
-            setAddressFormData({
-              useAccountDetails: true,
-              receiverName: accountReceiverName(user),
-              receiverPhone: (user as any)?.phone || "",
-              locationType: "Other",
-              buildingFloor: match?.house_no || "",
-              street: match?.street || "",
-              saveAs: match?.customLabel || "",
-              deliveryInstructions: "",
-            });
-            setShowAddressForm(true);
-          }
+          setSelectedReceiverPhone((user as any)?.phone || null);
+          setSelectedReceiverName(accountReceiverName(user) || null);
+          setShowAddressSheet(false);
         }}
         onPickForMap={(addr, coords) => {
           setShowAddressSheet(false);
@@ -2654,202 +2585,6 @@ const PlaceOrderModalV2 = ({
       initialPick={mapInitialPick}
     />
 
-    {/* Address details form (after saving from map) */}
-    {showAddressForm && pendingAddress && (
-      <div className="v2-checkout-fixed fixed inset-0 z-[600] bg-gray-50 overflow-y-auto animate-slide-in-right">
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
-         <div className="px-4 py-3 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              setShowAddressForm(false);
-              setPendingAddress(null);
-            }}
-            className="p-1"
-          >
-            <ArrowLeft className="h-6 w-6 text-gray-900" />
-          </button>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-gray-900 truncate">
-              {pendingAddress.area || pendingAddress.city || "Location"}{" "}
-              <span className="text-gray-400 font-normal">| </span>
-              <span className="text-gray-500 font-normal text-xs truncate">
-                {pendingAddress.address?.slice(0, 40)}...
-              </span>
-            </div>
-          </div>
-         </div>
-        </div>
-
-        <div className="p-4 space-y-5 pb-32">
-          {/* Receiver Details */}
-          <div>
-            <h4 className="text-base font-bold text-gray-900 mb-3">Receiver Details</h4>
-            <label className="flex items-center gap-2 mb-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={addressFormData.useAccountDetails}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setAddressFormData((prev) => ({
-                    ...prev,
-                    useAccountDetails: checked,
-                    receiverName: checked ? accountReceiverName(user) : "",
-                    receiverPhone: checked ? ((user as any)?.phone || "") : "",
-                  }));
-                }}
-                className="h-4 w-4 rounded border-gray-300"
-              />
-              <span className="text-sm text-gray-700">Use my account details</span>
-            </label>
-            <div className="space-y-3">
-              <div>
-                <input
-                  type="text"
-                  placeholder="Receiver name *"
-                  value={addressFormData.receiverName}
-                  onChange={(e) =>
-                    setAddressFormData((prev) => ({ ...prev, receiverName: e.target.value }))
-                  }
-                  className={`w-full h-12 px-4 rounded-xl border bg-white text-sm focus:outline-none focus:ring-2 ${triedSaveAddress && !addressFormData.receiverName.trim() ? "border-red-400 focus:ring-red-200" : "border-gray-200 focus:ring-gray-300"}`}
-                />
-                {triedSaveAddress && !addressFormData.receiverName.trim() && (
-                  <p className="mt-1 text-xs text-red-500">Receiver name is required</p>
-                )}
-              </div>
-              <div>
-                <input
-                  type="tel"
-                  placeholder="Receiver's number *"
-                  value={addressFormData.receiverPhone}
-                  onChange={(e) =>
-                    setAddressFormData((prev) => ({ ...prev, receiverPhone: e.target.value }))
-                  }
-                  className={`w-full h-12 px-4 rounded-xl border bg-white text-sm focus:outline-none focus:ring-2 ${triedSaveAddress && !addressFormData.receiverPhone.trim() ? "border-red-400 focus:ring-red-200" : "border-gray-200 focus:ring-gray-300"}`}
-                />
-                {triedSaveAddress && !addressFormData.receiverPhone.trim() && (
-                  <p className="mt-1 text-xs text-red-500">Receiver's number is required</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Location Details */}
-          <div>
-            <h4 className="text-base font-bold text-gray-900 mb-3">Location Details</h4>
-            <div className="flex gap-2 mb-4">
-              {(["House", "Office", "Other"] as const).map((type) => {
-                const selected = addressFormData.locationType === type;
-                return (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() =>
-                      setAddressFormData((prev) => ({ ...prev, locationType: type }))
-                    }
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-colors"
-                    style={
-                      selected
-                        ? { backgroundColor: accent, borderColor: accent, color: "white" }
-                        : { backgroundColor: "white", borderColor: "#e5e7eb", color: "#4b5563" }
-                    }
-                  >
-                    {type === "House" && <Home className="h-3.5 w-3.5" />}
-                    {type === "Office" && <Building2 className="h-3.5 w-3.5" />}
-                    {type === "Other" && <Navigation className="h-3.5 w-3.5" />}
-                    {type}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <input
-                  type="text"
-                  placeholder="Building / Floor *"
-                  value={addressFormData.buildingFloor}
-                  onChange={(e) =>
-                    setAddressFormData((prev) => ({ ...prev, buildingFloor: e.target.value }))
-                  }
-                  className={`w-full h-12 px-4 rounded-xl border bg-white text-sm focus:outline-none focus:ring-2 ${triedSaveAddress && !addressFormData.buildingFloor.trim() ? "border-red-400 focus:ring-red-200" : "border-gray-200 focus:ring-gray-300"}`}
-                />
-                {triedSaveAddress && !addressFormData.buildingFloor.trim() && (
-                  <p className="mt-1 text-xs text-red-500">Building / Floor is required</p>
-                )}
-              </div>
-              <input
-                type="text"
-                placeholder="Street (Recommended)"
-                value={addressFormData.street}
-                onChange={(e) =>
-                  setAddressFormData((prev) => ({ ...prev, street: e.target.value }))
-                }
-                className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
-              />
-
-              {/* Area / Locality with Change */}
-              <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs text-gray-400">Area/Locality</div>
-                  <div className="text-sm text-gray-700 truncate mt-0.5">
-                    {pendingAddress.address || ""}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddressForm(false);
-                    setPendingAddress(null);
-                    setShowAddressModal(true);
-                  }}
-                  className="flex items-center gap-1 shrink-0"
-                  style={{ color: accent }}
-                >
-                  <MapPin className="h-4 w-4" />
-                  <span className="text-sm font-semibold">Change</span>
-                </button>
-              </div>
-
-              <input
-                type="text"
-                placeholder="Save address as *"
-                value={addressFormData.saveAs}
-                onChange={(e) =>
-                  setAddressFormData((prev) => ({ ...prev, saveAs: e.target.value }))
-                }
-                className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
-              />
-              <textarea
-                placeholder="Special instructions (optional)"
-                value={addressFormData.deliveryInstructions}
-                onChange={(e) =>
-                  setAddressFormData((prev) => ({ ...prev, deliveryInstructions: e.target.value }))
-                }
-                rows={2}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 resize-none"
-              />
-            </div>
-          </div>
-
-        </div>
-
-        {/* Save button */}
-        <div className="v2-checkout-fixed fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-20">
-         <div className="px-4 py-3">
-          <button
-            type="button"
-            onClick={handleSaveAddressForm}
-            className="w-full rounded-xl py-3.5 font-semibold text-white"
-            style={{ backgroundColor: accent }}
-          >
-            Save Address
-          </button>
-         </div>
-        </div>
-      </div>
-    )}
 
     <CashfreeEmbedModal
       ref={cashfreeContainerRef}

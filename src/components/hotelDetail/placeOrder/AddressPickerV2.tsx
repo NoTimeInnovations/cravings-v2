@@ -8,6 +8,9 @@ import {
   LocateFixed,
   Search,
   X,
+  Home,
+  Building2,
+  Navigation,
 } from "lucide-react";
 import { GoogleMap, useLoadScript } from "@react-google-maps/api";
 import { HotelData } from "@/app/hotels/[...id]/page";
@@ -157,9 +160,11 @@ const AddressPickerV2 = ({
   const [geocodedInfo, setGeocodedInfo] = useState<GeocodedInfo | null>(null);
   const [geocoding, setGeocoding] = useState(false);
   const [saving, setSaving] = useState(false);
+  // House / flat / floor details the customer types in, plus a simple label.
+  const [detailsText, setDetailsText] = useState("");
+  const [addressType, setAddressType] = useState<"Home" | "Office" | "Other">("Other");
   const [locating, setLocating] = useState(false);
   const [locationGranted, setLocationGranted] = useState(false);
-  const [manualAddress, setManualAddress] = useState("");
   const [mapMoving, setMapMoving] = useState(false);
   const [pinDistanceKm, setPinDistanceKm] = useState<number | null>(null);
   // Qatar: the nearest blue-plate (QARS) building resolved from the current pin.
@@ -253,7 +258,8 @@ const AddressPickerV2 = ({
       setSearchValue("");
       setPredictions([]);
       setGeocodedInfo(null);
-      setManualAddress("");
+      setDetailsText("");
+      setAddressType("Other");
       setMapMoving(false);
       mapInitializedRef.current = false;
       mapDraggedRef.current = false;
@@ -508,16 +514,17 @@ const AddressPickerV2 = ({
       const bluePlate = qarsHit
         ? `Zone ${qarsHit.zone}, Street ${qarsHit.street}, Building ${qarsHit.building}`
         : "";
-      const baseAddress = manualAddress.trim() || geocodedInfo.address;
-      const fullAddress =
-        bluePlate && !manualAddress.trim()
-          ? `${bluePlate} — ${baseAddress}`
-          : baseAddress;
+      // Prepend the typed flat/floor/building details (if any) to the map
+      // address so the delivery person sees them first.
+      const details = detailsText.trim();
+      const baseAddress = geocodedInfo.address;
+      const withDetails = details ? `${details}, ${baseAddress}` : baseAddress;
+      const fullAddress = bluePlate ? `${bluePlate} — ${withDetails}` : withDetails;
       const addr: SavedAddress = {
         id: `${Date.now()}`,
-        label: geocodedInfo.name || "Other",
+        label: addressType,
         address: fullAddress,
-        customLocation: manualAddress.trim() || undefined,
+        house_no: details || undefined,
         area: geocodedInfo.area,
         city: geocodedInfo.city,
         district: geocodedInfo.district,
@@ -853,18 +860,47 @@ const AddressPickerV2 = ({
             </div>
           )}
 
-          <textarea
-            placeholder="Enter complete address (flat/house no, street, landmark)"
-            value={manualAddress}
-            onChange={(e) => setManualAddress(e.target.value)}
-            rows={2}
-            className="w-full mt-4 p-3 rounded-xl border border-gray-200 bg-white text-sm resize-none placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300"
-          />
+          {geocodedInfo && !mapMoving && !isPinOutOfRange && (
+            <div className="mt-4 space-y-2.5">
+              {/* Flat / floor / building — typed details (optional) */}
+              <input
+                type="text"
+                value={detailsText}
+                onChange={(e) => setDetailsText(e.target.value)}
+                placeholder="Flat / floor / building, landmark (optional)"
+                className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300"
+              />
+              {/* Save as: Home / Office / Other (defaults to Other) */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 mr-0.5">Save as</span>
+                {(["Home", "Office", "Other"] as const).map((t) => {
+                  const selected = addressType === t;
+                  const Icon = t === "Home" ? Home : t === "Office" ? Building2 : Navigation;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setAddressType(t)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors"
+                      style={
+                        selected
+                          ? { backgroundColor: accent, borderColor: accent, color: "#fff" }
+                          : { backgroundColor: "#fff", borderColor: "#e5e7eb", color: "#4b5563" }
+                      }
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {t}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <button
             onClick={handleConfirm}
             disabled={saving || geocoding || mapMoving || !geocodedInfo || isPinOutOfRange}
-            className="w-full mt-5 h-14 text-white rounded-2xl font-bold text-base disabled:opacity-50 active:scale-[0.98] transition-transform"
+            className="w-full mt-4 h-14 text-white rounded-2xl font-bold text-base disabled:opacity-50 active:scale-[0.98] transition-transform"
             style={{ backgroundColor: accent }}
           >
             {saving ? (
