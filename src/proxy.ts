@@ -66,8 +66,12 @@ export async function proxy(request: NextRequest) {
       if (/\.[a-zA-Z0-9]+$/.test(request.nextUrl.pathname)) {
         return NextResponse.next();
       }
-      // App routes that should not be prefixed with the partner username
-      const appRoutes = ["/user-profile", "/my-orders", "/login", "/signup", "/api/", "/profile", "/admin", "/superadmin", "/captain", "/help-center", "/pricing", "/about-us", "/explore", "/offers", "/partner", "/get-started", "/demo", "/_next/"];
+      // App routes that should not be prefixed with the partner username.
+      // These are global (non-partner-scoped) top-level routes; without this the
+      // rewrite turns e.g. /order/<id> into /{username}/order/<id>, which has no
+      // route and 404s. /order and /bill are reached by customers right after
+      // checkout on their own (custom) domain, so they must resolve top-level.
+      const appRoutes = ["/order", "/bill", "/user-profile", "/my-orders", "/login", "/signup", "/api/", "/profile", "/admin", "/superadmin", "/captain", "/help-center", "/pricing", "/about-us", "/explore", "/offers", "/partner", "/get-started", "/demo", "/_next/"];
       if (appRoutes.some((r) => request.nextUrl.pathname.startsWith(r))) {
         const rewriteHeaders = new Headers(request.headers);
         rewriteHeaders.set("x-is-custom-domain", "1");
