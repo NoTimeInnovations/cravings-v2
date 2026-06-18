@@ -14,20 +14,16 @@ export interface DefaultFlowDef {
   triggers: TriggerDef[];
 }
 
-// Welcome: "hi" -> a caption + a tappable "Order Now" link button carrying a
-// fresh order link that also silently logs the customer in (instead of a raw
-// link in the text).
-// Welcome is a SINGLE quick-reply message. WhatsApp doesn't allow a URL button
-// and quick-reply buttons in the same message, so both actions are quick
-// replies: "Order Now" always, and "Reorder" only for returning customers.
-// A condition on {{reorder_link}} (empty = first-timer) picks which button set
-// to send. Tapping a button sends its label as text, which the matching
-// exact-trigger flow (Order link / Reorder) picks up and answers with the
-// actual auto-login link.
+// Welcome: "hi" -> a caption + a tappable "Order Now" CTA-URL button carrying a
+// fresh auto-login order link that opens the menu already signed in. A single
+// link-button message (no quick replies, no Reorder) so the customer reaches
+// the menu in one tap. {{order_link}} is injected by the engine for message
+// flows. (Reorder was removed for now; the separate "Reorder" flow still
+// responds if a customer types "reorder".)
 const WELCOME_TEXT =
-  "Hi 👋 Welcome to *{{store_name}}*!\n\n🛒 Tap *Order Now* to place your order.";
-const WELCOME_TEXT_RETURNING =
-  "Hi 👋 Welcome back to *{{store_name}}*!\n\n🛒 Tap *Order Now* for the full menu, or *Reorder* to repeat your last order.";
+  "Hi 👋 Welcome to *{{store_name}}*!\n\n" +
+  "🛒 Tap *Order Now* below to open the menu — you'll be signed in automatically.\n" +
+  "_The link is valid for 10 minutes._ ⏱️";
 
 function welcomeFlow(): DefaultFlowDef {
   return {
@@ -36,40 +32,17 @@ function welcomeFlow(): DefaultFlowDef {
       nodes: [
         { id: "trigger", type: "trigger", position: { x: 140, y: 220 }, data: { matchType: "exact", keywords: ["hi"] } },
         {
-          id: "cond",
-          type: "condition",
-          position: { x: 440, y: 220 },
+          id: "welcome",
+          type: "link_button",
+          position: { x: 440, y: 200 },
           data: {
-            rules: [{ var: "reorder_link", op: "isEmpty", handle: "empty" }],
-            defaultHandle: "has",
-          },
-        },
-        // First-time customer: just "Order Now".
-        {
-          id: "welcome_new",
-          type: "buttons",
-          position: { x: 760, y: 320 },
-          data: { text: WELCOME_TEXT, items: [{ id: "order_now", label: "Order Now" }] },
-        },
-        // Returning customer: "Order Now" + "Reorder".
-        {
-          id: "welcome_returning",
-          type: "buttons",
-          position: { x: 760, y: 120 },
-          data: {
-            text: WELCOME_TEXT_RETURNING,
-            items: [
-              { id: "order_now", label: "Order Now" },
-              { id: "reorder", label: "Reorder" },
-            ],
+            text: WELCOME_TEXT,
+            buttonText: "Order Now",
+            url: "{{order_link}}",
           },
         },
       ],
-      edges: [
-        { id: "e", source: "trigger", target: "cond", sourceHandle: null, targetHandle: null },
-        { id: "e_empty", source: "cond", target: "welcome_new", sourceHandle: "empty", targetHandle: null },
-        { id: "e_has", source: "cond", target: "welcome_returning", sourceHandle: "has", targetHandle: null },
-      ],
+      edges: [{ id: "e", source: "trigger", target: "welcome", sourceHandle: null, targetHandle: null }],
     },
     triggers: [{ matchType: "exact", keywords: ["hi"], nodeId: "trigger", priority: TRIGGER_PRIORITY.exact }],
   };
