@@ -2530,6 +2530,7 @@ const PlaceOrderModalV2 = ({
         savedAddresses={savedAddresses}
         onDeleteSaved={handleDeleteAddress}
         accent={accent}
+        partnerCoords={partnerCoords}
         onSelect={(addr, coords) => {
           if (!addr) {
             setShowAddressSheet(false);

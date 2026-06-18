@@ -1,9 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { MapPin, Search, LocateFixed, Loader2, X, Home, Building2, Navigation, Trash2, ChevronDown, Plus } from "lucide-react";
+import { MapPin, Search, LocateFixed, Loader2, Home, Building2, Navigation, Trash2, ChevronDown, Plus, ArrowLeft, Clock } from "lucide-react";
 import { useLoadScript } from "@react-google-maps/api";
 import type { SavedAddress } from "../../placeOrder/AddressManagementModal";
+import { getRecentSearches, saveRecentSearch, removeRecentSearch, type RecentSearch } from "@/lib/recentSearches";
+import { extractPlaceName, stripPlusCode, isPlusCode } from "@/lib/placeName";
+import { getLocalAddresses, mergeAddresses, upsertLocalAddress, removeLocalAddress } from "@/lib/localAddresses";
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 const GOOGLE_MAPS_LIBRARIES: ["places"] = ["places"];
@@ -27,6 +30,8 @@ interface V3AddressSheetProps {
    * using the already-selected location (no location re-ask).
    */
   onAddNew?: () => void;
+  /** Partner/outlet coordinates, used to show the distance to each address. */
+  partnerCoords?: { lat: number; lng: number } | null;
   brandHeader?: {
     brandName: string;
     outletLabel: string | null;
@@ -45,13 +50,57 @@ const labelIcon = (label?: string) => {
   return Navigation;
 };
 
-export default function V3AddressSheet({ currentAddress, onSelect, onClose, accent = "#1f2937", savedAddresses, onDeleteSaved, onPickForMap, onAddNew, brandHeader }: V3AddressSheetProps) {
+// Primary line for a saved address (Swiggy/Zomato style): the recognizable
+// place name, with the tag in brackets only for Home/Office/custom — never
+// "(Other)". Plus codes ("28QW+QW2") are never shown.
+const savedDisplayName = (a: SavedAddress): string => {
+  const place =
+    a.placeName?.trim() ||
+    extractPlaceName(a.address) ||
+    a.area?.trim() ||
+    a.city?.trim() ||
+    "Saved";
+  const lbl = (a.label || "").trim();
+  const tag = /home|house/i.test(lbl)
+    ? "Home"
+    : /office|work/i.test(lbl)
+      ? "Office"
+      : a.customLabel?.trim() && !/^other$/i.test(a.customLabel.trim())
+        ? a.customLabel.trim()
+        : "";
+  return tag ? `${place} (${tag})` : place;
+};
+
+// Straight-line distance (km) between the partner and an address point.
+function haversineKm(
+  a: { lat: number; lng: number } | null | undefined,
+  b: { lat: number; lng: number } | null | undefined,
+): number | null {
+  if (!a || !b) return null;
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const x =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+
+const fmtKm = (d: number | null): string | null => {
+  if (d == null) return null;
+  return d < 100 ? `${d.toFixed(1)} km` : `${Math.round(d)} km`;
+};
+
+export default function V3AddressSheet({ currentAddress, onSelect, onClose, accent = "#1f2937", savedAddresses, onDeleteSaved, onPickForMap, onAddNew, partnerCoords, brandHeader }: V3AddressSheetProps) {
   const [address, setAddress] = useState("");
   const [locating, setLocating] = useState(false);
   const [suggestions, setSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const [closing, setClosing] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [showAllSaved, setShowAllSaved] = useState(false);
+  const [recents, setRecents] = useState<RecentSearch[]>([]);
+  const [localSaved, setLocalSaved] = useState<SavedAddress[]>([]);
 
   const ANIM_MS = 450;
 
@@ -60,6 +109,13 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
     const id = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(id);
   }, []);
+
+  // Load recent searches + locally-saved addresses from localStorage on open.
+  useEffect(() => {
+    setRecents(getRecentSearches());
+    setLocalSaved(getLocalAddresses());
+  }, []);
+
   const autocompleteRef = useRef<google.maps.places.AutocompleteService | null>(null);
   const placesRef = useRef<google.maps.places.PlacesService | null>(null);
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
@@ -130,8 +186,19 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
     [onPickForMap, animateAndSelect],
   );
 
-  const selectSuggestion = useCallback((placeId: string, description: string) => {
+  const selectSuggestion = useCallback((s: google.maps.places.AutocompletePrediction) => {
+    const placeId = s.place_id;
+    const name = s.structured_formatting?.main_text || s.description;
+    const secondary = s.structured_formatting?.secondary_text || s.description;
     setSuggestions([]);
+    const finish = (coords: { lat: number; lng: number } | null) => {
+      // Remember this search (name + sub-address) for the "Recently searched"
+      // list, persisted in localStorage.
+      if (coords) {
+        saveRecentSearch({ placeId, name, address: secondary, lat: coords.lat, lng: coords.lng, timestamp: Date.now() });
+      }
+      animateAndPickForMap(s.description, coords);
+    };
     if (placesRef.current) {
       placesRef.current.getDetails(
         { placeId, fields: ["geometry"], sessionToken: sessionTokenRef.current || undefined },
@@ -142,13 +209,28 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
           if (typeof google !== "undefined") {
             sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
           }
-          animateAndPickForMap(description, coords);
+          finish(coords);
         },
       );
     } else {
-      animateAndPickForMap(description, null);
+      finish(null);
     }
   }, [animateAndPickForMap]);
+
+  const selectRecent = useCallback((r: RecentSearch) => {
+    saveRecentSearch({ ...r, timestamp: Date.now() });
+    animateAndPickForMap(r.name + (r.address ? `, ${r.address}` : ""), { lat: r.lat, lng: r.lng });
+  }, [animateAndPickForMap]);
+
+  const selectSaved = useCallback(
+    (a: SavedAddress, text: string, coords: { lat: number; lng: number } | null) => {
+      // Bump this address to "latest" locally so it stays on top after a reload,
+      // regardless of the DB array order.
+      upsertLocalAddress({ ...a, savedAt: Date.now() }, Date.now());
+      animateAndSelect(text, coords);
+    },
+    [animateAndSelect],
+  );
 
   const useCurrentLocation = () => {
     if (!navigator.geolocation) return;
@@ -170,10 +252,32 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
     );
   };
 
+  const handleAddNew = () => {
+    if (onAddNew) {
+      setClosing(true);
+      setTimeout(() => onAddNew(), ANIM_MS);
+    } else {
+      animateAndPickForMap("", null);
+    }
+  };
+
   const animateClose = () => {
     setClosing(true);
     setTimeout(onClose, ANIM_MS);
   };
+
+  // Merge the caller's list with locally-saved addresses (which reliably carry
+  // `savedAt`) and sort newest-first — so order is stable across reloads
+  // regardless of how the DB array happens to be ordered.
+  const mergedSaved = mergeAddresses(localSaved, savedAddresses || []);
+  // Selected address pinned first; the rest stay newest-first.
+  const isMatch = (a: SavedAddress) => {
+    const text = formatSavedAddress(a);
+    return !!currentAddress && (text === currentAddress || a.address === currentAddress);
+  };
+  const orderedSaved = [...mergedSaved.filter(isMatch), ...mergedSaved.filter((a) => !isMatch(a))];
+  const visibleSaved = showAllSaved ? orderedSaved : orderedSaved.slice(0, 3);
+  const hiddenSaved = orderedSaved.length - visibleSaved.length;
 
   return (
     <div className="fixed inset-0 z-[500]" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -191,265 +295,247 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
 
       {/* Sheet */}
       <div
-        className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[85vh] overflow-hidden flex flex-col"
+        className="absolute bottom-0 left-0 right-0 bg-gray-50 rounded-t-2xl h-[92vh] overflow-hidden flex flex-col"
         style={{
           transform: !mounted || closing ? "translateY(100%)" : "translateY(0)",
           transition: `transform ${ANIM_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
         }}
       >
-        {/* Handle + close (sticky) */}
-        <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0">
-          <div />
-          <div className="h-1 w-8 rounded-full bg-gray-200" />
-          <button onClick={animateClose} className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center">
-            <X className="w-3.5 h-3.5 text-gray-500" />
-          </button>
-        </div>
+        {/* Header */}
+        <div className="bg-white shrink-0">
+          <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+            <button onClick={animateClose} aria-label="Back" className="w-9 h-9 -ml-1 rounded-full flex items-center justify-center hover:bg-gray-100 transition">
+              <ArrowLeft className="w-5 h-5 text-gray-900" />
+            </button>
+            <h2 className="text-lg font-bold text-gray-900">Select Your Location</h2>
+          </div>
 
-        <div className="px-4 pb-2 shrink-0">
-          <h2 className="text-base font-bold text-gray-900">Choose a delivery address</h2>
-          {currentAddress && (
-            <p className="text-xs text-gray-400 mt-0.5 truncate">Current: {currentAddress}</p>
-          )}
-        </div>
-
-        {/* Brand / outlet row */}
-        {brandHeader && (
-          <div className="px-4 pb-3 shrink-0">
+          {/* Outlet row (multi-outlet brands) */}
+          {brandHeader && (
             <button
               type="button"
               onClick={() => { brandHeader.onChange(); animateClose(); }}
-              className="w-full flex items-center gap-3 rounded-xl bg-gray-50 px-3 py-2.5 text-left transition active:opacity-70"
+              className="w-[calc(100%-2rem)] mx-4 mb-3 flex items-center gap-3 rounded-xl bg-gray-50 px-3 py-2.5 text-left transition active:opacity-70"
             >
               <MapPin className="w-4 h-4 shrink-0 text-gray-500" />
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                  Outlet
-                </p>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Outlet</p>
                 <p className="text-sm font-semibold text-gray-900 truncate">
                   {brandHeader.brandName}
                   {brandHeader.outletLabel ? ` — ${brandHeader.outletLabel}` : ""}
                 </p>
               </div>
-              <span
-                className="text-xs font-semibold inline-flex items-center gap-0.5 shrink-0"
-                style={{ color: accent }}
-              >
+              <span className="text-xs font-semibold inline-flex items-center gap-0.5 shrink-0" style={{ color: accent }}>
                 Change
                 <ChevronDown className="w-3 h-3" />
               </span>
             </button>
-          </div>
-        )}
+          )}
 
-        {/* Search + current-location (sticky at top of body) */}
-        <div className="px-4 pb-3 shrink-0 bg-white flex items-center gap-2">
-          <div className="flex-1 min-w-0 flex items-center h-[44px] rounded-xl border border-gray-200 px-3 gap-2 focus-within:border-gray-900 focus-within:ring-1 focus-within:ring-gray-900/10 transition">
-            <Search className="w-4 h-4 text-gray-400 shrink-0" />
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Search street, building, landmark"
-              value={address}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="flex-1 h-full text-sm text-gray-900 placeholder:text-gray-400 outline-none bg-transparent min-w-0"
-            />
+          {/* Search */}
+          <div className="px-4 pb-4">
+            <div className="flex items-center h-[50px] rounded-xl border border-gray-200 bg-white px-4 gap-2.5 focus-within:border-gray-900 focus-within:ring-1 focus-within:ring-gray-900/10 transition">
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Search an area or address"
+                value={address}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="flex-1 h-full text-[15px] text-gray-900 placeholder:text-gray-400 outline-none bg-transparent min-w-0"
+              />
+              <Search className="w-5 h-5 text-gray-400 shrink-0" />
+            </div>
           </div>
-          <button
-            onClick={useCurrentLocation}
-            disabled={locating}
-            className="h-[44px] px-3 rounded-xl flex items-center gap-1.5 shrink-0 transition active:opacity-60"
-            style={{ backgroundColor: accent }}
-          >
-            {locating ? (
-              <Loader2 className="w-4 h-4 animate-spin text-white" />
-            ) : (
-              <LocateFixed className="w-4 h-4 text-white" />
-            )}
-            <span className="text-xs font-semibold text-white whitespace-nowrap">
-              Use my location
-            </span>
-          </button>
         </div>
 
         {/* Scrollable body */}
         <div
-          className="flex-1 min-h-0 overflow-y-auto px-4 pb-6 overscroll-contain"
+          className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-8 overscroll-contain"
           style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
         >
-          {/* Suggestions (when searching) */}
           {suggestions.length > 0 ? (
-            suggestions.map((s) => (
-            <button
-              key={s.place_id}
-              onClick={() => selectSuggestion(s.place_id, s.description)}
-              className="w-full text-left py-3 flex items-start gap-2.5 border-b border-gray-100 last:border-0 transition active:opacity-60"
-            >
-              <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0 mt-0.5">
-                <MapPin className="w-3.5 h-3.5 text-gray-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  {s.structured_formatting?.main_text || s.description}
-                </p>
-                <p className="text-[11px] text-gray-400 mt-0.5 truncate">
-                  {s.structured_formatting?.secondary_text || ""}
-                </p>
-              </div>
-            </button>
-          ))
+            /* ===== Search suggestions ===== */
+            <div className="rounded-2xl bg-white overflow-hidden">
+              {suggestions.map((s) => (
+                <button
+                  key={s.place_id}
+                  onClick={() => selectSuggestion(s)}
+                  className="w-full text-left px-4 py-3.5 flex items-start gap-3 border-b border-gray-100 last:border-0 transition active:bg-gray-50"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-gray-50 flex items-center justify-center shrink-0 mt-0.5">
+                    <MapPin className="w-4 h-4 text-gray-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-semibold text-gray-900 truncate">
+                      {s.structured_formatting?.main_text || s.description}
+                    </p>
+                    <p className="text-[12px] text-gray-400 mt-0.5 truncate">
+                      {s.structured_formatting?.secondary_text || ""}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
           ) : (
             <>
-              {/* Add new address — opens the map picker, then the receiver/location form */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (onAddNew) {
-                    setClosing(true);
-                    setTimeout(() => onAddNew(), ANIM_MS);
-                  } else {
-                    animateAndPickForMap("", null);
-                  }
-                }}
-                className="w-full mb-3 flex items-center gap-3 rounded-xl border border-dashed p-3 text-left transition active:opacity-60"
-                style={{ borderColor: `${accent}66` }}
-              >
-                <span
-                  className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0"
-                  style={{ backgroundColor: `${accent}14` }}
+              {/* ===== Action cards ===== */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={useCurrentLocation}
+                  disabled={locating}
+                  className="rounded-xl border border-gray-200 bg-white p-3.5 flex flex-col items-start gap-2 disabled:opacity-50 transition active:opacity-60"
                 >
-                  <Plus className="w-4 h-4" style={{ color: accent }} />
-                </span>
-                <span className="text-sm font-bold" style={{ color: accent }}>
-                  Add new Address
-                </span>
-              </button>
+                  {locating ? (
+                    <Loader2 className="w-5 h-5 animate-spin" style={{ color: accent }} />
+                  ) : (
+                    <LocateFixed className="w-5 h-5" style={{ color: accent }} />
+                  )}
+                  <span className="text-sm font-semibold text-gray-900 leading-tight text-left">
+                    Use Current Location
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddNew}
+                  className="rounded-xl border border-gray-200 bg-white p-3.5 flex flex-col items-start gap-2 transition active:opacity-60"
+                >
+                  <Plus className="w-5 h-5" style={{ color: accent }} />
+                  <span className="text-sm font-semibold text-gray-900 leading-tight text-left">
+                    Add New Address
+                  </span>
+                </button>
+              </div>
 
-              {/* Saved addresses (selected first, then last added) */}
-              {savedAddresses && savedAddresses.length > 0 && (() => {
-                const isMatch = (a: SavedAddress) => {
-                  const text = formatSavedAddress(a);
-                  return (
-                    !!currentAddress &&
-                    (text === currentAddress || a.address === currentAddress)
-                  );
-                };
-                // Incoming list is already newest-first; keep the selected one
-                // pinned to the very top.
-                const ordered = [...savedAddresses];
-                const sorted = [
-                  ...ordered.filter(isMatch),
-                  ...ordered.filter((a) => !isMatch(a)),
-                ];
-                const visible = showAllSaved ? sorted : sorted.slice(0, 3);
-                const hidden = sorted.length - visible.length;
-                return (
-                  <div className="pb-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">
-                      Saved addresses
-                    </p>
-                    <div className="space-y-1.5">
-                      {visible.map((a) => {
-                        const Icon = labelIcon(a.label);
-                        const text = formatSavedAddress(a);
-                        const isSelected =
-                          (!!currentAddress && text === currentAddress) ||
-                          (!!currentAddress &&
-                            !!a.address &&
-                            a.address === currentAddress);
-                        return (
-                          <div
-                            key={a.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => {
-                              const coords =
-                                a.latitude != null && a.longitude != null
-                                  ? { lat: a.latitude, lng: a.longitude }
-                                  : null;
-                              animateAndSelect(text, coords);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                const coords =
-                                  a.latitude != null && a.longitude != null
-                                    ? { lat: a.latitude, lng: a.longitude }
-                                    : null;
-                                animateAndSelect(text, coords);
-                              }
-                            }}
-                            className="w-full text-left flex items-center gap-3 p-3 rounded-xl border transition active:opacity-60 cursor-pointer"
-                            style={{
-                              borderColor: isSelected ? accent : "#f3f4f6",
-                              backgroundColor: isSelected ? `${accent}10` : "white",
-                            }}
-                          >
-                            <div
-                              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-                              style={{
-                                backgroundColor: isSelected ? `${accent}20` : "#f9fafb",
-                              }}
-                            >
-                              <Icon
-                                className="w-4 h-4"
-                                style={{ color: isSelected ? accent : "#4b5563" }}
-                              />
+              {/* ===== Saved addresses ===== */}
+              {orderedSaved.length > 0 && (
+                <div className="mt-6">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 mb-2">
+                    Saved addresses
+                  </p>
+                  <div className="rounded-2xl bg-white overflow-hidden">
+                    {visibleSaved.map((a, i) => {
+                      const Icon = labelIcon(a.label);
+                      const text = formatSavedAddress(a);
+                      const subText = stripPlusCode(text);
+                      const name = savedDisplayName(a);
+                      const coords =
+                        a.latitude != null && a.longitude != null
+                          ? { lat: a.latitude, lng: a.longitude }
+                          : null;
+                      const dist = fmtKm(haversineKm(partnerCoords, coords));
+                      const selected = isMatch(a);
+                      return (
+                        <div
+                          key={a.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => selectSaved(a, text, coords)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              selectSaved(a, text, coords);
+                            }
+                          }}
+                          className={`w-full text-left flex items-start gap-3 px-4 py-3.5 cursor-pointer transition active:bg-gray-50 ${i !== visibleSaved.length - 1 ? "border-b border-gray-100" : ""}`}
+                        >
+                          <div className="flex flex-col items-center shrink-0 w-12">
+                            <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center">
+                              <Icon className="w-4 h-4" style={{ color: selected ? accent : "#4b5563" }} />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p
-                                className="text-sm font-semibold truncate"
-                                style={{ color: isSelected ? accent : "#111827" }}
-                              >
-                                {a.customLabel || a.label || "Saved"}
-                              </p>
-                              <p className="text-[11px] text-gray-400 truncate mt-0.5">{text}</p>
-                              {a.receiverPhone?.trim() && (
-                                <p className="text-[11px] text-gray-400 truncate mt-0.5">
-                                  📞 {a.receiverPhone.trim()}
-                                </p>
-                              )}
-                            </div>
-                            {isSelected && (
-                              <span
-                                className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0"
-                                style={{ color: accent, backgroundColor: `${accent}1A` }}
-                              >
-                                Selected
-                              </span>
-                            )}
-                            {onDeleteSaved && (
-                              <button
-                                type="button"
-                                aria-label="Delete address"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (confirm("Remove this address?")) {
-                                    onDeleteSaved(a.id);
-                                  }
-                                }}
-                                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 hover:bg-red-50 active:opacity-60 transition"
-                              >
-                                <Trash2 className="w-4 h-4 text-gray-400" />
-                              </button>
+                            {dist && <span className="text-[10px] text-gray-400 mt-1 whitespace-nowrap">{dist}</span>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[15px] font-bold truncate" style={{ color: selected ? accent : "#111827" }}>
+                              {name}
+                            </p>
+                            <p className="text-[13px] text-gray-500 mt-0.5 line-clamp-2">{subText}</p>
+                            {a.receiverPhone?.trim() && (
+                              <p className="text-[12px] text-gray-400 mt-0.5 truncate">📞 {a.receiverPhone.trim()}</p>
                             )}
                           </div>
-                        );
-                      })}
-                    </div>
-                    {hidden > 0 && (
+                          <button
+                            type="button"
+                            aria-label="Delete address"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm("Remove this address?")) {
+                                setLocalSaved(removeLocalAddress(a.id));
+                                onDeleteSaved?.(a.id);
+                              }
+                            }}
+                            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 hover:bg-red-50 active:opacity-60 transition"
+                          >
+                            <Trash2 className="w-4 h-4 text-gray-400" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                    {hiddenSaved > 0 && (
                       <button
                         onClick={() => setShowAllSaved(true)}
-                        className="w-full mt-2 py-2.5 text-sm font-semibold rounded-xl border border-gray-100 transition active:opacity-60"
+                        className="w-full py-3 text-sm font-semibold border-t border-gray-100 transition active:opacity-60 flex items-center justify-center gap-1"
                         style={{ color: accent }}
                       >
-                        Show {hidden} more
+                        View all <ChevronDown className="w-4 h-4" />
                       </button>
                     )}
                   </div>
-                );
-              })()}
+                </div>
+              )}
 
+              {/* ===== Recently searched ===== */}
+              {recents.length > 0 && (
+                <div className="mt-6">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500 mb-2">
+                    Recently searched
+                  </p>
+                  <div className="rounded-2xl bg-white overflow-hidden">
+                    {recents.map((r, i) => {
+                      const dist = fmtKm(haversineKm(partnerCoords, { lat: r.lat, lng: r.lng }));
+                      return (
+                        <div
+                          key={r.placeId + i}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => selectRecent(r)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              selectRecent(r);
+                            }
+                          }}
+                          className={`w-full text-left flex items-start gap-3 px-4 py-3.5 cursor-pointer transition active:bg-gray-50 ${i !== recents.length - 1 ? "border-b border-gray-100" : ""}`}
+                        >
+                          <div className="flex flex-col items-center shrink-0 w-12">
+                            <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center">
+                              <Clock className="w-4 h-4 text-gray-500" />
+                            </div>
+                            {dist && <span className="text-[10px] text-gray-400 mt-1 whitespace-nowrap">{dist}</span>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[15px] font-bold text-gray-900 truncate">
+                              {isPlusCode(r.name) ? extractPlaceName(r.address) || r.name : r.name}
+                            </p>
+                            <p className="text-[13px] text-gray-500 mt-0.5 line-clamp-2">{stripPlusCode(r.address)}</p>
+                          </div>
+                          <button
+                            type="button"
+                            aria-label="Remove recent"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRecents(removeRecentSearch(r.placeId));
+                            }}
+                            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 hover:bg-gray-100 active:opacity-60 transition"
+                          >
+                            <Trash2 className="w-4 h-4 text-gray-300" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

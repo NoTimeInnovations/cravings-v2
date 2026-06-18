@@ -304,54 +304,65 @@ export default function DeliveryAddressScreen({
           Where should we deliver your order?
         </p>
 
-        {/* Search + Use my location (top row) */}
-        <div className="relative mt-6 flex items-center gap-2">
-          <div className="flex-1 min-w-0 flex items-center h-[48px] rounded-xl border border-gray-200 bg-white px-3.5 gap-2.5 focus-within:border-gray-900 focus-within:ring-1 focus-within:ring-gray-900/10 transition">
-            <Search className="w-4 h-4 text-gray-400 shrink-0" />
-            <input
-              type="text"
-              placeholder="Search street, building, landmark"
-              value={address}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="flex-1 h-full text-[15px] text-gray-900 placeholder:text-gray-400 outline-none bg-transparent min-w-0"
-            />
+        {/* Your delivery address — search, then OR, then current location (stacked) */}
+        <div className="mt-6 rounded-2xl bg-gray-50 p-4">
+          <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-gray-500">
+            Your delivery address
+          </p>
+          <div className="relative mt-2">
+            <div className="flex items-center h-[48px] rounded-xl border border-gray-200 bg-white px-3.5 gap-2.5 focus-within:border-gray-900 focus-within:ring-1 focus-within:ring-gray-900/10 transition">
+              <Search className="w-4 h-4 text-gray-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Search street, area, landmark"
+                value={address}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="flex-1 h-full text-[15px] text-gray-900 placeholder:text-gray-400 outline-none bg-transparent min-w-0"
+              />
+            </div>
+
+            {/* Suggestions */}
+            {suggestions.length > 0 && (
+              <div className="absolute top-[52px] left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-10 max-h-60 overflow-y-auto">
+                {suggestions.map((s) => (
+                  <button
+                    key={s.place_id}
+                    onClick={() => selectSuggestion(s.place_id, s.description)}
+                    className="w-full text-left px-4 py-3 text-sm text-gray-900 hover:bg-gray-50 border-b border-gray-100 last:border-0 flex items-start gap-2.5 transition active:opacity-60"
+                  >
+                    <div className="w-9 h-9 rounded-[10px] bg-gray-50 flex items-center justify-center shrink-0 mt-0.5">
+                      <MapPin className="w-4 h-4 text-gray-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-medium text-gray-900 truncate">{s.structured_formatting?.main_text || s.description}</p>
+                      <p className="text-[12px] text-gray-400 mt-0.5 truncate">{s.structured_formatting?.secondary_text || ""}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* OR divider */}
+          <div className="mt-3 flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-gray-400">or</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+
+          {/* Use my current location */}
           <button
             onClick={useCurrentLocation}
             disabled={locating}
-            className="h-[48px] px-3 rounded-xl flex items-center gap-1.5 shrink-0 transition active:opacity-60"
-            style={{ backgroundColor: accent }}
+            className="mt-3 w-full h-[48px] rounded-xl border border-gray-200 bg-white flex items-center justify-center gap-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50 transition active:opacity-60"
           >
             {locating ? (
-              <Loader2 className="w-4 h-4 animate-spin text-white" />
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <LocateFixed className="w-4 h-4 text-white" />
+              <LocateFixed className="w-4 h-4" style={{ color: accent }} />
             )}
-            <span className="text-xs font-semibold text-white whitespace-nowrap">
-              Use my location
-            </span>
+            Use my current location
           </button>
-
-          {/* Suggestions */}
-          {suggestions.length > 0 && (
-            <div className="absolute top-[52px] left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-10 max-h-60 overflow-y-auto">
-              {suggestions.map((s) => (
-                <button
-                  key={s.place_id}
-                  onClick={() => selectSuggestion(s.place_id, s.description)}
-                  className="w-full text-left px-4 py-3 text-sm text-gray-900 hover:bg-gray-50 border-b border-gray-100 last:border-0 flex items-start gap-2.5 transition active:opacity-60"
-                >
-                  <div className="w-9 h-9 rounded-[10px] bg-gray-50 flex items-center justify-center shrink-0 mt-0.5">
-                    <MapPin className="w-4 h-4 text-gray-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-medium text-gray-900 truncate">{s.structured_formatting?.main_text || s.description}</p>
-                    <p className="text-[12px] text-gray-400 mt-0.5 truncate">{s.structured_formatting?.secondary_text || ""}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Saved addresses */}

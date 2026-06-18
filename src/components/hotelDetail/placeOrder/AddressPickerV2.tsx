@@ -524,6 +524,7 @@ const AddressPickerV2 = ({
         id: `${Date.now()}`,
         label: addressType,
         address: fullAddress,
+        placeName: geocodedInfo.name || geocodedInfo.area || undefined,
         house_no: details || undefined,
         area: geocodedInfo.area,
         city: geocodedInfo.city,

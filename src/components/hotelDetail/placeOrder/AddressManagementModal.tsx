@@ -41,6 +41,8 @@ export type SavedAddress = {
   receiverPhone?: string;
   /** Epoch ms of when this address was last saved/selected — drives newest-first ordering. */
   savedAt?: number;
+  /** Human-friendly locality name (e.g. "Kollamkudimugal") shown as the primary label. */
+  placeName?: string;
 };
 
 type RecentSearch = {
@@ -573,6 +575,7 @@ const AddressManagementModal = ({
         id: editAddress?.id || `${Date.now()}`,
         label: editAddress?.label || geocodedInfo.name || "Other",
         address: geocodedInfo.address,
+        placeName: geocodedInfo.name || geocodedInfo.area || undefined,
         area: geocodedInfo.area,
         city: geocodedInfo.city,
         district: geocodedInfo.district,

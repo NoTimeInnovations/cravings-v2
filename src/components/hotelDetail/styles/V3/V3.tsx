@@ -23,6 +23,7 @@ import type { SavedAddress } from "../../placeOrder/AddressManagementModal";
 import AddressPickerV2 from "../../placeOrder/AddressPickerV2";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { updateUserAddressesMutation } from "@/api/auth";
+import { upsertLocalAddress } from "@/lib/localAddresses";
 import { toast } from "sonner";
 import { useLocationStore } from "@/store/geolocationStore";
 import PullToRefresh from "@/components/PullToRefresh";
@@ -85,11 +86,15 @@ const V3 = ({
       useOrderStore.getState().setUserCoordinates(c);
       useLocationStore.getState().setCoords(c);
     }
+    // Save locally with a fresh timestamp so it shows newest-first (survives
+    // reload + works for guests).
+    const stamped = { ...saved, savedAt: Date.now() };
+    upsertLocalAddress(stamped, Date.now());
     if (authUser && (authUser as any).role === "user") {
       const existing = [...savedAddresses];
-      const idx = existing.findIndex((x) => x.id === saved.id);
-      if (idx >= 0) existing[idx] = saved;
-      else existing.push(saved);
+      const idx = existing.findIndex((x) => x.id === stamped.id);
+      if (idx >= 0) existing[idx] = stamped;
+      else existing.push(stamped);
       try {
         await fetchFromHasura(updateUserAddressesMutation, {
           id: authUser.id,
@@ -702,6 +707,14 @@ const V3 = ({
             }}
             onClose={() => setAddressSheetOpen(false)}
             accent={styles.accent}
+            partnerCoords={
+              Array.isArray((hoteldata?.geo_location as any)?.coordinates)
+                ? {
+                    lat: (hoteldata!.geo_location as any).coordinates[1],
+                    lng: (hoteldata!.geo_location as any).coordinates[0],
+                  }
+                : null
+            }
           />
         )}
 
