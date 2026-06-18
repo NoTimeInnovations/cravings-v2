@@ -180,10 +180,12 @@ export function AdminV2EditMenuItem({ item, onBack }: AdminV2EditMenuItemProps) 
                         <p className="text-muted-foreground">Update menu item details</p>
                     </div>
                 </div>
-                <Button variant="destructive" size="sm" onClick={handleDelete}>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Item
-                </Button>
+                {!isPetpooja && (
+                    <Button variant="destructive" size="sm" onClick={handleDelete}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Item
+                    </Button>
+                )}
             </div>
 
             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-6">
