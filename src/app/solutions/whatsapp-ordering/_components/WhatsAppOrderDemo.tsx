@@ -101,7 +101,15 @@ const MENU_ITEMS = [
   },
 ];
 
-export default function WhatsAppOrderDemo() {
+export default function WhatsAppOrderDemo({
+  // CSS color for the soft glow behind the phone, applied via inline style so it
+  // always renders (no Tailwind JIT dependency) and isn't affected by the host's
+  // stacking context. Defaults to the WhatsApp green used on the solutions page;
+  // the home hero overrides it with the brand orange.
+  glowColor = "rgba(37, 211, 102, 0.2)",
+}: {
+  glowColor?: string;
+} = {}) {
   const [elapsed, setElapsed] = useState(0);
   const [phase, setPhase] = useState<Phase>("chat");
   const [manualMenu, setManualMenu] = useState(false);
@@ -174,8 +182,12 @@ export default function WhatsAppOrderDemo() {
 
   return (
     <div className="relative w-full flex justify-center">
-      {/* Soft glow behind the phone */}
-      <div className="absolute inset-0 -z-10 mx-auto h-[70%] w-[70%] translate-y-10 rounded-full bg-[#25D366]/20 blur-3xl" />
+      {/* Soft glow behind the phone (DOM-ordered before the phone → sits behind
+          it; inline style so it's immune to Tailwind JIT / stacking context). */}
+      <div
+        className="absolute inset-0 mx-auto h-[75%] w-[85%] translate-y-10 rounded-full blur-3xl"
+        style={{ background: glowColor }}
+      />
 
       {/* Phone — realistic iPhone-16-like proportions */}
       <div className="relative w-[286px] sm:w-[306px]">
