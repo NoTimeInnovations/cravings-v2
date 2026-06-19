@@ -164,7 +164,7 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
         { input: query, sessionToken: sessionTokenRef.current || undefined },
         (results) => setSuggestions(results || []),
       );
-    }, 300);
+    }, 500);
   }, []);
 
   const animateAndSelect = useCallback(

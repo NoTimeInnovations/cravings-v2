@@ -159,7 +159,7 @@ const LocationHeader = ({
     setSearchQuery(query);
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
 
-    if (!query.trim() || !isLoaded || !autocompleteServiceRef.current) {
+    if (query.trim().length < 3 || !isLoaded || !autocompleteServiceRef.current) {
       setPredictions([]);
       return;
     }
@@ -189,7 +189,7 @@ const LocationHeader = ({
           }
         }
       );
-    }, 300);
+    }, 500);
   };
 
   const handleSelectPrediction = (prediction: google.maps.places.AutocompletePrediction) => {

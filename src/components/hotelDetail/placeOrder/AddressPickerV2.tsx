@@ -285,7 +285,7 @@ const AddressPickerV2 = ({
   useEffect(() => {
     if (!isLoaded || !autocompleteServiceRef.current) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!searchValue.trim()) {
+    if (searchValue.trim().length < 3) {
       setPredictions([]);
       return;
     }
@@ -307,7 +307,7 @@ const AddressPickerV2 = ({
           }
         },
       );
-    }, 300);
+    }, 500);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };

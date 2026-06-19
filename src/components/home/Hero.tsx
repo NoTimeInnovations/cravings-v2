@@ -53,7 +53,9 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const q = search.trim();
-    if (!q || selected) {
+    // Only fetch once there are at least 3 characters — skips short, low-signal
+    // queries and cuts autocomplete request volume.
+    if (q.length < 3 || selected) {
       setPredictions([]);
       return;
     }
@@ -61,7 +63,7 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
       const myReq = ++reqIdRef.current;
       const results = await placesAutocomplete(q, ensureSessionToken());
       if (myReq === reqIdRef.current) setPredictions(results);
-    }, 250);
+    }, 500);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
