@@ -3,6 +3,12 @@ import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import React, { useEffect, useRef, useState } from "react";
 import useOrderStore from "@/store/orderStore";
+import {
+  pushEcommerceEvent,
+  resolveCurrencyCode,
+  categoryName,
+  baseItemId,
+} from "@/lib/partnerDataLayer";
 import { toast } from "sonner";
 import { usePathname } from "next/navigation";
 import { FeatureFlags, getFeatures } from "@/lib/getFeatures";
@@ -250,6 +256,8 @@ const OrderDrawer = ({
   const {
     userAddress,
     items,
+    totalPrice,
+    open_place_order_modal,
     orderId,
     open_drawer_bottom,
     setOpenDrawerBottom,
@@ -288,6 +296,36 @@ const OrderDrawer = ({
     verifyOtp,
     reset: resetOtp,
   } = useWhatsAppOtp(hotelData?.id);
+
+  // GTM begin_checkout — fire once when the place-order modal opens with a
+  // non-empty cart. One shared OrderDrawer mount covers every storefront style.
+  const prevCheckoutOpenRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    const wasOpen = prevCheckoutOpenRef.current;
+    prevCheckoutOpenRef.current = open_place_order_modal;
+    // First run after mount: don't fire — a persisted/rehydrated "open" (page
+    // reload, or the Cashfree redirect-return with the cart kept) is not a
+    // genuine open transition.
+    if (wasOpen === null) return;
+    if (open_place_order_modal && !wasOpen && (items?.length ?? 0) > 0) {
+      pushEcommerceEvent("begin_checkout", {
+        currency: resolveCurrencyCode(hotelData?.currency),
+        value: Number(totalPrice ?? 0),
+        items: (items || []).map((it, i) => ({
+          item_id: baseItemId(it.id),
+          item_name: it.name,
+          item_category: categoryName(it.category),
+          item_variant:
+            it.variantSelections?.map((v: { name?: string }) => v.name).join(", ") || undefined,
+          price: it.price,
+          quantity: it.quantity,
+          index: i,
+        })),
+      });
+    }
+    // Fire only on the open-flag transition, not on every cart change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open_place_order_modal]);
 
   // Only require OTP if whatsappnotifications is enabled, not on /login page, and not a table order
   const isLoginPage = pathname === "/login";

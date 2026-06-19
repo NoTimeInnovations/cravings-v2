@@ -1,5 +1,6 @@
 "use client";
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
+import { pushEcommerceEvent, resolveCurrencyCode, categoryName, baseItemId } from "@/lib/partnerDataLayer";
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { DefaultHotelPageProps } from "../Default/Default";
@@ -307,6 +308,11 @@ const V3ItemCard = ({
         className="flex gap-3 py-3 cursor-pointer transition-all duration-500 ease-out"
         style={{ opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(12px)" }}
         onClick={() => {
+          pushEcommerceEvent("view_item", {
+            currency: resolveCurrencyCode(hoteldata?.currency),
+            value: item.price,
+            items: [{ item_id: baseItemId(item.id), item_name: item.name, item_category: categoryName(item.category), price: item.price }],
+          });
           if (hasVariants) setShowVariants(true);
           else setShowItemSheet(true);
         }}

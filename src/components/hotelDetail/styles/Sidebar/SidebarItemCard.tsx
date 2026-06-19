@@ -1,6 +1,7 @@
 "use client";
 
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
+import { pushEcommerceEvent, resolveCurrencyCode, categoryName, baseItemId } from "@/lib/partnerDataLayer";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { useEffect, useState } from "react";
 import useOrderStore from "@/store/orderStore";
@@ -275,7 +276,14 @@ const SidebarItemCard = ({
     <>
       {/* === CLEAN CARD FRONT === */}
       <div
-        onClick={() => setIsDrawerOpen(true)}
+        onClick={() => {
+          pushEcommerceEvent("view_item", {
+            currency: resolveCurrencyCode(currency),
+            value: item.price,
+            items: [{ item_id: baseItemId(item.id), item_name: item.name, item_category: categoryName(item.category), price: item.price }],
+          });
+          setIsDrawerOpen(true);
+        }}
         className="cursor-pointer rounded-2xl overflow-hidden shadow-sm relative p-1 backdrop-blur-md"
         style={{
           backgroundColor: `${styles.color}19`,

@@ -1,5 +1,6 @@
 "use client";
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
+import { pushEcommerceEvent, resolveCurrencyCode, categoryName, baseItemId } from "@/lib/partnerDataLayer";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import React, { useEffect, useState, useRef } from "react";
 // import Img from "../../../Img";
@@ -255,7 +256,14 @@ const ItemCard = ({
       >
         <div className="flex flex-col gap-y-2 justify-between items-start w-full">
           <div
-            onClick={() => setIsOpen(true)}
+            onClick={() => {
+              pushEcommerceEvent("view_item", {
+                currency: resolveCurrencyCode(currency),
+                value: item.price,
+                items: [{ item_id: baseItemId(item.id), item_name: item.name, item_category: categoryName(item.category), price: item.price }],
+              });
+              setIsOpen(true);
+            }}
             className={`flex justify-between w-full items-start cursor-pointer`}
           >
             <div
