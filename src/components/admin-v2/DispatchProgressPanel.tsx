@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getDispatchProgress } from "@/app/actions/porterBridge";
+import { useEffect, useRef, useState } from "react";
+import { getDispatchProgress, cancelDispatch } from "@/app/actions/porterBridge";
 
 type ProviderState = "won" | "checking" | "tried" | "pending";
 interface Progress {
@@ -39,6 +39,12 @@ const STATUS_LABEL: Record<string, string> = {
  */
 export default function DispatchProgressPanel({ orderId }: { orderId: string }) {
   const [p, setP] = useState<Progress | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelled, setCancelled] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  // Stop the poll loop immediately once we've cancelled, without waiting for the
+  // bridge status to flip on the next tick.
+  const cancelledRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -49,7 +55,7 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
       if (r.ok) {
         const data = r.data as unknown as Progress;
         setP(data);
-        if (data.status === "running") timer = setTimeout(tick, 5000);
+        if (data.status === "running" && !cancelledRef.current) timer = setTimeout(tick, 5000);
       }
       // 404 (no dispatch) or error → stop polling; panel just won't render.
     };
@@ -59,6 +65,24 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
       if (timer) clearTimeout(timer);
     };
   }, [orderId]);
+
+  // Cancel the in-flight delivery-bridge dispatch (only offered while it's still
+  // checking providers and hasn't already been cancelled).
+  const handleCancel = async () => {
+    if (cancelling || cancelled) return;
+    if (!window.confirm("Cancel this delivery dispatch? The provider search will stop.")) return;
+    setCancelling(true);
+    setCancelError(null);
+    const r = await cancelDispatch(orderId);
+    setCancelling(false);
+    if (r.ok) {
+      cancelledRef.current = true;
+      setCancelled(true);
+      setP(prev => (prev ? { ...prev, status: "stopped", currentProvider: null } : prev));
+    } else {
+      setCancelError(r.message || "Failed to cancel dispatch");
+    }
+  };
 
   if (!p) return null;
   // Once a rider is assigned, the DeliveryRiderPanel takes over — hide the
@@ -92,6 +116,25 @@ export default function DispatchProgressPanel({ orderId }: { orderId: string }) 
           </div>
         ))}
       </div>
+
+      {p.status === "running" && !cancelled && (
+        <button
+          type="button"
+          onClick={handleCancel}
+          disabled={cancelling}
+          className="mt-3 w-full rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {cancelling ? "Cancelling…" : "Cancel dispatch"}
+        </button>
+      )}
+
+      {cancelled && (
+        <p className="mt-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700">
+          Dispatch cancelled.
+        </p>
+      )}
+
+      {cancelError && <p className="mt-2 text-xs text-rose-600">{cancelError}</p>}
 
       {p.driverName && (
         <p className="mt-2 text-sm text-emerald-700">Driver assigned: <strong>{p.driverName}</strong></p>
