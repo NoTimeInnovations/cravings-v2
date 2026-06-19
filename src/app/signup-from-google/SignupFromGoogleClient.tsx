@@ -73,6 +73,7 @@ type View = "choose" | "email" | "otp" | "building";
 export default function SignupFromGoogleClient({
   placeId,
   placeName,
+  sessionToken,
   googleError,
   googleEmail,
   fromGoogle,
@@ -80,6 +81,7 @@ export default function SignupFromGoogleClient({
 }: {
   placeId: string;
   placeName: string;
+  sessionToken?: string;
   googleError?: string;
   googleEmail?: string;
   fromGoogle?: boolean;
@@ -308,6 +310,7 @@ export default function SignupFromGoogleClient({
         const items = await extractMenuItems();
         const result = await quickSignupFromGoogle({
           placeId,
+          sessionToken,
           email: googleEmail,
           extractedItems: items,
           ...readLogoPayload(),
@@ -368,6 +371,7 @@ export default function SignupFromGoogleClient({
       const items = await extractMenuItems();
       const result = await quickSignupFromGoogle({
         placeId,
+        sessionToken,
         email: signupEmail,
         extractedItems: items,
         ...readLogoPayload(),
@@ -456,6 +460,7 @@ export default function SignupFromGoogleClient({
         const items = await extractMenuItems();
         const result = await quickSignupFromGoogle({
           placeId,
+          sessionToken,
           email,
           extractedItems: items,
           ...readLogoPayload(),

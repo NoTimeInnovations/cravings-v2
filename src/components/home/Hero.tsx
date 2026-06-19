@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useLoadScript } from "@react-google-maps/api";
+import { placesAutocomplete, type PlacePrediction } from "@/app/actions/placesAutocomplete";
 import { toast } from "sonner";
 import { isDevModeOn } from "@/lib/devMode";
 import CustomerReviews from "./CustomerReviews";
@@ -24,9 +24,6 @@ import {
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 
-const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
-const LIBRARIES: ["places"] = ["places"];
-
 interface SelectedPlace {
   placeId: string;
   name: string;
@@ -35,57 +32,40 @@ interface SelectedPlace {
 
 export default function Hero({ partners = [] }: { partners?: string[] }) {
   const router = useRouter();
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: LIBRARIES,
-  });
 
   const [search, setSearch] = useState("");
-  const [predictions, setPredictions] = useState<
-    google.maps.places.AutocompletePrediction[]
-  >([]);
+  const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [selected, setSelected] = useState<SelectedPlace | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [typedPlaceholder, setTypedPlaceholder] = useState("Burger Town");
 
-  const autocompleteServiceRef =
-    useRef<google.maps.places.AutocompleteService | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Drops out-of-order async responses (latest debounced request wins).
+  const reqIdRef = useRef(0);
+  // One Places session per search → select → signup, shared with the server-side
+  // Place Details fetch so the keystroke autocomplete bills as a single session.
+  const sessionTokenRef = useRef<string>("");
+  const ensureSessionToken = () => {
+    if (!sessionTokenRef.current) sessionTokenRef.current = crypto.randomUUID();
+    return sessionTokenRef.current;
+  };
 
   useEffect(() => {
-    if (isLoaded && !autocompleteServiceRef.current) {
-      autocompleteServiceRef.current =
-        new google.maps.places.AutocompleteService();
-    }
-  }, [isLoaded]);
-
-  useEffect(() => {
-    if (!isLoaded || !autocompleteServiceRef.current) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const q = search.trim();
     if (!q || selected) {
       setPredictions([]);
       return;
     }
-    debounceRef.current = setTimeout(() => {
-      autocompleteServiceRef.current!.getPlacePredictions(
-        { input: q, types: ["establishment"] },
-        (results, status) => {
-          if (
-            status === google.maps.places.PlacesServiceStatus.OK &&
-            results
-          ) {
-            setPredictions(results);
-          } else {
-            setPredictions([]);
-          }
-        },
-      );
+    debounceRef.current = setTimeout(async () => {
+      const myReq = ++reqIdRef.current;
+      const results = await placesAutocomplete(q, ensureSessionToken());
+      if (myReq === reqIdRef.current) setPredictions(results);
     }, 250);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [search, isLoaded, selected]);
+  }, [search, selected]);
 
   useEffect(() => {
     if (search || selected) return;
@@ -127,7 +107,7 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
   }, [search, selected]);
 
   const handlePickPrediction = useCallback(
-    (p: google.maps.places.AutocompletePrediction) => {
+    (p: PlacePrediction) => {
       setSelected({
         placeId: p.place_id,
         name: p.structured_formatting?.main_text || p.description,
@@ -160,6 +140,9 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
     const params = new URLSearchParams({
       placeId: selected.placeId,
       name: selected.name,
+      // Same session token the autocomplete used → the server Place Details
+      // fetch reuses it, so the whole flow bills as one Places session.
+      sessionToken: ensureSessionToken(),
     });
     // Carry the persisted dev flag so the signup page skips OTP without the
     // worker having to manually append &dev=1.
@@ -277,14 +260,9 @@ export default function Hero({ partners = [] }: { partners?: string[] }) {
                       <Search className="h-4 w-4 text-[#A6A6AB] shrink-0" />
                       <input
                         type="text"
-                        placeholder={
-                          isLoaded
-                            ? `Search "${typedPlaceholder || "Burger Town"}"`
-                            : "Loading Google search…"
-                        }
+                        placeholder={`Search "${typedPlaceholder || "Burger Town"}"`}
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        disabled={!isLoaded}
                         className="flex-1 min-w-0 bg-transparent border-none outline-none text-[15px] text-[#0A0A0B] placeholder:text-[#B2B2B7] tracking-[-0.005em]"
                       />
                     </div>

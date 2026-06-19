@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useLoadScript } from "@react-google-maps/api";
+import { placesAutocomplete, type PlacePrediction } from "@/app/actions/placesAutocomplete";
 import { toast } from "sonner";
 import {
   Search,
@@ -13,9 +13,6 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { quickSignupFromGoogle } from "@/app/actions/quickSignupFromGoogle";
-
-const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
-const LIBRARIES: ["places"] = ["places"];
 
 interface SelectedPlace {
   placeId: string;
@@ -37,62 +34,44 @@ interface CreatedPartner {
  * the partner directly — NO email OTP / verification code.
  */
 export default function CreatePartnerV3Page() {
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: LIBRARIES,
-  });
-
   const [search, setSearch] = useState("");
-  const [predictions, setPredictions] = useState<
-    google.maps.places.AutocompletePrediction[]
-  >([]);
+  const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [selected, setSelected] = useState<SelectedPlace | null>(null);
   const [email, setEmail] = useState("");
   const [creating, setCreating] = useState(false);
   const [result, setResult] = useState<CreatedPartner | null>(null);
 
-  const autocompleteServiceRef =
-    useRef<google.maps.places.AutocompleteService | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reqIdRef = useRef(0);
+  // One Places session per search → select → create, shared with the server-side
+  // Place Details fetch so the keystroke autocomplete bills as a single session.
+  const sessionTokenRef = useRef<string>("");
+  const ensureSessionToken = () => {
+    if (!sessionTokenRef.current) sessionTokenRef.current = crypto.randomUUID();
+    return sessionTokenRef.current;
+  };
 
+  // Debounced Google Places autocomplete by business name (server-proxied so the
+  // session token can be shared with the server-side Place Details fetch).
   useEffect(() => {
-    if (isLoaded && !autocompleteServiceRef.current) {
-      autocompleteServiceRef.current =
-        new google.maps.places.AutocompleteService();
-    }
-  }, [isLoaded]);
-
-  // Debounced Google Places autocomplete by business name.
-  useEffect(() => {
-    if (!isLoaded || !autocompleteServiceRef.current) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const q = search.trim();
     if (!q || selected) {
       setPredictions([]);
       return;
     }
-    debounceRef.current = setTimeout(() => {
-      autocompleteServiceRef.current!.getPlacePredictions(
-        { input: q, types: ["establishment"] },
-        (results, status) => {
-          if (
-            status === google.maps.places.PlacesServiceStatus.OK &&
-            results
-          ) {
-            setPredictions(results);
-          } else {
-            setPredictions([]);
-          }
-        },
-      );
+    debounceRef.current = setTimeout(async () => {
+      const myReq = ++reqIdRef.current;
+      const results = await placesAutocomplete(q, ensureSessionToken());
+      if (myReq === reqIdRef.current) setPredictions(results);
     }, 250);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [search, isLoaded, selected]);
+  }, [search, selected]);
 
   const handlePick = useCallback(
-    (p: google.maps.places.AutocompletePrediction) => {
+    (p: PlacePrediction) => {
       setSelected({
         placeId: p.place_id,
         name: p.structured_formatting?.main_text || p.description,
@@ -124,6 +103,7 @@ export default function CreatePartnerV3Page() {
       // No OTP — superadmin creates the partner straight away.
       const res = await quickSignupFromGoogle({
         placeId: selected.placeId,
+        sessionToken: ensureSessionToken(),
         email: email.trim(),
       });
       setResult(res);
@@ -245,12 +225,9 @@ export default function CreatePartnerV3Page() {
               <input
                 type="text"
                 autoFocus
-                placeholder={
-                  isLoaded ? "Search business name…" : "Loading Google search…"
-                }
+                placeholder="Search business name…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                disabled={!isLoaded}
                 className="flex-1 min-w-0 bg-transparent border-none outline-none text-sm text-gray-900 placeholder:text-stone-400"
               />
             </div>
