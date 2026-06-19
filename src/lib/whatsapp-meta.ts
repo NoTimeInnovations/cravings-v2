@@ -33,6 +33,57 @@ export function partnerWabaToken(
   return integration?.access_token || process.env.WHATSAPP_ACCESS_TOKEN!;
 }
 
+// Upload media (image / video / document) to Meta's Resumable Upload API and
+// return the file HANDLE that a message template's media HEADER needs as
+// example.header_handle[0]. A raw URL is NOT accepted by template creation — it
+// must be this handle. The handle is bound to the app (META_APP_ID) + the token,
+// so callers MUST pass the SAME token createMetaTemplate will use for that
+// partner's WABA (i.e. partnerWabaToken(integration)).
+export async function uploadMediaToMetaForTemplate(
+  bytes: Buffer,
+  fileType: string,
+  token: string,
+  fileName = "header-media",
+): Promise<string> {
+  const appId = process.env.META_APP_ID;
+  if (!appId) throw new Error("META_APP_ID not configured");
+
+  // 1. Open a resumable upload session.
+  const startRes = await fetch(
+    `${GRAPH_API_BASE}/${appId}/uploads?` +
+      new URLSearchParams({
+        file_name: fileName,
+        file_length: String(bytes.length),
+        file_type: fileType,
+        access_token: token,
+      }).toString(),
+    { method: "POST" },
+  );
+  const startData = await startRes.json().catch(() => ({}));
+  if (!startRes.ok || !startData?.id) {
+    throw new Error(
+      `Meta upload session failed (${startRes.status}): ${JSON.stringify(startData)}`,
+    );
+  }
+
+  // 2. Upload the bytes in one shot (offset 0); Meta returns { h: "<handle>" }.
+  const upRes = await fetch(`${GRAPH_API_BASE}/${startData.id}`, {
+    method: "POST",
+    headers: {
+      Authorization: `OAuth ${token}`,
+      file_offset: "0",
+    },
+    body: bytes,
+  });
+  const upData = await upRes.json().catch(() => ({}));
+  if (!upRes.ok || !upData?.h) {
+    throw new Error(
+      `Meta media upload failed (${upRes.status}): ${JSON.stringify(upData)}`,
+    );
+  }
+  return upData.h as string;
+}
+
 // ─── Token Exchange ───────────────────────────────────────────────
 export async function exchangeCodeForToken(code: string): Promise<{
   access_token: string;
