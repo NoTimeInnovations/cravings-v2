@@ -659,6 +659,7 @@ const V3 = ({
           <V3AddressSheet
             currentAddress={userAddress || ""}
             brandHeader={brandHeader}
+            partnerId={hoteldata?.id}
             savedAddresses={savedAddresses}
             onDeleteSaved={async (id) => {
               if (!authUser || (authUser as any).role !== "user") return;

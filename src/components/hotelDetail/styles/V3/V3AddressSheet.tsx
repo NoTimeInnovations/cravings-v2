@@ -33,6 +33,9 @@ interface V3AddressSheetProps {
   onAddNew?: () => void;
   /** Partner/outlet coordinates, used to show the distance to each address. */
   partnerCoords?: { lat: number; lng: number } | null;
+  /** Partner id — so the Maps requests this sheet makes are attributed to the
+   *  partner (and, once the order is placed, to the order) in usage analytics. */
+  partnerId?: string | null;
   brandHeader?: {
     brandName: string;
     outletLabel: string | null;
@@ -93,7 +96,7 @@ const fmtKm = (d: number | null): string | null => {
   return d < 100 ? `${d.toFixed(1)} km` : `${Math.round(d)} km`;
 };
 
-export default function V3AddressSheet({ currentAddress, onSelect, onClose, accent = "#1f2937", savedAddresses, onDeleteSaved, onPickForMap, onAddNew, partnerCoords, brandHeader }: V3AddressSheetProps) {
+export default function V3AddressSheet({ currentAddress, onSelect, onClose, accent = "#1f2937", savedAddresses, onDeleteSaved, onPickForMap, onAddNew, partnerCoords, partnerId, brandHeader }: V3AddressSheetProps) {
   const [address, setAddress] = useState("");
   const [locating, setLocating] = useState(false);
   const [suggestions, setSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
@@ -159,7 +162,7 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
       return;
     }
     debounceRef.current = setTimeout(() => {
-      void trackMaps({ api: "autocomplete", source: "checkout_v3_address" });
+      void trackMaps({ api: "autocomplete", partnerId, source: "checkout_v3_address" });
       autocompleteRef.current?.getPlacePredictions(
         { input: query, sessionToken: sessionTokenRef.current || undefined },
         (results) => setSuggestions(results || []),
@@ -202,7 +205,7 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
       animateAndPickForMap(s.description, coords);
     };
     if (placesRef.current) {
-      void trackMaps({ api: "place_details", source: "checkout_v3_address" });
+      void trackMaps({ api: "place_details", partnerId, source: "checkout_v3_address" });
       placesRef.current.getDetails(
         { placeId, fields: ["geometry"], sessionToken: sessionTokenRef.current || undefined },
         (place) => {
@@ -243,7 +246,7 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
         const { latitude, longitude } = pos.coords;
         let addr = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
         try {
-          void trackMaps({ api: "geocode", source: "checkout_v3_address" });
+          void trackMaps({ api: "geocode", partnerId, source: "checkout_v3_address" });
           const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`);
           const data = await res.json();
           if (data.results?.[0]) addr = data.results[0].formatted_address;
