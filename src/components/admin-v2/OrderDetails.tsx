@@ -190,6 +190,24 @@ function ProviderAvailabilityPanel({
     );
 }
 
+// Human label for who cancelled the order. Handles the granular values
+// (customer / partner-cravings / partner-petpooja) plus legacy "user"/"partner".
+function cancelledByLabel(by?: string | null): string {
+    switch (by) {
+        case "customer":
+        case "user":
+            return "Customer";
+        case "partner-cravings":
+            return "Partner · Cravings";
+        case "partner-petpooja":
+            return "Partner · Petpooja";
+        case "partner":
+            return "Partner";
+        default:
+            return by || "Unknown";
+    }
+}
+
 export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
     const { userData } = useAuthStore();
     const prebookCfg = parsePrebookingSettings((userData as any)?.prebooking_settings);
@@ -387,18 +405,18 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 </div>
             </div>
 
-            {order.status === "cancelled" && order.cancel_reason && (
+            {order.status === "cancelled" && (
                 <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
                         <XCircle className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
-                            Cancellation reason
-                            {order.cancelled_by ? ` · by ${order.cancelled_by}` : ""}
+                            Cancelled
+                            {order.cancelled_by ? ` · by ${cancelledByLabel(order.cancelled_by)}` : ""}
                         </p>
                         <p className="mt-1 text-sm sm:text-base text-red-900 break-words">
-                            {order.cancel_reason}
+                            {order.cancel_reason || "No reason provided"}
                         </p>
                     </div>
                 </div>

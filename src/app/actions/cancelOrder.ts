@@ -101,7 +101,8 @@ export async function cancelOrderAction(
       const result = await fetchFromHasura(CANCEL_ORDER_LOCAL, {
         orderId,
         reason,
-        by: auth.role,
+        // Record granular actor: customer vs partner-from-Cravings-admin.
+        by: auth.role === "user" ? "customer" : "partner-cravings",
       });
       if (!result?.update_orders_by_pk) {
         return { success: false, message: "Failed to cancel order" };

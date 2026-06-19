@@ -363,7 +363,16 @@ export interface Order {
   is_paid?: boolean;
   cashfree_payment_id?: string;
   cancel_reason?: string | null;
-  cancelled_by?: "user" | "partner" | null;
+  // "customer" (legacy "user"), "partner-cravings" (cancelled in the Cravings
+  // admin) or "partner-petpooja" (cancelled from the Petpooja POS). Legacy
+  // "partner" rows predate the cravings/petpooja split.
+  cancelled_by?:
+    | "user"
+    | "partner"
+    | "customer"
+    | "partner-cravings"
+    | "partner-petpooja"
+    | null;
   review?: {
     id: string;
     rating: number;
