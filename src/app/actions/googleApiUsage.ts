@@ -41,18 +41,42 @@ async function runSql(sql: string): Promise<Record<string, string | null>[]> {
 
 const n = (v: string | null | undefined) => Number(v ?? 0) || 0;
 
+// run_sql returns a jsonb column as its JSON text; parse {api: count} into a
+// count-desc array for the per-order / per-partner breakdown dropdowns.
+const parseByApi = (
+  raw: string | null | undefined,
+): { api: string; count: number }[] => {
+  if (!raw) return [];
+  try {
+    const obj = JSON.parse(raw) as Record<string, number>;
+    return Object.entries(obj)
+      .map(([api, count]) => ({ api, count: Number(count) || 0 }))
+      .sort((a, b) => b.count - a.count);
+  } catch {
+    return [];
+  }
+};
+
 export interface GoogleApiUsageStats {
   generatedAt: string;
   totals: { today: number; week: number; month: number; all: number };
   byApi: { api: string; today: number; week: number; month: number; all: number }[];
   byDay: { day: string; count: number }[];
-  byPartnerMonth: { partnerId: string | null; storeName: string; count: number }[];
+  byPartnerMonth: {
+    partnerId: string | null;
+    storeName: string;
+    count: number;
+    lastAt: string;
+    byApi: { api: string; count: number }[];
+  }[];
   byOrder: {
     orderId: string;
     displayId: string | null;
     partnerId: string | null;
     storeName: string;
     count: number;
+    lastAt: string;
+    byApi: { api: string; count: number }[];
   }[];
   recent: {
     id: string;
@@ -102,18 +126,28 @@ export async function getGoogleApiUsageStats(
 
   const byPartnerMonth = (
     await runSql(`
-    SELECT u.partner_id, COALESCE(p.store_name, '— (no partner / signup)') AS store_name, count(*) AS cnt
-    FROM public.google_api_usage u
-    LEFT JOIN public.partners p ON p.id = u.partner_id
-    WHERE u.created_at >= date_trunc('month', now())
-    GROUP BY u.partner_id, p.store_name
-    ORDER BY cnt DESC
+    SELECT t.partner_id, t.store_name,
+      sum(t.cnt) AS cnt,
+      to_char(max(t.last_at), 'YYYY-MM-DD HH24:MI:SS') AS last_at,
+      jsonb_object_agg(t.api, t.cnt) AS by_api
+    FROM (
+      SELECT u.partner_id, COALESCE(p.store_name, '— (no partner / signup)') AS store_name,
+        u.api, count(*) AS cnt, max(u.created_at) AS last_at
+      FROM public.google_api_usage u
+      LEFT JOIN public.partners p ON p.id = u.partner_id
+      WHERE u.created_at >= date_trunc('month', now())
+      GROUP BY u.partner_id, store_name, u.api
+    ) t
+    GROUP BY t.partner_id, t.store_name
+    ORDER BY max(t.last_at) DESC
     LIMIT 200;
   `)
   ).map((r) => ({
     partnerId: r.partner_id,
     storeName: r.store_name || "—",
     count: n(r.cnt),
+    lastAt: r.last_at || "",
+    byApi: parseByApi(r.by_api),
   }));
 
   // Attribute an order's requests to the ORDER's partner (not each usage row's
@@ -122,13 +156,21 @@ export async function getGoogleApiUsageStats(
   // a single order across a real-partner row and a "—" row.
   const byOrder = (
     await runSql(`
-    SELECT u.order_id, o.display_id, o.partner_id, COALESCE(p.store_name, '—') AS store_name, count(*) AS cnt
-    FROM public.google_api_usage u
-    LEFT JOIN public.orders o ON o.id = u.order_id
-    LEFT JOIN public.partners p ON p.id = o.partner_id
-    WHERE u.order_id IS NOT NULL
-    GROUP BY u.order_id, o.display_id, o.partner_id, p.store_name
-    ORDER BY cnt DESC
+    SELECT t.order_id, t.display_id, t.partner_id, t.store_name,
+      sum(t.cnt) AS cnt,
+      to_char(max(t.last_at), 'YYYY-MM-DD HH24:MI:SS') AS last_at,
+      jsonb_object_agg(t.api, t.cnt) AS by_api
+    FROM (
+      SELECT u.order_id, o.display_id, o.partner_id, COALESCE(p.store_name, '—') AS store_name,
+        u.api, count(*) AS cnt, max(u.created_at) AS last_at
+      FROM public.google_api_usage u
+      LEFT JOIN public.orders o ON o.id = u.order_id
+      LEFT JOIN public.partners p ON p.id = o.partner_id
+      WHERE u.order_id IS NOT NULL
+      GROUP BY u.order_id, o.display_id, o.partner_id, store_name, u.api
+    ) t
+    GROUP BY t.order_id, t.display_id, t.partner_id, t.store_name
+    ORDER BY max(t.last_at) DESC
     LIMIT 200;
   `)
   ).map((r) => ({
@@ -137,6 +179,8 @@ export async function getGoogleApiUsageStats(
     partnerId: r.partner_id,
     storeName: r.store_name || "—",
     count: n(r.cnt),
+    lastAt: r.last_at || "",
+    byApi: parseByApi(r.by_api),
   }));
 
   const recent = (

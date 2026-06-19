@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import {
   getGoogleApiUsageStats,
   type GoogleApiUsageStats,
@@ -15,6 +16,28 @@ function Stat({ label, value, accent }: { label: string; value: number; accent: 
     <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">{label}</p>
       <p className={`mt-1 text-3xl font-bold tabular-nums ${accent}`}>{fmt(value)}</p>
+    </div>
+  );
+}
+
+// Per-API request breakdown shown when an order/partner row is expanded.
+function ApiBreakdown({ items }: { items: { api: string; count: number }[] }) {
+  if (items.length === 0) {
+    return <p className="px-2 py-2 text-xs text-stone-400">No API detail</p>;
+  }
+  return (
+    <div className="flex flex-wrap gap-2 px-2 py-2">
+      {items.map((b) => (
+        <span
+          key={b.api}
+          className="inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2 py-1 text-xs"
+        >
+          <span className="font-medium text-stone-700">{b.api}</span>
+          <span className="rounded bg-stone-100 px-1.5 font-semibold tabular-nums text-stone-900">
+            {fmt(b.count)}
+          </span>
+        </span>
+      ))}
     </div>
   );
 }
@@ -37,8 +60,22 @@ export default function GoogleApiUsageAnalytics() {
   const [err, setErr] = useState<string | null>(null);
   const [live, setLive] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<string>("");
+  // Which order / partner rows are expanded to show their API breakdown.
+  const [openOrders, setOpenOrders] = useState<Set<string>>(new Set());
+  const [openPartners, setOpenPartners] = useState<Set<string>>(new Set());
   const liveRef = useRef(live);
   liveRef.current = live;
+
+  const toggleKey = (
+    setter: React.Dispatch<React.SetStateAction<Set<string>>>,
+    key: string,
+  ) =>
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   const load = useCallback(async () => {
     try {
@@ -160,53 +197,100 @@ export default function GoogleApiUsageAnalytics() {
             )}
           </SectionCard>
 
-          {/* Per partner this month */}
-          <SectionCard title="By partner (this month)" subtitle="Requests attributed to each partner">
-            <div className="max-h-80 overflow-auto">
+          {/* Per partner this month — click a row for the API breakdown */}
+          <SectionCard
+            title="By partner (this month)"
+            subtitle="Requests per partner · latest first · click a row for the API breakdown"
+          >
+            <div className="max-h-96 overflow-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-white">
                   <tr className="text-left text-xs uppercase tracking-wide text-stone-500">
                     <th className="px-2 py-2">Partner</th>
+                    <th className="px-2 py-2">Last used</th>
                     <th className="px-2 py-2 text-right">Requests</th>
                   </tr>
                 </thead>
                 <tbody>
                   {stats.byPartnerMonth.length === 0 && (
-                    <tr><td colSpan={2} className="px-2 py-3 text-center text-stone-400">No requests this month</td></tr>
+                    <tr><td colSpan={3} className="px-2 py-3 text-center text-stone-400">No requests this month</td></tr>
                   )}
-                  {stats.byPartnerMonth.map((p, i) => (
-                    <tr key={(p.partnerId || "none") + i} className="border-t border-stone-100">
-                      <td className="px-2 py-2 text-stone-800">{p.storeName}</td>
-                      <td className="px-2 py-2 text-right font-semibold tabular-nums">{fmt(p.count)}</td>
-                    </tr>
-                  ))}
+                  {stats.byPartnerMonth.map((p, i) => {
+                    const key = (p.partnerId || "none") + ":" + i;
+                    const open = openPartners.has(key);
+                    return (
+                      <Fragment key={key}>
+                        <tr
+                          className="cursor-pointer border-t border-stone-100 hover:bg-stone-50"
+                          onClick={() => toggleKey(setOpenPartners, key)}
+                        >
+                          <td className="px-2 py-2 text-stone-800">
+                            <span className="inline-flex items-center gap-1">
+                              <ChevronRight className={`h-3.5 w-3.5 shrink-0 text-stone-400 transition-transform ${open ? "rotate-90" : ""}`} />
+                              {p.storeName}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-xs tabular-nums text-stone-500">{p.lastAt}</td>
+                          <td className="px-2 py-2 text-right font-semibold tabular-nums">{fmt(p.count)}</td>
+                        </tr>
+                        {open && (
+                          <tr className="border-t border-stone-50 bg-stone-50/60">
+                            <td colSpan={3} className="p-0"><ApiBreakdown items={p.byApi} /></td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </SectionCard>
 
-          {/* Per order */}
-          <SectionCard title="By order" subtitle="Maps requests tied to a specific order (order · partner · count)">
-            <div className="max-h-80 overflow-auto">
+          {/* Per order — click a row for the API breakdown */}
+          <SectionCard
+            title="By order"
+            subtitle="Maps requests tied to a specific order · latest first · click a row for the API breakdown"
+          >
+            <div className="max-h-96 overflow-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-white">
                   <tr className="text-left text-xs uppercase tracking-wide text-stone-500">
                     <th className="px-2 py-2">Order</th>
                     <th className="px-2 py-2">Partner</th>
+                    <th className="px-2 py-2">Last used</th>
                     <th className="px-2 py-2 text-right">Requests</th>
                   </tr>
                 </thead>
                 <tbody>
                   {stats.byOrder.length === 0 && (
-                    <tr><td colSpan={3} className="px-2 py-3 text-center text-stone-400">No order-attributed requests yet</td></tr>
+                    <tr><td colSpan={4} className="px-2 py-3 text-center text-stone-400">No order-attributed requests yet</td></tr>
                   )}
-                  {stats.byOrder.map((o) => (
-                    <tr key={o.orderId} className="border-t border-stone-100">
-                      <td className="px-2 py-2 font-mono text-xs text-stone-700">#{o.displayId || o.orderId.slice(0, 8)}</td>
-                      <td className="px-2 py-2 text-stone-800">{o.storeName}</td>
-                      <td className="px-2 py-2 text-right font-semibold tabular-nums">{fmt(o.count)}</td>
-                    </tr>
-                  ))}
+                  {stats.byOrder.map((o) => {
+                    const open = openOrders.has(o.orderId);
+                    return (
+                      <Fragment key={o.orderId}>
+                        <tr
+                          className="cursor-pointer border-t border-stone-100 hover:bg-stone-50"
+                          onClick={() => toggleKey(setOpenOrders, o.orderId)}
+                        >
+                          <td className="px-2 py-2">
+                            <span className="inline-flex items-center gap-1">
+                              <ChevronRight className={`h-3.5 w-3.5 shrink-0 text-stone-400 transition-transform ${open ? "rotate-90" : ""}`} />
+                              <span className="font-mono text-xs text-stone-700">#{o.displayId || o.orderId.slice(0, 8)}</span>
+                            </span>
+                          </td>
+                          <td className="px-2 py-2 text-stone-800">{o.storeName}</td>
+                          <td className="px-2 py-2 whitespace-nowrap text-xs tabular-nums text-stone-500">{o.lastAt}</td>
+                          <td className="px-2 py-2 text-right font-semibold tabular-nums">{fmt(o.count)}</td>
+                        </tr>
+                        {open && (
+                          <tr className="border-t border-stone-50 bg-stone-50/60">
+                            <td colSpan={4} className="p-0"><ApiBreakdown items={o.byApi} /></td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
