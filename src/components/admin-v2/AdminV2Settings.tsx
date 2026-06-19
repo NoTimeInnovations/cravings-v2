@@ -147,7 +147,7 @@ export function AdminV2Settings() {
         {
             key: "integrations",
             label: "Integrations",
-            desc: "Google Business, WhatsApp & delivery platforms",
+            desc: "Google Business, WhatsApp, Google Tag Manager & delivery platforms",
             icon: Plug,
             sections: [{ key: "integrations", label: "Integrations", Component: IntegrationsSettings }],
         },

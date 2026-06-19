@@ -15,6 +15,7 @@ import OrderChannelInit from "@/components/OrderChannelInit";
 import { Navbar } from "@/components/Navbar";
 import { PostHogProvider } from "@/providers/posthog-provider";
 import { DomainProvider } from "@/providers/DomainProvider";
+import { PartnerGtm } from "@/components/storefront/PartnerGtm";
 import type { DomainConfig } from "@/lib/domain-utils";
 
 const AuthInitializer = dynamic(() => import("@/providers/AuthInitializer"));
@@ -125,6 +126,12 @@ export default async function RootLayout({
 }>) {
   const headersList = await headers();
   const isCustomDomain = headersList.get("x-is-custom-domain") === "1";
+  // On a custom domain the proxy resolves the partner and forwards their GTM
+  // container here, so partner GTM loads on every custom-domain page — including
+  // /order & /bill and the other top-level routes that aren't under
+  // [username]/layout. On the main domain this header is absent and the
+  // [username]/layout handles storefront GTM instead.
+  const partnerGtmId = headersList.get("x-partner-gtm");
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -191,6 +198,9 @@ document.head.appendChild(o)}initApollo();`,
       <body
         className={`antialiased font-sans ${inter.variable} ${dancingScript.variable} ${poppins.variable} ${roboto.variable} ${geist.variable} ${bricolageGrotesque.variable}`}
       >
+        {/* Custom-domain partner GTM (covers /order, /bill & all top-level
+            routes the [username] subtree layout can't reach). */}
+        <PartnerGtm gtmId={partnerGtmId} />
         <PostHogProvider>
           <DomainProvider config={MENUTHERE_CONFIG}>
             <AuthInitializer />

@@ -51,6 +51,10 @@ export function IntegrationsSettings() {
     const [otpSender, setOtpSender] = useState<"menuthere" | "own">(
         ((userData as any)?.otp_sender === "own" ? "own" : "menuthere"),
     );
+
+    // Google Tag Manager container (GTM-XXXXXXX) — loaded on the partner's storefront.
+    const [gtmId, setGtmId] = useState<string>((userData as any)?.gtm_container_id ?? "");
+    const [savingGtm, setSavingGtm] = useState(false);
     // WABA + Phone Number IDs captured from the Embedded Signup session-info
     // postMessage (see the listener effect below). In the Coexistence flow these
     // arrive ONLY via postMessage — the access token doesn't carry them.
@@ -445,6 +449,43 @@ export function IntegrationsSettings() {
         }
     };
 
+    // Keep the GTM input in sync with the loaded partner.
+    useEffect(() => {
+        setGtmId((userData as any)?.gtm_container_id ?? "");
+    }, [(userData as any)?.gtm_container_id]);
+
+    // Save the partner's GTM container. Accepts a bare id, a pasted install
+    // snippet, or a URL — we pull GTM-XXXX out. The strict regex is enforced
+    // here AND in <PartnerGtm> (the value is injected into an inline script).
+    const handleSaveGtm = async () => {
+        if (!userData) return;
+        const GTM_RE = /^GTM-[A-Z0-9]{4,12}$/;
+        const matched = gtmId.toUpperCase().match(/GTM-[A-Z0-9]{4,12}/);
+        const value = gtmId.trim() === "" ? "" : matched ? matched[0] : gtmId.trim().toUpperCase();
+        if (value !== "" && !GTM_RE.test(value)) {
+            toast.error("Enter a valid container ID, e.g. GTM-XXXXXXX (not a G-… or AW-… id)");
+            return;
+        }
+        const toSave = value === "" ? null : value;
+        try {
+            setSavingGtm(true);
+            setGtmId(value);
+            await updatePartner(userData.id, { gtm_container_id: toSave });
+            setState({ gtm_container_id: toSave } as any);
+            // Bust the namespaced per-partner GTM layout cache (tagged
+            // `partner-gtm:${username}`). We intentionally do NOT bust the
+            // partner-UUID tag: GTM isn't stored in that cache, and a UUID tag
+            // would fire an IndexNow/Bing re-crawl for an analytics-only change.
+            const uname = (userData as any).username;
+            if (uname) await revalidateTag(`partner-gtm:${uname}`);
+            toast.success(toSave ? "Google Tag Manager connected" : "Google Tag Manager removed");
+        } catch {
+            toast.error("Failed to save Google Tag Manager container");
+        } finally {
+            setSavingGtm(false);
+        }
+    };
+
     // ─── Batched save for Delivery Platform links only ─────────────
     // Google + WhatsApp persist immediately via their own handlers; this
     // batched save only owns the 4 delivery-platform social-link keys and
@@ -803,6 +844,43 @@ export function IntegrationsSettings() {
                                 )}
                             </>
                         )}
+                    </CardContent>
+                </Card>
+
+                {/* Google Tag Manager — partner connects their own container.
+                    Not plan-gated (standard free analytics integration). */}
+                <Card className="relative order-3">
+                    <CardHeader>
+                        <CardTitle>Google Tag Manager</CardTitle>
+                        <CardDescription>
+                            Load your own Google Tag Manager container on your storefront to run your analytics, ads and pixels.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <div className="space-y-2">
+                            <Label htmlFor="gtm-id">Container ID</Label>
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                <Input
+                                    id="gtm-id"
+                                    value={gtmId}
+                                    onChange={(e) => setGtmId(e.target.value)}
+                                    placeholder="GTM-XXXXXXX"
+                                    className="font-mono sm:max-w-xs"
+                                />
+                                <Button onClick={handleSaveGtm} disabled={savingGtm} className="w-full sm:w-auto">
+                                    {savingGtm ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Save
+                                </Button>
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Paste your container ID (<span className="font-mono">GTM-XXXXXXX</span>) or the full install snippet — we&apos;ll pull the ID out. This is your Tag Manager container, not a <span className="font-mono">G-…</span> (GA4) or <span className="font-mono">AW-…</span> (Ads) ID. It loads on your storefront and custom domain.
+                        </p>
+                        {(userData as any)?.gtm_container_id ? (
+                            <p className="flex items-center gap-1 text-xs text-green-700">
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Active on your storefront
+                            </p>
+                        ) : null}
                     </CardContent>
                 </Card>
             </div>
