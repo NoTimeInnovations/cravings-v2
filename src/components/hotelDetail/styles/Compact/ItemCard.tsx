@@ -1,5 +1,6 @@
 "use client";
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
+import { pushEcommerceEvent, resolveCurrencyCode, categoryName, baseItemId } from "@/lib/partnerDataLayer";
 import React, { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { DefaultHotelPageProps } from "../Default/Default";
@@ -324,7 +325,7 @@ const ItemCard = ({
 
   return (
     <>
-      <div className="py-4 flex gap-3 relative md:border-b md:border-gray-100 cursor-pointer" onClick={() => { if (hasVariants) setShowVariants(true); else setShowItemSheet(true); }}>
+      <div className="py-4 flex gap-3 relative md:border-b md:border-gray-100 cursor-pointer" onClick={() => { pushEcommerceEvent("view_item", { currency: resolveCurrencyCode(hoteldata?.currency), value: item.price, items: [{ item_id: baseItemId(item.id), item_name: item.name, item_category: categoryName(item.category), price: item.price }] }); if (hasVariants) setShowVariants(true); else setShowItemSheet(true); }}>
         {/* Left Content */}
         <div className="flex-1 min-w-0 flex flex-col justify-start pt-0.5">
           <div className="flex items-center gap-1.5 mb-0.5">

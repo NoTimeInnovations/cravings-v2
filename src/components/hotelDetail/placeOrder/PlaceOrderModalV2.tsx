@@ -61,6 +61,12 @@ import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { waitForCashfreeContainer } from "@/lib/cashfreeEmbed";
 import { finalizeCfOrder } from "@/app/actions/cfOrders";
+import {
+  resolveCurrencyCode,
+  categoryName,
+  baseItemId,
+  pushPurchaseOnce,
+} from "@/lib/partnerDataLayer";
 import { LoyaltyRedeemCard } from "./LoyaltyRedeemCard";
 import { LoyaltyHistorySheet } from "@/components/loyalty/LoyaltyPointsBadge";
 import { getLoyaltyRedeemContext, redeemLoyaltyPoints, refundLoyaltyForOrder } from "@/app/actions/loyalty";
@@ -1119,6 +1125,7 @@ const PlaceOrderModalV2 = ({
   const verifyAndPlaceCfOrder = async (pending: {
     cfOrderId: string;
     partnerId: string;
+    amount?: number | null;
     orderId?: string | null;
     orderType?: string | null;
     orderNote?: string | null;
@@ -1166,6 +1173,21 @@ const PlaceOrderModalV2 = ({
         }
         localStorage?.setItem("last-order-id", pending.orderId);
         setPlacedOrderId(pending.orderId);
+        // GTM purchase — paid-only (past the verifyRes.paid gate) + once-only
+        // across the redirect remount. amount = the charged payable.
+        pushPurchaseOnce(pending.orderId, {
+          value: Number.isFinite(Number(pending.amount)) ? Number(pending.amount) : grandTotal,
+          currency: resolveCurrencyCode(hotelData?.currency),
+          payment_type: "cashfree",
+          items: (items || []).map((it) => ({
+            item_id: baseItemId(it.id),
+            item_name: it.name,
+            item_category: categoryName(it.category),
+            item_variant: it.variantSelections?.[0]?.name,
+            price: it.price,
+            quantity: it.quantity,
+          })),
+        });
       }
 
       setSavedOrderTotal((pending as any).amount ?? grandTotal);
@@ -1445,6 +1467,7 @@ const PlaceOrderModalV2 = ({
         cfOrderId,
         orderId,
         partnerId: hotelData.id,
+        amount: payable,
         orderType: orderType || null,
         orderNote: orderNote || null,
         prebooking: prebookingArg,
@@ -1476,6 +1499,7 @@ const PlaceOrderModalV2 = ({
         cfOrderId: pending.cfOrderId,
         orderId: pending.orderId || null,
         partnerId: pending.partnerId,
+        amount: Number(pending.amount) || null,
         orderType: pending.orderType,
         orderNote: pending.orderNote,
         prebooking: pending.prebooking || null,
@@ -1623,6 +1647,21 @@ const PlaceOrderModalV2 = ({
         if (appliedDiscount?.id) {
           fetchFromHasura(incrementDiscountUsageMutation, { id: appliedDiscount.id }).catch(() => {});
         }
+        // GTM purchase — COD/immediate (v2 checkout). value = payableTotal (the
+        // loyalty-adjusted amount charged). Fire before the coupon/cart reset.
+        pushPurchaseOnce(result.id, {
+          value: payableTotal,
+          currency: resolveCurrencyCode(hotelData?.currency),
+          coupon: appliedDiscount?.code,
+          items: (items || []).map((it) => ({
+            item_id: baseItemId(it.id),
+            item_name: it.name,
+            item_category: categoryName(it.category),
+            item_variant: it.variantSelections?.[0]?.name,
+            price: it.price,
+            quantity: it.quantity,
+          })),
+        });
         setRedeemPoints(0);
         setAppliedDiscount(null);
         setDiscountInput("");

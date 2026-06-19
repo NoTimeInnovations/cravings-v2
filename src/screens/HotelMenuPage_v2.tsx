@@ -286,7 +286,7 @@ const HotelMenuPage = ({
 
   useEffect(() => {
     if (hoteldata?.id) {
-      setHotelId(hoteldata.id);
+      setHotelId(hoteldata.id, hoteldata.currency);
       genOrderId();
       addToRecent(hoteldata.id);
     }

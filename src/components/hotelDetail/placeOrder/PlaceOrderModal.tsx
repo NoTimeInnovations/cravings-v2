@@ -49,6 +49,12 @@ import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { waitForCashfreeContainer } from "@/lib/cashfreeEmbed";
 import { finalizeCfOrder } from "@/app/actions/cfOrders";
+import {
+  resolveCurrencyCode,
+  categoryName,
+  baseItemId,
+  pushPurchaseOnce,
+} from "@/lib/partnerDataLayer";
 import { LoyaltyRedeemCard } from "./LoyaltyRedeemCard";
 import { LoyaltyHistorySheet } from "@/components/loyalty/LoyaltyPointsBadge";
 import { getLoyaltyRedeemContext, redeemLoyaltyPoints, refundLoyaltyForOrder } from "@/app/actions/loyalty";
@@ -2838,7 +2844,11 @@ const PlaceOrderModal = ({
 
       const extraChargesTotal = extraCharges.reduce((acc, c) => acc + c.amount, 0);
       const discountSavingsAmount = appliedDiscount ? computeDiscountSavings(appliedDiscount) : 0;
-      setFinalOrderAmount(Math.max(0, subtotal + extraChargesTotal + gstAdditionalOrder - discountSavingsAmount));
+      const computedFinalAmount = Math.max(0, subtotal + extraChargesTotal + gstAdditionalOrder - discountSavingsAmount);
+      setFinalOrderAmount(computedFinalAmount);
+      // Snapshots for the GTM purchase event (cart + coupon are cleared on success).
+      let purchaseValue = computedFinalAmount;
+      const purchaseCoupon = appliedDiscount?.code;
 
       // Generate WhatsApp link BEFORE placing order to capture current state
       const whatsappLink = getWhatsappLink(orderId as string);
@@ -2901,7 +2911,10 @@ const PlaceOrderModal = ({
           if (redeemPoints > 0 && loyaltyCtx?.enabled) {
             try {
               const r = await redeemLoyaltyPoints({ orderId: result.id, points: redeemPoints });
-              if (r.ok && r.value > 0) setFinalOrderAmount(r.orderTotal);
+              if (r.ok && r.value > 0) {
+                setFinalOrderAmount(r.orderTotal);
+                purchaseValue = r.orderTotal;
+              }
             } catch (e) {
               console.warn("[loyalty] redeem failed", e);
             }
@@ -2926,6 +2939,19 @@ const PlaceOrderModal = ({
         if (onSuccessCallback) {
           onSuccessCallback();
         }
+        pushPurchaseOnce(result.id, {
+          value: purchaseValue,
+          currency: resolveCurrencyCode(hotelData?.currency),
+          coupon: purchaseCoupon,
+          items: (items || []).map((it) => ({
+            item_id: baseItemId(it.id),
+            item_name: it.name,
+            item_category: categoryName(it.category),
+            item_variant: it.variantSelections?.[0]?.name,
+            price: it.price,
+            quantity: it.quantity,
+          })),
+        });
         setOrderStatus("success");
       } else {
         toast.error("Failed to place order. Please try again.");
@@ -3184,6 +3210,7 @@ const PlaceOrderModal = ({
         cfOrderId,
         orderId,
         partnerId: hotelData.id,
+        amount: payable,
         orderType: orderType || null,
         orderNote: orderNote || null,
         customerName: customerName || null,
@@ -3205,6 +3232,7 @@ const PlaceOrderModal = ({
   const verifyAndPlaceCfOrder = async (pending: {
     cfOrderId: string;
     partnerId: string;
+    amount?: number | null;
     orderId?: string | null;
     orderType?: string | null;
     orderNote?: string | null;
@@ -3252,6 +3280,21 @@ const PlaceOrderModal = ({
           console.error("finalizeCfOrder (client) failed; webhook/cron will retry:", e);
         }
         localStorage?.setItem("last-order-id", pending.orderId);
+        // GTM purchase — paid-only (we're past the verifyRes.paid gate) and
+        // once-only across the redirect remount. amount = the charged payable.
+        pushPurchaseOnce(pending.orderId, {
+          value: Number(pending.amount) || 0,
+          currency: resolveCurrencyCode(hotelData?.currency),
+          payment_type: "cashfree",
+          items: (items || []).map((it) => ({
+            item_id: baseItemId(it.id),
+            item_name: it.name,
+            item_category: categoryName(it.category),
+            item_variant: it.variantSelections?.[0]?.name,
+            price: it.price,
+            quantity: it.quantity,
+          })),
+        });
       }
       // Payment done — clear the cart now (kept through the pending phase so the
       // customer could retry if payment failed).
@@ -3289,6 +3332,7 @@ const PlaceOrderModal = ({
       cfOrderId: pending.cfOrderId,
       orderId: pending.orderId || null,
       partnerId: pending.partnerId,
+      amount: Number(pending.amount) || null,
       orderType: pending.orderType,
       orderNote: pending.orderNote,
       customerName: pending.customerName,
