@@ -35,6 +35,9 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
+import { ImageUpload } from "@/components/storefront/ImageUpload";
+import VideoEditor from "@/components/VideoEditor";
+import { uploadFileToS3 } from "@/app/actions/aws-s3";
 
 type HeaderFormat = "NONE" | "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT";
 type ButtonKind = "QUICK_REPLY" | "URL" | "PHONE_NUMBER";
@@ -443,6 +446,12 @@ function TemplateEditorDialog({
   const [headerFormat, setHeaderFormat] = useState<HeaderFormat>("NONE");
   const [headerText, setHeaderText] = useState("");
   const [headerMediaUrl, setHeaderMediaUrl] = useState("");
+  // Meta Resumable-Upload handle for a media header — required by template create
+  // (a raw URL is rejected). Resolved when the partner picks header media.
+  const [headerMediaHandle, setHeaderMediaHandle] = useState("");
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [videoFileForEditor, setVideoFileForEditor] = useState<File | null>(null);
+  const [showVideoEditor, setShowVideoEditor] = useState(false);
   const [headerSample, setHeaderSample] = useState("");
   const [body, setBody] = useState("");
   const [bodySamples, setBodySamples] = useState<string[]>([]);
@@ -460,6 +469,10 @@ function TemplateEditorDialog({
     setHeaderFormat("NONE");
     setHeaderText("");
     setHeaderMediaUrl("");
+    setHeaderMediaHandle("");
+    setUploadingMedia(false);
+    setVideoFileForEditor(null);
+    setShowVideoEditor(false);
     setHeaderSample("");
     setBody("");
     setBodySamples([]);
@@ -565,6 +578,60 @@ function TemplateEditorDialog({
     setButtons((b) => b.filter((_, i) => i !== idx));
   };
 
+  // Resumable-upload the (already S3-hosted) header media to Meta and return the
+  // handle the template create needs as example.header_handle[0].
+  const fetchMediaHandle = async (url: string, fileType?: string): Promise<string> => {
+    const res = await fetch("/api/whatsapp/templates/media-handle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ partnerId, url, fileType }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.handle) {
+      throw new Error(data?.error || "Could not process media");
+    }
+    return data.handle as string;
+  };
+
+  // Store the header media's public URL + resolve its Meta handle.
+  const applyHeaderMedia = async (url: string, fileType?: string) => {
+    setHeaderMediaUrl(url);
+    setUploadingMedia(true);
+    try {
+      setHeaderMediaHandle(await fetchMediaHandle(url, fileType));
+    } catch (e: any) {
+      toast.error(e?.message || "Could not process media");
+      setHeaderMediaHandle("");
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
+
+  // Video: transcoded by VideoEditor (H.264/AAC mp4, ≤5MB) → S3 → handle.
+  const onVideoComplete = async (blob: Blob) => {
+    setShowVideoEditor(false);
+    setVideoFileForEditor(null);
+    setUploadingMedia(true);
+    try {
+      const url = (await uploadFileToS3(blob, `wa-template-${Date.now()}.mp4`)) as string;
+      await applyHeaderMedia(url, "video/mp4");
+    } catch (e: any) {
+      toast.error(e?.message || "Video upload failed");
+      setUploadingMedia(false);
+    }
+  };
+
+  const handleDocumentFile = async (file: File) => {
+    setUploadingMedia(true);
+    try {
+      const url = (await uploadFileToS3(file, file.name)) as string;
+      await applyHeaderMedia(url, file.type || "application/pdf");
+    } catch (e: any) {
+      toast.error(e?.message || "Upload failed");
+      setUploadingMedia(false);
+    }
+  };
+
   const buildComponents = (): any[] => {
     // Authentication (OTP) templates have a fixed shape: Meta auto-generates the
     // body ("<code> is your verification code") + security note, and we add a
@@ -585,11 +652,11 @@ function TemplateEditorDialog({
           header.example = { header_text: [headerSample] };
         }
         comps.push(header);
-      } else if (headerFormat !== "TEXT" && headerMediaUrl) {
+      } else if (headerFormat !== "TEXT" && headerMediaHandle) {
         comps.push({
           type: "HEADER",
           format: headerFormat,
-          example: { header_handle: [headerMediaUrl] },
+          example: { header_handle: [headerMediaHandle] },
         });
       }
     }
@@ -651,6 +718,14 @@ function TemplateEditorDialog({
     if (!partnerId) return;
     if (!valid) {
       toast.error("Please fill in all required fields, including example values.");
+      return;
+    }
+    if (uploadingMedia) {
+      toast.error("Please wait for the header media to finish uploading.");
+      return;
+    }
+    if (headerFormat !== "NONE" && headerFormat !== "TEXT" && !headerMediaHandle) {
+      toast.error("Upload the header media before submitting.");
       return;
     }
     setSubmitting(true);
@@ -842,11 +917,91 @@ function TemplateEditorDialog({
                 </>
               )}
               {headerFormat !== "NONE" && headerFormat !== "TEXT" && (
-                <Input
-                  value={headerMediaUrl}
-                  onChange={(e) => setHeaderMediaUrl(e.target.value)}
-                  placeholder="https://… example media URL"
-                />
+                <div className="space-y-2">
+                  {headerFormat === "IMAGE" && (
+                    <ImageUpload
+                      value={headerMediaHandle ? headerMediaUrl : ""}
+                      onChange={(url) => {
+                        if (url) void applyHeaderMedia(url);
+                        else {
+                          setHeaderMediaUrl("");
+                          setHeaderMediaHandle("");
+                        }
+                      }}
+                      label="Header image (sample for Meta review + sent to customers)"
+                      folder="wa-templates"
+                    />
+                  )}
+                  {headerFormat === "VIDEO" && (
+                    <div className="space-y-2">
+                      {headerMediaUrl && headerMediaHandle && (
+                        <video
+                          src={headerMediaUrl}
+                          controls
+                          className="w-full max-w-xs rounded-md border"
+                        />
+                      )}
+                      <Input
+                        type="file"
+                        accept="video/mp4,video/*"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) {
+                            setVideoFileForEditor(f);
+                            setShowVideoEditor(true);
+                          }
+                          e.target.value = "";
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        MP4 (H.264/AAC), ≤5MB — trimmed &amp; transcoded automatically.
+                      </p>
+                    </div>
+                  )}
+                  {headerFormat === "DOCUMENT" && (
+                    <div className="space-y-2">
+                      {headerMediaUrl && headerMediaHandle && (
+                        <a
+                          href={headerMediaUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary underline"
+                        >
+                          Uploaded document
+                        </a>
+                      )}
+                      <Input
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) void handleDocumentFile(f);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                  )}
+                  {uploadingMedia ? (
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Processing media…
+                    </p>
+                  ) : headerMediaHandle ? (
+                    <p className="text-xs text-green-600">Header media ready ✓</p>
+                  ) : null}
+                  {showVideoEditor && videoFileForEditor && (
+                    <VideoEditor
+                      isOpen={showVideoEditor}
+                      videoFile={videoFileForEditor}
+                      onClose={() => {
+                        setShowVideoEditor(false);
+                        setVideoFileForEditor(null);
+                      }}
+                      onComplete={(blob) => {
+                        void onVideoComplete(blob);
+                      }}
+                    />
+                  )}
+                </div>
               )}
             </div>
 
