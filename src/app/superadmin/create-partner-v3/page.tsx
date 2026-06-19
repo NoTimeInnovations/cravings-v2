@@ -56,7 +56,8 @@ export default function CreatePartnerV3Page() {
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const q = search.trim();
-    if (!q || selected) {
+    // Only fetch once there are at least 3 characters.
+    if (q.length < 3 || selected) {
       setPredictions([]);
       return;
     }
@@ -64,7 +65,7 @@ export default function CreatePartnerV3Page() {
       const myReq = ++reqIdRef.current;
       const results = await placesAutocomplete(q, ensureSessionToken());
       if (myReq === reqIdRef.current) setPredictions(results);
-    }, 250);
+    }, 500);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };

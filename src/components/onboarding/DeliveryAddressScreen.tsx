@@ -231,7 +231,7 @@ export default function DeliveryAddressScreen({
         },
         (results) => setSuggestions(results || []),
       );
-    }, 300);
+    }, 500);
   }, [autocompleteCountry]);
 
   const selectSuggestion = useCallback((placeId: string, description: string) => {

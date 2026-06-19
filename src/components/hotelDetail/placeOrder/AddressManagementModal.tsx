@@ -339,7 +339,7 @@ const AddressManagementModal = ({
     if (!isLoaded || !autocompleteServiceRef.current) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    if (!searchValue.trim()) {
+    if (searchValue.trim().length < 3) {
       setPredictions([]);
       return;
     }
@@ -362,7 +362,7 @@ const AddressManagementModal = ({
           }
         },
       );
-    }, 300);
+    }, 500);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
