@@ -64,6 +64,50 @@ type GeocodedInfo = {
   pincode?: string;
 };
 
+// Parse Google address_components + formatted_address into our GeocodedInfo.
+// Used for BOTH reverse-geocode results and Place Details results — both return
+// the same google.maps.GeocoderAddressComponent[] shape — so picking a
+// suggestion can use the Place Details address directly with no extra
+// reverse-geocode round-trip on first map load.
+function parseAddressComponents(
+  components: google.maps.GeocoderAddressComponent[],
+  formatted: string,
+): GeocodedInfo {
+  let name = "";
+  let area = "";
+  let city = "";
+  let district = "";
+  let pincode = "";
+  components.forEach((c) => {
+    const t = c.types;
+    if (t.includes("sublocality_level_1") || t.includes("sublocality")) {
+      area = c.long_name;
+      if (!name) name = c.long_name;
+    }
+    if (t.includes("neighborhood") || t.includes("premise")) {
+      name = c.long_name;
+    }
+    if (t.includes("locality") || t.includes("administrative_area_level_2")) {
+      city = c.long_name;
+    }
+    if (t.includes("administrative_area_level_3")) {
+      district = c.long_name;
+    }
+    if (t.includes("postal_code")) {
+      pincode = c.long_name;
+    }
+  });
+  if (!name) name = area || city || "Selected Location";
+  return {
+    name,
+    address: formatted,
+    area: area || undefined,
+    city: city || undefined,
+    district: district || undefined,
+    pincode: pincode || undefined,
+  };
+}
+
 // Google Maps configuration
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 const DEFAULT_CENTER = { lat: 10.050525, lng: 76.322455 };
@@ -228,6 +272,9 @@ const AddressManagementModal = ({
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const mapInitializedRef = useRef(false);
   const mapDraggedRef = useRef(false);
+  // True once an address is known without geocoding (set from Place Details on a
+  // suggestion pick) → lets the map's first-load reverse-geocode be skipped.
+  const pinAddressKnownRef = useRef(false);
 
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -309,6 +356,15 @@ const AddressManagementModal = ({
       setGeocodedInfo(null);
       setMapMoving(false);
       mapInitializedRef.current = false;
+      mapDraggedRef.current = false;
+      if (geocodeTimerRef.current) {
+        clearTimeout(geocodeTimerRef.current);
+        geocodeTimerRef.current = null;
+      }
+      // Clear any leaked "address known" from a previous session — the modal
+      // stays mounted across open/close, so a stale true would wrongly skip the
+      // first-load reverse-geocode on the edit-address entry.
+      pinAddressKnownRef.current = false;
       if (isLoaded) {
         sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
       }
@@ -378,56 +434,29 @@ const AddressManagementModal = ({
       geocoder.geocode({ location: { lat, lng } }, (results, status) => {
         setGeocoding(false);
         if (status === "OK" && results && results[0]) {
-          const components = results[0].address_components;
-          const formatted = results[0].formatted_address;
-
-          let name = "";
-          let area = "";
-          let city = "";
-          let district = "";
-          let pincode = "";
-
-          components.forEach((c) => {
-            const t = c.types;
-            if (
-              t.includes("sublocality_level_1") ||
-              t.includes("sublocality")
-            ) {
-              area = c.long_name;
-              if (!name) name = c.long_name;
-            }
-            if (t.includes("neighborhood") || t.includes("premise")) {
-              name = c.long_name;
-            }
-            if (
-              t.includes("locality") ||
-              t.includes("administrative_area_level_2")
-            ) {
-              city = c.long_name;
-            }
-            if (t.includes("administrative_area_level_3")) {
-              district = c.long_name;
-            }
-            if (t.includes("postal_code")) {
-              pincode = c.long_name;
-            }
-          });
-
-          if (!name) name = area || city || "Selected Location";
-
-          setGeocodedInfo({
-            name,
-            address: formatted,
-            area: area || undefined,
-            city: city || undefined,
-            district: district || undefined,
-            pincode: pincode || undefined,
-          });
+          setGeocodedInfo(
+            parseAddressComponents(
+              results[0].address_components,
+              results[0].formatted_address,
+            ),
+          );
         }
       });
     },
     [isLoaded],
   );
+
+  // Cancel any in-flight drag reverse-geocode so a handler that takes ownership
+  // of the address isn't later clobbered by the debounced drag geocode firing
+  // with the previously-dragged coords (and re-enable Confirm immediately).
+  const cancelPendingDragGeocode = () => {
+    if (geocodeTimerRef.current) {
+      clearTimeout(geocodeTimerRef.current);
+      geocodeTimerRef.current = null;
+    }
+    mapDraggedRef.current = false;
+    setMapMoving(false);
+  };
 
   const handleSelectPrediction = (
     prediction: google.maps.places.AutocompletePrediction,
@@ -443,7 +472,7 @@ const AddressManagementModal = ({
 
     void trackMaps({ api: "place_details", partnerId: hotelData?.id, source: "address_manage" });
     placesServiceRef.current.getDetails(
-      { placeId: prediction.place_id, fields: ["geometry", "name"], sessionToken: sessionTokenRef.current || undefined },
+      { placeId: prediction.place_id, fields: ["geometry", "name", "formatted_address", "address_components"], sessionToken: sessionTokenRef.current || undefined },
       (place, status) => {
         if (
           status === google.maps.places.PlacesServiceStatus.OK &&
@@ -452,6 +481,24 @@ const AddressManagementModal = ({
           const lat = place.geometry.location.lat();
           const lng = place.geometry.location.lng();
           const center = { lat, lng };
+
+          cancelPendingDragGeocode();
+          // Use the Place Details address directly (skip the first-load
+          // reverse-geocode) only when it's usable; otherwise resolve the pin
+          // here so a missing formatted_address never saves an empty address.
+          // Either way the handler owns the address.
+          pinAddressKnownRef.current = true;
+          if (place.address_components && place.formatted_address) {
+            setGeocodedInfo(
+              parseAddressComponents(
+                place.address_components,
+                place.formatted_address,
+              ),
+            );
+          } else {
+            setGeocodedInfo(null);
+            reverseGeocode(lat, lng);
+          }
 
           saveRecentSearch({
             placeId: prediction.place_id,
@@ -478,10 +525,16 @@ const AddressManagementModal = ({
   };
 
   const handleSelectRecent = (recent: RecentSearch) => {
+    // Recents store only a label, not structured components → resolve the pin
+    // directly (handler-owned).
     const center = { lat: recent.lat, lng: recent.lng };
     saveRecentSearch({ ...recent, timestamp: Date.now() });
+    cancelPendingDragGeocode();
+    setGeocodedInfo(null);
     updateMapCenter(center);
     setScreen("map");
+    pinAddressKnownRef.current = true;
+    reverseGeocode(center.lat, center.lng);
   };
 
   const handleUseCurrentLocation = () => {
@@ -492,6 +545,8 @@ const AddressManagementModal = ({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
         };
+        cancelPendingDragGeocode();
+        setGeocodedInfo(null);
         updateMapCenter(center);
         setLocating(false);
 
@@ -500,6 +555,10 @@ const AddressManagementModal = ({
         } else if (mapRef.current) {
           mapRef.current.panTo(center);
         }
+        // Resolve directly (handler-owned) so it works whether or not the map
+        // remounts — the first-load onLoad won't re-fire on the map screen.
+        pinAddressKnownRef.current = true;
+        reverseGeocode(center.lat, center.lng);
       },
       () => {
         setLocating(false);
@@ -554,6 +613,8 @@ const AddressManagementModal = ({
 
   const handleMapDragStart = useCallback(() => {
     if (!mapInitializedRef.current) return;
+    // The pin moved off the picked place → its address must be re-derived.
+    pinAddressKnownRef.current = false;
     mapDraggedRef.current = true;
     setMapMoving(true);
     setGeocodedInfo(null);
@@ -846,8 +907,11 @@ const AddressManagementModal = ({
             onLoad={(map) => {
               void trackMaps({ api: "maps_js", partnerId: hotelData?.id, source: "address_manage" });
               mapRef.current = map;
-              // Auto-geocode on first load
-              reverseGeocode(mapCenter.lat, mapCenter.lng);
+              // Auto-geocode on first load — unless the address already came
+              // from Place Details (suggestion pick), which needs no geocode.
+              if (!pinAddressKnownRef.current) {
+                reverseGeocode(mapCenter.lat, mapCenter.lng);
+              }
               // Add hotel marker
               if (hotelCoords && !hotelMarkerRef.current) {
                 hotelMarkerRef.current = new google.maps.Marker({
