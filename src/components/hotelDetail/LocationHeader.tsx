@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { trackGoogleApi } from "@/app/actions/trackGoogleApi";
+import { trackMaps } from "@/lib/mapsUsage";
 import { MapPin, ChevronDown, Navigation, Clock, Search, X } from "lucide-react";
 import { useLocationStore } from "@/store/geolocationStore";
 import useOrderStore from "@/store/orderStore";
@@ -81,6 +81,7 @@ const LocationHeader = ({
       if (!isLoaded) return Promise.resolve(null);
       return new Promise((resolve) => {
         const geocoder = new google.maps.Geocoder();
+        void trackMaps({ api: "geocode", partnerId: hoteldata?.id, source: "location_header" });
         geocoder.geocode({ location: { lat, lng } }, (results, status) => {
           if (status === "OK" && results && results[0]) {
             resolve(results[0].formatted_address);
@@ -172,7 +173,7 @@ const LocationHeader = ({
         ? new google.maps.LatLng(storeCoords[1], storeCoords[0])
         : undefined;
 
-      void trackGoogleApi({ api: "autocomplete", partnerId: hoteldata?.id, source: "location_header" });
+      void trackMaps({ api: "autocomplete", partnerId: hoteldata?.id, source: "location_header" });
       autocompleteServiceRef.current!.getPlacePredictions(
         {
           input: query,
@@ -199,7 +200,7 @@ const LocationHeader = ({
       placesServiceRef.current = new google.maps.places.PlacesService(div);
     }
 
-    void trackGoogleApi({ api: "place_details", partnerId: hoteldata?.id, source: "location_header" });
+    void trackMaps({ api: "place_details", partnerId: hoteldata?.id, source: "location_header" });
     placesServiceRef.current.getDetails(
       {
         placeId: prediction.place_id,

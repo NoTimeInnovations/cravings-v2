@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { trackGoogleApi } from "@/app/actions/trackGoogleApi";
+import { trackMaps } from "@/lib/mapsUsage";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -290,7 +290,7 @@ const AddressPickerV2 = ({
       return;
     }
     debounceRef.current = setTimeout(() => {
-      void trackGoogleApi({ api: "autocomplete", partnerId: hotelData?.id, source: "checkout_v2_address" });
+      void trackMaps({ api: "autocomplete", partnerId: hotelData?.id, source: "checkout_v2_address" });
       autocompleteServiceRef.current!.getPlacePredictions(
         {
           input: searchValue,
@@ -318,6 +318,7 @@ const AddressPickerV2 = ({
       if (!isLoaded) return;
       setGeocoding(true);
       const geocoder = new google.maps.Geocoder();
+      void trackMaps({ api: "geocode", partnerId: hotelData?.id, source: "checkout_v2_address" });
       geocoder.geocode({ location: { lat, lng } }, (results, status) => {
         setGeocoding(false);
         if (status === "OK" && results && results[0]) {
@@ -397,7 +398,7 @@ const AddressPickerV2 = ({
       const div = document.createElement("div");
       placesServiceRef.current = new google.maps.places.PlacesService(div);
     }
-    void trackGoogleApi({ api: "place_details", partnerId: hotelData?.id, source: "checkout_v2_address" });
+    void trackMaps({ api: "place_details", partnerId: hotelData?.id, source: "checkout_v2_address" });
     placesServiceRef.current.getDetails(
       {
         placeId: prediction.place_id,
@@ -681,6 +682,7 @@ const AddressPickerV2 = ({
             mapContainerStyle={MAP_CONTAINER_STYLE}
             zoom={17}
             onLoad={(map) => {
+              void trackMaps({ api: "maps_js", partnerId: hotelData?.id, source: "checkout_v2_address" });
               mapRef.current = map;
               mapInitializedRef.current = false;
               map.setCenter(mapCenterRef.current);

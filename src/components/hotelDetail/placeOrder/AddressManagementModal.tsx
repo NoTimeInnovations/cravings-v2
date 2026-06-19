@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { trackGoogleApi } from "@/app/actions/trackGoogleApi";
+import { trackMaps } from "@/lib/mapsUsage";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -345,7 +345,7 @@ const AddressManagementModal = ({
     }
 
     debounceRef.current = setTimeout(() => {
-      void trackGoogleApi({ api: "autocomplete", partnerId: hotelData?.id, source: "address_manage" });
+      void trackMaps({ api: "autocomplete", partnerId: hotelData?.id, source: "address_manage" });
       autocompleteServiceRef.current!.getPlacePredictions(
         {
           input: searchValue,
@@ -374,6 +374,7 @@ const AddressManagementModal = ({
       if (!isLoaded) return;
       setGeocoding(true);
       const geocoder = new google.maps.Geocoder();
+      void trackMaps({ api: "geocode", partnerId: hotelData?.id, source: "address_manage" });
       geocoder.geocode({ location: { lat, lng } }, (results, status) => {
         setGeocoding(false);
         if (status === "OK" && results && results[0]) {
@@ -440,7 +441,7 @@ const AddressManagementModal = ({
       placesServiceRef.current = new google.maps.places.PlacesService(div);
     }
 
-    void trackGoogleApi({ api: "place_details", partnerId: hotelData?.id, source: "address_manage" });
+    void trackMaps({ api: "place_details", partnerId: hotelData?.id, source: "address_manage" });
     placesServiceRef.current.getDetails(
       { placeId: prediction.place_id, fields: ["geometry", "name"], sessionToken: sessionTokenRef.current || undefined },
       (place, status) => {
@@ -843,6 +844,7 @@ const AddressManagementModal = ({
             center={mapCenter}
             zoom={17}
             onLoad={(map) => {
+              void trackMaps({ api: "maps_js", partnerId: hotelData?.id, source: "address_manage" });
               mapRef.current = map;
               // Auto-geocode on first load
               reverseGeocode(mapCenter.lat, mapCenter.lng);
