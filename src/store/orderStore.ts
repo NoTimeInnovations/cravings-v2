@@ -1,5 +1,11 @@
 import { HotelData, HotelDataMenus } from "@/app/hotels/[...id]/page";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import {
+  pushEcommerceEvent,
+  resolveCurrencyCode,
+  categoryName,
+  baseItemId,
+} from "@/lib/partnerDataLayer";
 import { sanitizePrintText } from "@/lib/sanitizePrintText";
 import { getFeatures } from "@/lib/getFeatures";
 import { getSafeStorage } from "@/lib/safeStorage";
@@ -402,6 +408,8 @@ interface HotelOrderState {
 
 interface OrderState {
   hotelId: string | null;
+  // Partner currency SYMBOL (e.g. "₹") for dataLayer ecommerce events; set via setHotelId.
+  currencySymbol: string | null;
   hotelOrders: Record<string, HotelOrderState>;
   userAddress: string | null;
   orderNote: string | null;
@@ -433,7 +441,7 @@ interface OrderState {
   setOpenOrderDrawer: (open: boolean) => void;
   setDeliveryInfo: (info: DeliveryInfo | null) => void;
 
-  setHotelId: (id: string) => void;
+  setHotelId: (id: string, currencySymbol?: string | null) => void;
   addItem: (item: HotelDataMenus) => void;
   removeItem: (itemId: string) => void;
   increaseQuantity: (itemId: string) => void;
@@ -512,6 +520,7 @@ const useOrderStore = create(
   persist<OrderState>(
     (set, get) => ({
       hotelId: null,
+      currencySymbol: null,
       hotelOrders: {},
       userAddress: null,
       orderNote: null,
@@ -979,7 +988,7 @@ const useOrderStore = create(
         });
       },
 
-      setHotelId: (id: string) => {
+      setHotelId: (id: string, currencySymbol?: string | null) => {
         set((state) => {
           const hotelOrders = { ...state.hotelOrders };
           if (!hotelOrders[id]) {
@@ -993,6 +1002,8 @@ const useOrderStore = create(
           }
           return {
             hotelId: id,
+            currencySymbol:
+              currencySymbol !== undefined ? currencySymbol : state.currencySymbol,
             hotelOrders,
             order: hotelOrders[id].order,
             items: hotelOrders[id].items,
@@ -1140,11 +1151,28 @@ const useOrderStore = create(
             totalPrice: hotelOrders[state.hotelId!].totalPrice,
           };
         });
+
+        pushEcommerceEvent("add_to_cart", {
+          currency: resolveCurrencyCode(get().currencySymbol),
+          value: item.price,
+          items: [
+            {
+              item_id: baseItemId(item.id),
+              item_name: item.name,
+              item_variant: item.variantSelections?.[0]?.name,
+              item_category: categoryName(item.category),
+              price: item.price,
+              quantity: 1,
+            },
+          ],
+        });
       },
 
       removeItem: (itemId) => {
         const state = get();
         if (!state.hotelId) return;
+
+        const removed = state.items?.find((i) => i.id === itemId);
 
         set((state) => {
           const hotelOrders = { ...state.hotelOrders };
@@ -1172,11 +1200,30 @@ const useOrderStore = create(
             totalPrice: hotelOrders[state.hotelId!].totalPrice,
           };
         });
+
+        if (removed) {
+          pushEcommerceEvent("remove_from_cart", {
+            currency: resolveCurrencyCode(get().currencySymbol),
+            value: removed.price * removed.quantity,
+            items: [
+              {
+                item_id: baseItemId(removed.id),
+                item_name: removed.name,
+                item_variant: removed.variantSelections?.[0]?.name,
+                item_category: categoryName(removed.category),
+                price: removed.price,
+                quantity: removed.quantity,
+              },
+            ],
+          });
+        }
       },
 
       decreaseQuantity: (itemId) => {
         const state = get();
         if (!state.hotelId) return;
+
+        const decreased = state.items?.find((i) => i.id === itemId);
 
         set((state) => {
           const hotelOrders = { ...state.hotelOrders };
@@ -1220,6 +1267,23 @@ const useOrderStore = create(
             totalPrice: hotelOrders[state.hotelId!].totalPrice,
           };
         });
+
+        if (decreased) {
+          pushEcommerceEvent("remove_from_cart", {
+            currency: resolveCurrencyCode(get().currencySymbol),
+            value: decreased.price,
+            items: [
+              {
+                item_id: baseItemId(decreased.id),
+                item_name: decreased.name,
+                item_variant: decreased.variantSelections?.[0]?.name,
+                item_category: categoryName(decreased.category),
+                price: decreased.price,
+                quantity: 1,
+              },
+            ],
+          });
+        }
       },
 
       deleteOrder: async (orderId: string) => {
@@ -1279,6 +1343,8 @@ const useOrderStore = create(
         const state = get();
         if (!state.hotelId) return;
 
+        const increased = state.items?.find((i) => i.id === itemId);
+
         set((state) => {
           const hotelOrders = { ...state.hotelOrders };
           const hotelOrder = hotelOrders[state.hotelId!];
@@ -1304,6 +1370,23 @@ const useOrderStore = create(
             totalPrice: hotelOrders[state.hotelId!].totalPrice,
           };
         });
+
+        if (increased) {
+          pushEcommerceEvent("add_to_cart", {
+            currency: resolveCurrencyCode(get().currencySymbol),
+            value: increased.price,
+            items: [
+              {
+                item_id: baseItemId(increased.id),
+                item_name: increased.name,
+                item_variant: increased.variantSelections?.[0]?.name,
+                item_category: categoryName(increased.category),
+                price: increased.price,
+                quantity: 1,
+              },
+            ],
+          });
+        }
       },
 
       placeOrder: async (

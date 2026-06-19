@@ -93,7 +93,9 @@ export default function ReorderHandler({ hotelData }: { hotelData: HotelData }) 
       coords: number[] | null,
     ): boolean => {
       const byId = new Map<string, any>((hotelData.menus || []).map((m: any) => [m.id, m]));
-      setHotelId(partnerId);
+      // Pass the partner currency so add_to_cart events fired by the reorder loop
+      // are tagged correctly (this child effect runs before the parent's setHotelId).
+      setHotelId(partnerId, hotelData.currency);
       clearOrder();
       let added = 0;
       let skipped = 0;
