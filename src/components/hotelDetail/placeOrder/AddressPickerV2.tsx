@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { trackGoogleApi } from "@/app/actions/trackGoogleApi";
 import { toast } from "sonner";
 import {
   Loader2,
@@ -289,6 +290,7 @@ const AddressPickerV2 = ({
       return;
     }
     debounceRef.current = setTimeout(() => {
+      void trackGoogleApi({ api: "autocomplete", partnerId: hotelData?.id, source: "checkout_v2_address" });
       autocompleteServiceRef.current!.getPlacePredictions(
         {
           input: searchValue,
@@ -395,6 +397,7 @@ const AddressPickerV2 = ({
       const div = document.createElement("div");
       placesServiceRef.current = new google.maps.places.PlacesService(div);
     }
+    void trackGoogleApi({ api: "place_details", partnerId: hotelData?.id, source: "checkout_v2_address" });
     placesServiceRef.current.getDetails(
       {
         placeId: prediction.place_id,

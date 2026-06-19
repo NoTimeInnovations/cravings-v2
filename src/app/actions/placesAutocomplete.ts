@@ -1,5 +1,7 @@
 "use server";
 
+import { trackGoogleApi } from "@/app/actions/trackGoogleApi";
+
 // Server-proxied Google Places Autocomplete (legacy API) that shares a session
 // token with the server-side Place Details fetch (extractGoogleBusinessDataByPlaceId).
 //
@@ -24,7 +26,7 @@ export interface PlacePrediction {
 export async function placesAutocomplete(
   input: string,
   sessionToken: string,
-  opts?: { country?: string },
+  opts?: { country?: string; partnerId?: string | null; source?: string | null },
 ): Promise<PlacePrediction[]> {
   const q = input?.trim();
   if (!q) return [];
@@ -46,6 +48,12 @@ export async function placesAutocomplete(
     if (opts?.country) url.searchParams.set("components", `country:${opts.country}`);
 
     const res = await fetch(url.toString());
+    // Meter the request (one autocomplete request was sent to Google).
+    await trackGoogleApi({
+      api: "autocomplete",
+      partnerId: opts?.partnerId ?? null,
+      source: opts?.source ?? "places_autocomplete",
+    });
     const json = (await res.json()) as {
       status?: string;
       predictions?: Array<{

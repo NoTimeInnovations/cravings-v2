@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { trackGoogleApi } from "@/app/actions/trackGoogleApi";
 import { Loader2, MapPin, Search, LocateFixed, ChevronLeft, ChevronRight, Home, Building2, Navigation, Trash2, ArrowLeft } from "lucide-react";
 import { useLoadScript } from "@react-google-maps/api";
 import { useAuthStore } from "@/store/authStore";
@@ -219,6 +220,7 @@ export default function DeliveryAddressScreen({
       return;
     }
     debounceRef.current = setTimeout(() => {
+      void trackGoogleApi({ api: "autocomplete", partnerId: hotelData?.id, source: "onboarding_address" });
       autocompleteRef.current?.getPlacePredictions(
         {
           input: query,
@@ -236,6 +238,7 @@ export default function DeliveryAddressScreen({
     setSuggestions([]);
     setAddress(description);
     if (placesRef.current) {
+      void trackGoogleApi({ api: "place_details", partnerId: hotelData?.id, source: "onboarding_address" });
       placesRef.current.getDetails(
         { placeId, fields: ["geometry"], sessionToken: sessionTokenRef.current || undefined },
         (place) => {

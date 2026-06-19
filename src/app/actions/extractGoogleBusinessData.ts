@@ -1,5 +1,7 @@
 "use server";
 
+import { trackGoogleApi } from "@/app/actions/trackGoogleApi";
+
 /**
  * Google Place Details lookup for the quick-signup flow.
  *
@@ -92,6 +94,8 @@ export async function extractGoogleBusinessDataByPlaceId(
   if (sessionToken) url.searchParams.set("sessiontoken", sessionToken);
 
   const res = await fetch(url.toString());
+  // Meter the Place Details request for usage analytics.
+  await trackGoogleApi({ api: "place_details", source: "signup_place_details" });
   const json = (await res.json()) as any;
   if (json.status !== "OK" || !json.result) {
     throw new Error(

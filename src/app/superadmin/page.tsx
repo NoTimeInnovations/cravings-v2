@@ -18,6 +18,7 @@ import ReelAnalytics from "@/components/reelAnalytics/ReelAnalytics";
 import ParnterPayments from "@/components/superAdmin/ParnterPayments";
 import SubscriptionManagementV2 from "@/components/superAdmin/SubscriptionManagementV2";
 import WhatsAppAnalytics from "@/components/superAdmin/WhatsAppAnalytics";
+import GoogleApiUsageAnalytics from "@/components/superAdmin/GoogleApiUsageAnalytics";
 
 type SearchParams = Promise<{ [key: string]: string | undefined }>;
 
@@ -55,6 +56,11 @@ const page = async (props: { searchParams: SearchParams }) => {
       name: "WhatsApp Analytics",
       component: <WhatsAppAnalytics />,
       id: "whatsapp-analytics",
+    },
+    {
+      name: "Google Maps Usage",
+      component: <GoogleApiUsageAnalytics />,
+      id: "google-maps-usage",
     },
     {
       name: "Remove Partner Full Data",
