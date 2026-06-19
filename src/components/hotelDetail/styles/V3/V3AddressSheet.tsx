@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { trackGoogleApi } from "@/app/actions/trackGoogleApi";
+import { trackMaps } from "@/lib/mapsUsage";
 import { MapPin, Search, LocateFixed, Loader2, Home, Building2, Navigation, Trash2, ChevronDown, Plus, ArrowLeft, Clock } from "lucide-react";
 import { useLoadScript } from "@react-google-maps/api";
 import type { SavedAddress } from "../../placeOrder/AddressManagementModal";
@@ -159,7 +159,7 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
       return;
     }
     debounceRef.current = setTimeout(() => {
-      void trackGoogleApi({ api: "autocomplete", source: "checkout_v3_address" });
+      void trackMaps({ api: "autocomplete", source: "checkout_v3_address" });
       autocompleteRef.current?.getPlacePredictions(
         { input: query, sessionToken: sessionTokenRef.current || undefined },
         (results) => setSuggestions(results || []),
@@ -202,7 +202,7 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
       animateAndPickForMap(s.description, coords);
     };
     if (placesRef.current) {
-      void trackGoogleApi({ api: "place_details", source: "checkout_v3_address" });
+      void trackMaps({ api: "place_details", source: "checkout_v3_address" });
       placesRef.current.getDetails(
         { placeId, fields: ["geometry"], sessionToken: sessionTokenRef.current || undefined },
         (place) => {
@@ -243,6 +243,7 @@ export default function V3AddressSheet({ currentAddress, onSelect, onClose, acce
         const { latitude, longitude } = pos.coords;
         let addr = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
         try {
+          void trackMaps({ api: "geocode", source: "checkout_v3_address" });
           const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`);
           const data = await res.json();
           if (data.results?.[0]) addr = data.results[0].formatted_address;

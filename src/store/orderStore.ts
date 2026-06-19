@@ -38,6 +38,8 @@ import { Notification } from "@/app/actions/notification";
 import { dispatchDeliveryAgent, cancelDeliveryAgent } from "@/app/actions/deliveryAgent";
 import { dispatchViaDeliveryBridge, cancelDispatch } from "@/app/actions/porterBridge";
 import { awardLoyaltyForOrder } from "@/app/actions/loyalty";
+import { linkMapsUsageToOrder } from "@/app/actions/trackGoogleApi";
+import { peekMapsSessionId, resetMapsSession } from "@/lib/mapsUsage";
 // import { sendOrderNotification } from "@/app/actions/notification";
 
 export interface OrderItem extends HotelDataMenus {
@@ -1741,6 +1743,19 @@ const useOrderStore = create(
             throw new Error(
               orderResponse.errors?.[0]?.message || "Failed to create order"
             );
+          }
+
+          // Attribute this checkout's Google Maps requests (address autocomplete
+          // / details / geocode / map loads, tagged with the maps session id) to
+          // the order just created, then start a fresh maps session.
+          try {
+            const mapsSession = peekMapsSessionId();
+            if (mapsSession) {
+              void linkMapsUsageToOrder(mapsSession, orderId);
+              resetMapsSession();
+            }
+          } catch {
+            /* usage attribution must never block order placement */
           }
 
           // Prepare new order object
