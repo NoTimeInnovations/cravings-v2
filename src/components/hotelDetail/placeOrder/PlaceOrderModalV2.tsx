@@ -2531,6 +2531,7 @@ const PlaceOrderModalV2 = ({
         onDeleteSaved={handleDeleteAddress}
         accent={accent}
         partnerCoords={partnerCoords}
+        partnerId={hotelData?.id}
         onSelect={(addr, coords) => {
           if (!addr) {
             setShowAddressSheet(false);

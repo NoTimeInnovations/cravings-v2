@@ -116,14 +116,18 @@ export async function getGoogleApiUsageStats(
     count: n(r.cnt),
   }));
 
+  // Attribute an order's requests to the ORDER's partner (not each usage row's
+  // partner_id). A maps row tagged before/after the partner id was known — e.g.
+  // the V3 address sheet historically logged without it — would otherwise split
+  // a single order across a real-partner row and a "—" row.
   const byOrder = (
     await runSql(`
-    SELECT u.order_id, o.display_id, u.partner_id, COALESCE(p.store_name, '—') AS store_name, count(*) AS cnt
+    SELECT u.order_id, o.display_id, o.partner_id, COALESCE(p.store_name, '—') AS store_name, count(*) AS cnt
     FROM public.google_api_usage u
-    LEFT JOIN public.partners p ON p.id = u.partner_id
     LEFT JOIN public.orders o ON o.id = u.order_id
+    LEFT JOIN public.partners p ON p.id = o.partner_id
     WHERE u.order_id IS NOT NULL
-    GROUP BY u.order_id, o.display_id, u.partner_id, p.store_name
+    GROUP BY u.order_id, o.display_id, o.partner_id, p.store_name
     ORDER BY cnt DESC
     LIMIT 200;
   `)
