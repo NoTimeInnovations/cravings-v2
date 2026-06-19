@@ -356,6 +356,11 @@ const AddressManagementModal = ({
       setGeocodedInfo(null);
       setMapMoving(false);
       mapInitializedRef.current = false;
+      mapDraggedRef.current = false;
+      if (geocodeTimerRef.current) {
+        clearTimeout(geocodeTimerRef.current);
+        geocodeTimerRef.current = null;
+      }
       // Clear any leaked "address known" from a previous session — the modal
       // stays mounted across open/close, so a stale true would wrongly skip the
       // first-load reverse-geocode on the edit-address entry.
@@ -441,6 +446,18 @@ const AddressManagementModal = ({
     [isLoaded],
   );
 
+  // Cancel any in-flight drag reverse-geocode so a handler that takes ownership
+  // of the address isn't later clobbered by the debounced drag geocode firing
+  // with the previously-dragged coords (and re-enable Confirm immediately).
+  const cancelPendingDragGeocode = () => {
+    if (geocodeTimerRef.current) {
+      clearTimeout(geocodeTimerRef.current);
+      geocodeTimerRef.current = null;
+    }
+    mapDraggedRef.current = false;
+    setMapMoving(false);
+  };
+
   const handleSelectPrediction = (
     prediction: google.maps.places.AutocompletePrediction,
   ) => {
@@ -465,6 +482,7 @@ const AddressManagementModal = ({
           const lng = place.geometry.location.lng();
           const center = { lat, lng };
 
+          cancelPendingDragGeocode();
           // Use the Place Details address directly (skip the first-load
           // reverse-geocode) only when it's usable; otherwise resolve the pin
           // here so a missing formatted_address never saves an empty address.
@@ -511,6 +529,7 @@ const AddressManagementModal = ({
     // directly (handler-owned).
     const center = { lat: recent.lat, lng: recent.lng };
     saveRecentSearch({ ...recent, timestamp: Date.now() });
+    cancelPendingDragGeocode();
     setGeocodedInfo(null);
     updateMapCenter(center);
     setScreen("map");
@@ -526,6 +545,7 @@ const AddressManagementModal = ({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
         };
+        cancelPendingDragGeocode();
         setGeocodedInfo(null);
         updateMapCenter(center);
         setLocating(false);

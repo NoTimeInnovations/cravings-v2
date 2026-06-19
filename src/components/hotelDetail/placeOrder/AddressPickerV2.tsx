@@ -493,6 +493,7 @@ const AddressPickerV2 = ({
     // directly (handler-owned), so it works even on a re-pick where the map
     // doesn't remount and the first-load idle won't re-fire.
     saveRecentSearch({ ...recent, timestamp: Date.now() });
+    cancelPendingDragGeocode();
     setGeocodedInfo(null);
     setQarsHit(null);
     updateMapCenter({ lat: recent.lat, lng: recent.lng });
@@ -510,6 +511,7 @@ const AddressPickerV2 = ({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
         };
+        cancelPendingDragGeocode();
         setGeocodedInfo(null);
         setQarsHit(null);
         updateMapCenter(center);
@@ -542,11 +544,14 @@ const AddressPickerV2 = ({
 
     if (!mapInitializedRef.current) {
       mapInitializedRef.current = true;
-      // First load: QARS (exact building) for Qatar; otherwise skip when the
-      // address already came from Place Details (suggestion pick) and only
-      // reverse-geocode when we arrived without one (recent / current location).
-      if (isQatar) refineWithQars(lat, lng);
-      else if (!pinAddressKnownRef.current) reverseGeocode(lat, lng);
+      // First load: resolve the pin ONLY when a handler hasn't already taken
+      // ownership of the address (suggestion / recent / current-location all set
+      // pinAddressKnownRef + resolve directly). Gating BOTH branches stops the
+      // Qatar path from re-running refineWithQars after the handler already did.
+      if (!pinAddressKnownRef.current) {
+        if (isQatar) refineWithQars(lat, lng);
+        else reverseGeocode(lat, lng);
+      }
       return;
     }
 
