@@ -122,6 +122,7 @@ query GetPartnerByUsername($username: String!) {
   partners(where: {username: {_eq: $username}}) {
     id
     username
+    gtm_container_id
   }
 }
 `;

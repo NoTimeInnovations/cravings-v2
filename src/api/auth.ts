@@ -63,6 +63,7 @@ export const partnerIdQuery = `
       subscription_details
       username
       custom_domain
+      gtm_container_id
       official_name
       about_us
       operating_address
@@ -131,6 +132,7 @@ export const partnerLoginQuery = `
       subscription_details
       username
       custom_domain
+      gtm_container_id
       official_name
       about_us
       operating_address

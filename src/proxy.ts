@@ -24,7 +24,9 @@ declare module 'next/server' {
 
 const MENUTHERE_HOSTS = ["menuthere.com", "www.menuthere.com"];
 
-async function getPartnerUsernameByDomain(domain: string): Promise<string | null> {
+async function getPartnerByDomain(
+  domain: string,
+): Promise<{ username: string; gtmContainerId: string | null } | null> {
   try {
     const endpoint = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ENDPOINT!;
     const secret = process.env.NEXT_PUBLIC_HASURA_GRAPHQL_ADMIN_SECRET!;
@@ -38,13 +40,17 @@ async function getPartnerUsernameByDomain(domain: string): Promise<string | null
         query: `query GetPartnerByDomain($domain: String!) {
           partners(where: { custom_domain: { _eq: $domain } }, limit: 1) {
             username
+            gtm_container_id
           }
         }`,
         variables: { domain },
       }),
     });
     const data = await res.json();
-    return data?.data?.partners?.[0]?.username || null;
+    const p = data?.data?.partners?.[0];
+    return p?.username
+      ? { username: p.username, gtmContainerId: p.gtm_container_id ?? null }
+      : null;
   } catch {
     return null;
   }
@@ -60,8 +66,18 @@ export async function proxy(request: NextRequest) {
     !host.includes("localhost") &&
     !host.endsWith(".vercel.app")
   ) {
-    const username = await getPartnerUsernameByDomain(host);
-    if (username) {
+    const partner = await getPartnerByDomain(host);
+    if (partner) {
+      const { username, gtmContainerId } = partner;
+      // Forward the partner's GTM container so the root layout can inject it on
+      // EVERY custom-domain page — including the top-level app routes below
+      // (/order, /bill, …) that aren't under [username]/layout. Validate first:
+      // it's interpolated into an inline <script> and the admin secret is public,
+      // so only a well-formed id is trusted (PartnerGtm re-checks too).
+      const gtmHeader =
+        gtmContainerId && /^GTM-[A-Z0-9]{4,12}$/.test(gtmContainerId)
+          ? gtmContainerId
+          : null;
       // Static files (images, fonts, etc.) — serve directly without rewriting
       if (/\.[a-zA-Z0-9]+$/.test(request.nextUrl.pathname)) {
         return NextResponse.next();
@@ -75,6 +91,7 @@ export async function proxy(request: NextRequest) {
       if (appRoutes.some((r) => request.nextUrl.pathname.startsWith(r))) {
         const rewriteHeaders = new Headers(request.headers);
         rewriteHeaders.set("x-is-custom-domain", "1");
+        if (gtmHeader) rewriteHeaders.set("x-partner-gtm", gtmHeader);
         return NextResponse.rewrite(request.nextUrl, { request: { headers: rewriteHeaders } });
       }
       const url = request.nextUrl.clone();
@@ -82,6 +99,7 @@ export async function proxy(request: NextRequest) {
       url.pathname = `/${username}${suffix}`;
       const rewriteHeaders = new Headers(request.headers);
       rewriteHeaders.set("x-is-custom-domain", "1");
+      if (gtmHeader) rewriteHeaders.set("x-partner-gtm", gtmHeader);
       return NextResponse.rewrite(url, { request: { headers: rewriteHeaders } });
     }
   }

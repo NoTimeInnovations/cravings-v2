@@ -186,6 +186,9 @@ export interface Partner extends BaseUser {
   } | null;
   storefront_settings?: string;
   website_config?: any;
+  // Partner's own Google Tag Manager container (GTM-XXXXXXX), loaded on their
+  // storefront. Legacy/unset rows are null.
+  gtm_container_id?: string | null;
 }
 
 export interface SuperAdmin extends BaseUser {
