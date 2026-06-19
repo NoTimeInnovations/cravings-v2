@@ -38,6 +38,50 @@ type GeocodedInfo = {
   pincode?: string;
 };
 
+// Parse Google address_components + formatted_address into our GeocodedInfo.
+// Used for BOTH reverse-geocode results and Place Details results — both return
+// the same google.maps.GeocoderAddressComponent[] shape — so picking a
+// suggestion can use the Place Details address directly with no extra
+// reverse-geocode round-trip on first map load.
+function parseAddressComponents(
+  components: google.maps.GeocoderAddressComponent[],
+  formatted: string,
+): GeocodedInfo {
+  let name = "";
+  let area = "";
+  let city = "";
+  let district = "";
+  let pincode = "";
+  components.forEach((c) => {
+    const t = c.types;
+    if (t.includes("sublocality_level_1") || t.includes("sublocality")) {
+      area = c.long_name;
+      if (!name) name = c.long_name;
+    }
+    if (t.includes("neighborhood") || t.includes("premise")) {
+      name = c.long_name;
+    }
+    if (t.includes("locality") || t.includes("administrative_area_level_2")) {
+      city = c.long_name;
+    }
+    if (t.includes("administrative_area_level_3")) {
+      district = c.long_name;
+    }
+    if (t.includes("postal_code")) {
+      pincode = c.long_name;
+    }
+  });
+  if (!name) name = area || city || "Selected Location";
+  return {
+    name,
+    address: formatted,
+    area: area || undefined,
+    city: city || undefined,
+    district: district || undefined,
+    pincode: pincode || undefined,
+  };
+}
+
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
 const DEFAULT_CENTER = { lat: 10.050525, lng: 76.322455 };
 const GOOGLE_MAPS_LIBRARIES: ["places"] = ["places"];
@@ -187,6 +231,9 @@ const AddressPickerV2 = ({
     useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const mapInitializedRef = useRef(false);
   const mapDraggedRef = useRef(false);
+  // True once an address is known without geocoding (set from Place Details on a
+  // suggestion pick) → lets the map's first-load reverse-geocode be skipped.
+  const pinAddressKnownRef = useRef(false);
 
   const hotelCoords = useMemo(() => {
     if (
@@ -264,6 +311,10 @@ const AddressPickerV2 = ({
       setMapMoving(false);
       mapInitializedRef.current = false;
       mapDraggedRef.current = false;
+      // Clear any leaked "address known" from a previous session — the picker
+      // stays mounted across open/close, so a stale true would wrongly skip the
+      // first-load reverse-geocode on edit / pick-on-map / current-location.
+      pinAddressKnownRef.current = false;
       hotelMarkerRef.current?.setMap(null);
       hotelMarkerRef.current = null;
       if (isLoaded) {
@@ -322,44 +373,12 @@ const AddressPickerV2 = ({
       geocoder.geocode({ location: { lat, lng } }, (results, status) => {
         setGeocoding(false);
         if (status === "OK" && results && results[0]) {
-          const components = results[0].address_components;
-          const formatted = results[0].formatted_address;
-          let name = "";
-          let area = "";
-          let city = "";
-          let district = "";
-          let pincode = "";
-          components.forEach((c) => {
-            const t = c.types;
-            if (t.includes("sublocality_level_1") || t.includes("sublocality")) {
-              area = c.long_name;
-              if (!name) name = c.long_name;
-            }
-            if (t.includes("neighborhood") || t.includes("premise")) {
-              name = c.long_name;
-            }
-            if (
-              t.includes("locality") ||
-              t.includes("administrative_area_level_2")
-            ) {
-              city = c.long_name;
-            }
-            if (t.includes("administrative_area_level_3")) {
-              district = c.long_name;
-            }
-            if (t.includes("postal_code")) {
-              pincode = c.long_name;
-            }
-          });
-          if (!name) name = area || city || "Selected Location";
-          setGeocodedInfo({
-            name,
-            address: formatted,
-            area: area || undefined,
-            city: city || undefined,
-            district: district || undefined,
-            pincode: pincode || undefined,
-          });
+          setGeocodedInfo(
+            parseAddressComponents(
+              results[0].address_components,
+              results[0].formatted_address,
+            ),
+          );
         }
       });
     },
@@ -390,6 +409,18 @@ const AddressPickerV2 = ({
     [updateMapCenter, reverseGeocode],
   );
 
+  // Cancel any in-flight drag reverse-geocode so a handler that takes ownership
+  // of the address isn't later clobbered by the debounced drag geocode firing
+  // with the previously-dragged coords (and re-enable Confirm immediately).
+  const cancelPendingDragGeocode = () => {
+    if (geocodeTimerRef.current) {
+      clearTimeout(geocodeTimerRef.current);
+      geocodeTimerRef.current = null;
+    }
+    mapDraggedRef.current = false;
+    setMapMoving(false);
+  };
+
   const handleSelectPrediction = (
     prediction: google.maps.places.AutocompletePrediction,
   ) => {
@@ -402,7 +433,7 @@ const AddressPickerV2 = ({
     placesServiceRef.current.getDetails(
       {
         placeId: prediction.place_id,
-        fields: ["geometry", "name"],
+        fields: ["geometry", "name", "formatted_address", "address_components"],
         sessionToken: sessionTokenRef.current || undefined,
       },
       (place, status) => {
@@ -412,6 +443,28 @@ const AddressPickerV2 = ({
         ) {
           const lat = place.geometry.location.lat();
           const lng = place.geometry.location.lng();
+          // Use the Place Details address directly (skipping the first-load
+          // reverse-geocode) only when it's usable and non-Qatar. Otherwise the
+          // handler resolves the pin ITSELF — directly, not via the once-only
+          // first-load idle — so a second pick / Qatar refinement / missing
+          // formatted_address never leaves a stale or empty address on the
+          // persistent map. Either way the handler owns the address, so the
+          // first-load idle below is told to skip.
+          cancelPendingDragGeocode();
+          pinAddressKnownRef.current = true;
+          if (place.address_components && place.formatted_address && !isQatar) {
+            setGeocodedInfo(
+              parseAddressComponents(
+                place.address_components,
+                place.formatted_address,
+              ),
+            );
+          } else {
+            setGeocodedInfo(null);
+            setQarsHit(null);
+            if (isQatar) refineWithQars(lat, lng);
+            else reverseGeocode(lat, lng);
+          }
           saveRecentSearch({
             placeId: prediction.place_id,
             name:
@@ -436,9 +489,17 @@ const AddressPickerV2 = ({
   };
 
   const handleSelectRecent = (recent: RecentSearch) => {
+    // Recents store only a label, not structured components → resolve the pin
+    // directly (handler-owned), so it works even on a re-pick where the map
+    // doesn't remount and the first-load idle won't re-fire.
     saveRecentSearch({ ...recent, timestamp: Date.now() });
+    setGeocodedInfo(null);
+    setQarsHit(null);
     updateMapCenter({ lat: recent.lat, lng: recent.lng });
     setScreen("map");
+    pinAddressKnownRef.current = true;
+    if (isQatar) refineWithQars(recent.lat, recent.lng);
+    else reverseGeocode(recent.lat, recent.lng);
   };
 
   const handleUseCurrentLocation = () => {
@@ -449,9 +510,16 @@ const AddressPickerV2 = ({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
         };
+        setGeocodedInfo(null);
+        setQarsHit(null);
         updateMapCenter(center);
         setLocating(false);
         setScreen("map");
+        // Resolve directly (handler-owned) so it works even when the map is
+        // already mounted and the first-load idle won't re-fire.
+        pinAddressKnownRef.current = true;
+        if (isQatar) refineWithQars(center.lat, center.lng);
+        else reverseGeocode(center.lat, center.lng);
       },
       () => {
         setLocating(false);
@@ -474,9 +542,11 @@ const AddressPickerV2 = ({
 
     if (!mapInitializedRef.current) {
       mapInitializedRef.current = true;
-      // Resolve on first load — QARS (exact building) for Qatar, else Google.
+      // First load: QARS (exact building) for Qatar; otherwise skip when the
+      // address already came from Place Details (suggestion pick) and only
+      // reverse-geocode when we arrived without one (recent / current location).
       if (isQatar) refineWithQars(lat, lng);
-      else reverseGeocode(lat, lng);
+      else if (!pinAddressKnownRef.current) reverseGeocode(lat, lng);
       return;
     }
 
@@ -492,6 +562,8 @@ const AddressPickerV2 = ({
   }, [reverseGeocode, refineWithQars, isQatar, hotelCoords]);
 
   const handleMapDragStart = useCallback(() => {
+    // The pin moved off the picked place → its address must be re-derived.
+    pinAddressKnownRef.current = false;
     mapDraggedRef.current = true;
     setMapMoving(true);
     setGeocodedInfo(null);
