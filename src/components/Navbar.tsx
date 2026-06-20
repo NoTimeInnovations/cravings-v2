@@ -38,6 +38,12 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import UserAvatar from "./UserAvatar";
 
+// "Book a Demo" opens WhatsApp with a friendly pre-filled message to the sales
+// number instead of a calendar link.
+const BOOK_DEMO_WHATSAPP = `https://wa.me/917012944024?text=${encodeURIComponent(
+  "Hi Menuthere team! I'd love to book a demo to see how Menuthere can help my restaurant grow. Could we schedule a quick meeting at a convenient time? Thank you!",
+)}`;
+
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -496,7 +502,7 @@ export function Navbar() {
             Login
           </ButtonV2>
           <ButtonV2
-            href="https://cal.id/menuthere"
+            href={BOOK_DEMO_WHATSAPP}
             variant="primary"
             target="_blank"
           >
@@ -1223,7 +1229,7 @@ export function Navbar() {
               {!userData && (
                 <div className="flex flex-col gap-3">
                   <ButtonV2
-                    href="https://cal.id/menuthere"
+                    href={BOOK_DEMO_WHATSAPP}
                     variant="primary"
                     target="_blank"
                     className="w-full justify-center"
