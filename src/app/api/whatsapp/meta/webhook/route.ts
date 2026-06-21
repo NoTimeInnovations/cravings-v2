@@ -3,6 +3,44 @@ import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getPartnerByPhoneNumberId } from "@/lib/whatsapp-meta";
 import { runFlowForInbound, type FlowInput } from "@/lib/whatsappFlow/engine";
+import { normalizePhone } from "@/lib/whatsapp-broadcast";
+
+// Marketing opt-out: a customer who replies STOP (or taps a stop button) is added
+// to the partner's suppression list and excluded from future broadcasts.
+const INSERT_OPTOUT = `
+  mutation OptOut($obj: whatsapp_broadcast_optouts_insert_input!) {
+    insert_whatsapp_broadcast_optouts_one(object: $obj) { id }
+  }
+`;
+
+function isStopMessage(msg: any): boolean {
+  const norm = (s?: string) => String(s || "").trim().toLowerCase();
+  if (msg?.type === "text") {
+    return ["stop", "unsubscribe", "stop promotions", "cancel"].includes(
+      norm(msg.text?.body),
+    );
+  }
+  if (msg?.type === "button") return norm(msg.button?.text).includes("stop");
+  if (msg?.type === "interactive") {
+    return norm(
+      msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title,
+    ).includes("stop");
+  }
+  return false;
+}
+
+async function recordOptOut(partnerId: string, phone: string) {
+  try {
+    await fetchFromHasura(INSERT_OPTOUT, {
+      obj: { partner_id: partnerId, phone: normalizePhone(phone), reason: "STOP" },
+    });
+  } catch (e: any) {
+    // Unique violation = already opted out (fine); log anything else.
+    if (!String(e?.message || e).toLowerCase().includes("unique")) {
+      console.error("Opt-out insert failed:", e);
+    }
+  }
+}
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
 
@@ -192,6 +230,11 @@ export async function POST(req: NextRequest) {
 
           if (partner?.partner_id) {
             await persistIncoming(partner.partner_id, msg, contactName);
+
+            // Marketing STOP/unsubscribe → suppress from this partner's broadcasts.
+            if (isStopMessage(msg)) {
+              await recordOptOut(partner.partner_id, msg.from);
+            }
 
             // Run the partner's WhatsApp flows for this inbound. Idempotent and
             // self-contained; never let it throw out of the webhook loop.

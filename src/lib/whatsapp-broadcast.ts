@@ -25,12 +25,18 @@ export interface BroadcastRecipient {
   phone: string;
 }
 
+export type HeaderMediaType = "image" | "video" | "document";
+
 export interface BroadcastSendConfig {
   partnerId: string;
   templateName: string;
   language: string;
   variableMap: VariableMapItem[];
   headerParams?: string[] | null;
+  // Media header (for templates whose HEADER format is IMAGE/VIDEO/DOCUMENT). A
+  // single hosted public URL is sent to every recipient via {<type>: { link }}.
+  headerMediaUrl?: string | null;
+  headerMediaType?: HeaderMediaType | null;
 }
 
 interface PartnerWhatsApp {
@@ -127,7 +133,14 @@ export async function sendBroadcastTemplate(
   const to = normalizePhone(recipient.phone);
 
   const components: any[] = [];
-  if (cfg.headerParams?.length) {
+  if (cfg.headerMediaUrl && cfg.headerMediaType) {
+    // Media header: WhatsApp wants { type: "<media>", <media>: { link } }.
+    const mt = cfg.headerMediaType;
+    components.push({
+      type: "header",
+      parameters: [{ type: mt, [mt]: { link: cfg.headerMediaUrl } }],
+    });
+  } else if (cfg.headerParams?.length) {
     components.push({
       type: "header",
       parameters: cfg.headerParams.map((p) => ({ type: "text", text: p })),
