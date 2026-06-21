@@ -1,5 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { normalizePhone } from "@/lib/whatsapp-broadcast";
+
+// Phones that sent STOP/UNSUBSCRIBE to this partner — excluded from broadcasts.
+const GET_OPTOUTS = `
+  query GetOptouts($partner_id: uuid!) {
+    whatsapp_broadcast_optouts(where: { partner_id: { _eq: $partner_id } }) {
+      phone
+    }
+  }
+`;
 
 // GET /api/whatsapp/broadcasts?partnerId=<uuid>
 // Lists the partner's broadcasts (newest first) with progress counts.
@@ -100,7 +110,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { partnerId, templateId, scheduledAt, variableMap, headerParams, recipients } =
+  const { partnerId, templateId, scheduledAt, variableMap, headerParams, headerMediaUrl, recipients } =
     body || {};
 
   if (!partnerId || !templateId || !Array.isArray(recipients)) {
@@ -134,6 +144,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Media-header templates need the image/video/document to send. Derive the
+  // media type from the template's own HEADER format so the client only sends a URL.
+  const headerComp = (template.components || []).find(
+    (c: any) => String(c?.type).toUpperCase() === "HEADER",
+  );
+  const headerFmt = String(headerComp?.format || "").toUpperCase();
+  const isMediaHeader = ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerFmt);
+  const headerMediaType = isMediaHeader ? headerFmt.toLowerCase() : null;
+  if (isMediaHeader && (!headerMediaUrl || typeof headerMediaUrl !== "string")) {
+    return NextResponse.json(
+      { error: "This template has a media header — attach the image/video/document to broadcast." },
+      { status: 400 },
+    );
+  }
+
   // Validate variable map length matches the template's body variable count.
   const varCount = bodyVariableCount(template.components);
   const cleanVarMap = Array.isArray(variableMap) ? variableMap.slice(0, varCount) : [];
@@ -161,9 +186,28 @@ export async function POST(req: NextRequest) {
     cleanRecipients.push({ phone: rawPhone, name: name || null });
   }
 
+  // Drop anyone who opted out of this partner's marketing (sent STOP).
+  try {
+    const optData = await fetchFromHasura(GET_OPTOUTS, { partner_id: partnerId });
+    const optedOut = new Set<string>(
+      (optData?.whatsapp_broadcast_optouts || []).map((o: any) =>
+        normalizePhone(String(o.phone || "")),
+      ),
+    );
+    if (optedOut.size) {
+      for (let i = cleanRecipients.length - 1; i >= 0; i--) {
+        if (optedOut.has(normalizePhone(cleanRecipients[i].phone))) {
+          cleanRecipients.splice(i, 1);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Opt-out filter failed (continuing without it):", e);
+  }
+
   if (cleanRecipients.length === 0) {
     return NextResponse.json(
-      { error: "No valid recipients (each needs a phone number with at least 10 digits)" },
+      { error: "No valid recipients (after removing opted-out numbers; each needs a phone with at least 10 digits)" },
       { status: 400 },
     );
   }
@@ -181,6 +225,8 @@ export async function POST(req: NextRequest) {
         variable_map: cleanVarMap,
         header_params:
           Array.isArray(headerParams) && headerParams.length ? headerParams : null,
+        header_media_url: isMediaHeader ? headerMediaUrl : null,
+        header_media_type: headerMediaType,
         status: "scheduled",
         scheduled_at: scheduledAt || new Date().toISOString(),
         total_recipients: cleanRecipients.length,

@@ -44,6 +44,10 @@ import {
   Users,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
+import { ImageUpload } from "@/components/storefront/ImageUpload";
+import VideoEditor from "@/components/VideoEditor";
+import { uploadFileToS3 } from "@/app/actions/aws-s3";
+import { fetchFromHasura } from "@/lib/hasuraClient";
 
 const DAILY_LIMIT = 250;
 
@@ -122,6 +126,32 @@ function headerHasVar(components: any[]): boolean {
   const h = (components || []).find((c) => c?.type === "HEADER");
   return h?.format === "TEXT" && /\{\{\d+\}\}/.test(h?.text || "");
 }
+
+// Media header type for the template (image/video/document) — the broadcast must
+// attach a media URL when present (sent as {<type>: { link }} to every recipient).
+function headerMediaType(
+  components: any[],
+): "image" | "video" | "document" | null {
+  const h = (components || []).find((c) => c?.type === "HEADER");
+  const fmt = String(h?.format || "").toUpperCase();
+  return ["IMAGE", "VIDEO", "DOCUMENT"].includes(fmt)
+    ? (fmt.toLowerCase() as "image" | "video" | "document")
+    : null;
+}
+
+// Pull the partner's customers (phone + name) from their non-cancelled orders.
+const BROADCAST_CUSTOMERS_QUERY = `
+  query BroadcastCustomers($partner_id: uuid!) {
+    orders(
+      where: { partner_id: { _eq: $partner_id }, status: { _neq: "cancelled" } }
+      order_by: { created_at: desc }
+      limit: 5000
+    ) {
+      phone
+      user { full_name phone }
+    }
+  }
+`;
 
 export function AdminV2WhatsAppBroadcast() {
   const { userData } = useAuthStore();
@@ -400,11 +430,35 @@ function BroadcastCreatorDialog({
   const [manualText, setManualText] = useState("");
   const [excelRecipients, setExcelRecipients] = useState<ParsedRecipient[] | null>(null);
   const [excelFileName, setExcelFileName] = useState("");
-  const [tab, setTab] = useState<"manual" | "excel">("manual");
+  const [tab, setTab] = useState<"manual" | "excel" | "customers">("manual");
   const [scheduleMode, setScheduleMode] = useState<"now" | "later">("now");
   const [scheduleAt, setScheduleAt] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Media header (image/video/document) sent to every recipient via a public URL.
+  const [headerMediaUrl, setHeaderMediaUrl] = useState("");
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [videoFileForEditor, setVideoFileForEditor] = useState<File | null>(null);
+  const [showVideoEditor, setShowVideoEditor] = useState(false);
+  // "My customers" recipient source (from non-cancelled order history).
+  const [customers, setCustomers] = useState<ParsedRecipient[]>([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [selectedCustomerPhones, setSelectedCustomerPhones] = useState<Set<string>>(
+    new Set(),
+  );
+
+  // Upload header media to S3 and store the public URL (sent as a {link}).
+  const applyMedia = async (getUrl: () => Promise<string>) => {
+    setUploadingMedia(true);
+    try {
+      setHeaderMediaUrl(await getUrl());
+    } catch (e: any) {
+      toast.error(e?.message || "Upload failed");
+      setHeaderMediaUrl("");
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
 
   const template = useMemo(
     () => templates.find((t) => t.id === templateId),
@@ -418,6 +472,10 @@ function BroadcastCreatorDialog({
     () => (template ? headerHasVar(template.components) : false),
     [template],
   );
+  const mediaHeaderType = useMemo(
+    () => (template ? headerMediaType(template.components) : null),
+    [template],
+  );
 
   const reset = () => {
     setTemplateId("");
@@ -429,6 +487,12 @@ function BroadcastCreatorDialog({
     setTab("manual");
     setScheduleMode("now");
     setScheduleAt("");
+    setHeaderMediaUrl("");
+    setUploadingMedia(false);
+    setVideoFileForEditor(null);
+    setShowVideoEditor(false);
+    setCustomers([]);
+    setSelectedCustomerPhones(new Set());
   };
 
   // When the template changes, seed the variable map with sensible defaults:
@@ -448,8 +512,34 @@ function BroadcastCreatorDialog({
       ),
     );
     setHeaderValue("");
+    setHeaderMediaUrl("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateId]);
+
+  // Load the partner's customers (from orders) the first time the tab is opened.
+  useEffect(() => {
+    if (tab !== "customers" || !partnerId || customers.length || loadingCustomers) {
+      return;
+    }
+    setLoadingCustomers(true);
+    fetchFromHasura(BROADCAST_CUSTOMERS_QUERY, { partner_id: partnerId })
+      .then((data: any) => {
+        const seen = new Set<string>();
+        const list: ParsedRecipient[] = [];
+        for (const o of data?.orders || []) {
+          const phone = String(o?.phone || o?.user?.phone || "").trim();
+          const digits = phone.replace(/[\s\-\+\(\)]/g, "");
+          if (digits.length < 10 || seen.has(digits)) continue;
+          seen.add(digits);
+          list.push({ phone, name: String(o?.user?.full_name || "").trim() });
+        }
+        setCustomers(list);
+        setSelectedCustomerPhones(new Set(list.map((c) => c.phone)));
+      })
+      .catch(() => toast.error("Couldn't load customers"))
+      .finally(() => setLoadingCustomers(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, partnerId]);
 
   // Parse the manual textarea: one recipient per line, "phone[,name]" (comma or tab).
   const manualRecipients = useMemo<ParsedRecipient[]>(() => {
@@ -464,7 +554,12 @@ function BroadcastCreatorDialog({
       .filter((r) => r.phone);
   }, [manualText]);
 
-  const rawRecipients = tab === "excel" ? excelRecipients || [] : manualRecipients;
+  const rawRecipients =
+    tab === "excel"
+      ? excelRecipients || []
+      : tab === "customers"
+        ? customers.filter((c) => selectedCustomerPhones.has(c.phone))
+        : manualRecipients;
 
   // Validate + dedupe for the live counter shown to the user.
   const { valid, invalidCount, dupCount } = useMemo(() => {
@@ -557,6 +652,8 @@ function BroadcastCreatorDialog({
     valid.length > 0 &&
     varMap.every((m) => m.source !== "fixed" || (m.value ?? "").trim().length > 0) &&
     (!hasHeaderVar || headerValue.trim().length > 0) &&
+    (!mediaHeaderType || headerMediaUrl.trim().length > 0) &&
+    !uploadingMedia &&
     (scheduleMode === "now" || scheduleAt.trim().length > 0);
 
   const submit = async () => {
@@ -576,6 +673,7 @@ function BroadcastCreatorDialog({
           scheduledAt,
           variableMap: varMap,
           headerParams: hasHeaderVar ? [headerValue.trim()] : null,
+          headerMediaUrl: mediaHeaderType ? headerMediaUrl : null,
           recipients: valid,
         }),
       });
@@ -660,6 +758,95 @@ function BroadcastCreatorDialog({
                 </div>
               )}
 
+              {/* Media header — the image/video/document sent to every recipient */}
+              {mediaHeaderType && (
+                <div className="space-y-1.5">
+                  <Label className="capitalize">Header {mediaHeaderType}</Label>
+                  {mediaHeaderType === "image" && (
+                    <ImageUpload
+                      value={headerMediaUrl}
+                      onChange={(url) => setHeaderMediaUrl(url)}
+                      label=""
+                      folder="wa-broadcast"
+                    />
+                  )}
+                  {mediaHeaderType === "video" && (
+                    <div className="space-y-2">
+                      {headerMediaUrl && (
+                        <video
+                          src={headerMediaUrl}
+                          controls
+                          className="w-full max-w-xs rounded-md border"
+                        />
+                      )}
+                      <Input
+                        type="file"
+                        accept="video/mp4,video/*"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) {
+                            setVideoFileForEditor(f);
+                            setShowVideoEditor(true);
+                          }
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                  )}
+                  {mediaHeaderType === "document" && (
+                    <div className="space-y-2">
+                      {headerMediaUrl && (
+                        <a
+                          href={headerMediaUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary underline"
+                        >
+                          Uploaded document
+                        </a>
+                      )}
+                      <Input
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) {
+                            void applyMedia(
+                              () => uploadFileToS3(f, f.name) as Promise<string>,
+                            );
+                          }
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                  )}
+                  {uploadingMedia && (
+                    <p className="text-xs text-muted-foreground">Uploading…</p>
+                  )}
+                  {showVideoEditor && videoFileForEditor && (
+                    <VideoEditor
+                      isOpen={showVideoEditor}
+                      videoFile={videoFileForEditor}
+                      onClose={() => {
+                        setShowVideoEditor(false);
+                        setVideoFileForEditor(null);
+                      }}
+                      onComplete={(blob) => {
+                        setShowVideoEditor(false);
+                        setVideoFileForEditor(null);
+                        void applyMedia(
+                          () =>
+                            uploadFileToS3(
+                              blob,
+                              `wa-broadcast-${Date.now()}.mp4`,
+                            ) as Promise<string>,
+                        );
+                      }}
+                    />
+                  )}
+                </div>
+              )}
+
               {/* Variable mapping */}
               {varIndices.length > 0 && (
                 <div className="space-y-2">
@@ -714,8 +901,9 @@ function BroadcastCreatorDialog({
               <div className="space-y-2">
                 <Label>Recipients</Label>
                 <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="manual">Enter manually</TabsTrigger>
+                    <TabsTrigger value="customers">My customers</TabsTrigger>
                     <TabsTrigger value="excel">Upload Excel</TabsTrigger>
                   </TabsList>
                   <TabsContent value="manual" className="space-y-1.5">
@@ -729,6 +917,65 @@ function BroadcastCreatorDialog({
                     <p className="text-xs text-muted-foreground">
                       Format: <code>phone, name</code> — name optional, phone required.
                     </p>
+                  </TabsContent>
+                  <TabsContent value="customers" className="space-y-2">
+                    {loadingCustomers ? (
+                      <p className="text-sm text-muted-foreground">Loading customers…</p>
+                    ) : customers.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No customers found from your orders yet.
+                      </p>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">
+                            {selectedCustomerPhones.size}/{customers.length} selected
+                          </span>
+                          <button
+                            type="button"
+                            className="text-primary underline"
+                            onClick={() =>
+                              setSelectedCustomerPhones(
+                                selectedCustomerPhones.size === customers.length
+                                  ? new Set()
+                                  : new Set(customers.map((c) => c.phone)),
+                              )
+                            }
+                          >
+                            {selectedCustomerPhones.size === customers.length
+                              ? "Clear all"
+                              : "Select all"}
+                          </button>
+                        </div>
+                        <div className="max-h-48 divide-y overflow-auto rounded-md border">
+                          {customers.map((c) => (
+                            <label
+                              key={c.phone}
+                              className="flex items-center gap-2 px-2 py-1.5 text-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedCustomerPhones.has(c.phone)}
+                                onChange={(e) =>
+                                  setSelectedCustomerPhones((prev) => {
+                                    const n = new Set(prev);
+                                    if (e.target.checked) n.add(c.phone);
+                                    else n.delete(c.phone);
+                                    return n;
+                                  })
+                                }
+                              />
+                              <span className="font-mono text-xs">{c.phone}</span>
+                              {c.name && (
+                                <span className="truncate text-muted-foreground">
+                                  {c.name}
+                                </span>
+                              )}
+                            </label>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </TabsContent>
                   <TabsContent value="excel" className="space-y-2">
                     <input

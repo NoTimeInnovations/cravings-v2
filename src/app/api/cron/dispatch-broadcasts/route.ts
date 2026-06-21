@@ -47,6 +47,8 @@ const DUE_QUERY = `
       language
       variable_map
       header_params
+      header_media_url
+      header_media_type
       daily_limit
       sent_count
       failed_count
@@ -112,6 +114,8 @@ interface DueBroadcast {
   language: string;
   variable_map: VariableMapItem[];
   header_params: string[] | null;
+  header_media_url: string | null;
+  header_media_type: string | null;
   daily_limit: number;
   sent_count: number;
   failed_count: number;
@@ -212,6 +216,12 @@ export async function GET(req: NextRequest) {
             language: b.language,
             variableMap: b.variable_map || [],
             headerParams: b.header_params,
+            headerMediaUrl: b.header_media_url,
+            headerMediaType: (b.header_media_type as
+              | "image"
+              | "video"
+              | "document"
+              | null) || null,
           },
           r,
           partnerWa,
