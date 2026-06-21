@@ -322,10 +322,18 @@ export default function OnboardingFlow({
   // Skip entirely if forceShowPicker is set — the user explicitly clicked
   // "Change outlet" and wants to stay on the picker, not be auto-dismissed by
   // a stale orderType prop carried over from the previous server render.
+  // Likewise skip when forceStart is set: that means the user re-opened the flow
+  // from the menu's back button. The URL still carries the old ?orderType=, and
+  // auto-applying it would re-pick the order type and instantly dismiss back to
+  // the menu (because the address is already saved) — the exact jank we want to
+  // avoid. Let them land on the delivery/takeaway screen and choose fresh; the
+  // normal handleOrderTypeSelect then routes correctly (saved address → skip the
+  // address step / go straight to outlets).
   const preselectApplied = useRef(false);
   useEffect(() => {
     if (!preselectedOrderType) return;
     if (forceShowPicker) return;
+    if (forceStart) return;
     if (preselectApplied.current) return;
     preselectApplied.current = true;
     setOrderType(preselectedOrderType);
