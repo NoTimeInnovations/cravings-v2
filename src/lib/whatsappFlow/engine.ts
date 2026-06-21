@@ -426,12 +426,16 @@ function executeForward(
       case "end": {
         const endMsg = interpolate(data.message || "", state.variables);
         const stopBtn = String(data.buttonText || "").trim();
-        if (endMsg && stopBtn) {
-          // End message + a one-tap opt-out button. Send it and PARK at this end
-          // node so the tap can be captured (resumeRun records the suppression).
+        if (stopBtn) {
+          // One-tap opt-out button. WhatsApp interactive button messages REQUIRE
+          // body text, so fall back to a default prompt when the author left the
+          // end message blank (otherwise the button can't be sent). PARK so the
+          // tap can be captured (resumeRun records the 24h suppression).
+          const body =
+            endMsg || "Tap below if you'd prefer not to receive these messages.";
           outbound.push({
             kind: "buttons",
-            text: endMsg,
+            text: body,
             items: [{ id: STOP_FLOW_BUTTON_ID, label: stopBtn.slice(0, 20) }],
           });
           return { parkedNodeId: node.id, completed: false };
