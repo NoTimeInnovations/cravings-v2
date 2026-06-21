@@ -86,11 +86,26 @@ interface ParsedRecipient {
   name: string;
 }
 
+// "Send now" creates a broadcast with status="scheduled" + scheduled_at=now; the
+// per-minute cron then dispatches it. Show such due broadcasts as "queued" (not
+// "scheduled", which is reserved for ones genuinely set for a future time).
+function broadcastStatusLabel(
+  status: string,
+  scheduledAt: string | null,
+): string {
+  if (status === "scheduled") {
+    const due = !scheduledAt || new Date(scheduledAt).getTime() <= Date.now();
+    return due ? "queued" : "scheduled";
+  }
+  return status;
+}
+
 function statusBadge(status: string) {
   switch (status) {
     case "completed":
       return "bg-green-100 text-green-800 border-green-200";
     case "sending":
+    case "queued":
       return "bg-blue-100 text-blue-800 border-blue-200";
     case "scheduled":
       return "bg-amber-100 text-amber-800 border-amber-200";
@@ -326,17 +341,22 @@ export function AdminV2WhatsAppBroadcast() {
                             {b.language}
                           </Badge>
                           <span
-                            className={`text-xs font-medium px-2 py-0.5 rounded border ${statusBadge(b.status)}`}
+                            className={`text-xs font-medium px-2 py-0.5 rounded border ${statusBadge(broadcastStatusLabel(b.status, b.scheduled_at))}`}
                           >
-                            {b.status}
+                            {broadcastStatusLabel(b.status, b.scheduled_at)}
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
                           <Users className="h-3 w-3" />
                           {b.total_recipients} recipients
-                          {b.scheduled_at && b.status === "scheduled" && (
-                            <> · scheduled {new Date(b.scheduled_at).toLocaleString()}</>
-                          )}
+                          {b.status === "scheduled" &&
+                            (broadcastStatusLabel(b.status, b.scheduled_at) === "queued" ? (
+                              <> · sending shortly</>
+                            ) : (
+                              b.scheduled_at && (
+                                <> · scheduled {new Date(b.scheduled_at).toLocaleString()}</>
+                              )
+                            ))}
                         </div>
                       </div>
                       <div className="flex gap-1 self-end sm:self-auto">
