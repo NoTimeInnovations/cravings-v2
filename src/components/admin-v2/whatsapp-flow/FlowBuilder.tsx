@@ -276,7 +276,8 @@ function BuilderInner({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [escapeKeyword, setEscapeKeyword] = useState("");
-  const [oncePerUser, setOncePerUser] = useState(false);
+  const [runMode, setRunMode] = useState<"every" | "once" | "cooldown">("every");
+  const [cooldownHours, setCooldownHours] = useState(24);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -309,7 +310,11 @@ function BuilderInner({
         const g: FlowGraph = data.flow.graph || { nodes: [], edges: [] };
         setName(data.flow.name || "");
         setEscapeKeyword(data.flow.escape_keyword || "");
-        setOncePerUser(!!data.flow.once_per_user);
+        {
+          const cd = Number(data.flow.cooldown_hours) || 0;
+          setRunMode(data.flow.once_per_user ? "once" : cd > 0 ? "cooldown" : "every");
+          setCooldownHours(cd > 0 ? cd : 24);
+        }
         setNodes(
           (g.nodes || []).map((n) => ({
             id: n.id,
@@ -418,7 +423,8 @@ function BuilderInner({
         name: name.trim(),
         graph: buildGraph(),
         escapeKeyword: escapeKeyword.trim() || null,
-        oncePerUser,
+        oncePerUser: runMode === "once",
+        cooldownHours: runMode === "cooldown" ? cooldownHours : 0,
       };
       const res = isNew
         ? await fetch("/api/whatsapp/flows", {
@@ -559,8 +565,8 @@ function BuilderInner({
             <div className="space-y-1.5">
               <Label>How often to run</Label>
               <Select
-                value={oncePerUser ? "once" : "every"}
-                onValueChange={(v) => setOncePerUser(v === "once")}
+                value={runMode}
+                onValueChange={(v) => setRunMode(v as "every" | "once" | "cooldown")}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -568,11 +574,34 @@ function BuilderInner({
                 <SelectContent>
                   <SelectItem value="every">Every time the trigger matches</SelectItem>
                   <SelectItem value="once">Only once per customer</SelectItem>
+                  <SelectItem value="cooldown">Once per customer, then wait a set time</SelectItem>
                 </SelectContent>
               </Select>
+              {runMode === "cooldown" && (
+                <div className="flex items-center gap-2 pt-1">
+                  <span className="text-sm text-muted-foreground">Don&apos;t run again for</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={8760}
+                    value={cooldownHours}
+                    onChange={(e) =>
+                      setCooldownHours(
+                        Math.max(1, Math.min(8760, Math.round(Number(e.target.value) || 1))),
+                      )
+                    }
+                    className="w-24"
+                  />
+                  <span className="text-sm text-muted-foreground">hours</span>
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
-                &ldquo;Once per customer&rdquo; runs this flow only the first time
-                it&apos;s triggered for each person — it never runs again for them.
+                {runMode === "every" &&
+                  "Runs whenever the trigger matches."}
+                {runMode === "once" &&
+                  "Runs only the first time it's triggered for each person — never again."}
+                {runMode === "cooldown" &&
+                  `Runs once, then won't run again for that customer for ${cooldownHours} hour(s) — after which it can run again.`}
               </p>
             </div>
           </div>

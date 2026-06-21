@@ -64,15 +64,17 @@ const Q_RUN_COUNT = `
 const Q_ENABLED_FLOWS = `
   query EnabledFlows($p: uuid!) {
     whatsapp_flows(where: {partner_id: {_eq: $p}, enabled: {_eq: true}}) {
-      id graph triggers escape_keyword run_ttl_hours once_per_user
+      id graph triggers escape_keyword run_ttl_hours once_per_user cooldown_hours
     }
   }
 `;
-// Flow ids this contact has ever had a run of — used to enforce once-per-customer.
-const Q_RAN_FLOW_IDS = `
-  query RanFlows($p: uuid!, $c: String!) {
-    whatsapp_flow_execution_state(where: {partner_id: {_eq: $p}, contact_phone: {_eq: $c}}, distinct_on: flow_id, order_by: {flow_id: asc}) {
+// Most recent run timestamp per flow for this contact — drives "once per
+// customer" (ever) and "once per customer every N hours" (cooldown).
+const Q_LAST_FLOW_RUNS = `
+  query LastFlowRuns($p: uuid!, $c: String!) {
+    whatsapp_flow_execution_state(where: {partner_id: {_eq: $p}, contact_phone: {_eq: $c}}, distinct_on: flow_id, order_by: [{flow_id: asc}, {created_at: desc}]) {
       flow_id
+      created_at
     }
   }
 `;
@@ -225,21 +227,39 @@ async function getSuppressedFlowIds(
   }
 }
 
-// Flow ids this contact has already had a run of (any status) — drives the
-// "run once per customer" option (such flows won't start a second time).
-async function getRanFlowIds(
+// Most recent run start time (ms) per flow this contact has run — drives the
+// frequency options below.
+async function getLastFlowRunAt(
   partnerId: string,
   contactPhone: string,
-): Promise<Set<string>> {
+): Promise<Map<string, number>> {
+  const m = new Map<string, number>();
   try {
-    const res = await fetchFromHasura(Q_RAN_FLOW_IDS, { p: partnerId, c: contactPhone });
-    return new Set(
-      (res?.whatsapp_flow_execution_state || []).map((r: any) => r.flow_id as string),
-    );
+    const res = await fetchFromHasura(Q_LAST_FLOW_RUNS, { p: partnerId, c: contactPhone });
+    for (const r of res?.whatsapp_flow_execution_state || []) {
+      if (r?.flow_id && r?.created_at) {
+        m.set(r.flow_id as string, new Date(r.created_at).getTime());
+      }
+    }
   } catch (e) {
-    console.error("getRanFlowIds failed:", e);
-    return new Set();
+    console.error("getLastFlowRunAt failed:", e);
   }
+  return m;
+}
+
+// Should this flow be blocked from STARTING for this contact, given when it last
+// ran? once_per_user => blocked forever after one run; cooldown_hours > 0 =>
+// blocked until that many hours pass since the last run; otherwise runs always.
+function flowBlockedFor(
+  flow: { id: string; once_per_user?: boolean; cooldown_hours?: number },
+  lastRunByFlow: Map<string, number>,
+): boolean {
+  const last = lastRunByFlow.get(flow.id);
+  if (last === undefined) return false; // never run → allowed
+  if (flow.once_per_user) return true; // ran once → never again
+  const cd = Number(flow.cooldown_hours) || 0;
+  if (cd > 0) return Date.now() - last < cd * 3600 * 1000;
+  return false; // every time
 }
 
 // Record that `contactPhone` opted out of `flowId`. `hours` <= 0 means forever.
@@ -683,13 +703,14 @@ async function matchesSpecificTrigger(
     id: string;
     triggers: TriggerDef[];
     once_per_user: boolean;
+    cooldown_hours: number;
   }>;
   const suppressed = await getSuppressedFlowIds(partnerId, contactPhone);
-  const ranFlowIds = await getRanFlowIds(partnerId, contactPhone);
+  const lastRunByFlow = await getLastFlowRunAt(partnerId, contactPhone);
   return flows.some(
     (f) =>
       !suppressed.has(f.id) &&
-      !(f.once_per_user && ranFlowIds.has(f.id)) &&
+      !flowBlockedFor(f, lastRunByFlow) &&
       (f.triggers || []).some(
         (t) =>
           (t.matchType === "exact" || t.matchType === "contains") &&
@@ -804,6 +825,7 @@ async function startNewRun(
     escape_keyword: string | null;
     run_ttl_hours: number;
     once_per_user: boolean;
+    cooldown_hours: number;
   }>;
   if (!flows.length) return;
 
@@ -815,16 +837,16 @@ async function startNewRun(
   }
 
   // Skip flows the customer opted out of (END-node "stop" button, time-bound) and
-  // "run once per customer" flows they've already had a run of.
+  // flows blocked by their run-frequency setting (once-per-customer / cooldown).
   const suppressed = await getSuppressedFlowIds(partnerId, contactPhone);
-  const ranFlowIds = await getRanFlowIds(partnerId, contactPhone);
+  const lastRunByFlow = await getLastFlowRunAt(partnerId, contactPhone);
   const candidates = flows
     .flatMap((f) => (f.triggers || []).map((t) => ({ flow: f, t })))
     .sort((a, b) => a.t.priority - b.t.priority);
   const matchedCand = candidates.find(
     (c) =>
       !suppressed.has(c.flow.id) &&
-      !(c.flow.once_per_user && ranFlowIds.has(c.flow.id)) &&
+      !flowBlockedFor(c.flow, lastRunByFlow) &&
       triggerMatches(c.t, input.normalized, firstContact),
   );
   if (!matchedCand) return;

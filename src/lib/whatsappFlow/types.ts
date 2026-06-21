@@ -194,4 +194,5 @@ export interface SaveFlowPayload {
   escapeKeyword?: string | null;
   runTtlHours?: number;
   oncePerUser?: boolean;
+  cooldownHours?: number;
 }
