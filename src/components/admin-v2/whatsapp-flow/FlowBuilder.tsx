@@ -135,7 +135,7 @@ function defaultData(type: FlowNodeType): Record<string, unknown> {
     case "jump":
       return { targetNodeId: "" };
     case "end":
-      return {};
+      return { message: "", buttonText: "" };
     default:
       return {};
   }
@@ -190,7 +190,9 @@ function nodeSummary(type: FlowNodeType, data: any): string {
     case "jump":
       return data?.targetNodeId ? "jump" : "No target";
     case "end":
-      return "End of flow";
+      return data?.buttonText
+        ? `🛑 opt-out: ${t(data.buttonText, 24)}`
+        : t(data?.message) || "End of flow";
     default:
       return "";
   }
@@ -908,7 +910,29 @@ function Inspector({
       )}
 
       {type === "end" && (
-        <p className="text-sm text-muted-foreground">Ends the flow for this customer.</p>
+        <>
+          <Field label="End message (optional)">
+            <Textarea
+              rows={3}
+              value={data.message || ""}
+              onChange={(e) => onChange({ message: e.target.value })}
+              placeholder="Thanks! You're all set. 🎉"
+            />
+          </Field>
+          <Field label="Opt-out button (optional)">
+            <Input
+              value={data.buttonText || ""}
+              onChange={(e) => onChange({ buttonText: e.target.value })}
+              placeholder="Stop these messages"
+              maxLength={20}
+            />
+          </Field>
+          <p className="text-xs text-muted-foreground">
+            Leave both blank to just end the flow. Add a message to send a closing
+            note. If you also add a button, the message is sent with it — tapping it
+            stops this flow from starting again for that customer for 24 hours.
+          </p>
+        </>
       )}
     </div>
   );

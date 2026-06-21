@@ -173,6 +173,69 @@ const M_OUTBOX = `
   }
 `;
 
+// ─── Flow opt-out (END-node "stop" button) ───────────────────────
+// A flow's END node can carry a one-tap opt-out button. Tapping it records a
+// per-(flow, contact) suppression so that flow won't START again for that
+// customer until it expires. Stored in whatsapp_flow_suppressions.
+const STOP_FLOW_BUTTON_ID = "__flow_stop__";
+const SUPPRESS_HOURS = 24;
+const Q_SUPPRESSED_FLOWS = `
+  query SuppressedFlows($p: uuid!, $c: String!, $now: timestamptz!) {
+    whatsapp_flow_suppressions(where: {partner_id: {_eq: $p}, contact_phone: {_eq: $c}, expires_at: {_gt: $now}}) {
+      flow_id
+    }
+  }
+`;
+const M_SUPPRESS_FLOW = `
+  mutation SuppressFlow($o: whatsapp_flow_suppressions_insert_input!) {
+    insert_whatsapp_flow_suppressions_one(
+      object: $o,
+      on_conflict: {constraint: whatsapp_flow_suppressions_unique, update_columns: [expires_at, reason]}
+    ) { id }
+  }
+`;
+
+// Flow ids this contact has opted out of (still inside the suppression window).
+async function getSuppressedFlowIds(
+  partnerId: string,
+  contactPhone: string,
+): Promise<Set<string>> {
+  try {
+    const res = await fetchFromHasura(Q_SUPPRESSED_FLOWS, {
+      p: partnerId,
+      c: contactPhone,
+      now: new Date().toISOString(),
+    });
+    return new Set(
+      (res?.whatsapp_flow_suppressions || []).map((r: any) => r.flow_id as string),
+    );
+  } catch (e) {
+    console.error("getSuppressedFlowIds failed:", e);
+    return new Set();
+  }
+}
+
+// Record that `contactPhone` opted out of `flowId` for the next SUPPRESS_HOURS.
+async function suppressFlow(
+  partnerId: string,
+  flowId: string,
+  contactPhone: string,
+): Promise<void> {
+  try {
+    await fetchFromHasura(M_SUPPRESS_FLOW, {
+      o: {
+        partner_id: partnerId,
+        flow_id: flowId,
+        contact_phone: contactPhone,
+        reason: "user_opt_out",
+        expires_at: new Date(Date.now() + SUPPRESS_HOURS * 3600 * 1000).toISOString(),
+      },
+    });
+  } catch (e) {
+    console.error("suppressFlow failed:", e);
+  }
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────
 function interpolate(text: string, vars: Record<string, unknown>): string {
   return String(text ?? "").replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => {
@@ -360,8 +423,22 @@ function executeForward(
         return { parkedNodeId: node.id, completed: false }; // park awaiting choice
       case "wait_for_reply":
         return { parkedNodeId: node.id, completed: false }; // park awaiting reply
-      case "end":
+      case "end": {
+        const endMsg = interpolate(data.message || "", state.variables);
+        const stopBtn = String(data.buttonText || "").trim();
+        if (endMsg && stopBtn) {
+          // End message + a one-tap opt-out button. Send it and PARK at this end
+          // node so the tap can be captured (resumeRun records the suppression).
+          outbound.push({
+            kind: "buttons",
+            text: endMsg,
+            items: [{ id: STOP_FLOW_BUTTON_ID, label: stopBtn.slice(0, 20) }],
+          });
+          return { parkedNodeId: node.id, completed: false };
+        }
+        if (endMsg) outbound.push({ kind: "text", text: endMsg });
         return { parkedNodeId: null, completed: true };
+      }
       default:
         nodeId = firstEdgeTarget(graph, node.id);
     }
@@ -541,7 +618,7 @@ export async function runFlowForInbound(args: {
   if (active) {
     if (active.expires_at && new Date(active.expires_at).getTime() < Date.now()) {
       await fetchFromHasura(M_EXPIRE_RUN, { id: active.id }).catch(() => {});
-    } else if (await matchesSpecificTrigger(partnerId, input.normalized)) {
+    } else if (await matchesSpecificTrigger(partnerId, contactPhone, input.normalized)) {
       // A specific keyword trigger (exact/contains) restarts its flow even
       // mid-run, so re-sending the trigger word replays the WHOLE flow instead
       // of being treated as a reply to the parked step. (Generic any/welcome
@@ -560,15 +637,25 @@ export async function runFlowForInbound(args: {
 
 // True if the inbound matches a SPECIFIC (exact/contains) keyword trigger of an
 // enabled flow — used to decide whether to restart a flow mid-run.
-async function matchesSpecificTrigger(partnerId: string, normalized: string): Promise<boolean> {
+async function matchesSpecificTrigger(
+  partnerId: string,
+  contactPhone: string,
+  normalized: string,
+): Promise<boolean> {
   const res = await fetchFromHasura(Q_ENABLED_FLOWS, { p: partnerId });
-  const flows = (res?.whatsapp_flows || []) as Array<{ triggers: TriggerDef[] }>;
-  return flows.some((f) =>
-    (f.triggers || []).some(
-      (t) =>
-        (t.matchType === "exact" || t.matchType === "contains") &&
-        triggerMatches(t, normalized, false),
-    ),
+  const flows = (res?.whatsapp_flows || []) as Array<{
+    id: string;
+    triggers: TriggerDef[];
+  }>;
+  const suppressed = await getSuppressedFlowIds(partnerId, contactPhone);
+  return flows.some(
+    (f) =>
+      !suppressed.has(f.id) &&
+      (f.triggers || []).some(
+        (t) =>
+          (t.matchType === "exact" || t.matchType === "contains") &&
+          triggerMatches(t, normalized, false),
+      ),
   );
 }
 
@@ -687,11 +774,16 @@ async function startNewRun(
     firstContact = (c?.whatsapp_flow_execution_state_aggregate?.aggregate?.count ?? 0) === 0;
   }
 
+  // Skip flows this customer has opted out of (END-node "stop" button) — they
+  // stay suppressed until the 24h window expires.
+  const suppressed = await getSuppressedFlowIds(partnerId, contactPhone);
   const candidates = flows
     .flatMap((f) => (f.triggers || []).map((t) => ({ flow: f, t })))
     .sort((a, b) => a.t.priority - b.t.priority);
-  const matchedCand = candidates.find((c) =>
-    triggerMatches(c.t, input.normalized, firstContact),
+  const matchedCand = candidates.find(
+    (c) =>
+      !suppressed.has(c.flow.id) &&
+      triggerMatches(c.t, input.normalized, firstContact),
   );
   if (!matchedCand) return;
   const matched = matchedCand.flow;
@@ -987,6 +1079,32 @@ async function resumeRun(
     }
     state.variables.__lastReply = choice.value ?? choice.label ?? "";
     nextStart = firstEdgeTarget(graph, node.id, choice.id);
+  } else if (node.type === "end") {
+    // Parked at an END node that offered an opt-out button. If the customer
+    // tapped it, suppress this flow for them (24h); either way the run is done.
+    const tappedStop =
+      input.replyId === STOP_FLOW_BUTTON_ID ||
+      (!!data.buttonText &&
+        input.normalized === String(data.buttonText).trim().toLowerCase());
+    const won = await casUpdate(active, waMessageId, {
+      status: "completed",
+      current_node_id: null,
+      last_interaction_at: new Date().toISOString(),
+    });
+    if (won && tappedStop) {
+      await suppressFlow(partnerId, active.flow_id, contactPhone);
+      const confirm = interpolate(
+        String(
+          data.stopConfirmText ||
+            "Got it — you won't get these for the next 24 hours.",
+        ),
+        state.variables,
+      );
+      await dispatch(partnerId, phoneNumberId, contactPhone, [
+        { kind: "text", text: confirm },
+      ]);
+    }
+    return;
   } else {
     nextStart = firstEdgeTarget(graph, node.id);
   }
