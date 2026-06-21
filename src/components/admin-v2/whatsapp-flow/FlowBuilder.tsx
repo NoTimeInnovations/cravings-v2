@@ -928,9 +928,10 @@ function Inspector({
             />
           </Field>
           <p className="text-xs text-muted-foreground">
-            Leave both blank to just end the flow. Add a message to send a closing
-            note. If you also add a button, the message is sent with it — tapping it
-            stops this flow from starting again for that customer for 24 hours.
+            Leave both blank to just end the flow. A button on its own still works
+            (a default prompt is shown) — add a message to customise what&apos;s
+            sent with it. Tapping the button stops this flow from starting again for
+            that customer for 24 hours.
           </p>
         </>
       )}
