@@ -2137,6 +2137,8 @@ function transformOrderFromHasura(order: any): Order {
     tableNumber: order.table_number || null,
     qrId: order.qr_id || null,
     status: order.status,
+    cancel_reason: order.cancel_reason ?? null,
+    cancelled_by: order.cancelled_by ?? null,
     partnerId: order.partner_id,
     status_history: order.status_history,
     partner: order.partner,
