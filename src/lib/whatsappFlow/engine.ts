@@ -72,9 +72,9 @@ const Q_ENABLED_FLOWS = `
 // customer" (ever) and "once per customer every N hours" (cooldown).
 const Q_LAST_FLOW_RUNS = `
   query LastFlowRuns($p: uuid!, $c: String!) {
-    whatsapp_flow_execution_state(where: {partner_id: {_eq: $p}, contact_phone: {_eq: $c}}, distinct_on: flow_id, order_by: [{flow_id: asc}, {created_at: desc}]) {
+    whatsapp_flow_execution_state(where: {partner_id: {_eq: $p}, contact_phone: {_eq: $c}}, distinct_on: flow_id, order_by: [{flow_id: asc}, {started_at: desc}]) {
       flow_id
-      created_at
+      started_at
     }
   }
 `;
@@ -237,8 +237,8 @@ async function getLastFlowRunAt(
   try {
     const res = await fetchFromHasura(Q_LAST_FLOW_RUNS, { p: partnerId, c: contactPhone });
     for (const r of res?.whatsapp_flow_execution_state || []) {
-      if (r?.flow_id && r?.created_at) {
-        m.set(r.flow_id as string, new Date(r.created_at).getTime());
+      if (r?.flow_id && r?.started_at) {
+        m.set(r.flow_id as string, new Date(r.started_at).getTime());
       }
     }
   } catch (e) {
