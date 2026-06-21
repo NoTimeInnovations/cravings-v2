@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { partnerId, name, description, enabled, graph, escapeKeyword, runTtlHours } = body || {};
+  const { partnerId, name, description, enabled, graph, escapeKeyword, runTtlHours, oncePerUser } = body || {};
   if (!partnerId || !name || typeof name !== "string") {
     return NextResponse.json({ error: "Missing partnerId or name" }, { status: 400 });
   }
@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
         triggers: extractTriggers(g),
         escape_keyword: escapeKeyword ? String(escapeKeyword).slice(0, 64) : null,
         run_ttl_hours: clampTtl(runTtlHours),
+        once_per_user: !!oncePerUser,
         updated_at: new Date().toISOString(),
       },
     });

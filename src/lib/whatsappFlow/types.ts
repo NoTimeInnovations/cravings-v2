@@ -193,4 +193,5 @@ export interface SaveFlowPayload {
   graph: FlowGraph;
   escapeKeyword?: string | null;
   runTtlHours?: number;
+  oncePerUser?: boolean;
 }

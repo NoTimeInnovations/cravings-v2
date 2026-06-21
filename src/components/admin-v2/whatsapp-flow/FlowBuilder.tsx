@@ -276,6 +276,7 @@ function BuilderInner({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [escapeKeyword, setEscapeKeyword] = useState("");
+  const [oncePerUser, setOncePerUser] = useState(false);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -308,6 +309,7 @@ function BuilderInner({
         const g: FlowGraph = data.flow.graph || { nodes: [], edges: [] };
         setName(data.flow.name || "");
         setEscapeKeyword(data.flow.escape_keyword || "");
+        setOncePerUser(!!data.flow.once_per_user);
         setNodes(
           (g.nodes || []).map((n) => ({
             id: n.id,
@@ -416,6 +418,7 @@ function BuilderInner({
         name: name.trim(),
         graph: buildGraph(),
         escapeKeyword: escapeKeyword.trim() || null,
+        oncePerUser,
       };
       const res = isNew
         ? await fetch("/api/whatsapp/flows", {
@@ -551,6 +554,25 @@ function BuilderInner({
               />
               <p className="text-xs text-muted-foreground">
                 If the customer sends this word, the flow ends immediately.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>How often to run</Label>
+              <Select
+                value={oncePerUser ? "once" : "every"}
+                onValueChange={(v) => setOncePerUser(v === "once")}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="every">Every time the trigger matches</SelectItem>
+                  <SelectItem value="once">Only once per customer</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                &ldquo;Once per customer&rdquo; runs this flow only the first time
+                it&apos;s triggered for each person — it never runs again for them.
               </p>
             </div>
           </div>
