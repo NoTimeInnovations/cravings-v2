@@ -185,18 +185,26 @@ export async function sendBroadcastTemplate(
       )
     : await sendFrom(menutherePhoneNumberId, accessToken);
 
+  // If the partner's own number fails, THIS is the real cause. The Menuthere
+  // fallback below can't send a partner-owned template — that template isn't on
+  // Menuthere's WABA, so it returns a misleading "(#132001) template does not
+  // exist" that masks the actual partner-side error (e.g. the number is still
+  // On-Premise / on the Business App and not registered on the Cloud API).
+  let partnerError: string | null = null;
   if (!res.ok && partnerWa.partnerPhoneNumberId) {
-    const errBody = await res.text();
+    partnerError = await res.text();
     console.warn(
       "Broadcast send via partner number failed, retrying from Menuthere:",
       res.status,
-      errBody,
+      partnerError,
     );
     res = await sendFrom(menutherePhoneNumberId, accessToken);
   }
 
   if (!res.ok) {
-    const errBody = await res.text();
+    const fallbackError = await res.text();
+    // Prefer the partner-number error — it's the actionable one.
+    const errBody = partnerError || fallbackError;
     logWhatsAppMessage({
       partnerId: cfg.partnerId,
       phone: to,
