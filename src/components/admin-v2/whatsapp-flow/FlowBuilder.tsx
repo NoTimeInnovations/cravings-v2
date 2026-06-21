@@ -135,7 +135,7 @@ function defaultData(type: FlowNodeType): Record<string, unknown> {
     case "jump":
       return { targetNodeId: "" };
     case "end":
-      return { message: "", buttonText: "" };
+      return { message: "", buttonText: "", suppressHours: 24, stopConfirmText: "" };
     default:
       return {};
   }
@@ -927,11 +927,39 @@ function Inspector({
               maxLength={20}
             />
           </Field>
+          {data.buttonText ? (
+            <>
+              <Field label="After tapping, don't send this flow again for">
+                <Select
+                  value={String(data.suppressHours ?? 24)}
+                  onValueChange={(v) => onChange({ suppressHours: Number(v) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="24">1 day</SelectItem>
+                    <SelectItem value="72">3 days</SelectItem>
+                    <SelectItem value="168">1 week</SelectItem>
+                    <SelectItem value="720">1 month</SelectItem>
+                    <SelectItem value="0">Forever</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Confirmation message (optional)">
+                <Input
+                  value={data.stopConfirmText || ""}
+                  onChange={(e) => onChange({ stopConfirmText: e.target.value })}
+                  placeholder="Leave blank to send nothing"
+                />
+              </Field>
+            </>
+          ) : null}
           <p className="text-xs text-muted-foreground">
             Leave both blank to just end the flow. A button on its own still works
             (a default prompt is shown) — add a message to customise what&apos;s
             sent with it. Tapping the button stops this flow from starting again for
-            that customer for 24 hours.
+            that customer for the period you choose (or forever).
           </p>
         </>
       )}
