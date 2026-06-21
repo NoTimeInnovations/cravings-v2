@@ -256,11 +256,8 @@ export default function DeliveryAddressScreen({
     }
   }, [openPickerWith]);
 
-  const useCurrentLocation = useCallback((opts?: { silent?: boolean }) => {
-    if (!navigator.geolocation) {
-      if (!opts?.silent) setError("Geolocation not supported");
-      return;
-    }
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) { setError("Geolocation not supported"); return; }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -275,29 +272,10 @@ export default function DeliveryAddressScreen({
         setLocating(false);
         openPickerWith(addr, { lat: latitude, lng: longitude });
       },
-      () => {
-        setLocating(false);
-        // On the silent first-time auto-open, a denial just falls back to this
-        // manual entry page — no scary error.
-        if (!opts?.silent) setError("Location access denied");
-      },
+      () => { setError("Location access denied"); setLocating(false); },
       { enableHighAccuracy: true, timeout: 10000 },
     );
-  }, [openPickerWith, hotelData?.id]);
-
-  // First-time delivery users skip this entry page and go straight to the
-  // existing map: silently locate them and open the map confirm screen centered
-  // there (same as tapping "Use my current location"). If they deny location or
-  // already have saved addresses, we stay on this page instead.
-  const autoLocatedRef = useRef(false);
-  useEffect(() => {
-    if (autoLocatedRef.current) return;
-    autoLocatedRef.current = true;
-    if (address || coords) return;
-    if (savedAddresses.length > 0) return;
-    useCurrentLocation({ silent: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  };
 
   const handleContinue = () => {
     if (!address.trim()) { setError("Please enter a delivery address"); return; }
@@ -378,7 +356,7 @@ export default function DeliveryAddressScreen({
 
           {/* Use my current location */}
           <button
-            onClick={() => useCurrentLocation()}
+            onClick={useCurrentLocation}
             disabled={locating}
             className="mt-3 w-full h-[48px] rounded-xl border border-gray-200 bg-white flex items-center justify-center gap-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50 transition active:opacity-60"
           >
