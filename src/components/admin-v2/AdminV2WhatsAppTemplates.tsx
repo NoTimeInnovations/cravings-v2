@@ -758,7 +758,7 @@ function TemplateEditorView({
   };
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="space-y-6 max-w-6xl rounded-xl border bg-card p-4 shadow-sm sm:p-6">
       <div className="flex items-start gap-3">
         <Button
           variant="ghost"
