@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { partnerId, name, description, enabled, graph, escapeKeyword, runTtlHours, oncePerUser } = body || {};
+  const { partnerId, name, description, enabled, graph, escapeKeyword, runTtlHours, oncePerUser, cooldownHours } = body || {};
   if (!partnerId || !name || typeof name !== "string") {
     return NextResponse.json({ error: "Missing partnerId or name" }, { status: 400 });
   }
@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
         escape_keyword: escapeKeyword ? String(escapeKeyword).slice(0, 64) : null,
         run_ttl_hours: clampTtl(runTtlHours),
         once_per_user: !!oncePerUser,
+        cooldown_hours: clampCooldown(cooldownHours),
         updated_at: new Date().toISOString(),
       },
     });
@@ -96,4 +97,11 @@ function clampTtl(v: unknown): number {
   const n = Number(v);
   if (!Number.isFinite(n)) return 24;
   return Math.max(1, Math.min(720, Math.round(n)));
+}
+
+// Cooldown for "once per customer every N hours". 0 = no cooldown. Capped at 1y.
+function clampCooldown(v: unknown): number {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(8760, Math.round(n));
 }
