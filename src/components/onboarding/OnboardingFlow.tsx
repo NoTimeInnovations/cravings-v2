@@ -138,8 +138,12 @@ export default function OnboardingFlow({
   const hasDineIn = offered.dine_in && features.prebooking.enabled && slotBookingEnabled;
   const needsAddress =
     !isBrandParent && hasNewOnboarding && hasDelivery && tableNumber === 0;
-  const needsOrderType =
-    hasNewOnboarding && (hasDelivery || hasOrdering || hasDineIn) && tableNumber === 0;
+  // Show the order-type screen whenever new onboarding is on (at table 0), even
+  // if only one — or zero — order types currently qualify. The screen adapts:
+  // it renders the available type(s), or an "Explore Menu" CTA when none are
+  // open. (Previously this was gated on hasDelivery/hasOrdering/hasDineIn, so a
+  // partner whose order_types_enabled excluded those types skipped the screen.)
+  const needsOrderType = hasNewOnboarding && tableNumber === 0;
   const needsOutletPicker = isBrandParent && tableNumber === 0;
 
   const getInitialStep = (): OnboardingStep => {
@@ -157,24 +161,31 @@ export default function OnboardingFlow({
     (!showStorefrontSplashInitially && !needsOrderType && !needsOutletPicker);
 
   const [step, setStep] = useState<OnboardingStep>(initialStep);
-  const [dismissed, setDismissed] = useState(skipOnboarding);
+  // Compute the initial dismissed state SYNCHRONOUSLY so the overlay never
+  // paints a frame before self-dismissing. This covers both the static skip
+  // cases AND the one-shot "skip-storefront-onboarding-once" flag set by the
+  // /my-orders (and /order) back button right before router.back() — previously
+  // that flag was consumed in a post-mount effect, which made the onboarding
+  // flash on screen and then immediately disappear.
+  const [dismissed, setDismissed] = useState(() => {
+    if (skipOnboarding) return true;
+    if (typeof window !== "undefined") {
+      try {
+        if (sessionStorage.getItem("skip-storefront-onboarding-once") === "1") {
+          sessionStorage.removeItem("skip-storefront-onboarding-once");
+          return true;
+        }
+      } catch {}
+    }
+    return false;
+  });
   const [closing, setClosing] = useState(false);
 
+  // If we mounted already dismissed, tell the parent on mount so it reveals the
+  // menu (the parent peeks the same flag, so this is usually a no-op).
   useEffect(() => {
-    if (skipOnboarding) onDismiss?.();
-  }, []);
-
-  // When the user lands here via a back-navigation from /my-orders or
-  // /order/[id], skip the entire onboarding flow once. The originating page
-  // sets the sessionStorage flag right before calling router.back().
-  useEffect(() => {
-    try {
-      if (sessionStorage.getItem("skip-storefront-onboarding-once") === "1") {
-        sessionStorage.removeItem("skip-storefront-onboarding-once");
-        setDismissed(true);
-        onDismiss?.();
-      }
-    } catch {}
+    if (dismissed) onDismiss?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const dismissWithAnimation = useCallback(() => {
@@ -363,11 +374,20 @@ export default function OnboardingFlow({
   }, [preselectedOrderType, partnerId, needsAddress]);
 
   // Auto-skip the picker when only one active outlet exists — redirect
-  // straight to that outlet on mount. One-shot for the same reason.
-  // Bypassed when the user explicitly clicked "Change outlet" (forceShowPicker),
-  // otherwise they'd get bounced right back to the only outlet.
+  // straight to that outlet. One-shot for the same reason. Bypassed when the
+  // user explicitly clicked "Change outlet" (forceShowPicker), otherwise they'd
+  // get bounced right back to the only outlet.
+  //
+  // IMPORTANT: only fire once we're actually ON the outletPicker step. With new
+  // onboarding the initial step is "orderType", so firing on mount would
+  // auto-select the lone outlet and bypass the order-type screen entirely (the
+  // exact "le_grand_cafe skips delivery/takeaway" bug). The order-type screen
+  // advances to "outletPicker" after the user picks a type, and only then does
+  // this auto-select the single outlet. When new onboarding is off, the initial
+  // step is already "outletPicker", so this still fires immediately as before.
   const autoSkipApplied = useRef(false);
   useEffect(() => {
+    if (step !== "outletPicker") return;
     if (!needsOutletPicker || !branchContext) return;
     if (forceShowPicker) return;
     if (branchContext.outlets.length !== 1) return;
@@ -375,7 +395,7 @@ export default function OnboardingFlow({
     autoSkipApplied.current = true;
     handleOutletSelect(branchContext.outlets[0]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needsOutletPicker, branchContext, forceShowPicker]);
+  }, [step, needsOutletPicker, branchContext, forceShowPicker]);
 
   const handleSkip = useCallback(() => {
     dismissWithAnimation();

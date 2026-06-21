@@ -66,3 +66,25 @@ export function resolveBrandColorHex(
 ): string {
     return brandColorToHex(resolveBrandColorToken(theme, storefront));
 }
+
+/**
+ * Pick a readable foreground color for text/icons placed on top of `bgHex`.
+ * Uses YIQ perceived brightness: dark backgrounds get white text, light
+ * backgrounds get near-black text. Accepts #rgb or #rrggbb (with/without `#`).
+ */
+export function readableTextColor(
+    bgHex?: string | null,
+    onDark = "#ffffff",
+    onLight = "#111827",
+): string {
+    if (!bgHex) return onDark;
+    let h = bgHex.trim().replace(/^#/, "");
+    if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+    if (h.length !== 6) return onDark;
+    const r = parseInt(h.slice(0, 2), 16);
+    const g = parseInt(h.slice(2, 4), 16);
+    const b = parseInt(h.slice(4, 6), 16);
+    if ([r, g, b].some((v) => Number.isNaN(v))) return onDark;
+    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+    return yiq >= 150 ? onLight : onDark;
+}

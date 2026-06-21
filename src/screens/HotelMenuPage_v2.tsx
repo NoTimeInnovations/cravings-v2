@@ -21,6 +21,7 @@ import Default from "@/components/hotelDetail/styles/Default/Default";
 import Compact from "@/components/hotelDetail/styles/Compact/Compact";
 import Sidebar from "@/components/hotelDetail/styles/Sidebar/Sidebar";
 import V3 from "@/components/hotelDetail/styles/V3/V3";
+import V4 from "@/components/hotelDetail/styles/V4/V4";
 import { saveUserLocation } from "@/lib/saveUserLocLocal";
 import { applyVisibilityState } from "@/lib/visibility";
 import { QrCode, useQrDataStore } from "@/store/qrDataStore";
@@ -76,6 +77,22 @@ interface HotelMenuPageProps {
   preselectedOrderType?: "delivery" | "takeaway" | null;
   brandLink?: BrandLinkInfo | null;
 }
+
+// The "My Orders" back button sets this one-shot flag right before router.back()
+// so the storefront/onboarding splash is skipped on arrival. We PEEK it here
+// (OnboardingFlow consumes/removes it) so the menu can paint immediately on the
+// first render instead of flashing the onboarding overlay for a frame before it
+// self-dismisses. Guarded for SSR (sessionStorage is client-only); the flag is
+// only ever set during a client-side back-navigation, so there's no hydration
+// mismatch on a fresh server-rendered load.
+const peekSkipStorefrontOnce = (): boolean => {
+  if (typeof window === "undefined") return false;
+  try {
+    return sessionStorage.getItem("skip-storefront-onboarding-once") === "1";
+  } catch {
+    return false;
+  }
+};
 
 const HotelMenuPage = ({
   offers,
@@ -141,7 +158,11 @@ const HotelMenuPage = ({
 
   // Onboarding state
   const features = getFeatures(hoteldata?.feature_flags || "");
-  const needsOnboarding = features.newonboarding.enabled && (features.delivery.enabled || features.ordering.enabled) && tableNumber === 0;
+  // New onboarding always presents the order-type screen at table 0 — even when
+  // only one (or no) order type qualifies — so don't gate the onboarding mount
+  // on the delivery/ordering feature flags. OnboardingFlow / OrderTypeScreen
+  // adapt to whatever's available (down to an "Explore Menu" CTA).
+  const needsOnboarding = features.newonboarding.enabled && tableNumber === 0;
   // Storefront splash should also mount the overlay even when newonboarding is off,
   // so a partner can use just the storefront feature without the rest of the flow.
   const hasStorefrontSplash = useMemo(() => {
@@ -171,7 +192,11 @@ const HotelMenuPage = ({
     () => searchParams?.get("ro") != null || searchParams?.get("reorder") === "1",
   );
   const [onboardingDismissed, setOnboardingDismissed] = useState(
-    !showOnboarding || isBackNavInitial || isReorderMode,
+    () =>
+      !showOnboarding ||
+      isBackNavInitial ||
+      isReorderMode ||
+      peekSkipStorefrontOnce(),
   );
   const [onboardingKey, setOnboardingKey] = useState(0);
   // When the menu-page back button reopens onboarding, start at the storefront
@@ -497,6 +522,8 @@ const HotelMenuPage = ({
         return <Sidebar {...defaultProps} />;
       case "v3":
         return <V3 {...defaultProps} />;
+      case "v4":
+        return <V4 {...defaultProps} />;
       default:
         return <Default {...defaultProps} />;
     }
@@ -533,6 +560,7 @@ const HotelMenuPage = ({
     theme?.menuStyle !== "compact" &&
     theme?.menuStyle !== "sidebar" &&
     theme?.menuStyle !== "v3" &&
+    theme?.menuStyle !== "v4" &&
     ((pathname.includes("qrScan") && features?.ordering.enabled) ||
       (!pathname.includes("qrScan") &&
         features?.delivery.enabled &&
@@ -546,7 +574,10 @@ const HotelMenuPage = ({
         <>
           {features?.delivery.enabled &&
             hoteldata?.delivery_rules?.delivery_time_allowed && (
-              <DeliveryTimeCampain deliveryRules={hoteldata.delivery_rules} />
+              <DeliveryTimeCampain
+                deliveryRules={hoteldata.delivery_rules}
+                accent={styles.accent}
+              />
             )}
           {renderPage()}
           {isHotelOnFreePlan && (
