@@ -623,13 +623,9 @@ function Inspector({
           </Field>
           {(data.matchType === "exact" || data.matchType === "contains") && (
             <Field label="Keywords (comma separated)">
-              <Input
-                value={(data.keywords || []).join(", ")}
-                onChange={(e) =>
-                  onChange({
-                    keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
-                  })
-                }
+              <KeywordsInput
+                value={data.keywords || []}
+                onChange={(keywords) => onChange({ keywords })}
                 placeholder="hi, menu, order"
               />
             </Field>
@@ -924,6 +920,45 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <Label className="text-xs">{label}</Label>
       {children}
     </div>
+  );
+}
+
+// Comma-separated keyword editor. Keeps the raw typed text in local state so a
+// comma (and the space after it) survives keystrokes — deriving the input value
+// from keywords.join(", ") while parsing with .filter(Boolean) would strip the
+// trailing empty segment on every keypress, making it impossible to type a comma.
+function KeywordsInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string[];
+  onChange: (keywords: string[]) => void;
+  placeholder?: string;
+}) {
+  const [text, setText] = useState(() => (value || []).join(", "));
+  const lastEmitted = useRef((value || []).join(", "));
+  // Adopt the upstream value only when it changes to something we didn't just
+  // emit (e.g. a different trigger node is selected).
+  useEffect(() => {
+    const joined = (value || []).join(", ");
+    if (joined !== lastEmitted.current) {
+      setText(joined);
+      lastEmitted.current = joined;
+    }
+  }, [value]);
+  return (
+    <Input
+      value={text}
+      placeholder={placeholder}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setText(raw);
+        const parsed = raw.split(",").map((s) => s.trim()).filter(Boolean);
+        lastEmitted.current = parsed.join(", ");
+        onChange(parsed);
+      }}
+    />
   );
 }
 
