@@ -1,4 +1,5 @@
 import { DeliveryRules } from "@/store/orderStore";
+import { readableTextColor } from "@/lib/brandColor";
 import React from "react";
 
 const formatTo12Hour = (timeStr: string | undefined): string => {
@@ -21,10 +22,17 @@ const formatTo12Hour = (timeStr: string | undefined): string => {
 
 const DeliveryTimeCampain = ({
   deliveryRules,
+  accent,
 }: {
   deliveryRules: DeliveryRules;
+  /** Brand color for the banner background. Falls back to indigo when absent.
+      Text/icon color is auto-chosen for contrast. */
+  accent?: string | null;
 }) => {
   const isDeliveryActive = deliveryRules?.isDeliveryActive ?? true;
+  const brandStyle = accent
+    ? { backgroundColor: accent, color: readableTextColor(accent) }
+    : undefined;
 
   if (!isDeliveryActive) {
     return (
@@ -71,7 +79,12 @@ const DeliveryTimeCampain = ({
   }
 
   return (
-    <div className="w-full flex items-center justify-center gap-x-3 p-2 bg-indigo-500 text-white font-bold text-sm shadow-lg">
+    <div
+      className={`w-full flex items-center justify-center gap-x-3 p-2 font-bold text-sm shadow-lg${
+        accent ? "" : " bg-indigo-500 text-white"
+      }`}
+      style={brandStyle}
+    >
       <span>🗓️</span>
       <p>
         Delivery Time{" "}
