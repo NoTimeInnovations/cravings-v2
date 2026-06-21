@@ -190,19 +190,20 @@ function ProviderAvailabilityPanel({
     );
 }
 
-// Human label for who cancelled the order. Handles the granular values
-// (customer / partner-cravings / partner-petpooja) plus legacy "user"/"partner".
+// Human label for who cancelled the order, as Customer / Admin / Petpooja.
+// Granular values: customer, partner-cravings (admin cancelled via our dashboard),
+// partner-petpooja (cancelled from Petpooja). Legacy "user" => Customer, and the
+// generic "partner" => Admin (partner-side cancel, almost always the dashboard).
 function cancelledByLabel(by?: string | null): string {
     switch (by) {
         case "customer":
         case "user":
             return "Customer";
         case "partner-cravings":
-            return "Partner · Cravings";
-        case "partner-petpooja":
-            return "Partner · Petpooja";
         case "partner":
-            return "Partner";
+            return "Admin";
+        case "partner-petpooja":
+            return "Petpooja";
         default:
             return by || "Unknown";
     }
