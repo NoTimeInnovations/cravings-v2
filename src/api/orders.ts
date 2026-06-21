@@ -594,13 +594,14 @@ subscription GetOrdersCount($partner_id: uuid!) {
 
 // Draft (unpaid online) orders — status "pending_payment". Shown ONLY in the
 // admin "Draft Orders" section, never in the normal order list / notifications.
+// No time window: drafts persist until a partner clears them manually — older
+// drafts are NOT auto-hidden after 24h.
 export const draftOrdersSubscription = `
-subscription GetDraftOrders($partner_id: uuid!, $since: timestamptz!) {
+subscription GetDraftOrders($partner_id: uuid!) {
   orders(
     where: {
       partner_id: { _eq: $partner_id },
-      status: { _eq: "pending_payment" },
-      created_at: { _gte: $since }
+      status: { _eq: "pending_payment" }
     }
     order_by: { created_at: desc }
     limit: 50
