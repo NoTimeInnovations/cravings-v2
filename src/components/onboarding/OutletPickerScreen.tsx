@@ -1,13 +1,31 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, MapPin, Store, LocateFixed, Loader2, X, AlertTriangle } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  Store,
+  LocateFixed,
+  Loader2,
+  X,
+  AlertTriangle,
+  Home,
+  Building2,
+  Navigation,
+  Trash2,
+} from "lucide-react";
 import { useLoadScript } from "@react-google-maps/api";
+import { toast } from "sonner";
 import { useLocationStore } from "@/store/geolocationStore";
 import useOrderStore from "@/store/orderStore";
+import { useAuthStore } from "@/store/authStore";
+import { fetchFromHasura } from "@/lib/hasuraClient";
+import { updateUserAddressesMutation } from "@/api/auth";
 import { DEFAULT_BRAND_COLOR_HEX } from "@/lib/brandColor";
 import { resolveAutocompleteCountry } from "@/lib/autocompleteCountry";
 import AddressPickerV2 from "@/components/hotelDetail/placeOrder/AddressPickerV2";
+import type { SavedAddress } from "@/components/hotelDetail/placeOrder/AddressManagementModal";
 import type { BranchContext, BranchOutlet } from "@/api/branches";
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
@@ -55,6 +73,17 @@ const outletCoords = (o: BranchOutlet): { lat: number; lng: number } | null => {
   return { lng: c[0], lat: c[1] };
 };
 
+const formatSavedAddress = (a: SavedAddress): string =>
+  a.address ||
+  [a.flat_no, a.house_no, a.street, a.area, a.city].filter(Boolean).join(", ");
+
+const labelIcon = (label?: string) => {
+  const l = (label || "").toLowerCase();
+  if (l.includes("home") || l.includes("house")) return Home;
+  if (l.includes("office") || l.includes("work")) return Building2;
+  return Navigation;
+};
+
 export default function OutletPickerScreen({
   brand,
   onSelect,
@@ -67,6 +96,13 @@ export default function OutletPickerScreen({
   const isDelivery = orderType === "delivery";
   const { coords: storedCoords, getLocation, isLoading: locating } = useLocationStore();
   const savedUserAddress = useOrderStore((s) => s.userAddress);
+  const { userData: authUser } = useAuthStore();
+  // The user's previously saved delivery addresses (logged-in users only).
+  // Shown as a quick-pick chooser so they can skip the map entirely.
+  const savedAddresses = useMemo(
+    () => ((authUser as any)?.addresses || []) as SavedAddress[],
+    [(authUser as any)?.addresses],
+  );
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(
     storedCoords,
   );
@@ -346,7 +382,50 @@ export default function OutletPickerScreen({
     setSavedAddress(fullAddress);
     if (coords) setUserCoords(coords);
     onAddressSave?.(fullAddress, coords);
+    // The map's "Confirm & proceed" IS the commit — advance straight to the
+    // outlet list instead of bouncing back to an address summary that would
+    // ask the user to tap "Continue" a second time.
+    setView("outlets");
   }, [onAddressSave]);
+
+  // Select a previously saved address — no map round-trip needed, go straight
+  // to the outlet list.
+  const handlePickSaved = useCallback(
+    (a: SavedAddress) => {
+      const text = formatSavedAddress(a);
+      const c =
+        a.latitude != null && a.longitude != null
+          ? { lat: a.latitude, lng: a.longitude }
+          : null;
+      setAreaInput(text);
+      setSavedAddress(text);
+      if (c) setUserCoords(c);
+      onAddressSave?.(text, c);
+      setView("outlets");
+    },
+    [onAddressSave],
+  );
+
+  const handleDeleteSaved = useCallback(
+    async (id: string) => {
+      if (!authUser || (authUser as any).role !== "user") return;
+      const updated = savedAddresses.filter((a) => a.id !== id);
+      try {
+        await fetchFromHasura(updateUserAddressesMutation, {
+          id: authUser.id,
+          addresses: updated,
+        });
+        useAuthStore.setState({
+          userData: { ...(authUser as any), addresses: updated } as any,
+        });
+        toast.success("Address deleted");
+      } catch {
+        toast.error("Failed to delete address");
+      }
+    },
+    [authUser, savedAddresses],
+  );
+
 
   // If the typed address changes after a successful Find, invalidate the
   // saved-address gate so the user has to confirm the new text.
@@ -407,7 +486,7 @@ export default function OutletPickerScreen({
         </div>
       </div>
 
-      <div className="flex-1 pb-32">
+      <div className="flex-1 pb-8">
         <div className="px-6 lg:max-w-md lg:mx-auto">
           {/* Heading — address page (delivery), outlet page (delivery), or takeaway */}
           {showAddressView ? (
@@ -584,6 +663,63 @@ export default function OutletPickerScreen({
           </div>
           )}
 
+          {/* Saved addresses — quick-pick chooser (address page only). Tapping
+              one skips the map and goes straight to the outlet list. */}
+          {showAddressView && savedAddresses.length > 0 && (
+            <div className="mt-6">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                Saved addresses
+              </p>
+              <div className="space-y-2">
+                {[...savedAddresses].reverse().map((a) => {
+                  const Icon = labelIcon(a.label);
+                  const text = formatSavedAddress(a);
+                  return (
+                    <div
+                      key={a.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handlePickSaved(a)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          handlePickSaved(a);
+                        }
+                      }}
+                      className="w-full flex items-center gap-3 p-3.5 rounded-[14px] border border-gray-100 hover:bg-gray-50 transition active:opacity-60 text-left cursor-pointer"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center shrink-0">
+                        <Icon className="w-4 h-4 text-gray-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {a.customLabel || a.label || "Saved"}
+                        </p>
+                        <p className="text-[12px] text-gray-400 mt-0.5 truncate">
+                          {text}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Delete address"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm("Remove this address?")) {
+                            handleDeleteSaved(a.id);
+                          }
+                        }}
+                        className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 hover:bg-red-50 active:opacity-60 transition"
+                      >
+                        <Trash2 className="w-4 h-4 text-gray-400" />
+                      </button>
+                      <ChevronRight className="w-[18px] h-[18px] text-gray-400 shrink-0" />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Outlets — outlet page (delivery) or takeaway */}
           {showOutletsView && (
             <>
@@ -680,7 +816,7 @@ export default function OutletPickerScreen({
         </div>
       </div>
 
-      <div className="absolute left-0 right-0 bottom-0 bg-white/95 backdrop-blur-lg border-t border-gray-100 z-30">
+      <div className="sticky bottom-0 mt-auto bg-white/95 backdrop-blur-lg border-t border-gray-100 z-30">
         <div className="px-4 pt-3.5 pb-8 lg:max-w-md lg:mx-auto">
           <button
             onClick={onBottomClick}
