@@ -64,7 +64,15 @@ const Q_RUN_COUNT = `
 const Q_ENABLED_FLOWS = `
   query EnabledFlows($p: uuid!) {
     whatsapp_flows(where: {partner_id: {_eq: $p}, enabled: {_eq: true}}) {
-      id graph triggers escape_keyword run_ttl_hours
+      id graph triggers escape_keyword run_ttl_hours once_per_user
+    }
+  }
+`;
+// Flow ids this contact has ever had a run of — used to enforce once-per-customer.
+const Q_RAN_FLOW_IDS = `
+  query RanFlows($p: uuid!, $c: String!) {
+    whatsapp_flow_execution_state(where: {partner_id: {_eq: $p}, contact_phone: {_eq: $c}}, distinct_on: flow_id, order_by: {flow_id: asc}) {
+      flow_id
     }
   }
 `;
@@ -213,6 +221,23 @@ async function getSuppressedFlowIds(
     );
   } catch (e) {
     console.error("getSuppressedFlowIds failed:", e);
+    return new Set();
+  }
+}
+
+// Flow ids this contact has already had a run of (any status) — drives the
+// "run once per customer" option (such flows won't start a second time).
+async function getRanFlowIds(
+  partnerId: string,
+  contactPhone: string,
+): Promise<Set<string>> {
+  try {
+    const res = await fetchFromHasura(Q_RAN_FLOW_IDS, { p: partnerId, c: contactPhone });
+    return new Set(
+      (res?.whatsapp_flow_execution_state || []).map((r: any) => r.flow_id as string),
+    );
+  } catch (e) {
+    console.error("getRanFlowIds failed:", e);
     return new Set();
   }
 }
@@ -657,11 +682,14 @@ async function matchesSpecificTrigger(
   const flows = (res?.whatsapp_flows || []) as Array<{
     id: string;
     triggers: TriggerDef[];
+    once_per_user: boolean;
   }>;
   const suppressed = await getSuppressedFlowIds(partnerId, contactPhone);
+  const ranFlowIds = await getRanFlowIds(partnerId, contactPhone);
   return flows.some(
     (f) =>
       !suppressed.has(f.id) &&
+      !(f.once_per_user && ranFlowIds.has(f.id)) &&
       (f.triggers || []).some(
         (t) =>
           (t.matchType === "exact" || t.matchType === "contains") &&
@@ -775,6 +803,7 @@ async function startNewRun(
     triggers: TriggerDef[];
     escape_keyword: string | null;
     run_ttl_hours: number;
+    once_per_user: boolean;
   }>;
   if (!flows.length) return;
 
@@ -785,15 +814,17 @@ async function startNewRun(
     firstContact = (c?.whatsapp_flow_execution_state_aggregate?.aggregate?.count ?? 0) === 0;
   }
 
-  // Skip flows this customer has opted out of (END-node "stop" button) — they
-  // stay suppressed until the 24h window expires.
+  // Skip flows the customer opted out of (END-node "stop" button, time-bound) and
+  // "run once per customer" flows they've already had a run of.
   const suppressed = await getSuppressedFlowIds(partnerId, contactPhone);
+  const ranFlowIds = await getRanFlowIds(partnerId, contactPhone);
   const candidates = flows
     .flatMap((f) => (f.triggers || []).map((t) => ({ flow: f, t })))
     .sort((a, b) => a.t.priority - b.t.priority);
   const matchedCand = candidates.find(
     (c) =>
       !suppressed.has(c.flow.id) &&
+      !(c.flow.once_per_user && ranFlowIds.has(c.flow.id)) &&
       triggerMatches(c.t, input.normalized, firstContact),
   );
   if (!matchedCand) return;

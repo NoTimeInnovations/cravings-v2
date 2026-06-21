@@ -15,6 +15,7 @@ const GET_ONE = `
       triggers
       escape_keyword
       run_ttl_hours
+      once_per_user
       created_at
       updated_at
     }
@@ -82,6 +83,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.escapeKeyword !== undefined)
     changes.escape_keyword = body.escapeKeyword ? String(body.escapeKeyword).slice(0, 64) : null;
   if (body.runTtlHours !== undefined) changes.run_ttl_hours = clampTtl(body.runTtlHours);
+  if (body.oncePerUser !== undefined) changes.once_per_user = !!body.oncePerUser;
 
   if (body.graph !== undefined) {
     const g: FlowGraph = body.graph && typeof body.graph === "object" ? body.graph : { nodes: [], edges: [] };
