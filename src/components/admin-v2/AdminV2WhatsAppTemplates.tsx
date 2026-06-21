@@ -9,14 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { WhatsAppHealthStatus } from "@/components/admin-v2/WhatsAppHealthStatus";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -33,6 +25,7 @@ import {
   Loader2,
   Pencil,
   ShieldCheck,
+  ArrowLeft,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { ImageUpload } from "@/components/storefront/ImageUpload";
@@ -145,8 +138,10 @@ export function AdminV2WhatsAppTemplates() {
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [creatorOpen, setCreatorOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<TemplateRow | null>(null);
+  // The editor is shown as an inline view (component switch), not a modal.
+  const [editor, setEditor] = useState<
+    { mode: "create" } | { mode: "edit"; template: TemplateRow } | null
+  >(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [addingOtp, setAddingOtp] = useState(false);
@@ -232,6 +227,22 @@ export function AdminV2WhatsAppTemplates() {
     }
   };
 
+  // Component switching: while the editor view is open, it replaces the list.
+  if (editor) {
+    return (
+      <TemplateEditorView
+        mode={editor.mode}
+        initial={editor.mode === "edit" ? editor.template : null}
+        partnerId={partnerId}
+        onClose={() => setEditor(null)}
+        onSaved={() => {
+          setEditor(null);
+          load(false);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-6xl">
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -256,7 +267,7 @@ export function AdminV2WhatsAppTemplates() {
             Sync from Meta
           </Button>
           <Button
-            onClick={() => setCreatorOpen(true)}
+            onClick={() => setEditor({ mode: "create" })}
             disabled={!connected}
             title={!connected ? "Connect your WABA in Settings first" : "Create a new template"}
             className="bg-green-600 hover:bg-green-700 text-white"
@@ -371,7 +382,7 @@ export function AdminV2WhatsAppTemplates() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setEditingTemplate(t)}
+                        onClick={() => setEditor({ mode: "edit", template: t })}
                         title="Edit template"
                       >
                         <Pencil className="h-4 w-4" />
@@ -398,45 +409,21 @@ export function AdminV2WhatsAppTemplates() {
         </CardContent>
       </Card>
 
-      <TemplateEditorDialog
-        open={creatorOpen}
-        onOpenChange={setCreatorOpen}
-        partnerId={partnerId}
-        mode="create"
-        onSaved={() => {
-          setCreatorOpen(false);
-          load(false);
-        }}
-      />
-
-      <TemplateEditorDialog
-        open={!!editingTemplate}
-        onOpenChange={(o) => !o && setEditingTemplate(null)}
-        partnerId={partnerId}
-        mode="edit"
-        initial={editingTemplate}
-        onSaved={() => {
-          setEditingTemplate(null);
-          load(false);
-        }}
-      />
     </div>
   );
 }
 
-function TemplateEditorDialog({
-  open,
-  onOpenChange,
+function TemplateEditorView({
   partnerId,
   mode,
   initial,
+  onClose,
   onSaved,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   partnerId: string | undefined;
   mode: "create" | "edit";
   initial?: TemplateRow | null;
+  onClose: () => void;
   onSaved: () => void;
 }) {
   const isEdit = mode === "edit";
@@ -481,10 +468,8 @@ function TemplateEditorDialog({
     setCodeExpiryMinutes(5);
   };
 
-  // Prefill the form from an existing template when entering edit mode (or
-  // when the same dialog is re-opened with a different row).
+  // Prefill the form from an existing template when entering edit mode.
   useEffect(() => {
-    if (!open) return;
     if (isEdit && initial) {
       setName(initial.name);
       setLanguage(initial.language);
@@ -545,7 +530,7 @@ function TemplateEditorDialog({
       reset();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, isEdit, initial?.id]);
+  }, [isEdit, initial?.id]);
 
   // Keep bodySamples length in sync with the {{n}} variable count.
   const varCount = useMemo(() => variableCount(body), [body]);
@@ -773,34 +758,34 @@ function TemplateEditorDialog({
   };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) reset();
-        onOpenChange(o);
-      }}
-    >
-      <DialogContent className="!max-w-5xl w-[95vw] max-h-[92vh] overflow-y-auto sm:!max-w-5xl">
-        <DialogHeader>
-          <DialogTitle>
+    <div className="space-y-6 max-w-6xl">
+      <div className="flex items-start gap-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClose}
+          className="mt-0.5 shrink-0"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" /> Back
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold">
             {isEdit ? "Edit WhatsApp template" : "New WhatsApp template"}
-          </DialogTitle>
-          <DialogDescription>
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
             {isEdit ? (
-              <>
-                Name and language can't be changed after creation. Editing puts the template
-                back into review at Meta.
-              </>
+              "Name and language can't be changed after creation. Editing puts the template back into review at Meta."
             ) : (
               <>
-                Templates are reviewed by Meta. Use <code>{"{{1}}"}</code> placeholders for variables
-                and provide example values.
+                Templates are reviewed by Meta. Use <code>{"{{1}}"}</code>{" "}
+                placeholders for variables and provide example values.
               </>
             )}
-          </DialogDescription>
-        </DialogHeader>
+          </p>
+        </div>
+      </div>
 
-        <div className="grid sm:grid-cols-2 gap-6">
+      <div className="grid sm:grid-cols-2 gap-6">
           {/* Left column: form */}
           <div className="space-y-4">
             <div className="space-y-1.5">
@@ -1220,26 +1205,25 @@ function TemplateEditorDialog({
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button
-            onClick={submit}
-            disabled={!valid || submitting}
-            className="bg-green-600 hover:bg-green-700 text-white"
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {isEdit ? "Saving…" : "Submitting…"}
-              </>
-            ) : (
-              isEdit ? "Save & resubmit" : "Submit for review"
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <div className="flex justify-end gap-2 border-t pt-4">
+        <Button variant="outline" onClick={onClose} disabled={submitting}>
+          Cancel
+        </Button>
+        <Button
+          onClick={submit}
+          disabled={!valid || submitting}
+          className="bg-green-600 hover:bg-green-700 text-white"
+        >
+          {submitting ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              {isEdit ? "Saving…" : "Submitting…"}
+            </>
+          ) : (
+            isEdit ? "Save & resubmit" : "Submit for review"
+          )}
+        </Button>
+      </div>
+    </div>
   );
 }
