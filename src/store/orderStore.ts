@@ -954,10 +954,9 @@ const useOrderStore = create(
         if (!userData?.id) {
           return () => { };
         }
-        const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
         return subscribeToHasura({
           query: draftOrdersSubscription,
-          variables: { partner_id: userData.id, since },
+          variables: { partner_id: userData.id },
           onNext: (data) => {
             if (data?.data?.orders) {
               callback(data.data.orders.map(transformOrderFromHasura));
