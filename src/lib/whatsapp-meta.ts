@@ -73,7 +73,9 @@ export async function uploadMediaToMetaForTemplate(
       Authorization: `OAuth ${token}`,
       file_offset: "0",
     },
-    body: bytes,
+    // Wrap in a fresh ArrayBuffer-backed Uint8Array: a Node Buffer
+    // (Buffer<ArrayBufferLike>) is not assignable to fetch's BodyInit type.
+    body: new Uint8Array(bytes),
   });
   const upData = await upRes.json().catch(() => ({}));
   if (!upRes.ok || !upData?.h) {
