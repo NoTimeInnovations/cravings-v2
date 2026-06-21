@@ -178,7 +178,9 @@ const M_OUTBOX = `
 // per-(flow, contact) suppression so that flow won't START again for that
 // customer until it expires. Stored in whatsapp_flow_suppressions.
 const STOP_FLOW_BUTTON_ID = "__flow_stop__";
-const SUPPRESS_HOURS = 24;
+const DEFAULT_SUPPRESS_HOURS = 24;
+// Far-future timestamp = "forever" (the suppression query is expires_at > now()).
+const FOREVER_EXPIRES_AT = "9999-12-31T23:59:59Z";
 const Q_SUPPRESSED_FLOWS = `
   query SuppressedFlows($p: uuid!, $c: String!, $now: timestamptz!) {
     whatsapp_flow_suppressions(where: {partner_id: {_eq: $p}, contact_phone: {_eq: $c}, expires_at: {_gt: $now}}) {
@@ -215,20 +217,25 @@ async function getSuppressedFlowIds(
   }
 }
 
-// Record that `contactPhone` opted out of `flowId` for the next SUPPRESS_HOURS.
+// Record that `contactPhone` opted out of `flowId`. `hours` <= 0 means forever.
 async function suppressFlow(
   partnerId: string,
   flowId: string,
   contactPhone: string,
+  hours: number,
 ): Promise<void> {
   try {
+    const expires_at =
+      hours > 0
+        ? new Date(Date.now() + hours * 3600 * 1000).toISOString()
+        : FOREVER_EXPIRES_AT;
     await fetchFromHasura(M_SUPPRESS_FLOW, {
       o: {
         partner_id: partnerId,
         flow_id: flowId,
         contact_phone: contactPhone,
         reason: "user_opt_out",
-        expires_at: new Date(Date.now() + SUPPRESS_HOURS * 3600 * 1000).toISOString(),
+        expires_at,
       },
     });
   } catch (e) {
@@ -1085,7 +1092,8 @@ async function resumeRun(
     nextStart = firstEdgeTarget(graph, node.id, choice.id);
   } else if (node.type === "end") {
     // Parked at an END node that offered an opt-out button. If the customer
-    // tapped it, suppress this flow for them (24h); either way the run is done.
+    // tapped it, suppress this flow for them for the author-chosen duration
+    // (suppressHours; 0 = forever, default 24h); either way the run is done.
     const tappedStop =
       input.replyId === STOP_FLOW_BUTTON_ID ||
       (!!data.buttonText &&
@@ -1096,17 +1104,20 @@ async function resumeRun(
       last_interaction_at: new Date().toISOString(),
     });
     if (won && tappedStop) {
-      await suppressFlow(partnerId, active.flow_id, contactPhone);
+      const rawHours = Number(data.suppressHours);
+      const hours = Number.isFinite(rawHours) ? rawHours : DEFAULT_SUPPRESS_HOURS;
+      await suppressFlow(partnerId, active.flow_id, contactPhone, hours);
+      // Confirmation is optional: send it only if the author set one (blank =
+      // no confirmation message).
       const confirm = interpolate(
-        String(
-          data.stopConfirmText ||
-            "Got it — you won't get these for the next 24 hours.",
-        ),
+        String(data.stopConfirmText || "").trim(),
         state.variables,
       );
-      await dispatch(partnerId, phoneNumberId, contactPhone, [
-        { kind: "text", text: confirm },
-      ]);
+      if (confirm) {
+        await dispatch(partnerId, phoneNumberId, contactPhone, [
+          { kind: "text", text: confirm },
+        ]);
+      }
     }
     return;
   } else {
