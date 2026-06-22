@@ -170,6 +170,10 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
     parts.push(`porter_bridge-${features.porter_bridge.enabled}`);
   }
 
+  if (features.delivery_pool.access) {
+    parts.push(`delivery_pool-${features.delivery_pool.enabled}`);
+  }
+
   if (features.prebooking.access) {
     parts.push(`prebooking-${features.prebooking.enabled}`);
   }
