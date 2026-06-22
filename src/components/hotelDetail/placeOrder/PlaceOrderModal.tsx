@@ -3919,6 +3919,16 @@ const PlaceOrderModal = ({
                 </div>
               )}
 
+              {/* Cancellation policy */}
+              <div className="px-1">
+                <div className="text-[13px] font-semibold mb-1" style={{ color: "var(--pom-text-muted)" }}>Cancellation policy:</div>
+                <div className="text-xs leading-relaxed" style={{ color: "var(--pom-text-muted)", opacity: 0.7 }}>
+                  Please double-check your order and address details. You can cancel and get a full
+                  refund only before the restaurant accepts your order. Once the order is accepted, it
+                  can no longer be cancelled or refunded.
+                </div>
+              </div>
+
               {/* Bottom spacer for sticky bar */}
               <div className="h-20" />
             </div>
