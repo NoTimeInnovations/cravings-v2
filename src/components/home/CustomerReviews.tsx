@@ -61,7 +61,12 @@ function ReviewCard({ review }: { review: Review }) {
           ref={textRef}
           className={cn(
             "h-full space-y-3",
-            expanded ? "overflow-visible" : "overflow-hidden"
+            expanded
+              ? "overflow-visible"
+              : "overflow-hidden",
+            !expanded &&
+              overflowing &&
+              "[-webkit-mask-image:linear-gradient(to_bottom,#000_70%,transparent)] [mask-image:linear-gradient(to_bottom,#000_70%,transparent)]"
           )}
         >
           {review.body.map((paragraph, i) => (
@@ -73,9 +78,6 @@ function ReviewCard({ review }: { review: Review }) {
             </p>
           ))}
         </div>
-        {!expanded && overflowing && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white via-white/70 to-transparent" />
-        )}
       </div>
 
       {overflowing && (
