@@ -1787,6 +1787,16 @@ const PlaceOrderModal = ({
   const needUserName = hotelData?.delivery_rules?.need_user_name ?? false;
   const [customerName, setCustomerName] = useState("");
   const [customerNameSaved, setCustomerNameSaved] = useState(false);
+  const [customerNameError, setCustomerNameError] = useState(false);
+  const customerNameRef = useRef<HTMLInputElement>(null);
+
+  // Highlight + scroll to the name field instead of firing a toast, so the
+  // customer sees exactly what's missing right where they're looking.
+  const flagMissingName = () => {
+    setCustomerNameError(true);
+    customerNameRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => customerNameRef.current?.focus(), 350);
+  };
 
   // Discount code state
   const [discountInput, setDiscountInput] = useState("");
@@ -2727,7 +2737,7 @@ const PlaceOrderModal = ({
     }
 
     if (needUserName && !customerName.trim()) {
-      toast.error("Please enter your name");
+      flagMissingName();
       return;
     }
 
@@ -3016,7 +3026,7 @@ const PlaceOrderModal = ({
       return;
     }
     if (needUserName && !customerName.trim()) {
-      toast.error("Please enter your name");
+      flagMissingName();
       return;
     }
     if (orderType === "delivery" && !address?.trim()) {
@@ -3719,12 +3729,22 @@ const PlaceOrderModal = ({
 
               {/* Customer Name */}
               {needUserName && user && (
-                <div className="rounded-xl p-4" style={{ backgroundColor: "var(--pom-card-bg, white)", boxShadow: "var(--pom-card-shadow)", border: "1px solid var(--pom-card-border, #e7e5e4)" }}>
+                <div
+                  className="rounded-xl p-4 transition-all duration-300"
+                  style={{
+                    backgroundColor: "var(--pom-card-bg, white)",
+                    boxShadow: "var(--pom-card-shadow)",
+                    border: customerNameError ? "1px solid #f87171" : "1px solid var(--pom-card-border, #e7e5e4)",
+                    outline: customerNameError ? "2px solid rgba(248,113,113,0.45)" : "none",
+                    outlineOffset: 1,
+                  }}
+                >
                   <label className="text-sm font-semibold block mb-1" style={{ color: "var(--pom-text-muted)" }}>Your Name *</label>
                   <Input
+                    ref={customerNameRef}
                     type="text"
                     value={customerName}
-                    onChange={(e) => { setCustomerName(e.target.value); setCustomerNameSaved(false); }}
+                    onChange={(e) => { setCustomerName(e.target.value); setCustomerNameSaved(false); if (customerNameError) setCustomerNameError(false); }}
                     onBlur={async () => {
                       if (customerName.trim() && user?.id && !customerNameSaved) {
                         try {
@@ -3736,8 +3756,14 @@ const PlaceOrderModal = ({
                     }}
                     placeholder="Enter your name"
                     className="rounded-lg text-sm text-inherit placeholder:text-inherit placeholder:opacity-40 focus-visible:ring-0 shadow-none"
-                    style={{ borderColor: "var(--pom-card-border, #e7e5e4)" }}
+                    style={{ borderColor: customerNameError ? "#f87171" : "var(--pom-card-border, #e7e5e4)" }}
                   />
+                  {customerNameError && (
+                    <p className="mt-2 flex items-center gap-1.5 text-xs font-medium" style={{ color: "#ef4444" }}>
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      Please enter your name to place the order
+                    </p>
+                  )}
                 </div>
               )}
 

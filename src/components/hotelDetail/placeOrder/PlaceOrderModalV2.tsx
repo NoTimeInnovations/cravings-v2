@@ -20,6 +20,7 @@ import {
   ShoppingBag,
   Clock,
   Users,
+  AlertCircle,
 } from "lucide-react";
 import useOrderStore from "@/store/orderStore";
 import { useAuthStore } from "@/store/authStore";
@@ -155,6 +156,16 @@ const PlaceOrderModalV2 = ({
   const needUserName = hotelData?.delivery_rules?.need_user_name ?? false;
   const [customerName, setCustomerName] = useState("");
   const [customerNameSaved, setCustomerNameSaved] = useState(false);
+  const [customerNameError, setCustomerNameError] = useState(false);
+  const customerNameRef = useRef<HTMLInputElement>(null);
+
+  // Scroll the name field into view, focus it and flag the inline error
+  // instead of firing a toast — keeps the prompt where the user is looking.
+  const flagMissingName = () => {
+    setCustomerNameError(true);
+    customerNameRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => customerNameRef.current?.focus(), 350);
+  };
 
   // Prefill from the saved account name once it's been given (skips the
   // auto-generated "User1234" placeholder via accountReceiverName).
@@ -1345,7 +1356,7 @@ const PlaceOrderModalV2 = ({
       return;
     }
     if (needUserName && !customerName.trim()) {
-      toast.error("Please enter your name");
+      flagMissingName();
       return;
     }
     if (isDineIn && !prebookingArg) {
@@ -1578,7 +1589,7 @@ const PlaceOrderModalV2 = ({
       return;
     }
     if (needUserName && !customerName.trim()) {
-      toast.error("Please enter your name");
+      flagMissingName();
       return;
     }
     if (isDineIn && !prebookingArg) {
@@ -2194,7 +2205,11 @@ const PlaceOrderModalV2 = ({
 
             {/* Customer Name — required when the partner enables need_user_name */}
             {needUserName && user && (
-              <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <div
+                className={`bg-white rounded-2xl p-4 shadow-sm transition-all duration-300 ${
+                  customerNameError ? "ring-2 ring-red-400 ring-offset-1" : ""
+                }`}
+              >
                 <label
                   htmlFor="v2-customer-name"
                   className="block text-sm font-semibold text-gray-900 mb-2"
@@ -2202,12 +2217,14 @@ const PlaceOrderModalV2 = ({
                   Your Name <span className="text-red-500">*</span>
                 </label>
                 <input
+                  ref={customerNameRef}
                   id="v2-customer-name"
                   type="text"
                   value={customerName}
                   onChange={(e) => {
                     setCustomerName(e.target.value);
                     setCustomerNameSaved(false);
+                    if (customerNameError) setCustomerNameError(false);
                   }}
                   onBlur={async () => {
                     if (customerName.trim() && user?.id && !customerNameSaved) {
@@ -2224,8 +2241,18 @@ const PlaceOrderModalV2 = ({
                     }
                   }}
                   placeholder="Enter your name"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-gray-300"
+                  className={`w-full border rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-1 transition-colors ${
+                    customerNameError
+                      ? "border-red-400 focus:ring-red-300"
+                      : "border-gray-200 focus:ring-gray-300"
+                  }`}
                 />
+                {customerNameError && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-red-500">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    Please enter your name to place the order
+                  </p>
+                )}
               </div>
             )}
 
