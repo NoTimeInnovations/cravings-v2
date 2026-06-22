@@ -2589,8 +2589,9 @@ const PlaceOrderModalV2 = ({
             <div className="px-1">
               <div className="text-[13px] font-semibold text-gray-500 mb-1">Cancellation policy:</div>
               <div className="text-xs text-gray-400 leading-relaxed">
-                Please double-check your order and address details. Orders are non-refundable once
-                placed.
+                Please double-check your order and address details. You can cancel and get a full
+                refund only before the restaurant accepts your order. Once the order is accepted, it
+                can no longer be cancelled or refunded.
               </div>
             </div>
           </div>
