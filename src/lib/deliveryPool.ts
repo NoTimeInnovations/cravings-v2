@@ -23,6 +23,18 @@ export interface DeliveryPoolOrderInput {
   items_summary?: unknown;
   order_value?: number;
   assignment_mode?: "auto" | "manual";
+  require_pickup_otp?: boolean;
+  require_drop_otp?: boolean;
+}
+
+export interface DeliveryPoolOrderResult {
+  ok: boolean;
+  deliveryOrderId?: string;
+  trackingUrl?: string;
+  pickupOtp?: string | null;
+  dropOtp?: string | null;
+  distanceKm?: number | null;
+  deliveryFee?: number | null;
 }
 
 function sign(body: string): Record<string, string> {
@@ -36,7 +48,7 @@ function sign(body: string): Record<string, string> {
 
 export async function notifyDeliveryPoolOrderReady(
   input: DeliveryPoolOrderInput,
-): Promise<{ ok: boolean; deliveryOrderId?: string; trackingUrl?: string }> {
+): Promise<DeliveryPoolOrderResult> {
   const baseUrl = process.env.DELIVERY_POOL_URL;
   if (!baseUrl) return { ok: false }; // integration disabled
 
@@ -51,8 +63,23 @@ export async function notifyDeliveryPoolOrderReady(
       console.error("[deliveryPool] notify failed:", res.status, await res.text().catch(() => ""));
       return { ok: false };
     }
-    const data = (await res.json()) as { delivery_order_id?: string; tracking_url?: string };
-    return { ok: true, deliveryOrderId: data.delivery_order_id, trackingUrl: data.tracking_url };
+    const data = (await res.json()) as {
+      delivery_order_id?: string;
+      tracking_url?: string;
+      pickup_otp?: string | null;
+      drop_otp?: string | null;
+      distance_km?: number | null;
+      delivery_fee?: number | null;
+    };
+    return {
+      ok: true,
+      deliveryOrderId: data.delivery_order_id,
+      trackingUrl: data.tracking_url,
+      pickupOtp: data.pickup_otp ?? null,
+      dropOtp: data.drop_otp ?? null,
+      distanceKm: data.distance_km ?? null,
+      deliveryFee: data.delivery_fee ?? null,
+    };
   } catch (err) {
     console.error("[deliveryPool] notify error:", err);
     return { ok: false };
