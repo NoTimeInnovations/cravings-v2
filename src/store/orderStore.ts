@@ -126,6 +126,11 @@ export interface DeliveryRules {
     uber?: string;
     rapido?: string;
   };
+  /** Menuthere Delivery Pool per-restaurant OTP toggles — rider must enter a
+   *  code to confirm pickup (shown to the restaurant) / delivery (sent to the
+   *  customer). Read by deliveryPoolDispatch at hand-off. */
+  pool_pickup_otp?: boolean;
+  pool_drop_otp?: boolean;
   announcement?: string;
   banner_mode?: "single" | "carousel";
   carousel_banners?: string[];
