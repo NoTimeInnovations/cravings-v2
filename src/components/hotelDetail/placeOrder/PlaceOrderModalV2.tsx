@@ -188,7 +188,7 @@ const PlaceOrderModalV2 = ({
   }, [hasCashfree, hasCod, paymentMethod]);
   const [showBreakdown, setShowBreakdown] = useState(true);
   const [orderStatus, setOrderStatus] = useState<
-    "idle" | "loading" | "placing" | "verifying" | "success" | "failed"
+    "idle" | "loading" | "placing" | "verifying" | "success" | "failed" | "processing"
   >(hasCashfreeReturn ? "verifying" : "idle");
   const [successClosing, setSuccessClosing] = useState(false);
   const [savedOrderTotal, setSavedOrderTotal] = useState<number | null>(null);
@@ -200,6 +200,9 @@ const PlaceOrderModalV2 = ({
   const [showCashfreeEmbed, setShowCashfreeEmbed] = useState(false);
   const cashfreeContainerRef = useRef<HTMLDivElement | null>(null);
   const verifyingCfOrderRef = useRef<string | null>(null);
+  /** True while we're soft-polling a not-yet-settled (ACTIVE) payment. Gates the
+   *  auto re-check timer so it stops once the user closes / leaves. */
+  const processingActiveRef = useRef(false);
 
   const [availableDiscounts, setAvailableDiscounts] = useState<AvailableDiscount[]>([]);
   const [appliedDiscount, setAppliedDiscount] = useState<AppliedDiscount | null>(null);
@@ -1122,16 +1125,24 @@ const PlaceOrderModalV2 = ({
     return list;
   };
 
-  const verifyAndPlaceCfOrder = async (pending: {
-    cfOrderId: string;
-    partnerId: string;
-    amount?: number | null;
-    orderId?: string | null;
-    orderType?: string | null;
-    orderNote?: string | null;
-    prebooking?: (PrebookingSelection & { dineIn?: boolean }) | null;
-    skipAuthWait?: boolean;
-  }) => {
+  const verifyAndPlaceCfOrder = async (
+    pending: {
+      cfOrderId: string;
+      partnerId: string;
+      amount?: number | null;
+      orderId?: string | null;
+      orderType?: string | null;
+      orderNote?: string | null;
+      prebooking?: (PrebookingSelection & { dineIn?: boolean }) | null;
+      skipAuthWait?: boolean;
+    },
+    attempt = 0,
+  ) => {
+    // Once we've shown success for this order in this session, never re-verify —
+    // a late/racing check must not undo "Order placed" (cross-mount remount race).
+    try {
+      if (sessionStorage.getItem(`cf_done_${pending.cfOrderId}`)) return;
+    } catch {}
     if (verifyingCfOrderRef.current === pending.cfOrderId) return;
     verifyingCfOrderRef.current = pending.cfOrderId;
 
@@ -1146,11 +1157,33 @@ const PlaceOrderModalV2 = ({
       );
 
       if (!verifyRes.success || !verifyRes.paid) {
+        // ACTIVE is NON-TERMINAL: Cashfree flips ACTIVE -> PAID asynchronously and
+        // the order is already persisted (pending_payment) — the webhook + reconcile
+        // cron finalize a genuinely-paid order regardless. So never show a hard
+        // "Payment Failed" for ACTIVE (it caused a false failure flash for customers
+        // who actually paid). Keep a calm "confirming" state and re-check a bounded
+        // number of times; let real terminal statuses fall through to "failed".
+        if (verifyRes.success && verifyRes.orderStatus === "ACTIVE") {
+          if (pending.orderId) {
+            localStorage?.setItem("last-order-id", pending.orderId);
+            setPlacedOrderId(pending.orderId);
+          }
+          setPaymentFailReason("");
+          setOrderStatus("processing");
+          processingActiveRef.current = true;
+          if (attempt < 5) {
+            verifyingCfOrderRef.current = null;
+            setTimeout(() => {
+              if (processingActiveRef.current) {
+                void verifyAndPlaceCfOrder(pending, attempt + 1);
+              }
+            }, 5000);
+          }
+          return;
+        }
         const reason = !verifyRes.success
           ? `Verify error: ${verifyRes.error}`
-          : verifyRes.orderStatus === "ACTIVE"
-            ? "Payment was not completed (status: ACTIVE). You may have cancelled or dropped off during checkout."
-            : `Payment status: ${verifyRes.orderStatus || "unknown"}. Please try again.`;
+          : `Payment status: ${verifyRes.orderStatus || "unknown"}. Please try again.`;
         setPaymentFailReason(reason || "Payment could not be completed.");
         toast.error(`Payment failed: ${reason || "could not be completed"}`, { duration: 30000 });
         setOrderStatus("failed");
@@ -1158,6 +1191,10 @@ const PlaceOrderModalV2 = ({
         return;
       }
 
+      processingActiveRef.current = false;
+      try {
+        sessionStorage.setItem(`cf_done_${pending.cfOrderId}`, "1");
+      } catch {}
       setOrderStatus("loading");
 
       // The order was persisted as pending_payment BEFORE checkout, so it
@@ -1203,6 +1240,7 @@ const PlaceOrderModalV2 = ({
       setOrderStatus("success");
     } catch (error) {
       console.error("Payment verification error:", error);
+      processingActiveRef.current = false;
       setPaymentFailReason("Could not verify payment. Please contact support.");
       setOrderStatus("failed");
     }
@@ -1683,6 +1721,7 @@ const PlaceOrderModalV2 = ({
   };
 
   const handleSuccessClose = () => {
+    processingActiveRef.current = false;
     setSuccessClosing(true);
     setTimeout(() => {
       setOrderStatus("idle");
@@ -1697,6 +1736,7 @@ const PlaceOrderModalV2 = ({
 
   /** Same teardown as "Back to Menu" but routes to the order details page. */
   const handleSuccessOpenOrder = () => {
+    processingActiveRef.current = false;
     const id = placedOrderId || localStorage?.getItem("last-order-id");
     if (!id) {
       handleSuccessClose();
@@ -1717,7 +1757,8 @@ const PlaceOrderModalV2 = ({
     orderStatus === "verifying" ||
     orderStatus === "loading" ||
     orderStatus === "success" ||
-    orderStatus === "failed"
+    orderStatus === "failed" ||
+    orderStatus === "processing"
   ) {
     return (
       <div
@@ -1766,6 +1807,48 @@ const PlaceOrderModalV2 = ({
 
         {orderStatus === "verifying" && (
           <PlacingScreen accent={accent} label="Verifying payment" />
+        )}
+
+        {orderStatus === "processing" && (
+          <div className="flex flex-col items-center gap-6 px-8 text-center max-w-sm">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-amber-100">
+              <svg
+                className="h-12 w-12 animate-spin text-amber-500"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">
+                Confirming your payment
+              </h2>
+              <p className="mt-2 text-sm text-gray-500">
+                This can take a few moments. If your payment went through, your
+                order will be placed automatically — you can track it anytime
+                under your orders. No need to pay again.
+              </p>
+            </div>
+            <div className="flex gap-3 w-full">
+              <button
+                type="button"
+                onClick={handleSuccessClose}
+                className="flex-1 rounded-xl border border-gray-200 px-6 py-3 text-sm font-bold text-gray-700"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={handleSuccessOpenOrder}
+                className="flex-1 rounded-xl px-6 py-3 text-sm font-bold text-white"
+                style={{ backgroundColor: accent }}
+              >
+                View Order
+              </button>
+            </div>
+          </div>
         )}
 
         {orderStatus === "failed" && (

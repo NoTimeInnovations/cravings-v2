@@ -332,7 +332,7 @@ const OrderStatusDialog = ({
   orderId,
   failReason,
 }: {
-  status: "idle" | "loading" | "verifying" | "success" | "failed";
+  status: "idle" | "loading" | "verifying" | "success" | "failed" | "processing";
   onClose: () => void;
   partnerId?: string;
   whatsappLink?: string;
@@ -493,6 +493,43 @@ const OrderStatusDialog = ({
                 >
                   Try Again
                 </button>
+              </div>
+            </motion.div>
+          )}
+
+          {status === "processing" && (
+            <motion.div
+              key="processing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="text-center text-white flex flex-col items-center justify-center w-full h-full px-6"
+            >
+              <Loader2 className="w-20 h-20 animate-spin mx-auto text-amber-400" />
+              <h2 className="mt-6 text-3xl font-bold">Confirming your payment</h2>
+              <p className="mt-3 text-sm text-white/80 text-center px-4">
+                This can take a few moments. If your payment went through, your
+                order will be placed automatically — you can track it anytime
+                under your orders. No need to pay again.
+              </p>
+              <div className="w-full mt-8 px-4 space-y-3">
+                {orderId ? (
+                  <a
+                    href={`/order/${orderId}`}
+                    className="w-full px-6 py-2.5 border rounded-xl font-medium hover:opacity-80 transition-colors block text-center"
+                    style={{ borderColor: "var(--pom-card-border, #d6d3d1)" }}
+                  >
+                    View Order
+                  </a>
+                ) : (
+                  <button
+                    onClick={onClose}
+                    className="w-full px-6 py-2.5 border rounded-xl font-medium hover:opacity-80 transition-colors"
+                    style={{ borderColor: "var(--pom-card-border, #d6d3d1)" }}
+                  >
+                    Close
+                  </button>
+                )}
               </div>
             </motion.div>
           )}
@@ -1696,6 +1733,9 @@ const PlaceOrderModal = ({
   // (e.g. embed-flow + mount-time redirect-return both firing). The first call
   // wins; the second short-circuits.
   const verifyingCfOrderRef = useRef<string | null>(null);
+  /** True while soft-polling a not-yet-settled (ACTIVE) payment; gates the auto
+   *  re-check timer so it stops once the user closes / leaves. */
+  const processingActiveRef = useRef(false);
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
@@ -1707,7 +1747,7 @@ const PlaceOrderModal = ({
   const hasCashfreeReturn = typeof window !== "undefined" && !!sessionStorage.getItem("cashfree_pending_order");
 
   const [orderStatus, setOrderStatus] = useState<
-    "idle" | "loading" | "verifying" | "success" | "failed"
+    "idle" | "loading" | "verifying" | "success" | "failed" | "processing"
   >(hasCashfreeReturn ? "verifying" : "idle");
   const [paymentFailReason, setPaymentFailReason] = useState("");
   const [showUpiScreen, setShowUpiScreen] = useState(false);
@@ -3229,17 +3269,25 @@ const PlaceOrderModal = ({
 
   // Reusable verify-and-place flow. Called from both the redirect-return path
   // (sessionStorage handoff) and the embedded-checkout success path (in-memory).
-  const verifyAndPlaceCfOrder = async (pending: {
-    cfOrderId: string;
-    partnerId: string;
-    amount?: number | null;
-    orderId?: string | null;
-    orderType?: string | null;
-    orderNote?: string | null;
-    customerName?: string | null;
-    prebooking?: (PrebookingSelection & { dineIn?: boolean }) | null;
-    skipAuthWait?: boolean;
-  }) => {
+  const verifyAndPlaceCfOrder = async (
+    pending: {
+      cfOrderId: string;
+      partnerId: string;
+      amount?: number | null;
+      orderId?: string | null;
+      orderType?: string | null;
+      orderNote?: string | null;
+      customerName?: string | null;
+      prebooking?: (PrebookingSelection & { dineIn?: boolean }) | null;
+      skipAuthWait?: boolean;
+    },
+    attempt = 0,
+  ) => {
+    // Once we've shown success for this order in this session, never re-verify —
+    // a late/racing check must not undo "Order placed" (cross-mount remount race).
+    try {
+      if (sessionStorage.getItem(`cf_done_${pending.cfOrderId}`)) return;
+    } catch {}
     // Skip if this exact cfOrderId is already being verified — prevents the
     // mount-time redirect-return useEffect from racing the embed-flow inline
     // call, which previously caused a brief "Payment Failed" flash.
@@ -3254,11 +3302,32 @@ const PlaceOrderModal = ({
       const verifyRes = await verifyCashfreePayment(pending.partnerId, pending.cfOrderId);
 
       if (!verifyRes.success || !verifyRes.paid) {
+        // ACTIVE is NON-TERMINAL: Cashfree flips ACTIVE -> PAID asynchronously and
+        // the order is already persisted (pending_payment) — the webhook + reconcile
+        // cron finalize a genuinely-paid order regardless. So never show a hard
+        // "Payment Failed" for ACTIVE (it caused a false failure flash for customers
+        // who actually paid). Keep a calm "confirming" state and re-check a bounded
+        // number of times; let real terminal statuses fall through to "failed".
+        if (verifyRes.success && verifyRes.orderStatus === "ACTIVE") {
+          if (pending.orderId) {
+            localStorage?.setItem("last-order-id", pending.orderId);
+          }
+          setPaymentFailReason("");
+          setOrderStatus("processing");
+          processingActiveRef.current = true;
+          if (attempt < 5) {
+            verifyingCfOrderRef.current = null;
+            setTimeout(() => {
+              if (processingActiveRef.current) {
+                void verifyAndPlaceCfOrder(pending, attempt + 1);
+              }
+            }, 5000);
+          }
+          return;
+        }
         const reason = !verifyRes.success
           ? `Verify error: ${verifyRes.error}`
-          : verifyRes.orderStatus === "ACTIVE"
-            ? "Payment was not completed (status: ACTIVE). You may have cancelled or dropped off during checkout."
-            : `Payment status: ${verifyRes.orderStatus || "unknown"}. Please try again.`;
+          : `Payment status: ${verifyRes.orderStatus || "unknown"}. Please try again.`;
         setPaymentFailReason(reason || "Payment could not be completed.");
         toast.error(`Payment failed: ${reason || "could not be completed"}`, { duration: 30000 });
         setOrderStatus("failed");
@@ -3266,6 +3335,10 @@ const PlaceOrderModal = ({
         return;
       }
 
+      processingActiveRef.current = false;
+      try {
+        sessionStorage.setItem(`cf_done_${pending.cfOrderId}`, "1");
+      } catch {}
       setOrderStatus("loading");
 
       // The order was persisted as pending_payment BEFORE checkout, so it
@@ -3305,6 +3378,7 @@ const PlaceOrderModal = ({
       setOrderStatus("success");
     } catch (error) {
       console.error("Payment verification error:", error);
+      processingActiveRef.current = false;
       setPaymentFailReason("Could not verify payment. Please contact support.");
       setOrderStatus("failed");
     }
@@ -3351,6 +3425,7 @@ const PlaceOrderModal = ({
   };
 
   const handleCloseSuccessDialog = () => {
+    processingActiveRef.current = false;
     setAddress("");
     setOrderNote("");
     clearOrder();
@@ -3374,7 +3449,7 @@ const PlaceOrderModal = ({
     !isWithinTimeWindow(hotelData?.delivery_rules?.takeaway_time_allowed);
   const isPlaceOrderDisabled =
     _noOrderingAvailable ||
-    orderStatus === "loading" || orderStatus === "verifying" || orderStatus === "failed" ||
+    orderStatus === "loading" || orderStatus === "verifying" || orderStatus === "failed" || orderStatus === "processing" ||
     (tableNumber === 0 && !orderType) ||
     (isDelivery &&
       hasDelivery &&

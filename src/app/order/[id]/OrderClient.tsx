@@ -21,7 +21,8 @@ import { CancelOrderDialog } from "@/components/CancelOrderDialog";
 import { useAuthStore } from "@/store/authStore";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPaymentScreen";
-import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid, setOrderCashfreeId } from "@/app/actions/cashfree";
+import { createCashfreeOrderForPartner, markOrderAsPaid, setOrderCashfreeId } from "@/app/actions/cashfree";
+import { verifyCashfreePaymentSettled } from "@/lib/cashfreeVerify";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import dynamic from "next/dynamic";
 
@@ -319,7 +320,7 @@ const OrderClient = () => {
         }
 
         setCashfreeVerifying(true);
-        verifyCashfreePayment(pending.partnerId, pending.cfOrderId)
+        verifyCashfreePaymentSettled(pending.partnerId, pending.cfOrderId)
             .then(async (result) => {
                 if (result.success && result.paid) {
                     await markOrderAsPaid(orderId, result.cfPaymentId || undefined);
@@ -578,7 +579,7 @@ ${itemsText}
 
             setCashfreeVerifying(true);
             try {
-                const verifyRes = await verifyCashfreePayment(order.partnerId, cfOrderId);
+                const verifyRes = await verifyCashfreePaymentSettled(order.partnerId, cfOrderId);
                 if (verifyRes.success && verifyRes.paid) {
                     await markOrderAsPaid(orderId, verifyRes.cfPaymentId || undefined);
                 }

@@ -12,7 +12,8 @@ import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPayment
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { subscribeToHasura } from "@/lib/hasuraSubscription";
 import { userPartnerOrdersSubscription, userPartnerOrdersPageQuery } from "@/api/orders";
-import { createCashfreeOrderForPartner, verifyCashfreePayment, markOrderAsPaid, setOrderCashfreeId } from "@/app/actions/cashfree";
+import { createCashfreeOrderForPartner, markOrderAsPaid, setOrderCashfreeId } from "@/app/actions/cashfree";
+import { verifyCashfreePaymentSettled } from "@/lib/cashfreeVerify";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 
@@ -141,7 +142,7 @@ export default function V3Orders({ hotelId, onClose }: V3OrdersProps) {
         console.error("Cashfree error:", result.error);
         return;
       }
-      const verifyRes = await verifyCashfreePayment(hotelId, cfOrderId);
+      const verifyRes = await verifyCashfreePaymentSettled(hotelId, cfOrderId);
       if (verifyRes.success && verifyRes.paid) {
         await markOrderAsPaid(order.id, verifyRes.cfPaymentId || undefined);
       }

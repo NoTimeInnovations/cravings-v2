@@ -154,7 +154,11 @@ export async function verifyCashfreePayment(
   let res: Response | null = null;
   let data: any = null;
   let lastError: string | undefined;
-  const maxAttempts = quick ? 1 : 6;
+  // Interactive callers wait on this result, so poll a bit longer: Cashfree
+  // flips ACTIVE -> PAID asynchronously and UPI settles can exceed ~8s. A wider
+  // window means a genuinely-paid order returns the terminal PAID in one call
+  // instead of a transient ACTIVE that the UI would misread as "not paid".
+  const maxAttempts = quick ? 1 : 9;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     res = await fetch(`${CASHFREE_BASE_URL}/pg/orders/${orderId}`, { method: "GET", headers });
     data = await res.json();
