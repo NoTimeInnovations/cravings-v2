@@ -783,6 +783,24 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 );
             })()}
 
+            {/* Menuthere Delivery Pool — pickup OTP for the restaurant to read to the rider. */}
+            {order.delivery_provider === "menuthere_pool" &&
+                (order.delivery_provider_meta as { pickupOtp?: string | null } | null)?.pickupOtp &&
+                order.status !== "completed" &&
+                order.status !== "cancelled" && (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                            Delivery Pool · Pickup OTP
+                        </p>
+                        <p className="mt-0.5 font-mono font-bold tracking-[0.2em] text-amber-900">
+                            {(order.delivery_provider_meta as { pickupOtp?: string }).pickupOtp}
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-amber-700/80">
+                            Give this to the pool rider at pickup
+                        </p>
+                    </div>
+                )}
+
             {/* Delivery-bridge multi-provider dispatch progress — which provider
                 is being checked now + each provider's outcome (cancelled/live).
                 Shows for any order dispatched through the bridge (has a dispatchId). */}
