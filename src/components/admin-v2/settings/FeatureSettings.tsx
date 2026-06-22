@@ -354,6 +354,23 @@ export function FeatureSettings() {
                                 </div>
                             )}
 
+                            {features.delivery_pool?.access && (
+                                <div className="flex items-center justify-between p-4 border rounded-lg">
+                                    <div className="space-y-0.5">
+                                        <div className="font-medium">Delivery Pool</div>
+                                        <div className="text-sm text-muted-foreground">
+                                            {features.delivery_pool.enabled
+                                                ? "Enabled — the Delivery Pool panel appears in the sidebar; orders dispatch to your Menuthere riders when accepted"
+                                                : "Disabled — orders are not sent to the Menuthere rider pool"}
+                                        </div>
+                                    </div>
+                                    <Switch
+                                        checked={features.delivery_pool.enabled}
+                                        onCheckedChange={(checked) => handleFeatureToggle("delivery_pool", checked)}
+                                    />
+                                </div>
+                            )}
+
                             {features.loyalty_points?.access && (
                                 <div className="flex items-center justify-between p-4 border rounded-lg">
                                     <div className="space-y-0.5">
