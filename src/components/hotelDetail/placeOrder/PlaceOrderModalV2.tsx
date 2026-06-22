@@ -32,7 +32,7 @@ import {
   mergeAddresses,
 } from "@/lib/localAddresses";
 import AddressPickerV2 from "./AddressPickerV2";
-import { updateUserAddressesMutation } from "@/api/auth";
+import { updateUserAddressesMutation, updateUserFullNameMutation } from "@/api/auth";
 import { HotelData } from "@/app/hotels/[...id]/page";
 import { Styles } from "@/screens/HotelMenuPage_v2";
 import { QrGroup } from "@/app/admin/qr-management/page";
@@ -150,6 +150,20 @@ const PlaceOrderModalV2 = ({
   } = useOrderStore();
 
   const { userData: user } = useAuthStore();
+
+  // Partner setting: require the customer to enter their name at checkout.
+  const needUserName = hotelData?.delivery_rules?.need_user_name ?? false;
+  const [customerName, setCustomerName] = useState("");
+  const [customerNameSaved, setCustomerNameSaved] = useState(false);
+
+  // Prefill from the saved account name once it's been given (skips the
+  // auto-generated "User1234" placeholder via accountReceiverName).
+  useEffect(() => {
+    if (needUserName && !customerNameSaved) {
+      const acct = accountReceiverName(user);
+      if (acct) setCustomerName(acct);
+    }
+  }, [user, needUserName, customerNameSaved]);
 
   const accent = themeStyles?.accent || "#16A34A";
   const currency = hotelData?.currency || "₹";
@@ -1330,6 +1344,10 @@ const PlaceOrderModalV2 = ({
       toast.error("Please select an order type.");
       return;
     }
+    if (needUserName && !customerName.trim()) {
+      toast.error("Please enter your name");
+      return;
+    }
     if (isDineIn && !prebookingArg) {
       toast.error("Please choose a date, time and number of guests for your table.");
       return;
@@ -1391,7 +1409,7 @@ const PlaceOrderModalV2 = ({
         orderNote || "",
         tableName,
         buildDiscountArg(),
-        selectedReceiverName || accountReceiverName(user) || undefined,
+        customerName.trim() || selectedReceiverName || accountReceiverName(user) || undefined,
         selectedReceiverPhone || (user as any)?.phone || undefined,
         cfOrderId,
         prebookingArg,
@@ -1443,7 +1461,7 @@ const PlaceOrderModalV2 = ({
         Math.round(payable * 100) / 100,
         {
           id: user.id,
-          name: selectedReceiverName || accountReceiverName(user) || "Customer",
+          name: customerName.trim() || selectedReceiverName || accountReceiverName(user) || "Customer",
           phone: ((user as any)?.phone || "9999999999").replace(/\D/g, "").slice(-10),
           email: (user as any)?.email,
         },
@@ -1559,6 +1577,10 @@ const PlaceOrderModalV2 = ({
       toast.error("Please select an order type.");
       return;
     }
+    if (needUserName && !customerName.trim()) {
+      toast.error("Please enter your name");
+      return;
+    }
     if (isDineIn && !prebookingArg) {
       toast.error("Please choose a date, time and number of guests for your table.");
       return;
@@ -1656,7 +1678,7 @@ const PlaceOrderModalV2 = ({
         orderNote || "",
         tableName,
         buildDiscountArg(),
-        selectedReceiverName || accountReceiverName(user) || undefined,
+        customerName.trim() || selectedReceiverName || accountReceiverName(user) || undefined,
         selectedReceiverPhone || (user as any)?.phone || undefined,
         null,
         prebookingArg,
@@ -2168,6 +2190,43 @@ const PlaceOrderModalV2 = ({
                 className="bg-white rounded-2xl p-4 shadow-sm space-y-3"
                 reservation={isDineIn}
               />
+            )}
+
+            {/* Customer Name — required when the partner enables need_user_name */}
+            {needUserName && user && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <label
+                  htmlFor="v2-customer-name"
+                  className="block text-sm font-semibold text-gray-900 mb-2"
+                >
+                  Your Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="v2-customer-name"
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => {
+                    setCustomerName(e.target.value);
+                    setCustomerNameSaved(false);
+                  }}
+                  onBlur={async () => {
+                    if (customerName.trim() && user?.id && !customerNameSaved) {
+                      try {
+                        await fetchFromHasura(updateUserFullNameMutation, {
+                          id: user.id,
+                          full_name: customerName.trim(),
+                        });
+                        useAuthStore.setState({
+                          userData: { ...user, full_name: customerName.trim() } as any,
+                        });
+                        setCustomerNameSaved(true);
+                      } catch {}
+                    }
+                  }}
+                  placeholder="Enter your name"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-1 focus:ring-gray-300"
+                />
+              </div>
             )}
 
             {/* Items Card */}
