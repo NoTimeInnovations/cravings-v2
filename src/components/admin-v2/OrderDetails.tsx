@@ -220,6 +220,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
     const [passwordModalOpen, setPasswordModalOpen] = React.useState(false);
     const [pendingAction, setPendingAction] = React.useState<(() => void) | null>(null);
     const [cancelOpen, setCancelOpen] = React.useState(false);
+    const [cancelDeliveryOpen, setCancelDeliveryOpen] = React.useState(false);
     const [loyaltyInfo, setLoyaltyInfo] = React.useState<{ pointsRedeemed: number; redeemValue: number; pointsEarned: number | null } | null>(null);
 
     React.useEffect(() => {
@@ -814,17 +815,7 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                         trackUrl={(order.delivery_provider_meta as any)?.trackingUrl}
                         completed={order.status === "completed"}
                         showCancel={order.status !== "completed"}
-                        onCancel={async () => {
-                            const reason = window.prompt("Reason for cancelling this delivery? (shown to the rider)");
-                            if (reason === null) return;
-                            const r = await cancelDeliveryPoolDispatch(
-                                order.id,
-                                reason || "cancelled by restaurant",
-                                "restaurant",
-                            );
-                            if (r.ok) toast.success("Pool delivery cancelled");
-                            else toast.error(r.message || "Cancel failed");
-                        }}
+                        onCancel={() => setCancelDeliveryOpen(true)}
                     />
                 )}
 
@@ -1028,6 +1019,29 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                 orderId={order.id}
                 orderShortId={order.display_id || order.id.slice(0, 8)}
                 isPetpooja={!!(userData as Partner)?.petpooja_restaurant_id}
+            />
+
+            {/* Cancel the pool delivery (recall the rider) — reason shown to the rider. */}
+            <CancelOrderDialog
+                open={cancelDeliveryOpen}
+                onOpenChange={setCancelDeliveryOpen}
+                orderId={order.id}
+                title="Cancel delivery?"
+                description="This recalls the assigned rider. The reason is shown to them."
+                confirmLabel="Cancel delivery"
+                keepLabel="Keep delivery"
+                reasonHint="This reason will be shown to the rider."
+                quickReasons={[
+                    "Rider taking too long",
+                    "Customer not reachable",
+                    "Restaurant can't fulfil",
+                    "Wrong order details",
+                ]}
+                successMessage="Delivery cancelled"
+                onConfirm={async (reason) => {
+                    const r = await cancelDeliveryPoolDispatch(order.id, reason, "restaurant");
+                    return { success: r.ok, message: r.ok ? undefined : r.message };
+                }}
             />
         </div >
     );
