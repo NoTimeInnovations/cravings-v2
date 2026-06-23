@@ -566,6 +566,18 @@ export function DeliverySettings() {
         }));
     };
 
+    // One-click preset for the advanced (range-based) variable pricing: the
+    // first km band (1-2 km) is free, then each subsequent km costs to_km × 10
+    // — 2-3 km ₹30, 3-4 km ₹40 … 14-15 km ₹150. Overwrites any existing ranges.
+    const fillDefaultVariablePricing = () => {
+        const ranges: DeliveryRange[] = [];
+        for (let from = 1; from <= 14; from++) {
+            const to = from + 1;
+            ranges.push({ from_km: from, to_km: to, rate: from === 1 ? 0 : to * 10 });
+        }
+        setDeliveryRules(prev => ({ ...prev, delivery_ranges: ranges }));
+    };
+
     const updateRange = (index: number, field: keyof DeliveryRange, value: number) => {
         setDeliveryRules(prev => {
             const newRanges = [...(prev.delivery_ranges || [])];
@@ -1074,6 +1086,14 @@ export function DeliverySettings() {
 
                                     {deliveryRules.delivery_mode === "advanced" && (
                                         <div className="space-y-4">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-xs text-muted-foreground">
+                                                    Set a charge for each distance band, or start from a ready-made preset.
+                                                </p>
+                                                <Button type="button" variant="secondary" size="sm" onClick={fillDefaultVariablePricing}>
+                                                    Default Variable Pricing
+                                                </Button>
+                                            </div>
                                             <div className="space-y-2">
                                                 {(deliveryRules.delivery_ranges || []).map((range, idx) => (
                                                     <div key={idx} className="flex items-end gap-2">
