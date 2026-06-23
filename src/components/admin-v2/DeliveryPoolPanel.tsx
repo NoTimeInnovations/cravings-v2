@@ -280,9 +280,17 @@ export default function DeliveryPoolPanel() {
                     <td className="p-3">{str(r.phone)}</td>
                     <td className="p-3">
                       {r.disabled ? (
-                        <span className="text-gray-400">disabled</span>
+                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700">Disabled</span>
                       ) : (
-                        <span className="text-green-700">{str(r.availability ?? "offline")}</span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            r.availability === "online" || r.availability === "idle"
+                              ? "bg-green-50 text-green-700"
+                              : "bg-gray-100 text-gray-500"
+                          }`}
+                        >
+                          {str(r.availability ?? "offline")}
+                        </span>
                       )}
                     </td>
                     <td className="p-3">{str(r.completed_orders ?? 0)}</td>

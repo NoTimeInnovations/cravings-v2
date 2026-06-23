@@ -281,7 +281,7 @@ export default function DeliveryPoolDashboard() {
                   <th className="p-3">ID</th>
                   <th className="p-3">Vehicle</th>
                   <th className="p-3">Status</th>
-                  <th className="p-3">Active</th>
+                  <th className="p-3">On trip</th>
                   <th className="p-3">Done</th>
                   <th className="p-3">KYC</th>
                   <th className="p-3">Actions</th>
@@ -302,9 +302,13 @@ export default function DeliveryPoolDashboard() {
                         <td className="p-3 font-mono text-xs">{str(r.id).slice(0, 8)}</td>
                         <td className="p-3">{str(r.vehicle_type)}</td>
                         <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${online ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                            {str(r.status ?? "offline")}
-                          </span>
+                          {r.account_status === "blocked" ? (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700">Blocked</span>
+                          ) : (
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${online ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                              {str(r.status ?? "offline")}
+                            </span>
+                          )}
                         </td>
                         <td className="p-3">{str(r.active_order_count ?? 0)}</td>
                         <td className="p-3">{str(r.completed_orders ?? 0)}</td>
