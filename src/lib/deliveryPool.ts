@@ -89,10 +89,11 @@ export async function notifyDeliveryPoolOrderReady(
 export async function cancelDeliveryPoolOrder(
   sourceOrderId: string,
   reason?: string,
+  cancelledBy?: string,
 ): Promise<void> {
   const baseUrl = process.env.DELIVERY_POOL_URL;
   if (!baseUrl) return;
-  const body = JSON.stringify({ reason });
+  const body = JSON.stringify({ reason, cancelled_by: cancelledBy });
   try {
     await fetch(
       `${baseUrl}/delivery/v1/integration/orders/${encodeURIComponent(sourceOrderId)}/cancel`,

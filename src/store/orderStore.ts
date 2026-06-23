@@ -772,7 +772,9 @@ const useOrderStore = create(
                   if (!r.ok) console.warn(`[delivery-pool] dispatch failed: ${r.message}`);
                 }).catch((e) => console.warn("[delivery-pool] dispatch threw:", e));
               } else if (newStatus === "cancelled") {
-                cancelDeliveryPoolDispatch(orderId, "Cancelled from admin dashboard").then((r) => {
+                // No reason/who passed — cancelDeliveryPoolDispatch reads the order's
+                // real cancel_reason + cancelled_by (set by the cancel dialog) itself.
+                cancelDeliveryPoolDispatch(orderId).then((r) => {
                   if (!r.ok && r.status !== 404) console.warn(`[delivery-pool] cancel failed: ${r.message}`);
                 }).catch((e) => console.warn("[delivery-pool] cancel threw:", e));
               }
