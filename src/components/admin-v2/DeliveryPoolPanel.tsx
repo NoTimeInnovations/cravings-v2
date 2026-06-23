@@ -17,6 +17,7 @@ import {
   poolRiderDocs,
 } from "@/app/actions/deliveryPoolPartner";
 import RiderDocsModal from "@/components/deliveryPool/RiderDocsModal";
+import RiderAvatar from "@/components/deliveryPool/RiderAvatar";
 
 type Row = Record<string, any>;
 type Res = { ok: boolean; data?: any; error?: string };
@@ -195,10 +196,13 @@ export default function DeliveryPoolPanel() {
           <div className="space-y-2">
             {requests.map((q) => (
               <div key={str(q.id)} className="flex items-center justify-between border-t pt-2 first:border-t-0 first:pt-0">
-                <div>
-                  <div className="font-medium">{str(q.full_name)}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {str(q.phone)} · {str(q.district)} · {str(q.vehicle_type)} · {str(q.completed_orders ?? 0)} done
+                <div className="flex items-center gap-3">
+                  <RiderAvatar url={q.photo_url} name={q.full_name} size={40} />
+                  <div>
+                    <div className="font-medium">{str(q.full_name)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {str(q.phone)} · {str(q.district)} · {str(q.vehicle_type)} · {str(q.completed_orders ?? 0)} done
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -261,7 +265,12 @@ export default function DeliveryPoolPanel() {
               {riders.length ? (
                 riders.map((r) => (
                   <tr key={str(r.rider_id)} className="border-t">
-                    <td className="p-3">{str(r.full_name)}</td>
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        <RiderAvatar url={r.photo_url} name={r.full_name} />
+                        <span>{str(r.full_name)}</span>
+                      </div>
+                    </td>
                     <td className="p-3">{str(r.phone)}</td>
                     <td className="p-3">
                       {r.disabled ? (
