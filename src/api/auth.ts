@@ -277,6 +277,29 @@ export const deleteUserMutation = `
   }
 `;
 
+// Super-admin customer lookup: search users by name / phone / email. Empty query
+// ("%%") lists everyone (capped by limit). Used by the Delete Customer tool.
+export const searchUsersForAdminQuery = `
+  query SearchUsersForAdmin($query: String!, $limit: Int = 50) {
+    users(
+      where: {
+        _or: [
+          { full_name: { _ilike: $query } },
+          { phone: { _ilike: $query } },
+          { email: { _ilike: $query } }
+        ]
+      },
+      order_by: { email: asc },
+      limit: $limit
+    ) {
+      id
+      full_name
+      phone
+      email
+    }
+  }
+`;
+
 export const softDeleteUserMutation = `
   mutation SoftDeleteUser($id: uuid!) {
     update_users_by_pk(pk_columns: { id: $id }, _set: { deletion_status: 1 }) {

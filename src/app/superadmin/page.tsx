@@ -20,6 +20,7 @@ import SubscriptionManagementV2 from "@/components/superAdmin/SubscriptionManage
 import WhatsAppAnalytics from "@/components/superAdmin/WhatsAppAnalytics";
 import GoogleApiUsageAnalytics from "@/components/superAdmin/GoogleApiUsageAnalytics";
 import DeliveryPoolDashboard from "@/components/superAdmin/DeliveryPoolDashboard";
+import DeleteCustomer from "@/components/superAdmin/DeleteCustomer";
 
 type SearchParams = Promise<{ [key: string]: string | undefined }>;
 
@@ -62,6 +63,11 @@ const page = async (props: { searchParams: SearchParams }) => {
       name: "WhatsApp Analytics",
       component: <WhatsAppAnalytics />,
       id: "whatsapp-analytics",
+    },
+    {
+      name: "Delete Customer",
+      component: <DeleteCustomer />,
+      id: "delete-customer",
     },
     {
       name: "Google Maps Usage",
