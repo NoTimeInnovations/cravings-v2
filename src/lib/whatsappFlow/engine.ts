@@ -676,8 +676,12 @@ export async function runFlowForInbound(args: {
   waMessageId: string;
   input: FlowInput;
   contactName?: string | null;
+  // The partner's WhatsApp access token, already fetched by the webhook's
+  // phone-number→partner lookup. Threaded through so the welcome path doesn't
+  // re-query it. Falls back to a fresh lookup / env token when absent.
+  sendToken?: string;
 }): Promise<void> {
-  const { partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName = null } = args;
+  const { partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName = null, sendToken } = args;
 
   // Layer 1 — idempotency: claim this Meta message id. A retry (or a second
   // instance handed the same delivery) throws on the partial-unique index and
@@ -709,7 +713,7 @@ export async function runFlowForInbound(args: {
       // of being treated as a reply to the parked step. (Generic any/welcome
       // triggers don't do this, so button choices / captures still work.)
       await abortRun(active.id);
-      await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName);
+      await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName, sendToken);
       return;
     } else {
       await resumeRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, active);
@@ -717,7 +721,7 @@ export async function runFlowForInbound(args: {
     }
   }
 
-  await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName);
+  await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName, sendToken);
 }
 
 // True if the inbound matches a SPECIFIC (exact/contains) keyword trigger of an
@@ -830,6 +834,7 @@ async function startNewRun(
   waMessageId: string,
   input: FlowInput,
   contactName: string | null = null,
+  prefetchedToken?: string,
 ) {
   // One parallel wave of every read this turn needs — none depend on each
   // other, so they resolve in a single round-trip instead of ~6 stacked ones.
@@ -843,7 +848,9 @@ async function startNewRun(
       getSuppressedFlowIds(partnerId, contactPhone),
       getLastFlowRunAt(partnerId, contactPhone),
       fetchFromHasura(Q_PARTNER_INFO, { id: partnerId }).catch(() => null),
-      getPartnerSendToken(partnerId),
+      // Reuse the token the webhook already fetched; only hit the DB if it
+      // wasn't passed (e.g. the keyword-restart path or a missing integration).
+      prefetchedToken ? Promise.resolve(prefetchedToken) : getPartnerSendToken(partnerId),
       phoneVariants.length
         ? fetchFromHasura(Q_LAST_ORDER_BY_PHONE, {
             phones: phoneVariants,
@@ -904,6 +911,13 @@ async function startNewRun(
   const outbound: Outbound[] = [];
   const { parkedNodeId, completed } = executeForward(graph, startId, state, outbound);
 
+  // Send the reply FIRST — reuse the token prefetched in the wave so this never
+  // re-queries. Persisting the run state is moved AFTER the send so it's off the
+  // customer's critical path: a welcome that completes in one turn doesn't need
+  // the row before replying, and a parked flow's row still lands well before the
+  // customer can type their next message (a network round-trip away).
+  await dispatch(partnerId, phoneNumberId, contactPhone, outbound, sendToken);
+
   const ttlMs = (matched.run_ttl_hours || 24) * 3600 * 1000;
   // Insert the run with its post-turn state. The partial-unique active index is
   // the concurrency guard: if another instance already created an active run
@@ -926,13 +940,11 @@ async function startNewRun(
       },
     });
   } catch (e: any) {
-    if (/unique|duplicate/i.test(String(e?.message || e))) return; // lost the race
-    console.error("Flow insert run failed:", e);
-    return;
+    // Duplicate = lost the active-run race; the other run owns the conversation.
+    if (!/unique|duplicate/i.test(String(e?.message || e))) {
+      console.error("Flow insert run failed:", e);
+    }
   }
-
-  // Send the reply — reuse the token prefetched above so this doesn't re-query.
-  await dispatch(partnerId, phoneNumberId, contactPhone, outbound, sendToken);
 
   // AFTER the customer already has the message, make sure the silent account
   // exists — so a customer who never taps the link still lands in the partner's

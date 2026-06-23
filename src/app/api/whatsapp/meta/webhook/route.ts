@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { getPartnerByPhoneNumberId } from "@/lib/whatsapp-meta";
+import { getPartnerByPhoneNumberIdCached } from "@/lib/whatsapp-meta";
 import { runFlowForInbound, type FlowInput } from "@/lib/whatsappFlow/engine";
 import { normalizePhone } from "@/lib/whatsapp-broadcast";
 
@@ -172,6 +172,13 @@ export async function GET(req: NextRequest) {
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
+  // Warm-ping: a Vercel cron hits this route (no Meta verify params) every minute
+  // just to keep THIS function's instance hot, so a real inbound "hi" never pays
+  // the serverless cold-start (1–2s). Returns instantly; touches nothing.
+  if (!mode && !token && !challenge) {
+    return NextResponse.json({ status: "warm" });
+  }
+
   const verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || "";
   if (mode === "subscribe" && token && verifyToken && safeEqual(token, verifyToken)) {
     console.log("WhatsApp webhook verified");
@@ -220,7 +227,7 @@ export async function POST(req: NextRequest) {
         // WABA won't be in whatsapp_business_integrations, so absence is
         // normal — those messages just don't go to a partner inbox.
         const partner = phoneNumberId
-          ? await getPartnerByPhoneNumberId(phoneNumberId)
+          ? await getPartnerByPhoneNumberIdCached(phoneNumberId)
           : null;
 
         for (const msg of messages) {
@@ -251,6 +258,9 @@ export async function POST(req: NextRequest) {
                   waMessageId: msg.id,
                   input: flowInput,
                   contactName,
+                  // Reuse the token already on the partner row from the lookup
+                  // above so the flow's send path doesn't re-query it.
+                  sendToken: partner.access_token || undefined,
                 });
               } catch (e) {
                 console.error("Flow engine error:", e);

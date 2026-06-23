@@ -406,6 +406,38 @@ export async function getPartnerByPhoneNumberId(phoneNumberId: string) {
   return res?.whatsapp_business_integrations?.[0] || null;
 }
 
+// Short-lived in-memory cache of the phone-number → partner mapping. This is the
+// ONE sequential DB round-trip the inbound webhook does before its parallel read
+// wave, so caching it on a warm serverless instance shaves real latency off the
+// reply. Entries are tiny and integrations rarely change; a 60s TTL bounds the
+// staleness window (a freshly rotated token / new integration applies within a
+// minute). Per-instance only — no cross-instance coherency needed.
+type PhoneNumberPartner = {
+  id: string;
+  partner_id: string;
+  phone_number_id: string;
+  access_token: string;
+} | null;
+
+const PARTNER_BY_PHONE_TTL_MS = 60_000;
+const partnerByPhoneCache = new Map<
+  string,
+  { at: number; value: PhoneNumberPartner }
+>();
+
+export async function getPartnerByPhoneNumberIdCached(
+  phoneNumberId: string,
+): Promise<PhoneNumberPartner> {
+  if (!phoneNumberId) return null;
+  const hit = partnerByPhoneCache.get(phoneNumberId);
+  if (hit && Date.now() - hit.at < PARTNER_BY_PHONE_TTL_MS) return hit.value;
+  const value = (await getPartnerByPhoneNumberId(phoneNumberId)) as PhoneNumberPartner;
+  // Only cache positive hits — a miss may be a not-yet-provisioned integration
+  // we want to re-check immediately on the next message.
+  if (value) partnerByPhoneCache.set(phoneNumberId, { at: Date.now(), value });
+  return value;
+}
+
 // ─── Fetch the partner's integration row (waba_id + access_token) ─
 export async function getPartnerWabaIntegration(partnerId: string): Promise<{
   id: string;

@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/dispatch-broadcasts",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/whatsapp/meta/webhook",
+      "schedule": "* * * * *"
     }
   ]
 }
