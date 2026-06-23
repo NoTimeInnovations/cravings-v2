@@ -241,6 +241,22 @@ export async function POST(req: NextRequest) {
             // serverless freeze can't drop the write.
             const persistP = persistIncoming(partner.partner_id, msg, contactName);
 
+            const flowInput = normalizeFlowInput(msg);
+
+            // Show the "typing…" animation (and blue ticks) the instant a
+            // flow-driving message arrives, so the customer sees activity while
+            // we build the reply. The reply itself dismisses it; it also auto-
+            // clears after ~25s. Fire-and-forget, overlapped with the flow, then
+            // awaited before return so a serverless freeze can't drop it.
+            let typingP: Promise<void> | undefined;
+            if (flowInput && msg.id && phoneNumberId) {
+              typingP = sendTypingIndicator(
+                phoneNumberId,
+                msg.id,
+                partner.access_token || process.env.WHATSAPP_ACCESS_TOKEN || "",
+              );
+            }
+
             // Marketing STOP/unsubscribe → suppress from this partner's broadcasts.
             if (isStopMessage(msg)) {
               await recordOptOut(partner.partner_id, msg.from);
@@ -248,7 +264,6 @@ export async function POST(req: NextRequest) {
 
             // Run the partner's WhatsApp flows for this inbound. Idempotent and
             // self-contained; never let it throw out of the webhook loop.
-            const flowInput = normalizeFlowInput(msg);
             if (flowInput && msg.id && phoneNumberId) {
               try {
                 await runFlowForInbound({
@@ -268,6 +283,7 @@ export async function POST(req: NextRequest) {
             }
 
             await persistP.catch(() => {});
+            if (typingP) await typingP.catch(() => {});
           }
 
           // Handle "Track Order Status" quick reply button click
@@ -337,6 +353,41 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
     );
   } catch (error) {
     console.error("Track order status error:", error);
+  }
+}
+
+// ─── Show the WhatsApp "typing…" indicator ───────────────────────
+// Cloud API: a read receipt carrying a typing_indicator both marks the inbound
+// message read (blue ticks) AND shows the typing animation to the customer for
+// up to ~25s or until we send our reply. Best-effort — never blocks the reply.
+async function sendTypingIndicator(
+  phoneNumberId: string,
+  messageId: string,
+  token: string,
+) {
+  if (!phoneNumberId || !messageId || !token) return;
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/${API_VERSION}/${phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          status: "read",
+          message_id: messageId,
+          typing_indicator: { type: "text" },
+        }),
+      },
+    );
+    if (!res.ok) {
+      console.error("Typing indicator failed:", await res.text().catch(() => ""));
+    }
+  } catch (e) {
+    console.error("Typing indicator error:", e);
   }
 }
 
