@@ -16,6 +16,7 @@ import {
   verifyPoolRiderKyc,
 } from "@/app/actions/deliveryPoolAdmin";
 import RiderDocsModal from "@/components/deliveryPool/RiderDocsModal";
+import RiderAvatar from "@/components/deliveryPool/RiderAvatar";
 
 type Row = Record<string, unknown>;
 type Overview = {
@@ -288,7 +289,12 @@ export default function DeliveryPoolDashboard() {
                     const online = r.status === "online" || r.status === "idle";
                     return (
                       <tr key={str(r.id)} className="border-t">
-                        <td className="p-3">{str(r.full_name)}</td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <RiderAvatar url={r.photo_url as string | null} name={r.full_name as string} />
+                            <span>{str(r.full_name)}</span>
+                          </div>
+                        </td>
                         <td className="p-3 font-mono text-xs">{str(r.id).slice(0, 8)}</td>
                         <td className="p-3">{str(r.vehicle_type)}</td>
                         <td className="p-3">
