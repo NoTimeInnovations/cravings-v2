@@ -33,6 +33,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 type Row = Record<string, unknown>;
@@ -96,6 +111,10 @@ export default function DeliveryPoolDashboard() {
   const [geoRiders, setGeoRiders] = useState<Row[]>([]);
   const [geoRestaurants, setGeoRestaurants] = useState<Row[]>([]);
   const [docRider, setDocRider] = useState<{ id: string; name?: string } | null>(null);
+  const [assignFor, setAssignFor] = useState<{ id: string; label: string } | null>(null);
+  const [assignRiders, setAssignRiders] = useState<Row[]>([]);
+  const [assignRiderId, setAssignRiderId] = useState<string>("");
+  const [assignBusy, setAssignBusy] = useState(false);
 
   const load = useCallback(async () => {
     const ov = (await getPoolOverview()) as Overview | null;
@@ -181,9 +200,30 @@ export default function DeliveryPoolDashboard() {
     { label: "Total revenue", value: `₹${overview?.revenue_total ?? 0}` },
   ];
 
-  const assignPrompt = (id: string) => {
-    const rid = window.prompt("Rider ID to force-assign (see Riders tab):")?.trim();
-    if (rid) act(forcePoolAssign(id, rid), "Force-assigned");
+  const openAssign = async (id: string, label: string) => {
+    setAssignFor({ id, label });
+    setAssignRiderId("");
+    const res = await getPoolRiders();
+    const list = ((res?.data as Row[]) ?? []).slice().sort((a, b) => {
+      const oa = a.status === "online" || a.status === "idle" ? 0 : 1;
+      const ob = b.status === "online" || b.status === "idle" ? 0 : 1;
+      return oa - ob || String(a.full_name ?? "").localeCompare(String(b.full_name ?? ""));
+    });
+    setAssignRiders(list);
+  };
+
+  const confirmAssign = async () => {
+    if (!assignFor || !assignRiderId) return;
+    setAssignBusy(true);
+    const r = await forcePoolAssign(assignFor.id, assignRiderId);
+    setAssignBusy(false);
+    if (r.ok) {
+      toast.success("Force-assigned");
+      setAssignFor(null);
+      load();
+    } else {
+      toast.error(r.error || "Failed");
+    }
   };
 
   return (
@@ -267,7 +307,7 @@ export default function DeliveryPoolDashboard() {
                         <TableCell className="max-w-[220px] truncate text-muted-foreground">{str(r.drop_address)}</TableCell>
                         <TableCell>{r.delivery_fee != null ? `₹${str(r.delivery_fee)}` : "—"}</TableCell>
                         <TableCell className="text-right whitespace-nowrap">
-                          <Button variant="outline" size="sm" className="mr-1" disabled={busy} onClick={() => assignPrompt(str(r.id))}>Assign</Button>
+                          <Button variant="outline" size="sm" className="mr-1" disabled={busy} onClick={() => openAssign(str(r.id), str(r.source_order_id ?? r.id).slice(0, 12))}>Assign</Button>
                           <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" disabled={busy}
                             onClick={() => { if (window.confirm("Cancel this order?")) act(cancelPoolOrder(str(r.id), "admin"), "Cancelled"); }}>Cancel</Button>
                         </TableCell>
@@ -292,7 +332,7 @@ export default function DeliveryPoolDashboard() {
                         <span className="font-semibold">{r.delivery_fee != null ? `₹${str(r.delivery_fee)}` : "—"}</span>
                       </div>
                       <div className="flex gap-2 pt-1">
-                        <Button variant="outline" size="sm" className="flex-1" disabled={busy} onClick={() => assignPrompt(str(r.id))}>Assign</Button>
+                        <Button variant="outline" size="sm" className="flex-1" disabled={busy} onClick={() => openAssign(str(r.id), str(r.source_order_id ?? r.id).slice(0, 12))}>Assign</Button>
                         <Button variant="outline" size="sm" className="flex-1 text-red-600" disabled={busy}
                           onClick={() => { if (window.confirm("Cancel this order?")) act(cancelPoolOrder(str(r.id), "admin"), "Cancelled"); }}>Cancel</Button>
                       </div>
@@ -524,6 +564,43 @@ export default function DeliveryPoolDashboard() {
           return { ok: r.ok, error: r.error };
         }}
       />
+
+      <Dialog open={!!assignFor} onOpenChange={(o) => !o && setAssignFor(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign a rider</DialogTitle>
+            <DialogDescription>
+              Force-assign order <span className="font-mono">{assignFor?.label}</span> to a rider (bypasses eligibility).
+            </DialogDescription>
+          </DialogHeader>
+          <Select value={assignRiderId} onValueChange={setAssignRiderId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a rider" />
+            </SelectTrigger>
+            <SelectContent>
+              {assignRiders.map((r) => {
+                const online = r.status === "online" || r.status === "idle";
+                return (
+                  <SelectItem key={str(r.id)} value={str(r.id)}>
+                    {str(r.full_name)} · {online ? "online" : "offline"}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+          {!assignRiders.length && <p className="text-xs text-muted-foreground">No riders found.</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignFor(null)}>Cancel</Button>
+            <Button
+              className="bg-orange-600 hover:bg-orange-700"
+              disabled={!assignRiderId || assignBusy}
+              onClick={confirmAssign}
+            >
+              {assignBusy ? "Assigning…" : "Assign"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
