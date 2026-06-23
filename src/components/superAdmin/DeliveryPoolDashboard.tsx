@@ -25,6 +25,8 @@ type Overview = {
   riders_online: number;
   riders_total: number;
   pool_restaurants: number;
+  revenue_total: number;
+  revenue_today: number;
 };
 type Res = { ok: boolean; data?: any; error?: string };
 
@@ -123,13 +125,15 @@ export default function DeliveryPoolDashboard() {
   const o = overview?.orders ?? {};
   const inProgress = PHASES.reduce((s, k) => s + (o[k] ?? 0), 0);
 
-  const cards: [string, number][] = [
+  const cards: [string, string | number][] = [
     ["Orders", overview?.orders_total ?? 0],
     ["Searching", o.searching ?? 0],
     ["In progress", inProgress],
     ["Delivered", o.delivered ?? 0],
     ["Riders online", overview?.riders_online ?? 0],
     ["Pool restaurants", overview?.pool_restaurants ?? 0],
+    ["Revenue today", `₹${overview?.revenue_today ?? 0}`],
+    ["Total revenue", `₹${overview?.revenue_total ?? 0}`],
   ];
 
   return (
