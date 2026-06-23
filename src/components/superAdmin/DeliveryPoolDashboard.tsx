@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   getPoolOverview,
@@ -19,6 +19,21 @@ import {
 import RiderDocsModal from "@/components/deliveryPool/RiderDocsModal";
 import RiderAvatar from "@/components/deliveryPool/RiderAvatar";
 import RiderAvailabilityMap from "@/components/deliveryPool/RiderAvailabilityMap";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 type Row = Record<string, unknown>;
 type Overview = {
@@ -48,6 +63,24 @@ const fmtTime = (v: unknown) => {
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 };
+
+type Tone = "green" | "red" | "amber" | "gray" | "orange";
+const TONE: Record<Tone, string> = {
+  green: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  red: "bg-red-50 text-red-700 border-red-200",
+  amber: "bg-amber-50 text-amber-700 border-amber-200",
+  gray: "bg-muted text-muted-foreground border-transparent",
+  orange: "bg-orange-50 text-orange-700 border-orange-200",
+};
+function Pill({ children, tone = "gray" }: { children: ReactNode; tone?: Tone }) {
+  return (
+    <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold whitespace-nowrap", TONE[tone])}>
+      {children}
+    </span>
+  );
+}
+const kycTone = (s: unknown): Tone => (s === "verified" ? "green" : s === "rejected" ? "red" : "amber");
+const onlineTone = (s: unknown): Tone => (s === "online" || s === "idle" ? "green" : "gray");
 
 export default function DeliveryPoolDashboard() {
   const [overview, setOverview] = useState<Overview | null>(null);
@@ -99,7 +132,6 @@ export default function DeliveryPoolDashboard() {
       toast.error(r.error || "Partner sync failed");
     }
   };
-  // Auto-register every delivery_pool partner into the pool once on mount.
   useEffect(() => {
     runSync();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -138,297 +170,338 @@ export default function DeliveryPoolDashboard() {
   const o = overview?.orders ?? {};
   const inProgress = PHASES.reduce((s, k) => s + (o[k] ?? 0), 0);
 
-  const cards: [string, string | number][] = [
-    ["Orders", overview?.orders_total ?? 0],
-    ["Searching", o.searching ?? 0],
-    ["In progress", inProgress],
-    ["Delivered", o.delivered ?? 0],
-    ["Riders online", overview?.riders_online ?? 0],
-    ["Pool restaurants", overview?.pool_restaurants ?? 0],
-    ["Revenue today", `₹${overview?.revenue_today ?? 0}`],
-    ["Total revenue", `₹${overview?.revenue_total ?? 0}`],
+  const cards: { label: string; value: string | number; tone?: string }[] = [
+    { label: "Orders", value: overview?.orders_total ?? 0 },
+    { label: "Searching", value: o.searching ?? 0, tone: "text-amber-600" },
+    { label: "In progress", value: inProgress, tone: "text-orange-600" },
+    { label: "Delivered", value: o.delivered ?? 0, tone: "text-emerald-600" },
+    { label: "Riders online", value: overview?.riders_online ?? 0, tone: "text-emerald-600" },
+    { label: "Pool restaurants", value: overview?.pool_restaurants ?? 0 },
+    { label: "Revenue today", value: `₹${overview?.revenue_today ?? 0}` },
+    { label: "Total revenue", value: `₹${overview?.revenue_total ?? 0}` },
   ];
 
-  return (
-    <div>
-      {err && <div className="mb-4 rounded bg-red-50 text-red-700 p-3 text-sm">{err}</div>}
+  const assignPrompt = (id: string) => {
+    const rid = window.prompt("Rider ID to force-assign (see Riders tab):")?.trim();
+    if (rid) act(forcePoolAssign(id, rid), "Force-assigned");
+  };
 
-      <div className="flex flex-wrap gap-3 mb-5">
-        {cards.map(([label, n]) => (
-          <div key={label} className="bg-white rounded-lg px-5 py-3 border border-[#ffba79]/20 min-w-[120px]">
-            <div className="text-2xl font-bold">{n}</div>
-            <div className="text-xs text-gray-500">{label}</div>
-          </div>
+  return (
+    <div className="space-y-5">
+      {err && (
+        <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 p-3 text-sm">{err}</div>
+      )}
+
+      {/* Overview */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {cards.map((c) => (
+          <Card key={c.label} className="shadow-none">
+            <CardContent className="p-4">
+              <div className={cn("text-2xl font-bold tracking-tight", c.tone)}>{c.value}</div>
+              <div className="text-xs text-muted-foreground mt-0.5">{c.label}</div>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
-      <div className="text-xs text-gray-500 mb-3 flex items-center gap-3">
-        <span>
+      {/* Sync row */}
+      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+        <span className="flex-1 min-w-[140px]">
           {syncing
             ? "Syncing delivery-pool partners…"
             : syncInfo
               ? `Auto-registered ${syncInfo.synced}/${syncInfo.total} delivery-pool partners`
               : ""}
         </span>
-        <button onClick={runSync} disabled={syncing} className="px-2 py-0.5 rounded border disabled:opacity-50">
-          Re-sync partners
-        </button>
+        <Button variant="outline" size="sm" onClick={runSync} disabled={syncing}>
+          {syncing ? "Syncing…" : "Re-sync partners"}
+        </Button>
       </div>
 
-      <div className="flex gap-2 mb-3">
-        {(["orders", "riders", "responses", "availability", "geo"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded border ${
-              tab === t ? "bg-orange-600 text-white border-orange-600" : "bg-white border-gray-300"
-            }`}
-          >
-            {t === "orders"
-              ? "Live orders"
-              : t === "riders"
-                ? "Riders"
-                : t === "responses"
-                  ? "Responses"
-                  : t === "availability"
-                    ? "Availability"
-                    : "Geo search"}
-          </button>
-        ))}
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+        <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto bg-muted/60 p-1">
+          {([
+            ["orders", "Live orders"],
+            ["riders", "Riders"],
+            ["responses", "Responses"],
+            ["availability", "Availability"],
+            ["geo", "Geo search"],
+          ] as const).map(([v, label]) => (
+            <TabsTrigger
+              key={v}
+              value={v}
+              className="data-[state=active]:bg-orange-600 data-[state=active]:text-white data-[state=active]:shadow-sm whitespace-nowrap"
+            >
+              {label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-      {tab === "geo" ? (
-        <div className="bg-white rounded-lg border border-[#ffba79]/20 p-4">
-          <div className="flex flex-wrap gap-2 items-end mb-4">
-            <label className="text-xs text-gray-500">
-              Lat
-              <input value={geo.lat} onChange={(e) => setGeo({ ...geo, lat: e.target.value })} placeholder="10.6896" className="block border rounded px-2 py-1.5 text-sm w-32" />
-            </label>
-            <label className="text-xs text-gray-500">
-              Lng
-              <input value={geo.lng} onChange={(e) => setGeo({ ...geo, lng: e.target.value })} placeholder="76.7089" className="block border rounded px-2 py-1.5 text-sm w-32" />
-            </label>
-            <label className="text-xs text-gray-500">
-              Radius km
-              <input value={geo.radius} onChange={(e) => setGeo({ ...geo, radius: e.target.value })} className="block border rounded px-2 py-1.5 text-sm w-24" />
-            </label>
-            <button onClick={runGeo} disabled={busy} className="px-4 py-2 rounded bg-orange-600 text-white text-sm disabled:opacity-50">
-              Search
-            </button>
-          </div>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <h4 className="font-semibold text-sm mb-2">Riders ({geoRiders.length})</h4>
-              {geoRiders.map((r) => (
-                <div key={str(r.id)} className="flex justify-between text-sm border-t py-1.5">
-                  <span>{str(r.full_name)} · {str(r.status)}</span>
-                  <span className="text-gray-500">{str(r.distance_km)} km</span>
-                </div>
-              ))}
-              {!geoRiders.length && <p className="text-xs text-gray-400">No riders in range.</p>}
-            </div>
-            <div>
-              <h4 className="font-semibold text-sm mb-2">Restaurants ({geoRestaurants.length})</h4>
-              {geoRestaurants.map((r) => (
-                <div key={str(r.restaurant_id)} className="flex justify-between text-sm border-t py-1.5">
-                  <span>{str(r.name)}</span>
-                  <span className="text-gray-500">{str(r.distance_km)} km</span>
-                </div>
-              ))}
-              {!geoRestaurants.length && <p className="text-xs text-gray-400">No restaurants in range.</p>}
-            </div>
-          </div>
-        </div>
-      ) : tab === "availability" ? (
-        <RiderAvailabilityMap riders={rows} />
-      ) : (
-        <div className="overflow-x-auto bg-white rounded-lg border border-[#ffba79]/20">
-          {tab === "orders" ? (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 text-gray-600 text-left">
-                  <th className="p-3">Order</th>
-                  <th className="p-3">Restaurant</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">Rider</th>
-                  <th className="p-3">Drop</th>
-                  <th className="p-3">Fee</th>
-                  <th className="p-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length ? (
-                  rows.map((r) => (
-                    <tr key={str(r.id)} className="border-t">
-                      <td className="p-3">{str(r.source_order_id ?? r.id).slice(0, 12)}</td>
-                      <td className="p-3">{str(r.restaurant_name)}</td>
-                      <td className="p-3">
-                        <span className="px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-semibold">{str(r.status)}</span>
-                      </td>
-                      <td className="p-3">{str(r.rider_name)}</td>
-                      <td className="p-3">{str(r.drop_address)}</td>
-                      <td className="p-3">{r.delivery_fee != null ? `₹${str(r.delivery_fee)}` : "—"}</td>
-                      <td className="p-3 whitespace-nowrap">
-                        <button
-                          onClick={() => {
-                            const rid = window.prompt("Rider ID to force-assign (see Riders tab):")?.trim();
-                            if (rid) act(forcePoolAssign(str(r.id), rid), "Force-assigned");
-                          }}
-                          disabled={busy}
-                          className="text-xs px-2 py-1 rounded border mr-1"
-                        >
-                          Assign
-                        </button>
-                        <button
-                          onClick={() => { if (window.confirm("Cancel this order?")) act(cancelPoolOrder(str(r.id), "admin"), "Cancelled"); }}
-                          disabled={busy}
-                          className="text-xs px-2 py-1 rounded border text-red-600"
-                        >
-                          Cancel
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td className="p-3 text-gray-400" colSpan={7}>No live orders</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          ) : tab === "responses" ? (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 text-gray-600 text-left">
-                  <th className="p-3">Rider</th>
-                  <th className="p-3">Decision</th>
-                  <th className="p-3">Order</th>
-                  <th className="p-3">Restaurant</th>
-                  <th className="p-3">When</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length ? (
-                  rows.map((r) => (
-                    <tr key={str(r.id)} className="border-t">
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <RiderAvatar url={r.photo_url as string | null} name={r.rider_name as string} />
-                          <span>{str(r.rider_name)}</span>
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                            r.status === "accepted" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-                          }`}
-                        >
-                          {r.status === "accepted" ? "Accepted" : "Rejected"}
-                        </span>
-                      </td>
-                      <td className="p-3 font-mono text-xs">{str(r.source_order_id ?? r.order_id).slice(0, 8)}</td>
-                      <td className="p-3">{str(r.restaurant_name)}</td>
-                      <td className="p-3 text-gray-500">{fmtTime(r.responded_at)}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td className="p-3 text-gray-400" colSpan={5}>No accept/reject activity yet</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+        {/* ── Live orders ── */}
+        <TabsContent value="orders" className="mt-4">
+          {!rows.length ? (
+            <Empty>No live orders</Empty>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 text-gray-600 text-left">
-                  <th className="p-3">Rider</th>
-                  <th className="p-3">ID</th>
-                  <th className="p-3">Vehicle</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">On trip</th>
-                  <th className="p-3">Done</th>
-                  <th className="p-3">KYC</th>
-                  <th className="p-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length ? (
-                  rows.map((r) => {
-                    const online = r.status === "online" || r.status === "idle";
-                    return (
-                      <tr key={str(r.id)} className="border-t">
-                        <td className="p-3">
+            <>
+              {/* desktop */}
+              <Card className="hidden md:block overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order</TableHead>
+                      <TableHead>Restaurant</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Rider</TableHead>
+                      <TableHead>Drop</TableHead>
+                      <TableHead>Fee</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((r) => (
+                      <TableRow key={str(r.id)}>
+                        <TableCell className="font-mono text-xs">{str(r.source_order_id ?? r.id).slice(0, 12)}</TableCell>
+                        <TableCell>{str(r.restaurant_name)}</TableCell>
+                        <TableCell><Pill tone="orange">{str(r.status)}</Pill></TableCell>
+                        <TableCell>{str(r.rider_name)}</TableCell>
+                        <TableCell className="max-w-[220px] truncate text-muted-foreground">{str(r.drop_address)}</TableCell>
+                        <TableCell>{r.delivery_fee != null ? `₹${str(r.delivery_fee)}` : "—"}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          <Button variant="outline" size="sm" className="mr-1" disabled={busy} onClick={() => assignPrompt(str(r.id))}>Assign</Button>
+                          <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" disabled={busy}
+                            onClick={() => { if (window.confirm("Cancel this order?")) act(cancelPoolOrder(str(r.id), "admin"), "Cancelled"); }}>Cancel</Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+              {/* mobile */}
+              <div className="md:hidden space-y-3">
+                {rows.map((r) => (
+                  <Card key={str(r.id)}>
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-xs">{str(r.source_order_id ?? r.id).slice(0, 12)}</span>
+                        <Pill tone="orange">{str(r.status)}</Pill>
+                      </div>
+                      <div className="font-medium">{str(r.restaurant_name)}</div>
+                      <div className="text-sm text-muted-foreground">{str(r.drop_address)}</div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span>{str(r.rider_name)}</span>
+                        <span className="font-semibold">{r.delivery_fee != null ? `₹${str(r.delivery_fee)}` : "—"}</span>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <Button variant="outline" size="sm" className="flex-1" disabled={busy} onClick={() => assignPrompt(str(r.id))}>Assign</Button>
+                        <Button variant="outline" size="sm" className="flex-1 text-red-600" disabled={busy}
+                          onClick={() => { if (window.confirm("Cancel this order?")) act(cancelPoolOrder(str(r.id), "admin"), "Cancelled"); }}>Cancel</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+        </TabsContent>
+
+        {/* ── Riders ── */}
+        <TabsContent value="riders" className="mt-4">
+          {!rows.length ? (
+            <Empty>No riders</Empty>
+          ) : (
+            <>
+              <Card className="hidden md:block overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Rider</TableHead>
+                      <TableHead>Vehicle</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>On trip</TableHead>
+                      <TableHead>Done</TableHead>
+                      <TableHead>KYC</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((r) => (
+                      <TableRow key={str(r.id)}>
+                        <TableCell>
                           <div className="flex items-center gap-2">
                             <RiderAvatar url={r.photo_url as string | null} name={r.full_name as string} />
-                            <span>{str(r.full_name)}</span>
+                            <div className="leading-tight">
+                              <div className="font-medium">{str(r.full_name)}</div>
+                              <div className="font-mono text-[10px] text-muted-foreground">{str(r.id).slice(0, 8)}</div>
+                            </div>
                           </div>
-                        </td>
-                        <td className="p-3 font-mono text-xs">{str(r.id).slice(0, 8)}</td>
-                        <td className="p-3">{str(r.vehicle_type)}</td>
-                        <td className="p-3">
-                          {r.account_status === "blocked" ? (
-                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700">Blocked</span>
-                          ) : (
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${online ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                              {str(r.status ?? "offline")}
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-3">{str(r.active_order_count ?? 0)}</td>
-                        <td className="p-3">{str(r.completed_orders ?? 0)}</td>
-                        <td className="p-3">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                              r.kyc_status === "verified"
-                                ? "bg-green-50 text-green-700"
-                                : r.kyc_status === "rejected"
-                                  ? "bg-red-50 text-red-700"
-                                  : "bg-amber-50 text-amber-700"
-                            }`}
-                          >
-                            {str(r.kyc_status)}
-                          </span>
-                        </td>
-                        <td className="p-3 whitespace-nowrap">
-                          <button
-                            onClick={() =>
-                              setDocRider({ id: str(r.id), name: r.full_name ? String(r.full_name) : undefined })
-                            }
-                            className="text-xs px-2 py-1 rounded border mr-1"
-                          >
-                            Docs / KYC
-                          </button>
-                          <button
-                            onClick={() => { if (window.confirm("Block this rider's account?")) act(setPoolRiderStatus(str(r.id), "blocked"), "Blocked"); }}
-                            disabled={busy}
-                            className="text-xs px-2 py-1 rounded border text-red-600 mr-1"
-                          >
-                            Block
-                          </button>
-                          <button
-                            onClick={() => act(setPoolRiderStatus(str(r.id), "active"), "Activated")}
-                            disabled={busy}
-                            className="text-xs px-2 py-1 rounded border text-green-700"
-                          >
-                            Activate
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td className="p-3 text-gray-400" colSpan={8}>No riders</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                        </TableCell>
+                        <TableCell className="capitalize">{str(r.vehicle_type)}</TableCell>
+                        <TableCell>
+                          {r.account_status === "blocked"
+                            ? <Pill tone="red">Blocked</Pill>
+                            : <Pill tone={onlineTone(r.status)}>{str(r.status ?? "offline")}</Pill>}
+                        </TableCell>
+                        <TableCell>{str(r.active_order_count ?? 0)}</TableCell>
+                        <TableCell>{str(r.completed_orders ?? 0)}</TableCell>
+                        <TableCell><Pill tone={kycTone(r.kyc_status)}>{str(r.kyc_status)}</Pill></TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          <Button variant="outline" size="sm" className="mr-1"
+                            onClick={() => setDocRider({ id: str(r.id), name: r.full_name ? String(r.full_name) : undefined })}>Docs / KYC</Button>
+                          <Button variant="ghost" size="sm" className="text-red-600 mr-1" disabled={busy}
+                            onClick={() => { if (window.confirm("Block this rider's account?")) act(setPoolRiderStatus(str(r.id), "blocked"), "Blocked"); }}>Block</Button>
+                          <Button variant="ghost" size="sm" className="text-emerald-700" disabled={busy}
+                            onClick={() => act(setPoolRiderStatus(str(r.id), "active"), "Activated")}>Activate</Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+              <div className="md:hidden space-y-3">
+                {rows.map((r) => (
+                  <Card key={str(r.id)}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <RiderAvatar url={r.photo_url as string | null} name={r.full_name as string} />
+                          <div className="leading-tight">
+                            <div className="font-medium">{str(r.full_name)}</div>
+                            <div className="text-xs text-muted-foreground capitalize">{str(r.vehicle_type)} · {str(r.completed_orders ?? 0)} done</div>
+                          </div>
+                        </div>
+                        {r.account_status === "blocked"
+                          ? <Pill tone="red">Blocked</Pill>
+                          : <Pill tone={onlineTone(r.status)}>{str(r.status ?? "offline")}</Pill>}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <Pill tone={kycTone(r.kyc_status)}>KYC: {str(r.kyc_status)}</Pill>
+                        <span className="text-muted-foreground">On trip: {str(r.active_order_count ?? 0)}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" className="flex-1"
+                          onClick={() => setDocRider({ id: str(r.id), name: r.full_name ? String(r.full_name) : undefined })}>Docs / KYC</Button>
+                        <Button variant="outline" size="sm" className="text-red-600" disabled={busy}
+                          onClick={() => { if (window.confirm("Block this rider's account?")) act(setPoolRiderStatus(str(r.id), "blocked"), "Blocked"); }}>Block</Button>
+                        <Button variant="outline" size="sm" className="text-emerald-700" disabled={busy}
+                          onClick={() => act(setPoolRiderStatus(str(r.id), "active"), "Activated")}>Activate</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
           )}
-        </div>
-      )}
+        </TabsContent>
 
-      <p className="text-xs text-gray-400 mt-3">Auto-refreshes every 5s · data from the Delivery Pool order-service.</p>
+        {/* ── Responses ── */}
+        <TabsContent value="responses" className="mt-4">
+          {!rows.length ? (
+            <Empty>No accept/reject activity yet</Empty>
+          ) : (
+            <>
+              <Card className="hidden md:block overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Rider</TableHead>
+                      <TableHead>Decision</TableHead>
+                      <TableHead>Order</TableHead>
+                      <TableHead>Restaurant</TableHead>
+                      <TableHead>When</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((r) => (
+                      <TableRow key={str(r.id)}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <RiderAvatar url={r.photo_url as string | null} name={r.rider_name as string} />
+                            <span>{str(r.rider_name)}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell><Pill tone={r.status === "accepted" ? "green" : "red"}>{r.status === "accepted" ? "Accepted" : "Rejected"}</Pill></TableCell>
+                        <TableCell className="font-mono text-xs">{str(r.source_order_id ?? r.order_id).slice(0, 8)}</TableCell>
+                        <TableCell>{str(r.restaurant_name)}</TableCell>
+                        <TableCell className="text-muted-foreground">{fmtTime(r.responded_at)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+              <div className="md:hidden space-y-3">
+                {rows.map((r) => (
+                  <Card key={str(r.id)}>
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <RiderAvatar url={r.photo_url as string | null} name={r.rider_name as string} />
+                          <span className="font-medium">{str(r.rider_name)}</span>
+                        </div>
+                        <Pill tone={r.status === "accepted" ? "green" : "red"}>{r.status === "accepted" ? "Accepted" : "Rejected"}</Pill>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <span>{str(r.restaurant_name)} · <span className="font-mono text-xs">{str(r.source_order_id ?? r.order_id).slice(0, 8)}</span></span>
+                        <span>{fmtTime(r.responded_at)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+        </TabsContent>
+
+        {/* ── Availability ── */}
+        <TabsContent value="availability" className="mt-4">
+          <RiderAvailabilityMap riders={rows} />
+        </TabsContent>
+
+        {/* ── Geo search ── */}
+        <TabsContent value="geo" className="mt-4">
+          <Card>
+            <CardContent className="p-4 space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
+                <div className="space-y-1">
+                  <Label className="text-xs">Lat</Label>
+                  <Input value={geo.lat} onChange={(e) => setGeo({ ...geo, lat: e.target.value })} placeholder="10.6896" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Lng</Label>
+                  <Input value={geo.lng} onChange={(e) => setGeo({ ...geo, lng: e.target.value })} placeholder="76.7089" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Radius km</Label>
+                  <Input value={geo.radius} onChange={(e) => setGeo({ ...geo, radius: e.target.value })} />
+                </div>
+                <Button onClick={runGeo} disabled={busy} className="bg-orange-600 hover:bg-orange-700">Search</Button>
+              </div>
+              <Separator />
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-semibold text-sm mb-2">Riders ({geoRiders.length})</h4>
+                  {geoRiders.length ? geoRiders.map((r) => (
+                    <div key={str(r.id)} className="flex justify-between text-sm border-t py-1.5">
+                      <span>{str(r.full_name)} · <span className="text-muted-foreground">{str(r.status)}</span></span>
+                      <span className="text-muted-foreground">{str(r.distance_km)} km</span>
+                    </div>
+                  )) : <p className="text-xs text-muted-foreground">No riders in range.</p>}
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm mb-2">Restaurants ({geoRestaurants.length})</h4>
+                  {geoRestaurants.length ? geoRestaurants.map((r) => (
+                    <div key={str(r.restaurant_id)} className="flex justify-between text-sm border-t py-1.5">
+                      <span>{str(r.name)}</span>
+                      <span className="text-muted-foreground">{str(r.distance_km)} km</span>
+                    </div>
+                  )) : <p className="text-xs text-muted-foreground">No restaurants in range.</p>}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <p className="text-xs text-muted-foreground">Auto-refreshes every 5s · data from the Delivery Pool order-service.</p>
 
       <RiderDocsModal
         open={!!docRider}
@@ -452,5 +525,13 @@ export default function DeliveryPoolDashboard() {
         }}
       />
     </div>
+  );
+}
+
+function Empty({ children }: { children: ReactNode }) {
+  return (
+    <Card>
+      <CardContent className="p-10 text-center text-sm text-muted-foreground">{children}</CardContent>
+    </Card>
   );
 }
