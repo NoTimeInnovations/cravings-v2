@@ -85,9 +85,13 @@ export async function POST(req: NextRequest) {
     const user = ctx?.users_by_pk;
     if (!partner || !user) return NextResponse.json({ ok: true });
 
-    // Gate: only loyalty-enabled partners. The trigger is table-wide, so a
-    // partner who later turns loyalty off must stop notifying.
+    // Gate: WhatsApp Ordering must be on (master switch for all WhatsApp flows),
+    // AND loyalty enabled. The trigger is table-wide, so a partner who later turns
+    // either off must stop notifying.
     const features = getFeatures(partner.feature_flags || null);
+    if (!features.whatsappOrdering?.enabled) {
+      return NextResponse.json({ ok: true });
+    }
     if (!features.loyalty_points?.access || !features.loyalty_points?.enabled) {
       return NextResponse.json({ ok: true });
     }

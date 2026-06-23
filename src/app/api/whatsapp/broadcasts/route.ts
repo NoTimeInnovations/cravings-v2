@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { normalizePhone } from "@/lib/whatsapp-broadcast";
+import { isWhatsappEnabled } from "@/lib/whatsapp-features";
 
 // Phones that sent STOP/UNSUBSCRIBE to this partner — excluded from broadcasts.
 const GET_OPTOUTS = `
@@ -121,6 +122,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "Missing partnerId, templateId, or recipients" },
       { status: 400 },
+    );
+  }
+
+  // Master gate: WhatsApp Ordering must be on to create a broadcast.
+  if (!(await isWhatsappEnabled(partnerId))) {
+    return NextResponse.json(
+      { error: "WhatsApp is turned off for this account." },
+      { status: 403 },
     );
   }
 

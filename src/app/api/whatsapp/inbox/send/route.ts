@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getPartnerWabaIntegration, partnerWabaToken } from "@/lib/whatsapp-meta";
+import { isWhatsappEnabled } from "@/lib/whatsapp-features";
 
 const INSERT_OUTBOX = `
   mutation InsertOutboxMessage($obj: whatsapp_messages_insert_input!) {
@@ -81,6 +82,14 @@ export async function POST(req: NextRequest) {
   const normalizedTo = normalizePhone(to);
   if (normalizedTo.length < 8) {
     return NextResponse.json({ error: "Invalid recipient phone" }, { status: 400 });
+  }
+
+  // Master gate: WhatsApp Ordering must be on to send from the inbox.
+  if (!(await isWhatsappEnabled(partnerId))) {
+    return NextResponse.json(
+      { error: "WhatsApp is turned off for this account." },
+      { status: 403 },
+    );
   }
 
   const integration = await getPartnerWabaIntegration(partnerId);

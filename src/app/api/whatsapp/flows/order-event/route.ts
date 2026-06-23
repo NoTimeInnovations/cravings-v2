@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { runOrderTriggeredFlows } from "@/lib/whatsappFlow/engine";
+import { isWhatsappEnabled } from "@/lib/whatsapp-features";
 
 // Receives the Hasura event trigger on `orders` (INSERT/UPDATE). On a new order
 // or a status change it fires the partner's matching order-triggered WhatsApp
@@ -81,6 +82,11 @@ export async function POST(req: NextRequest) {
 
     const partnerId = newRow.partner_id;
     if (!partnerId) return NextResponse.json({ ok: true });
+
+    // Master gate: WhatsApp Ordering off → no order-triggered flows run.
+    if (!(await isWhatsappEnabled(partnerId))) {
+      return NextResponse.json({ ok: true });
+    }
 
     // The partner must have a connected WhatsApp number to send from.
     const pnidRes = await fetchFromHasura(Q_PHONE_NUMBER_ID, { p: partnerId });

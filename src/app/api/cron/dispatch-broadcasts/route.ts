@@ -6,6 +6,7 @@ import {
   countSentToday,
   type VariableMapItem,
 } from "@/lib/whatsapp-broadcast";
+import { isWhatsappEnabled } from "@/lib/whatsapp-features";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -159,6 +160,23 @@ export async function GET(req: NextRequest) {
       });
       if (!(claim?.update_whatsapp_broadcasts?.affected_rows > 0)) continue; // someone else owns it
       summary.processed++;
+
+      // Master gate: if WhatsApp Ordering is OFF for this partner, don't send.
+      // Pause so it can resume if the feature is turned back on (instead of
+      // silently failing every tick).
+      if (!(await isWhatsappEnabled(b.partner_id))) {
+        await fetchFromHasuraServer(UPDATE_BROADCAST, {
+          id: b.id,
+          set: {
+            status: "paused",
+            locked_at: null,
+            last_error:
+              "WhatsApp is turned off for this account — enable WhatsApp Ordering to resume.",
+          },
+        });
+        summary.paused++;
+        continue;
+      }
 
       // Daily cap for this partner.
       const sentToday = await countSentToday(b.partner_id);

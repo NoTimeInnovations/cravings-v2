@@ -5,6 +5,7 @@ import { getPartnerByPhoneNumberIdCached } from "@/lib/whatsapp-meta";
 import { runFlowForInbound, type FlowInput } from "@/lib/whatsappFlow/engine";
 import { normalizePhone } from "@/lib/whatsapp-broadcast";
 import { computeMessageCost, getBusinessCurrency } from "@/lib/whatsapp-cost";
+import { whatsappEnabledFromFlags } from "@/lib/whatsapp-features";
 
 // Marketing opt-out: a customer who replies STOP (or taps a stop button) is added
 // to the partner's suppression list and excluded from future broadcasts.
@@ -535,6 +536,13 @@ export async function POST(req: NextRequest) {
           ? await getPartnerByPhoneNumberIdCached(phoneNumberId)
           : null;
 
+        // Master gate: when the WhatsApp Ordering feature is OFF, no flows run and
+        // no auto-replies are sent for this partner. Parsed from the feature_flags
+        // already folded into the cached lookup — zero extra round-trips.
+        const waEnabled =
+          !!partner?.partner_id &&
+          whatsappEnabledFromFlags(partner.feature_flags);
+
         for (const msg of messages) {
           console.log(
             `[WhatsApp Webhook] From: ${msg.from} | Type: ${msg.type} | partner=${partner?.partner_id || "shared"}`
@@ -560,8 +568,9 @@ export async function POST(req: NextRequest) {
             }
 
             // Run the partner's WhatsApp flows for this inbound. Idempotent and
-            // self-contained; never let it throw out of the webhook loop.
-            if (flowInput && msg.id && phoneNumberId) {
+            // self-contained; never let it throw out of the webhook loop. Skipped
+            // entirely when WhatsApp Ordering is OFF for this partner.
+            if (waEnabled && flowInput && msg.id && phoneNumberId) {
               try {
                 await runFlowForInbound({
                   partnerId: partner.partner_id,
@@ -582,8 +591,13 @@ export async function POST(req: NextRequest) {
             await persistP.catch(() => {});
           }
 
-          // Handle "Track Order Status" quick reply button click
-          if (msg.type === "button" && msg.button?.text === "Track Order Status") {
+          // Handle "Track Order Status" quick reply button click (auto-reply) —
+          // only when WhatsApp Ordering is enabled for this partner.
+          if (
+            waEnabled &&
+            msg.type === "button" &&
+            msg.button?.text === "Track Order Status"
+          ) {
             await handleTrackOrderStatus(msg.from, phoneNumberId);
           }
         }

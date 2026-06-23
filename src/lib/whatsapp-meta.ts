@@ -396,6 +396,7 @@ export async function getPartnerByPhoneNumberId(phoneNumberId: string) {
         partner_id
         phone_number_id
         access_token
+        partner { feature_flags }
       }
     }
   `;
@@ -403,7 +404,11 @@ export async function getPartnerByPhoneNumberId(phoneNumberId: string) {
   const res = await fetchFromHasura(query, {
     phone_number_id: phoneNumberId,
   });
-  return res?.whatsapp_business_integrations?.[0] || null;
+  const row = res?.whatsapp_business_integrations?.[0];
+  if (!row) return null;
+  // Flatten feature_flags onto the row so the cached webhook lookup can gate
+  // WhatsApp features without an extra round-trip.
+  return { ...row, feature_flags: row.partner?.feature_flags ?? null };
 }
 
 // Short-lived in-memory cache of the phone-number → partner mapping. This is the
@@ -417,6 +422,7 @@ type PhoneNumberPartner = {
   partner_id: string;
   phone_number_id: string;
   access_token: string;
+  feature_flags: string | null;
 } | null;
 
 const PARTNER_BY_PHONE_TTL_MS = 60_000;
