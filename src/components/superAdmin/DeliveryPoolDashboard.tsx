@@ -6,6 +6,7 @@ import {
   getPoolOverview,
   getPoolOrders,
   getPoolRiders,
+  getPoolOfferResponses,
   forcePoolAssign,
   cancelPoolOrder,
   setPoolRiderStatus,
@@ -40,10 +41,16 @@ const PHASES = [
 ];
 
 const str = (v: unknown) => (v == null ? "—" : String(v));
+const fmtTime = (v: unknown) => {
+  if (!v) return "—";
+  const d = new Date(String(v));
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+};
 
 export default function DeliveryPoolDashboard() {
   const [overview, setOverview] = useState<Overview | null>(null);
-  const [tab, setTab] = useState<"orders" | "riders" | "geo">("orders");
+  const [tab, setTab] = useState<"orders" | "riders" | "responses" | "geo">("orders");
   const [rows, setRows] = useState<Row[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,7 +72,12 @@ export default function DeliveryPoolDashboard() {
     setErr(null);
     setOverview(ov);
     if (tab === "geo") return;
-    const res = tab === "orders" ? await getPoolOrders() : await getPoolRiders();
+    const res =
+      tab === "orders"
+        ? await getPoolOrders()
+        : tab === "responses"
+          ? await getPoolOfferResponses()
+          : await getPoolRiders();
     setRows((res?.data as Row[]) ?? []);
   }, [tab]);
 
@@ -163,7 +175,7 @@ export default function DeliveryPoolDashboard() {
       </div>
 
       <div className="flex gap-2 mb-3">
-        {(["orders", "riders", "geo"] as const).map((t) => (
+        {(["orders", "riders", "responses", "geo"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -171,7 +183,13 @@ export default function DeliveryPoolDashboard() {
               tab === t ? "bg-orange-600 text-white border-orange-600" : "bg-white border-gray-300"
             }`}
           >
-            {t === "orders" ? "Live orders" : t === "riders" ? "Riders" : "Geo search"}
+            {t === "orders"
+              ? "Live orders"
+              : t === "riders"
+                ? "Riders"
+                : t === "responses"
+                  ? "Responses"
+                  : "Geo search"}
           </button>
         ))}
       </div>
@@ -269,6 +287,48 @@ export default function DeliveryPoolDashboard() {
                 ) : (
                   <tr>
                     <td className="p-3 text-gray-400" colSpan={7}>No live orders</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          ) : tab === "responses" ? (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-gray-600 text-left">
+                  <th className="p-3">Rider</th>
+                  <th className="p-3">Decision</th>
+                  <th className="p-3">Order</th>
+                  <th className="p-3">Restaurant</th>
+                  <th className="p-3">When</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length ? (
+                  rows.map((r) => (
+                    <tr key={str(r.id)} className="border-t">
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <RiderAvatar url={r.photo_url as string | null} name={r.rider_name as string} />
+                          <span>{str(r.rider_name)}</span>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            r.status === "accepted" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+                          }`}
+                        >
+                          {r.status === "accepted" ? "Accepted" : "Rejected"}
+                        </span>
+                      </td>
+                      <td className="p-3 font-mono text-xs">{str(r.source_order_id ?? r.order_id).slice(0, 8)}</td>
+                      <td className="p-3">{str(r.restaurant_name)}</td>
+                      <td className="p-3 text-gray-500">{fmtTime(r.responded_at)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td className="p-3 text-gray-400" colSpan={5}>No accept/reject activity yet</td>
                   </tr>
                 )}
               </tbody>
