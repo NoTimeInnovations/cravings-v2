@@ -23,6 +23,45 @@ type Res = { ok: boolean; data?: any; error?: string };
 
 const str = (v: unknown) => (v == null ? "—" : String(v));
 
+function Toggle({
+  on,
+  onChange,
+  label,
+  desc,
+  disabled,
+}: {
+  on: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  desc: string;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!on)}
+      disabled={disabled}
+      className="flex items-center justify-between w-full text-left py-3 disabled:opacity-50"
+    >
+      <div className="pr-4">
+        <div className="font-medium text-sm">{label}</div>
+        <div className="text-xs text-muted-foreground">{desc}</div>
+      </div>
+      <span
+        className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors ${
+          on ? "bg-orange-600" : "bg-gray-300"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+            on ? "left-[22px]" : "left-0.5"
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
 export default function DeliveryPoolPanel() {
   const { userData } = useAuthStore();
   const rid = (userData as any)?.id as string | undefined;
@@ -99,6 +138,30 @@ export default function DeliveryPoolPanel() {
               Set your store location (Settings → Store) so riders can find you.
             </span>
           )}
+        </div>
+      </div>
+
+      {/* Pool visibility */}
+      <div className="rounded-xl border bg-white p-5">
+        <h3 className="font-semibold mb-1">Delivery pool visibility</h3>
+        <p className="text-sm text-muted-foreground mb-1">
+          Control what the delivery pool sees for your orders.
+        </p>
+        <div className="divide-y">
+          <Toggle
+            on={config?.hide_order_value ?? true}
+            disabled={busy}
+            onChange={(v) => act(poolSyncConfig(rid, { hide_order_value: v }), "Saved")}
+            label="Hide order value"
+            desc="Don't show the food order total to the delivery pool."
+          />
+          <Toggle
+            on={config?.show_delivery_charge ?? true}
+            disabled={busy}
+            onChange={(v) => act(poolSyncConfig(rid, { show_delivery_charge: v }), "Saved")}
+            label="Show delivery charge"
+            desc="Show the delivery charge (from your delivery settings) to riders."
+          />
         </div>
       </div>
 

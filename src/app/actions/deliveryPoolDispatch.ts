@@ -22,6 +22,7 @@ type Result =
 interface OrderForPool {
   id: string;
   total_price: number;
+  delivery_charge: number | null;
   type: string;
   delivery_address: string | null;
   phone: string | null;
@@ -40,7 +41,7 @@ interface OrderForPool {
 const ORDER_FOR_POOL_QUERY = `
   query OrderForPool($id: uuid!) {
     orders_by_pk(id: $id) {
-      id total_price type delivery_address phone partner_id display_id
+      id total_price delivery_charge type delivery_address phone partner_id display_id
       user { phone full_name }
       delivery_location
       partner { store_name geo_location feature_flags delivery_rules }
@@ -132,6 +133,7 @@ export async function dispatchDeliveryPool(orderId: string): Promise<Result> {
       phone: order.user?.phone ?? order.phone ?? undefined,
     },
     order_value: order.total_price,
+    delivery_fee: order.delivery_charge ?? undefined,
     assignment_mode: "auto",
     require_pickup_otp: dr?.pool_pickup_otp === true,
     require_drop_otp: dr?.pool_drop_otp === true,
