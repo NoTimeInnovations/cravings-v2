@@ -55,6 +55,21 @@ const POOL_TO_ORDER_STATUS: Record<string, string> = {
   delivered: "completed",
 };
 
+// Store the assigned rider's contact into delivery_provider_meta (for the rider card).
+const APPEND_META_BY_SOURCE = `
+  mutation PoolMetaBySource($id: uuid!, $meta: jsonb!) {
+    update_orders_by_pk(pk_columns: { id: $id }, _append: { delivery_provider_meta: $meta }) { id }
+  }
+`;
+const APPEND_META_BY_POOL_ID = `
+  mutation PoolMetaByPoolId($poolId: String!, $meta: jsonb!) {
+    update_orders(
+      where: { delivery_provider_order_id: { _eq: $poolId }, delivery_provider: { _eq: "menuthere_pool" } },
+      _append: { delivery_provider_meta: $meta }
+    ) { affected_rows }
+  }
+`;
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function verify(raw: string, sig: string | null): boolean {
@@ -105,6 +120,19 @@ export async function POST(req: NextRequest) {
         await fetchFromHasura(SET_ORDER_STATUS_BY_SOURCE, { id: sourceId, status: mappedStatus });
       } else if (poolId) {
         await fetchFromHasura(SET_ORDER_STATUS_BY_POOL_ID, { poolId, status: mappedStatus });
+      }
+    }
+    // Persist the assigned rider's contact so the order UIs can show a rider card.
+    if (payload.rider_name) {
+      const riderMeta = {
+        riderName: payload.rider_name,
+        riderPhone: payload.rider_phone ?? null,
+        riderVehicle: payload.rider_vehicle ?? null,
+      };
+      if (sourceId && UUID_RE.test(sourceId)) {
+        await fetchFromHasura(APPEND_META_BY_SOURCE, { id: sourceId, meta: riderMeta });
+      } else if (poolId) {
+        await fetchFromHasura(APPEND_META_BY_POOL_ID, { poolId, meta: riderMeta });
       }
     }
   } catch (err) {

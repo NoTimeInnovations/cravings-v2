@@ -67,6 +67,7 @@ import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getDiscountAmount } from "@/lib/discountUtils";
 import { DeliveryBoyAssignment } from "./DeliveryBoyAssignment";
 import { cancelDeliveryPoolDispatch } from "@/app/actions/deliveryPoolDispatch";
+import PoolRiderPanel from "@/components/PoolRiderPanel";
 import { checkAllProvidersAvailability } from "@/app/actions/deliveryAgent";
 
 interface OrderDetailsProps {
@@ -802,40 +803,29 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     </div>
                 )}
 
-            {/* Menuthere Delivery Pool — live tracking link + cancel (active orders). */}
+            {/* Menuthere Delivery Pool — assigned rider card (rider name/phone/track/cancel). */}
             {order.delivery_provider === "menuthere_pool" &&
-                order.status !== "completed" &&
                 order.status !== "cancelled" &&
-                (order as any).delivery_provider_state !== "cancelled" &&
-                (order as any).delivery_provider_state !== "delivered" && (
-                    <div className="flex items-center gap-4 flex-wrap">
-                        {(order.delivery_provider_meta as { trackingUrl?: string | null } | null)?.trackingUrl && (
-                            <a
-                                href={(order.delivery_provider_meta as { trackingUrl?: string }).trackingUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs font-medium text-blue-600 underline"
-                            >
-                                Track delivery (live) →
-                            </a>
-                        )}
-                        <button
-                            onClick={async () => {
-                                const reason = window.prompt("Reason for cancelling this delivery? (shown to the rider)");
-                                if (reason === null) return;
-                                const r = await cancelDeliveryPoolDispatch(
-                                    order.id,
-                                    reason || "cancelled by restaurant",
-                                    "restaurant",
-                                );
-                                if (r.ok) toast.success("Pool delivery cancelled");
-                                else toast.error(r.message || "Cancel failed");
-                            }}
-                            className="text-xs font-medium text-red-600 underline"
-                        >
-                            Cancel delivery
-                        </button>
-                    </div>
+                (order as any).delivery_provider_state !== "cancelled" && (
+                    <PoolRiderPanel
+                        name={(order.delivery_provider_meta as any)?.riderName}
+                        phone={(order.delivery_provider_meta as any)?.riderPhone}
+                        vehicle={(order.delivery_provider_meta as any)?.riderVehicle}
+                        trackUrl={(order.delivery_provider_meta as any)?.trackingUrl}
+                        completed={order.status === "completed"}
+                        showCancel={order.status !== "completed"}
+                        onCancel={async () => {
+                            const reason = window.prompt("Reason for cancelling this delivery? (shown to the rider)");
+                            if (reason === null) return;
+                            const r = await cancelDeliveryPoolDispatch(
+                                order.id,
+                                reason || "cancelled by restaurant",
+                                "restaurant",
+                            );
+                            if (r.ok) toast.success("Pool delivery cancelled");
+                            else toast.error(r.message || "Cancel failed");
+                        }}
+                    />
                 )}
 
             {/* Delivery-bridge multi-provider dispatch progress — which provider
