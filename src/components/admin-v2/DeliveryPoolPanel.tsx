@@ -18,6 +18,7 @@ import {
 } from "@/app/actions/deliveryPoolPartner";
 import RiderDocsModal from "@/components/deliveryPool/RiderDocsModal";
 import RiderAvatar from "@/components/deliveryPool/RiderAvatar";
+import RiderAvailabilityMap from "@/components/deliveryPool/RiderAvailabilityMap";
 
 type Row = Record<string, any>;
 type Res = { ok: boolean; data?: any; error?: string };
@@ -70,7 +71,7 @@ export default function DeliveryPoolPanel() {
   const [requests, setRequests] = useState<Row[]>([]);
   const [riders, setRiders] = useState<Row[]>([]);
   const [orders, setOrders] = useState<Row[]>([]);
-  const [tab, setTab] = useState<"riders" | "orders">("riders");
+  const [tab, setTab] = useState<"riders" | "availability" | "orders">("riders");
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [docRider, setDocRider] = useState<{ id: string; name?: string } | null>(null);
@@ -244,17 +245,27 @@ export default function DeliveryPoolPanel() {
 
       {/* Tabs: riders / orders */}
       <div className="flex gap-2">
-        {(["riders", "orders"] as const).map((t) => (
+        {(["riders", "availability", "orders"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`px-4 py-2 rounded-lg border ${tab === t ? "bg-orange-600 text-white border-orange-600" : "bg-white"}`}
           >
-            {t === "riders" ? `Linked riders (${riders.length})` : `Live orders (${orders.length})`}
+            {t === "riders"
+              ? `Linked riders (${riders.length})`
+              : t === "availability"
+                ? "Availability"
+                : `Live orders (${orders.length})`}
           </button>
         ))}
       </div>
 
+      {tab === "availability" ? (
+        <RiderAvailabilityMap
+          riders={riders}
+          center={pickup ? [Number(pickup.lng), Number(pickup.lat)] : undefined}
+        />
+      ) : (
       <div className="rounded-xl border bg-white overflow-x-auto">
         {tab === "riders" ? (
           <table className="w-full text-sm">
@@ -364,6 +375,7 @@ export default function DeliveryPoolPanel() {
           </table>
         )}
       </div>
+      )}
       <p className="text-xs text-gray-400">Auto-refreshes every 6s.</p>
 
       <RiderDocsModal
