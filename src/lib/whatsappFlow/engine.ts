@@ -700,6 +700,14 @@ export async function runFlowForInbound(args: {
   const activeP = fetchFromHasura(Q_ACTIVE_RUN, { p: partnerId, c: contactPhone }).catch(
     () => null,
   );
+  // Optimistically start the new-run read wave NOW, in parallel with the
+  // active-run check — an inbound "hi" is almost always a fresh order, so this
+  // collapses two sequential round-trips into one. On the rare resume the wave
+  // is simply discarded (cheap reads). Pre-attach a no-op catch so a failure
+  // here can't surface as an unhandled rejection when we don't await it.
+  const waveP = runStartRunWave(partnerId, contactPhone, sendToken);
+  waveP.catch(() => {});
+
   const [isDuplicate, activeRes] = await Promise.all([eventP, activeP]);
   if (isDuplicate) return;
   const active = activeRes?.whatsapp_flow_execution_state?.[0];
@@ -712,6 +720,8 @@ export async function runFlowForInbound(args: {
       // mid-run, so re-sending the trigger word replays the WHOLE flow instead
       // of being treated as a reply to the parked step. (Generic any/welcome
       // triggers don't do this, so button choices / captures still work.)
+      // A fresh wave is taken inside startNewRun so the counts reflect the run
+      // we're about to abort; the optimistic waveP is dropped.
       await abortRun(active.id);
       await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName, sendToken);
       return;
@@ -721,7 +731,17 @@ export async function runFlowForInbound(args: {
     }
   }
 
-  await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName, sendToken);
+  // Common path: no active run → reuse the wave already in flight.
+  await startNewRun(
+    partnerId,
+    phoneNumberId,
+    contactPhone,
+    waMessageId,
+    input,
+    contactName,
+    sendToken,
+    waveP,
+  );
 }
 
 // True if the inbound matches a SPECIFIC (exact/contains) keyword trigger of an
@@ -827,6 +847,58 @@ function buildMessageRunVars(
   };
 }
 
+interface StartRunWave {
+  flowsRes: any;
+  runCountRes: any;
+  suppressed: Set<string>;
+  lastRunByFlow: Map<string, number>;
+  partnerRes: any;
+  sendToken: string;
+  lastOrderRes: any;
+}
+
+// One parallel wave of every read a fresh run needs — none depend on each other,
+// so they resolve in a single round-trip instead of ~6 stacked ones. Split out
+// so runFlowForInbound can fire it OPTIMISTICALLY, in parallel with the
+// active-run check: an inbound "hi" is virtually always a new run, so we don't
+// wait to confirm there's no active run before doing this work. On the rare
+// resume the result is simply discarded.
+// (Q_RUN_COUNT is always fetched, even if no welcome trigger ends up using it;
+// an over-fetch is cheaper than a serialised round-trip to find out.)
+function runStartRunWave(
+  partnerId: string,
+  contactPhone: string,
+  prefetchedToken?: string,
+): Promise<StartRunWave> {
+  const phoneVariants = phoneMatchVariants(contactPhone);
+  return Promise.all([
+    fetchFromHasura(Q_ENABLED_FLOWS, { p: partnerId }),
+    fetchFromHasura(Q_RUN_COUNT, { p: partnerId, c: contactPhone }),
+    getSuppressedFlowIds(partnerId, contactPhone),
+    getLastFlowRunAt(partnerId, contactPhone),
+    fetchFromHasura(Q_PARTNER_INFO, { id: partnerId }).catch(() => null),
+    // Reuse the token the webhook already fetched; only hit the DB if it
+    // wasn't passed (e.g. the keyword-restart path or a missing integration).
+    prefetchedToken ? Promise.resolve(prefetchedToken) : getPartnerSendToken(partnerId),
+    phoneVariants.length
+      ? fetchFromHasura(Q_LAST_ORDER_BY_PHONE, {
+          phones: phoneVariants,
+          partner_id: partnerId,
+        }).catch(() => null)
+      : Promise.resolve(null),
+  ]).then(
+    ([flowsRes, runCountRes, suppressed, lastRunByFlow, partnerRes, sendToken, lastOrderRes]) => ({
+      flowsRes,
+      runCountRes,
+      suppressed,
+      lastRunByFlow,
+      partnerRes,
+      sendToken,
+      lastOrderRes,
+    }),
+  );
+}
+
 async function startNewRun(
   partnerId: string,
   phoneNumberId: string,
@@ -835,29 +907,13 @@ async function startNewRun(
   input: FlowInput,
   contactName: string | null = null,
   prefetchedToken?: string,
+  // An already-in-flight read wave (fired in parallel with the active-run
+  // check). When absent we start a fresh one — used by the keyword-restart path,
+  // where the counts must reflect the just-aborted run.
+  prefetchedWave?: Promise<StartRunWave>,
 ) {
-  // One parallel wave of every read this turn needs — none depend on each
-  // other, so they resolve in a single round-trip instead of ~6 stacked ones.
-  // (Q_RUN_COUNT is always fetched, even if no welcome trigger ends up using it;
-  // an over-fetch is cheaper than a serialised round-trip to find out.)
-  const phoneVariants = phoneMatchVariants(contactPhone);
-  const [flowsRes, runCountRes, suppressed, lastRunByFlow, partnerRes, sendToken, lastOrderRes] =
-    await Promise.all([
-      fetchFromHasura(Q_ENABLED_FLOWS, { p: partnerId }),
-      fetchFromHasura(Q_RUN_COUNT, { p: partnerId, c: contactPhone }),
-      getSuppressedFlowIds(partnerId, contactPhone),
-      getLastFlowRunAt(partnerId, contactPhone),
-      fetchFromHasura(Q_PARTNER_INFO, { id: partnerId }).catch(() => null),
-      // Reuse the token the webhook already fetched; only hit the DB if it
-      // wasn't passed (e.g. the keyword-restart path or a missing integration).
-      prefetchedToken ? Promise.resolve(prefetchedToken) : getPartnerSendToken(partnerId),
-      phoneVariants.length
-        ? fetchFromHasura(Q_LAST_ORDER_BY_PHONE, {
-            phones: phoneVariants,
-            partner_id: partnerId,
-          }).catch(() => null)
-        : Promise.resolve(null),
-    ]);
+  const { flowsRes, runCountRes, suppressed, lastRunByFlow, partnerRes, sendToken, lastOrderRes } =
+    await (prefetchedWave ?? runStartRunWave(partnerId, contactPhone, prefetchedToken));
 
   const flows = (flowsRes?.whatsapp_flows || []) as Array<{
     id: string;
