@@ -696,6 +696,43 @@ ${itemsText}
                                 </div>
                             )}
 
+                        {/* Menuthere Delivery Pool — drop OTP + live tracking link for the customer. */}
+                        {(order as any)?.delivery_provider === "menuthere_pool" && (
+                            <>
+                                {(order as any)?.delivery_provider_meta?.dropOtp && !isCompleted && (
+                                    <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 flex items-center gap-3 shadow-sm">
+                                        <Bike className="h-5 w-5 text-orange-700" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-orange-700">
+                                                Show this OTP to the delivery rider
+                                            </p>
+                                            <p className="mt-1 text-2xl font-bold tracking-[0.3em] font-mono text-orange-900">
+                                                {(order as any).delivery_provider_meta.dropOtp}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                                {(order as any)?.delivery_provider_meta?.trackingUrl && !isCompleted && (
+                                    <a
+                                        href={(order as any).delivery_provider_meta.trackingUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="rounded-2xl border border-blue-200 bg-blue-50 p-4 flex items-center gap-3 shadow-sm hover:bg-blue-100 transition"
+                                    >
+                                        <Bike className="h-5 w-5 text-blue-700" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                                                Track your delivery
+                                            </p>
+                                            <p className="mt-0.5 text-sm font-medium text-blue-900 underline">
+                                                Open live tracking →
+                                            </p>
+                                        </div>
+                                    </a>
+                                )}
+                            </>
+                        )}
+
                         {/* Prebooked (scheduled order) banner */}
                         {order?.scheduled_date && (
                             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 flex items-start gap-3 shadow-sm">

@@ -49,6 +49,7 @@ const sidebarItems: SidebarItem[] = [
   { title: "QrCodes", icon: QrCode, id: "qrcodes" },
   { title: "Captains", icon: UserCog, id: "captains" },
   { title: "Delivery Boys", icon: Truck, id: "deliveryboys" },
+  { title: "Delivery Pool", icon: Bike, id: "delivery-pool" },
   { title: "POS", icon: CreditCard, id: "pos" },
   { title: "Customers", icon: Users, id: "customers" },
   { title: "Loyalty", icon: Gift, id: "loyalty" },
@@ -99,6 +100,10 @@ export function AdminSidebar({
   const isOnFreePlan = isFreePlan(planId);
 
   const getItemState = (item: SidebarItem): "visible" | "locked" | "hidden" => {
+    // Delivery Pool is flag-gated regardless of plan.
+    if (item.id === "delivery-pool") {
+      return features?.delivery_pool?.enabled ? "visible" : "hidden";
+    }
     if (isOnFreePlan) {
       if (FREE_PLAN_LOCKED_IDS.includes(item.id)) {
         return "hidden";

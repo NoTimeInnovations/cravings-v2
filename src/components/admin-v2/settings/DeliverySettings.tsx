@@ -331,6 +331,8 @@ export function DeliverySettings() {
                 parcel_charge_type: userData.delivery_rules?.parcel_charge_type || "fixed",
                 parcel_charge_items: userData.delivery_rules?.parcel_charge_items || {},
                 hide_delivery_charge: userData.delivery_rules?.hide_delivery_charge ?? false,
+                pool_pickup_otp: userData.delivery_rules?.pool_pickup_otp ?? false,
+                pool_drop_otp: userData.delivery_rules?.pool_drop_otp ?? false,
                 delivery_provider_priority:
                     userData.delivery_rules?.delivery_provider_priority || ["porter", "uber", "rapido"],
                 delivery_vehicle_mode: userData.delivery_rules?.delivery_vehicle_mode || "bike",
@@ -514,6 +516,8 @@ export function DeliverySettings() {
             parcel_charge: data.delivery_rules?.parcel_charge || 0,
             parcel_charge_type: data.delivery_rules?.parcel_charge_type || "fixed",
             hide_delivery_charge: data.delivery_rules?.hide_delivery_charge ?? false,
+            pool_pickup_otp: data.delivery_rules?.pool_pickup_otp ?? false,
+            pool_drop_otp: data.delivery_rules?.pool_drop_otp ?? false,
         };
 
         const initialWhatsapp = data.whatsapp_numbers?.length > 0
@@ -626,6 +630,36 @@ export function DeliverySettings() {
 
     return (
         <div className="space-y-6">
+            {features?.delivery_pool?.enabled && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Delivery Pool</CardTitle>
+                        <CardDescription>Menuthere rider network — orders auto-dispatch to nearby riders when you accept them.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label className="text-base">Require pickup OTP</Label>
+                                <p className="text-sm text-muted-foreground">Rider enters a code shown on your order screen to confirm pickup.</p>
+                            </div>
+                            <Switch
+                                checked={!!deliveryRules.pool_pickup_otp}
+                                onCheckedChange={(checked) => setDeliveryRules(prev => ({ ...prev, pool_pickup_otp: checked }))}
+                            />
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label className="text-base">Require delivery OTP</Label>
+                                <p className="text-sm text-muted-foreground">Customer receives a code (WhatsApp / tracking page); the rider enters it to confirm delivery.</p>
+                            </div>
+                            <Switch
+                                checked={!!deliveryRules.pool_drop_otp}
+                                onCheckedChange={(checked) => setDeliveryRules(prev => ({ ...prev, pool_drop_otp: checked }))}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
             <Card>
                 <CardHeader>
                     <CardTitle>Delivery Configuration</CardTitle>

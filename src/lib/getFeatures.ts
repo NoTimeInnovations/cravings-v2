@@ -80,6 +80,15 @@ export type FeatureFlags = {
     enabled: boolean;
   };
   /**
+   * Routes order dispatch through the Menuthere Delivery Pool (independent rider
+   * network). Fires on `accepted` like porter_bridge; hands the order to the
+   * pool's order-service. See src/app/actions/deliveryPoolDispatch.ts.
+   */
+  delivery_pool: {
+    access: boolean;
+    enabled: boolean;
+  };
+  /**
    * Allows customers to place scheduled (prebooked) orders for a future date
    * and time. Partners configure allowed windows, lead time, and max days
    * ahead in the admin-v2 Prebooking settings tab (`prebooking_settings`).
@@ -161,6 +170,10 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
     parts.push(`porter_bridge-${features.porter_bridge.enabled}`);
   }
 
+  if (features.delivery_pool.access) {
+    parts.push(`delivery_pool-${features.delivery_pool.enabled}`);
+  }
+
   if (features.prebooking.access) {
     parts.push(`prebooking-${features.prebooking.enabled}`);
   }
@@ -230,6 +243,10 @@ export const getFeatures = (perm: string | null) => {
       access: false,
       enabled: false,
     },
+    delivery_pool: {
+      access: false,
+      enabled: false,
+    },
     prebooking: {
       access: false,
       enabled: false,
@@ -292,6 +309,9 @@ export const getFeatures = (perm: string | null) => {
       } else if (key === "porter_bridge") {
         permissions.porter_bridge.access = true;
         permissions.porter_bridge.enabled = value === "true";
+      } else if (key === "delivery_pool") {
+        permissions.delivery_pool.access = true;
+        permissions.delivery_pool.enabled = value === "true";
       } else if (key === "prebooking") {
         permissions.prebooking.access = true;
         permissions.prebooking.enabled = value === "true";

@@ -43,6 +43,7 @@ import {
 import { Notification } from "@/app/actions/notification";
 import { dispatchDeliveryAgent, cancelDeliveryAgent } from "@/app/actions/deliveryAgent";
 import { dispatchViaDeliveryBridge, cancelDispatch } from "@/app/actions/porterBridge";
+import { dispatchDeliveryPool, cancelDeliveryPoolDispatch } from "@/app/actions/deliveryPoolDispatch";
 import { awardLoyaltyForOrder } from "@/app/actions/loyalty";
 import { linkMapsUsageToOrder } from "@/app/actions/trackGoogleApi";
 import { peekMapsSessionId, resetMapsSession } from "@/lib/mapsUsage";
@@ -125,6 +126,11 @@ export interface DeliveryRules {
     uber?: string;
     rapido?: string;
   };
+  /** Menuthere Delivery Pool per-restaurant OTP toggles — rider must enter a
+   *  code to confirm pickup (shown to the restaurant) / delivery (sent to the
+   *  customer). Read by deliveryPoolDispatch at hand-off. */
+  pool_pickup_otp?: boolean;
+  pool_drop_otp?: boolean;
   announcement?: string;
   banner_mode?: "single" | "carousel";
   carousel_banners?: string[];
@@ -754,6 +760,21 @@ const useOrderStore = create(
                 cancelDispatch(orderId, "Cancelled from admin dashboard").then((r) => {
                   if (!r.ok && r.status !== 404) console.warn(`[delivery-bridge] cancel failed: ${r.message}`);
                 }).catch((e) => console.warn("[delivery-bridge] cancel threw:", e));
+              }
+            }
+
+            // Menuthere Delivery Pool — independent rider network. Same gates as
+            // the other providers: real delivery, `accepted` → dispatch /
+            // `cancelled` → cancel. Failures persist into delivery_provider_state.
+            if (features.delivery_pool.access && features.delivery_pool.enabled && isRealDelivery) {
+              if (newStatus === "accepted") {
+                dispatchDeliveryPool(orderId).then((r) => {
+                  if (!r.ok) console.warn(`[delivery-pool] dispatch failed: ${r.message}`);
+                }).catch((e) => console.warn("[delivery-pool] dispatch threw:", e));
+              } else if (newStatus === "cancelled") {
+                cancelDeliveryPoolDispatch(orderId, "Cancelled from admin dashboard").then((r) => {
+                  if (!r.ok && r.status !== 404) console.warn(`[delivery-pool] cancel failed: ${r.message}`);
+                }).catch((e) => console.warn("[delivery-pool] cancel threw:", e));
               }
             }
           } catch (e) {

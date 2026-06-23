@@ -19,6 +19,7 @@ import ParnterPayments from "@/components/superAdmin/ParnterPayments";
 import SubscriptionManagementV2 from "@/components/superAdmin/SubscriptionManagementV2";
 import WhatsAppAnalytics from "@/components/superAdmin/WhatsAppAnalytics";
 import GoogleApiUsageAnalytics from "@/components/superAdmin/GoogleApiUsageAnalytics";
+import DeliveryPoolDashboard from "@/components/superAdmin/DeliveryPoolDashboard";
 
 type SearchParams = Promise<{ [key: string]: string | undefined }>;
 
@@ -41,6 +42,11 @@ const page = async (props: { searchParams: SearchParams }) => {
       name: "Edit Partners",
       component: <EditPartners />,
       id: "edit-partners",
+    },
+    {
+      name: "Delivery Pool",
+      component: <DeliveryPoolDashboard />,
+      id: "delivery-pool",
     },
     {
       name: "Assign QR",

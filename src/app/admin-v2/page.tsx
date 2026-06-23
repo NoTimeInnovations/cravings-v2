@@ -74,6 +74,9 @@ const AdminV2WhatsApp = dynamic(() => import("@/components/admin-v2/AdminV2Whats
 const AdminV2Loyalty = dynamic(() => import("@/components/admin-v2/AdminV2Loyalty").then(mod => mod.AdminV2Loyalty), {
     loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
 });
+const DeliveryPoolPanel = dynamic(() => import("@/components/admin-v2/DeliveryPoolPanel"), {
+    loading: () => <div className="h-full w-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-orange-600" /></div>
+});
 import { useAdminStore } from "@/store/adminStore";
 import { UpgradePlanDialog } from "@/components/admin-v2/UpgradePlanDialog";
 
@@ -290,6 +293,11 @@ export default function AdminPage() {
                         {renderedViews.includes("Delivery Service Integration") && (
                             <div className={activeView === "Delivery Service Integration" ? "block" : "hidden"}>
                                 <AdminV2DeliveryIntegration />
+                            </div>
+                        )}
+                        {renderedViews.includes("Delivery Pool") && (
+                            <div className={activeView === "Delivery Pool" ? "block" : "hidden"}>
+                                <DeliveryPoolPanel />
                             </div>
                         )}
                         {renderedViews.includes("WhatsApp") && (

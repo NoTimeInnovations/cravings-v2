@@ -75,6 +75,7 @@ const FEATURE_DESCRIPTIONS: Record<string, string> = {
   delivery_agent: "Provider-agnostic delivery hub (fires on accepted).",
   whatsappOrdering: "Gates the Manage WhatsApp Templates surface.",
   porter_bridge: "Routes dispatch through porter-bridge.",
+  delivery_pool: "Menuthere rider pool — shows the Delivery Pool panel; dispatch fires on accepted.",
   prebooking: "Scheduled / prebooked orders for a future date & time.",
   loyalty_points: "Partner-scoped loyalty points.",
 };
