@@ -22,6 +22,7 @@ export interface DeliveryPoolOrderInput {
   customer?: { name?: string; phone?: string };
   items_summary?: unknown;
   order_value?: number;
+  delivery_fee?: number;
   assignment_mode?: "auto" | "manual";
   require_pickup_otp?: boolean;
   require_drop_otp?: boolean;
