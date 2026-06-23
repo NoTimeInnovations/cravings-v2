@@ -23,6 +23,19 @@ export function whatsappEnabledFromFlags(
   return !!getFeatures(featureFlags ?? null).whatsappOrdering?.enabled;
 }
 
+// Welcome-flow read receipt + typing animation. Requires BOTH the WhatsApp
+// Ordering master switch AND the whatsappFlowTyping sub-toggle. The webhook
+// already has the feature_flags string in hand (folded into the cached lookup),
+// so this is a pure parse — zero DB round-trips. The runtime additionally only
+// fires it when the welcome flow actually runs (handled in the flow engine), so
+// welcome-enable / once-per-customer / cooldown are all respected automatically.
+export function flowTypingEnabledFromFlags(
+  featureFlags: string | null | undefined,
+): boolean {
+  const f = getFeatures(featureFlags ?? null);
+  return !!(f.whatsappOrdering?.enabled && f.whatsappFlowTyping?.enabled);
+}
+
 // Per-instance cache of partner → whatsappOrdering.enabled. Feature flags change
 // rarely; a 60s TTL bounds staleness (a toggle applies within a minute) and keeps
 // the per-broadcast / per-request check effectively free on a warm instance.

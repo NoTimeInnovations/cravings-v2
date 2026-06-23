@@ -64,6 +64,20 @@ export type FeatureFlags = {
     enabled: boolean;
   };
   /**
+   * Read receipt (blue tick) + typing animation for the WELCOME flow only.
+   * When on — and whatsappOrdering is on and the Welcome flow actually runs for
+   * an inbound — that first/welcome-triggering message is marked read and a
+   * typing indicator is shown while the welcome reply is built. Tied to the
+   * welcome run, so it inherits the welcome flow's enable + once-per-customer /
+   * cooldown rules. Every other inbound message stays UNREAD so the partner can
+   * see and answer real customer queries. (Meta couples read + typing in one
+   * API call, so they're enabled/disabled together.)
+   */
+  whatsappFlowTyping: {
+    access: boolean;
+    enabled: boolean;
+  };
+  /**
    * Routes order dispatch through porter-bridge (the temporary Porter
    * customer-app wrapper at https://deliverybridge.menuthere.com). Fires on
    * the `accepted` status transition alongside `delivery_agent`. Use this
@@ -166,6 +180,10 @@ export const revertFeatureToString = (features: FeatureFlags): string => {
     parts.push(`whatsappOrdering-${features.whatsappOrdering.enabled}`);
   }
 
+  if (features.whatsappFlowTyping.access) {
+    parts.push(`whatsappFlowTyping-${features.whatsappFlowTyping.enabled}`);
+  }
+
   if (features.porter_bridge.access) {
     parts.push(`porter_bridge-${features.porter_bridge.enabled}`);
   }
@@ -239,6 +257,10 @@ export const getFeatures = (perm: string | null) => {
       access: false,
       enabled: false,
     },
+    whatsappFlowTyping: {
+      access: false,
+      enabled: false,
+    },
     porter_bridge: {
       access: false,
       enabled: false,
@@ -306,6 +328,9 @@ export const getFeatures = (perm: string | null) => {
       } else if (key === "whatsappOrdering") {
         permissions.whatsappOrdering.access = true;
         permissions.whatsappOrdering.enabled = value === "true";
+      } else if (key === "whatsappFlowTyping") {
+        permissions.whatsappFlowTyping.access = true;
+        permissions.whatsappFlowTyping.enabled = value === "true";
       } else if (key === "porter_bridge") {
         permissions.porter_bridge.access = true;
         permissions.porter_bridge.enabled = value === "true";

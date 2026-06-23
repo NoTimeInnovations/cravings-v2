@@ -5,7 +5,10 @@ import { getPartnerByPhoneNumberIdCached } from "@/lib/whatsapp-meta";
 import { runFlowForInbound, type FlowInput } from "@/lib/whatsappFlow/engine";
 import { normalizePhone } from "@/lib/whatsapp-broadcast";
 import { computeMessageCost, getBusinessCurrency } from "@/lib/whatsapp-cost";
-import { whatsappEnabledFromFlags } from "@/lib/whatsapp-features";
+import {
+  whatsappEnabledFromFlags,
+  flowTypingEnabledFromFlags,
+} from "@/lib/whatsapp-features";
 
 // Marketing opt-out: a customer who replies STOP (or taps a stop button) is added
 // to the partner's suppression list and excluded from future broadcasts.
@@ -542,6 +545,9 @@ export async function POST(req: NextRequest) {
         const waEnabled =
           !!partner?.partner_id &&
           whatsappEnabledFromFlags(partner.feature_flags);
+        // Welcome-flow read receipt + typing toggle (only meaningful when WA on).
+        const flowTyping =
+          waEnabled && flowTypingEnabledFromFlags(partner!.feature_flags);
 
         for (const msg of messages) {
           console.log(
@@ -582,6 +588,8 @@ export async function POST(req: NextRequest) {
                   // Reuse the token already on the partner row from the lookup
                   // above so the flow's send path doesn't re-query it.
                   sendToken: partner.access_token || undefined,
+                  // Send read+typing only if the welcome flow actually runs.
+                  flowTyping,
                 });
               } catch (e) {
                 console.error("Flow engine error:", e);

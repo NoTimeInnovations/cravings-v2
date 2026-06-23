@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Plus, Workflow, Loader2, Pencil, Trash2, Power } from "lucide-react";
 import { toast } from "sonner";
 import type { Flow } from "@/lib/whatsappFlow/types";
-import { getFeatures } from "@/lib/getFeatures";
+import { getFeatures, revertFeatureToString } from "@/lib/getFeatures";
 import { FlowBuilder } from "@/components/admin-v2/whatsapp-flow/FlowBuilder";
 import { provisionDefaultFlows } from "@/app/actions/provisionDefaultFlows";
+import { updatePartner } from "@/api/partners";
+import { revalidateTag } from "@/app/actions/revalidate";
 
 type FlowListItem = Pick<
   Flow,
@@ -29,7 +32,7 @@ function triggerSummary(f: FlowListItem): string {
 }
 
 export function AdminV2WhatsAppFlows() {
-  const { userData } = useAuthStore();
+  const { userData, setState } = useAuthStore();
   const partnerId = (userData as any)?.id as string | undefined;
   const loyaltyEnabled = useMemo(() => {
     const f = getFeatures((userData as any)?.feature_flags || null);
@@ -39,6 +42,42 @@ export function AdminV2WhatsAppFlows() {
     const f = getFeatures((userData as any)?.feature_flags || null);
     return !!f.whatsappOrdering?.enabled;
   }, [userData]);
+
+  // Welcome-flow read receipt + typing toggle (whatsappFlowTyping feature flag).
+  const [flowTyping, setFlowTyping] = useState(false);
+  const [savingTyping, setSavingTyping] = useState(false);
+  useEffect(() => {
+    const f = getFeatures((userData as any)?.feature_flags || null);
+    setFlowTyping(!!f.whatsappFlowTyping?.enabled);
+  }, [userData]);
+
+  const handleTypingToggle = async (val: boolean) => {
+    if (!partnerId) return;
+    const prev = flowTyping;
+    setFlowTyping(val); // optimistic
+    setSavingTyping(true);
+    try {
+      const f = getFeatures((userData as any)?.feature_flags || null);
+      const updated = {
+        ...f,
+        whatsappFlowTyping: { access: true, enabled: val },
+      };
+      const featureString = revertFeatureToString(updated);
+      await updatePartner(partnerId, { feature_flags: featureString });
+      setState({ feature_flags: featureString });
+      revalidateTag(partnerId);
+      toast.success(
+        val
+          ? "Read & typing on for the Welcome flow"
+          : "Read & typing turned off",
+      );
+    } catch {
+      setFlowTyping(prev); // revert on failure
+      toast.error("Couldn't update the setting");
+    } finally {
+      setSavingTyping(false);
+    }
+  };
 
   const [flows, setFlows] = useState<FlowListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,6 +178,33 @@ export function AdminV2WhatsAppFlows() {
         <Button onClick={openNew} className="bg-green-600 hover:bg-green-700 text-white">
           <Plus className="mr-2 h-4 w-4" /> New Flow
         </Button>
+      </div>
+
+      {/* Welcome-flow read receipt + typing animation toggle */}
+      <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
+        <div className="space-y-0.5">
+          <div className="text-sm font-medium">
+            Read receipt &amp; typing on Welcome
+          </div>
+          <p className="max-w-xl text-xs text-muted-foreground">
+            When a customer&apos;s message triggers your <b>Welcome flow</b>, mark
+            it read (blue tick) and show a typing animation while the reply is
+            prepared. <b>Only the Welcome flow does this</b> — every other message
+            stays unread so you can see and answer real customer queries. Works
+            only while your Welcome flow is on and follows its run frequency
+            (e.g. once per customer / cooldown).
+            {!whatsappOrderingEnabled && (
+              <span className="block mt-1 text-amber-600">
+                Enable WhatsApp Ordering first to use this.
+              </span>
+            )}
+          </p>
+        </div>
+        <Switch
+          checked={flowTyping}
+          disabled={!whatsappOrderingEnabled || savingTyping}
+          onCheckedChange={handleTypingToggle}
+        />
       </div>
 
       {loading ? (

@@ -680,8 +680,11 @@ export async function runFlowForInbound(args: {
   // phone-number→partner lookup. Threaded through so the welcome path doesn't
   // re-query it. Falls back to a fresh lookup / env token when absent.
   sendToken?: string;
+  // When true, send a read receipt + typing indicator IF this inbound triggers
+  // the welcome flow. Gated upstream by whatsappOrdering + whatsappFlowTyping.
+  flowTyping?: boolean;
 }): Promise<void> {
-  const { partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName = null, sendToken } = args;
+  const { partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName = null, sendToken, flowTyping = false } = args;
 
   // Layer 1 — idempotency: claim this Meta message id. A retry (or a second
   // instance handed the same delivery) throws on the partial-unique index and
@@ -723,7 +726,7 @@ export async function runFlowForInbound(args: {
       // A fresh wave is taken inside startNewRun so the counts reflect the run
       // we're about to abort; the optimistic waveP is dropped.
       await abortRun(active.id);
-      await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName, sendToken);
+      await startNewRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, contactName, sendToken, undefined, flowTyping);
       return;
     } else {
       await resumeRun(partnerId, phoneNumberId, contactPhone, waMessageId, input, active);
@@ -741,6 +744,7 @@ export async function runFlowForInbound(args: {
     contactName,
     sendToken,
     waveP,
+    flowTyping,
   );
 }
 
@@ -899,6 +903,44 @@ function runStartRunWave(
   );
 }
 
+// Read receipt + typing indicator for the welcome flow. Meta's Cloud API couples
+// them into a single call (status:"read" carrying a typing_indicator), so this
+// both blue-ticks the welcome-triggering message and shows "typing…" until the
+// reply lands. Best-effort — never blocks or throws into the reply path.
+async function sendWelcomeReadTyping(
+  phoneNumberId: string,
+  messageId: string,
+  token: string,
+): Promise<void> {
+  if (!phoneNumberId || !messageId || !token) return;
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/${API_VERSION}/${phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          status: "read",
+          message_id: messageId,
+          typing_indicator: { type: "text" },
+        }),
+      },
+    );
+    if (!res.ok) {
+      console.error(
+        "Welcome read/typing failed:",
+        await res.text().catch(() => ""),
+      );
+    }
+  } catch (e) {
+    console.error("Welcome read/typing error:", e);
+  }
+}
+
 async function startNewRun(
   partnerId: string,
   phoneNumberId: string,
@@ -911,6 +953,9 @@ async function startNewRun(
   // check). When absent we start a fresh one — used by the keyword-restart path,
   // where the counts must reflect the just-aborted run.
   prefetchedWave?: Promise<StartRunWave>,
+  // Send read receipt + typing indicator if (and only if) the matched flow is the
+  // welcome flow. Gated upstream by whatsappOrdering + whatsappFlowTyping.
+  flowTyping = false,
 ) {
   const { flowsRes, runCountRes, suppressed, lastRunByFlow, partnerRes, sendToken, lastOrderRes } =
     await (prefetchedWave ?? runStartRunWave(partnerId, contactPhone, prefetchedToken));
@@ -946,6 +991,16 @@ async function startNewRun(
   );
   if (!matchedCand) return;
   const matched = matchedCand.flow;
+
+  // Welcome-only read receipt + typing. We're here only because the welcome flow
+  // passed every gate (enabled, not suppressed, not blocked by once-per-customer
+  // /cooldown, and the trigger matched on first contact) — so firing it here
+  // inherits all those rules. Fire-and-forget so it overlaps building/sending the
+  // reply; the reply itself dismisses the typing animation. Meta couples read +
+  // typing into this one call, which is fine since it only runs for the welcome.
+  if (flowTyping && matchedCand.t.matchType === "welcome" && sendToken) {
+    void sendWelcomeReadTyping(phoneNumberId, waMessageId, sendToken);
+  }
 
   const graph = matched.graph || { nodes: [], edges: [] };
   // Start from the MATCHED trigger node's branch — a flow can have multiple
