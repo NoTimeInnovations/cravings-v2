@@ -448,6 +448,7 @@ function TemplateEditorView({
   // we only let the partner set how long the code stays valid.
   const [codeExpiryMinutes, setCodeExpiryMinutes] = useState(5);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const reset = () => {
     setName("");
@@ -714,6 +715,7 @@ function TemplateEditorView({
       return;
     }
     setSubmitting(true);
+    setSubmitError(null);
     try {
       let res: Response;
       if (isEdit && initial) {
@@ -751,7 +753,12 @@ function TemplateEditorView({
       reset();
       onSaved();
     } catch (e: any) {
-      toast.error(e?.message || "Failed to submit template");
+      // Surface the reason inline (persists) AND as a toast. Nothing was saved
+      // server-side on failure, and the form keeps everything typed so the
+      // partner can fix the issue and resubmit.
+      const message = e?.message || "Failed to submit template";
+      setSubmitError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -1204,6 +1211,16 @@ function TemplateEditorView({
             </div>
           </div>
         </div>
+
+      {submitError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800">
+          <div className="font-medium">WhatsApp didn&apos;t accept this template</div>
+          <div className="mt-0.5 text-red-700">{submitError}</div>
+          <div className="mt-1 text-xs text-red-600">
+            Nothing was saved — fix the issue above and submit again.
+          </div>
+        </div>
+      )}
 
       <div className="flex justify-end gap-2 border-t pt-4">
         <Button variant="outline" onClick={onClose} disabled={submitting}>

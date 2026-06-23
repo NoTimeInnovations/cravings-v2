@@ -65,6 +65,28 @@ const DELETE_STALE_LOCAL = `
   }
 `;
 
+// Existing rows with the same name + language for this partner. Used to block
+// genuine duplicates and to clean up leftover failed attempts before retrying.
+const FIND_BY_NAME = `
+  query FindTemplateByName($partner_id: uuid!, $name: String!, $language: String!) {
+    whatsapp_message_templates(
+      where: {
+        partner_id: { _eq: $partner_id }
+        name: { _eq: $name }
+        language: { _eq: $language }
+      }
+    ) {
+      id
+      status
+      meta_template_id
+    }
+  }
+`;
+
+// Template review can take a moment at Meta; give the function headroom so a
+// slow Graph response can't turn into a serverless 503.
+export const maxDuration = 30;
+
 // GET /api/whatsapp/templates?partnerId=<uuid>&sync=1
 // Returns local rows. If sync=1 and the partner has a WABA integration,
 // also pulls the current state from Meta and reconciles statuses/ids.
@@ -107,8 +129,12 @@ export async function GET(req: NextRequest) {
 
 // POST /api/whatsapp/templates
 // Body: { partnerId, name, language, category, components }
-// Creates the row locally as DRAFT, submits to Meta, then updates the row
-// with PENDING (or APPROVED/REJECTED if Meta auto-resolved synchronously).
+//
+// Atomic, Meta-first: we submit to Meta and only persist a local row if Meta
+// ACCEPTS it. If Meta rejects (or errors), nothing is saved — so a failed
+// submission never leaves a stuck "REJECTED" row in the list, and the partner's
+// typed content stays in the form to fix and retry. The error message returned
+// is Meta's own reason so the partner knows exactly what to fix.
 export async function POST(req: NextRequest) {
   let body: any;
   try {
@@ -124,6 +150,12 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
+  if (!Array.isArray(components) || components.length === 0) {
+    return NextResponse.json(
+      { error: "A template needs at least one component (e.g. a body)." },
+      { status: 400 },
+    );
+  }
   if (!["UTILITY", "MARKETING", "AUTHENTICATION"].includes(category)) {
     return NextResponse.json({ error: "Invalid category" }, { status: 400 });
   }
@@ -136,8 +168,67 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Insert a DRAFT row first so we have an id to update once Meta responds.
-  let localId: string;
+  // Look up any existing rows with this name+language. Block genuine duplicates;
+  // collect leftover failed attempts (no meta_template_id) to clear on success.
+  let orphanIds: string[] = [];
+  try {
+    const existingRes = await fetchFromHasura(FIND_BY_NAME, {
+      partner_id: partnerId,
+      name,
+      language,
+    });
+    const existing = (existingRes?.whatsapp_message_templates || []) as Array<{
+      id: string;
+      status: string;
+      meta_template_id: string | null;
+    }>;
+    const blocking = existing.find(
+      (r) =>
+        r.meta_template_id ||
+        ["PENDING", "APPROVED"].includes(String(r.status).toUpperCase()),
+    );
+    if (blocking) {
+      return NextResponse.json(
+        {
+          error:
+            "A template with this name and language already exists. Pick a different name, or delete the existing one first.",
+        },
+        { status: 409 },
+      );
+    }
+    // Only leftovers from earlier failed attempts remain — clear them on success.
+    orphanIds = existing.map((r) => r.id);
+  } catch (e: any) {
+    // Non-fatal: Meta + the local unique index still guard against duplicates.
+    console.warn("Template duplicate pre-check failed:", e?.message || e);
+  }
+
+  // Submit to Meta FIRST. Nothing is saved locally unless this succeeds.
+  let metaRes: { id: string; status: string; category: string };
+  try {
+    const payload: MetaTemplatePayload = {
+      name,
+      language,
+      category,
+      components: components as MetaTemplateComponent[],
+    };
+    metaRes = await createMetaTemplate(
+      integration.waba_id,
+      partnerWabaToken(integration),
+      payload,
+    );
+  } catch (e: any) {
+    // Meta refused it — return its reason and save NOTHING (no orphan row).
+    return NextResponse.json(
+      { error: e?.message || "WhatsApp rejected the template." },
+      { status: 400 },
+    );
+  }
+
+  // Meta accepted → remove any prior failed attempts for this name, then mirror.
+  if (orphanIds.length) {
+    await fetchFromHasura(DELETE_STALE_LOCAL, { ids: orphanIds }).catch(() => {});
+  }
   try {
     const inserted = await fetchFromHasura(INSERT_LOCAL, {
       object: {
@@ -146,60 +237,24 @@ export async function POST(req: NextRequest) {
         language,
         category,
         components,
-        status: "DRAFT",
+        status: metaRes?.status || "PENDING",
+        meta_template_id: metaRes?.id || null,
       },
     });
-    localId = inserted?.insert_whatsapp_message_templates_one?.id;
-    if (!localId) throw new Error("Local insert returned no id");
-  } catch (e: any) {
-    const msg = String(e?.message || e);
-    if (msg.toLowerCase().includes("unique")) {
-      return NextResponse.json(
-        { error: "A template with this name and language already exists." },
-        { status: 409 },
-      );
-    }
-    console.error("Insert local template failed:", e);
-    return NextResponse.json({ error: "Failed to save template" }, { status: 500 });
-  }
-
-  // Submit to Meta.
-  try {
-    const payload: MetaTemplatePayload = {
-      name,
-      language,
-      category,
-      components: components as MetaTemplateComponent[],
-    };
-    const metaRes = await createMetaTemplate(
-      integration.waba_id,
-      partnerWabaToken(integration),
-      payload,
-    );
-    await fetchFromHasura(UPDATE_LOCAL_STATUS, {
-      id: localId,
-      status: metaRes?.status || "PENDING",
-      meta_template_id: metaRes?.id || null,
-      rejection_reason: null,
-    });
     return NextResponse.json({
-      id: localId,
+      id: inserted?.insert_whatsapp_message_templates_one?.id,
       meta_template_id: metaRes?.id,
       status: metaRes?.status || "PENDING",
     });
   } catch (e: any) {
-    // Keep the DRAFT row but record the rejection reason so the partner
-    // can fix and resubmit without losing the components they typed.
-    await fetchFromHasura(UPDATE_LOCAL_STATUS, {
-      id: localId,
-      status: "REJECTED",
-      meta_template_id: null,
-      rejection_reason: e?.message || "Meta rejected the template",
-    }).catch(() => {});
-    return NextResponse.json(
-      { error: e?.message || "Meta rejected the template", id: localId },
-      { status: 400 },
-    );
+    // Meta already has it; only the local mirror failed (e.g. a rare unique
+    // race). It'll appear on the next sync — report success, not failure.
+    console.error("Local mirror insert failed after Meta success:", e);
+    return NextResponse.json({
+      meta_template_id: metaRes?.id,
+      status: metaRes?.status || "PENDING",
+      warning: "Submitted to WhatsApp — it'll appear in the list shortly.",
+    });
   }
 }
 
@@ -226,6 +281,7 @@ async function reconcileWithMeta(
     id: string;
     name: string;
     language: string;
+    status: string;
     meta_template_id: string | null;
   }>;
   const localByKey = new Map(
@@ -274,8 +330,23 @@ async function reconcileWithMeta(
       (l) => l.meta_template_id && !currentKeys.has(`${l.name}::${l.language}`),
     )
     .map((l) => l.id);
-  if (staleIds.length) {
-    await fetchFromHasura(DELETE_STALE_LOCAL, { ids: staleIds }).catch((e) =>
+
+  // Also prune ORPHAN rows: REJECTED/DRAFT rows with no meta_template_id that
+  // aren't on Meta either. These can only come from a failed submission (the old
+  // create flow left a REJECTED draft behind); the current flow never creates
+  // them. Safe to remove so the list reflects only real templates.
+  const orphanIds = local
+    .filter(
+      (l) =>
+        !l.meta_template_id &&
+        ["REJECTED", "DRAFT"].includes(String(l.status).toUpperCase()) &&
+        !currentKeys.has(`${l.name}::${l.language}`),
+    )
+    .map((l) => l.id);
+
+  const toDelete = [...new Set([...staleIds, ...orphanIds])];
+  if (toDelete.length) {
+    await fetchFromHasura(DELETE_STALE_LOCAL, { ids: toDelete }).catch((e) =>
       console.warn("Prune stale templates failed:", e?.message || e),
     );
   }

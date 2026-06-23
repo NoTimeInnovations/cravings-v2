@@ -542,29 +542,97 @@ export async function listMetaTemplates(
   return data?.data || [];
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export async function createMetaTemplate(
   wabaId: string,
   accessToken: string,
   payload: MetaTemplatePayload,
 ): Promise<{ id: string; status: string; category: string }> {
-  const res = await fetch(`${GRAPH_API_BASE}/${wabaId}/message_templates`, {
+  const url = `${GRAPH_API_BASE}/${wabaId}/message_templates`;
+  const init: RequestInit = {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    console.error("Meta createMetaTemplate failed:", res.status, data);
-    const message =
-      data?.error?.error_user_msg ||
-      data?.error?.message ||
-      `Meta returned ${res.status}`;
-    throw new Error(message);
+  };
+
+  // Meta's edge intermittently returns a 503 (empty body) / 429 on the template
+  // WRITE path even when reads succeed. Auto-retry those transient failures with
+  // backoff so a blip doesn't fail the partner. 4xx (real validation errors) are
+  // returned immediately — retrying those is pointless and hides the reason.
+  const MAX_ATTEMPTS = 3;
+  let lastStatus = 0;
+  let lastData: any = {};
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(url, init);
+    } catch (e: any) {
+      // Network-level failure (DNS/connection). Retry, then give a clear message.
+      console.warn(
+        `Meta createMetaTemplate network error (attempt ${attempt}/${MAX_ATTEMPTS}):`,
+        e?.message || e,
+      );
+      if (attempt < MAX_ATTEMPTS) {
+        await sleep(attempt * 800);
+        continue;
+      }
+      throw new Error(
+        "Couldn't reach WhatsApp to submit the template. Check the connection and try again.",
+      );
+    }
+
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return data;
+
+    lastStatus = res.status;
+    lastData = data;
+
+    const transient = res.status >= 500 || res.status === 429;
+    if (transient && attempt < MAX_ATTEMPTS) {
+      console.warn(
+        `Meta createMetaTemplate ${res.status} (attempt ${attempt}/${MAX_ATTEMPTS}) — retrying`,
+      );
+      await sleep(attempt * 800); // 0.8s, then 1.6s
+      continue;
+    }
+    break; // non-transient (4xx) or out of attempts
   }
-  return data;
+
+  console.error("Meta createMetaTemplate failed:", lastStatus, lastData);
+  throw new Error(formatMetaTemplateError(lastStatus, lastData));
+}
+
+// Turn a Meta Graph error into a clear, actionable message for the partner.
+// Prefers Meta's own user-facing title/message; softens transient 5xx into a
+// "try again" message instead of a raw status code.
+export function formatMetaTemplateError(status: number, data: any): string {
+  const err = data?.error || {};
+  // Transient server-side issues at Meta — not the partner's fault.
+  if (status >= 500) {
+    return "WhatsApp's template service is temporarily unavailable. Please try again in a moment.";
+  }
+  if (status === 429 || err?.code === 80007 || err?.code === 130429) {
+    return "Too many template requests right now. Wait a minute and try again.";
+  }
+  // Authentication (OTP) templates require a VERIFIED Meta business. Unverified
+  // accounts get a generic "does not have permission" (code 10 / subcode
+  // 2388185) — translate it into something actionable.
+  if (
+    err?.error_subcode === 2388185 ||
+    (err?.code === 10 && /message template/i.test(String(err?.error_user_title || "")))
+  ) {
+    return "WhatsApp won't let this account create Authentication (OTP) templates yet — your Meta business must be verified first (Meta Business Manager → Security Center → Business verification). Utility and Marketing templates work without verification.";
+  }
+  const title = err?.error_user_title;
+  const msg =
+    err?.error_user_msg || err?.message || `WhatsApp rejected the template (HTTP ${status}).`;
+  const detail = err?.error_data?.details;
+  const base = title && title !== msg ? `${title}: ${msg}` : msg;
+  return detail && !base.includes(detail) ? `${base} (${detail})` : base;
 }
 
 // Meta lets you edit APPROVED/REJECTED templates by POSTing to the template's
