@@ -32,7 +32,7 @@ export async function poolGetConfig(rid: string): Promise<Result> {
 }
 export async function poolSyncConfig(
   rid: string,
-  body: { name?: string; pool_enabled?: boolean; assignment_mode?: string; pickup?: { lat: number; lng: number } },
+  body: { name?: string; pool_enabled?: boolean; assignment_mode?: string; pickup?: { lat: number; lng: number }; contact_phone?: string },
 ): Promise<Result> {
   return call(`${rid}/config`, { method: "PUT", body: JSON.stringify(body) });
 }
