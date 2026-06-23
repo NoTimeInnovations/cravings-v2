@@ -8,6 +8,9 @@
  *   DELIVERY_POOL_INTERNAL_KEY=<= order-service INTERNAL_API_KEY>  (blank in dev = open)
  */
 
+import { fetchFromHasura } from "@/lib/hasuraClient";
+import { poolSyncConfig } from "./deliveryPoolPartner";
+
 type Json = Record<string, unknown> | null;
 
 async function poolGet(path: string): Promise<Json> {
@@ -79,4 +82,36 @@ export async function searchPoolRestaurants(lat: number, lng: number, radiusKm: 
 }
 export async function getPoolRiderDocs(riderId: string) {
   return poolGet(`riders/${riderId}/docs`) as Promise<{ data: Record<string, unknown>[] } | null>;
+}
+
+/**
+ * Auto-register: sync every cravings partner that has the delivery_pool feature
+ * into the pool's restaurant_pool_config (name + pickup geo), so they're listed
+ * for riders without any manual "register" step. pool_enabled mirrors -true/-false.
+ */
+export async function syncAllPoolRestaurants(): Promise<{ ok: boolean; total: number; synced: number; error?: string }> {
+  let partners: Array<{
+    id: string;
+    store_name: string | null;
+    geo_location: { coordinates?: [number, number] } | null;
+    feature_flags: string | null;
+  }> = [];
+  try {
+    const data = await fetchFromHasura(
+      `query PoolPartners { partners(where: { feature_flags: { _ilike: "%delivery_pool-%" } }) { id store_name geo_location feature_flags } }`,
+    );
+    partners = data?.partners ?? [];
+  } catch (e) {
+    return { ok: false, total: 0, synced: 0, error: (e as Error).message };
+  }
+  let synced = 0;
+  for (const p of partners) {
+    const coords = p.geo_location?.coordinates;
+    const pickup =
+      Array.isArray(coords) && coords.length === 2 ? { lat: coords[1], lng: coords[0] } : undefined;
+    const enabled = (p.feature_flags ?? "").includes("delivery_pool-true");
+    const r = await poolSyncConfig(p.id, { name: p.store_name ?? undefined, pool_enabled: enabled, pickup });
+    if (r.ok) synced++;
+  }
+  return { ok: true, total: partners.length, synced };
 }
