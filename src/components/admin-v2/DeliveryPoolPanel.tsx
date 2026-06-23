@@ -64,53 +64,36 @@ export default function DeliveryPoolPanel() {
     }
   };
 
-  const sync = async () => {
+  // Auto-register this partner in the pool on open — no manual "register" step.
+  useEffect(() => {
     if (!rid) return;
     const coords = (userData as any)?.geo_location?.coordinates;
     const pickup =
       Array.isArray(coords) && coords.length === 2 ? { lat: coords[1], lng: coords[0] } : undefined;
-    if (!pickup) {
-      toast.error("Set your store location first (Settings → Store) so riders can find you.");
-      return;
-    }
-    await act(
-      poolSyncConfig(rid, { name: (userData as any)?.store_name, pool_enabled: true, pickup }),
-      "Synced to Delivery Pool",
-    );
-  };
+    poolSyncConfig(rid, { name: (userData as any)?.store_name, pool_enabled: true, pickup }).then(() => load());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rid]);
 
   if (!rid) return <div className="text-muted-foreground">Loading…</div>;
 
-  const registered = !!config?.registered;
   const pickup = config?.pickup;
 
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Setup / sync */}
       <div className="rounded-xl border bg-white p-5">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h2 className="text-lg font-semibold">Delivery Pool</h2>
-            <p className="text-sm text-muted-foreground">
-              Menuthere rider network. Orders auto-dispatch to your linked riders when you accept them.
-            </p>
-          </div>
-          <button
-            onClick={sync}
-            disabled={busy}
-            className="px-4 py-2 rounded-lg bg-orange-600 text-white font-medium disabled:opacity-50"
-          >
-            {registered ? "Re-sync store" : "Register store in pool"}
-          </button>
-        </div>
+        <h2 className="text-lg font-semibold">Delivery Pool</h2>
+        <p className="text-sm text-muted-foreground">
+          Menuthere rider network. Orders auto-dispatch to your linked riders when you accept them.
+        </p>
         <div className="mt-3 text-sm">
-          {registered ? (
+          {pickup ? (
             <span className="text-green-700">
-              ✓ Registered · pickup {pickup ? `${pickup.lat?.toFixed?.(4)}, ${pickup.lng?.toFixed?.(4)}` : "not set"}
+              ✓ In the rider pool · pickup {pickup.lat?.toFixed?.(4)}, {pickup.lng?.toFixed?.(4)}
             </span>
           ) : (
             <span className="text-amber-700">
-              Not registered yet — riders can&apos;t find you until you register your store + pickup location.
+              Set your store location (Settings → Store) so riders can find you.
             </span>
           )}
         </div>

@@ -11,6 +11,7 @@ import {
   setPoolRiderStatus,
   searchPoolRiders,
   searchPoolRestaurants,
+  syncAllPoolRestaurants,
 } from "@/app/actions/deliveryPoolAdmin";
 
 type Row = Record<string, unknown>;
@@ -40,6 +41,8 @@ export default function DeliveryPoolDashboard() {
   const [rows, setRows] = useState<Row[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [syncInfo, setSyncInfo] = useState<{ total: number; synced: number } | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   // geo search
   const [geo, setGeo] = useState({ lat: "", lng: "", radius: "5" });
@@ -64,6 +67,23 @@ export default function DeliveryPoolDashboard() {
     const t = setInterval(load, 5000);
     return () => clearInterval(t);
   }, [load]);
+
+  const runSync = async () => {
+    setSyncing(true);
+    const r = await syncAllPoolRestaurants();
+    setSyncing(false);
+    if (r.ok) {
+      setSyncInfo({ total: r.total, synced: r.synced });
+      load();
+    } else {
+      toast.error(r.error || "Partner sync failed");
+    }
+  };
+  // Auto-register every delivery_pool partner into the pool once on mount.
+  useEffect(() => {
+    runSync();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const act = async (p: Promise<Res>, okMsg: string) => {
     setBusy(true);
@@ -118,6 +138,19 @@ export default function DeliveryPoolDashboard() {
             <div className="text-xs text-gray-500">{label}</div>
           </div>
         ))}
+      </div>
+
+      <div className="text-xs text-gray-500 mb-3 flex items-center gap-3">
+        <span>
+          {syncing
+            ? "Syncing delivery-pool partners…"
+            : syncInfo
+              ? `Auto-registered ${syncInfo.synced}/${syncInfo.total} delivery-pool partners`
+              : ""}
+        </span>
+        <button onClick={runSync} disabled={syncing} className="px-2 py-0.5 rounded border disabled:opacity-50">
+          Re-sync partners
+        </button>
       </div>
 
       <div className="flex gap-2 mb-3">
