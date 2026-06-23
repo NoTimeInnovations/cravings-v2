@@ -95,10 +95,12 @@ export async function syncAllPoolRestaurants(): Promise<{ ok: boolean; total: nu
     store_name: string | null;
     geo_location: { coordinates?: [number, number] } | null;
     feature_flags: string | null;
+    phone: string | null;
+    country_code: string | null;
   }> = [];
   try {
     const data = await fetchFromHasura(
-      `query PoolPartners { partners(where: { feature_flags: { _ilike: "%delivery_pool-%" } }) { id store_name geo_location feature_flags } }`,
+      `query PoolPartners { partners(where: { feature_flags: { _ilike: "%delivery_pool-%" } }) { id store_name geo_location feature_flags phone country_code } }`,
     );
     partners = data?.partners ?? [];
   } catch (e) {
@@ -110,7 +112,12 @@ export async function syncAllPoolRestaurants(): Promise<{ ok: boolean; total: nu
     const pickup =
       Array.isArray(coords) && coords.length === 2 ? { lat: coords[1], lng: coords[0] } : undefined;
     const enabled = (p.feature_flags ?? "").includes("delivery_pool-true");
-    const r = await poolSyncConfig(p.id, { name: p.store_name ?? undefined, pool_enabled: enabled, pickup });
+    const contact_phone = p.phone
+      ? p.country_code && !p.phone.startsWith("+")
+        ? p.country_code + p.phone
+        : p.phone
+      : undefined;
+    const r = await poolSyncConfig(p.id, { name: p.store_name ?? undefined, pool_enabled: enabled, pickup, contact_phone });
     if (r.ok) synced++;
   }
   return { ok: true, total: partners.length, synced };
