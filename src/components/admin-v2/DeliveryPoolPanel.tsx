@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/authStore";
 import {
@@ -19,13 +19,42 @@ import {
 import RiderDocsModal from "@/components/deliveryPool/RiderDocsModal";
 import RiderAvatar from "@/components/deliveryPool/RiderAvatar";
 import RiderAvailabilityMap from "@/components/deliveryPool/RiderAvailabilityMap";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 type Row = Record<string, any>;
 type Res = { ok: boolean; data?: any; error?: string };
 
 const str = (v: unknown) => (v == null ? "—" : String(v));
 
-function Toggle({
+type Tone = "green" | "red" | "gray";
+const TONE: Record<Tone, string> = {
+  green: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  red: "bg-red-50 text-red-700 border-red-200",
+  gray: "bg-muted text-muted-foreground border-transparent",
+};
+function Pill({ children, tone = "gray" }: { children: ReactNode; tone?: Tone }) {
+  return (
+    <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold whitespace-nowrap", TONE[tone])}>
+      {children}
+    </span>
+  );
+}
+const availTone = (s: unknown): Tone => (s === "online" || s === "idle" ? "green" : "gray");
+
+function ToggleRow({
   on,
   onChange,
   label,
@@ -39,28 +68,18 @@ function Toggle({
   disabled?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      onClick={() => onChange(!on)}
-      disabled={disabled}
-      className="flex items-center justify-between w-full text-left py-3 disabled:opacity-50"
-    >
-      <div className="pr-4">
+    <div className="flex items-center justify-between gap-4 py-3">
+      <div className="pr-2">
         <div className="font-medium text-sm">{label}</div>
         <div className="text-xs text-muted-foreground">{desc}</div>
       </div>
-      <span
-        className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors ${
-          on ? "bg-orange-600" : "bg-gray-300"
-        }`}
-      >
-        <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
-            on ? "left-[22px]" : "left-0.5"
-          }`}
-        />
-      </span>
-    </button>
+      <Switch
+        checked={on}
+        onCheckedChange={onChange}
+        disabled={disabled}
+        className="data-[state=checked]:bg-orange-600"
+      />
+    </div>
   );
 }
 
@@ -129,80 +148,86 @@ export default function DeliveryPoolPanel() {
   const pickup = config?.pickup;
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-5 max-w-5xl">
       {/* Setup / sync */}
-      <div className="rounded-xl border bg-white p-5">
-        <h2 className="text-lg font-semibold">Delivery Pool</h2>
-        <p className="text-sm text-muted-foreground">
-          Menuthere rider network. Orders auto-dispatch to your linked riders when you accept them.
-        </p>
-        <div className="mt-3 text-sm">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Delivery Pool</CardTitle>
+          <CardDescription>
+            Menuthere rider network. Orders auto-dispatch to your linked riders when you accept them.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           {pickup ? (
-            <span className="text-green-700">
-              ✓ In the rider pool · pickup {pickup.lat?.toFixed?.(4)}, {pickup.lng?.toFixed?.(4)}
-            </span>
+            <Pill tone="green">✓ In the rider pool · pickup {pickup.lat?.toFixed?.(4)}, {pickup.lng?.toFixed?.(4)}</Pill>
           ) : (
-            <span className="text-amber-700">
+            <p className="text-sm text-amber-700">
               Set your store location (Settings → Store) so riders can find you.
-            </span>
+            </p>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Pool visibility */}
-      <div className="rounded-xl border bg-white p-5">
-        <h3 className="font-semibold mb-1">Delivery pool visibility</h3>
-        <p className="text-sm text-muted-foreground mb-1">
-          Control what the delivery pool sees for your orders.
-        </p>
-        <div className="divide-y">
-          <Toggle
+      <Card>
+        <CardHeader className="pb-1">
+          <CardTitle className="text-base">Delivery pool visibility</CardTitle>
+          <CardDescription>Control what the delivery pool sees for your orders.</CardDescription>
+        </CardHeader>
+        <CardContent className="divide-y pt-0">
+          <ToggleRow
             on={config?.hide_order_value ?? true}
             disabled={busy}
             onChange={(v) => act(poolSyncConfig(rid, { hide_order_value: v }), "Saved")}
             label="Hide order value"
             desc="Don't show the food order total to the delivery pool."
           />
-          <Toggle
+          <ToggleRow
             on={config?.show_delivery_charge ?? true}
             disabled={busy}
             onChange={(v) => act(poolSyncConfig(rid, { show_delivery_charge: v }), "Saved")}
             label="Show delivery charge"
             desc="Show the delivery charge (from your delivery settings) to riders."
           />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Invite rider */}
-      <div className="rounded-xl border bg-white p-5">
-        <h3 className="font-semibold mb-1">Add a rider</h3>
-        <p className="text-sm text-muted-foreground mb-3">
-          Enter a rider&apos;s phone to invite them — they accept in the rider app and become linked.
-        </p>
-        <div className="flex gap-2">
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="+91XXXXXXXXXX"
-            className="flex-1 max-w-xs border rounded-lg px-3 py-2 text-sm"
-          />
-          <button
-            onClick={() => phone.trim() && act(poolInvite(rid, phone.trim()).then((r) => { if (r.ok) setPhone(""); return r; }), "Invite sent")}
-            disabled={busy}
-            className="px-4 py-2 rounded-lg border font-medium disabled:opacity-50"
-          >
-            Invite
-          </button>
-        </div>
-      </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Add a rider</CardTitle>
+          <CardDescription>
+            Enter a rider&apos;s phone to invite them — they accept in the rider app and become linked.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+91XXXXXXXXXX"
+              className="sm:max-w-xs"
+            />
+            <Button
+              variant="outline"
+              onClick={() => phone.trim() && act(poolInvite(rid, phone.trim()).then((r) => { if (r.ok) setPhone(""); return r; }), "Invite sent")}
+              disabled={busy}
+            >
+              Invite
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Pending link requests */}
       {requests.length > 0 && (
-        <div className="rounded-xl border bg-white p-5">
-          <h3 className="font-semibold mb-3">Rider link requests ({requests.length})</h3>
-          <div className="space-y-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Rider link requests ({requests.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
             {requests.map((q) => (
-              <div key={str(q.id)} className="flex items-center justify-between border-t pt-2 first:border-t-0 first:pt-0">
+              <div key={str(q.id)} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t pt-3 first:border-t-0 first:pt-0">
                 <div className="flex items-center gap-3">
                   <RiderAvatar url={q.photo_url} name={q.full_name} size={40} />
                   <div>
@@ -213,170 +238,172 @@ export default function DeliveryPoolPanel() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => setDocRider({ id: str(q.rider_id), name: q.full_name ? String(q.full_name) : undefined })}
-                    className="px-3 py-1.5 rounded-lg border text-sm"
-                  >
-                    Docs
-                  </button>
-                  <button
-                    onClick={() => act(poolApprove(rid, str(q.id)), "Approved")}
-                    disabled={busy}
-                    className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm disabled:opacity-50"
-                  >
-                    Approve
-                  </button>
-                  <button
-                    onClick={() => {
-                      const reason = window.prompt("Reason for rejecting?") || "";
-                      if (reason) act(poolReject(rid, str(q.id), reason), "Rejected");
-                    }}
-                    disabled={busy}
-                    className="px-3 py-1.5 rounded-lg border text-sm disabled:opacity-50"
-                  >
-                    Reject
-                  </button>
+                  <Button variant="outline" size="sm"
+                    onClick={() => setDocRider({ id: str(q.rider_id), name: q.full_name ? String(q.full_name) : undefined })}>Docs</Button>
+                  <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" disabled={busy}
+                    onClick={() => act(poolApprove(rid, str(q.id)), "Approved")}>Approve</Button>
+                  <Button variant="outline" size="sm" disabled={busy}
+                    onClick={() => { const reason = window.prompt("Reason for rejecting?") || ""; if (reason) act(poolReject(rid, str(q.id), reason), "Rejected"); }}>Reject</Button>
                 </div>
               </div>
             ))}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Tabs: riders / orders */}
-      <div className="flex gap-2">
-        {(["riders", "availability", "orders"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg border ${tab === t ? "bg-orange-600 text-white border-orange-600" : "bg-white"}`}
-          >
-            {t === "riders"
-              ? `Linked riders (${riders.length})`
-              : t === "availability"
-                ? "Availability"
-                : `Live orders (${orders.length})`}
-          </button>
-        ))}
-      </div>
+      {/* Tabs */}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+        <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto bg-muted/60 p-1">
+          {([
+            ["riders", `Linked riders (${riders.length})`],
+            ["availability", "Availability"],
+            ["orders", `Live orders (${orders.length})`],
+          ] as const).map(([v, label]) => (
+            <TabsTrigger
+              key={v}
+              value={v}
+              className="data-[state=active]:bg-orange-600 data-[state=active]:text-white data-[state=active]:shadow-sm whitespace-nowrap"
+            >
+              {label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-      {tab === "availability" ? (
-        <RiderAvailabilityMap
-          riders={riders}
-          center={pickup ? [Number(pickup.lng), Number(pickup.lat)] : undefined}
-        />
-      ) : (
-      <div className="rounded-xl border bg-white overflow-x-auto">
-        {tab === "riders" ? (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 text-gray-600 text-left">
-                <th className="p-3">Rider</th>
-                <th className="p-3">Phone</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Done</th>
-                <th className="p-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {riders.length ? (
-                riders.map((r) => (
-                  <tr key={str(r.rider_id)} className="border-t">
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <RiderAvatar url={r.photo_url} name={r.full_name} />
-                        <span>{str(r.full_name)}</span>
+        {/* Linked riders */}
+        <TabsContent value="riders" className="mt-4">
+          {!riders.length ? (
+            <Empty>No linked riders yet — invite by phone above, or approve incoming requests.</Empty>
+          ) : (
+            <>
+              <Card className="hidden md:block overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Rider</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Done</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {riders.map((r) => (
+                      <TableRow key={str(r.rider_id)}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <RiderAvatar url={r.photo_url} name={r.full_name} />
+                            <span className="font-medium">{str(r.full_name)}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{str(r.phone)}</TableCell>
+                        <TableCell>
+                          {r.disabled ? <Pill tone="red">Disabled</Pill> : <Pill tone={availTone(r.availability)}>{str(r.availability ?? "offline")}</Pill>}
+                        </TableCell>
+                        <TableCell>{str(r.completed_orders ?? 0)}</TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          <Button variant="outline" size="sm" className="mr-1"
+                            onClick={() => setDocRider({ id: str(r.rider_id), name: r.full_name ? String(r.full_name) : undefined })}>Docs</Button>
+                          <Button variant="ghost" size="sm" className="mr-1" disabled={busy}
+                            onClick={() => act(poolDisableRider(rid, str(r.rider_id), !r.disabled), r.disabled ? "Enabled" : "Disabled")}>{r.disabled ? "Enable" : "Disable"}</Button>
+                          <Button variant="ghost" size="sm" className="text-red-600" disabled={busy}
+                            onClick={() => { if (window.confirm("Remove this rider?")) act(poolRemoveRider(rid, str(r.rider_id)), "Removed"); }}>Remove</Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+              <div className="md:hidden space-y-3">
+                {riders.map((r) => (
+                  <Card key={str(r.rider_id)}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <RiderAvatar url={r.photo_url} name={r.full_name} />
+                          <div className="leading-tight">
+                            <div className="font-medium">{str(r.full_name)}</div>
+                            <div className="text-xs text-muted-foreground">{str(r.phone)} · {str(r.completed_orders ?? 0)} done</div>
+                          </div>
+                        </div>
+                        {r.disabled ? <Pill tone="red">Disabled</Pill> : <Pill tone={availTone(r.availability)}>{str(r.availability ?? "offline")}</Pill>}
                       </div>
-                    </td>
-                    <td className="p-3">{str(r.phone)}</td>
-                    <td className="p-3">
-                      {r.disabled ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700">Disabled</span>
-                      ) : (
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                            r.availability === "online" || r.availability === "idle"
-                              ? "bg-green-50 text-green-700"
-                              : "bg-gray-100 text-gray-500"
-                          }`}
-                        >
-                          {str(r.availability ?? "offline")}
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-3">{str(r.completed_orders ?? 0)}</td>
-                    <td className="p-3 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => setDocRider({ id: str(r.rider_id), name: r.full_name ? String(r.full_name) : undefined })}
-                        className="text-xs px-2 py-1 rounded border mr-1"
-                      >
-                        Docs
-                      </button>
-                      <button
-                        onClick={() => act(poolDisableRider(rid, str(r.rider_id), !r.disabled), r.disabled ? "Enabled" : "Disabled")}
-                        disabled={busy}
-                        className="text-xs px-2 py-1 rounded border mr-1"
-                      >
-                        {r.disabled ? "Enable" : "Disable"}
-                      </button>
-                      <button
-                        onClick={() => { if (window.confirm("Remove this rider?")) act(poolRemoveRider(rid, str(r.rider_id)), "Removed"); }}
-                        disabled={busy}
-                        className="text-xs px-2 py-1 rounded border text-red-600"
-                      >
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td className="p-3 text-gray-400" colSpan={5}>
-                    No linked riders yet — invite by phone above, or approve incoming requests.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 text-gray-600 text-left">
-                <th className="p-3">Order</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Rider</th>
-                <th className="p-3">Drop</th>
-                <th className="p-3">Fee</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.length ? (
-                orders.map((o) => (
-                  <tr key={str(o.id)} className="border-t">
-                    <td className="p-3">{str(o.source_order_id ?? o.id).slice(0, 12)}</td>
-                    <td className="p-3">
-                      <span className="px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-semibold">
-                        {str(o.status)}
-                      </span>
-                    </td>
-                    <td className="p-3">{str(o.rider_name)}</td>
-                    <td className="p-3">{str(o.drop_address)}</td>
-                    <td className="p-3">{o.delivery_fee != null ? `₹${str(o.delivery_fee)}` : "—"}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td className="p-3 text-gray-400" colSpan={5}>
-                    No active pool orders.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
-      )}
-      <p className="text-xs text-gray-400">Auto-refreshes every 6s.</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" className="flex-1"
+                          onClick={() => setDocRider({ id: str(r.rider_id), name: r.full_name ? String(r.full_name) : undefined })}>Docs</Button>
+                        <Button variant="outline" size="sm" disabled={busy}
+                          onClick={() => act(poolDisableRider(rid, str(r.rider_id), !r.disabled), r.disabled ? "Enabled" : "Disabled")}>{r.disabled ? "Enable" : "Disable"}</Button>
+                        <Button variant="outline" size="sm" className="text-red-600" disabled={busy}
+                          onClick={() => { if (window.confirm("Remove this rider?")) act(poolRemoveRider(rid, str(r.rider_id)), "Removed"); }}>Remove</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+        </TabsContent>
+
+        {/* Availability */}
+        <TabsContent value="availability" className="mt-4">
+          <RiderAvailabilityMap
+            riders={riders}
+            center={pickup ? [Number(pickup.lng), Number(pickup.lat)] : undefined}
+          />
+        </TabsContent>
+
+        {/* Live orders */}
+        <TabsContent value="orders" className="mt-4">
+          {!orders.length ? (
+            <Empty>No active pool orders.</Empty>
+          ) : (
+            <>
+              <Card className="hidden md:block overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Rider</TableHead>
+                      <TableHead>Drop</TableHead>
+                      <TableHead>Fee</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.map((od) => (
+                      <TableRow key={str(od.id)}>
+                        <TableCell className="font-mono text-xs">{str(od.source_order_id ?? od.id).slice(0, 12)}</TableCell>
+                        <TableCell><Pill tone="green">{str(od.status)}</Pill></TableCell>
+                        <TableCell>{str(od.rider_name)}</TableCell>
+                        <TableCell className="max-w-[220px] truncate text-muted-foreground">{str(od.drop_address)}</TableCell>
+                        <TableCell>{od.delivery_fee != null ? `₹${str(od.delivery_fee)}` : "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+              <div className="md:hidden space-y-3">
+                {orders.map((od) => (
+                  <Card key={str(od.id)}>
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-xs">{str(od.source_order_id ?? od.id).slice(0, 12)}</span>
+                        <Pill tone="green">{str(od.status)}</Pill>
+                      </div>
+                      <div className="text-sm text-muted-foreground">{str(od.drop_address)}</div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span>{str(od.rider_name)}</span>
+                        <span className="font-semibold">{od.delivery_fee != null ? `₹${str(od.delivery_fee)}` : "—"}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <p className="text-xs text-muted-foreground">Auto-refreshes every 6s.</p>
 
       <RiderDocsModal
         open={!!docRider}
@@ -390,5 +417,13 @@ export default function DeliveryPoolPanel() {
         }}
       />
     </div>
+  );
+}
+
+function Empty({ children }: { children: ReactNode }) {
+  return (
+    <Card>
+      <CardContent className="p-10 text-center text-sm text-muted-foreground">{children}</CardContent>
+    </Card>
   );
 }
