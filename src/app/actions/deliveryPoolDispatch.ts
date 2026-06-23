@@ -29,6 +29,7 @@ interface OrderForPool {
   partner_id: string;
   display_id: number | null;
   user: { phone: string | null; full_name: string | null } | null;
+  order_items: Array<{ quantity: number | null; item: { name?: string } | null }> | null;
   delivery_location: { coordinates: [number, number] } | null;
   partner: {
     store_name: string | null;
@@ -43,6 +44,7 @@ const ORDER_FOR_POOL_QUERY = `
     orders_by_pk(id: $id) {
       id total_price extra_charges type delivery_address phone partner_id display_id
       user { phone full_name }
+      order_items { quantity item }
       delivery_location
       partner { store_name geo_location feature_flags delivery_rules }
     }
@@ -132,6 +134,8 @@ export async function dispatchDeliveryPool(orderId: string): Promise<Result> {
       name: order.user?.full_name ?? undefined,
       phone: order.user?.phone ?? order.phone ?? undefined,
     },
+    items_summary: (order.order_items ?? [])
+      .map((oi) => ({ name: oi.item?.name ?? "Item", quantity: oi.quantity ?? 1 })),
     order_value: order.total_price,
     // Cravings stores the delivery charge as an "Delivery Charge" extra_charges line.
     delivery_fee:
