@@ -60,3 +60,7 @@ export async function poolRemoveRider(rid: string, riderId: string): Promise<Res
 export async function poolOrders(rid: string): Promise<Result> {
   return call(`${rid}/orders`, { method: "GET" });
 }
+/** View-only documents (presigned) of a rider linked to this restaurant. */
+export async function poolRiderDocs(rid: string, riderId: string): Promise<Result> {
+  return call(`${rid}/riders/${riderId}/docs`, { method: "GET" });
+}

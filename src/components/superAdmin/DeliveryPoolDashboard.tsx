@@ -12,7 +12,10 @@ import {
   searchPoolRiders,
   searchPoolRestaurants,
   syncAllPoolRestaurants,
+  getPoolRiderDocs,
+  verifyPoolRiderKyc,
 } from "@/app/actions/deliveryPoolAdmin";
+import RiderDocsModal from "@/components/deliveryPool/RiderDocsModal";
 
 type Row = Record<string, unknown>;
 type Overview = {
@@ -48,6 +51,7 @@ export default function DeliveryPoolDashboard() {
   const [geo, setGeo] = useState({ lat: "", lng: "", radius: "5" });
   const [geoRiders, setGeoRiders] = useState<Row[]>([]);
   const [geoRestaurants, setGeoRestaurants] = useState<Row[]>([]);
+  const [docRider, setDocRider] = useState<{ id: string; name?: string } | null>(null);
 
   const load = useCallback(async () => {
     const ov = (await getPoolOverview()) as Overview | null;
@@ -274,6 +278,7 @@ export default function DeliveryPoolDashboard() {
                   <th className="p-3">Status</th>
                   <th className="p-3">Active</th>
                   <th className="p-3">Done</th>
+                  <th className="p-3">KYC</th>
                   <th className="p-3">Actions</th>
                 </tr>
               </thead>
@@ -293,7 +298,28 @@ export default function DeliveryPoolDashboard() {
                         </td>
                         <td className="p-3">{str(r.active_order_count ?? 0)}</td>
                         <td className="p-3">{str(r.completed_orders ?? 0)}</td>
+                        <td className="p-3">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              r.kyc_status === "verified"
+                                ? "bg-green-50 text-green-700"
+                                : r.kyc_status === "rejected"
+                                  ? "bg-red-50 text-red-700"
+                                  : "bg-amber-50 text-amber-700"
+                            }`}
+                          >
+                            {str(r.kyc_status)}
+                          </span>
+                        </td>
                         <td className="p-3 whitespace-nowrap">
+                          <button
+                            onClick={() =>
+                              setDocRider({ id: str(r.id), name: r.full_name ? String(r.full_name) : undefined })
+                            }
+                            className="text-xs px-2 py-1 rounded border mr-1"
+                          >
+                            Docs / KYC
+                          </button>
                           <button
                             onClick={() => { if (window.confirm("Block this rider's account?")) act(setPoolRiderStatus(str(r.id), "blocked"), "Blocked"); }}
                             disabled={busy}
@@ -314,7 +340,7 @@ export default function DeliveryPoolDashboard() {
                   })
                 ) : (
                   <tr>
-                    <td className="p-3 text-gray-400" colSpan={7}>No riders</td>
+                    <td className="p-3 text-gray-400" colSpan={8}>No riders</td>
                   </tr>
                 )}
               </tbody>
@@ -324,6 +350,28 @@ export default function DeliveryPoolDashboard() {
       )}
 
       <p className="text-xs text-gray-400 mt-3">Auto-refreshes every 5s · data from the Delivery Pool order-service.</p>
+
+      <RiderDocsModal
+        open={!!docRider}
+        onClose={() => setDocRider(null)}
+        riderId={docRider?.id ?? null}
+        riderName={docRider?.name}
+        canVerify
+        fetchDocs={async (id) => {
+          const j = await getPoolRiderDocs(id);
+          return { docs: (j?.data as any[]) ?? [], fullName: j?.full_name, kyc: j?.kyc_status };
+        }}
+        onVerify={async (status, reason) => {
+          const r = await verifyPoolRiderKyc(docRider!.id, status, reason);
+          if (r.ok) {
+            toast.success(`KYC ${status}`);
+            load();
+          } else {
+            toast.error(r.error || "Failed");
+          }
+          return { ok: r.ok, error: r.error };
+        }}
+      />
     </div>
   );
 }
