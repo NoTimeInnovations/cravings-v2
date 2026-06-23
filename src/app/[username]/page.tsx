@@ -247,10 +247,18 @@ const UsernamePage = async ({
   // session is never overridden, and an already-correct session is a no-op.
   // The cookie can't be set during a server render, so a tiny client component
   // does it via a server action, then refreshes.
+  // A valid token carries a customer either as a userId (legacy signed token) or
+  // an encrypted phone (resolved to a user id inside the auto-login action). For
+  // a phone token we can't compare against the current session at render time,
+  // so we attempt the auto-login and let the action no-op if it's already the
+  // same customer. A staff (non-user) session is never overridden.
   const oltUserId = oltStatus?.valid ? oltStatus.userId : null;
+  const oltCarriesCustomer = !!(oltStatus?.valid && (oltStatus.userId || oltStatus.phone));
   const autoLoginToken =
-    olt && oltUserId &&
-    (!auth || (auth.role === "user" && auth.id !== oltUserId))
+    olt &&
+    oltCarriesCustomer &&
+    (!auth || auth.role === "user") &&
+    !(auth?.role === "user" && oltUserId && auth.id === oltUserId)
       ? olt
       : null;
 

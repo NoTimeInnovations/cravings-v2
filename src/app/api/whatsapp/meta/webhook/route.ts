@@ -229,7 +229,10 @@ export async function POST(req: NextRequest) {
           );
 
           if (partner?.partner_id) {
-            await persistIncoming(partner.partner_id, msg, contactName);
+            // Log the inbound to the inbox, but DON'T block the flow reply on it —
+            // overlap it with the flow run. Still awaited before we return so a
+            // serverless freeze can't drop the write.
+            const persistP = persistIncoming(partner.partner_id, msg, contactName);
 
             // Marketing STOP/unsubscribe → suppress from this partner's broadcasts.
             if (isStopMessage(msg)) {
@@ -253,6 +256,8 @@ export async function POST(req: NextRequest) {
                 console.error("Flow engine error:", e);
               }
             }
+
+            await persistP.catch(() => {});
           }
 
           // Handle "Track Order Status" quick reply button click

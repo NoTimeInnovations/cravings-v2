@@ -15,8 +15,44 @@ const DEFAULT_TTL_MIN = 30; // plain order link
 const AUTH_TTL_MIN = 10; // auto-login (authed) link — tighter window
 const STOREFRONT_ORIGIN = "https://menuthere.com";
 
+// Version byte that marks an ENCRYPTED (phone-bearing) token. Legacy tokens are
+// base64url of an ASCII "<digits>.<...>" string whose first byte is a digit
+// (0x30–0x39), so 0x01 can never collide with them — that's how verify tells
+// the two shapes apart.
+const ENC_TOKEN_VERSION = 0x01;
+
 function secret(): string {
   return process.env.META_APP_SECRET || process.env.WHATSAPP_ACCESS_TOKEN || "menuthere-order-link";
+}
+
+// 32-byte AES key derived from the same secret the HMAC uses. SHA-256 yields
+// exactly 32 bytes (aes-256 key size).
+function encKey(): Buffer {
+  return crypto.createHash("sha256").update(secret()).digest();
+}
+
+// Encrypt the customer's (local) phone + expiry into an opaque token. Unlike the
+// signed userId token, the phone is NOT recoverable from the link without our
+// key. partnerId is bound as GCM additional-authenticated-data, so a token
+// minted for one partner fails to decrypt against another (same guarantee the
+// HMAC payload's partnerId gave). Layout (then base64url):
+//   [version(1)] [iv(12)] [tag(16)] [ciphertext]
+// Plaintext is JSON { p: localPhone, e: expiryMs }.
+export function encryptPhoneToken(
+  partnerId: string,
+  localPhone: string,
+  ttlMinutes = AUTH_TTL_MIN,
+): string {
+  const exp = Date.now() + ttlMinutes * 60 * 1000;
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", encKey(), iv);
+  cipher.setAAD(Buffer.from(partnerId, "utf8"));
+  const pt = Buffer.from(JSON.stringify({ p: localPhone, e: exp }), "utf8");
+  const ct = Buffer.concat([cipher.update(pt), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([Buffer.from([ENC_TOKEN_VERSION]), iv, tag, ct]).toString(
+    "base64url",
+  );
 }
 
 // HMAC over the exact payload string. partnerId is always part of the payload
@@ -43,10 +79,46 @@ export function signOrderLinkToken(
 export function verifyOrderLinkToken(
   partnerId: string,
   token: string,
-): { valid: boolean; expired: boolean; userId: string | null } {
-  const fail = { valid: false, expired: false, userId: null as string | null };
+): { valid: boolean; expired: boolean; userId: string | null; phone: string | null } {
+  const fail = {
+    valid: false,
+    expired: false,
+    userId: null as string | null,
+    phone: null as string | null,
+  };
+  let buf: Buffer;
   try {
-    const parts = Buffer.from(token, "base64url").toString("utf8").split(".");
+    buf = Buffer.from(token, "base64url");
+  } catch {
+    return fail;
+  }
+
+  // Encrypted (phone-bearing) token — version-byte tagged. Decryption itself is
+  // the integrity check: a tampered token, wrong key, or wrong partner (AAD)
+  // throws and we treat it as invalid.
+  if (buf.length > 29 && buf[0] === ENC_TOKEN_VERSION) {
+    try {
+      const iv = buf.subarray(1, 13);
+      const tag = buf.subarray(13, 29);
+      const ct = buf.subarray(29);
+      const decipher = crypto.createDecipheriv("aes-256-gcm", encKey(), iv);
+      decipher.setAAD(Buffer.from(partnerId, "utf8"));
+      decipher.setAuthTag(tag);
+      const pt = Buffer.concat([decipher.update(ct), decipher.final()]).toString("utf8");
+      const obj = JSON.parse(pt) as { p?: string; e?: number };
+      const exp = Number(obj.e);
+      const phone = obj.p ? String(obj.p) : null;
+      if (!exp || !phone) return fail;
+      if (Date.now() > exp) return { valid: false, expired: true, userId: null, phone };
+      return { valid: true, expired: false, userId: null, phone };
+    } catch {
+      return fail;
+    }
+  }
+
+  // Legacy signed token: `exp.sig` (plain) or `exp.userId.sig` (auto-login).
+  try {
+    const parts = buf.toString("utf8").split(".");
     let exp: number;
     let userId: string | null = null;
     let sig: string;
@@ -68,8 +140,8 @@ export function verifyOrderLinkToken(
     if (!exp || !sig) return fail;
     if (sig.length !== expected.length) return fail;
     if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return fail;
-    if (Date.now() > exp) return { valid: false, expired: true, userId };
-    return { valid: true, expired: false, userId };
+    if (Date.now() > exp) return { valid: false, expired: true, userId, phone: null };
+    return { valid: true, expired: false, userId, phone: null };
   } catch {
     return fail;
   }
@@ -89,6 +161,10 @@ export function buildOrderLink(
   username: string,
   partnerId: string,
   opts?: {
+    // Local phone for an ENCRYPTED auto-login token. Preferred over userId: the
+    // account is resolved/created when the link is tapped (off the WhatsApp
+    // reply path), and the phone is not recoverable from the link.
+    phone?: string | null;
     userId?: string | null;
     ttlMinutes?: number;
     customDomain?: string | null;
@@ -99,9 +175,13 @@ export function buildOrderLink(
     reorderPayload?: string | null;
   },
 ): string {
+  const phone = opts?.phone ?? null;
   const userId = opts?.userId ?? null;
-  const ttl = opts?.ttlMinutes ?? (userId ? AUTH_TTL_MIN : DEFAULT_TTL_MIN);
-  const token = signOrderLinkToken(partnerId, ttl, userId);
+  const isAuth = !!(phone || userId);
+  const ttl = opts?.ttlMinutes ?? (isAuth ? AUTH_TTL_MIN : DEFAULT_TTL_MIN);
+  const token = phone
+    ? encryptPhoneToken(partnerId, phone, ttl)
+    : signOrderLinkToken(partnerId, ttl, userId);
   const reorderQ = opts?.reorderPayload
     ? `&back=true&ro=${opts.reorderPayload}`
     : "";

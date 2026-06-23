@@ -88,16 +88,20 @@ const Q_PARTNER_INFO = `
     partners_by_pk(id: $id) { store_name username currency country_code custom_domain }
   }
 `;
-// The customer's most recent order at this partner. Drives whether the welcome
-// flow offers "Reorder" (non-empty link) AND the reorder payload encoded into
-// the link, so the storefront can pre-fill the cart + address with no query.
-const Q_LAST_ORDER = `
-  query LastOrder($user_id: uuid!, $partner_id: uuid!) {
+// The customer's most recent order at this partner, matched by PHONE (not user
+// id) so we don't need to resolve/create the account on the reply path. Drives
+// whether the welcome flow offers "Reorder" (non-empty link) AND the reorder
+// payload encoded into the link, so the storefront pre-fills cart + address.
+const Q_LAST_ORDER_BY_PHONE = `
+  query LastOrderByPhone($phones: [String!], $partner_id: uuid!) {
     orders(
       where: {
-        user_id: { _eq: $user_id }
         partner_id: { _eq: $partner_id }
         status: { _nin: ["cancelled", "expired"] }
+        _or: [
+          { phone: { _in: $phones } }
+          { user: { phone: { _in: $phones } } }
+        ]
       }
       order_by: { created_at: desc }
       limit: 1
@@ -110,6 +114,25 @@ const Q_LAST_ORDER = `
     }
   }
 `;
+
+// Phone forms an order may have been stored under, derived from the WhatsApp
+// sender number WITHOUT a partner-country lookup (so this can ride the same
+// parallel read wave). Covers the raw international form and the India local
+// form; a miss just means no Reorder offer (graceful), never a wrong match.
+function phoneMatchVariants(waPhone: string): string[] {
+  const digits = String(waPhone || "").replace(/\D/g, "");
+  const set = new Set<string>();
+  if (digits) {
+    set.add(digits);
+    set.add(`+${digits}`);
+  }
+  if (digits.length === 12 && digits.startsWith("91")) {
+    const local = digits.slice(2);
+    set.add(local);
+    set.add(`+91${local}`);
+  }
+  return [...set];
+}
 
 // Same money formatting the order-status flows use (whole numbers stay whole).
 function fmtMoney(n: number): string {
@@ -623,9 +646,10 @@ async function dispatch(
   phoneNumberId: string,
   to: string,
   outbound: Outbound[],
+  prefetchedToken?: string,
 ): Promise<void> {
   if (!outbound.length) return;
-  const token = await getPartnerSendToken(partnerId);
+  const token = prefetchedToken || (await getPartnerSendToken(partnerId));
   for (const o of outbound) {
     const { payload, type, body } = buildPayload(to, o);
     const sent = await graphSend(phoneNumberId, payload, token);
@@ -657,18 +681,23 @@ export async function runFlowForInbound(args: {
 
   // Layer 1 — idempotency: claim this Meta message id. A retry (or a second
   // instance handed the same delivery) throws on the partial-unique index and
-  // we drop it. This is the primary double-advance guard.
-  try {
-    await fetchFromHasura(M_EVENT, {
-      o: { partner_id: partnerId, contact_phone: contactPhone, wa_message_id: waMessageId, input },
+  // we drop it. This is the primary double-advance guard. Run it in parallel
+  // with the active-run lookup — they're independent, so one round-trip; if the
+  // claim turns out to be a duplicate we bail before doing any work.
+  const eventP = fetchFromHasura(M_EVENT, {
+    o: { partner_id: partnerId, contact_phone: contactPhone, wa_message_id: waMessageId, input },
+  })
+    .then(() => false)
+    .catch((e: any) => {
+      if (/unique|duplicate/i.test(String(e?.message || e))) return true; // already processed
+      console.error("Flow idempotency insert failed:", e);
+      return false; // fall through — better to attempt processing than to drop a real message
     });
-  } catch (e: any) {
-    if (/unique|duplicate/i.test(String(e?.message || e))) return; // already processed
-    console.error("Flow idempotency insert failed:", e);
-    // fall through — better to attempt processing than to drop a real message
-  }
-
-  const activeRes = await fetchFromHasura(Q_ACTIVE_RUN, { p: partnerId, c: contactPhone });
+  const activeP = fetchFromHasura(Q_ACTIVE_RUN, { p: partnerId, c: contactPhone }).catch(
+    () => null,
+  );
+  const [isDuplicate, activeRes] = await Promise.all([eventP, activeP]);
+  if (isDuplicate) return;
   const active = activeRes?.whatsapp_flow_execution_state?.[0];
 
   if (active) {
@@ -723,90 +752,75 @@ async function abortRun(id: string): Promise<void> {
   await fetchFromHasura(M_ABORT_RUN, { id }).catch(() => {});
 }
 
-// System variables available to every message-triggered run.
-async function buildMessageRunVars(
+interface PartnerInfo {
+  store_name?: string | null;
+  username?: string | null;
+  currency?: string | null;
+  country_code?: string | null;
+  custom_domain?: string | null;
+}
+
+// System variables available to every message-triggered run. Pure (no DB): the
+// partner row and last order are prefetched in startNewRun's parallel wave, and
+// the auto-login link is an ENCRYPTED PHONE token, so the customer's account is
+// resolved/created only when they tap — nothing on the reply path waits on it.
+function buildMessageRunVars(
   partnerId: string,
-  contactPhone: string,
-  contactName: string | null,
-): Promise<Record<string, unknown>> {
-  try {
-    const res = await fetchFromHasura(Q_PARTNER_INFO, { id: partnerId });
-    const p = res?.partners_by_pk;
-    if (!p) return {};
+  localPhone: string,
+  partner: PartnerInfo | null,
+  lastOrder: any | null,
+): Record<string, unknown> {
+  if (!partner) return {};
+  const p = partner;
+  const cur = p.currency ?? "₹";
+  const username = p.username || "";
 
-    // Silently make this WhatsApp sender one of our users (created from their
-    // WhatsApp name + phone if new), then hand out an order link that auto-logs
-    // them in when tapped — no OTP. The country code is stripped so the account
-    // matches their normal OTP login instead of forking a duplicate.
-    let userId: string | null = null;
-    if (contactPhone) {
-      const localPhone = toLocalPhone(contactPhone, p.country_code);
-      userId = await findOrCreateUserByPhone(localPhone, contactName);
-    }
+  // Offer a "Reorder" link only when this customer has a previous order here.
+  // We encode that order into the link so the storefront pre-fills the cart +
+  // address without a query. reorder_link is empty for first-time customers,
+  // so the welcome condition hides the Reorder button for them.
+  const reorderPayload = lastOrder ? encodeReorderPayload(lastOrder) : null;
 
-    // Offer a "Reorder" link only when this customer has a previous order here.
-    // We encode that order into the link so the storefront pre-fills the cart +
-    // address without a query. reorder_link is empty for first-time customers,
-    // so the welcome condition hides the Reorder button for them.
-    let reorderPayload: string | null = null;
-    let lastOrder: any = null;
-    if (userId) {
-      try {
-        const orderRes = await fetchFromHasura(Q_LAST_ORDER, {
-          user_id: userId,
-          partner_id: partnerId,
-        });
-        lastOrder = orderRes?.orders?.[0] || null;
-        if (lastOrder) reorderPayload = encodeReorderPayload(lastOrder);
-      } catch {
-        reorderPayload = null;
-        lastOrder = null;
-      }
-    }
-
-    const cur = p.currency ?? "₹";
-
-    // Itemised summary of the last order for the Reorder message ({{reorder_items}})
-    // and its grand total ({{reorder_total}}). Same line format the order-status
-    // flows use: "1. Name × qty — ₹line". Empty when there's no prior order.
-    let reorderItems = "";
-    let reorderTotal = "";
-    if (lastOrder) {
-      reorderItems = (lastOrder.order_items || [])
-        .map((oi: any, i: number) => {
-          const it = oi.item || {};
-          const name = it.name || "Item";
-          const qty = Number(oi.quantity) || 0;
-          const line = Number(it.price ?? 0) * qty;
-          return `${i + 1}. ${name} × ${qty} — ${cur}${fmtMoney(line)}`;
-        })
-        .join("\n");
-      const total = Number(lastOrder.total_price) || 0;
-      if (total > 0) reorderTotal = `${cur}${fmtMoney(total)}`;
-    }
-
-    return {
-      store_name: p.store_name || "",
-      username: p.username || "",
-      currency: cur,
-      order_link: p.username
-        ? buildOrderLink(p.username, partnerId, { userId, customDomain: p.custom_domain })
-        : "",
-      reorder_link:
-        p.username && userId && reorderPayload
-          ? buildOrderLink(p.username, partnerId, {
-              userId,
-              customDomain: p.custom_domain,
-              reorderPayload,
-            })
-          : "",
-      reorder_items: reorderItems,
-      reorder_total: reorderTotal,
-    };
-  } catch (e) {
-    console.error("buildMessageRunVars failed:", e);
-    return {};
+  // Itemised summary of the last order for the Reorder message ({{reorder_items}})
+  // and its grand total ({{reorder_total}}). Same line format the order-status
+  // flows use: "1. Name × qty — ₹line". Empty when there's no prior order.
+  let reorderItems = "";
+  let reorderTotal = "";
+  if (lastOrder) {
+    reorderItems = (lastOrder.order_items || [])
+      .map((oi: any, i: number) => {
+        const it = oi.item || {};
+        const name = it.name || "Item";
+        const qty = Number(oi.quantity) || 0;
+        const line = Number(it.price ?? 0) * qty;
+        return `${i + 1}. ${name} × ${qty} — ${cur}${fmtMoney(line)}`;
+      })
+      .join("\n");
+    const total = Number(lastOrder.total_price) || 0;
+    if (total > 0) reorderTotal = `${cur}${fmtMoney(total)}`;
   }
+
+  return {
+    store_name: p.store_name || "",
+    username,
+    currency: cur,
+    order_link: username
+      ? buildOrderLink(username, partnerId, {
+          phone: localPhone || null,
+          customDomain: p.custom_domain,
+        })
+      : "",
+    reorder_link:
+      username && localPhone && reorderPayload
+        ? buildOrderLink(username, partnerId, {
+            phone: localPhone,
+            customDomain: p.custom_domain,
+            reorderPayload,
+          })
+        : "",
+    reorder_items: reorderItems,
+    reorder_total: reorderTotal,
+  };
 }
 
 async function startNewRun(
@@ -817,7 +831,27 @@ async function startNewRun(
   input: FlowInput,
   contactName: string | null = null,
 ) {
-  const flowsRes = await fetchFromHasura(Q_ENABLED_FLOWS, { p: partnerId });
+  // One parallel wave of every read this turn needs — none depend on each
+  // other, so they resolve in a single round-trip instead of ~6 stacked ones.
+  // (Q_RUN_COUNT is always fetched, even if no welcome trigger ends up using it;
+  // an over-fetch is cheaper than a serialised round-trip to find out.)
+  const phoneVariants = phoneMatchVariants(contactPhone);
+  const [flowsRes, runCountRes, suppressed, lastRunByFlow, partnerRes, sendToken, lastOrderRes] =
+    await Promise.all([
+      fetchFromHasura(Q_ENABLED_FLOWS, { p: partnerId }),
+      fetchFromHasura(Q_RUN_COUNT, { p: partnerId, c: contactPhone }),
+      getSuppressedFlowIds(partnerId, contactPhone),
+      getLastFlowRunAt(partnerId, contactPhone),
+      fetchFromHasura(Q_PARTNER_INFO, { id: partnerId }).catch(() => null),
+      getPartnerSendToken(partnerId),
+      phoneVariants.length
+        ? fetchFromHasura(Q_LAST_ORDER_BY_PHONE, {
+            phones: phoneVariants,
+            partner_id: partnerId,
+          }).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+
   const flows = (flowsRes?.whatsapp_flows || []) as Array<{
     id: string;
     graph: FlowGraph;
@@ -829,17 +863,15 @@ async function startNewRun(
   }>;
   if (!flows.length) return;
 
-  // Need firstContact only if some flow has a welcome trigger.
-  let firstContact = false;
-  if (flows.some((f) => (f.triggers || []).some((t) => t.matchType === "welcome"))) {
-    const c = await fetchFromHasura(Q_RUN_COUNT, { p: partnerId, c: contactPhone });
-    firstContact = (c?.whatsapp_flow_execution_state_aggregate?.aggregate?.count ?? 0) === 0;
-  }
+  const hasWelcomeTrigger = flows.some((f) =>
+    (f.triggers || []).some((t) => t.matchType === "welcome"),
+  );
+  const firstContact =
+    hasWelcomeTrigger &&
+    (runCountRes?.whatsapp_flow_execution_state_aggregate?.aggregate?.count ?? 0) === 0;
 
   // Skip flows the customer opted out of (END-node "stop" button, time-bound) and
   // flows blocked by their run-frequency setting (once-per-customer / cooldown).
-  const suppressed = await getSuppressedFlowIds(partnerId, contactPhone);
-  const lastRunByFlow = await getLastFlowRunAt(partnerId, contactPhone);
   const candidates = flows
     .flatMap((f) => (f.triggers || []).map((t) => ({ flow: f, t })))
     .sort((a, b) => a.t.priority - b.t.priority);
@@ -861,9 +893,13 @@ async function startNewRun(
     null;
   const startId = startNodeId ? firstEdgeTarget(graph, startNodeId) : null;
 
-  // Inject system variables (store name, a fresh 30-min order link, etc.) so
-  // welcome/menu flows can use {{order_link}}, {{store_name}}, etc.
-  const sysVars = await buildMessageRunVars(partnerId, contactPhone, contactName);
+  // Inject system variables (store name, a fresh 10-min auto-login order link,
+  // etc.) so welcome/menu flows can use {{order_link}}, {{store_name}}, etc.
+  // The link carries an encrypted phone, so no account lookup/creation here.
+  const partner = (partnerRes?.partners_by_pk as PartnerInfo | null) || null;
+  const localPhone = toLocalPhone(contactPhone, partner?.country_code);
+  const lastOrder = lastOrderRes?.orders?.[0] || null;
+  const sysVars = buildMessageRunVars(partnerId, localPhone, partner, lastOrder);
   const state: RunState = { flowId: matched.id, variables: sysVars, stepCount: 0, version: 0 };
   const outbound: Outbound[] = [];
   const { parkedNodeId, completed } = executeForward(graph, startId, state, outbound);
@@ -895,7 +931,18 @@ async function startNewRun(
     return;
   }
 
-  await dispatch(partnerId, phoneNumberId, contactPhone, outbound);
+  // Send the reply — reuse the token prefetched above so this doesn't re-query.
+  await dispatch(partnerId, phoneNumberId, contactPhone, outbound, sendToken);
+
+  // AFTER the customer already has the message, make sure the silent account
+  // exists — so a customer who never taps the link still lands in the partner's
+  // CRM, exactly like before. The tap path also find-or-creates (idempotent by
+  // phone/email), so this is a head start, not a dependency. Kept inside the
+  // awaited request (not fire-and-forget) so it can't be dropped on a serverless
+  // freeze, but it runs post-reply so it never delays the message.
+  if (localPhone) {
+    await findOrCreateUserByPhone(localPhone, contactName).catch(() => {});
+  }
 }
 
 // ─── Order-triggered flows ───────────────────────────────────────
