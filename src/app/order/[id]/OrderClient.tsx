@@ -37,6 +37,11 @@ const DeliveryRiderPanel = dynamic(
   { ssr: false },
 );
 
+const PoolRiderPanel = dynamic(
+  () => import("@/components/PoolRiderPanel"),
+  { ssr: false },
+);
+
 const GET_ORDER_QUERY = `
   subscription GetOrder($id: uuid!) {
     orders_by_pk(id: $id) {
@@ -712,23 +717,13 @@ ${itemsText}
                                         </div>
                                     </div>
                                 )}
-                                {(order as any)?.delivery_provider_meta?.trackingUrl && !isCompleted && (
-                                    <a
-                                        href={(order as any).delivery_provider_meta.trackingUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="rounded-2xl border border-blue-200 bg-blue-50 p-4 flex items-center gap-3 shadow-sm hover:bg-blue-100 transition"
-                                    >
-                                        <Bike className="h-5 w-5 text-blue-700" />
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                                                Track your delivery
-                                            </p>
-                                            <p className="mt-0.5 text-sm font-medium text-blue-900 underline">
-                                                Open live tracking →
-                                            </p>
-                                        </div>
-                                    </a>
+                                {!isCompleted && (
+                                    <PoolRiderPanel
+                                        name={(order as any)?.delivery_provider_meta?.riderName}
+                                        phone={(order as any)?.delivery_provider_meta?.riderPhone}
+                                        vehicle={(order as any)?.delivery_provider_meta?.riderVehicle}
+                                        trackUrl={(order as any)?.delivery_provider_meta?.trackingUrl}
+                                    />
                                 )}
                             </>
                         )}
