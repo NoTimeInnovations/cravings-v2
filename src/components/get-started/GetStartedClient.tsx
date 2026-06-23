@@ -25,6 +25,8 @@ import {
   Sparkles,
   Mail,
   RefreshCw,
+  ChevronDown,
+  Search,
 } from "lucide-react";
 import type { Schema } from "@google/generative-ai";
 import { aiGenerate, fileToBase64 } from "@/lib/ai/generateContent";
@@ -169,6 +171,247 @@ const CustomColorPicker = ({
     </Popover>
   </div>
 );
+
+// Typeable picker (Country / State): shows the known values as a filtered
+// dropdown, but the field is a plain text input so the partner can also enter a
+// value that isn't in the list (e.g. a union territory, a country we don't carry
+// a phone code for, or a spelling we don't have). Selecting a suggestion or
+// typing both set the value; free text is preserved as-is.
+function Combobox({
+  value,
+  onChange,
+  options,
+  placeholder,
+  id,
+  name,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  options: string[];
+  placeholder?: string;
+  id?: string;
+  name?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  const q = value.trim().toLowerCase();
+  const filtered = q
+    ? options.filter((o) => o.toLowerCase().includes(q))
+    : options;
+  // Hide the list once the typed value exactly matches the only remaining option.
+  const showList =
+    open &&
+    filtered.length > 0 &&
+    !(filtered.length === 1 && filtered[0].toLowerCase() === q);
+
+  return (
+    <div className="relative" ref={wrapRef}>
+      <Input
+        id={id}
+        name={name}
+        autoComplete="off"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50 text-sm md:text-base"
+      />
+      {showList && (
+        <ul className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-stone-200 bg-white py-1 shadow-lg">
+          {filtered.slice(0, 100).map((o) => (
+            <li key={o}>
+              <button
+                type="button"
+                // onMouseDown (not onClick) so the pick registers before the
+                // input blurs.
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onChange(o);
+                  setOpen(false);
+                }}
+                className="flex w-full items-center px-3 py-2 text-left text-sm text-stone-800 hover:bg-orange-50"
+              >
+                {o}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+interface WorldCurrency {
+  code: string;
+  name: string;
+  symbol: string;
+}
+
+// Every ISO-4217 currency, derived at runtime from the platform Intl data — no
+// hand-maintained list. Code + English name + the locale's symbol (falls back to
+// the code when there's no distinct glyph). Computed once. Falls back to the
+// small bundled set on the rare engine without Intl.supportedValuesOf.
+function buildWorldCurrencies(): WorldCurrency[] {
+  try {
+    const codes: string[] =
+      (Intl as unknown as { supportedValuesOf?: (k: string) => string[] })
+        .supportedValuesOf?.("currency") || [];
+    if (!codes.length) throw new Error("no Intl currencies");
+    const names = new Intl.DisplayNames(["en"], { type: "currency" });
+    return codes.map((code) => {
+      let symbol = code;
+      try {
+        const parts = new Intl.NumberFormat("en", {
+          style: "currency",
+          currency: code,
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }).formatToParts(0);
+        symbol = parts.find((p) => p.type === "currency")?.value || code;
+      } catch {
+        /* keep code as symbol */
+      }
+      let name = code;
+      try {
+        name = names.of(code) || code;
+      } catch {
+        /* keep code as name */
+      }
+      return { code, name, symbol };
+    });
+  } catch {
+    return (CURRENCIES as Array<{ label: string; value: string }>).map((c) => ({
+      code: c.label,
+      name: c.label,
+      symbol: c.value,
+    }));
+  }
+}
+
+const WORLD_CURRENCIES = buildWorldCurrencies();
+
+// Searchable currency picker over every world currency. Search by code, name or
+// symbol; selecting stores the SYMBOL (the form's currency field is a symbol,
+// matching the rest of the app). Closed state shows the picked currency's label.
+function CurrencySelect({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (symbol: string) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
+
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? WORLD_CURRENCIES.filter(
+        (o) =>
+          o.code.toLowerCase().includes(q) ||
+          o.name.toLowerCase().includes(q) ||
+          o.symbol.toLowerCase().includes(q),
+      )
+    : WORLD_CURRENCIES;
+
+  const current = WORLD_CURRENCIES.find((o) => o.symbol === value);
+  const displayLabel = value
+    ? current
+      ? `${current.code} — ${current.name} (${current.symbol})`
+      : value
+    : "";
+
+  return (
+    <div className="relative" ref={wrapRef}>
+      {open ? (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+          <Input
+            ref={inputRef}
+            autoComplete="off"
+            placeholder="Search currency (e.g. USD, Euro, ₹)"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 pl-9 pr-3 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50 text-sm md:text-base"
+          />
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className={`flex w-full items-center justify-between h-10 md:h-11 rounded-xl border border-stone-200 bg-stone-50 px-3 text-left text-sm ${
+            value ? "text-stone-900" : "text-stone-400"
+          }`}
+        >
+          <span className="truncate">
+            {displayLabel || placeholder || "Select Currency"}
+          </span>
+          <ChevronDown className="h-4 w-4 text-stone-400 shrink-0" />
+        </button>
+      )}
+      {open && (
+        <ul className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-stone-200 bg-white py-1 shadow-lg">
+          {filtered.length === 0 && (
+            <li className="px-3 py-2 text-sm text-stone-400">No match</li>
+          )}
+          {filtered.slice(0, 100).map((o) => (
+            <li key={o.code}>
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onChange(o.symbol);
+                  setOpen(false);
+                  setQuery("");
+                }}
+                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm text-stone-800 hover:bg-orange-50"
+              >
+                <span className="truncate">
+                  {o.code} — {o.name}
+                </span>
+                <span className="ml-2 shrink-0 text-stone-500">{o.symbol}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export default function GetStartedClient({
   appName = "Menuthere",
@@ -1425,57 +1668,44 @@ export default function GetStartedClient({
           <Label htmlFor="country" className="text-sm">
             Country <span className="text-red-500">*</span>
           </Label>
-          <Select
+          <Combobox
+            id="country"
+            name="country"
             value={hotelDetails.country}
-            onValueChange={(value) =>
+            onChange={(value) =>
               handleDetailsChange({ target: { name: "country", value } } as React.ChangeEvent<HTMLSelectElement>)
             }
-          >
-            <SelectTrigger className="w-full h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-3 text-sm text-stone-900 focus:ring-orange-600/30 focus:ring-offset-0">
-              <SelectValue placeholder="Select Country" />
-            </SelectTrigger>
-            <SelectContent>
-              {countryCodes.map((c) => (
-                <SelectItem key={c.country} value={c.country}>
-                  {c.country}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            options={countryCodes.map((c) => c.country)}
+            placeholder="Select or type Country"
+          />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="state" className="text-sm">
             State <span className="text-red-500">*</span>
           </Label>
-          {(hotelDetails.country === "India" || hotelDetails.country === "IN") ? (
-            <Select
-              value={hotelDetails.state}
-              onValueChange={(value) =>
-                handleDetailsChange({ target: { name: "state", value } } as React.ChangeEvent<HTMLSelectElement>)
-              }
-            >
-              <SelectTrigger className="w-full h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-3 text-sm text-stone-900 focus:ring-orange-600/30 focus:ring-offset-0">
-                <SelectValue placeholder="Select State" />
-              </SelectTrigger>
-              <SelectContent>
-                {STATES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Input
-              id="state"
-              name="state"
-              placeholder="State / Province"
-              value={hotelDetails.state}
-              onChange={handleDetailsChange}
-              className="h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-4 text-stone-900 placeholder:text-stone-400 focus-visible:ring-orange-600/30 focus-visible:border-orange-600/50 text-sm md:text-base"
-            />
-          )}
+          {(() => {
+            // India-like detection is case/space tolerant so the searchable
+            // dropdown still appears if the country was typed (e.g. "india") via
+            // the free-text country combobox. Non-India countries get the same
+            // combobox with no preset list — still type-to-enter, just no
+            // suggestions — instead of a separate, non-searchable plain input.
+            const isIndia = ["india", "in"].includes(
+              (hotelDetails.country || "").trim().toLowerCase(),
+            );
+            return (
+              <Combobox
+                id="state"
+                name="state"
+                value={hotelDetails.state || ""}
+                onChange={(value) =>
+                  handleDetailsChange({ target: { name: "state", value } } as React.ChangeEvent<HTMLSelectElement>)
+                }
+                options={isIndia ? (STATES as string[]) : []}
+                placeholder={isIndia ? "Select or type State" : "State / Province"}
+              />
+            );
+          })()}
         </div>
 
         {hotelDetails.state === "Kerala" && (
@@ -1507,23 +1737,13 @@ export default function GetStartedClient({
           <Label htmlFor="currency" className="text-sm">
             Currency <span className="text-red-500">*</span>
           </Label>
-          <Select
+          <CurrencySelect
             value={hotelDetails.currency}
-            onValueChange={(value) =>
-              setHotelDetails((prev) => ({ ...prev, currency: value }))
+            onChange={(symbol) =>
+              setHotelDetails((prev) => ({ ...prev, currency: symbol }))
             }
-          >
-            <SelectTrigger className="w-full h-10 md:h-11 rounded-xl border-stone-200 bg-stone-50 px-3 text-sm text-stone-900 focus:ring-orange-600/30 focus:ring-offset-0">
-              <SelectValue placeholder="Select Currency" />
-            </SelectTrigger>
-            <SelectContent>
-              {CURRENCIES.map((c) => (
-                <SelectItem key={c.label} value={c.value}>
-                  {c.label} ({c.value})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder="Select or search currency"
+          />
         </div>
       </div>
 
