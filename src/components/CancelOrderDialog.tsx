@@ -17,9 +17,19 @@ interface CancelOrderDialogProps {
   orderShortId?: string;
   isPetpooja?: boolean;
   onCancelled?: () => void;
+  // Reuse for non-order cancels (e.g. cancel a pool delivery). When onConfirm is
+  // set it runs instead of cancelOrderAction; the rest override copy/labels.
+  title?: string;
+  description?: string;
+  confirmLabel?: string;
+  keepLabel?: string;
+  reasonHint?: string;
+  quickReasons?: string[];
+  successMessage?: string;
+  onConfirm?: (reason: string) => Promise<{ success: boolean; message?: string } | void> | void;
 }
 
-const QUICK_REASONS = [
+const DEFAULT_QUICK_REASONS = [
   "Customer requested cancellation",
   "Item out of stock",
   "Kitchen closed / overloaded",
@@ -33,6 +43,14 @@ export function CancelOrderDialog({
   orderShortId,
   isPetpooja = false,
   onCancelled,
+  title,
+  description,
+  confirmLabel,
+  keepLabel = "Keep order",
+  reasonHint = "This reason will be shared with the customer.",
+  quickReasons = DEFAULT_QUICK_REASONS,
+  successMessage = "Order cancelled",
+  onConfirm,
 }: CancelOrderDialogProps) {
   const [selected, setSelected] = useState<string | null>(null);
   const [customReason, setCustomReason] = useState("");
@@ -76,16 +94,26 @@ export function CancelOrderDialog({
       return;
     }
     setSubmitting(true);
-    const result = await cancelOrderAction(orderId, effectiveReason);
-    setSubmitting(false);
-
-    if (result.success) {
-      toast.success("Order cancelled");
+    try {
+      if (onConfirm) {
+        const res = await onConfirm(effectiveReason);
+        if (res && res.success === false) {
+          toast.error(res.message || "Failed to cancel");
+          return;
+        }
+      } else {
+        const result = await cancelOrderAction(orderId, effectiveReason);
+        if (!result.success) {
+          toast.error(result.message || "Failed to cancel order");
+          return;
+        }
+      }
+      toast.success(successMessage);
       reset();
       onOpenChange(false);
       onCancelled?.();
-    } else {
-      toast.error(result.message || "Failed to cancel order");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -137,12 +165,13 @@ export function CancelOrderDialog({
               </div>
               <div className="min-w-0 flex-1 pr-8">
                 <h2 className="text-base sm:text-lg font-semibold text-red-900 leading-tight">
-                  Cancel order{orderShortId ? ` #${orderShortId}` : ""}?
+                  {title ?? `Cancel order${orderShortId ? ` #${orderShortId}` : ""}?`}
                 </h2>
                 <p className="text-xs sm:text-sm text-red-700/80 mt-1">
-                  {isPetpooja
-                    ? "This cancels the order on Petpooja and marks it as cancelled. The customer will be notified."
-                    : "This marks the order as cancelled. The customer will be notified."}
+                  {description ??
+                    (isPetpooja
+                      ? "This cancels the order on Petpooja and marks it as cancelled. The customer will be notified."
+                      : "This marks the order as cancelled. The customer will be notified.")}
                 </p>
               </div>
               <button
@@ -162,7 +191,7 @@ export function CancelOrderDialog({
                   Pick a reason
                 </p>
                 <div className="grid grid-cols-2 gap-2">
-                  {QUICK_REASONS.map((r) => {
+                  {quickReasons.map((r) => {
                     const active = selected === r;
                     return (
                       <button
@@ -215,7 +244,7 @@ export function CancelOrderDialog({
                   className="resize-none"
                 />
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  This reason will be shared with the customer.
+                  {reasonHint}
                 </p>
               </div>
             </div>
@@ -230,7 +259,7 @@ export function CancelOrderDialog({
                 disabled={submitting}
                 className="sm:w-auto w-full"
               >
-                Keep order
+                {keepLabel}
               </Button>
               <Button
                 variant="destructive"
@@ -238,7 +267,7 @@ export function CancelOrderDialog({
                 disabled={submitting || !effectiveReason}
                 className="sm:w-auto w-full"
               >
-                {submitting ? "Cancelling..." : "Cancel order"}
+                {submitting ? "Cancelling..." : (confirmLabel ?? "Cancel order")}
               </Button>
             </div>
           </motion.div>
