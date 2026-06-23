@@ -339,14 +339,28 @@ const CreatePartnerPage = () => {
     setIsSubmitting(true);
     try {
       const finalPassword = password && password.length >= 6 ? password : "123456";
+
+      // 1. Notify the Petpooja team first, with the full integration details —
+      // same email that's always gone out for a PP onboarding.
+      if (sendEmail) {
+        try {
+          await sendOnboardingEmail();
+        } catch (err) {
+          console.error("onboarding email failed", err);
+        }
+      }
+
+      // 2. Create the partner + website. skipAuthCookie keeps the admin logged
+      // in as themselves — no auto-login / redirect to the new partner.
       const result = await quickSignupFromGoogle({
         placeId: selectedPlace.placeId,
         sessionToken: ensureSessionToken(),
         email,
         password: finalPassword,
+        skipAuthCookie: true,
       });
 
-      // Attach the Petpooja restaurant id to the freshly created partner.
+      // 3. Attach the Petpooja mapping id to the freshly created partner.
       if (restaurantId) {
         try {
           await updatePartner(result.partnerId, {
@@ -354,15 +368,6 @@ const CreatePartnerPage = () => {
           });
         } catch (err) {
           console.error("Failed to set petpooja id on new partner", err);
-        }
-      }
-
-      // Notify the Petpooja team (optional).
-      if (sendEmail) {
-        try {
-          await sendOnboardingEmail();
-        } catch (err) {
-          console.error("onboarding email failed", err);
         }
       }
 

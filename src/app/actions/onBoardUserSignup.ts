@@ -35,7 +35,10 @@ const buildNewPartnerTrialSubscription = (country?: string) => {
     };
 };
 
-export const onBoardUserSignup = async (data: OnboardingData) => {
+export const onBoardUserSignup = async (
+    data: OnboardingData,
+    options?: { skipAuthCookie?: boolean },
+) => {
     try {
         const { partner, categories, menu } = data;
 
@@ -88,13 +91,18 @@ export const onBoardUserSignup = async (data: OnboardingData) => {
             }).catch(() => {}); // fire-and-forget, never block signup
         } catch {}
 
-        // Set Auth Cookie to log them in immediately
-        await setAuthCookie({
-            id: newPartnerId,
-            role: "partner",
-            feature_flags: partnerPayload.feature_flags || "",
-            status: "active",
-        });
+        // Set Auth Cookie to log them in immediately. Skipped when an admin
+        // creates the partner on someone else's behalf (e.g. the super-admin
+        // Create PP Partner page) — otherwise we'd overwrite the admin's own
+        // session and log them in as the new partner.
+        if (!options?.skipAuthCookie) {
+            await setAuthCookie({
+                id: newPartnerId,
+                role: "partner",
+                feature_flags: partnerPayload.feature_flags || "",
+                status: "active",
+            });
+        }
         // 1.5 Create Default QR Code (Table 1)
         let firstQrCodeId = null;
         try {

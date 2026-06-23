@@ -48,6 +48,12 @@ interface QuickSignupInput {
   logo?: string;
   logoScale?: number;
   logoBgColor?: string;
+  /**
+   * When true, the created partner is NOT logged into the current browser
+   * session. Used by admin-side creation (super-admin Create PP Partner) so the
+   * admin's own session isn't replaced by the new partner's.
+   */
+  skipAuthCookie?: boolean;
 }
 
 export interface QuickSignupResult {
@@ -93,7 +99,7 @@ async function uploadBufferToS3(
 export async function quickSignupFromGoogle(
   input: QuickSignupInput,
 ): Promise<QuickSignupResult> {
-  const { placeId, sessionToken, email, password, extractedItems, logo, logoScale, logoBgColor } = input;
+  const { placeId, sessionToken, email, password, extractedItems, logo, logoScale, logoBgColor, skipAuthCookie } = input;
 
   if (!placeId?.trim()) {
     throw new Error("Please pick your business from the dropdown");
@@ -321,11 +327,14 @@ export async function quickSignupFromGoogle(
     ),
   };
 
-  const signupResult = await onBoardUserSignup({
-    partner: partnerData,
-    categories: categoriesData,
-    menu: { items: menuItems },
-  });
+  const signupResult = await onBoardUserSignup(
+    {
+      partner: partnerData,
+      categories: categoriesData,
+      menu: { items: menuItems },
+    },
+    { skipAuthCookie: !!skipAuthCookie },
+  );
 
   return {
     success: true,
