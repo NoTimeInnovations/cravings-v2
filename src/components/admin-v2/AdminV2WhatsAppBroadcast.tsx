@@ -42,12 +42,21 @@ import {
   Ban,
   Play,
   Users,
+  Check,
+  CheckCheck,
+  Clock,
+  Search,
+  Signal,
+  IndianRupee,
+  ChevronRight,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { ImageUpload } from "@/components/storefront/ImageUpload";
 import VideoEditor from "@/components/VideoEditor";
 import { uploadFileToS3 } from "@/app/actions/aws-s3";
 import { fetchFromHasura } from "@/lib/hasuraClient";
+import { formatMoney } from "@/lib/utils";
+import { explainWhatsAppError } from "@/lib/whatsapp-errors";
 
 const DAILY_LIMIT = 250;
 
@@ -76,7 +85,11 @@ interface BroadcastRow {
   daily_limit: number;
   total_recipients: number;
   sent_count: number;
+  delivered_count: number;
+  read_count: number;
   failed_count: number;
+  total_cost: number;
+  cost_currency: string | null;
   last_error: string | null;
   created_at: string;
 }
@@ -178,6 +191,7 @@ export function AdminV2WhatsAppBroadcast() {
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
   const [creatorOpen, setCreatorOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const loadStatus = async () => {
     if (!partnerId) return;
@@ -332,7 +346,11 @@ export function AdminV2WhatsAppBroadcast() {
                   ? Math.round((done / b.total_recipients) * 100)
                   : 0;
                 return (
-                  <div key={b.id} className="p-4 border rounded-lg space-y-3">
+                  <div
+                    key={b.id}
+                    onClick={() => setDetailId(b.id)}
+                    className="p-4 border rounded-lg space-y-3 cursor-pointer transition-colors hover:bg-muted/40 hover:border-green-200"
+                  >
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -364,7 +382,10 @@ export function AdminV2WhatsAppBroadcast() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => act(b.id, "resume")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              act(b.id, "resume");
+                            }}
                             disabled={busyId === b.id}
                           >
                             {busyId === b.id ? (
@@ -379,7 +400,10 @@ export function AdminV2WhatsAppBroadcast() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => act(b.id, "cancel")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              act(b.id, "cancel");
+                            }}
                             disabled={busyId === b.id}
                             className="text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
@@ -389,16 +413,11 @@ export function AdminV2WhatsAppBroadcast() {
                       </div>
                     </div>
 
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       <Progress value={pct} className="h-2" />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>
-                          {b.sent_count} sent
-                          {b.failed_count > 0 && (
-                            <span className="text-red-600"> · {b.failed_count} failed</span>
-                          )}
-                        </span>
-                        <span>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <FunnelChips b={b} />
+                        <span className="text-xs text-muted-foreground">
                           {done}/{b.total_recipients}
                         </span>
                       </div>
@@ -409,6 +428,19 @@ export function AdminV2WhatsAppBroadcast() {
                         {b.last_error}
                       </div>
                     )}
+
+                    <div className="flex items-center justify-between pt-0.5">
+                      {b.total_cost > 0 ? (
+                        <span className="text-xs font-medium text-foreground">
+                          {formatMoney(b.total_cost, b.cost_currency || "INR")} spent
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                      <span className="text-xs text-green-700 flex items-center gap-0.5">
+                        View details <ChevronRight className="h-3 w-3" />
+                      </span>
+                    </div>
                   </div>
                 );
               })}
@@ -427,6 +459,39 @@ export function AdminV2WhatsAppBroadcast() {
           loadBroadcasts();
         }}
       />
+
+      <BroadcastDetailDialog
+        broadcastId={detailId}
+        partnerId={partnerId}
+        onClose={() => setDetailId(null)}
+        onChanged={loadBroadcasts}
+      />
+    </div>
+  );
+}
+
+// Compact delivery-funnel chips shown on each broadcast card.
+function FunnelChips({ b }: { b: BroadcastRow }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+      <span className="flex items-center gap-1 text-muted-foreground">
+        <Check className="h-3 w-3" />
+        {b.sent_count} sent
+      </span>
+      <span className="flex items-center gap-1 text-sky-600">
+        <CheckCheck className="h-3 w-3" />
+        {b.delivered_count} delivered
+      </span>
+      <span className="flex items-center gap-1 text-green-600">
+        <CheckCheck className="h-3 w-3" />
+        {b.read_count} read
+      </span>
+      {b.failed_count > 0 && (
+        <span className="flex items-center gap-1 text-red-600">
+          <X className="h-3 w-3" />
+          {b.failed_count} failed
+        </span>
+      )}
     </div>
   );
 }
@@ -1121,5 +1186,585 @@ function BroadcastCreatorDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+//  Broadcast detail — delivery funnel, cost, number health, recipients
+// ════════════════════════════════════════════════════════════════
+
+interface DetailBroadcast {
+  id: string;
+  template_name: string;
+  language: string;
+  category: string;
+  status: string;
+  scheduled_at: string | null;
+  total_recipients: number;
+  sent_count: number;
+  delivered_count: number;
+  read_count: number;
+  failed_count: number;
+  total_cost: number;
+  cost_currency: string | null;
+  last_error: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+}
+
+interface PhoneQuality {
+  connected: boolean;
+  currency?: string;
+  usage?: { sentToday: number; dailyLimit: number };
+  phone?: {
+    verifiedName: string | null;
+    displayPhoneNumber: string | null;
+    qualityRating: string | null;
+    messagingLimitTier: string | null;
+  } | null;
+  actualSpend?: { amount: number; currency: string | null; periodLabel: string } | null;
+}
+
+interface RecipientRow {
+  id: string;
+  phone: string;
+  name: string | null;
+  status: string;
+  sent_at: string | null;
+  delivered_at: string | null;
+  read_at: string | null;
+  failed_at: string | null;
+  error: string | null;
+  error_code: string | null;
+  error_title: string | null;
+  cost_amount: number | null;
+  cost_currency: string | null;
+}
+
+const RECIPIENT_PAGE = 50;
+
+const STATUS_TABS: { key: string; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "read", label: "Read" },
+  { key: "delivered", label: "Delivered" },
+  { key: "sent", label: "Sent" },
+  { key: "pending", label: "Pending" },
+  { key: "failed", label: "Failed" },
+];
+
+function fmtTime(s: string | null | undefined): string {
+  if (!s) return "";
+  try {
+    return new Date(s).toLocaleString(undefined, {
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
+
+// WhatsApp-style status indicator for one recipient.
+function RecipientTick({ status }: { status: string }) {
+  switch (status) {
+    case "read":
+      return (
+        <span className="flex items-center gap-1 text-green-600">
+          <CheckCheck className="h-4 w-4" /> Read
+        </span>
+      );
+    case "delivered":
+      return (
+        <span className="flex items-center gap-1 text-sky-600">
+          <CheckCheck className="h-4 w-4" /> Delivered
+        </span>
+      );
+    case "sent":
+      return (
+        <span className="flex items-center gap-1 text-muted-foreground">
+          <Check className="h-4 w-4" /> Sent
+        </span>
+      );
+    case "failed":
+      return (
+        <span className="flex items-center gap-1 text-red-600">
+          <X className="h-4 w-4" /> Failed
+        </span>
+      );
+    default:
+      return (
+        <span className="flex items-center gap-1 text-amber-600">
+          <Clock className="h-4 w-4" /> Pending
+        </span>
+      );
+  }
+}
+
+function qualityLabel(rating: string | null | undefined): {
+  text: string;
+  cls: string;
+} {
+  switch ((rating || "").toUpperCase()) {
+    case "GREEN":
+      return { text: "High quality", cls: "bg-green-100 text-green-800 border-green-200" };
+    case "YELLOW":
+      return { text: "Medium quality", cls: "bg-amber-100 text-amber-800 border-amber-200" };
+    case "RED":
+      return { text: "Low quality", cls: "bg-red-100 text-red-800 border-red-200" };
+    default:
+      return { text: "Not rated", cls: "bg-muted text-muted-foreground border-border" };
+  }
+}
+
+function tierLabel(tier: string | null | undefined): string {
+  switch ((tier || "").toUpperCase()) {
+    case "TIER_50":
+      return "50 customers / day";
+    case "TIER_250":
+      return "250 customers / day";
+    case "TIER_1K":
+      return "1,000 customers / day";
+    case "TIER_10K":
+      return "10,000 customers / day";
+    case "TIER_100K":
+      return "100,000 customers / day";
+    case "TIER_UNLIMITED":
+      return "Unlimited";
+    default:
+      return "—";
+  }
+}
+
+function pct(n: number, total: number): number {
+  return total > 0 ? Math.round((n / total) * 100) : 0;
+}
+
+function BroadcastDetailDialog({
+  broadcastId,
+  partnerId,
+  onClose,
+  onChanged,
+}: {
+  broadcastId: string | null;
+  partnerId: string | undefined;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const [detail, setDetail] = useState<DetailBroadcast | null>(null);
+  const [quality, setQuality] = useState<PhoneQuality | null>(null);
+  const [recipients, setRecipients] = useState<RecipientRow[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [filteredTotal, setFilteredTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const open = !!broadcastId;
+
+  // Debounce the search box.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const loadDetail = async () => {
+    if (!broadcastId || !partnerId) return;
+    try {
+      const res = await fetch(
+        `/api/whatsapp/broadcasts/${broadcastId}?partnerId=${partnerId}`,
+      );
+      const data = await res.json();
+      if (res.ok) setDetail(data.broadcast);
+    } catch {
+      /* keep prior */
+    }
+  };
+
+  const loadQuality = async () => {
+    if (!partnerId) return;
+    try {
+      const res = await fetch(`/api/whatsapp/meta/phone-quality?partnerId=${partnerId}`);
+      const data = await res.json();
+      if (res.ok) setQuality(data);
+    } catch {
+      /* optional */
+    }
+  };
+
+  const loadRecipients = async (reset: boolean) => {
+    if (!broadcastId || !partnerId) return;
+    const offset = reset ? 0 : recipients.length;
+    if (reset) setLoading(true);
+    else setLoadingMore(true);
+    try {
+      const qs = new URLSearchParams({
+        partnerId,
+        status: statusFilter,
+        search: debouncedSearch,
+        limit: String(RECIPIENT_PAGE),
+        offset: String(offset),
+      });
+      const res = await fetch(
+        `/api/whatsapp/broadcasts/${broadcastId}/recipients?${qs.toString()}`,
+      );
+      const data = await res.json();
+      if (res.ok) {
+        setRecipients((prev) =>
+          reset ? data.recipients : [...prev, ...data.recipients],
+        );
+        setFilteredTotal(data.filteredTotal || 0);
+        setCounts(data.counts || {});
+      }
+    } catch {
+      /* surfaced as empty */
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  // Initial load when opened.
+  useEffect(() => {
+    if (!open) {
+      setDetail(null);
+      setQuality(null);
+      setRecipients([]);
+      setCounts({});
+      setSearch("");
+      setDebouncedSearch("");
+      setStatusFilter("all");
+      setExpanded(null);
+      return;
+    }
+    loadDetail();
+    loadQuality();
+    // recipients load handled by the filter effect below
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, broadcastId]);
+
+  // Reload recipients when filters change.
+  useEffect(() => {
+    if (!open) return;
+    loadRecipients(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, broadcastId, debouncedSearch, statusFilter]);
+
+  // Live-poll while the broadcast is still in flight.
+  const live =
+    detail?.status === "sending" || detail?.status === "scheduled";
+  useEffect(() => {
+    if (!open || !live) return;
+    const t = setInterval(() => {
+      loadDetail();
+      loadRecipients(true);
+      onChanged(); // keep the underlying list cards in sync while live
+    }, 7000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, live, debouncedSearch, statusFilter]);
+
+  const total = detail?.total_recipients || 0;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="!max-w-3xl w-[95vw] max-h-[92vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
+            <Megaphone className="h-5 w-5 text-green-600" />
+            {detail?.template_name || "Broadcast"}
+            {detail && (
+              <Badge variant="outline" className="font-normal">
+                {detail.language}
+              </Badge>
+            )}
+          </DialogTitle>
+          <DialogDescription>
+            {detail?.started_at
+              ? `Sent ${fmtTime(detail.started_at)}`
+              : detail?.scheduled_at
+                ? `Scheduled ${fmtTime(detail.scheduled_at)}`
+                : detail?.created_at
+                  ? `Created ${fmtTime(detail.created_at)}`
+                  : "Loading…"}
+            {detail?.completed_at && ` · Completed ${fmtTime(detail.completed_at)}`}
+          </DialogDescription>
+        </DialogHeader>
+
+        {!detail ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {/* Delivery funnel */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <FunnelStat label="Recipients" value={total} sub="100%" tone="muted" />
+              <FunnelStat
+                label="Sent"
+                value={detail.sent_count}
+                sub={`${pct(detail.sent_count, total)}%`}
+                tone="muted"
+              />
+              <FunnelStat
+                label="Delivered"
+                value={detail.delivered_count}
+                sub={`${pct(detail.delivered_count, total)}%`}
+                tone="sky"
+              />
+              <FunnelStat
+                label="Read"
+                value={detail.read_count}
+                sub={`${pct(detail.read_count, total)}%`}
+                tone="green"
+              />
+              <FunnelStat
+                label="Failed"
+                value={detail.failed_count}
+                sub={`${pct(detail.failed_count, total)}%`}
+                tone="red"
+              />
+            </div>
+
+            {/* Cost + Number health */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Cost */}
+              <div className="rounded-lg border p-3 space-y-1">
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <IndianRupee className="h-3.5 w-3.5" /> Cost (estimated)
+                </div>
+                <div className="text-xl font-semibold">
+                  {formatMoney(
+                    detail.total_cost || 0,
+                    detail.cost_currency || quality?.currency || "INR",
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Charged on delivery · {detail.category?.toLowerCase() || "marketing"} rate
+                </div>
+                {quality?.actualSpend && (
+                  <div className="text-xs text-foreground pt-1 border-t mt-1">
+                    Meta-confirmed ({quality.actualSpend.periodLabel}):{" "}
+                    <span className="font-medium">
+                      {formatMoney(
+                        quality.actualSpend.amount,
+                        quality.actualSpend.currency || quality?.currency || "USD",
+                      )}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Number health */}
+              <div className="rounded-lg border p-3 space-y-2">
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Signal className="h-3.5 w-3.5" /> Your number
+                </div>
+                {quality?.phone ? (
+                  <>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded border ${qualityLabel(quality.phone.qualityRating).cls}`}
+                      >
+                        {qualityLabel(quality.phone.qualityRating).text}
+                      </span>
+                      {quality.phone.displayPhoneNumber && (
+                        <span className="text-xs text-muted-foreground">
+                          {quality.phone.displayPhoneNumber}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Limit: {tierLabel(quality.phone.messagingLimitTier)}
+                    </div>
+                    {quality.usage && (
+                      <div className="space-y-1">
+                        <Progress
+                          value={pct(quality.usage.sentToday, quality.usage.dailyLimit)}
+                          className="h-1.5"
+                        />
+                        <div className="text-xs text-muted-foreground">
+                          {quality.usage.sentToday}/{quality.usage.dailyLimit} sent today
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-xs text-muted-foreground">
+                    Quality info unavailable.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Recipient explorer */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <Label>Recipients</Label>
+                <div className="relative">
+                  <Search className="h-3.5 w-3.5 absolute left-2 top-2.5 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search number or name"
+                    className="pl-7 h-8 w-56 text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Status filter chips */}
+              <div className="flex flex-wrap gap-1.5">
+                {STATUS_TABS.map((t) => (
+                  <button
+                    key={t.key}
+                    onClick={() => setStatusFilter(t.key)}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                      statusFilter === t.key
+                        ? "bg-green-600 text-white border-green-600"
+                        : "bg-background hover:bg-muted border-border"
+                    }`}
+                  >
+                    {t.label}
+                    {counts[t.key] != null && (
+                      <span className="ml-1 opacity-70">{counts[t.key]}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              {/* List */}
+              <div className="rounded-md border divide-y max-h-80 overflow-auto">
+                {loading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : recipients.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-muted-foreground">
+                    No recipients match.
+                  </div>
+                ) : (
+                  recipients.map((r) => {
+                    const ts =
+                      r.read_at || r.delivered_at || r.failed_at || r.sent_at;
+                    const isFailed = r.status === "failed";
+                    const exp = expanded === r.id;
+                    return (
+                      <div key={r.id} className="px-3 py-2 text-sm">
+                        <div
+                          className={`flex items-center justify-between gap-2 ${isFailed ? "cursor-pointer" : ""}`}
+                          onClick={() =>
+                            isFailed && setExpanded(exp ? null : r.id)
+                          }
+                        >
+                          <div className="min-w-0">
+                            <div className="font-mono text-xs truncate">{r.phone}</div>
+                            {r.name && (
+                              <div className="text-xs text-muted-foreground truncate">
+                                {r.name}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            {r.cost_amount != null && r.cost_amount > 0 && (
+                              <span className="text-xs text-muted-foreground">
+                                {formatMoney(
+                                  r.cost_amount,
+                                  r.cost_currency || detail.cost_currency || "INR",
+                                  4,
+                                )}
+                              </span>
+                            )}
+                            {ts && (
+                              <span className="text-xs text-muted-foreground hidden sm:inline">
+                                {fmtTime(ts)}
+                              </span>
+                            )}
+                            <span className="text-xs w-24 justify-end flex">
+                              <RecipientTick status={r.status} />
+                            </span>
+                          </div>
+                        </div>
+                        {isFailed && exp && (
+                          <div className="mt-1.5 text-xs bg-red-50 border border-red-200 rounded px-2 py-1.5 text-red-800">
+                            {(() => {
+                              const ex = explainWhatsAppError(r.error_code, r.error);
+                              return (
+                                <>
+                                  <div className="font-medium">{ex.summary}</div>
+                                  {ex.action && (
+                                    <div className="text-red-700/80 mt-0.5">
+                                      {ex.action}
+                                    </div>
+                                  )}
+                                  {(r.error_code || r.error_title) && (
+                                    <div className="text-red-500/70 mt-0.5">
+                                      Meta code {r.error_code || "?"}
+                                      {r.error_title ? ` · ${r.error_title}` : ""}
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {recipients.length < filteredTotal && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => loadRecipients(false)}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    `Load more (${recipients.length}/${filteredTotal})`
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function FunnelStat({
+  label,
+  value,
+  sub,
+  tone,
+}: {
+  label: string;
+  value: number;
+  sub: string;
+  tone: "muted" | "sky" | "green" | "red";
+}) {
+  const toneCls =
+    tone === "sky"
+      ? "text-sky-600"
+      : tone === "green"
+        ? "text-green-600"
+        : tone === "red"
+          ? "text-red-600"
+          : "text-foreground";
+  return (
+    <div className="rounded-lg border p-2.5 text-center">
+      <div className={`text-lg font-semibold ${toneCls}`}>{value}</div>
+      <div className="text-[11px] text-muted-foreground leading-tight">{label}</div>
+      <div className="text-[11px] text-muted-foreground">{sub}</div>
+    </div>
   );
 }

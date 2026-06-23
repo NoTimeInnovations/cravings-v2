@@ -28,7 +28,11 @@ const LIST = `
       daily_limit
       total_recipients
       sent_count
+      delivered_count
+      read_count
       failed_count
+      total_cost
+      cost_currency
       last_error
       started_at
       completed_at

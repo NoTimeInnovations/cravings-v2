@@ -18,7 +18,11 @@ const GET_DETAIL = `
       daily_limit
       total_recipients
       sent_count
+      delivered_count
+      read_count
       failed_count
+      total_cost
+      cost_currency
       last_error
       started_at
       completed_at
@@ -28,12 +32,15 @@ const GET_DETAIL = `
       failures: recipients(
         where: { status: { _eq: "failed" } }
         limit: 50
-        order_by: { sent_at: desc }
+        order_by: { failed_at: desc_nulls_last }
       ) {
         id
         phone
         name
         error
+        error_code
+        error_title
+        failed_at
       }
     }
   }

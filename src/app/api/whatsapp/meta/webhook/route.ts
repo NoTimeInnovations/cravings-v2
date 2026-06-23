@@ -4,6 +4,7 @@ import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getPartnerByPhoneNumberIdCached } from "@/lib/whatsapp-meta";
 import { runFlowForInbound, type FlowInput } from "@/lib/whatsappFlow/engine";
 import { normalizePhone } from "@/lib/whatsapp-broadcast";
+import { computeMessageCost, getBusinessCurrency } from "@/lib/whatsapp-cost";
 
 // Marketing opt-out: a customer who replies STOP (or taps a stop button) is added
 // to the partner's suppression list and excluded from future broadcasts.
@@ -165,6 +166,310 @@ async function persistIncoming(
   }
 }
 
+// ════════════════════════════════════════════════════════════════
+//  DELIVERY STATUS CAPTURE (Meta `value.statuses[]`)
+//  Records sent → delivered → read → failed + per-message pricing/cost
+//  onto broadcast recipients, the global message-log ledger, and the inbox.
+//  Pure capture — never sends anything back to Meta. Forward-only so a late
+//  `delivered` callback can never downgrade a row already marked `read`.
+// ════════════════════════════════════════════════════════════════
+
+const FIND_RECIPIENT = `
+  query FindRecipient($mid: String!) {
+    whatsapp_broadcast_recipients(where: { meta_message_id: { _eq: $mid } }, limit: 1) {
+      id
+      broadcast_id
+      phone
+      status
+      cost_amount
+      broadcast { partner_id category }
+    }
+  }
+`;
+
+const UPDATE_RECIPIENTS = `
+  mutation UpdRecipients(
+    $where: whatsapp_broadcast_recipients_bool_exp!
+    $set: whatsapp_broadcast_recipients_set_input!
+  ) {
+    update_whatsapp_broadcast_recipients(where: $where, _set: $set) { affected_rows }
+  }
+`;
+
+const RECOUNT_BROADCAST = `
+  query RecountBroadcast($bid: uuid!) {
+    delivered: whatsapp_broadcast_recipients_aggregate(
+      where: { broadcast_id: { _eq: $bid }, status: { _in: ["delivered", "read"] } }
+    ) { aggregate { count } }
+    read: whatsapp_broadcast_recipients_aggregate(
+      where: { broadcast_id: { _eq: $bid }, status: { _eq: "read" } }
+    ) { aggregate { count } }
+    failed: whatsapp_broadcast_recipients_aggregate(
+      where: { broadcast_id: { _eq: $bid }, status: { _eq: "failed" } }
+    ) { aggregate { count } }
+    cost: whatsapp_broadcast_recipients_aggregate(
+      where: { broadcast_id: { _eq: $bid } }
+    ) { aggregate { sum { cost_amount } } }
+  }
+`;
+
+const UPDATE_BROADCAST_COUNTS = `
+  mutation UpdBroadcastCounts($id: uuid!, $set: whatsapp_broadcasts_set_input!) {
+    update_whatsapp_broadcasts_by_pk(pk_columns: { id: $id }, _set: $set) { id }
+  }
+`;
+
+const FIND_LOG = `
+  query FindLog($mid: String!) {
+    whatsapp_message_logs(where: { meta_message_id: { _eq: $mid } }, limit: 1) {
+      id
+      partner_id
+      phone
+      status
+      cost_amount
+    }
+  }
+`;
+
+const UPDATE_LOGS = `
+  mutation UpdLogs(
+    $where: whatsapp_message_logs_bool_exp!
+    $set: whatsapp_message_logs_set_input!
+  ) {
+    update_whatsapp_message_logs(where: $where, _set: $set) { affected_rows }
+  }
+`;
+
+const UPDATE_INBOX_STATUS = `
+  mutation UpdInboxStatus(
+    $where: whatsapp_messages_bool_exp!
+    $set: whatsapp_messages_set_input!
+  ) {
+    update_whatsapp_messages(where: $where, _set: $set) { affected_rows }
+  }
+`;
+
+// Statuses that a given delivery state is allowed to advance FROM (forward-only).
+const ADVANCE_FROM: Record<string, string[]> = {
+  delivered: ["pending", "queued", "sent"],
+  read: ["pending", "queued", "sent", "delivered"],
+  failed: ["pending", "queued", "sent"],
+};
+
+function metaTsToIso(ts: any): string {
+  const n = Number(ts);
+  if (!ts || Number.isNaN(n)) return new Date().toISOString();
+  return new Date(n * 1000).toISOString();
+}
+
+// One broadcast recipient: advance status, capture failure detail + pricing/cost,
+// then recompute the parent broadcast's delivered/read/failed counters + total cost.
+async function applyBroadcastStatus(st: any): Promise<void> {
+  const mid = st.id;
+  if (!mid) return;
+  let rcpt: any;
+  try {
+    const d = await fetchFromHasura(FIND_RECIPIENT, { mid });
+    rcpt = d?.whatsapp_broadcast_recipients?.[0];
+  } catch (e) {
+    console.error("status: find recipient failed", e);
+    return;
+  }
+  if (!rcpt) return; // not a broadcast message
+
+  const partnerId = rcpt.broadcast?.partner_id as string | undefined;
+  const tsIso = metaTsToIso(st.timestamp);
+  const status = String(st.status || "").toLowerCase();
+  const err = Array.isArray(st.errors) ? st.errors[0] : null;
+  const pricing = st.pricing || null;
+
+  // 1) Forward-only status advance.
+  try {
+    if (status === "delivered") {
+      await fetchFromHasura(UPDATE_RECIPIENTS, {
+        where: { meta_message_id: { _eq: mid }, status: { _in: ADVANCE_FROM.delivered } },
+        set: { status: "delivered", delivered_at: tsIso },
+      });
+    } else if (status === "read") {
+      await fetchFromHasura(UPDATE_RECIPIENTS, {
+        where: { meta_message_id: { _eq: mid }, status: { _in: ADVANCE_FROM.read } },
+        set: { status: "read", read_at: tsIso },
+      });
+      // Backfill delivered_at if the `delivered` callback was never seen.
+      await fetchFromHasura(UPDATE_RECIPIENTS, {
+        where: { meta_message_id: { _eq: mid }, delivered_at: { _is_null: true } },
+        set: { delivered_at: tsIso },
+      });
+    } else if (status === "failed") {
+      await fetchFromHasura(UPDATE_RECIPIENTS, {
+        where: { meta_message_id: { _eq: mid }, status: { _in: ADVANCE_FROM.failed } },
+        set: {
+          status: "failed",
+          failed_at: tsIso,
+          error_code: err?.code != null ? String(err.code) : null,
+          error_title: err?.title || null,
+          error: err?.error_data?.details || err?.message || "delivery failed",
+        },
+      });
+    }
+  } catch (e) {
+    console.error("status: recipient advance failed", e);
+  }
+
+  // 2) Pricing/cost — set ONCE. Meta charges per DELIVERED template message, so
+  //    we cost it the moment it's delivered/read. Prefer Meta's own pricing
+  //    object (authoritative category/billable) when present; otherwise fall back
+  //    to the broadcast's category (broadcast templates are billable). Skipped
+  //    for `failed` (undelivered → not charged).
+  const isDeliveredish = status === "delivered" || status === "read";
+  if (rcpt.cost_amount == null && partnerId && (pricing || isDeliveredish)) {
+    try {
+      const category = pricing?.category || rcpt.broadcast?.category || "marketing";
+      const billable = pricing ? !!pricing.billable : true;
+      const businessCurrency = await getBusinessCurrency(partnerId);
+      const cost = await computeMessageCost({
+        recipientPhone: rcpt.phone,
+        category,
+        billable,
+        businessCurrency,
+      });
+      await fetchFromHasura(UPDATE_RECIPIENTS, {
+        where: { meta_message_id: { _eq: mid }, cost_amount: { _is_null: true } },
+        set: {
+          billable,
+          pricing_category: category.toLowerCase(),
+          pricing_model: pricing?.pricing_model || null,
+          cost_amount: cost.amount,
+          cost_currency: cost.currency,
+        },
+      });
+    } catch (e) {
+      console.error("status: recipient cost failed", e);
+    }
+  }
+
+  // 3) Recompute the broadcast's aggregate funnel + total cost.
+  try {
+    const bid = rcpt.broadcast_id;
+    const agg = await fetchFromHasura(RECOUNT_BROADCAST, { bid });
+    const delivered = agg?.delivered?.aggregate?.count || 0;
+    const read = agg?.read?.aggregate?.count || 0;
+    const failed = agg?.failed?.aggregate?.count || 0;
+    const totalCost = Number(agg?.cost?.aggregate?.sum?.cost_amount || 0);
+    const set: Record<string, unknown> = {
+      delivered_count: delivered,
+      read_count: read,
+      failed_count: failed,
+      total_cost: totalCost,
+    };
+    if (partnerId) set.cost_currency = await getBusinessCurrency(partnerId);
+    await fetchFromHasura(UPDATE_BROADCAST_COUNTS, { id: bid, set });
+  } catch (e) {
+    console.error("status: broadcast recount failed", e);
+  }
+}
+
+// The global ledger row (covers OTP / order / inbox / broadcast sends alike).
+async function applyLedgerStatus(st: any): Promise<void> {
+  const mid = st.id;
+  if (!mid) return;
+  const status = String(st.status || "").toLowerCase();
+  const tsIso = metaTsToIso(st.timestamp);
+  const pricing = st.pricing || null;
+
+  let log: any;
+  try {
+    const d = await fetchFromHasura(FIND_LOG, { mid });
+    log = d?.whatsapp_message_logs?.[0];
+  } catch {
+    return;
+  }
+  if (!log) return;
+
+  try {
+    if (status === "delivered") {
+      await fetchFromHasura(UPDATE_LOGS, {
+        where: { meta_message_id: { _eq: mid }, status: { _in: ["queued", "sent"] } },
+        set: { status: "delivered", delivered_at: tsIso },
+      });
+    } else if (status === "read") {
+      await fetchFromHasura(UPDATE_LOGS, {
+        where: { meta_message_id: { _eq: mid }, status: { _in: ["queued", "sent", "delivered"] } },
+        set: { status: "read", read_at: tsIso },
+      });
+    } else if (status === "failed") {
+      await fetchFromHasura(UPDATE_LOGS, {
+        where: { meta_message_id: { _eq: mid }, status: { _in: ["queued", "sent"] } },
+        set: { status: "failed" },
+      });
+    }
+  } catch (e) {
+    console.error("status: ledger advance failed", e);
+  }
+
+  // Pricing/cost on the ledger so spend across ALL message types is trackable.
+  if (pricing && log.cost_amount == null && log.partner_id) {
+    try {
+      const businessCurrency = await getBusinessCurrency(log.partner_id);
+      const cost = await computeMessageCost({
+        recipientPhone: log.phone,
+        category: pricing.category,
+        billable: pricing.billable,
+        businessCurrency,
+      });
+      await fetchFromHasura(UPDATE_LOGS, {
+        where: { meta_message_id: { _eq: mid }, cost_amount: { _is_null: true } },
+        set: {
+          billable: !!pricing.billable,
+          pricing_category: pricing.category || null,
+          cost_amount: cost.amount,
+          cost_currency: cost.currency,
+        },
+      });
+    } catch (e) {
+      console.error("status: ledger cost failed", e);
+    }
+  }
+}
+
+// Inbox outbound messages — light up the owner's delivered/blue-tick ticks.
+async function applyInboxStatus(st: any): Promise<void> {
+  const mid = st.id;
+  if (!mid) return;
+  const status = String(st.status || "").toLowerCase();
+  const err = Array.isArray(st.errors) ? st.errors[0] : null;
+  try {
+    if (status === "delivered") {
+      await fetchFromHasura(UPDATE_INBOX_STATUS, {
+        where: { wa_message_id: { _eq: mid }, direction: { _eq: "out" }, status: { _in: ["queued", "sent"] } },
+        set: { status: "delivered" },
+      });
+    } else if (status === "read") {
+      await fetchFromHasura(UPDATE_INBOX_STATUS, {
+        where: { wa_message_id: { _eq: mid }, direction: { _eq: "out" }, status: { _in: ["queued", "sent", "delivered"] } },
+        set: { status: "read" },
+      });
+    } else if (status === "failed") {
+      await fetchFromHasura(UPDATE_INBOX_STATUS, {
+        where: { wa_message_id: { _eq: mid }, direction: { _eq: "out" }, status: { _in: ["queued", "sent"] } },
+        set: { status: "failed", error_reason: err?.error_data?.details || err?.message || "failed" },
+      });
+    }
+  } catch (e) {
+    console.error("status: inbox advance failed", e);
+  }
+}
+
+async function processStatuses(value: any): Promise<void> {
+  const statuses = value?.statuses || [];
+  for (const st of statuses) {
+    // Run the three targets sequentially; each updates only its matching rows.
+    await applyBroadcastStatus(st);
+    await applyLedgerStatus(st);
+    await applyInboxStatus(st);
+  }
+}
+
 // ─── Webhook Verification (Meta sends GET to verify) ─────────────
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
@@ -243,19 +548,11 @@ export async function POST(req: NextRequest) {
 
             const flowInput = normalizeFlowInput(msg);
 
-            // Show the "typing…" animation (and blue ticks) the instant a
-            // flow-driving message arrives, so the customer sees activity while
-            // we build the reply. The reply itself dismisses it; it also auto-
-            // clears after ~25s. Fire-and-forget, overlapped with the flow, then
-            // awaited before return so a serverless freeze can't drop it.
-            let typingP: Promise<void> | undefined;
-            if (flowInput && msg.id && phoneNumberId) {
-              typingP = sendTypingIndicator(
-                phoneNumberId,
-                msg.id,
-                partner.access_token || process.env.WHATSAPP_ACCESS_TOKEN || "",
-              );
-            }
+            // NO read receipt / blue tick on inbound session messages. WhatsApp's
+            // typing indicator and the read receipt are the same API call, so we
+            // deliberately send neither: every inbound stays UNREAD so the owner
+            // (and other team members) can see and actually check what customers
+            // sent. The flow's own reply is what the customer sees as activity.
 
             // Marketing STOP/unsubscribe → suppress from this partner's broadcasts.
             if (isStopMessage(msg)) {
@@ -283,13 +580,21 @@ export async function POST(req: NextRequest) {
             }
 
             await persistP.catch(() => {});
-            if (typingP) await typingP.catch(() => {});
           }
 
           // Handle "Track Order Status" quick reply button click
           if (msg.type === "button" && msg.button?.text === "Track Order Status") {
             await handleTrackOrderStatus(msg.from, phoneNumberId);
           }
+        }
+
+        // Delivery receipts (sent/delivered/read/failed) for OUR outbound
+        // messages arrive in the same "messages" change under `statuses`.
+        // Capture them onto broadcasts / ledger / inbox. Never blocks the ACK.
+        if (Array.isArray(value.statuses) && value.statuses.length) {
+          await processStatuses(value).catch((e) =>
+            console.error("processStatuses error:", e),
+          );
         }
       }
     }
@@ -356,40 +661,11 @@ async function handleTrackOrderStatus(userPhone: string, phoneNumberId: string) 
   }
 }
 
-// ─── Show the WhatsApp "typing…" indicator ───────────────────────
-// Cloud API: a read receipt carrying a typing_indicator both marks the inbound
-// message read (blue ticks) AND shows the typing animation to the customer for
-// up to ~25s or until we send our reply. Best-effort — never blocks the reply.
-async function sendTypingIndicator(
-  phoneNumberId: string,
-  messageId: string,
-  token: string,
-) {
-  if (!phoneNumberId || !messageId || !token) return;
-  try {
-    const res = await fetch(
-      `https://graph.facebook.com/${API_VERSION}/${phoneNumberId}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          status: "read",
-          message_id: messageId,
-          typing_indicator: { type: "text" },
-        }),
-      },
-    );
-    if (!res.ok) {
-      console.error("Typing indicator failed:", await res.text().catch(() => ""));
-    }
-  } catch (e) {
-    console.error("Typing indicator error:", e);
-  }
-}
+// NOTE: The WhatsApp "typing…" indicator was intentionally removed. Meta's Cloud
+// API only shows typing by sending a read receipt (status:"read") on the inbound
+// message — the two are the same call and cannot be decoupled. To keep every
+// inbound session message UNREAD (so owners/team can see customer messages), we
+// send no read receipt and therefore no typing indicator.
 
 // ─── Send a free-form text reply ─────────────────────────────────
 async function sendTextReply(phoneNumberId: string, to: string, text: string) {
