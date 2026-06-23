@@ -40,6 +40,10 @@ export async function getPoolRiders(): Promise<{ data: Record<string, unknown>[]
   return poolGet("riders") as Promise<{ data: Record<string, unknown>[] } | null>;
 }
 
+export async function getPoolOfferResponses(): Promise<{ data: Record<string, unknown>[] } | null> {
+  return poolGet("offer-responses") as Promise<{ data: Record<string, unknown>[] } | null>;
+}
+
 // ── Interventions / moderation / geo (PRD §4.3-4.4) ──
 
 type ActionResult = { ok: boolean; data?: any; error?: string };
