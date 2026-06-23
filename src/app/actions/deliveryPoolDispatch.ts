@@ -152,24 +152,35 @@ export async function dispatchDeliveryPool(orderId: string): Promise<Result> {
   return { ok: true, data: { deliveryOrderId: res.deliveryOrderId, trackingUrl: res.trackingUrl } };
 }
 
-export async function cancelDeliveryPoolDispatch(orderId: string, reason?: string): Promise<Result> {
+export async function cancelDeliveryPoolDispatch(
+  orderId: string,
+  reason?: string,
+  cancelledBy?: string,
+): Promise<Result> {
   if (!orderId) return { ok: false, message: "orderId required" };
-  let provider: string | null = null;
+  let row: { delivery_provider?: string | null; cancel_reason?: string | null; cancelled_by?: string | null } | null = null;
   try {
     const data = await fetchFromHasura(
-      `query GetPoolProvider($id: uuid!) { orders_by_pk(id: $id) { delivery_provider } }`,
+      `query GetPoolProvider($id: uuid!) { orders_by_pk(id: $id) { delivery_provider cancel_reason cancelled_by } }`,
       { id: orderId },
     );
-    provider = data.orders_by_pk?.delivery_provider ?? null;
+    row = data.orders_by_pk ?? null;
   } catch (err) {
     return { ok: false, message: `hasura: ${(err as Error).message}` };
   }
-  if (provider !== "menuthere_pool") return { ok: false, status: 404, message: "no delivery-pool order" };
+  if (row?.delivery_provider !== "menuthere_pool") {
+    return { ok: false, status: 404, message: "no delivery-pool order" };
+  }
 
-  // source_order_id sent to the pool was the cravings order id
-  await cancelDeliveryPoolOrder(orderId, reason);
+  // Prefer the order's real cancel reason/who (set by the cancel dialog) over the args.
+  const finalReason = row?.cancel_reason || reason || "cancelled";
+  const rawBy = (cancelledBy || row?.cancelled_by || "").toLowerCase();
+  const who = rawBy.includes("user") || rawBy.includes("customer") ? "customer" : "restaurant";
+
+  await cancelDeliveryPoolOrder(orderId, finalReason, who);
   await persistPool(orderId, "cancelled", null, {
-    cancelledReason: reason ?? "cancelled",
+    cancelledReason: finalReason,
+    cancelledBy: who,
     cancelledAt: new Date().toISOString(),
   });
   return { ok: true, data: {} };

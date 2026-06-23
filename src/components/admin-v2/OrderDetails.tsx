@@ -821,8 +821,13 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                         )}
                         <button
                             onClick={async () => {
-                                if (!window.confirm("Cancel this pool delivery (recall the rider)?")) return;
-                                const r = await cancelDeliveryPoolDispatch(order.id, "cancelled by partner");
+                                const reason = window.prompt("Reason for cancelling this delivery? (shown to the rider)");
+                                if (reason === null) return;
+                                const r = await cancelDeliveryPoolDispatch(
+                                    order.id,
+                                    reason || "cancelled by restaurant",
+                                    "restaurant",
+                                );
                                 if (r.ok) toast.success("Pool delivery cancelled");
                                 else toast.error(r.message || "Cancel failed");
                             }}
