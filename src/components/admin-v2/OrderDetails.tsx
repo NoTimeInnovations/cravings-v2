@@ -66,6 +66,7 @@ const DeliveryRiderPanel = dynamic(
 import { getExtraCharge } from "@/lib/getExtraCharge";
 import { getDiscountAmount } from "@/lib/discountUtils";
 import { DeliveryBoyAssignment } from "./DeliveryBoyAssignment";
+import { cancelDeliveryPoolDispatch } from "@/app/actions/deliveryPoolDispatch";
 import { checkAllProvidersAvailability } from "@/app/actions/deliveryAgent";
 
 interface OrderDetailsProps {
@@ -518,12 +519,12 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                     </div>
                 </div>
 
-                {/* Manual delivery-partner assignment. Partners NOT on porter-bridge
-                    auto-dispatch assign their own riders, so show this for every
-                    delivery order regardless of status. Porter-bridge partners get
-                    automatic dispatch on accept and don't need the manual card. */}
+                {/* Manual delivery-partner assignment. Hidden for auto-dispatch
+                    providers — porter-bridge and the Menuthere delivery pool both
+                    assign riders automatically, so the manual card isn't needed. */}
                 {order.type === "delivery" &&
-                    !getFeatures((userData as Partner)?.feature_flags || null).porter_bridge.enabled && (
+                    !getFeatures((userData as Partner)?.feature_flags || null).porter_bridge.enabled &&
+                    !getFeatures((userData as Partner)?.feature_flags || null).delivery_pool.enabled && (
                         <DeliveryBoyAssignment order={order} />
                     )}
             </div>
@@ -798,6 +799,37 @@ export function OrderDetails({ order, onBack, onEdit }: OrderDetailsProps) {
                         <p className="mt-0.5 text-[10px] text-amber-700/80">
                             Give this to the pool rider at pickup
                         </p>
+                    </div>
+                )}
+
+            {/* Menuthere Delivery Pool — live tracking link + cancel (active orders). */}
+            {order.delivery_provider === "menuthere_pool" &&
+                order.status !== "completed" &&
+                order.status !== "cancelled" &&
+                (order as any).delivery_provider_state !== "cancelled" &&
+                (order as any).delivery_provider_state !== "delivered" && (
+                    <div className="flex items-center gap-4 flex-wrap">
+                        {(order.delivery_provider_meta as { trackingUrl?: string | null } | null)?.trackingUrl && (
+                            <a
+                                href={(order.delivery_provider_meta as { trackingUrl?: string }).trackingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs font-medium text-blue-600 underline"
+                            >
+                                Track delivery (live) →
+                            </a>
+                        )}
+                        <button
+                            onClick={async () => {
+                                if (!window.confirm("Cancel this pool delivery (recall the rider)?")) return;
+                                const r = await cancelDeliveryPoolDispatch(order.id, "cancelled by partner");
+                                if (r.ok) toast.success("Pool delivery cancelled");
+                                else toast.error(r.message || "Cancel failed");
+                            }}
+                            className="text-xs font-medium text-red-600 underline"
+                        >
+                            Cancel delivery
+                        </button>
                     </div>
                 )}
 

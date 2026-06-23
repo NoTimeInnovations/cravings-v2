@@ -35,6 +35,26 @@ const UPDATE_BY_POOL_ID = `
   }
 `;
 
+// Mirror the pool lifecycle onto the cravings order.status.
+const SET_ORDER_STATUS_BY_SOURCE = `
+  mutation PoolOrderStatusBySource($id: uuid!, $status: String!) {
+    update_orders_by_pk(pk_columns: { id: $id }, _set: { status: $status }) { id }
+  }
+`;
+const SET_ORDER_STATUS_BY_POOL_ID = `
+  mutation PoolOrderStatusByPoolId($poolId: String!, $status: String!) {
+    update_orders(
+      where: { delivery_provider_order_id: { _eq: $poolId }, delivery_provider: { _eq: "menuthere_pool" } },
+      _set: { status: $status }
+    ) { affected_rows }
+  }
+`;
+// pool rider state → cravings order status
+const POOL_TO_ORDER_STATUS: Record<string, string> = {
+  picked_up: "dispatched",
+  delivered: "completed",
+};
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function verify(raw: string, sig: string | null): boolean {
@@ -77,6 +97,15 @@ export async function POST(req: NextRequest) {
       await fetchFromHasura(UPDATE_BY_SOURCE, { id: sourceId, state, now });
     } else if (poolId) {
       await fetchFromHasura(UPDATE_BY_POOL_ID, { poolId, state, now });
+    }
+    // Advance the cravings order status: picked_up → dispatched, delivered → completed.
+    const mappedStatus = POOL_TO_ORDER_STATUS[String(payload.status ?? "")];
+    if (mappedStatus) {
+      if (sourceId && UUID_RE.test(sourceId)) {
+        await fetchFromHasura(SET_ORDER_STATUS_BY_SOURCE, { id: sourceId, status: mappedStatus });
+      } else if (poolId) {
+        await fetchFromHasura(SET_ORDER_STATUS_BY_POOL_ID, { poolId, status: mappedStatus });
+      }
     }
   } catch (err) {
     console.warn("[delivery-pool-webhook] update failed:", err);
