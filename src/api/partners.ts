@@ -470,6 +470,34 @@ export const getPartnerByPpidOrEmailQuery = `
   }
 `;
 
+// Lightweight partner search for the super-admin "Create PP Partner" page.
+// Matches name / store_name / email / username, returns just enough to show a
+// pick-list and prefill the form. Not restricted to active so an admin can
+// attach a Petpooja id to any existing partner.
+export const searchPartnersForAdminQuery = `
+  query SearchPartnersForAdmin($query: String!) {
+    partners(
+      where: {
+        _or: [
+          { store_name: { _ilike: $query } },
+          { name: { _ilike: $query } },
+          { email: { _ilike: $query } },
+          { username: { _ilike: $query } }
+        ]
+      },
+      order_by: { store_name: asc },
+      limit: 10
+    ) {
+      id
+      name
+      store_name
+      email
+      username
+      petpooja_restaurant_id
+    }
+  }
+`;
+
 export const createPpPartnerMutation = `
   mutation CreatePpPartner($name: String!, $email: String!, $password: String!, $petpooja_restaurant_id: String!, $subscription_details: jsonb!, $theme: json!, $feature_flags: String) {
     insert_partners_one(object: {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,16 +11,32 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import { Store, Mail, Lock, User, Send, Eye, Pencil, Plus, X, Loader2 } from "lucide-react";
+import {
+  Store,
+  Mail,
+  Lock,
+  User,
+  Send,
+  Eye,
+  Pencil,
+  Plus,
+  X,
+  Loader2,
+  Search,
+  MapPin,
+  Users,
+  Sparkles,
+  Check,
+  Copy,
+  ExternalLink,
+} from "lucide-react";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import {
-  createPpPartnerMutation,
-  getPartnerByPpidOrEmailQuery,
+  searchPartnersForAdminQuery,
+  updatePartner,
 } from "@/api/partners";
-import {
-  NEW_PARTNER_FEATURE_FLAGS,
-  NEW_PARTNER_THEME,
-} from "@/lib/newPartnerDefaults";
+import { placesAutocomplete, type PlacePrediction } from "@/app/actions/placesAutocomplete";
+import { quickSignupFromGoogle } from "@/app/actions/quickSignupFromGoogle";
 import { sendPetpoojaOnboardingEmailAction } from "@/app/actions/sendPetpoojaOnboardingEmail";
 
 const DEFAULT_TO_EMAILS = [
@@ -32,12 +48,63 @@ const DEFAULT_CC_EMAILS = [
   "yashpal.parmar@petpooja.com",
 ];
 
+const LOGIN_URL = "https://menuthere.com/login";
+const SITE_BASE = "https://menuthere.com";
+
+interface AdminPartner {
+  id: string;
+  name: string | null;
+  store_name: string | null;
+  email: string | null;
+  username: string | null;
+  petpooja_restaurant_id: string | null;
+}
+
+interface SelectedPlace {
+  placeId: string;
+  name: string;
+  address: string;
+}
+
+interface CreatedInfo {
+  username: string;
+  email: string;
+  password: string;
+  menuLink: string;
+}
+
 const CreatePartnerPage = () => {
-  // Form state
+  // Mode: attach a Petpooja id to an existing partner, or create a brand new
+  // customer (website + menu) the same way the "/" → /signup-from-google flow does.
+  const [isExisting, setIsExisting] = useState(false);
+
+  // Shared form state
   const [name, setName] = useState("");
   const [restaurantId, setRestaurantId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  // Existing-partner search
+  const [partnerSearch, setPartnerSearch] = useState("");
+  const [partnerResults, setPartnerResults] = useState<AdminPartner[]>([]);
+  const [partnerSearching, setPartnerSearching] = useState(false);
+  const [selectedPartner, setSelectedPartner] = useState<AdminPartner | null>(null);
+  const partnerDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const partnerReqRef = useRef(0);
+
+  // New-customer Google Places search
+  const [placeSearch, setPlaceSearch] = useState("");
+  const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
+  const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(null);
+  const placeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const placeReqRef = useRef(0);
+  // One Places session per search → select → create, shared with the server-side
+  // Place Details fetch so the keystroke autocomplete bills as a single session.
+  const sessionTokenRef = useRef<string>("");
+  const ensureSessionToken = () => {
+    if (!sessionTokenRef.current) sessionTokenRef.current = crypto.randomUUID();
+    return sessionTokenRef.current;
+  };
 
   // Email customization state
   const [menuMapping, setMenuMapping] = useState("Online");
@@ -53,27 +120,123 @@ const CreatePartnerPage = () => {
   const [enableBackwardTax, setEnableBackwardTax] = useState(true);
   const [onlySendEmail, setOnlySendEmail] = useState(false);
 
+  // Post-creation shareable details for a brand new customer.
+  const [createdInfo, setCreatedInfo] = useState<CreatedInfo | null>(null);
+  const [copied, setCopied] = useState(false);
+
   const emailSubject = `New Restaurant Onboarding Of ${name || "[Restaurant Name]"} - Petpooja`;
 
-  const validateInputs = () => {
-    if (!name) {
-      alert("Please enter a valid name.");
-      return false;
+  /* ----------------------------- searches ----------------------------- */
+
+  // Debounced existing-partner search (min 3 chars, 500ms) — drops out-of-order
+  // responses so the latest query wins.
+  useEffect(() => {
+    if (isExisting === false || selectedPartner) {
+      setPartnerResults([]);
+      return;
     }
-    if (!restaurantId) {
-      alert("Please enter a valid Petpooja Restaurant ID.");
-      return false;
+    if (partnerDebounceRef.current) clearTimeout(partnerDebounceRef.current);
+    const q = partnerSearch.trim();
+    if (q.length < 3) {
+      setPartnerResults([]);
+      setPartnerSearching(false);
+      return;
     }
-    if (!email) {
-      alert("Please enter a valid email.");
-      return false;
+    setPartnerSearching(true);
+    partnerDebounceRef.current = setTimeout(async () => {
+      const myReq = ++partnerReqRef.current;
+      try {
+        const { partners } = await fetchFromHasura(searchPartnersForAdminQuery, {
+          query: `%${q}%`,
+        });
+        if (myReq === partnerReqRef.current) {
+          setPartnerResults((partners as AdminPartner[]) || []);
+        }
+      } catch {
+        if (myReq === partnerReqRef.current) setPartnerResults([]);
+      } finally {
+        if (myReq === partnerReqRef.current) setPartnerSearching(false);
+      }
+    }, 500);
+    return () => {
+      if (partnerDebounceRef.current) clearTimeout(partnerDebounceRef.current);
+    };
+  }, [partnerSearch, isExisting, selectedPartner]);
+
+  // Debounced Google Places autocomplete (min 3 chars, 500ms) — same billing
+  // session pattern as the homepage Hero.
+  useEffect(() => {
+    if (isExisting || selectedPlace) {
+      setPredictions([]);
+      return;
     }
-    if (!onlySendEmail && !password) {
-      alert("Please enter a valid password.");
-      return false;
+    if (placeDebounceRef.current) clearTimeout(placeDebounceRef.current);
+    const q = placeSearch.trim();
+    if (q.length < 3) {
+      setPredictions([]);
+      return;
     }
-    return true;
+    placeDebounceRef.current = setTimeout(async () => {
+      const myReq = ++placeReqRef.current;
+      const results = await placesAutocomplete(q, ensureSessionToken());
+      if (myReq === placeReqRef.current) setPredictions(results);
+    }, 500);
+    return () => {
+      if (placeDebounceRef.current) clearTimeout(placeDebounceRef.current);
+    };
+  }, [placeSearch, isExisting, selectedPlace]);
+
+  const handlePickPartner = (p: AdminPartner) => {
+    setSelectedPartner(p);
+    setName(p.store_name || p.name || "");
+    setEmail(p.email || "");
+    setRestaurantId(p.petpooja_restaurant_id || "");
+    setPartnerResults([]);
+    setPartnerSearch(p.store_name || p.name || "");
   };
+
+  const clearSelectedPartner = () => {
+    setSelectedPartner(null);
+    setPartnerSearch("");
+    setName("");
+    setEmail("");
+    setRestaurantId("");
+  };
+
+  const handlePickPlace = (p: PlacePrediction) => {
+    const placeName = p.structured_formatting?.main_text || p.description;
+    setSelectedPlace({
+      placeId: p.place_id,
+      name: placeName,
+      address: p.structured_formatting?.secondary_text || "",
+    });
+    setName(placeName);
+    setPlaceSearch(placeName);
+    setPredictions([]);
+  };
+
+  const clearSelectedPlace = () => {
+    setSelectedPlace(null);
+    setPlaceSearch("");
+    setName("");
+  };
+
+  const switchMode = (existing: boolean) => {
+    setIsExisting(existing);
+    setCreatedInfo(null);
+    setSelectedPartner(null);
+    setSelectedPlace(null);
+    setPartnerSearch("");
+    setPlaceSearch("");
+    setPartnerResults([]);
+    setPredictions([]);
+    setName("");
+    setEmail("");
+    setRestaurantId("");
+    setPassword("");
+  };
+
+  /* --------------------------- email helpers --------------------------- */
 
   const addToEmail = () => {
     const trimmed = newToEmail.trim();
@@ -99,295 +262,557 @@ const CreatePartnerPage = () => {
     setCcEmails(ccEmails.filter((e) => e !== emailToRemove));
   };
 
+  const sendOnboardingEmail = () =>
+    sendPetpoojaOnboardingEmailAction({
+      to: [email, ...toEmails].filter(Boolean).join(", "),
+      cc: ccEmails.filter(Boolean).join(", ") || undefined,
+      subject: emailSubject,
+      restaurantName: name,
+      restaurantId,
+      menuMapping,
+      senderName,
+      senderOrg,
+      enableBackwardTax,
+    });
+
+  /* ------------------------------ submit ------------------------------ */
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateInputs()) return;
+    setCreatedInfo(null);
+
+    // --- Email-only: skip any creation/update, just notify the Petpooja team.
+    if (onlySendEmail) {
+      if (!name) return alert("Please enter a valid name.");
+      if (!restaurantId) return alert("Please enter a valid Petpooja Restaurant ID.");
+      if (!email) return alert("Please enter a valid email.");
+      setIsSubmitting(true);
+      try {
+        const res = await sendOnboardingEmail();
+        alert(res.success ? "Onboarding email sent successfully!" : "Failed to send email. Please try again.");
+      } catch (err) {
+        console.error(err);
+        alert("Failed to send email.");
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // --- Existing partner: store the Petpooja id (and any name edit) on them.
+    if (isExisting) {
+      if (!selectedPartner) return alert("Please search and select an existing partner.");
+      if (!restaurantId) return alert("Please enter a valid Petpooja Restaurant ID.");
+      setIsSubmitting(true);
+      try {
+        await updatePartner(selectedPartner.id, {
+          petpooja_restaurant_id: restaurantId,
+          ...(name && name !== (selectedPartner.store_name || selectedPartner.name)
+            ? { name }
+            : {}),
+        });
+        if (sendEmail) {
+          const res = await sendOnboardingEmail();
+          alert(
+            res.success
+              ? "Petpooja ID saved to the partner and onboarding email sent!"
+              : "Petpooja ID saved, but the email failed. Please send it manually.",
+          );
+        } else {
+          alert("Petpooja ID saved to the partner!");
+        }
+        clearSelectedPartner();
+      } catch (err) {
+        console.error(err);
+        alert("Failed to update the partner. Please try again.");
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // --- New customer: build the full website like the "/" route does.
+    if (!selectedPlace) return alert("Search and pick the customer's place from the dropdown.");
+    if (!email) return alert("Please enter a valid email.");
+    if (!restaurantId) return alert("Please enter a valid Petpooja Restaurant ID.");
 
     setIsSubmitting(true);
     try {
-      if (onlySendEmail) {
-        const emailResult = await sendPetpoojaOnboardingEmailAction({
-          to: [email, ...toEmails].filter(Boolean).join(", "),
-          cc: ccEmails.filter(Boolean).join(", ") || undefined,
-          subject: emailSubject,
-          restaurantName: name,
-          restaurantId,
-          menuMapping,
-          senderName,
-          senderOrg,
-          enableBackwardTax,
-        });
-
-        if (emailResult.success) {
-          alert("Onboarding email sent successfully!");
-        } else {
-          alert("Failed to send email. Please try again.");
-        }
-
-        setName("");
-        setEmail("");
-        setRestaurantId("");
-        setPassword("");
-        return;
-      }
-
-      // 1. Check if this email/id already exists
-      const { partners } = await fetchFromHasura(getPartnerByPpidOrEmailQuery, {
+      const finalPassword = password && password.length >= 6 ? password : "123456";
+      const result = await quickSignupFromGoogle({
+        placeId: selectedPlace.placeId,
+        sessionToken: ensureSessionToken(),
         email,
-        petpooja_restaurant_id: restaurantId,
+        password: finalPassword,
       });
 
-      if (partners && partners?.length > 0) {
-        setIsSubmitting(false);
-        return alert(
-          "A partner with this email or restaurant id already exists!"
-        );
+      // Attach the Petpooja restaurant id to the freshly created partner.
+      if (restaurantId) {
+        try {
+          await updatePartner(result.partnerId, {
+            petpooja_restaurant_id: restaurantId,
+          });
+        } catch (err) {
+          console.error("Failed to set petpooja id on new partner", err);
+        }
       }
 
-      // 2. Create partner
-      const { insert_partners_one } = await fetchFromHasura(
-        createPpPartnerMutation,
-        {
-          name,
-          email,
-          petpooja_restaurant_id: restaurantId,
-          password,
-          subscription_details: {},
-          theme: NEW_PARTNER_THEME,
-          feature_flags: NEW_PARTNER_FEATURE_FLAGS,
-        }
-      );
-
-      console.log("Created partner:", insert_partners_one);
-
-      // 3. Send onboarding email
+      // Notify the Petpooja team (optional).
       if (sendEmail) {
-        const emailResult = await sendPetpoojaOnboardingEmailAction({
-          to: [email, ...toEmails].filter(Boolean).join(", "),
-          cc: ccEmails.filter(Boolean).join(", ") || undefined,
-          subject: emailSubject,
-          restaurantName: name,
-          restaurantId,
-          menuMapping,
-          senderName,
-          senderOrg,
-          enableBackwardTax,
-        });
-
-        if (emailResult.success) {
-          alert("Petpooja partner created and onboarding email sent successfully!");
-        } else {
-          alert("Partner created but failed to send email. Please send manually.");
+        try {
+          await sendOnboardingEmail();
+        } catch (err) {
+          console.error("onboarding email failed", err);
         }
-      } else {
-        alert("Petpooja partner created successfully!");
       }
 
-      // Clear form
-      setName("");
-      setEmail("");
-      setRestaurantId("");
-      setPassword("");
-    } catch (error) {
-      console.error(error);
-      alert("Failed to create petpooja partner!");
+      setCreatedInfo({
+        username: result.username,
+        email,
+        password: finalPassword,
+        menuLink: `${SITE_BASE}/${result.username}`,
+      });
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Failed to create the customer website.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const shareMessage = createdInfo
+    ? `Your Menuthere site is ready! 🎉
+
+🔗 Menu link: ${createdInfo.menuLink}
+📧 Email: ${createdInfo.email}
+🔑 Password: ${createdInfo.password}
+👉 Login here: ${LOGIN_URL}`
+    : "";
+
+  const copyShareMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(shareMessage);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      alert("Could not copy. Please select and copy manually.");
     }
   };
 
   const displayName = name || "[Restaurant Name]";
   const displayId = restaurantId || "[Restaurant ID]";
 
+  const submitLabel = onlySendEmail
+    ? "Send Email Only"
+    : isExisting
+      ? sendEmail
+        ? "Save Petpooja ID & Send Email"
+        : "Save Petpooja ID"
+      : "Create Website";
+
   return (
     <div className="min-h-screen bg-orange-50 p-4 pt-20 md:p-8 md:pt-24">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* Left: Create Partner Form */}
+        {/* Left: Create / Attach Partner Form */}
         <Card className="border-orange-100 shadow-lg">
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="text-2xl font-bold text-orange-950">
               Create PP Partner
             </CardTitle>
           </CardHeader>
-          <form onSubmit={handleSubmit}>
+
+          {createdInfo ? (
+            /* Success: shareable customer message */
             <CardContent className="space-y-4">
-              {/* Name */}
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-orange-900">Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-2.5 h-4 w-4 text-orange-600" />
-                  <Input
-                    id="name"
-                    placeholder="Enter Name"
-                    className="pl-9 border-orange-200 focus-visible:ring-orange-600"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
+              <div className="flex flex-col items-center text-center gap-2">
+                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                  <Check className="h-6 w-6 text-green-600" />
                 </div>
+                <h3 className="text-lg font-semibold text-orange-950">
+                  Website created!
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Send these details to the customer.
+                </p>
               </div>
 
-              {/* Restaurant ID */}
-              <div className="space-y-2">
-                <Label htmlFor="restaurantId" className="text-orange-900">
-                  Petpooja Restaurant ID
-                </Label>
-                <div className="relative">
-                  <Store className="absolute left-3 top-2.5 h-4 w-4 text-orange-600" />
-                  <Input
-                    id="restaurantId"
-                    placeholder="Enter ID"
-                    className="pl-9 border-orange-200 focus-visible:ring-orange-600"
-                    value={restaurantId}
-                    onChange={(e) => setRestaurantId(e.target.value)}
-                  />
-                </div>
+              <div className="rounded-lg border border-orange-200 bg-white divide-y divide-orange-100">
+                <DetailRow label="Menu link" value={createdInfo.menuLink} href={createdInfo.menuLink} />
+                <DetailRow label="Email" value={createdInfo.email} />
+                <DetailRow label="Password" value={createdInfo.password} />
+                <DetailRow label="Login link" value={LOGIN_URL} href={LOGIN_URL} />
               </div>
 
-              {/* Email */}
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-orange-900">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-orange-600" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="name@example.com"
-                    className="pl-9 border-orange-200 focus-visible:ring-orange-600"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Password */}
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-orange-900">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-orange-600" />
-                  <Input
-                    id="password"
-                    type="password"
-                    className="pl-9 border-orange-200 focus-visible:ring-orange-600"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Send Email Toggle */}
-              <div className="flex items-center justify-between pt-2">
-                <Label className="text-orange-900 flex items-center gap-2">
-                  <Send className="h-4 w-4 text-orange-600" />
-                  Auto-send onboarding email
-                </Label>
-                <button
+                <Label className="text-orange-900 text-sm">Message to send</Label>
+                <textarea
+                  readOnly
+                  value={shareMessage}
+                  rows={6}
+                  className="w-full rounded-md border border-orange-200 bg-orange-50/50 p-3 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-orange-400"
+                />
+                <Button
                   type="button"
-                  disabled={onlySendEmail}
-                  onClick={() => setSendEmail(!sendEmail)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    sendEmail || onlySendEmail ? "bg-orange-600" : "bg-gray-300"
-                  } ${onlySendEmail ? "opacity-60 cursor-not-allowed" : ""}`}
+                  onClick={copyShareMessage}
+                  className="w-full bg-orange-600 hover:bg-orange-700 text-white"
                 >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      sendEmail || onlySendEmail ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
+                  {copied ? (
+                    <><Check className="mr-2 h-4 w-4" /> Copied!</>
+                  ) : (
+                    <><Copy className="mr-2 h-4 w-4" /> Copy message</>
+                  )}
+                </Button>
               </div>
 
-              {/* Only Send Email Toggle */}
-              <div className="flex items-center justify-between pt-2">
-                <Label className="text-orange-900 flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-orange-600" />
-                  Only send email (skip partner creation)
-                </Label>
-                <button
-                  type="button"
-                  onClick={() => setOnlySendEmail(!onlySendEmail)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    onlySendEmail ? "bg-orange-600" : "bg-gray-300"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      onlySendEmail ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Backward Tax Toggle */}
-              <div className="flex items-center justify-between pt-2">
-                <Label className="text-orange-900 flex items-center gap-2">
-                  Mention backward tax in email
-                </Label>
-                <button
-                  type="button"
-                  onClick={() => setEnableBackwardTax(!enableBackwardTax)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    enableBackwardTax ? "bg-orange-600" : "bg-gray-300"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      enableBackwardTax ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Menu Mapping Online/Offline Toggle */}
-              <div className="flex items-center justify-between pt-2">
-                <Label className="text-orange-900 flex items-center gap-2">
-                  Menu Mapping
-                </Label>
-                <div className="flex items-center gap-2">
-                  <span className={`text-sm font-medium ${menuMapping === "Offline" ? "text-orange-900" : "text-gray-400"}`}>
-                    Offline
-                  </span>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => switchMode(false)}
+                className="w-full border-orange-200 text-orange-700 hover:bg-orange-50"
+              >
+                Create another
+              </Button>
+            </CardContent>
+          ) : (
+            <form onSubmit={handleSubmit}>
+              <CardContent className="space-y-4">
+                {/* Existing partner toggle */}
+                <div className="flex items-center justify-between rounded-lg border border-orange-200 bg-white px-3 py-2.5">
+                  <Label className="text-orange-900 flex items-center gap-2">
+                    <Users className="h-4 w-4 text-orange-600" />
+                    Already an existing partner?
+                  </Label>
                   <button
                     type="button"
-                    onClick={() => setMenuMapping(menuMapping === "Online" ? "Offline" : "Online")}
+                    onClick={() => switchMode(!isExisting)}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      menuMapping === "Online" ? "bg-orange-600" : "bg-gray-400"
+                      isExisting ? "bg-orange-600" : "bg-gray-300"
                     }`}
                   >
                     <span
                       className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        menuMapping === "Online" ? "translate-x-6" : "translate-x-1"
+                        isExisting ? "translate-x-6" : "translate-x-1"
                       }`}
                     />
                   </button>
-                  <span className={`text-sm font-medium ${menuMapping === "Online" ? "text-orange-900" : "text-gray-400"}`}>
-                    Online
-                  </span>
                 </div>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold"
-              >
-                {isSubmitting ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {onlySendEmail ? "Sending..." : "Creating..."}</>
-                ) : onlySendEmail ? (
-                  <><Send className="mr-2 h-4 w-4" /> Send Email Only</>
-                ) : sendEmail ? (
-                  <><Send className="mr-2 h-4 w-4" /> Create Partner & Send Email</>
+
+                {isExisting ? (
+                  /* Existing-partner searchable dropdown */
+                  <div className="space-y-2">
+                    <Label className="text-orange-900">Search partner</Label>
+                    {selectedPartner ? (
+                      <div className="flex items-center gap-2 rounded-md border border-orange-200 bg-white px-3 py-2">
+                        <Users className="h-4 w-4 text-orange-600 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-orange-950 truncate">
+                            {selectedPartner.store_name || selectedPartner.name}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {selectedPartner.email}
+                            {selectedPartner.username ? ` · @${selectedPartner.username}` : ""}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={clearSelectedPartner}
+                          className="text-gray-400 hover:text-red-600 shrink-0"
+                          aria-label="Clear"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-orange-600 z-10" />
+                        {partnerSearching && (
+                          <Loader2 className="absolute right-3 top-2.5 h-4 w-4 text-orange-400 animate-spin z-10" />
+                        )}
+                        <Input
+                          placeholder="Search by name, store, email…"
+                          className="pl-9 border-orange-200 focus-visible:ring-orange-600"
+                          value={partnerSearch}
+                          onChange={(e) => setPartnerSearch(e.target.value)}
+                        />
+                        {partnerResults.length > 0 && (
+                          <ul className="absolute z-20 mt-1 w-full max-h-60 overflow-auto rounded-md border border-orange-200 bg-white shadow-lg">
+                            {partnerResults.map((p) => (
+                              <li key={p.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => handlePickPartner(p)}
+                                  className="w-full flex flex-col items-start px-3 py-2 text-left hover:bg-orange-50"
+                                >
+                                  <span className="text-sm font-medium text-orange-950">
+                                    {p.store_name || p.name}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {p.email}
+                                    {p.petpooja_restaurant_id ? ` · PP: ${p.petpooja_restaurant_id}` : ""}
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {partnerSearch.trim().length >= 3 &&
+                          !partnerSearching &&
+                          partnerResults.length === 0 && (
+                            <p className="mt-1 text-xs text-gray-400">No partners found.</p>
+                          )}
+                      </div>
+                    )}
+                  </div>
                 ) : (
-                  "Create Partner"
+                  /* New-customer Google Places search */
+                  <div className="space-y-2">
+                    <Label className="text-orange-900">Search the place (Google)</Label>
+                    {selectedPlace ? (
+                      <div className="flex items-center gap-2 rounded-md border border-orange-200 bg-white px-3 py-2">
+                        <MapPin className="h-4 w-4 text-orange-600 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-orange-950 truncate">
+                            {selectedPlace.name}
+                          </p>
+                          {selectedPlace.address && (
+                            <p className="text-xs text-gray-500 truncate">
+                              {selectedPlace.address}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={clearSelectedPlace}
+                          className="text-gray-400 hover:text-red-600 shrink-0"
+                          aria-label="Clear"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <Search className="absolute left-3 top-2.5 h-4 w-4 text-orange-600 z-10" />
+                        <Input
+                          placeholder="Search restaurant on Google…"
+                          className="pl-9 border-orange-200 focus-visible:ring-orange-600"
+                          value={placeSearch}
+                          onChange={(e) => setPlaceSearch(e.target.value)}
+                        />
+                        {predictions.length > 0 && (
+                          <ul className="absolute z-20 mt-1 w-full max-h-60 overflow-auto rounded-md border border-orange-200 bg-white shadow-lg">
+                            {predictions.map((p) => (
+                              <li key={p.place_id}>
+                                <button
+                                  type="button"
+                                  onClick={() => handlePickPlace(p)}
+                                  className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-orange-50"
+                                >
+                                  <MapPin className="h-4 w-4 text-orange-400 shrink-0 mt-0.5" />
+                                  <div className="min-w-0">
+                                    <span className="block text-sm font-medium text-orange-950 truncate">
+                                      {p.structured_formatting?.main_text || p.description}
+                                    </span>
+                                    {p.structured_formatting?.secondary_text && (
+                                      <span className="block text-xs text-gray-500 truncate">
+                                        {p.structured_formatting.secondary_text}
+                                      </span>
+                                    )}
+                                  </div>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
-              </Button>
-            </CardFooter>
-          </form>
+
+                {/* Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-orange-900">Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-2.5 h-4 w-4 text-orange-600" />
+                    <Input
+                      id="name"
+                      placeholder="Enter Name"
+                      className="pl-9 border-orange-200 focus-visible:ring-orange-600"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Restaurant ID */}
+                <div className="space-y-2">
+                  <Label htmlFor="restaurantId" className="text-orange-900">
+                    Petpooja Restaurant ID
+                  </Label>
+                  <div className="relative">
+                    <Store className="absolute left-3 top-2.5 h-4 w-4 text-orange-600" />
+                    <Input
+                      id="restaurantId"
+                      placeholder="Enter ID"
+                      className="pl-9 border-orange-200 focus-visible:ring-orange-600"
+                      value={restaurantId}
+                      onChange={(e) => setRestaurantId(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-orange-900">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-2.5 h-4 w-4 text-orange-600" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="name@example.com"
+                      className="pl-9 border-orange-200 focus-visible:ring-orange-600"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Password — only when creating a new customer website */}
+                {!isExisting && !onlySendEmail && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-orange-900">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-2.5 h-4 w-4 text-orange-600" />
+                      <Input
+                        id="password"
+                        type="text"
+                        placeholder="Defaults to 123456"
+                        className="pl-9 border-orange-200 focus-visible:ring-orange-600"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Send Email Toggle */}
+                <div className="flex items-center justify-between pt-2">
+                  <Label className="text-orange-900 flex items-center gap-2">
+                    <Send className="h-4 w-4 text-orange-600" />
+                    Auto-send onboarding email
+                  </Label>
+                  <button
+                    type="button"
+                    disabled={onlySendEmail}
+                    onClick={() => setSendEmail(!sendEmail)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      sendEmail || onlySendEmail ? "bg-orange-600" : "bg-gray-300"
+                    } ${onlySendEmail ? "opacity-60 cursor-not-allowed" : ""}`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        sendEmail || onlySendEmail ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Only Send Email Toggle */}
+                <div className="flex items-center justify-between pt-2">
+                  <Label className="text-orange-900 flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-orange-600" />
+                    Only send email (skip creation)
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => setOnlySendEmail(!onlySendEmail)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      onlySendEmail ? "bg-orange-600" : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        onlySendEmail ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Backward Tax Toggle */}
+                <div className="flex items-center justify-between pt-2">
+                  <Label className="text-orange-900 flex items-center gap-2">
+                    Mention backward tax in email
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => setEnableBackwardTax(!enableBackwardTax)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      enableBackwardTax ? "bg-orange-600" : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        enableBackwardTax ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Menu Mapping Online/Offline Toggle */}
+                <div className="flex items-center justify-between pt-2">
+                  <Label className="text-orange-900 flex items-center gap-2">
+                    Menu Mapping
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-medium ${menuMapping === "Offline" ? "text-orange-900" : "text-gray-400"}`}>
+                      Offline
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setMenuMapping(menuMapping === "Online" ? "Offline" : "Online")}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        menuMapping === "Online" ? "bg-orange-600" : "bg-gray-400"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          menuMapping === "Online" ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                    <span className={`text-sm font-medium ${menuMapping === "Online" ? "text-orange-900" : "text-gray-400"}`}>
+                      Online
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold"
+                >
+                  {isSubmitting ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {onlySendEmail ? "Sending..." : isExisting ? "Saving..." : "Creating..."}</>
+                  ) : (
+                    <>
+                      {onlySendEmail ? (
+                        <Send className="mr-2 h-4 w-4" />
+                      ) : isExisting ? (
+                        <Store className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Sparkles className="mr-2 h-4 w-4" />
+                      )}
+                      {submitLabel}
+                    </>
+                  )}
+                </Button>
+              </CardFooter>
+            </form>
+          )}
         </Card>
 
         {/* Right: Email Preview */}
-        <Card className={`border-orange-100 shadow-lg ${!sendEmail ? "opacity-50 pointer-events-none" : ""}`}>
+        <Card className={`border-orange-100 shadow-lg ${!sendEmail && !onlySendEmail ? "opacity-50 pointer-events-none" : ""}`}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-lg font-bold text-orange-950 flex items-center gap-2">
               <Mail className="h-5 w-5" /> Email Preview
@@ -581,5 +1006,34 @@ const CreatePartnerPage = () => {
     </div>
   );
 };
+
+function DetailRow({
+  label,
+  value,
+  href,
+}: {
+  label: string;
+  value: string;
+  href?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+      <span className="text-xs font-medium text-gray-500 shrink-0">{label}</span>
+      {href ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-orange-700 hover:underline truncate flex items-center gap-1"
+        >
+          <span className="truncate">{value}</span>
+          <ExternalLink className="h-3 w-3 shrink-0" />
+        </a>
+      ) : (
+        <span className="text-sm text-orange-950 font-medium truncate">{value}</span>
+      )}
+    </div>
+  );
+}
 
 export default CreatePartnerPage;
