@@ -113,7 +113,13 @@ export default function DeliveryPoolPanel() {
     const coords = (userData as any)?.geo_location?.coordinates;
     const pickup =
       Array.isArray(coords) && coords.length === 2 ? { lat: coords[1], lng: coords[0] } : undefined;
-    poolSyncConfig(rid, { name: (userData as any)?.store_name, pool_enabled: true, pickup }).then(() => load());
+    poolSyncConfig(rid, {
+      name: (userData as any)?.store_name,
+      pool_enabled: true,
+      pickup,
+      banner_url: (userData as any)?.store_banner,
+      address: (userData as any)?.address,
+    }).then(() => load());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rid]);
 

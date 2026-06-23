@@ -110,10 +110,12 @@ export async function syncAllPoolRestaurants(): Promise<{ ok: boolean; total: nu
     feature_flags: string | null;
     phone: string | null;
     country_code: string | null;
+    store_banner: string | null;
+    address: string | null;
   }> = [];
   try {
     const data = await fetchFromHasura(
-      `query PoolPartners { partners(where: { feature_flags: { _ilike: "%delivery_pool-%" } }) { id store_name geo_location feature_flags phone country_code } }`,
+      `query PoolPartners { partners(where: { feature_flags: { _ilike: "%delivery_pool-%" } }) { id store_name geo_location feature_flags phone country_code store_banner address } }`,
     );
     partners = data?.partners ?? [];
   } catch (e) {
@@ -130,7 +132,14 @@ export async function syncAllPoolRestaurants(): Promise<{ ok: boolean; total: nu
         ? p.country_code + p.phone
         : p.phone
       : undefined;
-    const r = await poolSyncConfig(p.id, { name: p.store_name ?? undefined, pool_enabled: enabled, pickup, contact_phone });
+    const r = await poolSyncConfig(p.id, {
+      name: p.store_name ?? undefined,
+      pool_enabled: enabled,
+      pickup,
+      contact_phone,
+      banner_url: p.store_banner ?? undefined,
+      address: p.address ?? undefined,
+    });
     if (r.ok) synced++;
   }
   return { ok: true, total: partners.length, synced };
