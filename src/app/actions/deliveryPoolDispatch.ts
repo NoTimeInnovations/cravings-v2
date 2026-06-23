@@ -22,7 +22,7 @@ type Result =
 interface OrderForPool {
   id: string;
   total_price: number;
-  delivery_charge: number | null;
+  extra_charges: Array<{ name?: string; amount?: number }> | null;
   type: string;
   delivery_address: string | null;
   phone: string | null;
@@ -41,7 +41,7 @@ interface OrderForPool {
 const ORDER_FOR_POOL_QUERY = `
   query OrderForPool($id: uuid!) {
     orders_by_pk(id: $id) {
-      id total_price delivery_charge type delivery_address phone partner_id display_id
+      id total_price extra_charges type delivery_address phone partner_id display_id
       user { phone full_name }
       delivery_location
       partner { store_name geo_location feature_flags delivery_rules }
@@ -133,7 +133,9 @@ export async function dispatchDeliveryPool(orderId: string): Promise<Result> {
       phone: order.user?.phone ?? order.phone ?? undefined,
     },
     order_value: order.total_price,
-    delivery_fee: order.delivery_charge ?? undefined,
+    // Cravings stores the delivery charge as an "Delivery Charge" extra_charges line.
+    delivery_fee:
+      (order.extra_charges ?? []).find((c) => c?.name === "Delivery Charge")?.amount ?? undefined,
     assignment_mode: "auto",
     require_pickup_otp: dr?.pool_pickup_otp === true,
     require_drop_otp: dr?.pool_drop_otp === true,
