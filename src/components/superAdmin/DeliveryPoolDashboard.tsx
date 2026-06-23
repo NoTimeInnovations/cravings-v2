@@ -18,6 +18,7 @@ import {
 } from "@/app/actions/deliveryPoolAdmin";
 import RiderDocsModal from "@/components/deliveryPool/RiderDocsModal";
 import RiderAvatar from "@/components/deliveryPool/RiderAvatar";
+import RiderAvailabilityMap from "@/components/deliveryPool/RiderAvailabilityMap";
 
 type Row = Record<string, unknown>;
 type Overview = {
@@ -50,7 +51,7 @@ const fmtTime = (v: unknown) => {
 
 export default function DeliveryPoolDashboard() {
   const [overview, setOverview] = useState<Overview | null>(null);
-  const [tab, setTab] = useState<"orders" | "riders" | "responses" | "geo">("orders");
+  const [tab, setTab] = useState<"orders" | "riders" | "responses" | "availability" | "geo">("orders");
   const [rows, setRows] = useState<Row[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -175,7 +176,7 @@ export default function DeliveryPoolDashboard() {
       </div>
 
       <div className="flex gap-2 mb-3">
-        {(["orders", "riders", "responses", "geo"] as const).map((t) => (
+        {(["orders", "riders", "responses", "availability", "geo"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -189,7 +190,9 @@ export default function DeliveryPoolDashboard() {
                 ? "Riders"
                 : t === "responses"
                   ? "Responses"
-                  : "Geo search"}
+                  : t === "availability"
+                    ? "Availability"
+                    : "Geo search"}
           </button>
         ))}
       </div>
@@ -236,6 +239,8 @@ export default function DeliveryPoolDashboard() {
             </div>
           </div>
         </div>
+      ) : tab === "availability" ? (
+        <RiderAvailabilityMap riders={rows} />
       ) : (
         <div className="overflow-x-auto bg-white rounded-lg border border-[#ffba79]/20">
           {tab === "orders" ? (
