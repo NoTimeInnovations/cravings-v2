@@ -14,7 +14,9 @@ import {
   poolDisableRider,
   poolRemoveRider,
   poolOrders,
+  poolRiderDocs,
 } from "@/app/actions/deliveryPoolPartner";
+import RiderDocsModal from "@/components/deliveryPool/RiderDocsModal";
 
 type Row = Record<string, any>;
 type Res = { ok: boolean; data?: any; error?: string };
@@ -31,6 +33,7 @@ export default function DeliveryPoolPanel() {
   const [tab, setTab] = useState<"riders" | "orders">("riders");
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
+  const [docRider, setDocRider] = useState<{ id: string; name?: string } | null>(null);
 
   const load = useCallback(async () => {
     if (!rid) return;
@@ -137,6 +140,12 @@ export default function DeliveryPoolPanel() {
                 </div>
                 <div className="flex gap-2">
                   <button
+                    onClick={() => setDocRider({ id: str(q.rider_id), name: q.full_name ? String(q.full_name) : undefined })}
+                    className="px-3 py-1.5 rounded-lg border text-sm"
+                  >
+                    Docs
+                  </button>
+                  <button
                     onClick={() => act(poolApprove(rid, str(q.id)), "Approved")}
                     disabled={busy}
                     className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm disabled:opacity-50"
@@ -201,6 +210,12 @@ export default function DeliveryPoolPanel() {
                     <td className="p-3">{str(r.completed_orders ?? 0)}</td>
                     <td className="p-3 text-right whitespace-nowrap">
                       <button
+                        onClick={() => setDocRider({ id: str(r.rider_id), name: r.full_name ? String(r.full_name) : undefined })}
+                        className="text-xs px-2 py-1 rounded border mr-1"
+                      >
+                        Docs
+                      </button>
+                      <button
                         onClick={() => act(poolDisableRider(rid, str(r.rider_id), !r.disabled), r.disabled ? "Enabled" : "Disabled")}
                         disabled={busy}
                         className="text-xs px-2 py-1 rounded border mr-1"
@@ -264,6 +279,18 @@ export default function DeliveryPoolPanel() {
         )}
       </div>
       <p className="text-xs text-gray-400">Auto-refreshes every 6s.</p>
+
+      <RiderDocsModal
+        open={!!docRider}
+        onClose={() => setDocRider(null)}
+        riderId={docRider?.id ?? null}
+        riderName={docRider?.name}
+        fetchDocs={async (id) => {
+          const r = await poolRiderDocs(rid, id);
+          const j = r.ok ? r.data : null;
+          return { docs: j?.data ?? [], fullName: j?.full_name, kyc: j?.kyc_status };
+        }}
+      />
     </div>
   );
 }

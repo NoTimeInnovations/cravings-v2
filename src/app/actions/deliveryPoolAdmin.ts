@@ -81,7 +81,20 @@ export async function searchPoolRestaurants(lat: number, lng: number, radiusKm: 
   return poolGet(`restaurants/search?lat=${lat}&lng=${lng}&radius_km=${radiusKm}`) as Promise<{ data: Record<string, unknown>[] } | null>;
 }
 export async function getPoolRiderDocs(riderId: string) {
-  return poolGet(`riders/${riderId}/docs`) as Promise<{ data: Record<string, unknown>[] } | null>;
+  return poolGet(`riders/${riderId}/docs`) as Promise<{
+    data: Record<string, unknown>[];
+    full_name?: string;
+    kyc_status?: string;
+  } | null>;
+}
+
+/** Super Admin only: set the rider's KYC verdict (verified | rejected). */
+export async function verifyPoolRiderKyc(
+  riderId: string,
+  status: "verified" | "rejected",
+  reason?: string,
+): Promise<ActionResult> {
+  return poolPost(`riders/${riderId}/kyc`, { status, reason });
 }
 
 /**
