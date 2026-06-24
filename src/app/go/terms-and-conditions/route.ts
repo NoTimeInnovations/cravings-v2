@@ -143,7 +143,7 @@ export async function GET() {
     <section>
       <h2>14. Contact</h2>
       <p>
-        Questions? Contact <a href="mailto:help@mail.menuthere.com">help@mail.menuthere.com</a>. See also our <a href="/go/privacy-policy">Menuthere Go Privacy Policy</a>.
+        Questions? Contact <a href="mailto:support@menuthere.com">support@menuthere.com</a>. See also our <a href="/go/privacy-policy">Menuthere Go Privacy Policy</a>.
       </p>
     </section>
   </div>

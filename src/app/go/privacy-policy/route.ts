@@ -112,7 +112,7 @@ export async function GET() {
         <li>Withdraw consent to location or notifications (via device settings)</li>
       </ul>
       <p>
-        To exercise any of these, contact us at <a href="mailto:help@mail.menuthere.com">help@mail.menuthere.com</a> or use our <a href="/data-deletion-status">data deletion request</a> page.
+        To exercise any of these, contact us at <a href="mailto:support@menuthere.com">support@menuthere.com</a> or use our <a href="/data-deletion-status">data deletion request</a> page.
       </p>
     </section>
 
@@ -136,7 +136,7 @@ export async function GET() {
         We may update this policy from time to time. Changes will appear on this page with an updated "Last Updated" date.
       </p>
       <p>
-        Questions? Contact <a href="mailto:help@mail.menuthere.com">help@mail.menuthere.com</a>. See also our <a href="/go/terms-and-conditions">Menuthere Go Terms &amp; Conditions</a>.
+        Questions? Contact <a href="mailto:support@menuthere.com">support@menuthere.com</a>. See also our <a href="/go/terms-and-conditions">Menuthere Go Terms &amp; Conditions</a>.
       </p>
     </section>
   </div>
