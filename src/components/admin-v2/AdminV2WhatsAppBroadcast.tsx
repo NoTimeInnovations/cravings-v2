@@ -284,9 +284,9 @@ export function AdminV2WhatsAppBroadcast() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
             Send an approved marketing template to a list of customers. Sends run
-            in the background, so you can close this page. Up to {DAILY_LIMIT}{" "}
-            messages per day — larger lists continue automatically the next day
-            after you resume.
+            in the background, so you can close this page. Each broadcast is capped
+            at your WhatsApp daily messaging limit (your number&apos;s current
+            tier), minus whatever you&apos;ve already sent today.
           </p>
         </div>
         <div className="flex gap-2">
@@ -531,6 +531,12 @@ function BroadcastCreatorDialog({
   const [selectedCustomerPhones, setSelectedCustomerPhones] = useState<Set<string>>(
     new Set(),
   );
+  // Daily send cap derived from the partner's live Meta messaging tier ("q
+  // number") and today's usage. `remaining` = tier − sent today.
+  const [limitInfo, setLimitInfo] = useState<{
+    dailyLimit: number;
+    remaining: number;
+  } | null>(null);
 
   // Upload header media to S3 and store the public URL (sent as a {link}).
   const applyMedia = async (getUrl: () => Promise<string>) => {
@@ -578,6 +584,7 @@ function BroadcastCreatorDialog({
     setShowVideoEditor(false);
     setCustomers([]);
     setSelectedCustomerPhones(new Set());
+    setLimitInfo(null);
   };
 
   // When the template changes, seed the variable map with sensible defaults:
@@ -625,6 +632,56 @@ function BroadcastCreatorDialog({
       .finally(() => setLoadingCustomers(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, partnerId]);
+
+  // On open, read the partner's live daily cap (Meta tier) + today's usage so we
+  // can hard-limit how many recipients can be queued.
+  useEffect(() => {
+    if (!open || !partnerId) return;
+    setLimitInfo(null);
+    fetch(`/api/whatsapp/meta/phone-quality?partnerId=${partnerId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const u = d?.usage;
+        if (u) {
+          const dailyLimit = Number(u.dailyLimit) || DAILY_LIMIT;
+          const remaining = Number.isFinite(Number(u.remaining))
+            ? Number(u.remaining)
+            : dailyLimit;
+          setLimitInfo({ dailyLimit, remaining });
+        }
+      })
+      .catch(() => {
+        /* fall back to the default cap below */
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, partnerId]);
+
+  // Effective cap: a scheduled-for-later send gets the full daily tier (it runs
+  // on a future day); a send-now is bounded by what's left today.
+  const dailyLimit = limitInfo?.dailyLimit ?? DAILY_LIMIT;
+  const remainingToday = limitInfo?.remaining ?? DAILY_LIMIT;
+  const cap = scheduleMode === "later" ? dailyLimit : remainingToday;
+  // A friendly cap label that doesn't print MAX_SAFE_INTEGER for unlimited tiers.
+  const capLabel =
+    cap >= 1_000_000 ? "unlimited" : cap.toLocaleString();
+
+  // Keep the customer selection within the cap — trims the lowest-priority
+  // (later-in-list) picks whenever the cap shrinks (e.g. tier loads, or the user
+  // switches from "schedule later" to "send now" with less remaining today).
+  useEffect(() => {
+    setSelectedCustomerPhones((prev) => {
+      if (prev.size <= cap) return prev;
+      const kept = new Set<string>();
+      for (const c of customers) {
+        if (prev.has(c.phone)) {
+          kept.add(c.phone);
+          if (kept.size >= cap) break;
+        }
+      }
+      return kept;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cap, customers]);
 
   // Parse the manual textarea: one recipient per line, "phone[,name]" (comma or tab).
   const manualRecipients = useMemo<ParsedRecipient[]>(() => {
@@ -735,6 +792,7 @@ function BroadcastCreatorDialog({
     !!partnerId &&
     !!template &&
     valid.length > 0 &&
+    valid.length <= cap &&
     varMap.every((m) => m.source !== "fixed" || (m.value ?? "").trim().length > 0) &&
     (!hasHeaderVar || headerValue.trim().length > 0) &&
     (!mediaHeaderType || headerMediaUrl.trim().length > 0) &&
@@ -1015,21 +1073,30 @@ function BroadcastCreatorDialog({
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-muted-foreground">
                             {selectedCustomerPhones.size}/{customers.length} selected
+                            {customers.length > cap && (
+                              <span className="text-orange-700">
+                                {" "}· max {capLabel}
+                              </span>
+                            )}
                           </span>
                           <button
                             type="button"
                             className="text-primary underline"
                             onClick={() =>
                               setSelectedCustomerPhones(
-                                selectedCustomerPhones.size === customers.length
+                                selectedCustomerPhones.size >=
+                                  Math.min(cap, customers.length)
                                   ? new Set()
-                                  : new Set(customers.map((c) => c.phone)),
+                                  : new Set(
+                                      customers.slice(0, cap).map((c) => c.phone),
+                                    ),
                               )
                             }
                           >
-                            {selectedCustomerPhones.size === customers.length
+                            {selectedCustomerPhones.size >=
+                            Math.min(cap, customers.length)
                               ? "Clear all"
-                              : "Select all"}
+                              : `Select all (max ${capLabel})`}
                           </button>
                         </div>
                         <div className="max-h-48 divide-y overflow-auto rounded-md border">
@@ -1043,6 +1110,16 @@ function BroadcastCreatorDialog({
                                 checked={selectedCustomerPhones.has(c.phone)}
                                 onChange={(e) =>
                                   setSelectedCustomerPhones((prev) => {
+                                    if (e.target.checked && prev.size >= cap) {
+                                      toast.error(
+                                        `You can send to at most ${capLabel} ${
+                                          scheduleMode === "later"
+                                            ? "per day on your plan"
+                                            : "today (daily limit minus what's already sent)"
+                                        }.`,
+                                      );
+                                      return prev;
+                                    }
                                     const n = new Set(prev);
                                     if (e.target.checked) n.add(c.phone);
                                     else n.delete(c.phone);
@@ -1120,10 +1197,23 @@ function BroadcastCreatorDialog({
                       {dupCount} duplicate{dupCount === 1 ? "" : "s"} removed
                     </Badge>
                   )}
-                  {valid.length > DAILY_LIMIT && (
-                    <span className="text-orange-700">
-                      Over {DAILY_LIMIT}/day — first {DAILY_LIMIT} send today, the
-                      rest after you resume tomorrow.
+                  <Badge variant="outline" className="font-normal text-muted-foreground">
+                    Limit: {capLabel}
+                    {scheduleMode === "later"
+                      ? "/day"
+                      : " left today"}
+                  </Badge>
+                  {valid.length > cap && (
+                    <span className="text-red-600">
+                      Over your limit — remove {(valid.length - cap).toLocaleString()}.
+                      You can send at most {capLabel}{" "}
+                      {scheduleMode === "later" ? "per day" : "today"}.
+                    </span>
+                  )}
+                  {cap <= 0 && (
+                    <span className="text-red-600">
+                      Daily limit already reached — schedule for later or try again
+                      tomorrow.
                     </span>
                   )}
                 </div>

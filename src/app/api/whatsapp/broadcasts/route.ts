@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchFromHasura } from "@/lib/hasuraClient";
-import { normalizePhone } from "@/lib/whatsapp-broadcast";
+import { normalizePhone, getPartnerDailyLimit } from "@/lib/whatsapp-broadcast";
 import { isWhatsappEnabled } from "@/lib/whatsapp-features";
 
 // Phones that sent STOP/UNSUBSCRIBE to this partner — excluded from broadcasts.
@@ -225,6 +225,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Snapshot the partner's live Meta messaging tier ("q number") as this
+  // broadcast's daily cap, so the dispatch cron enforces the partner's real
+  // limit (TIER_1K → 1000, etc.) instead of a hardcoded 250. Best-effort: falls
+  // back to DEFAULT_DAILY_LIMIT (250) when the number isn't connected / Graph is
+  // unreachable.
+  const dailyLimit = await getPartnerDailyLimit(partnerId);
+
   // Insert the broadcast. scheduled_at = chosen time, or now for send-asap.
   let broadcastId: string;
   try {
@@ -242,6 +249,7 @@ export async function POST(req: NextRequest) {
         header_media_type: headerMediaType,
         status: "scheduled",
         scheduled_at: scheduledAt || new Date().toISOString(),
+        daily_limit: dailyLimit,
         total_recipients: cleanRecipients.length,
       },
     });

@@ -9,8 +9,66 @@
  */
 
 import { fetchFromHasuraServer } from "@/lib/hasuraServerClient";
+import { getPartnerWabaIntegration, partnerWabaToken } from "@/lib/whatsapp-meta";
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
+
+// The per-partner daily broadcast cap when we can't read Meta's actual tier
+// (number not connected, or the Graph read failed). Matches Meta's starting
+// TIER_250 — the safe floor every WABA gets.
+export const DEFAULT_DAILY_LIMIT = 250;
+
+// Convert Meta's messaging_limit_tier ("q number") into the numeric daily cap.
+// Unknown/missing tiers fall back to the conservative starting tier (250/day).
+export function tierToDailyLimit(tier: string | null | undefined): number {
+  switch ((tier || "").toUpperCase()) {
+    case "TIER_50":
+      return 50;
+    case "TIER_250":
+      return 250;
+    case "TIER_1K":
+      return 1000;
+    case "TIER_10K":
+      return 10000;
+    case "TIER_100K":
+      return 100000;
+    case "TIER_UNLIMITED":
+      return Number.MAX_SAFE_INTEGER;
+    default:
+      return DEFAULT_DAILY_LIMIT;
+  }
+}
+
+// Read the partner WABA number's current messaging_limit_tier from Meta. Returns
+// null (caller falls back to DEFAULT_DAILY_LIMIT) if the number isn't connected
+// or the Graph read fails — never throws.
+export async function fetchPartnerMessagingTier(
+  partnerId: string,
+): Promise<string | null> {
+  try {
+    const integration = await getPartnerWabaIntegration(partnerId);
+    if (!integration?.phone_number_id) return null;
+    const token = partnerWabaToken(integration);
+    const res = await fetch(
+      `https://graph.facebook.com/${API_VERSION}/${integration.phone_number_id}?` +
+        new URLSearchParams({
+          fields: "messaging_limit_tier",
+          access_token: token,
+        }),
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.messaging_limit_tier ?? null;
+  } catch (e) {
+    console.error("fetchPartnerMessagingTier failed:", e);
+    return null;
+  }
+}
+
+// Resolve the partner's effective daily broadcast cap from their live Meta tier.
+export async function getPartnerDailyLimit(partnerId: string): Promise<number> {
+  return tierToDailyLimit(await fetchPartnerMessagingTier(partnerId));
+}
 
 // Per-recipient mapping for each body {{n}} placeholder.
 export type VariableSource = "phone" | "name" | "fixed";

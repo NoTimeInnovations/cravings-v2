@@ -3,7 +3,7 @@ import {
   getPartnerWabaIntegration,
   partnerWabaToken,
 } from "@/lib/whatsapp-meta";
-import { countSentToday } from "@/lib/whatsapp-broadcast";
+import { countSentToday, tierToDailyLimit } from "@/lib/whatsapp-broadcast";
 import { getBusinessCurrency } from "@/lib/whatsapp-cost";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
@@ -32,12 +32,17 @@ export async function GET(req: NextRequest) {
     fetchMonthSpend(integration.waba_id, token).catch(() => null),
   ]);
 
-  const DAILY_LIMIT = 250;
+  // The daily cap tracks the number's real Meta tier ("q number") — TIER_250 →
+  // 250, TIER_1K → 1000, etc. `remaining` is what can still be sent today.
+  const dailyLimit = tierToDailyLimit(
+    phoneRes.ok ? phoneRes.data?.messagingLimitTier : null,
+  );
+  const remaining = Math.max(0, dailyLimit - sentToday);
 
   return NextResponse.json({
     connected: true,
     currency,
-    usage: { sentToday, dailyLimit: DAILY_LIMIT },
+    usage: { sentToday, dailyLimit, remaining },
     phone: phoneRes.ok ? phoneRes.data : null,
     phoneError: phoneRes.ok ? null : phoneRes.error,
     actualSpend, // { amount, currency, periodLabel } | null
