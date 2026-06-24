@@ -38,6 +38,7 @@ import {
   AlertCircle,
   RefreshCw,
   Upload,
+  Download,
   X,
   Ban,
   Play,
@@ -57,8 +58,49 @@ import { uploadFileToS3 } from "@/app/actions/aws-s3";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { formatMoney } from "@/lib/utils";
 import { explainWhatsAppError } from "@/lib/whatsapp-errors";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 const DAILY_LIMIT = 250;
+
+export interface PhoneCorrection {
+  original: string;
+  corrected: string;
+  name: string;
+  valid: boolean;
+  changed: boolean;
+}
+
+// Clean + normalise one recipient phone to E.164 before sending. Strips stray
+// spaces/dashes/brackets, turns a leading 00 into +, and validates with
+// libphonenumber (default region India, matching the send path). `valid` is
+// false when it still can't be parsed into a real number — the UI flags those so
+// the owner can fix or drop them before the broadcast starts.
+export function correctRecipientPhone(r: ParsedRecipient): PhoneCorrection {
+  const original = (r.phone || "").trim();
+  let cleaned = original.replace(/[^\d+]/g, "");
+  if (cleaned.startsWith("00")) cleaned = "+" + cleaned.slice(2);
+  const parsed = cleaned.startsWith("+")
+    ? parsePhoneNumberFromString(cleaned)
+    : parsePhoneNumberFromString(cleaned, "IN");
+  if (parsed && parsed.isValid()) {
+    const e164 = parsed.number;
+    return {
+      original,
+      corrected: e164,
+      name: r.name || "",
+      valid: true,
+      changed: e164 !== original,
+    };
+  }
+  const fallback = cleaned || original;
+  return {
+    original,
+    corrected: fallback,
+    name: r.name || "",
+    valid: false,
+    changed: fallback !== original,
+  };
+}
 
 type VarSource = "phone" | "name" | "fixed";
 interface VarMapItem {
@@ -537,6 +579,10 @@ function BroadcastCreatorDialog({
     dailyLimit: number;
     remaining: number;
   } | null>(null);
+  // Phone-format corrections to confirm before sending (null = not reviewing).
+  const [correctionReview, setCorrectionReview] = useState<PhoneCorrection[] | null>(
+    null,
+  );
 
   // Upload header media to S3 and store the public URL (sent as a {link}).
   const applyMedia = async (getUrl: () => Promise<string>) => {
@@ -585,6 +631,7 @@ function BroadcastCreatorDialog({
     setCustomers([]);
     setSelectedCustomerPhones(new Set());
     setLimitInfo(null);
+    setCorrectionReview(null);
   };
 
   // When the template changes, seed the variable map with sensible defaults:
@@ -799,8 +846,22 @@ function BroadcastCreatorDialog({
     !uploadingMedia &&
     (scheduleMode === "now" || scheduleAt.trim().length > 0);
 
-  const submit = async () => {
+  // Send click → first auto-correct number formats, show the owner exactly what
+  // changed (and any that can't be fixed), then send. If nothing needs fixing it
+  // goes straight through.
+  const handleSend = () => {
     if (!canSubmit || !template) return;
+    const corrections = valid.map(correctRecipientPhone);
+    const needsReview = corrections.some((c) => c.changed || !c.valid);
+    if (needsReview) {
+      setCorrectionReview(corrections);
+      return;
+    }
+    doSubmit(corrections.filter((c) => c.valid).map((c) => ({ phone: c.corrected, name: c.name })));
+  };
+
+  const doSubmit = async (recipientsToSend: ParsedRecipient[]) => {
+    if (!template || recipientsToSend.length === 0) return;
     setSubmitting(true);
     try {
       const scheduledAt =
@@ -817,7 +878,7 @@ function BroadcastCreatorDialog({
           variableMap: varMap,
           headerParams: hasHeaderVar ? [headerValue.trim()] : null,
           headerMediaUrl: mediaHeaderType ? headerMediaUrl : null,
-          recipients: valid,
+          recipients: recipientsToSend,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -827,6 +888,7 @@ function BroadcastCreatorDialog({
           ? `Broadcast scheduled for ${data.total_recipients} recipients`
           : `Broadcast queued for ${data.total_recipients} recipients`,
       );
+      setCorrectionReview(null);
       reset();
       onCreated();
     } catch (e: any) {
@@ -1258,7 +1320,7 @@ function BroadcastCreatorDialog({
             Cancel
           </Button>
           <Button
-            onClick={submit}
+            onClick={handleSend}
             disabled={!canSubmit || submitting}
             className="bg-green-600 hover:bg-green-700 text-white"
           >
@@ -1271,6 +1333,125 @@ function BroadcastCreatorDialog({
               "Schedule broadcast"
             ) : (
               `Send to ${valid.length || ""} now`
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+
+      <PhoneCorrectionDialog
+        corrections={correctionReview}
+        submitting={submitting}
+        scheduleLater={scheduleMode === "later"}
+        onCancel={() => setCorrectionReview(null)}
+        onConfirm={(recipients) => doSubmit(recipients)}
+      />
+    </Dialog>
+  );
+}
+
+// Review dialog: shows every number whose format was auto-corrected (original →
+// corrected) and any that couldn't be validated (skipped), so the owner sees
+// exactly what will be sent before the broadcast starts.
+function PhoneCorrectionDialog({
+  corrections,
+  submitting,
+  scheduleLater,
+  onCancel,
+  onConfirm,
+}: {
+  corrections: PhoneCorrection[] | null;
+  submitting: boolean;
+  scheduleLater: boolean;
+  onCancel: () => void;
+  onConfirm: (recipients: ParsedRecipient[]) => void;
+}) {
+  const open = !!corrections;
+  const list = corrections || [];
+  const changed = list.filter((c) => c.valid && c.changed);
+  const invalid = list.filter((c) => !c.valid);
+  const sendable = list.filter((c) => c.valid);
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
+      <DialogContent className="!max-w-lg w-[95vw] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Review number corrections</DialogTitle>
+          <DialogDescription>
+            We tidied up some numbers before sending. {sendable.length} will be
+            sent
+            {invalid.length > 0 && `, ${invalid.length} can't be fixed and will be skipped`}
+            .
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          {changed.length > 0 && (
+            <div className="space-y-1">
+              <div className="text-xs font-medium text-muted-foreground">
+                Corrected ({changed.length})
+              </div>
+              <div className="max-h-48 divide-y overflow-auto rounded-md border">
+                {changed.map((c, i) => (
+                  <div
+                    key={`${c.original}-${i}`}
+                    className="flex items-center gap-2 px-2 py-1.5 text-xs"
+                  >
+                    <span className="font-mono text-muted-foreground line-through">
+                      {c.original}
+                    </span>
+                    <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                    <span className="font-mono text-green-700">{c.corrected}</span>
+                    {c.name && (
+                      <span className="truncate text-muted-foreground">{c.name}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {invalid.length > 0 && (
+            <div className="space-y-1">
+              <div className="text-xs font-medium text-red-600">
+                Can&apos;t be fixed — will be skipped ({invalid.length})
+              </div>
+              <div className="max-h-40 divide-y overflow-auto rounded-md border border-red-200">
+                {invalid.map((c, i) => (
+                  <div
+                    key={`${c.original}-${i}`}
+                    className="flex items-center gap-2 px-2 py-1.5 text-xs"
+                  >
+                    <span className="font-mono text-red-700">{c.original || "(empty)"}</span>
+                    <span className="text-muted-foreground">
+                      not a valid phone number
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onCancel} disabled={submitting}>
+            Back
+          </Button>
+          <Button
+            onClick={() =>
+              onConfirm(sendable.map((c) => ({ phone: c.corrected, name: c.name })))
+            }
+            disabled={submitting || sendable.length === 0}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Creating…
+              </>
+            ) : scheduleLater ? (
+              `Schedule ${sendable.length}`
+            ) : (
+              `Send ${sendable.length} now`
             )}
           </Button>
         </DialogFooter>
@@ -1468,6 +1649,7 @@ function BroadcastDetailDialog({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [errorBreakdown, setErrorBreakdown] = useState<ErrorBucket[]>([]);
   const [errorCodeFilter, setErrorCodeFilter] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const open = !!broadcastId;
 
@@ -1490,6 +1672,122 @@ function BroadcastDetailDialog({
       }
     } catch {
       /* keep prior */
+    }
+  };
+
+  // Build a downloadable Excel report: a Summary sheet (stats + failure
+  // breakdown) and a Recipients sheet (every number with its full timeline +
+  // failure reason). Pulls ALL recipients from the export endpoint.
+  const downloadReport = async () => {
+    if (!broadcastId || !partnerId || !detail) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(
+        `/api/whatsapp/broadcasts/${broadcastId}/export?partnerId=${partnerId}`,
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Export failed");
+
+      const XLSX = await import("xlsx");
+      const wb = XLSX.utils.book_new();
+      const cur = detail.cost_currency || quality?.currency || "INR";
+      const pending = Math.max(
+        0,
+        (detail.total_recipients || 0) -
+          detail.sent_count -
+          detail.delivered_count -
+          detail.read_count -
+          detail.failed_count,
+      );
+
+      const summary: (string | number)[][] = [
+        ["Broadcast report"],
+        [],
+        ["Template", detail.template_name],
+        ["Language", detail.language],
+        ["Category", detail.category],
+        ["Status", detail.status],
+        ["Created", fmtTime(detail.created_at)],
+        ["Started", detail.started_at ? fmtTime(detail.started_at) : "—"],
+        ["Completed", detail.completed_at ? fmtTime(detail.completed_at) : "—"],
+        [],
+        ["Total recipients", detail.total_recipients || 0],
+        ["Sent", detail.sent_count],
+        ["Delivered", detail.delivered_count],
+        ["Read", detail.read_count],
+        ["Failed", detail.failed_count],
+        ["Pending", pending],
+        [],
+        ["Total cost (est.)", `${detail.total_cost ?? 0} ${cur}`],
+      ];
+      if (errorBreakdown.length) {
+        summary.push(
+          [],
+          ["Failure breakdown"],
+          ["Count", "Category", "On (side)", "Code", "Retryable", "Reason"],
+        );
+        for (const b of errorBreakdown) {
+          summary.push([
+            b.count,
+            b.categoryLabel,
+            b.side,
+            b.code || "unknown",
+            b.retryable ? "yes" : "no",
+            b.summary,
+          ]);
+        }
+      }
+      const ws1 = XLSX.utils.aoa_to_sheet(summary);
+      ws1["!cols"] = [{ wch: 18 }, { wch: 22 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 60 }];
+      XLSX.utils.book_append_sheet(wb, ws1, "Summary");
+
+      const header = [
+        "Phone",
+        "Name",
+        "Status",
+        "Sent at",
+        "Delivered at",
+        "Read at",
+        "Failed at",
+        "Error code",
+        "Error title",
+        "Error message",
+        "Failure category",
+        "On (side)",
+        "Cost",
+        "Currency",
+      ];
+      const rows = (data.recipients || []).map((r: any) => [
+        r.phone || "",
+        r.name || "",
+        r.status || "",
+        r.sent_at ? fmtTime(r.sent_at) : "",
+        r.delivered_at ? fmtTime(r.delivered_at) : "",
+        r.read_at ? fmtTime(r.read_at) : "",
+        r.failed_at ? fmtTime(r.failed_at) : "",
+        r.error_code || "",
+        r.error_title || "",
+        r.error || "",
+        r.error_category || "",
+        r.error_side || "",
+        r.cost_amount ?? "",
+        r.cost_currency || "",
+      ]);
+      const ws2 = XLSX.utils.aoa_to_sheet([header, ...rows]);
+      ws2["!cols"] = [
+        { wch: 16 }, { wch: 18 }, { wch: 10 }, { wch: 18 }, { wch: 18 },
+        { wch: 18 }, { wch: 18 }, { wch: 10 }, { wch: 28 }, { wch: 40 },
+        { wch: 22 }, { wch: 12 }, { wch: 10 }, { wch: 8 },
+      ];
+      XLSX.utils.book_append_sheet(wb, ws2, "Recipients");
+
+      const safe = (detail.template_name || "broadcast").replace(/[^\w.-]+/g, "_");
+      XLSX.writeFile(wb, `broadcast_${safe}_${broadcastId.slice(0, 8)}.xlsx`);
+      toast.success("Report downloaded");
+    } catch (e: any) {
+      toast.error(e?.message || "Couldn't generate the report");
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -1583,7 +1881,7 @@ function BroadcastDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="!max-w-3xl w-[95vw] max-h-[92vh] overflow-y-auto">
+      <DialogContent className="!max-w-[99vw] w-[99vw] h-[97vh] max-h-[97vh] overflow-y-auto sm:!max-w-[98vw]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             <Megaphone className="h-5 w-5 text-green-600" />
@@ -1604,6 +1902,23 @@ function BroadcastDetailDialog({
                   : "Loading…"}
             {detail?.completed_at && ` · Completed ${fmtTime(detail.completed_at)}`}
           </DialogDescription>
+          {detail && (
+            <div className="pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={downloadReport}
+                disabled={downloading}
+              >
+                {downloading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                Download Excel report
+              </Button>
+            </div>
+          )}
         </DialogHeader>
 
         {!detail ? (
