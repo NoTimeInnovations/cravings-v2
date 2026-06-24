@@ -76,6 +76,7 @@ export async function GET(
 
   const search = (sp.get("search") || "").trim();
   const statusFilter = (sp.get("status") || "all").toLowerCase();
+  const errorCode = (sp.get("errorCode") || "").trim();
   const limit = Math.min(Math.max(parseInt(sp.get("limit") || "50", 10) || 50, 1), 200);
   const offset = Math.max(parseInt(sp.get("offset") || "0", 10) || 0, 0);
 
@@ -88,6 +89,12 @@ export async function GET(
     const where: any = { broadcast_id: { _eq: id } };
     if (statusFilter !== "all" && VALID_STATUS.includes(statusFilter)) {
       where.status = { _eq: statusFilter };
+    }
+    // Drill into a single failure reason (used by the error-breakdown chips).
+    if (errorCode) {
+      where.status = { _eq: "failed" };
+      where.error_code =
+        errorCode === "unknown" ? { _is_null: true } : { _eq: errorCode };
     }
     if (search) {
       const like = `%${search}%`;

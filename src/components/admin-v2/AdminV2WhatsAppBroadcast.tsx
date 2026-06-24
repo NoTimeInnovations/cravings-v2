@@ -1332,6 +1332,18 @@ interface RecipientRow {
   cost_currency: string | null;
 }
 
+interface ErrorBucket {
+  code: string | null;
+  count: number;
+  category: string;
+  categoryLabel: string;
+  side: string;
+  retryable: boolean;
+  summary: string;
+  action?: string;
+  metaTitle: string | null;
+}
+
 const RECIPIENT_PAGE = 50;
 
 const STATUS_TABS: { key: string; label: string }[] = [
@@ -1454,6 +1466,8 @@ function BroadcastDetailDialog({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [errorBreakdown, setErrorBreakdown] = useState<ErrorBucket[]>([]);
+  const [errorCodeFilter, setErrorCodeFilter] = useState<string | null>(null);
 
   const open = !!broadcastId;
 
@@ -1470,7 +1484,10 @@ function BroadcastDetailDialog({
         `/api/whatsapp/broadcasts/${broadcastId}?partnerId=${partnerId}`,
       );
       const data = await res.json();
-      if (res.ok) setDetail(data.broadcast);
+      if (res.ok) {
+        setDetail(data.broadcast);
+        setErrorBreakdown(data.errorBreakdown || []);
+      }
     } catch {
       /* keep prior */
     }
@@ -1500,6 +1517,7 @@ function BroadcastDetailDialog({
         limit: String(RECIPIENT_PAGE),
         offset: String(offset),
       });
+      if (errorCodeFilter) qs.set("errorCode", errorCodeFilter);
       const res = await fetch(
         `/api/whatsapp/broadcasts/${broadcastId}/recipients?${qs.toString()}`,
       );
@@ -1530,6 +1548,8 @@ function BroadcastDetailDialog({
       setDebouncedSearch("");
       setStatusFilter("all");
       setExpanded(null);
+      setErrorBreakdown([]);
+      setErrorCodeFilter(null);
       return;
     }
     loadDetail();
@@ -1543,7 +1563,7 @@ function BroadcastDetailDialog({
     if (!open) return;
     loadRecipients(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, broadcastId, debouncedSearch, statusFilter]);
+  }, [open, broadcastId, debouncedSearch, statusFilter, errorCodeFilter]);
 
   // Live-poll while the broadcast is still in flight.
   const live =
@@ -1691,6 +1711,62 @@ function BroadcastDetailDialog({
                 )}
               </div>
             </div>
+
+            {/* Failure breakdown — every error code categorised, with counts */}
+            {errorBreakdown.length > 0 && (
+              <div className="rounded-lg border p-3 space-y-2">
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <AlertCircle className="h-3.5 w-3.5" /> Why messages failed
+                  <span className="ml-auto">
+                    {errorCodeFilter && (
+                      <button
+                        className="text-primary underline"
+                        onClick={() => setErrorCodeFilter(null)}
+                      >
+                        Clear filter
+                      </button>
+                    )}
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  {errorBreakdown.map((b) => {
+                    const active = errorCodeFilter === (b.code ?? "unknown");
+                    return (
+                      <button
+                        key={b.code ?? "unknown"}
+                        onClick={() =>
+                          setErrorCodeFilter(active ? null : b.code ?? "unknown")
+                        }
+                        className={`w-full text-left rounded-md border p-2 transition-colors ${
+                          active
+                            ? "border-green-600 bg-green-50"
+                            : "hover:bg-muted border-border"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm">{b.count}</span>
+                          <span className="text-xs font-medium px-1.5 py-0.5 rounded border bg-background">
+                            {b.categoryLabel}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {b.side}
+                            {b.retryable ? " · retryable" : ""}
+                          </span>
+                          {b.code && (
+                            <span className="text-[11px] text-muted-foreground ml-auto font-mono">
+                              #{b.code}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {b.summary}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Recipient explorer */}
             <div className="space-y-2">

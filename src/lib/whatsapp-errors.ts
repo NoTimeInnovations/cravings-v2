@@ -105,6 +105,70 @@ const MAP: Record<number, { summary: string; action?: string }> = {
   },
 };
 
+// ─── Categorisation ──────────────────────────────────────────────
+// Group Meta error codes into a handful of actionable buckets so a broadcast's
+// failures can be summarised ("12 recipient-side, 4 Meta throttle, 1 template").
+export type ErrorCategory =
+  | "recipient"
+  | "meta_policy"
+  | "quality_rate"
+  | "template"
+  | "auth"
+  | "setup"
+  | "transient"
+  | "other";
+
+export interface CategoryMeta {
+  /** Short bucket label for the UI. */
+  label: string;
+  /** Who/what the failure is on. */
+  side: "Recipient" | "Meta policy" | "Your number" | "You" | "Temporary" | "Other";
+  /** Whether resending could plausibly succeed. */
+  retryable: boolean;
+}
+
+export const ERROR_CATEGORY_META: Record<ErrorCategory, CategoryMeta> = {
+  recipient: { label: "Recipient can't receive", side: "Recipient", retryable: false },
+  meta_policy: { label: "Meta policy / throttle", side: "Meta policy", retryable: false },
+  quality_rate: { label: "Rate / quality limit", side: "Your number", retryable: true },
+  template: { label: "Template problem", side: "You", retryable: false },
+  auth: { label: "Connection / token", side: "You", retryable: false },
+  setup: { label: "Number setup", side: "You", retryable: false },
+  transient: { label: "Temporary glitch", side: "Temporary", retryable: true },
+  other: { label: "Other / unknown", side: "Other", retryable: false },
+};
+
+const CODE_CATEGORY: Record<number, ErrorCategory> = {
+  131026: "recipient", // undeliverable (not on WA / can't receive)
+  131047: "recipient", // re-engagement window
+  131049: "meta_policy", // marketing frequency cap
+  130472: "meta_policy", // user in Meta experiment
+  131048: "quality_rate", // spam/quality rate limit
+  131056: "quality_rate", // pair rate limit
+  130429: "quality_rate", // throughput cap
+  368: "quality_rate", // temporarily restricted (policy/volume)
+  132000: "template",
+  132001: "template",
+  132005: "template",
+  132007: "template",
+  132012: "template",
+  132015: "template",
+  132016: "template",
+  190: "auth", // token expired
+  133010: "setup", // number not registered on Cloud API
+  131000: "transient", // generic WA-side error
+  133004: "transient", // WA servers unavailable
+  1: "transient",
+  2: "transient",
+};
+
+export function categoryForCode(code?: number | string | null): ErrorCategory {
+  if (code == null || code === "") return "other";
+  const n = typeof code === "number" ? code : parseInt(String(code), 10);
+  if (Number.isNaN(n)) return "other";
+  return CODE_CATEGORY[n] ?? "other";
+}
+
 // Pull a numeric Meta error code out of a raw error string/JSON if present.
 function extractCode(raw?: string | null): number | null {
   if (!raw) return null;
