@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import crypto from "crypto";
 import { fetchFromHasura } from "@/lib/hasuraClient";
 import { getPartnerByPhoneNumberIdCached } from "@/lib/whatsapp-meta";
@@ -49,9 +49,10 @@ async function recordOptOut(partnerId: string, phone: string) {
 
 const API_VERSION = process.env.WHATSAPP_API_VERSION || "v22.0";
 
-// Flow execution can emit several Graph sends per inbound message; give the
-// handler headroom so it doesn't get cut off mid-turn.
-export const maxDuration = 30;
+// Flow execution can emit several Graph sends per inbound message, and delivery
+// receipts are captured in a post-response `after()` callback; give the handler
+// headroom so neither gets cut off before it finishes.
+export const maxDuration = 60;
 
 // Constant-time string compare (length guard first — timingSafeEqual throws on
 // unequal-length buffers).
@@ -266,20 +267,26 @@ function metaTsToIso(ts: any): string {
   return new Date(n * 1000).toISOString();
 }
 
-// One broadcast recipient: advance status, capture failure detail + pricing/cost,
-// then recompute the parent broadcast's delivered/read/failed counters + total cost.
-async function applyBroadcastStatus(st: any): Promise<void> {
+// One broadcast recipient: advance status + capture failure detail and
+// pricing/cost. Returns the parent broadcast (id + partner) so the caller can
+// recompute its aggregate funnel ONCE per batch, instead of re-aggregating the
+// whole broadcast on every single status callback (which made the webhook too
+// slow under a delivery burst and caused Meta to drop receipts). Returns null
+// when the message isn't a broadcast recipient.
+async function applyBroadcastStatus(
+  st: any,
+): Promise<{ broadcastId: string; partnerId?: string } | null> {
   const mid = st.id;
-  if (!mid) return;
+  if (!mid) return null;
   let rcpt: any;
   try {
     const d = await fetchFromHasura(FIND_RECIPIENT, { mid });
     rcpt = d?.whatsapp_broadcast_recipients?.[0];
   } catch (e) {
     console.error("status: find recipient failed", e);
-    return;
+    return null;
   }
-  if (!rcpt) return; // not a broadcast message
+  if (!rcpt) return null; // not a broadcast message
 
   const partnerId = rcpt.broadcast?.partner_id as string | undefined;
   const tsIso = metaTsToIso(st.timestamp);
@@ -352,9 +359,17 @@ async function applyBroadcastStatus(st: any): Promise<void> {
     }
   }
 
-  // 3) Recompute the broadcast's aggregate funnel + total cost.
+  return { broadcastId: rcpt.broadcast_id, partnerId };
+}
+
+// Recompute a broadcast's aggregate funnel (delivered/read/failed) + total cost
+// from its recipient rows. Called ONCE per affected broadcast after a webhook
+// batch is applied — not per status callback.
+async function recountBroadcast(
+  bid: string,
+  partnerId?: string,
+): Promise<void> {
   try {
-    const bid = rcpt.broadcast_id;
     const agg = await fetchFromHasura(RECOUNT_BROADCAST, { bid });
     const delivered = agg?.delivered?.aggregate?.count || 0;
     const read = agg?.read?.aggregate?.count || 0;
@@ -465,13 +480,46 @@ async function applyInboxStatus(st: any): Promise<void> {
 }
 
 async function processStatuses(value: any): Promise<void> {
-  const statuses = value?.statuses || [];
+  const statuses: any[] = value?.statuses || [];
+  if (!statuses.length) return;
+
+  // Group callbacks by message id. Multiple states for the SAME message
+  // (delivered → read) MUST be applied in timestamp order so a late `delivered`
+  // can't downgrade a row already marked `read`; different messages are fully
+  // independent and run in parallel. This keeps the webhook fast enough under a
+  // broadcast's burst of receipts that Meta never times out and drops them.
+  const byMid = new Map<string, any[]>();
   for (const st of statuses) {
-    // Run the three targets sequentially; each updates only its matching rows.
-    await applyBroadcastStatus(st);
-    await applyLedgerStatus(st);
-    await applyInboxStatus(st);
+    if (!st?.id) continue;
+    const arr = byMid.get(st.id);
+    if (arr) arr.push(st);
+    else byMid.set(st.id, [st]);
   }
+
+  // broadcastId -> partnerId for the broadcasts touched by this batch.
+  const affected = new Map<string, string | undefined>();
+
+  await Promise.all(
+    [...byMid.values()].map(async (group) => {
+      group.sort(
+        (a, b) => Number(a?.timestamp || 0) - Number(b?.timestamp || 0),
+      );
+      for (const st of group) {
+        // The three targets hit different tables — safe to run together.
+        const [bres] = await Promise.all([
+          applyBroadcastStatus(st),
+          applyLedgerStatus(st),
+          applyInboxStatus(st),
+        ]);
+        if (bres) affected.set(bres.broadcastId, bres.partnerId);
+      }
+    }),
+  );
+
+  // Recompute each touched broadcast's funnel + cost exactly once.
+  await Promise.all(
+    [...affected.entries()].map(([bid, pid]) => recountBroadcast(bid, pid)),
+  );
 }
 
 // ─── Webhook Verification (Meta sends GET to verify) ─────────────
@@ -612,10 +660,16 @@ export async function POST(req: NextRequest) {
 
         // Delivery receipts (sent/delivered/read/failed) for OUR outbound
         // messages arrive in the same "messages" change under `statuses`.
-        // Capture them onto broadcasts / ledger / inbox. Never blocks the ACK.
+        // Capture them onto broadcasts / ledger / inbox AFTER the 200 is sent
+        // (Next `after`) so Meta gets an instant ACK and never times out — a
+        // slow ACK is exactly what was making it retry then DROP delivery
+        // receipts, leaving recipients stuck at "sent".
         if (Array.isArray(value.statuses) && value.statuses.length) {
-          await processStatuses(value).catch((e) =>
-            console.error("processStatuses error:", e),
+          const statusValue = value;
+          after(() =>
+            processStatuses(statusValue).catch((e) =>
+              console.error("processStatuses error:", e),
+            ),
           );
         }
       }
