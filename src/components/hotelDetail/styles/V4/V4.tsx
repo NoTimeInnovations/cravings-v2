@@ -14,6 +14,7 @@ import OrderDrawer from "../../OrderDrawer";
 import ShopClosedModalWarning from "@/components/admin/ShopClosedModalWarning";
 import { getFeatures } from "@/lib/getFeatures";
 import { isWithinTimeWindow } from "@/lib/isWithinTimeWindow";
+import { isCustomDomainHost } from "@/lib/domain-utils";
 import DiscountBanner from "../../DiscountBanner";
 import { isVideoUrl, getVideoThumbnailUrl } from "@/lib/mediaUtils";
 import useOrderStore from "@/store/orderStore";
@@ -253,6 +254,13 @@ const V4 = ({
   const { orderType, items: cartItems, userAddress } = useOrderStore();
   const { userData: authUser } = useAuthStore();
   const username = (hoteldata as any)?.username as string | undefined;
+  // On a custom domain the storefront is served at root, so partner-scoped
+  // routes must be root-relative; the `/<username>` prefix 404s there (the proxy
+  // re-prefixes it to `/<username>/<username>/…`). Detected after mount to avoid
+  // an SSR hydration mismatch.
+  const [isCustomDomain, setIsCustomDomain] = useState(false);
+  useEffect(() => setIsCustomDomain(isCustomDomainHost()), []);
+  const scopedBase = isCustomDomain ? "" : username ? `/${username}` : "";
   const savedAddresses = useMemo(
     () => ((authUser as any)?.addresses || []) as SavedAddress[],
     [(authUser as any)?.addresses],
@@ -532,7 +540,7 @@ const V4 = ({
                   storeName={(hoteldata as any)?.store_name}
                 />
                 <Link
-                  href={username ? `/${username}/user-profile` : "/user-profile"}
+                  href={`${scopedBase}/user-profile`}
                   className="flex h-9 w-9 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/50"
                   aria-label="Profile"
                 >
@@ -540,7 +548,7 @@ const V4 = ({
                 </Link>
                 {username ? (
                   <Link
-                    href={`/${username}/my-orders`}
+                    href={`${scopedBase}/my-orders`}
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/50"
                     aria-label="Your orders"
                   >
