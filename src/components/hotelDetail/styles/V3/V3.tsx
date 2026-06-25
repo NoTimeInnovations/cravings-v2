@@ -19,6 +19,7 @@ import { useAuthStore } from "@/store/authStore";
 import V3SearchItems from "./V3SearchItems";
 import V3Orders from "./V3Orders";
 import V3AddressSheet from "./V3AddressSheet";
+import { isCustomDomainHost } from "@/lib/domain-utils";
 import type { SavedAddress } from "../../placeOrder/AddressManagementModal";
 import AddressPickerV2 from "../../placeOrder/AddressPickerV2";
 import { fetchFromHasura } from "@/lib/hasuraClient";
@@ -62,6 +63,13 @@ const V3 = ({
   // Restaurant username — used to build the restaurant-scoped profile/orders
   // route (/<username>/user-profile) so those screens survive a reload.
   const username = (hoteldata as any)?.username as string | undefined;
+  // On a custom domain the storefront is served at root, so partner-scoped
+  // routes must be root-relative (`/user-profile`) — the `/<username>` prefix
+  // would 404 (the proxy re-prefixes it to `/<username>/<username>/…`). Detected
+  // after mount to avoid an SSR hydration mismatch.
+  const [isCustomDomain, setIsCustomDomain] = useState(false);
+  useEffect(() => setIsCustomDomain(isCustomDomainHost()), []);
+  const scopedBase = isCustomDomain ? "" : username ? `/${username}` : "";
   const savedAddresses = useMemo(
     () => ((authUser as any)?.addresses || []) as SavedAddress[],
     [(authUser as any)?.addresses],
@@ -368,7 +376,7 @@ const V3 = ({
                     storeName={(hoteldata as any)?.store_name}
                   />
                   <Link
-                    href={username ? `/${username}/user-profile` : "/user-profile"}
+                    href={`${scopedBase}/user-profile`}
                     className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"
                     aria-label="Profile"
                   >
@@ -379,7 +387,7 @@ const V3 = ({
                       when there is no username to route to. */}
                   {username ? (
                     <Link
-                      href={`/${username}/my-orders`}
+                      href={`${scopedBase}/my-orders`}
                       className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"
                       aria-label="Your orders"
                     >

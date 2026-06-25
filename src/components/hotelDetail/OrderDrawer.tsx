@@ -854,6 +854,7 @@ const OrderDrawer = ({
           style={{
             backgroundColor: LOGIN_BG,
             color: LOGIN_TEXT,
+            fontFamily: "'Inter', system-ui, sans-serif",
           }}
         >
           {/* Header Bar */}
@@ -894,7 +895,7 @@ const OrderDrawer = ({
                 </svg>
               </button>
               <h2
-                className="text-base font-semibold"
+                className="text-lg font-bold"
                 style={{ color: LOGIN_TEXT }}
               >
                 {otpStep === "otp" && requireOtp ? "Verify OTP" : "Login to Continue"}
@@ -902,28 +903,28 @@ const OrderDrawer = ({
               <div className="w-9" />
             </div>
             <p
-              className="text-xs text-center pb-3 px-4"
+              className="text-[13px] text-center pb-3 px-4"
               style={{ color: `${LOGIN_TEXT}80` }}
             >
               {otpStep === "otp"
                 ? `Enter the code sent to ${hotelData?.country_code || "+91"} ${phoneNumber}`
-                : "Please enter your phone number to place your order"}
+                : "Enter your WhatsApp number to get order updates and exciting offers"}
             </p>
           </div>
 
           {/* Content Container */}
           <div className="flex-1 overflow-y-auto">
-            <div className="max-w-md mx-auto px-6 py-8 space-y-8">
+            <div className="max-w-md mx-auto px-5 py-6 space-y-6">
               {otpStep === "phone" || !requireOtp ? (
                 <>
                   {/* Phone Input */}
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     <Label
                       htmlFor="phone"
                       className="text-sm font-semibold block"
                       style={{ color: LOGIN_TEXT }}
                     >
-                      Phone Number
+                      WhatsApp Number
                       {hotelData?.country && (
                         <span
                           className="font-normal ml-2 text-xs"
@@ -933,9 +934,9 @@ const OrderDrawer = ({
                         </span>
                       )}
                     </Label>
-                    <div className="flex gap-3">
+                    <div className="flex gap-2.5">
                       <div
-                        className="flex items-center justify-center px-4 sm:px-5 rounded-2xl text-base font-bold border"
+                        className="flex items-center justify-center px-4 rounded-xl text-[15px] font-bold border"
                         style={{
                           backgroundColor: `${LOGIN_ACCENT}15`,
                           color: LOGIN_ACCENT,
@@ -958,7 +959,7 @@ const OrderDrawer = ({
                           );
                         }}
                         autoFocus
-                        className="flex-1 rounded-2xl h-14 text-base px-4 sm:px-5 transition-all duration-200 placeholder:text-inherit placeholder:opacity-40"
+                        className="flex-1 rounded-xl h-[50px] text-[15px] px-4 transition-all duration-200 placeholder:text-inherit placeholder:opacity-40"
                         style={{
                           backgroundColor: LOGIN_BG,
                           color: LOGIN_TEXT,
@@ -970,11 +971,11 @@ const OrderDrawer = ({
                   </div>
 
                   {/* Send OTP / Continue Button */}
-                  <div className="space-y-3 pt-4">
+                  <div className="space-y-2.5 pt-2">
                     <button
                       onClick={requireOtp ? handleSendOtp : handleDirectLogin}
                       disabled={(requireOtp ? isSending : isSubmitting) || !phoneNumber}
-                      className="w-full px-6 py-4 rounded-full transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                      className="w-full h-[50px] px-6 rounded-xl transition-all duration-300 font-semibold text-[15px] disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
                       style={{
                         backgroundColor: `${LOGIN_ACCENT}18`,
                         color: LOGIN_ACCENT,
@@ -993,7 +994,7 @@ const OrderDrawer = ({
 
                     <button
                       onClick={handleCloseLoginModal}
-                      className="w-full px-6 py-3.5 rounded-full bg-transparent transition-all duration-200 font-medium text-base"
+                      className="w-full h-[50px] px-6 rounded-xl bg-transparent transition-all duration-200 font-semibold text-[15px]"
                       style={{
                         color: LOGIN_TEXT,
                         border: `1px solid ${LOGIN_TEXT}30`,
@@ -1039,11 +1040,11 @@ const OrderDrawer = ({
                   </div>
 
                   {/* Verify Button */}
-                  <div className="space-y-3 pt-4">
+                  <div className="space-y-2.5 pt-2">
                     <button
                       onClick={handleVerifyAndProceed}
                       disabled={isVerifying || isSubmitting || otp.length !== 6}
-                      className="w-full px-6 py-4 rounded-full transition-all duration-300 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                      className="w-full h-[50px] px-6 rounded-xl transition-all duration-300 font-semibold text-[15px] disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
                       style={{
                         backgroundColor: `${LOGIN_ACCENT}18`,
                         color: LOGIN_ACCENT,
