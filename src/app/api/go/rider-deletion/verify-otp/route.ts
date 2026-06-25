@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Network error. Try again." }, { status: 502 });
   }
-  const token = (data as { accessToken?: string })?.accessToken;
+  const token = (data as { access_token?: string })?.access_token;
   if (!token) return NextResponse.json({ error: "Verification failed. Try again." }, { status: 502 });
 
   const out = NextResponse.json({ ok: true });
