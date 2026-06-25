@@ -722,22 +722,22 @@ const V4 = ({
                       )}
                       <div
                         className={`flex items-center justify-center overflow-hidden rounded-2xl transition ${
-                          isActive ? "ring-2" : "ring-1 ring-black/5"
+                          isActive ? "ring-2" : "ring-1"
                         }`}
-                        style={{ width: RAIL_THUMB, height: RAIL_THUMB, ...(isActive ? { ["--tw-ring-color" as any]: accent } : {}) } as React.CSSProperties}
+                        style={{ width: RAIL_THUMB, height: RAIL_THUMB, ["--tw-ring-color" as any]: isActive ? accent : `${accent}40` } as React.CSSProperties}
                       >
                         {thumb.type === "image" ? (
                           <img
                             src={thumb.src}
                             alt={category.name}
-                            className={`h-full w-full object-cover transition ${isActive ? "" : "grayscale opacity-80"}`}
+                            className="h-full w-full object-cover transition"
                           />
                         ) : (
                           <span
                             className="flex h-full w-full items-center justify-center"
                             style={{
-                              backgroundColor: isActive ? `${accent}1A` : "#f3f4f6",
-                              color: isActive ? accent : "#9ca3af",
+                              backgroundColor: isActive ? `${accent}1A` : `${accent}0D`,
+                              color: accent,
                             }}
                           >
                             {thumb.icon}
