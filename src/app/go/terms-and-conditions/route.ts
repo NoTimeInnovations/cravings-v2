@@ -108,7 +108,7 @@ export async function GET() {
     <section>
       <h2>9. Suspension &amp; Termination</h2>
       <p>
-        We may suspend or terminate your access at any time for invalid or expired documents, breach of these terms, safety concerns, fraud, or at the request of a partner restaurant. You may stop using the app and request account deletion at any time via <a href="/data-deletion-status">our data deletion page</a> or by contacting support.
+        We may suspend or terminate your access at any time for invalid or expired documents, breach of these terms, safety concerns, fraud, or at the request of a partner restaurant. You may stop using the app and request account deletion at any time via <a href="/go/delete-account">our account deletion page</a> or by contacting support.
       </p>
     </section>
 
