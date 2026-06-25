@@ -23,6 +23,7 @@ import { userPartnerOrdersSubscription, userPartnerOrdersPageQuery } from "@/api
 import { createCashfreeOrderForPartner, markOrderAsPaid, setOrderCashfreeId } from "@/app/actions/cashfree";
 import { verifyCashfreePaymentSettled } from "@/lib/cashfreeVerify";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
+import { cashfreeReturnOrigin, payOnCanonicalDomain } from "@/lib/cashfreeReturnUrl";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 
 interface CompactOrdersProps {
@@ -257,10 +258,12 @@ const CompactOrders = ({ hotelId }: CompactOrdersProps) => {
   const hasCashfree = partnerPaymentInfo?.accept_payments_via_cashfree === true && !!partnerPaymentInfo?.cashfree_merchant_id;
 
   const handleCashfreePayment = async (order: UserOrder) => {
+    // Custom domain: hand off to menuthere.com/order/<id> (Cashfree won't embed here).
+    if (payOnCanonicalDomain(order.id)) return;
     setCashfreeLoadingOrderId(order.id);
     try {
       const cfOrderId = `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-      const returnUrl = `${window.location.origin}/order/${order.id}?cf_order=${cfOrderId}&back=true`;
+      const returnUrl = `${cashfreeReturnOrigin()}/order/${order.id}?cf_order=${cfOrderId}&back=true`;
 
       sessionStorage.setItem("cashfree_pending_payment", JSON.stringify({
         cfOrderId,
