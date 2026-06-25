@@ -48,7 +48,6 @@ import { createCashfreeOrderForPartner, verifyCashfreePayment } from "@/app/acti
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
 import CashfreeEmbedModal from "@/components/CashfreeEmbedModal";
 import { waitForCashfreeContainer } from "@/lib/cashfreeEmbed";
-import { cashfreeReturnOrigin, payOnCanonicalDomain } from "@/lib/cashfreeReturnUrl";
 import { finalizeCfOrder } from "@/app/actions/cfOrders";
 import {
   resolveCurrencyCode,
@@ -3169,11 +3168,6 @@ const PlaceOrderModal = ({
         }
       }
 
-      // Custom domain: Cashfree won't run the embed on a non-whitelisted origin.
-      // The order is already pending_payment, so finish payment on the canonical
-      // menuthere.com order page (it reads amount/partner from the DB).
-      if (payOnCanonicalDomain(orderId)) return;
-
       // Store order context in sessionStorage so we can resume after redirect
       sessionStorage.setItem("cashfree_pending_order", JSON.stringify({
         cfOrderId,
@@ -3191,7 +3185,7 @@ const PlaceOrderModal = ({
 
       // Build return URL — current page URL so Cashfree redirects back here.
       // back=true suppresses the storefront/onboarding flow on re-entry.
-      const returnUrl = `${cashfreeReturnOrigin()}${window.location.pathname}?cf_order=${cfOrderId}&back=true`;
+      const returnUrl = `${window.location.origin}${window.location.pathname}?cf_order=${cfOrderId}&back=true`;
 
       const cfRes = await createCashfreeOrderForPartner(
         hotelData.id,

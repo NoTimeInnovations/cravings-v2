@@ -24,7 +24,6 @@ import { UpiPaymentScreen } from "@/components/hotelDetail/placeOrder/UpiPayment
 import { createCashfreeOrderForPartner, markOrderAsPaid, setOrderCashfreeId } from "@/app/actions/cashfree";
 import { verifyCashfreePaymentSettled } from "@/lib/cashfreeVerify";
 import { load as loadCashfree } from "@cashfreepayments/cashfree-js";
-import { cashfreeReturnOrigin, payOnCanonicalDomain } from "@/lib/cashfreeReturnUrl";
 import dynamic from "next/dynamic";
 
 const DeliveryMap = dynamic(() => import("./DeliveryMap"), { ssr: false });
@@ -525,15 +524,12 @@ ${itemsText}
 
     const handleCashfreePayment = async () => {
         if (!order) return;
-        // On a custom domain Cashfree won't run the embed — hand off to
-        // menuthere.com/order/<id>, which auto-launches payment there.
-        if (payOnCanonicalDomain(orderId)) return;
         setCashfreeLoading(true);
         try {
             const cfOrderId = `CF_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
             // return_url is required by the API but won't be used in embedded mode;
             // kept as a fallback in case Cashfree redirects (e.g. some UPI app flows).
-            const returnUrl = `${cashfreeReturnOrigin()}/order/${orderId}?cf_order=${cfOrderId}&back=true`;
+            const returnUrl = `${window.location.origin}/order/${orderId}?cf_order=${cfOrderId}&back=true`;
 
             sessionStorage.setItem("cashfree_pending_payment", JSON.stringify({
                 cfOrderId,
@@ -602,27 +598,6 @@ ${itemsText}
             setCashfreeLoading(false);
         }
     };
-
-    // Layer 2 custom-domain handoff: when redirected here with ?autopay=cashfree
-    // (from a checkout on a partner custom domain), auto-launch the embedded
-    // Cashfree payment on this whitelisted menuthere.com page. Runs once, and
-    // only for an unpaid order with Cashfree enabled.
-    const autopayTriggered = useRef(false);
-    useEffect(() => {
-        if (autopayTriggered.current) return;
-        if (typeof window === "undefined") return;
-        const params = new URLSearchParams(window.location.search);
-        if (params.get("autopay") !== "cashfree") return;
-        if (!order || (order as any).is_paid) return;
-        if (!hasCashfree) return;
-        autopayTriggered.current = true;
-        // Strip the flag so a manual refresh doesn't re-trigger payment.
-        const url = new URL(window.location.href);
-        url.searchParams.delete("autopay");
-        window.history.replaceState({}, "", url.pathname + url.search);
-        void handleCashfreePayment();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [order, hasCashfree]);
 
     const router = useRouter();
 
