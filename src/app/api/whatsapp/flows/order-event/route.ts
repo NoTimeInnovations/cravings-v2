@@ -152,10 +152,10 @@ export async function POST(req: NextRequest) {
     const da: any =
       order.delivery_agent && typeof order.delivery_agent === "object" ? order.delivery_agent : {};
     const driverName = String(
-      order.delivery_boy?.name || da.name || dpm.driver?.name || "",
+      order.delivery_boy?.name || da.name || dpm.driver?.name || dpm.riderName || "",
     ).trim();
     const driverPhone = String(
-      order.delivery_boy?.phone || da.phone || dpm.driver?.phone || "",
+      order.delivery_boy?.phone || da.phone || dpm.driver?.phone || dpm.riderPhone || "",
     ).trim();
 
     // Tracking link: provider meta trackUrl, else a Porter share link extracted
