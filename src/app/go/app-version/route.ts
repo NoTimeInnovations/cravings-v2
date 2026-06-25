@@ -10,7 +10,7 @@ export async function GET() {
       latestVersion: "1.0.0",
       minVersion: "1.0.0",
       storeUrl:
-        "https://play.google.com/store/apps/details?id=com.menuthere.menuthere_rider",
+        "https://play.google.com/store/apps/details?id=com.menuthere.go",
       notes: ["Welcome to Menuthere Go."],
     },
     ios: {
