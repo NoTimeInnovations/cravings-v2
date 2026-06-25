@@ -529,7 +529,12 @@ function TemplateEditorView({
       setHeaderSample(headerEx);
       setBody(bodyTxt);
       setBodySamples(bodyEx);
-      setFooter(footerTxt);
+      // Prefill the opt-out footer when the template has none — but never for
+      // AUTHENTICATION (its footer is Meta's code-expiry line, not custom text).
+      setFooter(
+        footerTxt ||
+          (initial.category === "AUTHENTICATION" ? "" : DEFAULT_FOOTER),
+      );
       setButtons(btns);
       setCodeExpiryMinutes(expiry);
     } else if (!isEdit) {
