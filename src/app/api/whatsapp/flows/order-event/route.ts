@@ -173,6 +173,14 @@ export async function POST(req: NextRequest) {
       driverDetails = `\n\n🛵 *Rider:* ${driverName || "Assigned"}`;
       if (driverPhone) driverDetails += `\n📞 ${driverPhone}`;
     }
+    // Drop OTP — only when the partner enabled drop verification for the pool
+    // order (the pool generates it only then; stored as delivery_provider_meta
+    // .dropOtp). Rides the dispatched-only {{driver_details}} block, so no
+    // per-partner template change is needed.
+    const dropOtp = String(dpm.dropOtp || "").trim();
+    if (dropOtp) {
+      driverDetails += `\n\n🔐 *Delivery OTP:* ${dropOtp}\n_Share this with your rider when they hand over your order._`;
+    }
 
     const variables = {
       store_name: order.partner?.store_name || "",
