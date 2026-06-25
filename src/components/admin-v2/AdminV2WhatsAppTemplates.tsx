@@ -85,6 +85,11 @@ const CATEGORIES: Array<{ value: "UTILITY" | "MARKETING" | "AUTHENTICATION"; lab
 // identical for every partner, so we offer it as a one-click default rather
 // than making each partner hand-build an AUTHENTICATION template. Meta
 // auto-generates the body + copy-code button for AUTHENTICATION templates.
+// Default footer prefilled for new templates — gives every marketing/utility
+// template a built-in opt-out line (the webhook treats "STOP" replies as
+// unsubscribes). Editable/removable per template.
+const DEFAULT_FOOTER = "Reply STOP to unsubscribe";
+
 const OTP_TEMPLATE_NAME = "otp_message_v2";
 const OTP_TEMPLATE_PAYLOAD = {
   name: OTP_TEMPLATE_NAME,
@@ -442,7 +447,7 @@ function TemplateEditorView({
   const [headerSample, setHeaderSample] = useState("");
   const [body, setBody] = useState("");
   const [bodySamples, setBodySamples] = useState<string[]>([]);
-  const [footer, setFooter] = useState("");
+  const [footer, setFooter] = useState(DEFAULT_FOOTER);
   const [buttons, setButtons] = useState<ButtonDraft[]>([]);
   // Authentication templates: Meta auto-generates the body + Copy-code button;
   // we only let the partner set how long the code stays valid.
@@ -464,7 +469,7 @@ function TemplateEditorView({
     setHeaderSample("");
     setBody("");
     setBodySamples([]);
-    setFooter("");
+    setFooter(DEFAULT_FOOTER);
     setButtons([]);
     setCodeExpiryMinutes(5);
   };
@@ -1036,6 +1041,10 @@ function TemplateEditorView({
                 placeholder="Reply STOP to unsubscribe"
                 maxLength={60}
               />
+              <p className="text-xs text-muted-foreground">
+                Prefilled with an opt-out line — edit or clear it if you don&apos;t
+                want one.
+              </p>
             </div>
 
             <div className="space-y-1.5">
