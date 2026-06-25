@@ -158,10 +158,10 @@ export async function POST(req: NextRequest) {
     const da: any =
       order.delivery_agent && typeof order.delivery_agent === "object" ? order.delivery_agent : {};
     const driverName = String(
-      order.delivery_boy?.name || da.name || dpm.driver?.name || "",
+      order.delivery_boy?.name || da.name || dpm.driver?.name || dpm.riderName || "",
     ).trim();
     const driverPhone = String(
-      order.delivery_boy?.phone || da.phone || dpm.driver?.phone || "",
+      order.delivery_boy?.phone || da.phone || dpm.driver?.phone || dpm.riderPhone || "",
     ).trim();
 
     // Tracking link: provider meta trackUrl, else a Porter share link extracted
@@ -178,6 +178,14 @@ export async function POST(req: NextRequest) {
     if (driverName || driverPhone) {
       driverDetails = `\n\n🛵 *Rider:* ${driverName || "Assigned"}`;
       if (driverPhone) driverDetails += `\n📞 ${driverPhone}`;
+    }
+    // Drop OTP — only when the partner enabled drop verification for the pool
+    // order (the pool generates it only then; stored as delivery_provider_meta
+    // .dropOtp). Rides the dispatched-only {{driver_details}} block, so no
+    // per-partner template change is needed.
+    const dropOtp = String(dpm.dropOtp || "").trim();
+    if (dropOtp) {
+      driverDetails += `\n\n🔐 *Delivery OTP:* ${dropOtp}\n_Share this with your rider when they hand over your order._`;
     }
 
     const variables = {
